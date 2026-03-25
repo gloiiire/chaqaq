@@ -15,6 +15,7 @@ enum ParserState {
     Italic,
     Link(LinkState),
 }
+
 fn flush(result: &mut Vec<InlineText>, current_text: &mut String, styles: Vec<InlineStyle>) {
     if !current_text.is_empty() {
         result.push(InlineText {
@@ -31,8 +32,8 @@ pub fn parse_inline(input: &str) -> Vec<InlineText> {
     let mut chars = input.chars().peekable();
     let mut parser_state = ParserState::Normal;
 
-    while let Some(c) = chars.next() {
-        match c {
+    while let Some(ch) = chars.next() {
+        match ch {
             star if star == '*' => {
                 if chars.peek() == Some(&star) && parser_state == ParserState::Bold {
                     chars.next();
@@ -56,11 +57,12 @@ pub fn parse_inline(input: &str) -> Vec<InlineText> {
                 }
             }
             opening_hook if opening_hook == '[' => {
-                parser_state = ParserState::Link(LinkState::Text(current_text));
+              current_text.push(opening_hook);
             }
             closing_hook if closing_hook == ']' => {}
+            
             _ => {
-                current_text.push(c);
+                current_text.push(ch);
             }
         }
     }
