@@ -27,70 +27,85 @@ fn flush(result: &mut Vec<InlineText>, current_text: &mut String, styles: Vec<In
 }
 
 pub fn parse_inline(input: &str) -> Vec<InlineText> {
-    let mut result: Vec<InlineText> = vec![];
+    let mut block: Vec<InlineText> = vec![];
     let mut current_text = String::new();
     let mut chars = input.chars().peekable();
     let mut parser_state = ParserState::Normal;
 
     while let Some(ch) = chars.next() {
         match ch {
-            '*' => {
-                if chars.peek() == Some(&'*') && parser_state == ParserState::Bold {
+            '*' => match chars.peek() {
+                ch if ch == Some(&'*') && parser_state == ParserState::Bold => {
                     chars.next();
-                    flush(&mut result, &mut current_text, vec![InlineStyle::Bold]);
+                    flush(&mut block, &mut current_text, vec![InlineStyle::Bold]);
                     parser_state = ParserState::Normal;
-                } else if chars.peek() == Some(&'*') {
+                }
+                ch if ch == Some(&'*') => {
                     chars.next();
-                    flush(&mut result, &mut current_text, vec![]);
+                    flush(&mut block, &mut current_text, vec![]);
                     parser_state = ParserState::Bold;
-                } else {
+                }
+                _ => {
                     current_text.push('*');
                 }
-            }
-            
-            '_' => {
-                if parser_state == ParserState::Italic {
-                    flush(&mut result, &mut current_text, vec![InlineStyle::Italic]);
+            },
+
+            '_' => match parser_state {
+                ParserState::Italic => {
+                    flush(&mut block, &mut current_text, vec![InlineStyle::Italic]);
                     parser_state = ParserState::Normal;
-                } else {
-                    flush(&mut result, &mut current_text, vec![]);
+                }
+                _ => {
+                    flush(&mut block, &mut current_text, vec![]);
                     parser_state = ParserState::Italic;
                 }
-            }
-            
+            },
+
+            // fin de l'url
             ')' => {
                 if let ParserState::Link(LinkState::Url(mut content, url)) = parser_state {
                     flush(
-                        &mut result,
+                        &mut block,
                         &mut content,
                         vec![InlineStyle::Link(url.clone())],
                     );
+                    current_text.clear();
                     parser_state = ParserState::Normal;
                 }
-            }
-            '(' => {
-                if let ParserState::Link(LinkState::WaitingUrl(content)) = parser_state {
-                    parser_state = ParserState::Link(LinkState::Url(content, String::new()));
+            } // debut de l'url
+            '(' => match parser_state {
+                ParserState::Link(LinkState::WaitingUrl(content)) => {
+                    parser_state = ParserState::Link(LinkState::Url(content, String::new()))
                 }
-            }
-            ']' => {
-                if let ParserState::Link(LinkState::Text(content)) = parser_state {
-                    parser_state = ParserState::Link(LinkState::WaitingUrl(content));
+                _ => current_text.push(ch),
+            }, //fin du text
+            ']' => match parser_state {
+                ParserState::Link(LinkState::Text(content)) => {
+                    parser_state = ParserState::Link(LinkState::WaitingUrl(content))
                 }
+                _ => current_text.push(ch),
+            }, // debut du text
+            '[' => {
+                parser_state = ParserState::Link(LinkState::Text(String::new()));
+                current_text.push(ch);
             }
-            '[' => {}
 
             _ => {
-                current_text.push(ch);
+                match parser_state {
+                    ParserState::Link(LinkState::Text(ref mut content)) => content.push(ch),
+                    ParserState::Link(LinkState::Url(_, ref mut url)) => url.push(ch),
+                    _ => current_text.push(ch),
+                }
+                // current_text.push(ch);
             }
         }
     }
     if !current_text.is_empty() {
-        result.push(InlineText {
+        block.push(InlineText {
             content: current_text,
             styles: vec![],
         });
     }
 
-    result
+    block
 }

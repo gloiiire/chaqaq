@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // println!("Mes documents :");
     // docs.iter().for_each(|doc| println!("{:#?}", doc));
     
-    let input = "Bonjour **David** et _Francis_.";
+    let input = "Bonjour **David** et _Francis_ [@gloiiire](https://github.com/gloiiire).";
     println!("\"{}\"",input);
     let inlines = parser::parse_inline(input);
     inlines.iter().for_each(|i| println!("{:#?}", i));
