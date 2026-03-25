@@ -34,20 +34,21 @@ pub fn parse_inline(input: &str) -> Vec<InlineText> {
 
     while let Some(ch) = chars.next() {
         match ch {
-            star if star == '*' => {
-                if chars.peek() == Some(&star) && parser_state == ParserState::Bold {
+            '*' => {
+                if chars.peek() == Some(&'*') && parser_state == ParserState::Bold {
                     chars.next();
                     flush(&mut result, &mut current_text, vec![InlineStyle::Bold]);
                     parser_state = ParserState::Normal;
-                } else if chars.peek() == Some(&star) {
+                } else if chars.peek() == Some(&'*') {
                     chars.next();
                     flush(&mut result, &mut current_text, vec![]);
                     parser_state = ParserState::Bold;
                 } else {
-                    current_text.push(star);
+                    current_text.push('*');
                 }
             }
-            underscore if underscore == '_' => {
+            
+            '_' => {
                 if parser_state == ParserState::Italic {
                     flush(&mut result, &mut current_text, vec![InlineStyle::Italic]);
                     parser_state = ParserState::Normal;
@@ -56,11 +57,29 @@ pub fn parse_inline(input: &str) -> Vec<InlineText> {
                     parser_state = ParserState::Italic;
                 }
             }
-            opening_hook if opening_hook == '[' => {
-              current_text.push(opening_hook);
-            }
-            closing_hook if closing_hook == ']' => {}
             
+            ')' => {
+                if let ParserState::Link(LinkState::Url(mut content, url)) = parser_state {
+                    flush(
+                        &mut result,
+                        &mut content,
+                        vec![InlineStyle::Link(url.clone())],
+                    );
+                    parser_state = ParserState::Normal;
+                }
+            }
+            '(' => {
+                if let ParserState::Link(LinkState::WaitingUrl(content)) = parser_state {
+                    parser_state = ParserState::Link(LinkState::Url(content, String::new()));
+                }
+            }
+            ']' => {
+                if let ParserState::Link(LinkState::Text(content)) = parser_state {
+                    parser_state = ParserState::Link(LinkState::WaitingUrl(content));
+                }
+            }
+            '[' => {}
+
             _ => {
                 current_text.push(ch);
             }
