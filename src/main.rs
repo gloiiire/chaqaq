@@ -4,7 +4,6 @@ pub mod document;
 pub mod parser;
 pub mod storage;
 
-use crate::storage::get_documents;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // let mut doc = Document::new(vec![InlineText {

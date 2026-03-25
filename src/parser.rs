@@ -3,9 +3,9 @@ use crate::document::{InlineStyle, InlineText};
 
 #[derive(PartialEq)]
 enum LinkState {
-  Text(String),
-  WaitingUrl(String),
-  Url(String, String)
+    Text(String),
+    WaitingUrl(String),
+    Url(String, String),
 }
 
 #[derive(PartialEq)]
@@ -13,7 +13,7 @@ enum ParserState {
     Normal,
     Bold,
     Italic,
-    Link(LinkState)
+    Link(LinkState),
 }
 fn flush(result: &mut Vec<InlineText>, current_text: &mut String, styles: Vec<InlineStyle>) {
     if !current_text.is_empty() {
@@ -55,6 +55,10 @@ pub fn parse_inline(input: &str) -> Vec<InlineText> {
                     parser_state = ParserState::Italic;
                 }
             }
+            opening_hook if opening_hook == '[' => {
+                parser_state = ParserState::Link(LinkState::Text(current_text));
+            }
+            closing_hook if closing_hook == ']' => {}
             _ => {
                 current_text.push(c);
             }
