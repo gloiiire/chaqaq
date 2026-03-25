@@ -2,10 +2,18 @@
 use crate::document::{InlineStyle, InlineText};
 
 #[derive(PartialEq)]
+enum LinkState {
+  Text(String),
+  WaitingUrl(String),
+  Url(String, String)
+}
+
+#[derive(PartialEq)]
 enum ParserState {
     Normal,
     Bold,
     Italic,
+    Link(LinkState)
 }
 fn flush(result: &mut Vec<InlineText>, current_text: &mut String, styles: Vec<InlineStyle>) {
     if !current_text.is_empty() {
