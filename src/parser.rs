@@ -86,8 +86,8 @@ pub fn parse_inline(input: &str) -> Vec<InlineText> {
                 _ => current_text.push(ch),
             }, // debut du text
             '[' => {
+                flush(&mut block, &mut current_text, vec![]); // → block = ["Bonjour "]
                 parser_state = ParserState::Link(LinkState::Text(String::new()));
-                current_text.push(ch);
             }
 
             _ => {
