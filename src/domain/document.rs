@@ -13,6 +13,7 @@ pub enum InlineStyle {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InlineText {
     pub content: String,
+    #[serde(alias = "style")]
     pub styles: Vec<InlineStyle>,
 }
 
@@ -53,7 +54,7 @@ impl Block {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentMeta {
     pub id: Uuid,
     pub cover: Option<String>,
@@ -70,7 +71,7 @@ impl From<&Document> for DocumentMeta {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
     pub id: Uuid,
     pub cover: Option<String>,
@@ -88,22 +89,6 @@ impl Document {
         }
     }
 
-    fn get_block(&self, id: Uuid) -> Option<&Block> {
-        for block in self.blocks.iter() {
-            if block.id == id {
-                return Some(block);
-            }
-        }
-        None
-    }
-    fn get_mut_block(&mut self, id: Uuid) -> Option<&mut Block> {
-        for block in self.blocks.iter_mut() {
-            if block.id == id {
-                return Some(block);
-            }
-        }
-        None
-    }
     pub fn add_block(&mut self, content: BlockContent) {
         self.blocks.push(Block::new(content));
     }

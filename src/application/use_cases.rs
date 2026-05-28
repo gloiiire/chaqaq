@@ -27,6 +27,13 @@ pub fn lister_documents(
     repo.list()
 }
 
+pub fn supprimer_document(
+    repo: &dyn DocumentRepository,
+    doc_id: Uuid,
+) -> Result<(), ChaqaqError> {
+    repo.delete(doc_id)
+}
+
 pub fn ajouter_bloc(
     repo: &dyn DocumentRepository,
     id: Uuid,

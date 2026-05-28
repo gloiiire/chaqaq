@@ -259,8 +259,6 @@ fn test_requete_groupee_vide_en_dernier() {
 fn test_tri_par_creation_auto() {
     let store = store_temp();
     let db = creer_database(&store, titre("Journal"), vec![]).unwrap();
-    let vue_id = db.vues[0].id;
-
     // 3 entrées créées avec des cree_le manuellement espacés pour le test
     let mut e1 = chaqaq::domain::database::Entree::nouvelle(HashMap::new());
     e1.cree_le = "2023-01-01T00:00:00+00:00".to_string();
@@ -291,7 +289,6 @@ fn test_tri_manuelle_puis_creation_cas_journal() {
     let prop_date = Propriete::nouvelle("Date", ProprieteType::Date);
     let date_id = prop_date.id;
     let db = creer_database(&store, titre("Journal"), vec![prop_date]).unwrap();
-    let vue_id = db.vues[0].id;
 
     // Note ancienne : date manuelle renseignée, cree_le récent (import)
     let mut v_ancienne = HashMap::new();

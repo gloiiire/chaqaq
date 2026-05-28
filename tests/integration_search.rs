@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use uuid::Uuid;
 use chaqaq::application::database_use_cases::{ajouter_entree, creer_database, rechercher_entrees};
-use chaqaq::application::use_cases::{ajouter_bloc, creer_document, rechercher_documents};
+use chaqaq::application::use_cases::{creer_document, rechercher_documents};
 use chaqaq::domain::database::{ProprieteType, Propriete, ValeurPropriete};
-use chaqaq::domain::document::{BlockContent, InlineText};
+use chaqaq::domain::document::InlineText;
 use chaqaq::infrastructure::database_store::DatabaseStore;
 use chaqaq::infrastructure::json_store::JsonStore;
 

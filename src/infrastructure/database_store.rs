@@ -52,6 +52,17 @@ impl DatabaseRepository for DatabaseStore {
         }
         Ok(metas)
     }
+
+    fn delete(&self, id: Uuid) -> Result<(), ChaqaqError> {
+        let chemin = self.chemin(id);
+        fs::remove_file(&chemin).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                ChaqaqError::NonTrouve(id)
+            } else {
+                ChaqaqError::Io(e)
+            }
+        })
+    }
 }
 
 #[cfg(test)]
@@ -96,6 +107,22 @@ mod tests {
         store.save(&db2).unwrap();
         let metas = store.list_meta().unwrap();
         assert_eq!(metas.len(), 2);
+    }
+
+    #[test]
+    fn test_delete_supprime_la_database() {
+        let store = store_temp();
+        let db = Database::nouvelle(titre("Temp"), vec![]);
+        store.save(&db).unwrap();
+        store.delete(db.id).unwrap();
+        assert!(matches!(store.load(db.id), Err(ChaqaqError::NonTrouve(_))));
+    }
+
+    #[test]
+    fn test_delete_inexistant_retourne_non_trouve() {
+        let store = store_temp();
+        let id = Uuid::new_v4();
+        assert!(matches!(store.delete(id), Err(ChaqaqError::NonTrouve(_))));
     }
 
     #[test]

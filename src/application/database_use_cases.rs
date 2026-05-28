@@ -32,6 +32,13 @@ pub fn lister_databases(
     repo.list_meta()
 }
 
+pub fn supprimer_database(
+    repo: &dyn DatabaseRepository,
+    db_id: Uuid,
+) -> Result<(), ChaqaqError> {
+    repo.delete(db_id)
+}
+
 pub fn ajouter_entree(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,

@@ -42,18 +42,56 @@ impl DocumentRepository for JsonStore {
             })
             .collect()
     }
+
+    fn delete(&self, id: Uuid) -> Result<(), ChaqaqError> {
+        let path = self.dir.join(format!("{}.json", id));
+        std::fs::remove_file(&path).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                ChaqaqError::NonTrouve(id)
+            } else {
+                ChaqaqError::Io(e)
+            }
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::application::error::ChaqaqError;
+    use crate::domain::document::{Document, InlineText};
     use uuid::Uuid;
+
+    fn store_temp() -> JsonStore {
+        let dir = std::env::temp_dir().join(format!("chaqaq_json_{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        JsonStore::new(dir)
+    }
+
+    fn doc(titre: &str) -> Document {
+        Document::new(vec![InlineText { content: titre.to_string(), styles: vec![] }])
+    }
 
     #[test]
     fn test_load_retourne_non_trouve() {
         let store = JsonStore::new(PathBuf::from("/tmp/chaqaq_inexistant"));
         let id = Uuid::new_v4();
         assert!(matches!(store.load(id), Err(ChaqaqError::NonTrouve(_))));
+    }
+
+    #[test]
+    fn test_delete_supprime_le_fichier() {
+        let store = store_temp();
+        let d = doc("Test");
+        store.save(&d).unwrap();
+        store.delete(d.id).unwrap();
+        assert!(matches!(store.load(d.id), Err(ChaqaqError::NonTrouve(_))));
+    }
+
+    #[test]
+    fn test_delete_inexistant_retourne_non_trouve() {
+        let store = store_temp();
+        let id = Uuid::new_v4();
+        assert!(matches!(store.delete(id), Err(ChaqaqError::NonTrouve(_))));
     }
 }
