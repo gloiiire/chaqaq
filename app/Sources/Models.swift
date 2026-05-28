@@ -116,17 +116,37 @@ enum BlockContentFfi: Codable {
         }
     }
 
+    var spansOuVide: [InlineTextFfi] {
+        switch self {
+        case .text(let s):       return s
+        case .heading(_, let s): return s
+        case .quote(_, let s):   return s
+        case .todo(_, let s):    return s
+        default:                 return []
+        }
+    }
+
     var estTodo: Bool { if case .todo = self { return true }; return false }
     var doneTodo: Bool { if case .todo(let d, _) = self { return d }; return false }
 
     func avecTexte(_ nouveau: String, done: Bool = false) -> BlockContentFfi {
         let spans = nouveau.isEmpty ? [] : [InlineTextFfi(content: nouveau, styles: [])]
         switch self {
-        case .text:                  return .text(spans)
-        case .heading(let l, _):     return .heading(level: l, text: spans)
-        case .quote(let i, _):       return .quote(icon: i, text: spans)
-        case .todo(_, _):            return .todo(done: done, text: spans)
-        default:                     return self
+        case .text:              return .text(spans)
+        case .heading(let l, _): return .heading(level: l, text: spans)
+        case .quote(let i, _):   return .quote(icon: i, text: spans)
+        case .todo(_, _):        return .todo(done: done, text: spans)
+        default:                 return self
+        }
+    }
+
+    func avecSpans(_ spans: [InlineTextFfi], done: Bool = false) -> BlockContentFfi {
+        switch self {
+        case .text:              return .text(spans)
+        case .heading(let l, _): return .heading(level: l, text: spans)
+        case .quote(let i, _):   return .quote(icon: i, text: spans)
+        case .todo(_, _):        return .todo(done: done, text: spans)
+        default:                 return self
         }
     }
 

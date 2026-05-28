@@ -2,7 +2,7 @@
 
 Application de notes personnelle combinant la fluidité de Craft et la structure de Notion — core en Rust pur.
 
-> Statut : **backend complet** (117 tests) · **bindings Swift générés** · UI SwiftUI en cours.
+> Statut : **backend complet** (117 tests) · **XCFramework compilé** · **UI SwiftUI fonctionnelle** (éditeur rich text, blocs, toolbar formatage)
 
 ---
 
@@ -37,11 +37,11 @@ src/
     commandes.rs      — Command pattern : undo/redo
     database.rs       — moteur database type Notion
   application/
-    repository.rs         — trait DocumentRepository
-    use_cases.rs          — use cases documents et blocs
+    repository.rs          — trait DocumentRepository
+    use_cases.rs           — use cases documents et blocs
     database_repository.rs — trait DatabaseRepository
     database_use_cases.rs  — use cases database
-    error.rs              — ChaqaqError
+    error.rs               — ChaqaqError
   infrastructure/
     migrations.rs            — migrations SQLite versionnées
     sqlite_document_store.rs — SqliteDocumentStore (local-first, recommandé)
@@ -51,6 +51,14 @@ src/
   ffi.rs             — façade UniFFI : ChaqaqApi exposée à Swift
   chaqaq.udl         — interface UDL (contrat Swift ↔ Rust)
 swift-bindings/      — bindings Swift générés (chaqaq.swift, chaqaqFFI.h)
+chaqaq.xcframework   — XCFramework compilé (iOS device + simulator + macOS)
+app/                 — application SwiftUI
+  Sources/
+    ChaqaqApp.swift      — @main
+    ContentView.swift    — écran d'accueil + ChaqaqStore
+    DocumentView.swift   — éditeur de document + DocumentViewModel
+    Models.swift         — miroirs Swift Codable des types Rust
+    RichTextEditor.swift — UIViewRepresentable + toolbar pill de formatage
 ```
 
 ---
@@ -124,15 +132,23 @@ Architecture **local-first, offline-first** — chaque device a sa propre base S
 ## Lancer le projet
 
 ```bash
+# Backend Rust
 cargo run     # point d'entrée démo
 cargo test    # 117 tests (unitaires + intégration + E2E)
 cargo check   # vérification rapide
 cargo build
 
-# Régénérer les bindings Swift
+# Régénérer les bindings Swift après modification de ffi.rs ou chaqaq.udl
 cargo run --bin uniffi-bindgen -- generate \
     --library target/debug/libchaqaq.dylib \
     --language swift --out-dir swift-bindings/
+
+# Recompiler le XCFramework (après modification du code Rust)
+./build-xcframework.sh
+
+# App iOS (ouvrir dans Xcode)
+cd app && xcodegen generate   # régénère le .xcodeproj si besoin
+open app/Chaqaq.xcodeproj
 ```
 
 ---
@@ -150,9 +166,17 @@ cargo run --bin uniffi-bindgen -- generate \
 - [x] Stockage SQLite local-first (soft delete, updated_at, migrations, bundled)
 - [x] Couche FFI UniFFI — `ChaqaqApi` exposée à Swift
 - [x] Bindings Swift générés (`swift-bindings/`)
-- [ ] Script XCFramework (staticlib iOS arm64 + Simulator + macOS)
-- [ ] Projet Xcode — intégration SwiftUI
-- [ ] UI SwiftUI : rendu des blocs, éditeur de texte riche, drag & drop
+- [x] XCFramework compilé (ios-arm64, ios-arm64-simulator, macos-arm64)
+- [x] Projet Xcode — `app/Chaqaq.xcodeproj` via xcodegen
+- [x] Écran d'accueil SwiftUI (liste, FAB, salutation, date relative)
+- [x] Éditeur de document (blocs Text / Heading / Quote / Todo / Divider)
+- [x] Texte riche : gras, italique, souligné, couleurs
+- [x] Toolbar de formatage pill (style Notes.app)
+- [x] Raccourcis markdown inline (`# `, `> `, `[ ] `, `---`)
+- [x] Enter → nouveau bloc, drag & drop, swipe-to-delete
+- [ ] UI Databases (vue Tableau, Kanban — backend complet)
+- [ ] Barre de recherche (full-text — backend complet)
+- [ ] Vue iPad / Mac (NavigationSplitView)
 - [ ] Sync entre appareils (CRDT, s'inspirer de y-octo)
 
 ---

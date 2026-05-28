@@ -5,8 +5,9 @@ import SwiftUI
 struct EditableBlock: Identifiable {
     let id: String
     var content: BlockContentFfi
-    var texte: String
+    var spans: [InlineTextFfi]
     var done: Bool
+    var texteSimple: String { spans.map(\.content).joined() }
 }
 
 // ── View Model ────────────────────────────────────────────────────────────────
@@ -36,8 +37,8 @@ final class DocumentViewModel: ObservableObject {
             titre = doc.title.map(\.content).joined()
             blocs = doc.blocks.map {
                 EditableBlock(id: $0.id, content: $0.content,
-                              texte: $0.content.texteSimple,
-                              done: $0.content.doneTodo)
+                              spans: $0.content.spansOuVide,
+                              done:  $0.content.doneTodo)
             }
         } catch { erreur = error.localizedDescription }
     }
@@ -50,7 +51,7 @@ final class DocumentViewModel: ObservableObject {
     func sauvegarderBloc(_ bloc: EditableBlock) {
         guard let api else { return }
         do {
-            let nouveau = bloc.content.avecTexte(bloc.texte, done: bloc.done)
+            let nouveau = bloc.content.avecSpans(bloc.spans, done: bloc.done)
             let data = try JSONEncoder().encode(nouveau)
             try api.modifierBloc(docId: docId, blocId: bloc.id,
                                  contenuJson: String(data: data, encoding: .utf8)!)
@@ -73,9 +74,9 @@ final class DocumentViewModel: ObservableObject {
             let data = try JSONEncoder().encode(contenu)
             let newId = try api.ajouterBloc(docId: docId,
                                             blocContentJson: String(data: data, encoding: .utf8)!)
-
-            var newBloc = EditableBlock(id: newId, content: contenu,
-                                       texte: texteInitial, done: false)
+            let spansInit: [InlineTextFfi] = texteInitial.isEmpty
+                ? [] : [InlineTextFfi(content: texteInitial, styles: [])]
+            let newBloc = EditableBlock(id: newId, content: contenu, spans: spansInit, done: false)
 
             if let apresId, let idx = blocs.firstIndex(where: { $0.id == apresId }) {
                 blocs.insert(newBloc, at: idx + 1)
@@ -83,7 +84,6 @@ final class DocumentViewModel: ObservableObject {
             } else {
                 blocs.append(newBloc)
             }
-
             if !texteInitial.isEmpty { sauvegarderBloc(newBloc) }
             autoFocusId = newId
         } catch { erreur = error.localizedDescription }
@@ -146,6 +146,7 @@ struct DocumentView: View {
             if vm.blocs.isEmpty {
                 Text("Commence à écrire…")
                     .foregroundStyle(.tertiary)
+                    .font(.body)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 4, trailing: 20))
@@ -182,6 +183,7 @@ struct DocumentView: View {
                 .deleteDisabled(true)
         }
         .listStyle(.plain)
+        .scrollDismissesKeyboard(.interactively)
         .environment(\.editMode, $editMode)
         .navigationTitle(vm.titre.isEmpty ? "Sans titre" : vm.titre)
         .navigationBarTitleDisplayMode(.inline)
@@ -265,29 +267,6 @@ struct BlocRowView: View {
     }
 }
 
-// ── Helpers partagés ──────────────────────────────────────────────────────────
-
-private func detecterRetourChariot(_ texte: String,
-                                   bloc: inout EditableBlock,
-                                   onSauvegarder: () -> Void,
-                                   onNouveauBloc: (String) -> Void) -> Bool {
-    guard let idx = texte.firstIndex(of: "\n") else { return false }
-    let avant = String(texte[..<idx])
-    let apres = String(texte[texte.index(after: idx)...])
-    bloc.texte = avant
-    onSauvegarder()
-    onNouveauBloc(apres)
-    return true
-}
-
-private func focuserSiBesoin(blocId: String,
-                              autoFocusId: inout String?,
-                              setFocus: @escaping () -> Void) {
-    guard autoFocusId == blocId else { return }
-    autoFocusId = nil
-    DispatchQueue.main.async { setFocus() }
-}
-
 // ── Texte ─────────────────────────────────────────────────────────────────────
 
 private struct TexteRowView: View {
@@ -295,39 +274,27 @@ private struct TexteRowView: View {
     @Binding var autoFocusId: String?
     let onSauvegarder: () -> Void
     let onNouveauBloc: (String) -> Void
-    @FocusState private var focused: Bool
+    @State private var focused = false
 
     var body: some View {
-        TextField("Texte…", text: $bloc.texte, axis: .vertical)
-            .font(.body)
-            .focused($focused)
-            .padding(.vertical, 5)
-            .onChange(of: focused)    { _, estFocus in if !estFocus { onSauvegarder() } }
-            .onChange(of: bloc.texte) { _, v in traiter(v) }
-            .onAppear { focuserSiBesoin(blocId: bloc.id, autoFocusId: &autoFocusId) { focused = true } }
+        RichTextEditor(
+            spans: $bloc.spans,
+            isFocused: $focused,
+            placeholder: "Texte…",
+            baseFont: .preferredFont(forTextStyle: .body),
+            onSave: onSauvegarder,
+            onNewBlock: onNouveauBloc,
+            onConvert: { contenu in
+                bloc.content = contenu; bloc.spans = []; onSauvegarder()
+            }
+        )
+        .onAppear { autoFocuserSiBesoin() }
     }
 
-    private func traiter(_ texte: String) {
-        var b = bloc
-        if detecterRetourChariot(texte, bloc: &b, onSauvegarder: onSauvegarder, onNouveauBloc: onNouveauBloc) {
-            bloc = b; return
-        }
-        // Raccourcis markdown
-        switch texte {
-        case "# ":   convertir(.heading(level: 1, text: []))
-        case "## ":  convertir(.heading(level: 2, text: []))
-        case "### ": convertir(.heading(level: 3, text: []))
-        case "> ":   convertir(.quote(icon: "", text: []))
-        case "[ ] ", "[] ": convertir(.todo(done: false, text: []))
-        case "---":  convertir(.divider)
-        default: break
-        }
-    }
-
-    private func convertir(_ contenu: BlockContentFfi) {
-        bloc.texte = ""
-        bloc.content = contenu
-        onSauvegarder()
+    private func autoFocuserSiBesoin() {
+        guard autoFocusId == bloc.id else { return }
+        autoFocusId = nil
+        DispatchQueue.main.async { focused = true }
     }
 }
 
@@ -339,30 +306,33 @@ private struct HeadingRowView: View {
     @Binding var autoFocusId: String?
     let onSauvegarder: () -> Void
     let onNouveauBloc: (String) -> Void
-    @FocusState private var focused: Bool
+    @State private var focused = false
 
-    private var font: Font {
+    private var uiFont: UIFont {
         switch level {
-        case 1:  return .system(size: 26, weight: .bold)
-        case 2:  return .system(size: 22, weight: .semibold)
-        default: return .system(size: 18, weight: .semibold)
+        case 1:  return .systemFont(ofSize: 26, weight: .bold)
+        case 2:  return .systemFont(ofSize: 22, weight: .semibold)
+        default: return .systemFont(ofSize: 18, weight: .semibold)
         }
     }
 
     var body: some View {
-        TextField("Titre…", text: $bloc.texte, axis: .vertical)
-            .font(font)
-            .focused($focused)
-            .padding(.top, level == 1 ? 16 : 10)
-            .padding(.bottom, 4)
-            .onChange(of: focused)    { _, estFocus in if !estFocus { onSauvegarder() } }
-            .onChange(of: bloc.texte) { _, v in
-                var b = bloc
-                if detecterRetourChariot(v, bloc: &b, onSauvegarder: onSauvegarder, onNouveauBloc: onNouveauBloc) {
-                    bloc = b
-                }
-            }
-            .onAppear { focuserSiBesoin(blocId: bloc.id, autoFocusId: &autoFocusId) { focused = true } }
+        RichTextEditor(
+            spans: $bloc.spans,
+            isFocused: $focused,
+            placeholder: "Titre…",
+            baseFont: uiFont,
+            onSave: onSauvegarder,
+            onNewBlock: onNouveauBloc,
+            onConvert: nil
+        )
+        .padding(.top, level == 1 ? 16 : 10)
+        .padding(.bottom, 4)
+        .onAppear {
+            guard autoFocusId == bloc.id else { return }
+            autoFocusId = nil
+            DispatchQueue.main.async { focused = true }
+        }
     }
 }
 
@@ -373,30 +343,35 @@ private struct CitationRowView: View {
     @Binding var autoFocusId: String?
     let onSauvegarder: () -> Void
     let onNouveauBloc: (String) -> Void
-    @FocusState private var focused: Bool
+    @State private var focused = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             RoundedRectangle(cornerRadius: 2)
                 .fill(Color.secondary.opacity(0.4))
                 .frame(width: 3)
-                .padding(.vertical, 2)
-            TextField("Citation…", text: $bloc.texte, axis: .vertical)
-                .font(.body.italic())
-                .foregroundStyle(.secondary)
-                .focused($focused)
-                .padding(.leading, 14)
-                .padding(.vertical, 5)
-                .onChange(of: focused)    { _, estFocus in if !estFocus { onSauvegarder() } }
-                .onChange(of: bloc.texte) { _, v in
-                    var b = bloc
-                    if detecterRetourChariot(v, bloc: &b, onSauvegarder: onSauvegarder, onNouveauBloc: onNouveauBloc) {
-                        bloc = b
-                    }
-                }
-                .onAppear { focuserSiBesoin(blocId: bloc.id, autoFocusId: &autoFocusId) { focused = true } }
+                .padding(.vertical, 6)
+            RichTextEditor(
+                spans: $bloc.spans,
+                isFocused: $focused,
+                placeholder: "Citation…",
+                baseFont: {
+                    let base = UIFont.preferredFont(forTextStyle: .body)
+                    let desc = base.fontDescriptor.withSymbolicTraits(.traitItalic)
+                    return desc.map { UIFont(descriptor: $0, size: 0) } ?? base
+                }(),
+                onSave: onSauvegarder,
+                onNewBlock: onNouveauBloc,
+                onConvert: nil
+            )
+            .padding(.leading, 14)
         }
         .padding(.vertical, 4)
+        .onAppear {
+            guard autoFocusId == bloc.id else { return }
+            autoFocusId = nil
+            DispatchQueue.main.async { focused = true }
+        }
     }
 }
 
@@ -407,7 +382,7 @@ private struct TodoRowView: View {
     @Binding var autoFocusId: String?
     let onSauvegarder: () -> Void
     let onNouveauBloc: (String) -> Void
-    @FocusState private var focused: Bool
+    @State private var focused = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -420,23 +395,28 @@ private struct TodoRowView: View {
                     .foregroundStyle(bloc.done ? Color.accentColor : Color.secondary)
             }
             .buttonStyle(.plain)
-            .padding(.top, 6)
+            .padding(.top, 8)
 
-            TextField("À faire…", text: $bloc.texte, axis: .vertical)
-                .font(.body)
-                .foregroundStyle(bloc.done ? .secondary : .primary)
-                .focused($focused)
-                .padding(.vertical, 5)
-                .onChange(of: focused)    { _, estFocus in if !estFocus { onSauvegarder() } }
-                .onChange(of: bloc.texte) { _, v in
-                    var b = bloc
-                    if detecterRetourChariot(v, bloc: &b, onSauvegarder: onSauvegarder, onNouveauBloc: onNouveauBloc) {
-                        bloc = b
-                    }
-                }
-                .onAppear { focuserSiBesoin(blocId: bloc.id, autoFocusId: &autoFocusId) { focused = true } }
+            RichTextEditor(
+                spans: $bloc.spans,
+                isFocused: $focused,
+                placeholder: "À faire…",
+                baseFont: .preferredFont(forTextStyle: .body),
+                extraAttrs: bloc.done ? [
+                    .strikethroughStyle: NSUnderlineStyle.single.rawValue,
+                    .foregroundColor: UIColor.secondaryLabel
+                ] : nil,
+                onSave: onSauvegarder,
+                onNewBlock: onNouveauBloc,
+                onConvert: nil
+            )
         }
         .padding(.vertical, 2)
+        .onAppear {
+            guard autoFocusId == bloc.id else { return }
+            autoFocusId = nil
+            DispatchQueue.main.async { focused = true }
+        }
     }
 }
 
@@ -444,7 +424,6 @@ private struct TodoRowView: View {
 
 private struct BoutonAjouterBloc: View {
     let action: () -> Void
-
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {

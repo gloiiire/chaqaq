@@ -10,6 +10,7 @@
 		10192E1DF36988E71B726941 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8C376A241CCD334055F01CB /* ContentView.swift */; };
 		32CB7DE2D5E0652A08492D42 /* chaqaq.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = C2897833B5B3685586CACEB6 /* chaqaq.xcframework */; };
 		8751D1C7EF9DCA4901C58456 /* chaqaq.swift in Sources */ = {isa = PBXBuildFile; fileRef = D11598236B0E33C53528220E /* chaqaq.swift */; };
+		94766EC0131DB557DB393722 /* RichTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 468510DC930C6616110EE478 /* RichTextEditor.swift */; };
 		D21CF0FB8443FCF3AE5B634E /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B37195EE5E973F6B64A028A /* Models.swift */; };
 		EB303519C033E0CEB4CF7DAC /* ChaqaqApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A3054081BFBDCD9AFC2D855 /* ChaqaqApp.swift */; };
 		EFEE8799F9AD12810344543E /* DocumentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FD048133513A5E55DEE58E3 /* DocumentView.swift */; };
@@ -17,6 +18,7 @@
 
 /* Begin PBXFileReference section */
 		30E08CB89B3F79766A108177 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		468510DC930C6616110EE478 /* RichTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextEditor.swift; sourceTree = "<group>"; };
 		6A3054081BFBDCD9AFC2D855 /* ChaqaqApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChaqaqApp.swift; sourceTree = "<group>"; };
 		6FD048133513A5E55DEE58E3 /* DocumentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentView.swift; sourceTree = "<group>"; };
 		7B37195EE5E973F6B64A028A /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
@@ -89,6 +91,7 @@
 				6FD048133513A5E55DEE58E3 /* DocumentView.swift */,
 				30E08CB89B3F79766A108177 /* Info.plist */,
 				7B37195EE5E973F6B64A028A /* Models.swift */,
+				468510DC930C6616110EE478 /* RichTextEditor.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -121,7 +124,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1430;
+				LastUpgradeCheck = 2620;
 			};
 			buildConfigurationList = AB7C2EBF5C272CAD4E65BC92 /* Build configuration list for PBXProject "Chaqaq" */;
 			developmentRegion = en;
@@ -151,6 +154,7 @@
 				10192E1DF36988E71B726941 /* ContentView.swift in Sources */,
 				EFEE8799F9AD12810344543E /* DocumentView.swift in Sources */,
 				D21CF0FB8443FCF3AE5B634E /* Models.swift in Sources */,
+				94766EC0131DB557DB393722 /* RichTextEditor.swift in Sources */,
 				8751D1C7EF9DCA4901C58456 /* chaqaq.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -163,7 +167,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = N49VNC2G57;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"..\"",
@@ -189,6 +192,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -220,8 +224,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -235,6 +241,7 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
@@ -245,6 +252,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -276,8 +284,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -298,6 +308,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -309,7 +320,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = N49VNC2G57;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"..\"",

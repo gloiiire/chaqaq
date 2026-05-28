@@ -51,6 +51,17 @@ src/
     uniffi-bindgen.rs — binaire local pour générer les bindings
   main.rs          — point d'entrée démo
 swift-bindings/    — bindings Swift générés (chaqaq.swift, chaqaqFFI.h, .modulemap)
+chaqaq.xcframework — XCFramework compilé (ios-arm64, ios-arm64-simulator, macos-arm64)
+build-xcframework.sh — script de compilation du XCFramework
+app/               — application SwiftUI (projet Xcode généré par xcodegen)
+  project.yml      — config xcodegen
+  Chaqaq.xcodeproj/
+  Sources/
+    ChaqaqApp.swift      — point d'entrée @main
+    ContentView.swift    — écran d'accueil + ChaqaqStore
+    DocumentView.swift   — éditeur de document + DocumentViewModel
+    Models.swift         — miroirs Swift des types Rust (Codable)
+    RichTextEditor.swift — UIViewRepresentable + toolbar de formatage
 ```
 
 Règle de dépendance : `infrastructure` → `application` → `domain`. Le domaine ne sait rien du stockage.
@@ -149,6 +160,7 @@ Façade publique exposée à Swift via UniFFI 0.31.
 - `DocumentMetaFfi` / `DatabaseMetaFfi` : structs dictionnaire (id, title_plain, title_json, cover, updated_at, created_at)
 - `ChaqaqApi` : ouvre les deux stores SQLite au même chemin, expose toutes les opérations documents et databases
 - Les blocs et databases complètes transitent en JSON (String) pour éviter le type récursif `Block` dans l'UDL — Swift décode via `Codable`
+- `ajouter_bloc` retourne l'UUID du bloc créé (pas le document entier)
 - Shift+Enter géré côté éditeur : `EditorState.inserer('\n')` + `sauvegarder_bloc_edite` — aucun variant `LineBreak` nécessaire dans le modèle
 
 Usage Swift :
@@ -158,9 +170,42 @@ let id  = try api.creerDocument(titre: "Ma note")
 let json = try api.obtenirDocumentJson(id: id)  // → Codable
 ```
 
+### `app/Sources/` — Couche UI SwiftUI
+
+**`Models.swift`** — miroirs Swift des types Rust sérialisés par serde :
+- `DocumentFfi`, `BlockFfi`, `InlineTextFfi`, `InlineStyleFfi`, `BlockContentFfi` — tous `Codable`
+- `InlineStyleFfi` / `BlockContentFfi` : enums avec `init(from:)` / `encode(to:)` custom pour le format externally-tagged de serde
+- Helpers sur `BlockContentFfi` : `texteSimple`, `spansOuVide`, `estTodo`, `doneTodo`, `avecTexte`, `avecSpans`, `toAttributedString`
+
+**`RichTextEditor.swift`** — éditeur de texte riche :
+- `ExpandingTextView : UITextView` — hauteur automatique via `intrinsicContentSize`
+- `RichTextEditor : UIViewRepresentable` — bindings `spans`, `isFocused`, callbacks `onSave`, `onNewBlock`, `onConvert`
+- `spansVersNSAttributed` / `nsAttributedVersSpans` — conversion aller-retour avec `.chaqaqColor` custom key pour le nom de couleur
+- `NSAttributedString.Key.chaqaqColor` — attribut custom pour stocker le nom de couleur (round-trip fiable)
+- Toolbar pill (style Notes.app) : `UIView` custom avec fond adaptatif, `UIScrollView` horizontal, boutons B/I/U + cercles couleur + dismiss clavier
+- `fontAvecTraits(_:bold:italic:)` — gras/italique robuste avec fallback `boldSystemFont`/`italicSystemFont` (SF Pro ne supporte pas toujours `withSymbolicTraits`)
+- Raccourcis markdown dans `textViewDidChange` : `# ` → H1, `## ` → H2, `### ` → H3, `> ` → Quote, `[ ] ` → Todo, `---` → Divider
+
+**`ContentView.swift`** — écran d'accueil :
+- `ChaqaqStore : ObservableObject` — connecte `ChaqaqApi`, liste les documents, CRUD
+- Salutation dynamique (Bonjour/Bon après-midi/Bonsoir)
+- `NavigationLink` → `DocumentView`
+- FAB `square.and.pencil`, état vide illustré, date relative formatée
+
+**`DocumentView.swift`** — éditeur de document :
+- `EditableBlock` — modèle en mémoire : `id`, `content: BlockContentFfi`, `spans: [InlineTextFfi]`, `done: Bool`
+- `DocumentViewModel : ObservableObject` — `charger`, `sauvegarderBloc`, `ajouterBloc`, `supprimerBloc`, `deplacerBloc` + `reordonnerBlocs`
+- Mutations en mémoire directe (pas de rechargement depuis SQLite après insert/delete — évite l'effacement du contenu en cours d'édition)
+- Blocs supportés : Text, Heading (1/2/3), Quote, Todo, Divider
+- `ForEach($vm.blocs) { $bloc in }` — two-way binding pour l'édition en place
+- Drag & drop natif via `.onMove` + `EditMode`
+- Swipe-to-delete + menu contextuel
+- `.scrollDismissesKeyboard(.interactively)` — dismiss clavier par swipe natif
+- `autoFocusId` — focus automatique sur le bloc nouvellement créé
+
 ## Roadmap
 
-Ce qui est **fait** — backend Rust complet (117 tests) :
+Ce qui est **fait** — backend Rust + UI SwiftUI :
 - Parser inline complet (bold, italic, underline, color, link, combinaisons)
 - Types de blocs et documents avec blocs imbriqués récursifs
 - `DocumentMeta` pour `list()` sans charger tout le contenu
@@ -177,11 +222,22 @@ Ce qui est **fait** — backend Rust complet (117 tests) :
 - **SQLite local-first** : `SqliteDocumentStore` + `SqliteDatabaseStore` avec soft delete, `updated_at`, migrations versionnées
 - `JsonStore` + `DatabaseStore` JSON (conservés pour les tests)
 - **Couche FFI UniFFI** : `ChaqaqApi` exposée à Swift, bindings `swift-bindings/` générés
+- **XCFramework** : `chaqaq.xcframework` compilé (ios-arm64, ios-arm64-simulator, macos-arm64)
+- **Projet Xcode** : `app/Chaqaq.xcodeproj` généré par xcodegen, lié au XCFramework
+- **UI SwiftUI complète** :
+  - Écran d'accueil avec liste de documents, salutation dynamique, FAB, création via sheet
+  - Éditeur de document : blocs Text, Heading (×3), Quote, Todo, Divider
+  - Texte riche : gras, italique, souligné, couleurs (rouge, bleu, orange, violet)
+  - Toolbar de formatage pill (style Notes.app) avec scroll horizontal
+  - Raccourcis markdown : `# `, `## `, `### `, `> `, `[ ] `, `---`
+  - Enter → nouveau bloc, drag & drop natif, swipe-to-delete
+  - Dismiss clavier par swipe vers le bas (`.scrollDismissesKeyboard(.interactively)`)
+  - Focus automatique sur le bloc créé
 
 Ce qui **reste** à construire :
-1. Script `build-xcframework.sh` — compiler en XCFramework (staticlib iOS arm64 + Simulator + macOS)
-2. Projet Xcode — lier le XCFramework + `swift-bindings/`
-3. UI SwiftUI : rendu des blocs, éditeur de texte riche, drag & drop
+1. UI Databases (backend Notion complet existe, aucune vue SwiftUI)
+2. Barre de recherche (backend full-text existe, pas d'UI)
+3. Vue iPad / Mac (NavigationSplitView)
 4. Sync entre appareils (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
 
 ## Code style
@@ -191,5 +247,8 @@ Ce qui **reste** à construire :
 - `flush()` pattern pour les parsers
 
 ## Notes
-- `#![allow(dead_code)]` intentionnel tant que l'UI n'est pas connectée.
+- `#![allow(dead_code)]` intentionnel pour le code database non encore connecté à l'UI.
 - `#[serde(alias = "style")]` sur `InlineText.styles` pour charger les anciens JSON.
+- Les mutations de blocs en Swift se font en mémoire d'abord (pas de rechargement SQLite après insert/delete) pour éviter l'effacement du contenu en cours de frappe.
+- `fontAvecTraits(_:bold:italic:)` utilise `boldSystemFont`/`italicSystemFont` en fallback car `withSymbolicTraits` retourne `nil` sur SF Pro dans certains contextes iOS.
+- `NSAttributedString.Key.chaqaqColor` stocke le nom de couleur (String) en parallèle de `.foregroundColor` pour un round-trip `NSAttributedString ↔ [InlineTextFfi]` fiable.
