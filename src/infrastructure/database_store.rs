@@ -1,9 +1,9 @@
-use std::path::PathBuf;
-use std::fs;
-use uuid::Uuid;
 use crate::application::database_repository::DatabaseRepository;
 use crate::application::error::ChaqaqError;
 use crate::domain::database::{Database, DatabaseMeta};
+use std::fs;
+use std::path::PathBuf;
+use uuid::Uuid;
 
 pub struct DatabaseStore {
     dir: PathBuf,
@@ -68,9 +68,9 @@ impl DatabaseRepository for DatabaseStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
-    use crate::domain::database::{Entree, ProprieteType, Propriete, ValeurPropriete};
+    use crate::domain::database::{Entree, Propriete, ProprieteType, ValeurPropriete};
     use crate::domain::document::InlineText;
+    use std::collections::HashMap;
 
     fn store_temp() -> DatabaseStore {
         let dir = std::env::temp_dir().join(format!("chaqaq_db_test_{}", Uuid::new_v4()));
@@ -78,7 +78,10 @@ mod tests {
     }
 
     fn titre(s: &str) -> Vec<InlineText> {
-        vec![InlineText { content: s.to_string(), styles: vec![] }]
+        vec![InlineText {
+            content: s.to_string(),
+            styles: vec![],
+        }]
     }
 
     #[test]

@@ -1,8 +1,8 @@
-use std::path::PathBuf;
-use uuid::Uuid;
 use crate::application::error::ChaqaqError;
 use crate::application::repository::DocumentRepository;
 use crate::domain::document::{Document, DocumentMeta};
+use std::path::PathBuf;
+use uuid::Uuid;
 
 pub struct JsonStore {
     dir: PathBuf,
@@ -69,7 +69,10 @@ mod tests {
     }
 
     fn doc(titre: &str) -> Document {
-        Document::new(vec![InlineText { content: titre.to_string(), styles: vec![] }])
+        Document::new(vec![InlineText {
+            content: titre.to_string(),
+            styles: vec![],
+        }])
     }
 
     #[test]

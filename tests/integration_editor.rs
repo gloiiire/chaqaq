@@ -5,7 +5,10 @@ use chaqaq::domain::editor::EditorState;
 use chaqaq::domain::rich_text::RichText;
 
 fn etat_depuis(s: &str) -> EditorState {
-    let inlines = vec![InlineText { content: s.to_string(), styles: vec![] }];
+    let inlines = vec![InlineText {
+        content: s.to_string(),
+        styles: vec![],
+    }];
     EditorState::nouveau(RichText::from(&inlines))
 }
 
@@ -64,8 +67,14 @@ fn test_style_et_edition_combinees() {
 #[test]
 fn test_supprimer_dans_texte_style() {
     let inlines = vec![
-        InlineText { content: "avant ".to_string(), styles: vec![] },
-        InlineText { content: "gras".to_string(), styles: vec![InlineStyle::Bold] },
+        InlineText {
+            content: "avant ".to_string(),
+            styles: vec![],
+        },
+        InlineText {
+            content: "gras".to_string(),
+            styles: vec![InlineStyle::Bold],
+        },
     ];
     let mut etat = EditorState::nouveau(RichText::from(&inlines));
     let mut hist = Historique::default();

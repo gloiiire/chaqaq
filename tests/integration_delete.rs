@@ -1,11 +1,13 @@
-use uuid::Uuid;
+use chaqaq::application::database_use_cases::{
+    creer_database, obtenir_database, supprimer_database,
+};
 use chaqaq::application::error::ChaqaqError;
 use chaqaq::application::use_cases::{creer_document, obtenir_document, supprimer_document};
-use chaqaq::application::database_use_cases::{creer_database, obtenir_database, supprimer_database};
-use chaqaq::domain::database::{ProprieteType, Propriete};
+use chaqaq::domain::database::{Propriete, ProprieteType};
 use chaqaq::domain::document::InlineText;
 use chaqaq::infrastructure::database_store::DatabaseStore;
 use chaqaq::infrastructure::json_store::JsonStore;
+use uuid::Uuid;
 
 fn doc_store_temp() -> JsonStore {
     let dir = std::env::temp_dir().join(format!("chaqaq_del_doc_{}", Uuid::new_v4()));
@@ -19,7 +21,10 @@ fn db_store_temp() -> DatabaseStore {
 }
 
 fn inlines(s: &str) -> Vec<InlineText> {
-    vec![InlineText { content: s.to_string(), styles: vec![] }]
+    vec![InlineText {
+        content: s.to_string(),
+        styles: vec![],
+    }]
 }
 
 // ── supprimer_document ────────────────────────────────────────────────────────
@@ -32,7 +37,10 @@ fn test_supprimer_document_existant() {
 
     supprimer_document(&store, id).unwrap();
 
-    assert!(matches!(obtenir_document(&store, id), Err(ChaqaqError::NonTrouve(_))));
+    assert!(matches!(
+        obtenir_document(&store, id),
+        Err(ChaqaqError::NonTrouve(_))
+    ));
 }
 
 #[test]
@@ -52,7 +60,10 @@ fn test_supprimer_document_ne_supprime_pas_les_autres() {
 
     supprimer_document(&store, doc_a.id).unwrap();
 
-    assert!(matches!(obtenir_document(&store, doc_a.id), Err(ChaqaqError::NonTrouve(_))));
+    assert!(matches!(
+        obtenir_document(&store, doc_a.id),
+        Err(ChaqaqError::NonTrouve(_))
+    ));
     assert!(obtenir_document(&store, doc_b.id).is_ok());
 }
 
@@ -67,7 +78,10 @@ fn test_supprimer_database_existante() {
 
     supprimer_database(&store, id).unwrap();
 
-    assert!(matches!(obtenir_database(&store, id), Err(ChaqaqError::NonTrouve(_))));
+    assert!(matches!(
+        obtenir_database(&store, id),
+        Err(ChaqaqError::NonTrouve(_))
+    ));
 }
 
 #[test]
@@ -87,6 +101,9 @@ fn test_supprimer_database_ne_supprime_pas_les_autres() {
 
     supprimer_database(&store, db_a.id).unwrap();
 
-    assert!(matches!(obtenir_database(&store, db_a.id), Err(ChaqaqError::NonTrouve(_))));
+    assert!(matches!(
+        obtenir_database(&store, db_a.id),
+        Err(ChaqaqError::NonTrouve(_))
+    ));
     assert!(obtenir_database(&store, db_b.id).is_ok());
 }

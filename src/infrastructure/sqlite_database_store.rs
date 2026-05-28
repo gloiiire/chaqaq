@@ -1,11 +1,11 @@
-use std::sync::Mutex;
-use rusqlite::{Connection, params};
-use uuid::Uuid;
 use crate::application::database_repository::DatabaseRepository;
 use crate::application::error::ChaqaqError;
 use crate::domain::database::{Database, DatabaseMeta};
 use crate::domain::document::InlineText;
 use crate::infrastructure::migrations::appliquer_migrations_databases;
+use rusqlite::{Connection, params};
+use std::sync::Mutex;
+use uuid::Uuid;
 
 pub struct SqliteDatabaseStore {
     conn: Mutex<Connection>,
@@ -13,12 +13,13 @@ pub struct SqliteDatabaseStore {
 
 impl SqliteDatabaseStore {
     pub fn nouveau(chemin: &str) -> Result<Self, ChaqaqError> {
-        let mut conn = Connection::open(chemin)
-            .map_err(|e| ChaqaqError::Db(e.to_string()))?;
+        let mut conn = Connection::open(chemin).map_err(|e| ChaqaqError::Db(e.to_string()))?;
         conn.execute_batch("PRAGMA journal_mode=WAL;")
             .map_err(|e| ChaqaqError::Db(e.to_string()))?;
         appliquer_migrations_databases(&mut conn)?;
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 
     pub fn en_memoire() -> Result<Self, ChaqaqError> {
@@ -30,7 +31,12 @@ impl DatabaseRepository for SqliteDatabaseStore {
     fn save(&self, db: &Database) -> Result<(), ChaqaqError> {
         let conn = self.conn.lock().unwrap();
         let data = serde_json::to_string(db)?;
-        let title_text: String = db.titre.iter().map(|i| i.content.as_str()).collect::<Vec<_>>().join("");
+        let title_text: String = db
+            .titre
+            .iter()
+            .map(|i| i.content.as_str())
+            .collect::<Vec<_>>()
+            .join("");
         let title_json = serde_json::to_string(&db.titre)?;
         let now = chrono::Utc::now().to_rfc3339();
         conn.execute(
@@ -42,13 +48,7 @@ impl DatabaseRepository for SqliteDatabaseStore {
                 updated_at = excluded.updated_at,
                 data       = excluded.data,
                 deleted_at = NULL",
-            params![
-                db.id.to_string(),
-                title_text,
-                title_json,
-                now,
-                data,
-            ],
+            params![db.id.to_string(), title_text, title_json, now, data,],
         )
         .map_err(|e| ChaqaqError::Db(e.to_string()))?;
         Ok(())
@@ -85,11 +85,17 @@ impl DatabaseRepository for SqliteDatabaseStore {
             })
             .map_err(|e| ChaqaqError::Db(e.to_string()))?;
         for row in rows {
-            let (id_str, title_json, updated_at, created_at) = row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
+            let (id_str, title_json, updated_at, created_at) =
+                row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
             let id = Uuid::parse_str(&id_str)
                 .map_err(|_| ChaqaqError::OperationInvalide(format!("UUID invalide : {id_str}")))?;
             let titre: Vec<InlineText> = serde_json::from_str(&title_json)?;
-            metas.push(DatabaseMeta { id, titre, updated_at, created_at });
+            metas.push(DatabaseMeta {
+                id,
+                titre,
+                updated_at,
+                created_at,
+            });
         }
         Ok(metas)
     }
@@ -119,7 +125,10 @@ mod tests {
     }
 
     fn titre(s: &str) -> Vec<InlineText> {
-        vec![InlineText { content: s.to_string(), styles: vec![] }]
+        vec![InlineText {
+            content: s.to_string(),
+            styles: vec![],
+        }]
     }
 
     fn db(nom: &str) -> Database {
@@ -139,7 +148,10 @@ mod tests {
     #[test]
     fn test_load_inexistant_retourne_non_trouve() {
         let store = store();
-        assert!(matches!(store.load(Uuid::new_v4()), Err(ChaqaqError::NonTrouve(_))));
+        assert!(matches!(
+            store.load(Uuid::new_v4()),
+            Err(ChaqaqError::NonTrouve(_))
+        ));
     }
 
     #[test]
@@ -163,7 +175,10 @@ mod tests {
     #[test]
     fn test_delete_inexistant_retourne_non_trouve() {
         let store = store();
-        assert!(matches!(store.delete(Uuid::new_v4()), Err(ChaqaqError::NonTrouve(_))));
+        assert!(matches!(
+            store.delete(Uuid::new_v4()),
+            Err(ChaqaqError::NonTrouve(_))
+        ));
     }
 
     #[test]
@@ -220,8 +235,8 @@ mod tests {
     #[test]
     fn test_list_meta_sans_deserialiser_les_entrees() {
         let store = store();
-        use std::collections::HashMap;
         use crate::domain::database::{Entree, Propriete, ProprieteType, ValeurPropriete};
+        use std::collections::HashMap;
         let prop = Propriete::nouvelle("Nom", ProprieteType::Texte);
         let prop_id = prop.id;
         let mut d = Database::nouvelle(titre("DB riche"), vec![prop]);

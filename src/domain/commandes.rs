@@ -1,8 +1,8 @@
 #![allow(dead_code)]
-use std::ops::Range;
 use crate::domain::document::InlineStyle;
 use crate::domain::editor::EditorState;
 use crate::domain::rich_text::Span;
+use std::ops::Range;
 
 pub trait Commande {
     fn executer(&self, etat: &mut EditorState);
@@ -74,7 +74,8 @@ impl AppliquerStyle {
 
 impl Commande for AppliquerStyle {
     fn executer(&self, etat: &mut EditorState) {
-        etat.texte.toggler_style(self.range.clone(), self.style.clone());
+        etat.texte
+            .toggler_style(self.range.clone(), self.style.clone());
     }
     fn annuler(&self, etat: &mut EditorState) {
         etat.texte.restaurer_spans(self.avant_spans.clone());
@@ -130,10 +131,18 @@ impl Historique {
         }
     }
 
-    pub fn peut_annuler(&self) -> bool { !self.fait.is_empty() }
-    pub fn peut_refaire(&self) -> bool { !self.annule.is_empty() }
-    pub fn capacite(&self) -> usize { self.capacite }
-    pub fn taille(&self) -> usize { self.fait.len() }
+    pub fn peut_annuler(&self) -> bool {
+        !self.fait.is_empty()
+    }
+    pub fn peut_refaire(&self) -> bool {
+        !self.annule.is_empty()
+    }
+    pub fn capacite(&self) -> usize {
+        self.capacite
+    }
+    pub fn taille(&self) -> usize {
+        self.fait.len()
+    }
 }
 
 #[cfg(test)]
@@ -143,7 +152,10 @@ mod tests {
     use crate::domain::rich_text::RichText;
 
     fn etat_depuis(s: &str) -> EditorState {
-        let inlines = vec![InlineText { content: s.to_string(), styles: vec![] }];
+        let inlines = vec![InlineText {
+            content: s.to_string(),
+            styles: vec![],
+        }];
         EditorState::nouveau(RichText::from(&inlines))
     }
 

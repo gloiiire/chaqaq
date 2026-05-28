@@ -1,11 +1,11 @@
-use std::collections::HashMap;
-use uuid::Uuid;
 use chaqaq::application::database_use_cases::{ajouter_entree, creer_database, rechercher_entrees};
 use chaqaq::application::use_cases::{creer_document, rechercher_documents};
-use chaqaq::domain::database::{ProprieteType, Propriete, ValeurPropriete};
+use chaqaq::domain::database::{Propriete, ProprieteType, ValeurPropriete};
 use chaqaq::domain::document::InlineText;
 use chaqaq::infrastructure::database_store::DatabaseStore;
 use chaqaq::infrastructure::json_store::JsonStore;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 fn doc_store_temp() -> JsonStore {
     let dir = std::env::temp_dir().join(format!("chaqaq_search_doc_{}", Uuid::new_v4()));
@@ -19,7 +19,10 @@ fn db_store_temp() -> DatabaseStore {
 }
 
 fn inlines(s: &str) -> Vec<InlineText> {
-    vec![InlineText { content: s.to_string(), styles: vec![] }]
+    vec![InlineText {
+        content: s.to_string(),
+        styles: vec![],
+    }]
 }
 
 // ── Recherche documents ───────────────────────────────────────────────────────
@@ -91,7 +94,10 @@ fn test_rechercher_entrees_insensible_casse() {
     let db = creer_database(&store, inlines("DB"), vec![prop]).unwrap();
 
     let mut v = HashMap::new();
-    v.insert(prop_id, ValeurPropriete::Texte("Vacances d'Été".to_string()));
+    v.insert(
+        prop_id,
+        ValeurPropriete::Texte("Vacances d'Été".to_string()),
+    );
     ajouter_entree(&store, db.id, v).unwrap();
 
     let resultats = rechercher_entrees(&store, db.id, "été").unwrap();
@@ -101,19 +107,31 @@ fn test_rechercher_entrees_insensible_casse() {
 #[test]
 fn test_rechercher_entrees_multi_champs() {
     let store = db_store_temp();
-    let prop_titre  = Propriete::nouvelle("Titre",  ProprieteType::Texte);
-    let prop_tags   = Propriete::nouvelle("Tags",   ProprieteType::SelectionMultiple(vec![]));
+    let prop_titre = Propriete::nouvelle("Titre", ProprieteType::Texte);
+    let prop_tags = Propriete::nouvelle("Tags", ProprieteType::SelectionMultiple(vec![]));
     let titre_id = prop_titre.id;
-    let tags_id  = prop_tags.id;
+    let tags_id = prop_tags.id;
     let db = creer_database(&store, inlines("Articles"), vec![prop_titre, prop_tags]).unwrap();
 
     let mut v1 = HashMap::new();
-    v1.insert(titre_id, ValeurPropriete::Texte("Rust et WebAssembly".to_string()));
-    v1.insert(tags_id,  ValeurPropriete::SelectionMultiple(vec!["tech".to_string()]));
+    v1.insert(
+        titre_id,
+        ValeurPropriete::Texte("Rust et WebAssembly".to_string()),
+    );
+    v1.insert(
+        tags_id,
+        ValeurPropriete::SelectionMultiple(vec!["tech".to_string()]),
+    );
 
     let mut v2 = HashMap::new();
-    v2.insert(titre_id, ValeurPropriete::Texte("Recette de Pâtes".to_string()));
-    v2.insert(tags_id,  ValeurPropriete::SelectionMultiple(vec!["cuisine".to_string(), "tech".to_string()]));
+    v2.insert(
+        titre_id,
+        ValeurPropriete::Texte("Recette de Pâtes".to_string()),
+    );
+    v2.insert(
+        tags_id,
+        ValeurPropriete::SelectionMultiple(vec!["cuisine".to_string(), "tech".to_string()]),
+    );
 
     ajouter_entree(&store, db.id, v1).unwrap();
     ajouter_entree(&store, db.id, v2).unwrap();

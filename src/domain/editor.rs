@@ -1,7 +1,7 @@
 #![allow(dead_code)]
-use std::ops::Range;
 use crate::domain::document::InlineStyle;
 use crate::domain::rich_text::RichText;
+use std::ops::Range;
 
 pub struct EditorState {
     pub texte: RichText,
@@ -12,7 +12,11 @@ pub struct EditorState {
 impl EditorState {
     pub fn nouveau(texte: RichText) -> Self {
         let curseur = texte.longueur();
-        Self { texte, curseur, selection: None }
+        Self {
+            texte,
+            curseur,
+            selection: None,
+        }
     }
 
     pub fn inserer(&mut self, ch: char) {
@@ -23,7 +27,9 @@ impl EditorState {
 
     /// Supprime le char avant le curseur (Backspace).
     pub fn supprimer_avant(&mut self) {
-        if self.curseur == 0 { return; }
+        if self.curseur == 0 {
+            return;
+        }
         self.curseur -= 1;
         self.texte.supprimer_char(self.curseur);
         self.selection = None;
@@ -36,12 +42,16 @@ impl EditorState {
     }
 
     pub fn deplacer_gauche(&mut self) {
-        if self.curseur > 0 { self.curseur -= 1; }
+        if self.curseur > 0 {
+            self.curseur -= 1;
+        }
         self.selection = None;
     }
 
     pub fn deplacer_droite(&mut self) {
-        if self.curseur < self.texte.longueur() { self.curseur += 1; }
+        if self.curseur < self.texte.longueur() {
+            self.curseur += 1;
+        }
         self.selection = None;
     }
 
@@ -71,11 +81,14 @@ impl EditorState {
 mod tests {
     use super::*;
     use crate::domain::document::InlineStyle;
-    use crate::domain::rich_text::RichText;
     use crate::domain::document::InlineText;
+    use crate::domain::rich_text::RichText;
 
     fn etat_depuis(s: &str) -> EditorState {
-        let inlines = vec![InlineText { content: s.to_string(), styles: vec![] }];
+        let inlines = vec![InlineText {
+            content: s.to_string(),
+            styles: vec![],
+        }];
         EditorState::nouveau(RichText::from(&inlines))
     }
 

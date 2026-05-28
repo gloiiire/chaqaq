@@ -1,10 +1,10 @@
-use std::sync::Mutex;
-use rusqlite::{Connection, params};
-use uuid::Uuid;
 use crate::application::error::ChaqaqError;
 use crate::application::repository::DocumentRepository;
 use crate::domain::document::{Document, DocumentMeta, InlineText};
 use crate::infrastructure::migrations::appliquer_migrations_documents;
+use rusqlite::{Connection, params};
+use std::sync::Mutex;
+use uuid::Uuid;
 
 pub struct SqliteDocumentStore {
     conn: Mutex<Connection>,
@@ -12,12 +12,13 @@ pub struct SqliteDocumentStore {
 
 impl SqliteDocumentStore {
     pub fn nouveau(chemin: &str) -> Result<Self, ChaqaqError> {
-        let mut conn = Connection::open(chemin)
-            .map_err(|e| ChaqaqError::Db(e.to_string()))?;
+        let mut conn = Connection::open(chemin).map_err(|e| ChaqaqError::Db(e.to_string()))?;
         conn.execute_batch("PRAGMA journal_mode=WAL;")
             .map_err(|e| ChaqaqError::Db(e.to_string()))?;
         appliquer_migrations_documents(&mut conn)?;
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 
     pub fn en_memoire() -> Result<Self, ChaqaqError> {
@@ -29,7 +30,12 @@ impl DocumentRepository for SqliteDocumentStore {
     fn save(&self, doc: &Document) -> Result<(), ChaqaqError> {
         let conn = self.conn.lock().unwrap();
         let data = serde_json::to_string(doc)?;
-        let title_text: String = doc.title.iter().map(|i| i.content.as_str()).collect::<Vec<_>>().join("");
+        let title_text: String = doc
+            .title
+            .iter()
+            .map(|i| i.content.as_str())
+            .collect::<Vec<_>>()
+            .join("");
         let title_json = serde_json::to_string(&doc.title)?;
         let now = chrono::Utc::now().to_rfc3339();
         conn.execute(
@@ -87,11 +93,18 @@ impl DocumentRepository for SqliteDocumentStore {
             })
             .map_err(|e| ChaqaqError::Db(e.to_string()))?;
         for row in rows {
-            let (id_str, title_json, cover, updated_at, created_at) = row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
+            let (id_str, title_json, cover, updated_at, created_at) =
+                row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
             let id = Uuid::parse_str(&id_str)
                 .map_err(|_| ChaqaqError::OperationInvalide(format!("UUID invalide : {id_str}")))?;
             let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
-            metas.push(DocumentMeta { id, title, cover, updated_at, created_at });
+            metas.push(DocumentMeta {
+                id,
+                title,
+                cover,
+                updated_at,
+                created_at,
+            });
         }
         Ok(metas)
     }
@@ -121,7 +134,10 @@ mod tests {
     }
 
     fn doc(titre: &str) -> Document {
-        Document::new(vec![InlineText { content: titre.to_string(), styles: vec![] }])
+        Document::new(vec![InlineText {
+            content: titre.to_string(),
+            styles: vec![],
+        }])
     }
 
     #[test]
@@ -137,7 +153,10 @@ mod tests {
     #[test]
     fn test_load_inexistant_retourne_non_trouve() {
         let store = store();
-        assert!(matches!(store.load(Uuid::new_v4()), Err(ChaqaqError::NonTrouve(_))));
+        assert!(matches!(
+            store.load(Uuid::new_v4()),
+            Err(ChaqaqError::NonTrouve(_))
+        ));
     }
 
     #[test]
@@ -161,7 +180,10 @@ mod tests {
     #[test]
     fn test_delete_inexistant_retourne_non_trouve() {
         let store = store();
-        assert!(matches!(store.delete(Uuid::new_v4()), Err(ChaqaqError::NonTrouve(_))));
+        assert!(matches!(
+            store.delete(Uuid::new_v4()),
+            Err(ChaqaqError::NonTrouve(_))
+        ));
     }
 
     #[test]
@@ -169,7 +191,10 @@ mod tests {
         let store = store();
         let mut d = doc("Ancien");
         store.save(&d).unwrap();
-        d.title = vec![InlineText { content: "Nouveau".to_string(), styles: vec![] }];
+        d.title = vec![InlineText {
+            content: "Nouveau".to_string(),
+            styles: vec![],
+        }];
         store.save(&d).unwrap();
         let charge = store.load(d.id).unwrap();
         assert_eq!(charge.title[0].content, "Nouveau");
@@ -220,7 +245,10 @@ mod tests {
         let store = store();
         let mut d = doc("Titre riche");
         d.add_block(crate::domain::document::BlockContent::Text(vec![
-            InlineText { content: "contenu".to_string(), styles: vec![] }
+            InlineText {
+                content: "contenu".to_string(),
+                styles: vec![],
+            },
         ]));
         store.save(&d).unwrap();
         let metas = store.list().unwrap();

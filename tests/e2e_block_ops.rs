@@ -1,13 +1,13 @@
-use uuid::Uuid;
 use chaqaq::application::use_cases::{
-    ajouter_bloc, ajouter_bloc_enfant, creer_document, modifier_bloc,
-    modifier_couverture_document, modifier_titre_document, obtenir_document,
-    reordonner_blocs, sauvegarder_bloc_edite, supprimer_bloc,
+    ajouter_bloc, ajouter_bloc_enfant, creer_document, modifier_bloc, modifier_couverture_document,
+    modifier_titre_document, obtenir_document, reordonner_blocs, sauvegarder_bloc_edite,
+    supprimer_bloc,
 };
 use chaqaq::domain::document::{BlockContent, InlineStyle, InlineText};
 use chaqaq::domain::editor::EditorState;
 use chaqaq::domain::rich_text::RichText;
 use chaqaq::infrastructure::json_store::JsonStore;
+use uuid::Uuid;
 
 fn store_temp() -> JsonStore {
     let dir = std::env::temp_dir().join(format!("chaqaq_e2e_blocs_{}", Uuid::new_v4()));
@@ -16,7 +16,10 @@ fn store_temp() -> JsonStore {
 }
 
 fn inlines(s: &str) -> Vec<InlineText> {
-    vec![InlineText { content: s.to_string(), styles: vec![] }]
+    vec![InlineText {
+        content: s.to_string(),
+        styles: vec![],
+    }]
 }
 
 /// Flux complet : créer, éditer, toggle, supprimer, recharger.
@@ -26,16 +29,34 @@ fn test_flux_edition_complete() {
 
     // Crée un document avec plusieurs types de blocs
     let doc = creer_document(&store, "Ma page").unwrap();
-    let doc = ajouter_bloc(&store, doc.id,
-        BlockContent::Heading { text: inlines("Introduction"), level: 1 }).unwrap();
-    let doc = ajouter_bloc(&store, doc.id,
-        BlockContent::Text(inlines("Premier paragraphe"))).unwrap();
-    let doc = ajouter_bloc(&store, doc.id,
-        BlockContent::Todo { text: inlines("Relire"), done: false }).unwrap();
+    let doc = ajouter_bloc(
+        &store,
+        doc.id,
+        BlockContent::Heading {
+            text: inlines("Introduction"),
+            level: 1,
+        },
+    )
+    .unwrap();
+    let doc = ajouter_bloc(
+        &store,
+        doc.id,
+        BlockContent::Text(inlines("Premier paragraphe")),
+    )
+    .unwrap();
+    let doc = ajouter_bloc(
+        &store,
+        doc.id,
+        BlockContent::Todo {
+            text: inlines("Relire"),
+            done: false,
+        },
+    )
+    .unwrap();
 
     let id_heading = doc.blocks[0].id;
-    let id_para    = doc.blocks[1].id;
-    let id_todo    = doc.blocks[2].id;
+    let id_para = doc.blocks[1].id;
+    let id_todo = doc.blocks[2].id;
 
     // Édite le heading via EditorState
     let rt = RichText::from(&inlines("Introduction révisée"));
@@ -50,8 +71,16 @@ fn test_flux_edition_complete() {
     sauvegarder_bloc_edite(&store, doc.id, id_para, &EditorState::nouveau(rt)).unwrap();
 
     // Toggle la todo
-    modifier_bloc(&store, doc.id, id_todo,
-        BlockContent::Todo { text: inlines("Relire"), done: true }).unwrap();
+    modifier_bloc(
+        &store,
+        doc.id,
+        id_todo,
+        BlockContent::Todo {
+            text: inlines("Relire"),
+            done: true,
+        },
+    )
+    .unwrap();
 
     // Recharge et vérifie tout
     let recharge = obtenir_document(&store, doc.id).unwrap();
@@ -83,9 +112,9 @@ fn test_flux_reordonnement_et_suppression() {
     let doc = ajouter_bloc(&store, doc.id, BlockContent::Divider).unwrap();
 
     let id_alpha = doc.blocks[0].id;
-    let id_beta  = doc.blocks[1].id;
+    let id_beta = doc.blocks[1].id;
     let id_gamma = doc.blocks[2].id;
-    let id_div   = doc.blocks[3].id;
+    let id_div = doc.blocks[3].id;
 
     // Réordonne : Divider, Gamma, Alpha, Beta
     reordonner_blocs(&store, doc.id, vec![id_div, id_gamma, id_alpha, id_beta]).unwrap();
@@ -108,8 +137,14 @@ fn test_styles_preserves_apres_sauvegarde_bloc() {
     let store = store_temp();
 
     let inlines_styled = vec![
-        InlineText { content: "normal ".to_string(), styles: vec![] },
-        InlineText { content: "italique".to_string(), styles: vec![InlineStyle::Italic] },
+        InlineText {
+            content: "normal ".to_string(),
+            styles: vec![],
+        },
+        InlineText {
+            content: "italique".to_string(),
+            styles: vec![InlineStyle::Italic],
+        },
     ];
     let doc = creer_document(&store, "Style").unwrap();
     let doc = ajouter_bloc(&store, doc.id, BlockContent::Text(inlines_styled.clone())).unwrap();
@@ -140,14 +175,37 @@ fn test_flux_page_complete() {
     modifier_couverture_document(&store, doc.id, Some("🚀".to_string())).unwrap();
 
     // Structure : Heading → paragraphes imbriqués
-    let doc = ajouter_bloc(&store, doc.id,
-        BlockContent::Heading { text: inlines("Objectifs"), level: 1 }).unwrap();
+    let doc = ajouter_bloc(
+        &store,
+        doc.id,
+        BlockContent::Heading {
+            text: inlines("Objectifs"),
+            level: 1,
+        },
+    )
+    .unwrap();
     let heading_id = doc.blocks[0].id;
 
-    ajouter_bloc_enfant(&store, doc.id, heading_id,
-        BlockContent::Todo { text: inlines("Finir le backend"), done: true }).unwrap();
-    ajouter_bloc_enfant(&store, doc.id, heading_id,
-        BlockContent::Todo { text: inlines("Attaquer Flutter"), done: false }).unwrap();
+    ajouter_bloc_enfant(
+        &store,
+        doc.id,
+        heading_id,
+        BlockContent::Todo {
+            text: inlines("Finir le backend"),
+            done: true,
+        },
+    )
+    .unwrap();
+    ajouter_bloc_enfant(
+        &store,
+        doc.id,
+        heading_id,
+        BlockContent::Todo {
+            text: inlines("Attaquer Flutter"),
+            done: false,
+        },
+    )
+    .unwrap();
 
     // Recharge et vérifie tout
     let page = obtenir_document(&store, doc.id).unwrap();

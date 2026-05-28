@@ -1,16 +1,16 @@
-use std::collections::HashMap;
-use uuid::Uuid;
+use chaqaq::application::database_use_cases::{
+    ajouter_entree, creer_database, lister_databases, obtenir_database, supprimer_database,
+};
 use chaqaq::application::error::ChaqaqError;
 use chaqaq::application::use_cases::{
     ajouter_bloc, creer_document, lister_documents, obtenir_document, supprimer_document,
 };
-use chaqaq::application::database_use_cases::{
-    ajouter_entree, creer_database, lister_databases, obtenir_database, supprimer_database,
-};
-use chaqaq::domain::database::{ProprieteType, Propriete, ValeurPropriete};
+use chaqaq::domain::database::{Propriete, ProprieteType, ValeurPropriete};
 use chaqaq::domain::document::{BlockContent, InlineText};
 use chaqaq::infrastructure::database_store::DatabaseStore;
 use chaqaq::infrastructure::json_store::JsonStore;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 fn doc_store_temp() -> JsonStore {
     let dir = std::env::temp_dir().join(format!("chaqaq_e2e_del_doc_{}", Uuid::new_v4()));
@@ -24,7 +24,10 @@ fn db_store_temp() -> DatabaseStore {
 }
 
 fn inlines(s: &str) -> Vec<InlineText> {
-    vec![InlineText { content: s.to_string(), styles: vec![] }]
+    vec![InlineText {
+        content: s.to_string(),
+        styles: vec![],
+    }]
 }
 
 /// Crée plusieurs documents, en supprime un, vérifie la liste et l'inaccessibilité.
@@ -37,12 +40,20 @@ fn test_flux_suppression_document() {
     let doc_c = creer_document(&store, "Projet Gamma").unwrap();
 
     // Ajoute des blocs à A pour s'assurer que supprimer A ne touche pas B/C
-    ajouter_bloc(&store, doc_a.id, BlockContent::Text(inlines("Note interne"))).unwrap();
+    ajouter_bloc(
+        &store,
+        doc_a.id,
+        BlockContent::Text(inlines("Note interne")),
+    )
+    .unwrap();
 
     supprimer_document(&store, doc_b.id).unwrap();
 
     // B est inaccessible
-    assert!(matches!(obtenir_document(&store, doc_b.id), Err(ChaqaqError::NonTrouve(_))));
+    assert!(matches!(
+        obtenir_document(&store, doc_b.id),
+        Err(ChaqaqError::NonTrouve(_))
+    ));
 
     // A et C sont intacts
     let a = obtenir_document(&store, doc_a.id).unwrap();
@@ -74,7 +85,10 @@ fn test_flux_suppression_database() {
     supprimer_database(&store, db_a.id).unwrap();
 
     // Archive est inaccessible
-    assert!(matches!(obtenir_database(&store, db_a.id), Err(ChaqaqError::NonTrouve(_))));
+    assert!(matches!(
+        obtenir_database(&store, db_a.id),
+        Err(ChaqaqError::NonTrouve(_))
+    ));
 
     // Active reste intacte
     assert!(obtenir_database(&store, db_b.id).is_ok());

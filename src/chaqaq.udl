@@ -77,9 +77,25 @@ interface ChaqaqApi {
     [Throws=ChaqaqError]
     void reordonner_blocs(string doc_id, sequence<string> ordre);
 
+    /// Ajoute un bloc enfant ; le contenu est passé en JSON (BlockContent sérialisé).
+    [Throws=ChaqaqError]
+    string ajouter_bloc_enfant(string doc_id, string parent_id, string bloc_content_json);
+
+    /// Réordonne les enfants directs d'un bloc parent.
+    [Throws=ChaqaqError]
+    void reordonner_blocs_enfants(string doc_id, string parent_id, sequence<string> ordre);
+
+    /// Déplace un bloc vers un parent ou vers la racine si `nouveau_parent_id` est nul.
+    [Throws=ChaqaqError]
+    void deplacer_bloc(string doc_id, string bloc_id, string? nouveau_parent_id);
+
     /// Recherche insensible à la casse dans les titres.
     [Throws=ChaqaqError]
     sequence<DocumentMetaFfi> rechercher_documents(string query);
+
+    /// Recherche plein texte dans les blocs.
+    [Throws=ChaqaqError]
+    sequence<DocumentMetaFfi> rechercher_dans_blocs(string query);
 
     // ── Databases ─────────────────────────────────────────────
 
@@ -98,4 +114,54 @@ interface ChaqaqApi {
     /// Soft-delete de la database.
     [Throws=ChaqaqError]
     void supprimer_database(string id);
+
+    /// Ajoute une entrée ; `valeurs_json` est une map UUID -> ValeurPropriete sérialisée.
+    [Throws=ChaqaqError]
+    string ajouter_entree(string db_id, string valeurs_json);
+
+    [Throws=ChaqaqError]
+    void modifier_entree(string db_id, string entree_id, string valeurs_json);
+
+    [Throws=ChaqaqError]
+    void supprimer_entree(string db_id, string entree_id);
+
+    /// Ajoute une propriété sérialisée en JSON.
+    [Throws=ChaqaqError]
+    void ajouter_propriete(string db_id, string propriete_json);
+
+    [Throws=ChaqaqError]
+    void renommer_propriete(string db_id, string propriete_id, string nouveau_nom);
+
+    [Throws=ChaqaqError]
+    void supprimer_propriete(string db_id, string propriete_id);
+
+    /// Ajoute une vue sérialisée en JSON.
+    [Throws=ChaqaqError]
+    string ajouter_vue(string db_id, string vue_json);
+
+    [Throws=ChaqaqError]
+    void modifier_vue(string db_id, string vue_id, string filtres_json, string tris_json);
+
+    [Throws=ChaqaqError]
+    void supprimer_vue(string db_id, string vue_id);
+
+    /// Retourne les entrées filtrées/triées en JSON.
+    [Throws=ChaqaqError]
+    string requete_database_json(string db_id, string vue_id);
+
+    /// Retourne les entrées filtrées/triées avec rollups calculés en JSON.
+    [Throws=ChaqaqError]
+    string requete_database_avec_rollups_json(string db_id, string vue_id);
+
+    /// Retourne les groupes d'entrées en JSON.
+    [Throws=ChaqaqError]
+    string requete_groupee_database_json(string db_id, string vue_id, string grouper_par);
+
+    /// Retourne l'agrégat d'une colonne en JSON.
+    [Throws=ChaqaqError]
+    string agregat_colonne_database_json(string db_id, string propriete_id, string agregat_json);
+
+    /// Retourne les entrées correspondant à la recherche en JSON.
+    [Throws=ChaqaqError]
+    string rechercher_entrees_database_json(string db_id, string query);
 };

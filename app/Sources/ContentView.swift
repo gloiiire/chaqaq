@@ -75,15 +75,19 @@ struct ContentView: View {
                         }
                     } else {
                         Section("Documents") {
-                            ForEach(store.documents, id: \.id) { doc in
-                                NavigationLink(destination: DocumentView(docId: doc.id, api: store.api!)) {
-                                    DocumentRow(doc: doc)
+                            if let api = store.api {
+                                ForEach(store.documents, id: \.id) { doc in
+                                    NavigationLink(destination: DocumentView(docId: doc.id, api: api)) {
+                                        DocumentRow(doc: doc)
+                                    }
                                 }
-                            }
-                            .onDelete { indexSet in
-                                for i in indexSet {
-                                    store.supprimer(id: store.documents[i].id)
+                                .onDelete { indexSet in
+                                    for i in indexSet {
+                                        store.supprimer(id: store.documents[i].id)
+                                    }
                                 }
+                            } else {
+                                ProgressView()
                             }
                         }
                     }

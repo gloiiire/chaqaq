@@ -1,6 +1,6 @@
-use uuid::Uuid;
 use crate::application::error::ChaqaqError;
 use crate::domain::document::{Document, DocumentMeta};
+use uuid::Uuid;
 
 pub trait DocumentRepository {
     fn save(&self, doc: &Document) -> Result<(), ChaqaqError>;

@@ -1,6 +1,6 @@
-use uuid::Uuid;
 use crate::application::error::ChaqaqError;
 use crate::domain::database::{Database, DatabaseMeta};
+use uuid::Uuid;
 
 pub trait DatabaseRepository {
     fn save(&self, db: &Database) -> Result<(), ChaqaqError>;

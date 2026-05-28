@@ -1,10 +1,11 @@
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum InlineStyle {
     Bold,
     Underline,
+    Strikethrough,
     Link(String),
     Italic,
     Color(String),
@@ -34,7 +35,9 @@ pub enum BlockContent {
         done: bool,
     },
     Breadcrumb,
-    Database { id: Uuid },
+    Database {
+        id: Uuid,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

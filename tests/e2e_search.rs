@@ -1,22 +1,28 @@
-use std::collections::HashMap;
-use uuid::Uuid;
 use chaqaq::application::database_use_cases::{ajouter_entree, creer_database, rechercher_entrees};
 use chaqaq::application::use_cases::{creer_document, rechercher_documents};
-use chaqaq::domain::database::{ProprieteType, Propriete, ValeurPropriete};
+use chaqaq::domain::database::{Propriete, ProprieteType, ValeurPropriete};
 use chaqaq::domain::document::InlineText;
 use chaqaq::infrastructure::database_store::DatabaseStore;
 use chaqaq::infrastructure::json_store::JsonStore;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 fn stores_temp() -> (JsonStore, DatabaseStore) {
     let id = Uuid::new_v4();
     let doc_dir = std::env::temp_dir().join(format!("chaqaq_e2e_search_doc_{id}"));
-    let db_dir  = std::env::temp_dir().join(format!("chaqaq_e2e_search_db_{id}"));
+    let db_dir = std::env::temp_dir().join(format!("chaqaq_e2e_search_db_{id}"));
     std::fs::create_dir_all(&doc_dir).unwrap();
-    (JsonStore::new(doc_dir), DatabaseStore::nouveau(db_dir).unwrap())
+    (
+        JsonStore::new(doc_dir),
+        DatabaseStore::nouveau(db_dir).unwrap(),
+    )
 }
 
 fn inlines(s: &str) -> Vec<InlineText> {
-    vec![InlineText { content: s.to_string(), styles: vec![] }]
+    vec![InlineText {
+        content: s.to_string(),
+        styles: vec![],
+    }]
 }
 
 /// Scénario journal : rechercher dans les titres de pages ET dans les entrées
@@ -81,23 +87,33 @@ fn test_recherche_vide_retourne_tout() {
 fn test_recherche_entrees_selection_et_texte() {
     let (_doc_store, db_store) = stores_temp();
 
-    let prop_statut = Propriete::nouvelle("Statut",
-        ProprieteType::Selection(vec!["Brouillon".into(), "Publié".into()]));
+    let prop_statut = Propriete::nouvelle(
+        "Statut",
+        ProprieteType::Selection(vec!["Brouillon".into(), "Publié".into()]),
+    );
     let prop_titre = Propriete::nouvelle("Titre", ProprieteType::Texte);
     let statut_id = prop_statut.id;
-    let titre_id  = prop_titre.id;
+    let titre_id = prop_titre.id;
 
-    let db = creer_database(&db_store, inlines("Articles"), vec![prop_statut, prop_titre]).unwrap();
+    let db = creer_database(
+        &db_store,
+        inlines("Articles"),
+        vec![prop_statut, prop_titre],
+    )
+    .unwrap();
 
     let articles = [
         ("Brouillon", "Premier jet de l'article"),
-        ("Publié",    "Guide complet Rust"),
+        ("Publié", "Guide complet Rust"),
         ("Brouillon", "Idées pour plus tard"),
     ];
     for (statut, titre) in articles {
         let mut v = HashMap::new();
-        v.insert(statut_id, ValeurPropriete::Selection(Some(statut.to_string())));
-        v.insert(titre_id,  ValeurPropriete::Texte(titre.to_string()));
+        v.insert(
+            statut_id,
+            ValeurPropriete::Selection(Some(statut.to_string())),
+        );
+        v.insert(titre_id, ValeurPropriete::Texte(titre.to_string()));
         ajouter_entree(&db_store, db.id, v).unwrap();
     }
 

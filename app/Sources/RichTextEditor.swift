@@ -490,6 +490,11 @@ struct RichTextEditor: UIViewRepresentable {
                 if deja { m.removeAttribute(.underlineStyle, range: range) }
                 else    { m.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: range) }
 
+            case .strikethrough:
+                let deja = attr.attribute(.strikethroughStyle, at: range.location, effectiveRange: nil) != nil
+                if deja { m.removeAttribute(.strikethroughStyle, range: range) }
+                else    { m.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: range) }
+
             case .color(let nom):
                 let actuelle = attr.attribute(.chaqaqColor, at: range.location, effectiveRange: nil) as? String
                 if actuelle == nom {
@@ -526,6 +531,9 @@ struct RichTextEditor: UIViewRepresentable {
             case .underline:
                 if attrs[.underlineStyle] != nil { attrs.removeValue(forKey: .underlineStyle) }
                 else { attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue }
+            case .strikethrough:
+                if attrs[.strikethroughStyle] != nil { attrs.removeValue(forKey: .strikethroughStyle) }
+                else { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
             case .color(let nom):
                 if (attrs[.chaqaqColor] as? String) == nom {
                     attrs.removeValue(forKey: .chaqaqColor)

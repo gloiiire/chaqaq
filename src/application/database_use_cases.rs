@@ -1,13 +1,13 @@
-use std::collections::HashMap;
-use std::cmp::Ordering;
-use uuid::Uuid;
 use crate::application::database_repository::DatabaseRepository;
 use crate::application::error::ChaqaqError;
 use crate::domain::database::{
-    Agregat, ConditionFiltre, Database, DatabaseMeta, Entree, Filtre, Groupe,
-    Ordre, Propriete, ProprieteType, SourceTri, Tri, ValeurPropriete, Vue,
+    Agregat, ConditionFiltre, Database, DatabaseMeta, Entree, Filtre, Groupe, Ordre, Propriete,
+    ProprieteType, SourceTri, Tri, ValeurPropriete, Vue,
 };
 use crate::domain::document::InlineText;
+use std::cmp::Ordering;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 pub fn creer_database(
     repo: &dyn DatabaseRepository,
@@ -19,23 +19,15 @@ pub fn creer_database(
     Ok(db)
 }
 
-pub fn obtenir_database(
-    repo: &dyn DatabaseRepository,
-    id: Uuid,
-) -> Result<Database, ChaqaqError> {
+pub fn obtenir_database(repo: &dyn DatabaseRepository, id: Uuid) -> Result<Database, ChaqaqError> {
     repo.load(id)
 }
 
-pub fn lister_databases(
-    repo: &dyn DatabaseRepository,
-) -> Result<Vec<DatabaseMeta>, ChaqaqError> {
+pub fn lister_databases(repo: &dyn DatabaseRepository) -> Result<Vec<DatabaseMeta>, ChaqaqError> {
     repo.list_meta()
 }
 
-pub fn supprimer_database(
-    repo: &dyn DatabaseRepository,
-    db_id: Uuid,
-) -> Result<(), ChaqaqError> {
+pub fn supprimer_database(repo: &dyn DatabaseRepository, db_id: Uuid) -> Result<(), ChaqaqError> {
     repo.delete(db_id)
 }
 
@@ -58,7 +50,8 @@ pub fn modifier_entree(
     valeurs: HashMap<Uuid, ValeurPropriete>,
 ) -> Result<(), ChaqaqError> {
     let mut db = repo.load(db_id)?;
-    let entree = db.entrees
+    let entree = db
+        .entrees
         .iter_mut()
         .find(|e| e.id == entree_id)
         .ok_or(ChaqaqError::NonTrouve(entree_id))?;
@@ -107,12 +100,14 @@ pub fn requete(
     vue_id: Uuid,
 ) -> Result<Vec<Entree>, ChaqaqError> {
     let db = repo.load(db_id)?;
-    let vue = db.vues
+    let vue = db
+        .vues
         .iter()
         .find(|v| v.id == vue_id)
         .ok_or(ChaqaqError::NonTrouve(vue_id))?;
 
-    let mut entrees: Vec<Entree> = db.entrees
+    let mut entrees: Vec<Entree> = db
+        .entrees
         .iter()
         .filter(|e| vue.filtres.iter().all(|f| appliquer_filtre(e, f)))
         .cloned()
@@ -122,18 +117,34 @@ pub fn requete(
         entrees.sort_by(|a, b| {
             let ord = match &tri.source {
                 SourceTri::Propriete => {
-                    let va = a.valeurs.get(&tri.propriete_id).unwrap_or(&ValeurPropriete::Vide);
-                    let vb = b.valeurs.get(&tri.propriete_id).unwrap_or(&ValeurPropriete::Vide);
+                    let va = a
+                        .valeurs
+                        .get(&tri.propriete_id)
+                        .unwrap_or(&ValeurPropriete::Vide);
+                    let vb = b
+                        .valeurs
+                        .get(&tri.propriete_id)
+                        .unwrap_or(&ValeurPropriete::Vide);
                     comparer_valeurs(va, vb)
                 }
                 SourceTri::Creation => a.cree_le.cmp(&b.cree_le),
                 SourceTri::ManuellePuisCreation => {
-                    let va = a.valeurs.get(&tri.propriete_id).unwrap_or(&ValeurPropriete::Vide);
-                    let vb = b.valeurs.get(&tri.propriete_id).unwrap_or(&ValeurPropriete::Vide);
+                    let va = a
+                        .valeurs
+                        .get(&tri.propriete_id)
+                        .unwrap_or(&ValeurPropriete::Vide);
+                    let vb = b
+                        .valeurs
+                        .get(&tri.propriete_id)
+                        .unwrap_or(&ValeurPropriete::Vide);
                     date_effective(va, &a.cree_le).cmp(date_effective(vb, &b.cree_le))
                 }
             };
-            if tri.ordre == Ordre::Decroissant { ord.reverse() } else { ord }
+            if tri.ordre == Ordre::Decroissant {
+                ord.reverse()
+            } else {
+                ord
+            }
         });
     }
 
@@ -149,7 +160,9 @@ pub fn renommer_propriete(
     nouveau_nom: &str,
 ) -> Result<(), ChaqaqError> {
     let mut db = repo.load(db_id)?;
-    let prop = db.proprietes.iter_mut()
+    let prop = db
+        .proprietes
+        .iter_mut()
         .find(|p| p.id == prop_id)
         .ok_or(ChaqaqError::NonTrouve(prop_id))?;
     prop.nom = nouveau_nom.to_string();
@@ -185,7 +198,9 @@ pub fn modifier_vue(
     tris: Vec<Tri>,
 ) -> Result<(), ChaqaqError> {
     let mut db = repo.load(db_id)?;
-    let vue = db.vues.iter_mut()
+    let vue = db
+        .vues
+        .iter_mut()
         .find(|v| v.id == vue_id)
         .ok_or(ChaqaqError::NonTrouve(vue_id))?;
     vue.filtres = filtres;
@@ -223,7 +238,9 @@ pub fn rechercher_entrees(
 ) -> Result<Vec<Entree>, ChaqaqError> {
     let db = repo.load(db_id)?;
     let q = query.to_lowercase();
-    Ok(db.entrees.into_iter()
+    Ok(db
+        .entrees
+        .into_iter()
         .filter(|e| entree_correspond(e, &q))
         .collect())
 }
@@ -234,12 +251,15 @@ fn entree_correspond(entree: &Entree, query: &str) -> bool {
 
 fn valeur_contient(v: &ValeurPropriete, query: &str) -> bool {
     match v {
-        ValeurPropriete::Texte(s)              => s.to_lowercase().contains(query),
-        ValeurPropriete::Url(s)                => s.to_lowercase().contains(query),
-        ValeurPropriete::Selection(Some(s))    => s.to_lowercase().contains(query),
-        ValeurPropriete::SelectionMultiple(vs) => vs.iter().any(|s| s.to_lowercase().contains(query)),
-        ValeurPropriete::Titre(inlines)        =>
-            inlines.iter().any(|i| i.content.to_lowercase().contains(query)),
+        ValeurPropriete::Texte(s) => s.to_lowercase().contains(query),
+        ValeurPropriete::Url(s) => s.to_lowercase().contains(query),
+        ValeurPropriete::Selection(Some(s)) => s.to_lowercase().contains(query),
+        ValeurPropriete::SelectionMultiple(vs) => {
+            vs.iter().any(|s| s.to_lowercase().contains(query))
+        }
+        ValeurPropriete::Titre(inlines) => inlines
+            .iter()
+            .any(|i| i.content.to_lowercase().contains(query)),
         _ => false,
     }
 }
@@ -253,10 +273,15 @@ pub fn evaluer_rollups(
     db: &Database,
     mut entrees: Vec<Entree>,
 ) -> Result<Vec<Entree>, ChaqaqError> {
-    let rollups: Vec<(Uuid, Uuid, Uuid, Agregat)> = db.proprietes.iter()
+    let rollups: Vec<(Uuid, Uuid, Uuid, Agregat)> = db
+        .proprietes
+        .iter()
         .filter_map(|p| match &p.type_ {
-            ProprieteType::Rollup { relation_prop_id, cible_prop_id, agregat } =>
-                Some((p.id, *relation_prop_id, *cible_prop_id, agregat.clone())),
+            ProprieteType::Rollup {
+                relation_prop_id,
+                cible_prop_id,
+                agregat,
+            } => Some((p.id, *relation_prop_id, *cible_prop_id, agregat.clone())),
             _ => None,
         })
         .collect();
@@ -266,7 +291,9 @@ pub fn evaluer_rollups(
     }
 
     for (rollup_id, relation_prop_id, cible_prop_id, agregat) in rollups {
-        let db_liee_id = db.proprietes.iter()
+        let db_liee_id = db
+            .proprietes
+            .iter()
             .find(|p| p.id == relation_prop_id)
             .and_then(|p| match &p.type_ {
                 ProprieteType::Relation { db_id } => Some(*db_id),
@@ -281,10 +308,14 @@ pub fn evaluer_rollups(
                 Some(ValeurPropriete::Relation(ids)) => ids.clone(),
                 _ => vec![],
             };
-            let liees: Vec<&Entree> = db_liee.entrees.iter()
+            let liees: Vec<&Entree> = db_liee
+                .entrees
+                .iter()
                 .filter(|e| ids_lies.contains(&e.id))
                 .collect();
-            entree.valeurs.insert(rollup_id, calculer_agregat(&liees, cible_prop_id, &agregat));
+            entree
+                .valeurs
+                .insert(rollup_id, calculer_agregat(&liees, cible_prop_id, &agregat));
         }
     }
 
@@ -325,11 +356,19 @@ pub fn requete_groupee(
     let mut map: HashMap<String, Groupe> = HashMap::new();
 
     for entree in entrees {
-        let valeur = entree.valeurs.get(&grouper_par).cloned().unwrap_or(ValeurPropriete::Vide);
+        let valeur = entree
+            .valeurs
+            .get(&grouper_par)
+            .cloned()
+            .unwrap_or(ValeurPropriete::Vide);
         let cle = cle_groupe(&valeur);
         map.entry(cle)
-            .or_insert_with(|| Groupe { valeur: valeur.clone(), entrees: vec![] })
-            .entrees.push(entree);
+            .or_insert_with(|| Groupe {
+                valeur: valeur.clone(),
+                entrees: vec![],
+            })
+            .entrees
+            .push(entree);
     }
 
     let mut groupes: Vec<Groupe> = map.into_values().collect();
@@ -348,41 +387,57 @@ fn date_effective<'a>(v: &'a ValeurPropriete, cree_le: &'a str) -> &'a str {
 }
 
 fn calculer_agregat(entrees: &[&Entree], prop_id: Uuid, agregat: &Agregat) -> ValeurPropriete {
-    let nums: Vec<f64> = entrees.iter()
+    let nums: Vec<f64> = entrees
+        .iter()
         .filter_map(|e| e.valeurs.get(&prop_id))
-        .filter_map(|v| if let ValeurPropriete::Nombre(n) = v { Some(*n) } else { None })
+        .filter_map(|v| {
+            if let ValeurPropriete::Nombre(n) = v {
+                Some(*n)
+            } else {
+                None
+            }
+        })
         .collect();
 
     let r = match agregat {
-        Agregat::Compter  => entrees.len() as f64,
-        Agregat::Somme    => nums.iter().sum(),
-        Agregat::Moyenne  => if nums.is_empty() { 0.0 } else { nums.iter().sum::<f64>() / nums.len() as f64 },
-        Agregat::Min      => nums.iter().cloned().fold(f64::INFINITY, f64::min),
-        Agregat::Max      => nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
+        Agregat::Compter => entrees.len() as f64,
+        Agregat::Somme => nums.iter().sum(),
+        Agregat::Moyenne => {
+            if nums.is_empty() {
+                0.0
+            } else {
+                nums.iter().sum::<f64>() / nums.len() as f64
+            }
+        }
+        Agregat::Min => nums.iter().cloned().fold(f64::INFINITY, f64::min),
+        Agregat::Max => nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
     };
     ValeurPropriete::Nombre(r)
 }
 
 fn cle_groupe(v: &ValeurPropriete) -> String {
     match v {
-        ValeurPropriete::Texte(s)            => s.clone(),
-        ValeurPropriete::Selection(Some(s))  => s.clone(),
-        ValeurPropriete::Nombre(n)           => n.to_string(),
-        ValeurPropriete::Date(d)             => d.clone(),
-        ValeurPropriete::Case(b)             => b.to_string(),
-        _                                    => String::new(),
+        ValeurPropriete::Texte(s) => s.clone(),
+        ValeurPropriete::Selection(Some(s)) => s.clone(),
+        ValeurPropriete::Nombre(n) => n.to_string(),
+        ValeurPropriete::Date(d) => d.clone(),
+        ValeurPropriete::Case(b) => b.to_string(),
+        _ => String::new(),
     }
 }
 
 fn appliquer_filtre(entree: &Entree, filtre: &Filtre) -> bool {
-    let valeur = entree.valeurs.get(&filtre.propriete_id).unwrap_or(&ValeurPropriete::Vide);
+    let valeur = entree
+        .valeurs
+        .get(&filtre.propriete_id)
+        .unwrap_or(&ValeurPropriete::Vide);
     match &filtre.condition {
-        ConditionFiltre::EstVide  => matches!(valeur, ValeurPropriete::Vide),
+        ConditionFiltre::EstVide => matches!(valeur, ValeurPropriete::Vide),
         ConditionFiltre::EstPlein => !matches!(valeur, ValeurPropriete::Vide),
-        ConditionFiltre::Egal(v)  => valeur == v,
+        ConditionFiltre::Egal(v) => valeur == v,
         ConditionFiltre::Contient(s) => match valeur {
             ValeurPropriete::Texte(t) => t.contains(s.as_str()),
-            ValeurPropriete::Url(u)   => u.contains(s.as_str()),
+            ValeurPropriete::Url(u) => u.contains(s.as_str()),
             ValeurPropriete::Titre(inlines) => {
                 inlines.iter().any(|i| i.content.contains(s.as_str()))
             }
@@ -396,12 +451,12 @@ fn comparer_valeurs(a: &ValeurPropriete, b: &ValeurPropriete) -> Ordering {
         (ValeurPropriete::Nombre(x), ValeurPropriete::Nombre(y)) => {
             x.partial_cmp(y).unwrap_or(Ordering::Equal)
         }
-        (ValeurPropriete::Texte(x),  ValeurPropriete::Texte(y))  => x.cmp(y),
-        (ValeurPropriete::Date(x),   ValeurPropriete::Date(y))   => x.cmp(y),
-        (ValeurPropriete::Case(x),   ValeurPropriete::Case(y))   => x.cmp(y),
-        (ValeurPropriete::Vide,      ValeurPropriete::Vide)      => Ordering::Equal,
-        (ValeurPropriete::Vide,      _)                          => Ordering::Greater,
-        (_,                          ValeurPropriete::Vide)      => Ordering::Less,
+        (ValeurPropriete::Texte(x), ValeurPropriete::Texte(y)) => x.cmp(y),
+        (ValeurPropriete::Date(x), ValeurPropriete::Date(y)) => x.cmp(y),
+        (ValeurPropriete::Case(x), ValeurPropriete::Case(y)) => x.cmp(y),
+        (ValeurPropriete::Vide, ValeurPropriete::Vide) => Ordering::Equal,
+        (ValeurPropriete::Vide, _) => Ordering::Greater,
+        (_, ValeurPropriete::Vide) => Ordering::Less,
         _ => Ordering::Equal,
     }
 }
@@ -409,9 +464,9 @@ fn comparer_valeurs(a: &ValeurPropriete, b: &ValeurPropriete) -> Ordering {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::cell::RefCell;
     use crate::domain::database::{TypeVue, Vue};
     use crate::domain::document::InlineText;
+    use std::cell::RefCell;
 
     struct MockDbRepo {
         dbs: RefCell<std::collections::HashMap<Uuid, Database>>,
@@ -419,7 +474,9 @@ mod tests {
 
     impl MockDbRepo {
         fn nouveau() -> Self {
-            Self { dbs: RefCell::new(std::collections::HashMap::new()) }
+            Self {
+                dbs: RefCell::new(std::collections::HashMap::new()),
+            }
         }
     }
 
@@ -429,21 +486,29 @@ mod tests {
             Ok(())
         }
         fn load(&self, id: Uuid) -> Result<Database, ChaqaqError> {
-            self.dbs.borrow().get(&id).cloned()
+            self.dbs
+                .borrow()
+                .get(&id)
+                .cloned()
                 .ok_or(ChaqaqError::NonTrouve(id))
         }
         fn list_meta(&self) -> Result<Vec<crate::domain::database::DatabaseMeta>, ChaqaqError> {
             Ok(self.dbs.borrow().values().map(|db| db.meta()).collect())
         }
         fn delete(&self, id: Uuid) -> Result<(), ChaqaqError> {
-            self.dbs.borrow_mut().remove(&id)
+            self.dbs
+                .borrow_mut()
+                .remove(&id)
                 .map(|_| ())
                 .ok_or(ChaqaqError::NonTrouve(id))
         }
     }
 
     fn titre(s: &str) -> Vec<InlineText> {
-        vec![InlineText { content: s.to_string(), styles: vec![] }]
+        vec![InlineText {
+            content: s.to_string(),
+            styles: vec![],
+        }]
     }
 
     #[test]
@@ -507,7 +572,10 @@ mod tests {
         let vue_id = db.vues[0].id;
         repo.save(&db).unwrap();
 
-        let filtre = Filtre { propriete_id: prop_id, condition: ConditionFiltre::EstPlein };
+        let filtre = Filtre {
+            propriete_id: prop_id,
+            condition: ConditionFiltre::EstPlein,
+        };
         let tri = Tri::par_propriete(prop_id, Ordre::Decroissant);
         modifier_vue(&repo, db.id, vue_id, vec![filtre], vec![tri]).unwrap();
 
@@ -570,7 +638,10 @@ mod tests {
     fn test_filtre_est_vide() {
         let prop_id = Uuid::new_v4();
         let entree = Entree::nouvelle(HashMap::new());
-        let filtre = Filtre { propriete_id: prop_id, condition: ConditionFiltre::EstVide };
+        let filtre = Filtre {
+            propriete_id: prop_id,
+            condition: ConditionFiltre::EstVide,
+        };
         assert!(appliquer_filtre(&entree, &filtre));
     }
 
@@ -578,7 +649,10 @@ mod tests {
     fn test_filtre_est_plein() {
         let prop_id = Uuid::new_v4();
         let entree = entree_avec_texte(prop_id, "valeur");
-        let filtre = Filtre { propriete_id: prop_id, condition: ConditionFiltre::EstPlein };
+        let filtre = Filtre {
+            propriete_id: prop_id,
+            condition: ConditionFiltre::EstPlein,
+        };
         assert!(appliquer_filtre(&entree, &filtre));
     }
 
@@ -627,7 +701,10 @@ mod tests {
             entree_avec_nombre(prop_id, 30.0),
         ];
         let refs: Vec<&Entree> = entrees.iter().collect();
-        assert_eq!(calculer_agregat(&refs, prop_id, &Agregat::Somme), ValeurPropriete::Nombre(60.0));
+        assert_eq!(
+            calculer_agregat(&refs, prop_id, &Agregat::Somme),
+            ValeurPropriete::Nombre(60.0)
+        );
     }
 
     #[test]
@@ -636,7 +713,10 @@ mod tests {
         let e1 = entree_avec_nombre(prop_id, 1.0);
         let e2 = entree_avec_nombre(prop_id, 2.0);
         let refs: Vec<&Entree> = vec![&e1, &e2];
-        assert_eq!(calculer_agregat(&refs, prop_id, &Agregat::Compter), ValeurPropriete::Nombre(2.0));
+        assert_eq!(
+            calculer_agregat(&refs, prop_id, &Agregat::Compter),
+            ValeurPropriete::Nombre(2.0)
+        );
     }
 
     #[test]
@@ -647,7 +727,10 @@ mod tests {
             entree_avec_nombre(prop_id, 20.0),
         ];
         let refs: Vec<&Entree> = entrees.iter().collect();
-        assert_eq!(calculer_agregat(&refs, prop_id, &Agregat::Moyenne), ValeurPropriete::Nombre(15.0));
+        assert_eq!(
+            calculer_agregat(&refs, prop_id, &Agregat::Moyenne),
+            ValeurPropriete::Nombre(15.0)
+        );
     }
 
     #[test]
@@ -658,13 +741,22 @@ mod tests {
 
     #[test]
     fn test_valeur_contient_texte() {
-        assert!(valeur_contient(&ValeurPropriete::Texte("Bonjour monde".to_string()), "monde"));
-        assert!(!valeur_contient(&ValeurPropriete::Texte("Bonjour".to_string()), "monde"));
+        assert!(valeur_contient(
+            &ValeurPropriete::Texte("Bonjour monde".to_string()),
+            "monde"
+        ));
+        assert!(!valeur_contient(
+            &ValeurPropriete::Texte("Bonjour".to_string()),
+            "monde"
+        ));
     }
 
     #[test]
     fn test_valeur_contient_insensible_casse() {
-        assert!(valeur_contient(&ValeurPropriete::Texte("Journal".to_string()), "journal"));
+        assert!(valeur_contient(
+            &ValeurPropriete::Texte("Journal".to_string()),
+            "journal"
+        ));
     }
 
     #[test]

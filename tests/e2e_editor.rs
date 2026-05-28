@@ -59,7 +59,12 @@ fn test_style_persisté_apres_sauvegarde() {
     store.save(&doc).unwrap();
 
     let recharge = obtenir_document(&store, doc.id).unwrap();
-    assert!(recharge.title.iter().any(|t| t.styles.contains(&InlineStyle::Bold)));
+    assert!(
+        recharge
+            .title
+            .iter()
+            .any(|t| t.styles.contains(&InlineStyle::Bold))
+    );
 
     std::fs::remove_dir_all(dir).unwrap();
 }

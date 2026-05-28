@@ -1,16 +1,16 @@
-use std::collections::HashMap;
-use uuid::Uuid;
 use chaqaq::application::database_use_cases::{
-    agregat_colonne, ajouter_entree, ajouter_vue, creer_database,
-    evaluer_rollups, lister_databases, obtenir_database, requete,
-    requete_groupee, supprimer_entree, modifier_entree,
+    agregat_colonne, ajouter_entree, ajouter_vue, creer_database, evaluer_rollups,
+    lister_databases, modifier_entree, obtenir_database, requete, requete_groupee,
+    supprimer_entree,
 };
 use chaqaq::domain::database::{
-    Agregat, ConditionFiltre, Filtre, Ordre, ProprieteType, Propriete,
-    Tri, TypeVue, ValeurPropriete, Vue,
+    Agregat, ConditionFiltre, Filtre, Ordre, Propriete, ProprieteType, Tri, TypeVue,
+    ValeurPropriete, Vue,
 };
 use chaqaq::domain::document::InlineText;
 use chaqaq::infrastructure::database_store::DatabaseStore;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 fn store_temp() -> DatabaseStore {
     let dir = std::env::temp_dir().join(format!("chaqaq_db_integ_{}", Uuid::new_v4()));
@@ -18,7 +18,10 @@ fn store_temp() -> DatabaseStore {
 }
 
 fn titre(s: &str) -> Vec<InlineText> {
-    vec![InlineText { content: s.to_string(), styles: vec![] }]
+    vec![InlineText {
+        content: s.to_string(),
+        styles: vec![],
+    }]
 }
 
 fn entree_nombre(prop_id: Uuid, n: f64) -> HashMap<Uuid, ValeurPropriete> {
@@ -93,12 +96,13 @@ fn test_trier_entrees_par_nombre() {
     let vue = ajouter_vue(&store, db.id, vue).unwrap();
 
     let resultats = requete(&store, db.id, vue.id).unwrap();
-    let valeurs: Vec<f64> = resultats.iter().map(|e| {
-        match e.valeurs.get(&prop_id).unwrap() {
+    let valeurs: Vec<f64> = resultats
+        .iter()
+        .map(|e| match e.valeurs.get(&prop_id).unwrap() {
             ValeurPropriete::Nombre(n) => *n,
             _ => panic!("valeur inattendue"),
-        }
-    }).collect();
+        })
+        .collect();
     assert_eq!(valeurs, vec![1.0, 2.0, 3.0]);
 }
 
@@ -144,16 +148,27 @@ fn test_rollup_compte_entrees_liees() {
 
     // Ajoute 2 tâches
     let mut v1 = HashMap::new();
-    v1.insert(db_taches.proprietes[0].id, ValeurPropriete::Titre(titre("T1")));
+    v1.insert(
+        db_taches.proprietes[0].id,
+        ValeurPropriete::Titre(titre("T1")),
+    );
     let t1 = ajouter_entree(&store, db_taches.id, v1).unwrap();
 
     let mut v2 = HashMap::new();
-    v2.insert(db_taches.proprietes[0].id, ValeurPropriete::Titre(titre("T2")));
+    v2.insert(
+        db_taches.proprietes[0].id,
+        ValeurPropriete::Titre(titre("T2")),
+    );
     let t2 = ajouter_entree(&store, db_taches.id, v2).unwrap();
 
     // Database Projets avec Relation → Tâches et Rollup (Compter)
-    let prop_rel = Propriete::nouvelle("Tâches liées", ProprieteType::Relation { db_id: db_taches.id });
-    let prop_nb  = Propriete::nouvelle(
+    let prop_rel = Propriete::nouvelle(
+        "Tâches liées",
+        ProprieteType::Relation {
+            db_id: db_taches.id,
+        },
+    );
+    let prop_nb = Propriete::nouvelle(
         "Nb tâches",
         ProprieteType::Rollup {
             relation_prop_id: prop_rel.id,
@@ -229,7 +244,10 @@ fn test_requete_groupee_par_selection() {
     let groupes = requete_groupee(&store, db.id, vue_id, prop_id).unwrap();
     assert_eq!(groupes.len(), 2);
 
-    let en_cours = groupes.iter().find(|g| g.valeur == ValeurPropriete::Selection(Some("En cours".to_string()))).unwrap();
+    let en_cours = groupes
+        .iter()
+        .find(|g| g.valeur == ValeurPropriete::Selection(Some("En cours".to_string())))
+        .unwrap();
     assert_eq!(en_cours.entrees.len(), 3);
 }
 
@@ -307,11 +325,15 @@ fn test_tri_manuelle_puis_creation_cas_journal() {
 
     // Vue avec tri ManuellePuisCreation croissant
     let mut vue = Vue::nouvelle("Chronologique", TypeVue::Tableau);
-    vue.tris.push(Tri::manuelle_puis_creation(date_id, Ordre::Croissant));
+    vue.tris
+        .push(Tri::manuelle_puis_creation(date_id, Ordre::Croissant));
     let vue = ajouter_vue(&store, db.id, vue).unwrap();
 
     let resultats = requete(&store, db.id, vue.id).unwrap();
     // L'ancienne note (date manuelle 2020) doit passer AVANT la nouvelle (cree_le 2024)
     let date_premiere = resultats[0].valeurs.get(&date_id);
-    assert_eq!(date_premiere, Some(&ValeurPropriete::Date("2020-05-10".to_string())));
+    assert_eq!(
+        date_premiere,
+        Some(&ValeurPropriete::Date("2020-05-10".to_string()))
+    );
 }

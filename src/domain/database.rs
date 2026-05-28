@@ -1,9 +1,9 @@
 #![allow(dead_code)]
+use crate::domain::document::InlineText;
+use chrono::Utc;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
-use serde::{Serialize, Deserialize};
-use chrono::Utc;
-use crate::domain::document::InlineText;
 
 // ── Types de propriétés (colonnes) ───────────────────────────────────────────
 
@@ -26,8 +26,14 @@ pub enum ProprieteType {
     Date,
     Case,
     Url,
-    Relation { db_id: Uuid },
-    Rollup { relation_prop_id: Uuid, cible_prop_id: Uuid, agregat: Agregat },
+    Relation {
+        db_id: Uuid,
+    },
+    Rollup {
+        relation_prop_id: Uuid,
+        cible_prop_id: Uuid,
+        agregat: Agregat,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -39,7 +45,11 @@ pub struct Propriete {
 
 impl Propriete {
     pub fn nouvelle(nom: impl Into<String>, type_: ProprieteType) -> Self {
-        Self { id: Uuid::new_v4(), nom: nom.into(), type_ }
+        Self {
+            id: Uuid::new_v4(),
+            nom: nom.into(),
+            type_,
+        }
     }
 }
 
@@ -133,17 +143,29 @@ pub struct Tri {
 
 impl Tri {
     pub fn par_propriete(propriete_id: Uuid, ordre: Ordre) -> Self {
-        Self { propriete_id, ordre, source: SourceTri::Propriete }
+        Self {
+            propriete_id,
+            ordre,
+            source: SourceTri::Propriete,
+        }
     }
 
     /// Tri par date auto-générée. `propriete_id` peut être `Uuid::nil()`.
     pub fn par_creation(ordre: Ordre) -> Self {
-        Self { propriete_id: Uuid::nil(), ordre, source: SourceTri::Creation }
+        Self {
+            propriete_id: Uuid::nil(),
+            ordre,
+            source: SourceTri::Creation,
+        }
     }
 
     /// Date manuelle si renseignée, sinon date de création automatique.
     pub fn manuelle_puis_creation(propriete_id: Uuid, ordre: Ordre) -> Self {
-        Self { propriete_id, ordre, source: SourceTri::ManuellePuisCreation }
+        Self {
+            propriete_id,
+            ordre,
+            source: SourceTri::ManuellePuisCreation,
+        }
     }
 }
 
@@ -214,7 +236,12 @@ impl Database {
     }
 
     pub fn meta(&self) -> DatabaseMeta {
-        DatabaseMeta { id: self.id, titre: self.titre.clone(), updated_at: String::new(), created_at: String::new() }
+        DatabaseMeta {
+            id: self.id,
+            titre: self.titre.clone(),
+            updated_at: String::new(),
+            created_at: String::new(),
+        }
     }
 }
 
@@ -223,7 +250,10 @@ mod tests {
     use super::*;
 
     fn titre(s: &str) -> Vec<InlineText> {
-        vec![InlineText { content: s.to_string(), styles: vec![] }]
+        vec![InlineText {
+            content: s.to_string(),
+            styles: vec![],
+        }]
     }
 
     #[test]

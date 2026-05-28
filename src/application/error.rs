@@ -15,11 +15,11 @@ pub enum ChaqaqError {
 impl fmt::Display for ChaqaqError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ChaqaqError::NonTrouve(id)          => write!(f, "ressource introuvable : {id}"),
+            ChaqaqError::NonTrouve(id) => write!(f, "ressource introuvable : {id}"),
             ChaqaqError::OperationInvalide(msg) => write!(f, "opération invalide : {msg}"),
-            ChaqaqError::Io(e)                  => write!(f, "erreur I/O : {e}"),
-            ChaqaqError::Json(e)                => write!(f, "erreur JSON : {e}"),
-            ChaqaqError::Db(msg)                => write!(f, "erreur base de données : {msg}"),
+            ChaqaqError::Io(e) => write!(f, "erreur I/O : {e}"),
+            ChaqaqError::Json(e) => write!(f, "erreur JSON : {e}"),
+            ChaqaqError::Db(msg) => write!(f, "erreur base de données : {msg}"),
         }
     }
 }
@@ -27,21 +27,25 @@ impl fmt::Display for ChaqaqError {
 impl std::error::Error for ChaqaqError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            ChaqaqError::Io(e)                  => Some(e),
-            ChaqaqError::Json(e)                => Some(e),
-            ChaqaqError::NonTrouve(_)           => None,
-            ChaqaqError::OperationInvalide(_)   => None,
-            ChaqaqError::Db(_)                  => None,
+            ChaqaqError::Io(e) => Some(e),
+            ChaqaqError::Json(e) => Some(e),
+            ChaqaqError::NonTrouve(_) => None,
+            ChaqaqError::OperationInvalide(_) => None,
+            ChaqaqError::Db(_) => None,
         }
     }
 }
 
 impl From<std::io::Error> for ChaqaqError {
-    fn from(e: std::io::Error) -> Self { Self::Io(e) }
+    fn from(e: std::io::Error) -> Self {
+        Self::Io(e)
+    }
 }
 
 impl From<serde_json::Error> for ChaqaqError {
-    fn from(e: serde_json::Error) -> Self { Self::Json(e) }
+    fn from(e: serde_json::Error) -> Self {
+        Self::Json(e)
+    }
 }
 
 #[cfg(test)]

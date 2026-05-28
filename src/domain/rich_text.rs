@@ -1,6 +1,6 @@
 #![allow(dead_code)]
-use std::ops::Range;
 use crate::domain::document::{InlineStyle, InlineText};
+use std::ops::Range;
 
 /// Plage de texte stylisée. Les indices sont des positions de chars Unicode,
 /// pas des offsets bytes — évite les bugs avec les caractères multi-octets.
@@ -20,7 +20,10 @@ pub struct RichText {
 
 impl RichText {
     pub fn vide() -> Self {
-        Self { chars: vec![], spans: vec![] }
+        Self {
+            chars: vec![],
+            spans: vec![],
+        }
     }
 
     pub fn contenu(&self) -> String {
@@ -48,7 +51,9 @@ impl RichText {
     }
 
     pub fn supprimer_char(&mut self, pos: usize) {
-        if pos >= self.chars.len() { return; }
+        if pos >= self.chars.len() {
+            return;
+        }
         self.chars.remove(pos);
         self.spans.retain_mut(|span| {
             if span.range.start > pos {
@@ -64,7 +69,9 @@ impl RichText {
     /// Bascule le style sur la plage : ajoute si au moins un char ne l'a pas,
     /// retire si tous l'ont déjà.
     pub fn toggler_style(&mut self, range: Range<usize>, style: InlineStyle) {
-        if range.is_empty() { return; }
+        if range.is_empty() {
+            return;
+        }
         if self.tous_ont_style(range.clone(), &style) {
             self.retirer_style(range, &style);
         } else {
@@ -78,7 +85,9 @@ impl RichText {
 
     fn tous_ont_style(&self, range: Range<usize>, style: &InlineStyle) -> bool {
         range.into_iter().all(|i| {
-            self.spans.iter().any(|s| s.range.contains(&i) && s.styles.contains(style))
+            self.spans
+                .iter()
+                .any(|s| s.range.contains(&i) && s.styles.contains(style))
         })
     }
 
@@ -116,11 +125,19 @@ impl RichText {
         let mut spans = Vec::new();
         let mut i = 0;
         while i < par_char.len() {
-            if par_char[i].is_empty() { i += 1; continue; }
+            if par_char[i].is_empty() {
+                i += 1;
+                continue;
+            }
             let styles = par_char[i].clone();
             let start = i;
-            while i < par_char.len() && par_char[i] == styles { i += 1; }
-            spans.push(Span { range: start..i, styles });
+            while i < par_char.len() && par_char[i] == styles {
+                i += 1;
+            }
+            spans.push(Span {
+                range: start..i,
+                styles,
+            });
         }
         spans
     }
@@ -139,7 +156,10 @@ impl From<&Vec<InlineText>> for RichText {
             chars.extend(inline_chars);
 
             if !inline.styles.is_empty() {
-                spans.push(Span { range: start..pos, styles: inline.styles.clone() });
+                spans.push(Span {
+                    range: start..pos,
+                    styles: inline.styles.clone(),
+                });
             }
         }
 
@@ -149,7 +169,9 @@ impl From<&Vec<InlineText>> for RichText {
 
 impl From<&RichText> for Vec<InlineText> {
     fn from(rt: &RichText) -> Self {
-        if rt.chars.is_empty() { return vec![]; }
+        if rt.chars.is_empty() {
+            return vec![];
+        }
 
         let par_char = rt.styles_par_char();
         let mut result = Vec::new();
@@ -175,10 +197,16 @@ mod tests {
     use crate::domain::document::{InlineStyle, InlineText};
 
     fn gras(content: &str) -> InlineText {
-        InlineText { content: content.to_string(), styles: vec![InlineStyle::Bold] }
+        InlineText {
+            content: content.to_string(),
+            styles: vec![InlineStyle::Bold],
+        }
     }
     fn texte(content: &str) -> InlineText {
-        InlineText { content: content.to_string(), styles: vec![] }
+        InlineText {
+            content: content.to_string(),
+            styles: vec![],
+        }
     }
 
     #[test]

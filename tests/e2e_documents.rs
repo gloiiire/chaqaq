@@ -1,5 +1,7 @@
 use chaqaq::application::error::ChaqaqError;
-use chaqaq::application::use_cases::{ajouter_bloc, creer_document, lister_documents, obtenir_document};
+use chaqaq::application::use_cases::{
+    ajouter_bloc, creer_document, lister_documents, obtenir_document,
+};
 use chaqaq::domain::document::BlockContent;
 use chaqaq::domain::parser::parse_inline;
 use chaqaq::infrastructure::json_store::JsonStore;
@@ -42,7 +44,8 @@ fn test_flux_complet() {
         &store,
         doc.id,
         BlockContent::Text(parse_inline("Premier bloc")),
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(mis_a_jour.blocks.len(), 1);
 
     // rechargement : le bloc est bien persisté
@@ -83,7 +86,15 @@ fn test_ajouter_plusieurs_blocs() {
     let doc = creer_document(&store, "Notes").unwrap();
 
     ajouter_bloc(&store, doc.id, BlockContent::Text(parse_inline("Bloc 1"))).unwrap();
-    ajouter_bloc(&store, doc.id, BlockContent::Heading { text: parse_inline("Titre"), level: 1 }).unwrap();
+    ajouter_bloc(
+        &store,
+        doc.id,
+        BlockContent::Heading {
+            text: parse_inline("Titre"),
+            level: 1,
+        },
+    )
+    .unwrap();
     ajouter_bloc(&store, doc.id, BlockContent::Divider).unwrap();
 
     let recharge = obtenir_document(&store, doc.id).unwrap();
