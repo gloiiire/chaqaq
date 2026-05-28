@@ -94,6 +94,16 @@ func uiCouleurDepuisNom(_ nom: String) -> UIColor {
 // ── UITextView auto-expansible ────────────────────────────────────────────────
 
 final class ExpandingTextView: UITextView {
+    var onShiftEnter: (() -> Void)?
+
+    override var keyCommands: [UIKeyCommand]? {
+        let cmd = UIKeyCommand(input: "\r", modifierFlags: .shift, action: #selector(gererShiftEnter))
+        if #available(iOS 15, *) { cmd.wantsPriorityOverSystemBehavior = true }
+        return [cmd]
+    }
+
+    @objc private func gererShiftEnter() { onShiftEnter?() }
+
     override var intrinsicContentSize: CGSize {
         let w = bounds.width > 0 ? bounds.width : UIScreen.main.bounds.width
         let h = sizeThatFits(CGSize(width: w, height: .greatestFiniteMagnitude)).height
@@ -130,6 +140,11 @@ struct RichTextEditor: UIViewRepresentable {
         tv.textContainerInset = UIEdgeInsets(top: 5, left: 0, bottom: 5, right: 0)
         tv.inputAccessoryView = context.coordinator.faireToolbar()
         context.coordinator.tv = tv
+        let coord = context.coordinator
+        tv.onShiftEnter = { [weak coord] in
+            coord?.saisieSautDeLigne = true
+            coord?.tv?.insertText("\n")
+        }
         if spans.isEmpty { tv.attributedText = context.coordinator.placeholder() }
         else { tv.attributedText = avecExtras(spansVersNSAttributed(spans, police: baseFont)) }
         return tv
@@ -174,6 +189,7 @@ struct RichTextEditor: UIViewRepresentable {
         weak var tv: ExpandingTextView?
         var enEdition = false
         var enCoursDeSupression = false
+        var saisieSautDeLigne = false
 
         init(parent: RichTextEditor) { self.parent = parent }
 
@@ -220,7 +236,16 @@ struct RichTextEditor: UIViewRepresentable {
         func textViewDidChange(_ tv: UITextView) {
             let texte = tv.text ?? ""
 
-            if let idx = texte.firstIndex(of: "\n") {
+            if texte.contains("\n") {
+                if saisieSautDeLigne {
+                    // Shift+Enter : saut de ligne dans le même bloc
+                    saisieSautDeLigne = false
+                    parent.spans = nsAttributedVersSpans(tv.attributedText, police: parent.baseFont)
+                    tv.invalidateIntrinsicContentSize()
+                    return
+                }
+                // Enter normal : nouveau bloc
+                let idx   = texte.firstIndex(of: "\n")!
                 let nsIdx = texte.distance(from: texte.startIndex, to: idx)
                 let attrAvant = tv.attributedText.attributedSubstring(from: NSRange(location: 0, length: nsIdx))
                 let apres = String(texte[texte.index(after: idx)...])
