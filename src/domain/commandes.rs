@@ -83,7 +83,7 @@ impl Commande for AppliquerStyle {
 
 // ── Historique ───────────────────────────────────────────────────────────────
 
-const CAPACITE_PAR_DEFAUT: usize = 200;
+const CAPACITE_PAR_DEFAUT: usize = 1000;
 
 pub struct Historique {
     fait: Vec<Box<dyn Commande>>,
