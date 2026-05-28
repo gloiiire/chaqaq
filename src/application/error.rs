@@ -7,6 +7,9 @@ pub enum ChaqaqError {
     OperationInvalide(String),
     Io(std::io::Error),
     Json(serde_json::Error),
+    /// Erreur base de données — message converti pour ne pas coupler
+    /// l'application à une implémentation de stockage spécifique.
+    Db(String),
 }
 
 impl fmt::Display for ChaqaqError {
@@ -16,6 +19,7 @@ impl fmt::Display for ChaqaqError {
             ChaqaqError::OperationInvalide(msg) => write!(f, "opération invalide : {msg}"),
             ChaqaqError::Io(e)                  => write!(f, "erreur I/O : {e}"),
             ChaqaqError::Json(e)                => write!(f, "erreur JSON : {e}"),
+            ChaqaqError::Db(msg)                => write!(f, "erreur base de données : {msg}"),
         }
     }
 }
@@ -27,6 +31,7 @@ impl std::error::Error for ChaqaqError {
             ChaqaqError::Json(e)                => Some(e),
             ChaqaqError::NonTrouve(_)           => None,
             ChaqaqError::OperationInvalide(_)   => None,
+            ChaqaqError::Db(_)                  => None,
         }
     }
 }
