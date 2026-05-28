@@ -51,7 +51,7 @@ Règle de dépendance : `infrastructure` → `application` → `domain`. Le doma
 - `BlockContent` : Text, Heading { level, text }, Quote { icon, text }, Todo { done, text }, Divider, Breadcrumb, Database { id }
 - `Block { id: Uuid, content: BlockContent, children: Vec<Block> }` — nœud récursif
 - `Document { id, cover, title: Vec<InlineText>, blocks: Vec<Block> }`
-- `DocumentMeta { id, cover, title }` — vue légère sans blocks pour `list()`
+- `DocumentMeta { id, cover, title, updated_at }` — vue légère sans blocks pour `list()`. `updated_at` peuplé par SQLite, vide sinon (`#[serde(default)]`)
 
 ### `domain/parser.rs`
 State machine sur `chars().peekable()`. `flush()` vide `current_text` dans le résultat avec les styles actifs.
@@ -87,7 +87,7 @@ Moteur type Notion :
 - `TypeVue` : Tableau, Kanban { grouper_par }, Calendrier { propriete_id }, Galerie
 - `Filtre { propriete_id, condition: ConditionFiltre }`, `Tri { propriete_id, ordre, source: SourceTri }`
 - `SourceTri` : Propriete | Creation | ManuellePuisCreation (pour journaux mixtes)
-- `Database { id, titre, proprietes, entrees, vues }`, `DatabaseMeta`
+- `Database { id, titre, proprietes, entrees, vues }`, `DatabaseMeta { id, titre, updated_at }`
 
 ### `application/error.rs`
 `ChaqaqError` : `NonTrouve(Uuid)`, `OperationInvalide(String)`, `Io(std::io::Error)`, `Json(serde_json::Error)`, `Db(String)`
@@ -135,7 +135,7 @@ Stockage SQLite local-first. Schéma : document-as-JSON dans une colonne `data`,
 
 ## Roadmap
 
-Ce qui est **fait** — backend Rust complet (111 tests) :
+Ce qui est **fait** — backend Rust complet (113 tests) :
 - Parser inline complet (bold, italic, underline, color, link, combinaisons)
 - Types de blocs et documents avec blocs imbriqués récursifs
 - `DocumentMeta` pour `list()` sans charger tout le contenu
@@ -150,6 +150,7 @@ Ce qui est **fait** — backend Rust complet (111 tests) :
 - Gestion complète des propriétés (ajout, renommage, suppression)
 - Gestion complète des vues (ajout, modification filtres/tris, suppression)
 - **SQLite local-first** : `SqliteDocumentStore` + `SqliteDatabaseStore` avec soft delete, `updated_at`, migrations versionnées
+- `updated_at` exposé dans `DocumentMeta` et `DatabaseMeta` — tri par "modifié récemment" possible côté UI
 - `JsonStore` + `DatabaseStore` JSON (conservés pour les tests)
 
 Ce qui **reste** à construire :

@@ -2,7 +2,7 @@
 
 Application de notes personnelle combinant la fluidité de Craft et la structure de Notion — core en Rust pur.
 
-> Statut : **backend complet** (111 tests). Couche UI en cours de décision.
+> Statut : **backend complet** (113 tests). Couche UI en cours de décision.
 
 ---
 
@@ -61,7 +61,7 @@ src/
 - CRUD complet : créer, lire, modifier, supprimer
 - Réordonnement à la racine et dans les enfants
 - Déplacement d'un bloc vers n'importe quel parent (ou racine)
-- Métadonnées légères (`DocumentMeta`) pour lister sans charger tout le contenu
+- Métadonnées légères (`DocumentMeta`) pour lister sans charger tout le contenu, avec `updated_at` pour trier par "modifié récemment"
 
 ### Inline styles (parser)
 
@@ -122,7 +122,7 @@ Architecture **local-first, offline-first** — chaque device a sa propre base S
 
 ```bash
 cargo run     # point d'entrée démo
-cargo test    # 111 tests (unitaires + intégration + E2E)
+cargo test    # 113 tests (unitaires + intégration + E2E)
 cargo check   # vérification rapide
 cargo build
 ```
