@@ -1,7 +1,7 @@
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum InlineStyle {
     Bold,
     Underline,
@@ -10,7 +10,7 @@ pub enum InlineStyle {
     Color(String),
     // etc…
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct InlineText {
     pub content: String,
     pub styles: Vec<InlineStyle>,

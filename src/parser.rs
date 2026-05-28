@@ -109,3 +109,67 @@ pub fn parse_inline(input: &str) -> Vec<InlineText> {
 
     block
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::document::{InlineStyle, InlineText};
+
+    fn texte(content: &str) -> InlineText {
+        InlineText { content: content.to_string(), styles: vec![] }
+    }
+
+    fn gras(content: &str) -> InlineText {
+        InlineText { content: content.to_string(), styles: vec![InlineStyle::Bold] }
+    }
+
+    fn italique(content: &str) -> InlineText {
+        InlineText { content: content.to_string(), styles: vec![InlineStyle::Italic] }
+    }
+
+    fn lien(content: &str, url: &str) -> InlineText {
+        InlineText { content: content.to_string(), styles: vec![InlineStyle::Link(url.to_string())] }
+    }
+
+    #[test]
+    fn test_texte_simple() {
+        assert_eq!(parse_inline("bonjour"), vec![texte("bonjour")]);
+    }
+
+    #[test]
+    fn test_gras() {
+        assert_eq!(
+            parse_inline("avant **gras** après"),
+            vec![texte("avant "), gras("gras"), texte(" après")]
+        );
+    }
+
+    #[test]
+    fn test_italique() {
+        assert_eq!(
+            parse_inline("avant _italique_ après"),
+            vec![texte("avant "), italique("italique"), texte(" après")]
+        );
+    }
+
+    #[test]
+    fn test_lien() {
+        assert_eq!(
+            parse_inline("[texte](https://example.com)"),
+            vec![lien("texte", "https://example.com")]
+        );
+    }
+
+    #[test]
+    fn test_lien_avec_contexte() {
+        assert_eq!(
+            parse_inline("voir [doc](https://doc.rs) ici"),
+            vec![texte("voir "), lien("doc", "https://doc.rs"), texte(" ici")]
+        );
+    }
+
+    #[test]
+    fn test_etoile_simple_litterale() {
+        assert_eq!(parse_inline("a * b"), vec![texte("a * b")]);
+    }
+}

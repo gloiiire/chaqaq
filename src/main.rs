@@ -4,7 +4,6 @@ pub mod document;
 pub mod parser;
 pub mod storage;
 
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // let mut doc = Document::new(vec![InlineText {
     //     content: String::from("Mon premier doc"),
@@ -38,9 +37,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // let docs = get_documents()?;
     // println!("Mes documents :");
     // docs.iter().for_each(|doc| println!("{:#?}", doc));
-    
+
     let input = "Input : \"Bonjour [lien](url) suite\"";
-    println!("{}\n",input);
+    println!("{}\n", input);
     println!("Transformation appliqué :");
     let inlines = parser::parse_inline(input);
     inlines.iter().for_each(|i| println!("{:#?}", i));
