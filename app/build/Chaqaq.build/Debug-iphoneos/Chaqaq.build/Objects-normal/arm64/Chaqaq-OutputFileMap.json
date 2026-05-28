@@ -1,0 +1,39 @@
+{
+  "" : {
+    "diagnostics" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/Chaqaq-primary.dia",
+    "emit-module-dependencies" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/Chaqaq-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/Chaqaq-primary-emit-module.dia",
+    "pch" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/Chaqaq-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/Chaqaq-primary.swiftdeps"
+  },
+  "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/Sources/ChaqaqApp.swift" : {
+    "const-values" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/ChaqaqApp.swiftconstvalues",
+    "dependencies" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/ChaqaqApp.d",
+    "diagnostics" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/ChaqaqApp.dia",
+    "index-unit-output-path" : "/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/ChaqaqApp.o",
+    "llvm-bc" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/ChaqaqApp.bc",
+    "object" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/ChaqaqApp.o",
+    "swift-dependencies" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/ChaqaqApp.swiftdeps",
+    "swiftmodule" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/ChaqaqApp~partial.swiftmodule"
+  },
+  "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/Sources/ContentView.swift" : {
+    "const-values" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/ContentView.swiftconstvalues",
+    "dependencies" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/ContentView.d",
+    "diagnostics" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/ContentView.dia",
+    "index-unit-output-path" : "/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/ContentView.o",
+    "swift-dependencies" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/ContentView.swiftdeps",
+    "swiftmodule" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/ContentView~partial.swiftmodule"
+  },
+  "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/swift-bindings/chaqaq.swift" : {
+    "const-values" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/chaqaq.swiftconstvalues",
+    "dependencies" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/chaqaq.d",
+    "diagnostics" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/chaqaq.dia",
+    "index-unit-output-path" : "/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/chaqaq.o",
+    "llvm-bc" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/chaqaq.bc",
+    "object" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/chaqaq.o",
+    "swift-dependencies" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/chaqaq.swiftdeps",
+    "swiftmodule" : "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq/app/build/Chaqaq.build/Debug-iphoneos/Chaqaq.build/Objects-normal/arm64/chaqaq~partial.swiftmodule"
+  }
+}

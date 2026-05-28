@@ -1,0 +1,344 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		10192E1DF36988E71B726941 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8C376A241CCD334055F01CB /* ContentView.swift */; };
+		32CB7DE2D5E0652A08492D42 /* chaqaq.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = C2897833B5B3685586CACEB6 /* chaqaq.xcframework */; };
+		8751D1C7EF9DCA4901C58456 /* chaqaq.swift in Sources */ = {isa = PBXBuildFile; fileRef = D11598236B0E33C53528220E /* chaqaq.swift */; };
+		EB303519C033E0CEB4CF7DAC /* ChaqaqApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A3054081BFBDCD9AFC2D855 /* ChaqaqApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		30E08CB89B3F79766A108177 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		6A3054081BFBDCD9AFC2D855 /* ChaqaqApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChaqaqApp.swift; sourceTree = "<group>"; };
+		B8C376A241CCD334055F01CB /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		C27BE87CC9C7794976F2B588 /* Chaqaq.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Chaqaq.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C2897833B5B3685586CACEB6 /* chaqaq.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = chaqaq.xcframework; path = ../chaqaq.xcframework; sourceTree = "<group>"; };
+		D11598236B0E33C53528220E /* chaqaq.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = chaqaq.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		BDAD44F4E512183AEC5106DE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				32CB7DE2D5E0652A08492D42 /* chaqaq.xcframework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		319B517576F972A68C24518D = {
+			isa = PBXGroup;
+			children = (
+				B338699B4A26B8DB16A12B1E /* chaqaq */,
+				CDCD32229FE0743A6011FDB2 /* Sources */,
+				7CF3A08DC1BBDEA71AEC28AF /* Frameworks */,
+				5D112C4D04D58803B10FE7A2 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		41F2B419821D3FB758E39E4D /* swift-bindings */ = {
+			isa = PBXGroup;
+			children = (
+				D11598236B0E33C53528220E /* chaqaq.swift */,
+			);
+			path = "swift-bindings";
+			sourceTree = "<group>";
+		};
+		5D112C4D04D58803B10FE7A2 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C27BE87CC9C7794976F2B588 /* Chaqaq.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		7CF3A08DC1BBDEA71AEC28AF /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				C2897833B5B3685586CACEB6 /* chaqaq.xcframework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B338699B4A26B8DB16A12B1E /* chaqaq */ = {
+			isa = PBXGroup;
+			children = (
+				41F2B419821D3FB758E39E4D /* swift-bindings */,
+			);
+			name = chaqaq;
+			path = ..;
+			sourceTree = "<group>";
+		};
+		CDCD32229FE0743A6011FDB2 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				6A3054081BFBDCD9AFC2D855 /* ChaqaqApp.swift */,
+				B8C376A241CCD334055F01CB /* ContentView.swift */,
+				30E08CB89B3F79766A108177 /* Info.plist */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1BAC28065CC3998F303FB401 /* Chaqaq */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 796F691B06DB18D994D81641 /* Build configuration list for PBXNativeTarget "Chaqaq" */;
+			buildPhases = (
+				AF0ABAACC467937B27A93ECC /* Sources */,
+				BDAD44F4E512183AEC5106DE /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Chaqaq;
+			packageProductDependencies = (
+			);
+			productName = Chaqaq;
+			productReference = C27BE87CC9C7794976F2B588 /* Chaqaq.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		9F1EB934F0F2890C1F8E3B35 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = AB7C2EBF5C272CAD4E65BC92 /* Build configuration list for PBXProject "Chaqaq" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 319B517576F972A68C24518D;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 5D112C4D04D58803B10FE7A2 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				1BAC28065CC3998F303FB401 /* Chaqaq */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AF0ABAACC467937B27A93ECC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EB303519C033E0CEB4CF7DAC /* ChaqaqApp.swift in Sources */,
+				10192E1DF36988E71B726941 /* ContentView.swift in Sources */,
+				8751D1C7EF9DCA4901C58456 /* chaqaq.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		5FF190F6EBF1A039D278161B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"..\"",
+				);
+				INFOPLIST_FILE = Sources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = "$(inherited) -lc++";
+				PRODUCT_BUNDLE_IDENTIFIER = com.gloiiire.chaqaq;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		8386F2E235B677EDB30EAB1C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		B38A878961BDA5DCBD88D325 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		D942E95DC0F425D5959E289C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"..\"",
+				);
+				INFOPLIST_FILE = Sources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = "$(inherited) -lc++";
+				PRODUCT_BUNDLE_IDENTIFIER = com.gloiiire.chaqaq;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		796F691B06DB18D994D81641 /* Build configuration list for PBXNativeTarget "Chaqaq" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5FF190F6EBF1A039D278161B /* Debug */,
+				D942E95DC0F425D5959E289C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AB7C2EBF5C272CAD4E65BC92 /* Build configuration list for PBXProject "Chaqaq" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B38A878961BDA5DCBD88D325 /* Debug */,
+				8386F2E235B677EDB30EAB1C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 9F1EB934F0F2890C1F8E3B35 /* Project object */;
+}

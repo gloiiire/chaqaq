@@ -1,0 +1,36 @@
+name: Chaqaq
+options:
+  bundleIdPrefix: com.gloiiire
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+
+schemes:
+  Chaqaq:
+    build:
+      targets:
+        Chaqaq: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+    archive:
+      config: Release
+
+targets:
+  Chaqaq:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: Sources
+      - path: ../swift-bindings/chaqaq.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.chaqaq
+        INFOPLIST_FILE: Sources/Info.plist
+        SWIFT_VERSION: "5.0"
+        OTHER_LDFLAGS: "$(inherited) -lc++"
+    dependencies:
+      - framework: ../chaqaq.xcframework
+        embed: false
