@@ -190,8 +190,9 @@ struct DocumentView: View {
 
     var onDisparaitre: (() -> Void)? = nil
 
-    init(docId: String, api: ChaqaqApi) {
+    init(docId: String, api: ChaqaqApi, onDisparaitre: (() -> Void)? = nil) {
         _vm = StateObject(wrappedValue: DocumentViewModel(docId: docId, api: api))
+        self.onDisparaitre = onDisparaitre
     }
 
     var body: some View {
