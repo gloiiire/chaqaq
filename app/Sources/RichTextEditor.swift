@@ -230,9 +230,12 @@ struct RichTextEditor: UIViewRepresentable {
     func updateUIView(_ tv: ExpandingTextView, context: Context) {
         let coord = context.coordinator
         coord.parent = self
-        tv.font = baseFont
 
+        // Ne pas réassigner tv.font pendant l'édition : UITextView.font ré-applique
+        // la fonte à TOUT le texte et écraserait le gras/italique par caractère.
+        // L'underline (attribut .underlineStyle) survivrait, mais pas .font.
         if !coord.enEdition {
+            tv.font = baseFont
             let nouveau = spans.isEmpty
                 ? coord.placeholder()
                 : avecExtras(spansVersNSAttributed(spans, police: baseFont))
@@ -502,10 +505,9 @@ struct RichTextEditor: UIViewRepresentable {
             switch style {
             case .bold:
                 let toutBold = touteLaPlage(dans: attr, range: range, verifie: attrsContiennentBold)
-                attr.enumerateAttribute(.font, in: range) { val, r, _ in
-                    let f      = (val as? UIFont) ?? parent.baseFont
+                attr.enumerateAttribute(.font, in: range) { _, r, _ in
                     let italic = attrsContiennentItalic(attributsA: attr, position: r.location)
-                    m.addAttribute(.font, value: fontAvecTraits(f, bold: !toutBold, italic: italic), range: r)
+                    m.addAttribute(.font, value: fontAvecTraits(parent.baseFont, bold: !toutBold, italic: italic), range: r)
                     if italic { m.addAttribute(.chaqaqObliqueness, value: 0.2, range: r) }
                     else       { m.removeAttribute(.chaqaqObliqueness, range: r) }
                 }
@@ -514,10 +516,9 @@ struct RichTextEditor: UIViewRepresentable {
 
             case .italic:
                 let toutItalic = touteLaPlage(dans: attr, range: range, verifie: attrsContiennentItalic)
-                attr.enumerateAttribute(.font, in: range) { val, r, _ in
-                    let f    = (val as? UIFont) ?? parent.baseFont
+                attr.enumerateAttribute(.font, in: range) { _, r, _ in
                     let bold = attrsContiennentBold(attributsA: attr, position: r.location)
-                    m.addAttribute(.font, value: fontAvecTraits(f, bold: bold, italic: !toutItalic), range: r)
+                    m.addAttribute(.font, value: fontAvecTraits(parent.baseFont, bold: bold, italic: !toutItalic), range: r)
                 }
                 if !toutItalic {
                     m.addAttribute(.chaqaqItalic, value: true, range: range)
@@ -562,18 +563,16 @@ struct RichTextEditor: UIViewRepresentable {
             var attrs = tv.typingAttributes
             switch style {
             case .bold:
-                let f      = (attrs[.font] as? UIFont) ?? parent.baseFont
                 let bold   = attrsContiennentBold(attrs)
                 let italic = attrsContiennentItalic(attrs)
-                attrs[.font] = fontAvecTraits(f, bold: !bold, italic: italic)
+                attrs[.font] = fontAvecTraits(parent.baseFont, bold: !bold, italic: italic)
                 if !bold { attrs[.chaqaqBold] = true } else { attrs.removeValue(forKey: .chaqaqBold) }
                 if italic { attrs[.chaqaqObliqueness] = 0.2 }
                 else      { attrs.removeValue(forKey: .chaqaqObliqueness) }
             case .italic:
-                let f      = (attrs[.font] as? UIFont) ?? parent.baseFont
                 let bold   = attrsContiennentBold(attrs)
                 let italic = attrsContiennentItalic(attrs)
-                attrs[.font] = fontAvecTraits(f, bold: bold, italic: !italic)
+                attrs[.font] = fontAvecTraits(parent.baseFont, bold: bold, italic: !italic)
                 if !italic {
                     attrs[.chaqaqItalic] = true
                     attrs[.chaqaqObliqueness] = 0.2
