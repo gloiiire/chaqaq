@@ -158,18 +158,12 @@ struct DocumentView: View {
                 .deleteDisabled(true)
 
             if vm.blocs.isEmpty {
-                Button { vm.ajouterBloc(type: .texte) } label: {
-                    Text("Commence à écrire…")
-                        .foregroundStyle(.tertiary)
-                        .font(.body)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 4, trailing: 20))
-                .moveDisabled(true)
-                .deleteDisabled(true)
+                EtatVideSaisie { vm.ajouterBloc(type: .texte) }
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                    .moveDisabled(true)
+                    .deleteDisabled(true)
             }
 
             ForEach($vm.blocs) { $bloc in
@@ -344,6 +338,28 @@ private struct TitreSaisie: UIViewRepresentable {
                 return
             }
             parent.texte = texte
+        }
+    }
+}
+
+// ── État vide cliquable ───────────────────────────────────────────────────────
+
+private struct EtatVideSaisie: View {
+    let onCommencer: () -> Void
+    @State private var focused = false
+
+    var body: some View {
+        RichTextEditor(
+            spans: .constant([]),
+            isFocused: $focused,
+            placeholder: "Commence à écrire…",
+            onSave: nil,
+            onNewBlock: nil,
+            onSupprimerBloc: nil,
+            onConvert: nil
+        )
+        .onChange(of: focused) { _, estFocus in
+            if estFocus { onCommencer() }
         }
     }
 }
