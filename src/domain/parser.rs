@@ -7,6 +7,11 @@ enum LinkState {
     Url(String, String),
 }
 
+enum ColorState {
+    NomCouleur(String),
+    Texte(String, String), // (couleur, texte)
+}
+
 fn flush(result: &mut Vec<InlineText>, current_text: &mut String, styles: Vec<InlineStyle>) {
     if !current_text.is_empty() {
         result.push(InlineText {
@@ -17,10 +22,11 @@ fn flush(result: &mut Vec<InlineText>, current_text: &mut String, styles: Vec<In
     }
 }
 
-fn actifs(bold: bool, italic: bool) -> Vec<InlineStyle> {
+fn actifs(bold: bool, italic: bool, underline: bool) -> Vec<InlineStyle> {
     let mut styles = vec![];
     if bold { styles.push(InlineStyle::Bold); }
     if italic { styles.push(InlineStyle::Italic); }
+    if underline { styles.push(InlineStyle::Underline); }
     styles
 }
 
@@ -30,63 +36,103 @@ pub fn parse_inline(input: &str) -> Vec<InlineText> {
     let mut chars = input.chars().peekable();
     let mut bold = false;
     let mut italic = false;
+    let mut underline = false;
     let mut link: Option<LinkState> = None;
+    let mut color: Option<ColorState> = None;
 
     while let Some(ch) = chars.next() {
         match ch {
-            '*' if chars.peek() == Some(&'*') && link.is_none() => {
+            // gras (**texte**)
+            '*' if chars.peek() == Some(&'*') && link.is_none() && color.is_none() => {
                 chars.next();
-                flush(&mut block, &mut current_text, actifs(bold, italic));
+                flush(&mut block, &mut current_text, actifs(bold, italic, underline));
                 bold = !bold;
             }
-            '*' if link.is_none() => current_text.push('*'),
+            '*' if link.is_none() && color.is_none() => current_text.push('*'),
 
-            '_' if link.is_none() => {
-                flush(&mut block, &mut current_text, actifs(bold, italic));
+            // souligné (__texte__) ou italique (_texte_)
+            '_' if chars.peek() == Some(&'_') && link.is_none() && color.is_none() => {
+                chars.next();
+                flush(&mut block, &mut current_text, actifs(bold, italic, underline));
+                underline = !underline;
+            }
+            '_' if link.is_none() && color.is_none() => {
+                flush(&mut block, &mut current_text, actifs(bold, italic, underline));
                 italic = !italic;
             }
 
-            // fin de l'url
-            ')' => {
-                if let Some(LinkState::Url(mut content, url)) = link.take() {
-                    flush(&mut block, &mut content, vec![InlineStyle::Link(url)]);
-                    current_text.clear();
+            // couleur : début ({rouge:texte})
+            '{' if link.is_none() && color.is_none() => {
+                flush(&mut block, &mut current_text, actifs(bold, italic, underline));
+                color = Some(ColorState::NomCouleur(String::new()));
+            }
+            // couleur : ':' sépare le nom de la couleur du texte
+            ':' if matches!(color, Some(ColorState::NomCouleur(_))) => {
+                if let Some(ColorState::NomCouleur(nom)) = color.take() {
+                    color = Some(ColorState::Texte(nom, String::new()));
                 }
             }
-            // début de l'url
-            '(' => {
-                if let Some(LinkState::WaitingUrl(content)) = link.take() {
-                    link = Some(LinkState::Url(content, String::new()));
-                } else {
-                    current_text.push(ch);
+            // couleur : fin
+            '}' if color.is_some() => {
+                match color.take() {
+                    Some(ColorState::Texte(couleur, mut texte)) => {
+                        flush(&mut block, &mut texte, vec![InlineStyle::Color(couleur)]);
+                    }
+                    Some(ColorState::NomCouleur(nom)) => {
+                        // accolade sans ':' — texte littéral
+                        current_text.push('{');
+                        current_text.push_str(&nom);
+                        current_text.push('}');
+                    }
+                    None => unreachable!(),
                 }
-            }
-            // fin du texte du lien
-            ']' => {
-                if let Some(LinkState::Text(content)) = link.take() {
-                    link = Some(LinkState::WaitingUrl(content));
-                } else {
-                    current_text.push(ch);
-                }
-            }
-            // début du texte du lien
-            '[' => {
-                flush(&mut block, &mut current_text, actifs(bold, italic));
-                link = Some(LinkState::Text(String::new()));
             }
 
-            _ => match link {
-                Some(LinkState::Text(ref mut content)) => content.push(ch),
-                Some(LinkState::Url(_, ref mut url)) => url.push(ch),
-                _ => current_text.push(ch),
-            },
+            // lien : début du texte
+            '[' if link.is_none() && color.is_none() => {
+                flush(&mut block, &mut current_text, actifs(bold, italic, underline));
+                link = Some(LinkState::Text(String::new()));
+            }
+            // lien : fin du texte
+            ']' if matches!(link, Some(LinkState::Text(_))) => {
+                if let Some(LinkState::Text(content)) = link.take() {
+                    link = Some(LinkState::WaitingUrl(content));
+                }
+            }
+            // lien : début de l'url
+            '(' if matches!(link, Some(LinkState::WaitingUrl(_))) => {
+                if let Some(LinkState::WaitingUrl(content)) = link.take() {
+                    link = Some(LinkState::Url(content, String::new()));
+                }
+            }
+            // lien : fin de l'url
+            ')' if matches!(link, Some(LinkState::Url(_, _))) => {
+                if let Some(LinkState::Url(mut content, url)) = link.take() {
+                    flush(&mut block, &mut content, vec![InlineStyle::Link(url)]);
+                }
+            }
+
+            // tout le reste : accumulation dans le buffer actif
+            _ => {
+                if let Some(LinkState::Text(ref mut content)) = link {
+                    content.push(ch);
+                } else if let Some(LinkState::Url(_, ref mut url)) = link {
+                    url.push(ch);
+                } else if let Some(ColorState::NomCouleur(ref mut nom)) = color {
+                    nom.push(ch);
+                } else if let Some(ColorState::Texte(_, ref mut texte)) = color {
+                    texte.push(ch);
+                } else {
+                    current_text.push(ch);
+                }
+            }
         }
     }
 
     if !current_text.is_empty() {
         block.push(InlineText {
             content: current_text,
-            styles: actifs(bold, italic),
+            styles: actifs(bold, italic, underline),
         });
     }
 
@@ -110,12 +156,20 @@ mod tests {
         InlineText { content: content.to_string(), styles: vec![InlineStyle::Italic] }
     }
 
+    fn souligne(content: &str) -> InlineText {
+        InlineText { content: content.to_string(), styles: vec![InlineStyle::Underline] }
+    }
+
     fn gras_italique(content: &str) -> InlineText {
         InlineText { content: content.to_string(), styles: vec![InlineStyle::Bold, InlineStyle::Italic] }
     }
 
     fn lien(content: &str, url: &str) -> InlineText {
         InlineText { content: content.to_string(), styles: vec![InlineStyle::Link(url.to_string())] }
+    }
+
+    fn couleur(content: &str, c: &str) -> InlineText {
+        InlineText { content: content.to_string(), styles: vec![InlineStyle::Color(c.to_string())] }
     }
 
     #[test]
@@ -137,6 +191,35 @@ mod tests {
             parse_inline("avant _italique_ après"),
             vec![texte("avant "), italique("italique"), texte(" après")]
         );
+    }
+
+    #[test]
+    fn test_souligne() {
+        assert_eq!(
+            parse_inline("avant __souligné__ après"),
+            vec![texte("avant "), souligne("souligné"), texte(" après")]
+        );
+    }
+
+    #[test]
+    fn test_couleur() {
+        assert_eq!(
+            parse_inline("{rouge:texte coloré}"),
+            vec![couleur("texte coloré", "rouge")]
+        );
+    }
+
+    #[test]
+    fn test_couleur_avec_contexte() {
+        assert_eq!(
+            parse_inline("voir {bleu:ici} suite"),
+            vec![texte("voir "), couleur("ici", "bleu"), texte(" suite")]
+        );
+    }
+
+    #[test]
+    fn test_accolade_sans_deux_points() {
+        assert_eq!(parse_inline("{texte}"), vec![texte("{texte}")]);
     }
 
     #[test]
