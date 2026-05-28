@@ -33,10 +33,13 @@ src/
     use_cases.rs   — use cases documents et blocs
     database_repository.rs — trait DatabaseRepository
     database_use_cases.rs  — use cases database
-    error.rs       — ChaqaqError (NonTrouve, OperationInvalide, Io, Json)
+    error.rs       — ChaqaqError (NonTrouve, OperationInvalide, Io, Json, Db)
   infrastructure/
-    json_store.rs       — JsonStore implémente DocumentRepository
-    database_store.rs   — DatabaseStore implémente DatabaseRepository
+    migrations.rs            — migrations SQLite versionnées (rusqlite_migration)
+    sqlite_document_store.rs — SqliteDocumentStore : stockage local-first recommandé
+    sqlite_database_store.rs — SqliteDatabaseStore : stockage local-first recommandé
+    json_store.rs            — JsonStore : conservé pour les tests et le proto
+    database_store.rs        — DatabaseStore JSON : conservé pour les tests
   main.rs          — point d'entrée démo
 ```
 
@@ -87,7 +90,8 @@ Moteur type Notion :
 - `Database { id, titre, proprietes, entrees, vues }`, `DatabaseMeta`
 
 ### `application/error.rs`
-`ChaqaqError` : `NonTrouve(Uuid)`, `OperationInvalide(String)`, `Io(std::io::Error)`, `Json(serde_json::Error)`
+`ChaqaqError` : `NonTrouve(Uuid)`, `OperationInvalide(String)`, `Io(std::io::Error)`, `Json(serde_json::Error)`, `Db(String)`
+— `Db(String)` convertit les erreurs rusqlite en string pour ne pas coupler l'application à SQLite.
 — implémente `std::error::Error` + `From<io::Error>` + `From<serde_json::Error>`
 
 ### `application/use_cases.rs`
@@ -114,13 +118,24 @@ Moteur type Notion :
 - `rechercher_entrees(db_id, query)` — insensible à la casse dans toutes les valeurs textuelles
 - `evaluer_rollups(db, entrees)` — calcul des colonnes Rollup (non persisté)
 
+### `infrastructure/migrations.rs`
+Migrations versionnées via `rusqlite_migration`. Deux fonctions : `appliquer_migrations_documents` et `appliquer_migrations_databases`. Chaque évolution de schéma = un `M::up()` de plus.
+
+### `infrastructure/sqlite_document_store.rs` + `sqlite_database_store.rs`
+Stockage SQLite local-first. Schéma : document-as-JSON dans une colonne `data`, avec colonnes indexées (`title_text`, `title_json`, `cover`) pour `list()` rapide sans désérialiser les blocs.
+- `updated_at` géré automatiquement à chaque `save()` — prêt pour sync future
+- Soft delete : `delete()` pose `deleted_at` au lieu de supprimer — données récupérables pour CRDT
+- SQLite bundlé (`features = ["bundled"]`) — pas de dépendance système, fonctionne sur iOS/Android/macOS
+- `PRAGMA journal_mode=WAL` activé pour de meilleures performances concurrentes
+- Constructeur `en_memoire()` pour les tests
+
 ### `infrastructure/json_store.rs`
-`JsonStore { dir: PathBuf }` — documents stockés en `{uuid}.json`.
+`JsonStore { dir: PathBuf }` — conservé pour compatibilité et tests existants.
 `#[serde(alias = "style")]` sur `styles` pour la compat avec les anciens fichiers.
 
 ## Roadmap
 
-Ce qui est **fait** — backend Rust complet (95 tests) :
+Ce qui est **fait** — backend Rust complet (111 tests) :
 - Parser inline complet (bold, italic, underline, color, link, combinaisons)
 - Types de blocs et documents avec blocs imbriqués récursifs
 - `DocumentMeta` pour `list()` sans charger tout le contenu
@@ -134,12 +149,13 @@ Ce qui est **fait** — backend Rust complet (95 tests) :
 - Recherche dans les entrées de database
 - Gestion complète des propriétés (ajout, renommage, suppression)
 - Gestion complète des vues (ajout, modification filtres/tris, suppression)
-- `JsonStore` + `DatabaseStore`
+- **SQLite local-first** : `SqliteDocumentStore` + `SqliteDatabaseStore` avec soft delete, `updated_at`, migrations versionnées
+- `JsonStore` + `DatabaseStore` JSON (conservés pour les tests)
 
 Ce qui **reste** à construire :
 1. Décision finale UI (Flutter + flutter_rust_bridge vs Slint vs autre)
 2. Couche UI : rendu des blocs, interaction clavier, drag & drop
-3. Sync entre appareils (CRDT — s'inspirer de y-octo)
+3. Sync entre appareils (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
 
 ## Code style
 - Commentaires en français

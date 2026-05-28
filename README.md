@@ -2,7 +2,7 @@
 
 Application de notes personnelle combinant la fluidité de Craft et la structure de Notion — core en Rust pur.
 
-> Statut : **backend complet** (95 tests). Couche UI en cours de décision.
+> Statut : **backend complet** (111 tests). Couche UI en cours de décision.
 
 ---
 
@@ -43,8 +43,11 @@ src/
     database_use_cases.rs  — use cases database
     error.rs              — ChaqaqError
   infrastructure/
-    json_store.rs         — JsonStore (documents → {uuid}.json)
-    database_store.rs     — DatabaseStore (databases → {uuid}.json)
+    migrations.rs            — migrations SQLite versionnées
+    sqlite_document_store.rs — SqliteDocumentStore (local-first, recommandé)
+    sqlite_database_store.rs — SqliteDatabaseStore (local-first, recommandé)
+    json_store.rs            — JsonStore (conservé pour les tests)
+    database_store.rs        — DatabaseStore JSON (conservé pour les tests)
 ```
 
 ---
@@ -101,13 +104,25 @@ __souligné__      → Underline
 - Plein texte dans le contenu des blocs (récursif dans les enfants)
 - Dans les valeurs textuelles des entrées de database
 
+### Stockage (local-first)
+
+Architecture **local-first, offline-first** — chaque device a sa propre base SQLite embarquée.
+
+- `SqliteDocumentStore` / `SqliteDatabaseStore` : stockage recommandé pour la production
+- Schéma document-as-JSON : le blob complet est dans une colonne `data`, les métadonnées (`title_text`, `title_json`, `cover`) sont indexées séparément pour un listing rapide sans désérialiser les blocs
+- `updated_at` géré automatiquement à chaque écriture
+- **Soft delete** : `delete()` pose un `deleted_at` au lieu de supprimer — les données restent disponibles pour la sync CRDT future
+- SQLite bundlé dans le binaire — pas de dépendance système, fonctionne sur iOS, Android et macOS
+- Migrations versionnées via `rusqlite_migration` — évolutions de schéma sans perte de données
+- `JsonStore` / `DatabaseStore` JSON conservés pour les tests
+
 ---
 
 ## Lancer le projet
 
 ```bash
 cargo run     # point d'entrée démo
-cargo test    # 95 tests (unitaires + intégration + E2E)
+cargo test    # 111 tests (unitaires + intégration + E2E)
 cargo check   # vérification rapide
 cargo build
 ```
@@ -123,7 +138,8 @@ cargo build
 - [x] CRUD complet documents, blocs, databases
 - [x] Recherche (titres, contenu, entrées)
 - [x] Erreurs custom (`ChaqaqError`)
-- [x] Persistance JSON
+- [x] Persistance JSON (proto/tests)
+- [x] Stockage SQLite local-first (soft delete, updated_at, migrations, bundled)
 - [ ] Décision UI (Flutter + flutter_rust_bridge vs Slint vs autre)
 - [ ] Couche UI : rendu des blocs, interaction clavier, drag & drop
 - [ ] Sync entre appareils (CRDT, s'inspirer de y-octo)
@@ -136,4 +152,6 @@ cargo build
 |---|---|
 | `serde` + `serde_json` | Sérialisation / persistance JSON |
 | `uuid` | Identifiants uniques |
-| `chrono` | Timestamps ISO 8601 (`cree_le`) |
+| `chrono` | Timestamps ISO 8601 (`cree_le`, `updated_at`) |
+| `rusqlite` (bundled) | SQLite embarqué — stockage local-first |
+| `rusqlite_migration` | Migrations de schéma versionnées |
