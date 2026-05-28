@@ -92,10 +92,27 @@ Moteur type Notion :
 
 ### `application/use_cases.rs`
 - `creer_document`, `obtenir_document`, `lister_documents`, `supprimer_document`
-- `ajouter_bloc`, `modifier_bloc`, `supprimer_bloc`, `reordonner_blocs`, `ajouter_bloc_enfant`
 - `modifier_titre_document`, `modifier_couverture_document`
+- `ajouter_bloc`, `modifier_bloc`, `supprimer_bloc`
+- `reordonner_blocs(doc_id, ordre)` — réordonne les blocs racine
+- `reordonner_blocs_enfants(doc_id, parent_id, ordre)` — réordonne les enfants d'un bloc
+- `ajouter_bloc_enfant(doc_id, parent_id, contenu)` — imbrique un bloc
+- `deplacer_bloc(doc_id, block_id, nouveau_parent_id: Option<Uuid>)` — déplace vers un parent (None = racine)
 - `sauvegarder_bloc_edite(doc_id, block_id, &EditorState)` — bridge éditeur → persistance
-- `rechercher_documents(query)` — recherche insensible à la casse dans les titres
+- `rechercher_documents(query)` — insensible à la casse dans les titres
+- `rechercher_dans_blocs(query)` — plein texte dans le contenu des blocs (récursif)
+
+### `application/database_use_cases.rs`
+- `creer_database`, `obtenir_database`, `lister_databases`, `supprimer_database`
+- `ajouter_entree`, `modifier_entree`, `supprimer_entree`
+- `ajouter_propriete`, `renommer_propriete`, `supprimer_propriete` (nettoie les valeurs dans les entrées)
+- `ajouter_vue`, `modifier_vue(vue_id, filtres, tris)`, `supprimer_vue` (bloque sur la dernière)
+- `requete(db_id, vue_id)` — filtres + tris
+- `requete_avec_rollups` — requête + rollups calculés à la lecture
+- `agregat_colonne(db_id, prop_id, agregat)`
+- `requete_groupee(db_id, vue_id, grouper_par)`
+- `rechercher_entrees(db_id, query)` — insensible à la casse dans toutes les valeurs textuelles
+- `evaluer_rollups(db, entrees)` — calcul des colonnes Rollup (non persisté)
 
 ### `infrastructure/json_store.rs`
 `JsonStore { dir: PathBuf }` — documents stockés en `{uuid}.json`.
@@ -103,7 +120,7 @@ Moteur type Notion :
 
 ## Roadmap
 
-Ce qui est **fait** (core Rust complet) :
+Ce qui est **fait** — backend Rust complet (95 tests) :
 - Parser inline complet (bold, italic, underline, color, link, combinaisons)
 - Types de blocs et documents avec blocs imbriqués récursifs
 - `DocumentMeta` pour `list()` sans charger tout le contenu
@@ -111,9 +128,12 @@ Ce qui est **fait** (core Rust complet) :
 - `RichText` + `EditorState` : édition en mémoire (curseur, sélection, toggle style)
 - Undo/redo via pattern Command (`Historique` avec capacité configurable)
 - Moteur database type Notion (propriétés, entrées, vues, filtres, tris, rollup, relation)
+- CRUD complet blocs : ajouter, modifier, supprimer, réordonner (racine et enfants), imbriquer, déplacer
 - Bridge éditeur → persistance (`sauvegarder_bloc_edite`)
-- CRUD complet blocs (ajouter, modifier, supprimer, réordonner, imbriquer)
-- Recherche de documents
+- Recherche documents par titre + plein texte dans les blocs
+- Recherche dans les entrées de database
+- Gestion complète des propriétés (ajout, renommage, suppression)
+- Gestion complète des vues (ajout, modification filtres/tris, suppression)
 - `JsonStore` + `DatabaseStore`
 
 Ce qui **reste** à construire :
