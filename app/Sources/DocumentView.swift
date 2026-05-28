@@ -254,7 +254,10 @@ private struct TitreDocView: View {
             .onSubmit { onSauvegarder(); focused = false; onNouveauBloc() }
             .onChange(of: focused) { _, estFocus in if !estFocus { onSauvegarder() } }
             .onChange(of: focusDemande) { _, demande in
-                if demande { focused = true; focusDemande = false }
+                if demande {
+                    focusDemande = false
+                    DispatchQueue.main.async { focused = true }
+                }
             }
     }
 }
