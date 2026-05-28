@@ -2,7 +2,7 @@ name: Chaqaq
 options:
   bundleIdPrefix: com.gloiiire
   deploymentTarget:
-    iOS: "18.0"
+    iOS: "26.0"
   createIntermediateGroups: true
 
 schemes:
@@ -21,7 +21,7 @@ targets:
   Chaqaq:
     type: application
     platform: iOS
-    deploymentTarget: "18.0"
+    deploymentTarget: "26.0"
     sources:
       - path: Sources
       - path: ../swift-bindings/chaqaq.swift

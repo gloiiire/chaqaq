@@ -3,17 +3,25 @@ import SwiftUI
 // ── Auto-focus (extension partagée) ──────────────────────────────────────────
 
 private extension View {
-    func autoFocuserSiBesoin(blocId: String, autoFocusId: Binding<String?>, focused: Binding<Bool>) -> some View {
+    func autoFocuserSiBesoin(blocId: String,
+                              autoFocusId: Binding<String?>,
+                              autoFocusOffset: Binding<Int?>,
+                              cursorAt: Binding<Int?>,
+                              focused: Binding<Bool>) -> some View {
         self
             .onAppear {
                 guard autoFocusId.wrappedValue == blocId else { return }
                 autoFocusId.wrappedValue = nil
-                DispatchQueue.main.async { focused.wrappedValue = true }
+                let off = autoFocusOffset.wrappedValue
+                autoFocusOffset.wrappedValue = nil
+                DispatchQueue.main.async { cursorAt.wrappedValue = off; focused.wrappedValue = true }
             }
             .onChange(of: autoFocusId.wrappedValue) { _, newId in
                 guard newId == blocId else { return }
                 autoFocusId.wrappedValue = nil
-                DispatchQueue.main.async { focused.wrappedValue = true }
+                let off = autoFocusOffset.wrappedValue
+                autoFocusOffset.wrappedValue = nil
+                DispatchQueue.main.async { cursorAt.wrappedValue = off; focused.wrappedValue = true }
             }
     }
 }
@@ -37,6 +45,10 @@ final class DocumentViewModel: ObservableObject {
     @Published var blocs: [EditableBlock] = []
     @Published var erreur: String?
     @Published var autoFocusId: String?
+    @Published var autoFocusOffset: Int? = nil
+    private var idBlocFocuse: String? = nil
+    private var navTimer: Timer?
+    var navEnRepetition: Bool { navTimer != nil }
 
     private let api: ChaqaqApi
 
@@ -109,6 +121,34 @@ final class DocumentViewModel: ObservableObject {
         } catch { erreur = error.localizedDescription }
     }
 
+    func demarrerNavRepetition(depuis: String, suivant: Bool) {
+        guard !navEnRepetition else { return }
+        idBlocFocuse = depuis
+        navTimer = Timer.scheduledTimer(withTimeInterval: 0.12, repeats: true) { [weak self] _ in
+            self?.pasNavigation(suivant: suivant)
+        }
+    }
+
+    func stopNavRepetition() {
+        navTimer?.invalidate()
+        navTimer = nil
+        idBlocFocuse = nil
+    }
+
+    private func pasNavigation(suivant: Bool) {
+        guard let cid = idBlocFocuse,
+              let idx = blocs.firstIndex(where: { $0.id == cid }) else { stopNavRepetition(); return }
+        if suivant {
+            guard idx < blocs.count - 1 else { stopNavRepetition(); return }
+            let nid = blocs[idx + 1].id
+            autoFocusOffset = 0; idBlocFocuse = nid; autoFocusId = nid
+        } else {
+            guard idx > 0 else { stopNavRepetition(); return }
+            let nid = blocs[idx - 1].id
+            autoFocusOffset = nil; idBlocFocuse = nid; autoFocusId = nid
+        }
+    }
+
     func deplacerBloc(from: IndexSet, to: Int) {
         blocs.move(fromOffsets: from, toOffset: to)
         try? api.reordonnerBlocs(docId: docId, ordre: blocs.map(\.id))
@@ -170,6 +210,7 @@ struct DocumentView: View {
                 BlocRowView(
                     bloc: $bloc,
                     autoFocusId: $vm.autoFocusId,
+                    autoFocusOffset: $vm.autoFocusOffset,
                     onSauvegarder: { vm.sauvegarderBloc(bloc) },
                     onSupprimer: {
                         if let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }) {
@@ -185,7 +226,40 @@ struct DocumentView: View {
                     },
                     onNouveauBloc: { apres in
                         vm.ajouterBloc(type: .texte, texteInitial: apres, apresId: bloc.id)
-                    }
+                    },
+                    onFusionner: vm.blocs.first?.id == bloc.id ? nil : { spansAMerger in
+                        guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }), idx > 0 else { return }
+                        let prevIdx      = idx - 1
+                        let prevId       = vm.blocs[prevIdx].id
+                        let offsetFusion = vm.blocs[prevIdx].spans.map(\.content).joined().count
+                        vm.blocs[prevIdx].spans += spansAMerger
+                        vm.sauvegarderBloc(vm.blocs[prevIdx])
+                        vm.supprimerBloc(id: bloc.id)
+                        vm.autoFocusOffset = offsetFusion
+                        vm.autoFocusId     = prevId
+                    },
+                    onNaviguerPrecedent: {
+                        guard !vm.navEnRepetition else { return }
+                        guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }) else { return }
+                        if idx > 0 {
+                            let nid = vm.blocs[idx - 1].id
+                            vm.autoFocusOffset = nil
+                            vm.autoFocusId = nid
+                            vm.demarrerNavRepetition(depuis: nid, suivant: false)
+                        } else {
+                            focusTitre = true
+                        }
+                    },
+                    onNaviguerSuivant: {
+                        guard !vm.navEnRepetition else { return }
+                        guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }),
+                              idx < vm.blocs.count - 1 else { return }
+                        let nid = vm.blocs[idx + 1].id
+                        vm.autoFocusOffset = 0
+                        vm.autoFocusId = nid
+                        vm.demarrerNavRepetition(depuis: nid, suivant: true)
+                    },
+                    onNavRepeterArreter: { vm.stopNavRepetition() }
                 )
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
@@ -369,29 +443,42 @@ private struct EtatVideSaisie: View {
 private struct BlocRowView: View {
     @Binding var bloc: EditableBlock
     @Binding var autoFocusId: String?
+    @Binding var autoFocusOffset: Int?
     let onSauvegarder: () -> Void
     let onSupprimer: () -> Void
     let onNouveauBloc: (String) -> Void
+    var onFusionner: (([InlineTextFfi]) -> Void)?
+    var onNaviguerPrecedent: (() -> Void)?
+    var onNaviguerSuivant: (() -> Void)?
+    var onNavRepeterArreter: (() -> Void)?
 
     var body: some View {
         Group {
             switch bloc.content {
             case .text:
-                TexteRowView(bloc: $bloc, autoFocusId: $autoFocusId,
+                TexteRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
                              onSauvegarder: onSauvegarder, onSupprimer: onSupprimer,
-                             onNouveauBloc: onNouveauBloc)
+                             onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
+                             onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
+                             onNavRepeterArreter: onNavRepeterArreter)
             case .heading(let level, _):
-                HeadingRowView(bloc: $bloc, level: level, autoFocusId: $autoFocusId,
+                HeadingRowView(bloc: $bloc, level: level, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
                                onSauvegarder: onSauvegarder, onSupprimer: onSupprimer,
-                               onNouveauBloc: onNouveauBloc)
+                               onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
+                               onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
+                               onNavRepeterArreter: onNavRepeterArreter)
             case .quote:
-                CitationRowView(bloc: $bloc, autoFocusId: $autoFocusId,
+                CitationRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
                                 onSauvegarder: onSauvegarder, onSupprimer: onSupprimer,
-                                onNouveauBloc: onNouveauBloc)
+                                onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
+                                onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
+                                onNavRepeterArreter: onNavRepeterArreter)
             case .todo:
-                TodoRowView(bloc: $bloc, autoFocusId: $autoFocusId,
+                TodoRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
                             onSauvegarder: onSauvegarder, onSupprimer: onSupprimer,
-                            onNouveauBloc: onNouveauBloc)
+                            onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
+                            onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
+                            onNavRepeterArreter: onNavRepeterArreter)
             case .divider:
                 Divider().padding(.vertical, 12)
             default:
@@ -411,10 +498,16 @@ private struct BlocRowView: View {
 private struct TexteRowView: View {
     @Binding var bloc: EditableBlock
     @Binding var autoFocusId: String?
+    @Binding var autoFocusOffset: Int?
     let onSauvegarder: () -> Void
     let onSupprimer: () -> Void
     let onNouveauBloc: (String) -> Void
+    var onFusionner: (([InlineTextFfi]) -> Void)?
+    var onNaviguerPrecedent: (() -> Void)?
+    var onNaviguerSuivant: (() -> Void)?
+    var onNavRepeterArreter: (() -> Void)?
     @State private var focused = false
+    @State private var cursorAt: Int?
 
     var body: some View {
         RichTextEditor(
@@ -422,12 +515,17 @@ private struct TexteRowView: View {
             isFocused: $focused,
             placeholder: "Texte…",
             baseFont: .preferredFont(forTextStyle: .body),
+            focusCursorAt: cursorAt,
             onSave: onSauvegarder,
             onNewBlock: onNouveauBloc,
             onSupprimerBloc: onSupprimer,
-            onConvert: { contenu in bloc.content = contenu; bloc.spans = []; onSauvegarder() }
-        )
-        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId, focused: $focused)
+            onFusionnerAvecPrecedent: onFusionner,
+            onConvert: { contenu in bloc.content = contenu; bloc.spans = []; onSauvegarder() },
+            onNaviguerPrecedent: onNaviguerPrecedent,
+            onNaviguerSuivant: onNaviguerSuivant,
+            onNavRepeterArreter: onNavRepeterArreter)
+        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId,
+                              autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
     }
 }
 
@@ -437,10 +535,16 @@ private struct HeadingRowView: View {
     @Binding var bloc: EditableBlock
     let level: Int
     @Binding var autoFocusId: String?
+    @Binding var autoFocusOffset: Int?
     let onSauvegarder: () -> Void
     let onSupprimer: () -> Void
     let onNouveauBloc: (String) -> Void
+    var onFusionner: (([InlineTextFfi]) -> Void)?
+    var onNaviguerPrecedent: (() -> Void)?
+    var onNaviguerSuivant: (() -> Void)?
+    var onNavRepeterArreter: (() -> Void)?
     @State private var focused = false
+    @State private var cursorAt: Int?
 
     private var uiFont: UIFont {
         switch level {
@@ -456,14 +560,19 @@ private struct HeadingRowView: View {
             isFocused: $focused,
             placeholder: "Titre…",
             baseFont: uiFont,
+            focusCursorAt: cursorAt,
             onSave: onSauvegarder,
             onNewBlock: onNouveauBloc,
             onSupprimerBloc: onSupprimer,
-            onConvert: { contenu in bloc.content = contenu; bloc.spans = []; onSauvegarder() }
-        )
+            onFusionnerAvecPrecedent: onFusionner,
+            onConvert: { contenu in bloc.content = contenu; bloc.spans = []; onSauvegarder() },
+            onNaviguerPrecedent: onNaviguerPrecedent,
+            onNaviguerSuivant: onNaviguerSuivant,
+            onNavRepeterArreter: onNavRepeterArreter)
         .padding(.top, level == 1 ? 16 : 10)
         .padding(.bottom, 4)
-        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId, focused: $focused)
+        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId,
+                              autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
     }
 }
 
@@ -472,10 +581,16 @@ private struct HeadingRowView: View {
 private struct CitationRowView: View {
     @Binding var bloc: EditableBlock
     @Binding var autoFocusId: String?
+    @Binding var autoFocusOffset: Int?
     let onSauvegarder: () -> Void
     let onSupprimer: () -> Void
     let onNouveauBloc: (String) -> Void
+    var onFusionner: (([InlineTextFfi]) -> Void)?
+    var onNaviguerPrecedent: (() -> Void)?
+    var onNaviguerSuivant: (() -> Void)?
+    var onNavRepeterArreter: (() -> Void)?
     @State private var focused = false
+    @State private var cursorAt: Int?
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
@@ -488,15 +603,20 @@ private struct CitationRowView: View {
                 isFocused: $focused,
                 placeholder: "Citation…",
                 baseFont: .italicSystemFont(ofSize: UIFont.preferredFont(forTextStyle: .body).pointSize),
+                focusCursorAt: cursorAt,
                 onSave: onSauvegarder,
                 onNewBlock: onNouveauBloc,
                 onSupprimerBloc: onSupprimer,
-                onConvert: { contenu in bloc.content = contenu; bloc.spans = []; onSauvegarder() }
-            )
+                onFusionnerAvecPrecedent: onFusionner,
+                onConvert: { contenu in bloc.content = contenu; bloc.spans = []; onSauvegarder() },
+                onNaviguerPrecedent: onNaviguerPrecedent,
+                onNaviguerSuivant: onNaviguerSuivant,
+                onNavRepeterArreter: onNavRepeterArreter)
             .padding(.leading, 14)
         }
         .padding(.vertical, 4)
-        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId, focused: $focused)
+        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId,
+                              autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
     }
 }
 
@@ -505,10 +625,16 @@ private struct CitationRowView: View {
 private struct TodoRowView: View {
     @Binding var bloc: EditableBlock
     @Binding var autoFocusId: String?
+    @Binding var autoFocusOffset: Int?
     let onSauvegarder: () -> Void
     let onSupprimer: () -> Void
     let onNouveauBloc: (String) -> Void
+    var onFusionner: (([InlineTextFfi]) -> Void)?
+    var onNaviguerPrecedent: (() -> Void)?
+    var onNaviguerSuivant: (() -> Void)?
+    var onNavRepeterArreter: (() -> Void)?
     @State private var focused = false
+    @State private var cursorAt: Int?
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -532,14 +658,19 @@ private struct TodoRowView: View {
                     .strikethroughStyle: NSUnderlineStyle.single.rawValue,
                     .foregroundColor: UIColor.secondaryLabel
                 ] : nil,
+                focusCursorAt: cursorAt,
                 onSave: onSauvegarder,
                 onNewBlock: onNouveauBloc,
                 onSupprimerBloc: onSupprimer,
-                onConvert: nil
-            )
+                onFusionnerAvecPrecedent: onFusionner,
+                onConvert: nil,
+                onNaviguerPrecedent: onNaviguerPrecedent,
+                onNaviguerSuivant: onNaviguerSuivant,
+                onNavRepeterArreter: onNavRepeterArreter)
         }
         .padding(.vertical, 2)
-        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId, focused: $focused)
+        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId,
+                              autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
     }
 }
 

@@ -95,6 +95,9 @@ func uiCouleurDepuisNom(_ nom: String) -> UIColor {
 
 final class ExpandingTextView: UITextView {
     var onShiftEnter: (() -> Void)?
+    var onNaviguerPrecedent: (() -> Void)?
+    var onNaviguerSuivant: (() -> Void)?
+    var onNavRepeterArreter: (() -> Void)?
 
     override var keyCommands: [UIKeyCommand]? {
         let cmd = UIKeyCommand(input: "\r", modifierFlags: .shift, action: #selector(gererShiftEnter))
@@ -105,13 +108,69 @@ final class ExpandingTextView: UITextView {
     @objc private func gererShiftEnter() { onShiftEnter?() }
 
     override var intrinsicContentSize: CGSize {
-        let w = bounds.width > 0 ? bounds.width : UIScreen.main.bounds.width
+        let w = bounds.width > 0 ? bounds.width : (window?.screen.bounds.width ?? 390)
         let h = sizeThatFits(CGSize(width: w, height: .greatestFiniteMagnitude)).height
         return CGSize(width: UIView.noIntrinsicMetric, height: max(h, font?.lineHeight ?? 20))
     }
     override func layoutSubviews() {
         super.layoutSubviews()
         invalidateIntrinsicContentSize()
+    }
+
+    override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        let unhandled = gererFleches(presses)
+        if !unhandled.isEmpty { super.pressesBegan(unhandled, with: event) }
+    }
+
+    override func pressesChanged(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        let unhandled = gererFleches(presses)
+        if !unhandled.isEmpty { super.pressesChanged(unhandled, with: event) }
+    }
+
+    @discardableResult
+    private func gererFleches(_ presses: Set<UIPress>) -> Set<UIPress> {
+        var unhandled = Set<UIPress>()
+        for press in presses {
+            guard let key = press.key else { unhandled.insert(press); continue }
+            switch key.keyCode {
+            case .keyboardLeftArrow where selectedRange.location == 0 && selectedRange.length == 0:
+                onNaviguerPrecedent?()
+            case .keyboardRightArrow where selectedRange.location == (text as NSString).length && selectedRange.length == 0:
+                onNaviguerSuivant?()
+            case .keyboardUpArrow where estSurPremiereLigne():
+                onNaviguerPrecedent?()
+            case .keyboardDownArrow where estSurDerniereLigne():
+                onNaviguerSuivant?()
+            default:
+                unhandled.insert(press)
+            }
+        }
+        return unhandled
+    }
+
+    override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        for press in presses {
+            switch press.key?.keyCode {
+            case .keyboardLeftArrow, .keyboardRightArrow, .keyboardUpArrow, .keyboardDownArrow:
+                onNavRepeterArreter?()
+            default: break
+            }
+        }
+        super.pressesEnded(presses, with: event)
+    }
+
+    private func estSurPremiereLigne() -> Bool {
+        guard !text.isEmpty, let pos = selectedTextRange?.start else { return true }
+        let caret = caretRect(for: pos)
+        let first = caretRect(for: beginningOfDocument)
+        return abs(caret.minY - first.minY) < 2
+    }
+
+    private func estSurDerniereLigne() -> Bool {
+        guard !text.isEmpty, let pos = selectedTextRange?.start else { return true }
+        let caret = caretRect(for: pos)
+        let last  = caretRect(for: endOfDocument)
+        return abs(caret.minY - last.minY) < 2
     }
 }
 
@@ -123,10 +182,15 @@ struct RichTextEditor: UIViewRepresentable {
     var placeholder: String = ""
     var baseFont: UIFont = .preferredFont(forTextStyle: .body)
     var extraAttrs: [NSAttributedString.Key: Any]? = nil
+    var focusCursorAt: Int? = nil
     var onSave: (() -> Void)?
     var onNewBlock: ((String) -> Void)?
     var onSupprimerBloc: (() -> Void)?
+    var onFusionnerAvecPrecedent: (([InlineTextFfi]) -> Void)?
     var onConvert: ((BlockContentFfi) -> Void)?
+    var onNaviguerPrecedent: (() -> Void)? = nil
+    var onNaviguerSuivant: (() -> Void)? = nil
+    var onNavRepeterArreter: (() -> Void)? = nil
 
     func makeUIView(context: Context) -> ExpandingTextView {
         let tv = ExpandingTextView()
@@ -145,6 +209,9 @@ struct RichTextEditor: UIViewRepresentable {
             coord?.saisieSautDeLigne = true
             coord?.tv?.insertText("\n")
         }
+        tv.onNaviguerPrecedent  = { [weak coord] in coord?.parent.onNaviguerPrecedent?() }
+        tv.onNaviguerSuivant    = { [weak coord] in coord?.parent.onNaviguerSuivant?() }
+        tv.onNavRepeterArreter  = { [weak coord] in coord?.parent.onNavRepeterArreter?() }
         if spans.isEmpty { tv.attributedText = context.coordinator.placeholder() }
         else { tv.attributedText = avecExtras(spansVersNSAttributed(spans, police: baseFont)) }
         return tv
@@ -163,10 +230,11 @@ struct RichTextEditor: UIViewRepresentable {
         }
 
         if isFocused && !tv.isFirstResponder {
+            let pos = focusCursorAt
             DispatchQueue.main.async {
                 _ = tv.becomeFirstResponder()
-                let fin = tv.text.count
-                tv.selectedRange = NSRange(location: fin, length: 0)
+                let loc = pos.map { min($0, tv.text.count) } ?? tv.text.count
+                tv.selectedRange = NSRange(location: loc, length: 0)
             }
         } else if !isFocused && tv.isFirstResponder {
             tv.resignFirstResponder()
@@ -218,6 +286,16 @@ struct RichTextEditor: UIViewRepresentable {
             if text.isEmpty, range == NSRange(location: 0, length: 0), tv.text.isEmpty {
                 enCoursDeSupression = true
                 DispatchQueue.main.async { [weak self] in self?.parent.onSupprimerBloc?() }
+                return false
+            }
+            // Backspace au début d'un bloc non vide → fusionner avec le précédent
+            if text.isEmpty, range == NSRange(location: 0, length: 0), !tv.text.isEmpty,
+               parent.onFusionnerAvecPrecedent != nil {
+                enCoursDeSupression = true
+                let spansActuels = nsAttributedVersSpans(tv.attributedText, police: parent.baseFont)
+                DispatchQueue.main.async { [weak self] in
+                    self?.parent.onFusionnerAvecPrecedent?(spansActuels)
+                }
                 return false
             }
             // Enter
@@ -275,7 +353,7 @@ struct RichTextEditor: UIViewRepresentable {
             let pillH: CGFloat  = 50
             let margeV: CGFloat = 5
             let margeH: CGFloat = 4
-            let largeur = UIScreen.main.bounds.width
+            let largeur = tv?.window?.screen.bounds.width ?? 390
             let totalH  = pillH + margeV * 2
 
             let container = UIView(frame: CGRect(x: 0, y: 0, width: largeur, height: totalH))
