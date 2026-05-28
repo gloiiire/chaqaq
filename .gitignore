@@ -1,3 +1,8 @@
 /target
 .DS_Store
 .claude/
+
+# Xcode
+app/build/
+app/*.xcodeproj/xcuserdata/
+app/*.xcodeproj/project.xcworkspace/xcuserdata/
