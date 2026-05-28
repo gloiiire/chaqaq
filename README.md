@@ -2,7 +2,7 @@
 
 Application de notes personnelle combinant la fluidité de Craft et la structure de Notion — core en Rust pur.
 
-> Statut : **backend complet** (113 tests). Couche UI en cours de décision.
+> Statut : **backend complet** (117 tests) · **bindings Swift générés** · UI SwiftUI en cours.
 
 ---
 
@@ -15,7 +15,7 @@ chaqaq est une app de prise de notes avec deux ambitions :
 
 Le projet est entièrement écrit en Rust pour le core. L'objectif à terme est une publication open source — un rich text editor en Rust complet n'existe pas encore dans l'écosystème.
 
-Plateformes cibles : iPhone, iPad, Mac, Web, Android.
+Plateformes cibles : iPhone, iPad, Mac.
 
 ---
 
@@ -48,6 +48,9 @@ src/
     sqlite_database_store.rs — SqliteDatabaseStore (local-first, recommandé)
     json_store.rs            — JsonStore (conservé pour les tests)
     database_store.rs        — DatabaseStore JSON (conservé pour les tests)
+  ffi.rs             — façade UniFFI : ChaqaqApi exposée à Swift
+  chaqaq.udl         — interface UDL (contrat Swift ↔ Rust)
+swift-bindings/      — bindings Swift générés (chaqaq.swift, chaqaqFFI.h)
 ```
 
 ---
@@ -122,9 +125,14 @@ Architecture **local-first, offline-first** — chaque device a sa propre base S
 
 ```bash
 cargo run     # point d'entrée démo
-cargo test    # 113 tests (unitaires + intégration + E2E)
+cargo test    # 117 tests (unitaires + intégration + E2E)
 cargo check   # vérification rapide
 cargo build
+
+# Régénérer les bindings Swift
+cargo run --bin uniffi-bindgen -- generate \
+    --library target/debug/libchaqaq.dylib \
+    --language swift --out-dir swift-bindings/
 ```
 
 ---
@@ -140,8 +148,11 @@ cargo build
 - [x] Erreurs custom (`ChaqaqError`)
 - [x] Persistance JSON (proto/tests)
 - [x] Stockage SQLite local-first (soft delete, updated_at, migrations, bundled)
-- [ ] Décision UI (Flutter + flutter_rust_bridge vs Slint vs autre)
-- [ ] Couche UI : rendu des blocs, interaction clavier, drag & drop
+- [x] Couche FFI UniFFI — `ChaqaqApi` exposée à Swift
+- [x] Bindings Swift générés (`swift-bindings/`)
+- [ ] Script XCFramework (staticlib iOS arm64 + Simulator + macOS)
+- [ ] Projet Xcode — intégration SwiftUI
+- [ ] UI SwiftUI : rendu des blocs, éditeur de texte riche, drag & drop
 - [ ] Sync entre appareils (CRDT, s'inspirer de y-octo)
 
 ---
@@ -155,3 +166,4 @@ cargo build
 | `chrono` | Timestamps ISO 8601 (`cree_le`, `updated_at`) |
 | `rusqlite` (bundled) | SQLite embarqué — stockage local-first |
 | `rusqlite_migration` | Migrations de schéma versionnées |
+| `uniffi` | Bridge Rust ↔ Swift (bindings générés automatiquement) |

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **chaqaq** — app de notes personnelle, mélange Craft (beauté, fluidité, rendu natif) + Notion (databases, structure). Full Rust pour le core. Objectif : publication open source, car un rich text editor en Rust n'existe pas encore dans l'écosystème.
 
-Plateformes cibles : iPhone, iPad, Mac, Web, Android. Décision UI pas encore prise — Flutter + `flutter_rust_bridge` est l'option principale (rendu GPU natif, Rust pour le core). Le projet est actuellement en phase core Rust pur.
+Plateformes cibles : iPhone, iPad, Mac. Décision UI : **SwiftUI + UniFFI** — rendu 100 % natif (iOS 26, scroll physics natif, tab bar native), Rust pour le core.
 
 ## Commands
 
@@ -15,6 +15,11 @@ cargo run     # alias: r
 cargo build   # alias: cb
 cargo check   # alias: cc
 cargo test
+
+# Régénérer les bindings Swift après modification du .udl ou de ffi.rs
+cargo build
+cargo run --bin uniffi-bindgen -- generate --library target/debug/libchaqaq.dylib \
+    --language swift --out-dir swift-bindings/
 ```
 
 ## Architecture (Clean Architecture)
@@ -40,7 +45,12 @@ src/
     sqlite_database_store.rs — SqliteDatabaseStore : stockage local-first recommandé
     json_store.rs            — JsonStore : conservé pour les tests et le proto
     database_store.rs        — DatabaseStore JSON : conservé pour les tests
+  ffi.rs           — façade UniFFI : ChaqaqApi, ChaqaqError FFI, types dictionnaire
+  chaqaq.udl       — interface UDL déclarant l'API publique Swift/Kotlin
+  bin/
+    uniffi-bindgen.rs — binaire local pour générer les bindings
   main.rs          — point d'entrée démo
+swift-bindings/    — bindings Swift générés (chaqaq.swift, chaqaqFFI.h, .modulemap)
 ```
 
 Règle de dépendance : `infrastructure` → `application` → `domain`. Le domaine ne sait rien du stockage.
@@ -133,9 +143,24 @@ Stockage SQLite local-first. Schéma : document-as-JSON dans une colonne `data`,
 `JsonStore { dir: PathBuf }` — conservé pour compatibilité et tests existants.
 `#[serde(alias = "style")]` sur `styles` pour la compat avec les anciens fichiers.
 
+### `ffi.rs` + `chaqaq.udl` — Couche UniFFI
+Façade publique exposée à Swift via UniFFI 0.31.
+- `ChaqaqError` FFI : enum `NonTrouve { id }`, `OperationInvalide { detail }`, `Stockage { detail }` — devient un `enum` Swift natif
+- `DocumentMetaFfi` / `DatabaseMetaFfi` : structs dictionnaire (id, title_plain, title_json, cover, updated_at, created_at)
+- `ChaqaqApi` : ouvre les deux stores SQLite au même chemin, expose toutes les opérations documents et databases
+- Les blocs et databases complètes transitent en JSON (String) pour éviter le type récursif `Block` dans l'UDL — Swift décode via `Codable`
+- Shift+Enter géré côté éditeur : `EditorState.inserer('\n')` + `sauvegarder_bloc_edite` — aucun variant `LineBreak` nécessaire dans le modèle
+
+Usage Swift :
+```swift
+let api = try ChaqaqApi(cheminDb: path)
+let id  = try api.creerDocument(titre: "Ma note")
+let json = try api.obtenirDocumentJson(id: id)  // → Codable
+```
+
 ## Roadmap
 
-Ce qui est **fait** — backend Rust complet (113 tests) :
+Ce qui est **fait** — backend Rust complet (117 tests) :
 - Parser inline complet (bold, italic, underline, color, link, combinaisons)
 - Types de blocs et documents avec blocs imbriqués récursifs
 - `DocumentMeta` pour `list()` sans charger tout le contenu
@@ -150,13 +175,14 @@ Ce qui est **fait** — backend Rust complet (113 tests) :
 - Gestion complète des propriétés (ajout, renommage, suppression)
 - Gestion complète des vues (ajout, modification filtres/tris, suppression)
 - **SQLite local-first** : `SqliteDocumentStore` + `SqliteDatabaseStore` avec soft delete, `updated_at`, migrations versionnées
-- `updated_at` exposé dans `DocumentMeta` et `DatabaseMeta` — tri par "modifié récemment" possible côté UI
 - `JsonStore` + `DatabaseStore` JSON (conservés pour les tests)
+- **Couche FFI UniFFI** : `ChaqaqApi` exposée à Swift, bindings `swift-bindings/` générés
 
 Ce qui **reste** à construire :
-1. Décision finale UI (Flutter + flutter_rust_bridge vs Slint vs autre)
-2. Couche UI : rendu des blocs, interaction clavier, drag & drop
-3. Sync entre appareils (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
+1. Script `build-xcframework.sh` — compiler en XCFramework (staticlib iOS arm64 + Simulator + macOS)
+2. Projet Xcode — lier le XCFramework + `swift-bindings/`
+3. UI SwiftUI : rendu des blocs, éditeur de texte riche, drag & drop
+4. Sync entre appareils (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
 
 ## Code style
 - Commentaires en français
