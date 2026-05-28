@@ -77,7 +77,7 @@ struct ContentView: View {
                         Section("Documents") {
                             if let api = store.api {
                                 ForEach(store.documents, id: \.id) { doc in
-                                    NavigationLink(destination: DocumentView(docId: doc.id, api: api)) {
+                                    NavigationLink(destination: DocumentView(docId: doc.id, api: api, onDisparaitre: store.charger)) {
                                         DocumentRow(doc: doc)
                                     }
                                 }
@@ -177,12 +177,11 @@ private struct BoutonCreer: View {
         Button(action: action) {
             Image(systemName: "square.and.pencil")
                 .font(.title2.weight(.semibold))
+                .foregroundStyle(.primary)
                 .frame(width: 56, height: 56)
-                .background(.tint)
-                .foregroundStyle(.white)
-                .clipShape(Circle())
-                .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
         }
+        .buttonStyle(.plain)
+        .glassEffect(.regular, in: .circle)
     }
 }
 

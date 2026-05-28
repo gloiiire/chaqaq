@@ -188,6 +188,8 @@ struct DocumentView: View {
     @State private var editMode: EditMode = .inactive
     @State private var focusTitre = false
 
+    var onDisparaitre: (() -> Void)? = nil
+
     init(docId: String, api: ChaqaqApi) {
         _vm = StateObject(wrappedValue: DocumentViewModel(docId: docId, api: api))
     }
@@ -306,7 +308,7 @@ struct DocumentView: View {
             }
         }
         .onAppear { vm.charger() }
-        .onDisappear { vm.sauvegarderTitre() }
+        .onDisappear { vm.sauvegarderTitre(); onDisparaitre?() }
         .sheet(isPresented: $showingBlocPicker) {
             BlocPickerSheet { type in vm.ajouterBloc(type: type) }
         }
