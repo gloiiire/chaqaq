@@ -158,14 +158,18 @@ struct DocumentView: View {
                 .deleteDisabled(true)
 
             if vm.blocs.isEmpty {
-                Text("Commence à écrire…")
-                    .foregroundStyle(.tertiary)
-                    .font(.body)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 4, trailing: 20))
-                    .moveDisabled(true)
-                    .deleteDisabled(true)
+                Button { vm.ajouterBloc(type: .texte) } label: {
+                    Text("Commence à écrire…")
+                        .foregroundStyle(.tertiary)
+                        .font(.body)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 4, trailing: 20))
+                .moveDisabled(true)
+                .deleteDisabled(true)
             }
 
             ForEach($vm.blocs) { $bloc in
@@ -271,19 +275,23 @@ private struct TitreSaisie: UIViewRepresentable {
         tv.delegate = context.coordinator
         tv.backgroundColor = .clear
         tv.font = police
-        tv.textColor = .label
-        tv.typingAttributes = [.font: police, .foregroundColor: UIColor.label]
         tv.isScrollEnabled = false
         tv.textContainer.lineFragmentPadding = 0
         tv.textContainerInset = .zero
-        tv.text = texte
         context.coordinator.tv = tv
+        tv.attributedText = texte.isEmpty
+            ? context.coordinator.placeholderAttr()
+            : NSAttributedString(string: texte, attributes: [.font: police, .foregroundColor: UIColor.label])
         return tv
     }
 
     func updateUIView(_ tv: ExpandingTextView, context: Context) {
         context.coordinator.parent = self
-        if !context.coordinator.enEdition { tv.text = texte }
+        if !context.coordinator.enEdition {
+            tv.attributedText = texte.isEmpty
+                ? context.coordinator.placeholderAttr()
+                : NSAttributedString(string: texte, attributes: [.font: police, .foregroundColor: UIColor.label])
+        }
         if isFocused && !tv.isFirstResponder {
             DispatchQueue.main.async {
                 _ = tv.becomeFirstResponder()
@@ -303,9 +311,19 @@ private struct TitreSaisie: UIViewRepresentable {
 
         init(parent: TitreSaisie) { self.parent = parent }
 
+        func placeholderAttr() -> NSAttributedString {
+            NSAttributedString(string: "Sans titre",
+                               attributes: [.font: parent.police, .foregroundColor: UIColor.tertiaryLabel])
+        }
+
         func textViewDidBeginEditing(_ tv: UITextView) {
             enEdition = true
             parent.isFocused = true
+            if tv.textColor == .tertiaryLabel {
+                tv.attributedText = NSAttributedString(string: "",
+                    attributes: [.font: parent.police, .foregroundColor: UIColor.label])
+            }
+            tv.typingAttributes = [.font: parent.police, .foregroundColor: UIColor.label]
         }
 
         func textViewDidEndEditing(_ tv: UITextView) {
@@ -313,6 +331,7 @@ private struct TitreSaisie: UIViewRepresentable {
             parent.isFocused = false
             parent.texte = tv.text ?? ""
             parent.onSauvegarder()
+            if parent.texte.isEmpty { tv.attributedText = placeholderAttr() }
         }
 
         func textViewDidChange(_ tv: UITextView) {
