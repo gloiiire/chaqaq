@@ -2,9 +2,19 @@
 use std::collections::HashMap;
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
+use chrono::Utc;
 use crate::domain::document::InlineText;
 
 // ── Types de propriétés (colonnes) ───────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Agregat {
+    Compter,
+    Somme,
+    Moyenne,
+    Min,
+    Max,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ProprieteType {
@@ -16,6 +26,8 @@ pub enum ProprieteType {
     Date,
     Case,
     Url,
+    Relation { db_id: Uuid },
+    Rollup { relation_prop_id: Uuid, cible_prop_id: Uuid, agregat: Agregat },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -43,6 +55,7 @@ pub enum ValeurPropriete {
     Date(String), // ISO 8601
     Case(bool),
     Url(String),
+    Relation(Vec<Uuid>), // IDs d'entrées dans la database liée
     Vide,
 }
 
@@ -51,12 +64,19 @@ pub enum ValeurPropriete {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Entree {
     pub id: Uuid,
+    /// Timestamp ISO 8601 auto-généré à la création — jamais modifié après.
+    #[serde(default)]
+    pub cree_le: String,
     pub valeurs: HashMap<Uuid, ValeurPropriete>,
 }
 
 impl Entree {
     pub fn nouvelle(valeurs: HashMap<Uuid, ValeurPropriete>) -> Self {
-        Self { id: Uuid::new_v4(), valeurs }
+        Self {
+            id: Uuid::new_v4(),
+            cree_le: Utc::now().to_rfc3339(),
+            valeurs,
+        }
     }
 }
 
@@ -90,10 +110,41 @@ pub enum Ordre {
     Decroissant,
 }
 
+/// Détermine quelle date utiliser lors d'un tri.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum SourceTri {
+    /// Tri standard sur la valeur de `propriete_id`.
+    #[default]
+    Propriete,
+    /// Tri sur `cree_le` uniquement (date auto-générée, `propriete_id` ignoré).
+    Creation,
+    /// Utilise la valeur de `propriete_id` si elle est renseignée, sinon `cree_le`.
+    /// Résout le cas journal : anciennes notes avec date manuelle + nouvelles notes sans.
+    ManuellePuisCreation,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Tri {
     pub propriete_id: Uuid,
     pub ordre: Ordre,
+    #[serde(default)]
+    pub source: SourceTri,
+}
+
+impl Tri {
+    pub fn par_propriete(propriete_id: Uuid, ordre: Ordre) -> Self {
+        Self { propriete_id, ordre, source: SourceTri::Propriete }
+    }
+
+    /// Tri par date auto-générée. `propriete_id` peut être `Uuid::nil()`.
+    pub fn par_creation(ordre: Ordre) -> Self {
+        Self { propriete_id: Uuid::nil(), ordre, source: SourceTri::Creation }
+    }
+
+    /// Date manuelle si renseignée, sinon date de création automatique.
+    pub fn manuelle_puis_creation(propriete_id: Uuid, ordre: Ordre) -> Self {
+        Self { propriete_id, ordre, source: SourceTri::ManuellePuisCreation }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -115,6 +166,14 @@ impl Vue {
             tris: vec![],
         }
     }
+}
+
+// ── Groupement ───────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Groupe {
+    pub valeur: ValeurPropriete, // valeur commune du groupe (Vide = sans valeur)
+    pub entrees: Vec<Entree>,
 }
 
 // ── Database ─────────────────────────────────────────────────────────────────
@@ -200,5 +259,65 @@ mod tests {
     fn test_nouvelle_database_sans_entrees() {
         let db = Database::nouvelle(titre("Vide"), vec![]);
         assert!(db.entrees.is_empty());
+    }
+
+    #[test]
+    fn test_relation_prop_type() {
+        let db_id = Uuid::new_v4();
+        let prop = Propriete::nouvelle("Tâches", ProprieteType::Relation { db_id });
+        assert_eq!(prop.type_, ProprieteType::Relation { db_id });
+    }
+
+    #[test]
+    fn test_rollup_prop_type() {
+        let rel_id = Uuid::new_v4();
+        let cible_id = Uuid::new_v4();
+        let prop = Propriete::nouvelle(
+            "Nb tâches",
+            ProprieteType::Rollup {
+                relation_prop_id: rel_id,
+                cible_prop_id: cible_id,
+                agregat: Agregat::Compter,
+            },
+        );
+        assert!(matches!(prop.type_, ProprieteType::Rollup { .. }));
+    }
+
+    #[test]
+    fn test_valeur_relation_stocke_ids() {
+        let ids = vec![Uuid::new_v4(), Uuid::new_v4()];
+        let v = ValeurPropriete::Relation(ids.clone());
+        assert_eq!(v, ValeurPropriete::Relation(ids));
+    }
+
+    #[test]
+    fn test_entree_nouvelle_a_cree_le_non_vide() {
+        let e = Entree::nouvelle(HashMap::new());
+        assert!(!e.cree_le.is_empty());
+        // ISO 8601 commence par l'année
+        assert!(e.cree_le.starts_with("20"));
+    }
+
+    #[test]
+    fn test_tri_par_creation_ignore_propriete_id() {
+        let t = Tri::par_creation(Ordre::Decroissant);
+        assert_eq!(t.source, SourceTri::Creation);
+    }
+
+    #[test]
+    fn test_tri_manuelle_puis_creation() {
+        let id = Uuid::new_v4();
+        let t = Tri::manuelle_puis_creation(id, Ordre::Croissant);
+        assert_eq!(t.source, SourceTri::ManuellePuisCreation);
+        assert_eq!(t.propriete_id, id);
+    }
+
+    #[test]
+    fn test_groupe_regroupe_entrees() {
+        let groupe = Groupe {
+            valeur: ValeurPropriete::Texte("En cours".to_string()),
+            entrees: vec![Entree::nouvelle(HashMap::new())],
+        };
+        assert_eq!(groupe.entrees.len(), 1);
     }
 }

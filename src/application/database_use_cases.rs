@@ -4,8 +4,8 @@ use uuid::Uuid;
 use crate::application::database_repository::DatabaseRepository;
 use crate::application::error::ChaqaqError;
 use crate::domain::database::{
-    ConditionFiltre, Database, DatabaseMeta, Entree, Filtre, Ordre,
-    Propriete, ValeurPropriete, Vue,
+    Agregat, ConditionFiltre, Database, DatabaseMeta, Entree, Filtre, Groupe,
+    Ordre, Propriete, ProprieteType, SourceTri, ValeurPropriete, Vue,
 };
 use crate::domain::document::InlineText;
 
@@ -113,9 +113,19 @@ pub fn requete(
 
     for tri in vue.tris.iter().rev() {
         entrees.sort_by(|a, b| {
-            let va = a.valeurs.get(&tri.propriete_id).unwrap_or(&ValeurPropriete::Vide);
-            let vb = b.valeurs.get(&tri.propriete_id).unwrap_or(&ValeurPropriete::Vide);
-            let ord = comparer_valeurs(va, vb);
+            let ord = match &tri.source {
+                SourceTri::Propriete => {
+                    let va = a.valeurs.get(&tri.propriete_id).unwrap_or(&ValeurPropriete::Vide);
+                    let vb = b.valeurs.get(&tri.propriete_id).unwrap_or(&ValeurPropriete::Vide);
+                    comparer_valeurs(va, vb)
+                }
+                SourceTri::Creation => a.cree_le.cmp(&b.cree_le),
+                SourceTri::ManuellePuisCreation => {
+                    let va = a.valeurs.get(&tri.propriete_id).unwrap_or(&ValeurPropriete::Vide);
+                    let vb = b.valeurs.get(&tri.propriete_id).unwrap_or(&ValeurPropriete::Vide);
+                    date_effective(va, &a.cree_le).cmp(date_effective(vb, &b.cree_le))
+                }
+            };
             if tri.ordre == Ordre::Decroissant { ord.reverse() } else { ord }
         });
     }
@@ -123,7 +133,135 @@ pub fn requete(
     Ok(entrees)
 }
 
+// ── Relations, Rollups, Agrégats, Groupement ─────────────────────────────────
+
+/// Enrichit les entrées avec les valeurs calculées des colonnes Rollup.
+/// Les valeurs rollup ne sont pas persistées — calculées à la lecture.
+pub fn evaluer_rollups(
+    repo: &dyn DatabaseRepository,
+    db: &Database,
+    mut entrees: Vec<Entree>,
+) -> Result<Vec<Entree>, ChaqaqError> {
+    let rollups: Vec<(Uuid, Uuid, Uuid, Agregat)> = db.proprietes.iter()
+        .filter_map(|p| match &p.type_ {
+            ProprieteType::Rollup { relation_prop_id, cible_prop_id, agregat } =>
+                Some((p.id, *relation_prop_id, *cible_prop_id, agregat.clone())),
+            _ => None,
+        })
+        .collect();
+
+    if rollups.is_empty() {
+        return Ok(entrees);
+    }
+
+    for (rollup_id, relation_prop_id, cible_prop_id, agregat) in rollups {
+        let db_liee_id = db.proprietes.iter()
+            .find(|p| p.id == relation_prop_id)
+            .and_then(|p| match &p.type_ {
+                ProprieteType::Relation { db_id } => Some(*db_id),
+                _ => None,
+            })
+            .ok_or(ChaqaqError::NonTrouve(relation_prop_id))?;
+
+        let db_liee = repo.load(db_liee_id)?;
+
+        for entree in &mut entrees {
+            let ids_lies = match entree.valeurs.get(&relation_prop_id) {
+                Some(ValeurPropriete::Relation(ids)) => ids.clone(),
+                _ => vec![],
+            };
+            let liees: Vec<&Entree> = db_liee.entrees.iter()
+                .filter(|e| ids_lies.contains(&e.id))
+                .collect();
+            entree.valeurs.insert(rollup_id, calculer_agregat(&liees, cible_prop_id, &agregat));
+        }
+    }
+
+    Ok(entrees)
+}
+
+/// Requête filtrée + triée + rollups calculés.
+pub fn requete_avec_rollups(
+    repo: &dyn DatabaseRepository,
+    db_id: Uuid,
+    vue_id: Uuid,
+) -> Result<Vec<Entree>, ChaqaqError> {
+    let db = repo.load(db_id)?;
+    let entrees = requete(repo, db_id, vue_id)?;
+    evaluer_rollups(repo, &db, entrees)
+}
+
+/// Agrège toutes les valeurs d'une colonne numérique sur l'ensemble des entrées.
+pub fn agregat_colonne(
+    repo: &dyn DatabaseRepository,
+    db_id: Uuid,
+    prop_id: Uuid,
+    agregat: Agregat,
+) -> Result<ValeurPropriete, ChaqaqError> {
+    let db = repo.load(db_id)?;
+    let refs: Vec<&Entree> = db.entrees.iter().collect();
+    Ok(calculer_agregat(&refs, prop_id, &agregat))
+}
+
+/// Regroupe les entrées d'une vue par valeur d'une propriété.
+pub fn requete_groupee(
+    repo: &dyn DatabaseRepository,
+    db_id: Uuid,
+    vue_id: Uuid,
+    grouper_par: Uuid,
+) -> Result<Vec<Groupe>, ChaqaqError> {
+    let entrees = requete(repo, db_id, vue_id)?;
+    let mut map: HashMap<String, Groupe> = HashMap::new();
+
+    for entree in entrees {
+        let valeur = entree.valeurs.get(&grouper_par).cloned().unwrap_or(ValeurPropriete::Vide);
+        let cle = cle_groupe(&valeur);
+        map.entry(cle)
+            .or_insert_with(|| Groupe { valeur: valeur.clone(), entrees: vec![] })
+            .entrees.push(entree);
+    }
+
+    let mut groupes: Vec<Groupe> = map.into_values().collect();
+    groupes.sort_by(|a, b| comparer_valeurs(&a.valeur, &b.valeur));
+    Ok(groupes)
+}
+
 // ── Helpers internes ─────────────────────────────────────────────────────────
+
+/// Retourne la date effective : valeur manuelle si renseignée, sinon `cree_le`.
+fn date_effective<'a>(v: &'a ValeurPropriete, cree_le: &'a str) -> &'a str {
+    match v {
+        ValeurPropriete::Date(d) if !d.is_empty() => d.as_str(),
+        _ => cree_le,
+    }
+}
+
+fn calculer_agregat(entrees: &[&Entree], prop_id: Uuid, agregat: &Agregat) -> ValeurPropriete {
+    let nums: Vec<f64> = entrees.iter()
+        .filter_map(|e| e.valeurs.get(&prop_id))
+        .filter_map(|v| if let ValeurPropriete::Nombre(n) = v { Some(*n) } else { None })
+        .collect();
+
+    let r = match agregat {
+        Agregat::Compter  => entrees.len() as f64,
+        Agregat::Somme    => nums.iter().sum(),
+        Agregat::Moyenne  => if nums.is_empty() { 0.0 } else { nums.iter().sum::<f64>() / nums.len() as f64 },
+        Agregat::Min      => nums.iter().cloned().fold(f64::INFINITY, f64::min),
+        Agregat::Max      => nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
+    };
+    ValeurPropriete::Nombre(r)
+}
+
+fn cle_groupe(v: &ValeurPropriete) -> String {
+    match v {
+        ValeurPropriete::Texte(s)            => s.clone(),
+        ValeurPropriete::Selection(Some(s))  => s.clone(),
+        ValeurPropriete::Nombre(n)           => n.to_string(),
+        ValeurPropriete::Date(d)             => d.clone(),
+        ValeurPropriete::Case(b)             => b.to_string(),
+        _                                    => String::new(),
+    }
+}
 
 fn appliquer_filtre(entree: &Entree, filtre: &Filtre) -> bool {
     let valeur = entree.valeurs.get(&filtre.propriete_id).unwrap_or(&ValeurPropriete::Vide);
@@ -223,5 +361,43 @@ mod tests {
         let a = ValeurPropriete::Vide;
         let b = ValeurPropriete::Nombre(0.0);
         assert_eq!(comparer_valeurs(&a, &b), Ordering::Greater);
+    }
+
+    #[test]
+    fn test_calculer_agregat_somme() {
+        let prop_id = Uuid::new_v4();
+        let entrees = vec![
+            entree_avec_nombre(prop_id, 10.0),
+            entree_avec_nombre(prop_id, 20.0),
+            entree_avec_nombre(prop_id, 30.0),
+        ];
+        let refs: Vec<&Entree> = entrees.iter().collect();
+        assert_eq!(calculer_agregat(&refs, prop_id, &Agregat::Somme), ValeurPropriete::Nombre(60.0));
+    }
+
+    #[test]
+    fn test_calculer_agregat_compter() {
+        let prop_id = Uuid::new_v4();
+        let e1 = entree_avec_nombre(prop_id, 1.0);
+        let e2 = entree_avec_nombre(prop_id, 2.0);
+        let refs: Vec<&Entree> = vec![&e1, &e2];
+        assert_eq!(calculer_agregat(&refs, prop_id, &Agregat::Compter), ValeurPropriete::Nombre(2.0));
+    }
+
+    #[test]
+    fn test_calculer_agregat_moyenne() {
+        let prop_id = Uuid::new_v4();
+        let entrees = vec![
+            entree_avec_nombre(prop_id, 10.0),
+            entree_avec_nombre(prop_id, 20.0),
+        ];
+        let refs: Vec<&Entree> = entrees.iter().collect();
+        assert_eq!(calculer_agregat(&refs, prop_id, &Agregat::Moyenne), ValeurPropriete::Nombre(15.0));
+    }
+
+    #[test]
+    fn test_cle_groupe_texte() {
+        assert_eq!(cle_groupe(&ValeurPropriete::Texte("A".to_string())), "A");
+        assert_eq!(cle_groupe(&ValeurPropriete::Vide), String::new());
     }
 }
