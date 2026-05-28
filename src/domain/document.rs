@@ -33,7 +33,7 @@ pub enum BlockContent {
         done: bool,
     },
     Breadcrumb,
-    Database,
+    Database { id: Uuid },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

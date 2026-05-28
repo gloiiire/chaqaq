@@ -1,4 +1,5 @@
 pub mod commandes;
+pub mod database;
 pub mod document;
 pub mod editor;
 pub mod parser;
