@@ -274,6 +274,14 @@ struct RichTextEditor: UIViewRepresentable {
         var derniereSelection = NSRange(location: 0, length: 0)
         private var actionToolbarEnCours = false
         private var generationSelection = 0
+        private weak var btnGras: UIButton?
+        private weak var btnItalique: UIButton?
+        private weak var btnSouligne: UIButton?
+        private weak var btnBarre: UIButton?
+        private weak var btnRouge: UIButton?
+        private weak var btnBleu: UIButton?
+        private weak var btnOrange: UIButton?
+        private weak var btnViolet: UIButton?
 
         init(parent: RichTextEditor) { self.parent = parent }
 
@@ -296,6 +304,7 @@ struct RichTextEditor: UIViewRepresentable {
                 ])
             }
             tv.typingAttributes = [.font: parent.baseFont, .foregroundColor: UIColor.label]
+            mettreAJourToolbar()
         }
 
         func textViewDidChangeSelection(_ tv: UITextView) {
@@ -305,6 +314,7 @@ struct RichTextEditor: UIViewRepresentable {
             } else {
                 nettoyerSelectionMemoriseeSiToujoursVide(tv)
             }
+            mettreAJourToolbar()
         }
 
         func textView(_ tv: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
@@ -387,19 +397,23 @@ struct RichTextEditor: UIViewRepresentable {
 
             let pill = UIView(frame: CGRect(x: margeH, y: margeV,
                                             width: largeur - margeH * 2, height: pillH))
-            pill.autoresizingMask = [.flexibleWidth]
-            pill.backgroundColor = UIColor { t in
-                t.userInterfaceStyle == .dark
-                    ? UIColor(white: 0.18, alpha: 1)
-                    : UIColor.secondarySystemBackground
-            }
+            pill.autoresizingMask    = [.flexibleWidth]
+            pill.backgroundColor     = .clear
             pill.layer.cornerRadius  = pillH / 2
             pill.layer.masksToBounds = true
             container.addSubview(pill)
 
+            let glass = UIVisualEffectView(effect: UIGlassEffect())
+            glass.frame               = pill.bounds
+            glass.autoresizingMask    = [.flexibleWidth, .flexibleHeight]
+            glass.layer.cornerRadius  = pillH / 2
+            glass.clipsToBounds       = true
+            pill.addSubview(glass)
+
             let scroll = UIScrollView(frame: pill.bounds)
             scroll.autoresizingMask       = [.flexibleWidth, .flexibleHeight]
             scroll.showsHorizontalScrollIndicator = false
+            scroll.backgroundColor = .clear
             pill.addSubview(scroll)
 
             func boutonTexte(_ label: String, font: UIFont,
@@ -455,15 +469,15 @@ struct RichTextEditor: UIViewRepresentable {
                 x += 10
             }
 
-            ajouter(boutonTexte("B", font: .boldSystemFont(ofSize: 17),   action: #selector(toggleGras)))
-            ajouter(boutonTexte("I", font: .italicSystemFont(ofSize: 17), action: #selector(toggleItalique)))
-            ajouter(boutonTexte("U", font: .systemFont(ofSize: 17), souligné: true, action: #selector(toggleSouligne)))
-            ajouter(boutonSF("strikethrough", action: #selector(toggleBarré)))
+            let bG = boutonTexte("B", font: .boldSystemFont(ofSize: 17),   action: #selector(toggleGras));   ajouter(bG); btnGras     = bG
+            let bI = boutonTexte("I", font: .italicSystemFont(ofSize: 17), action: #selector(toggleItalique)); ajouter(bI); btnItalique  = bI
+            let bU = boutonTexte("U", font: .systemFont(ofSize: 17), souligné: true, action: #selector(toggleSouligne)); ajouter(bU); btnSouligne = bU
+            let bS = boutonSF("strikethrough", action: #selector(toggleBarré)); ajouter(bS); btnBarre = bS
             separateur()
-            ajouter(boutonCercle(.systemRed,    action: #selector(colorRouge)))
-            ajouter(boutonCercle(.systemBlue,   action: #selector(colorBleu)))
-            ajouter(boutonCercle(.systemOrange, action: #selector(colorOrange)))
-            ajouter(boutonCercle(.systemPurple, action: #selector(colorViolet)))
+            let bR = boutonCercle(.systemRed,    action: #selector(colorRouge));   ajouter(bR); btnRouge  = bR
+            let bB = boutonCercle(.systemBlue,   action: #selector(colorBleu));    ajouter(bB); btnBleu   = bB
+            let bO = boutonCercle(.systemOrange, action: #selector(colorOrange));  ajouter(bO); btnOrange = bO
+            let bV = boutonCercle(.systemPurple, action: #selector(colorViolet));  ajouter(bV); btnViolet = bV
             separateur()
             ajouter(boutonSF("keyboard.chevron.compact.down", action: #selector(dispenserClavier)))
 
@@ -557,6 +571,7 @@ struct RichTextEditor: UIViewRepresentable {
             tv.selectedRange  = range
             memoriserSelection(range, longueur: m.length)
             sauvegarder(nsAttributedVersSpans(tv.attributedText, police: parent.baseFont))
+            mettreAJourToolbar()
         }
 
         private func appliquerStyleTyping(tv: UITextView, style: InlineStyleFfi) {
@@ -597,6 +612,7 @@ struct RichTextEditor: UIViewRepresentable {
             default: break
             }
             tv.typingAttributes = attrs
+            mettreAJourToolbar()
             viderSelectionMemorisee()
             _ = tv.becomeFirstResponder()
         }
@@ -615,6 +631,61 @@ struct RichTextEditor: UIViewRepresentable {
             } else {
                 parent.onSave?()
             }
+        }
+
+        private func mettreAJourToolbar() {
+            guard let tv else { return }
+            let attr = tv.attributedText ?? NSAttributedString()
+            let len  = attr.length
+            let range = tv.selectedRange
+
+            let bold: Bool; let italic: Bool; let underline: Bool; let strike: Bool; let couleur: String?
+            if range.length > 0, range.location < len {
+                let loc = min(range.location, len - 1)
+                bold     = touteLaPlage(dans: attr, range: range, verifie: attrsContiennentBold)
+                italic   = touteLaPlage(dans: attr, range: range, verifie: attrsContiennentItalic)
+                underline = attr.attribute(.underlineStyle,     at: loc, effectiveRange: nil) != nil
+                strike   = attr.attribute(.strikethroughStyle, at: loc, effectiveRange: nil) != nil
+                couleur  = attr.attribute(.chaqaqColor,        at: loc, effectiveRange: nil) as? String
+            } else {
+                let attrs = tv.typingAttributes
+                bold     = attrsContiennentBold(attrs)
+                italic   = attrsContiennentItalic(attrs)
+                underline = attrs[.underlineStyle]     != nil
+                strike   = attrs[.strikethroughStyle]  != nil
+                couleur  = attrs[.chaqaqColor] as? String
+            }
+
+            setActifTexte(btnGras,     actif: bold,      font: .boldSystemFont(ofSize: 17))
+            setActifTexte(btnItalique, actif: italic,    font: .italicSystemFont(ofSize: 17))
+            setActifTexte(btnSouligne, actif: underline, font: .systemFont(ofSize: 17), souligne: true)
+            setActifSF(btnBarre,       actif: strike,    nom: "strikethrough")
+            setActifCouleur(btnRouge,  actif: couleur == "rouge")
+            setActifCouleur(btnBleu,   actif: couleur == "bleu")
+            setActifCouleur(btnOrange, actif: couleur == "orange")
+            setActifCouleur(btnViolet, actif: couleur == "violet")
+        }
+
+        private func setActifTexte(_ btn: UIButton?, actif: Bool, font: UIFont, souligne: Bool = false) {
+            guard let btn, let str = btn.attributedTitle(for: .normal)?.string else { return }
+            let c: UIColor = actif ? .tintColor : .label
+            var a: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: c]
+            if souligne { a[.underlineStyle] = NSUnderlineStyle.single.rawValue }
+            btn.setAttributedTitle(NSAttributedString(string: str, attributes: a), for: .normal)
+            a[.foregroundColor] = c.withAlphaComponent(0.3)
+            btn.setAttributedTitle(NSAttributedString(string: str, attributes: a), for: .highlighted)
+        }
+
+        private func setActifSF(_ btn: UIButton?, actif: Bool, nom: String) {
+            guard let btn else { return }
+            let c: UIColor = actif ? .tintColor : .secondaryLabel
+            let cfg = UIImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+            btn.setImage(UIImage(systemName: nom, withConfiguration: cfg)?
+                .withTintColor(c, renderingMode: .alwaysOriginal), for: .normal)
+        }
+
+        private func setActifCouleur(_ btn: UIButton?, actif: Bool) {
+            btn?.alpha = actif ? 1.0 : 0.45
         }
 
         private func viderSelectionMemorisee() {
