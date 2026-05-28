@@ -43,3 +43,17 @@ impl DocumentRepository for JsonStore {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::error::ChaqaqError;
+    use uuid::Uuid;
+
+    #[test]
+    fn test_load_retourne_non_trouve() {
+        let store = JsonStore::new(PathBuf::from("/tmp/chaqaq_inexistant"));
+        let id = Uuid::new_v4();
+        assert!(matches!(store.load(id), Err(ChaqaqError::NonTrouve(_))));
+    }
+}
