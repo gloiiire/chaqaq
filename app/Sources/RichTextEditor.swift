@@ -274,6 +274,7 @@ struct RichTextEditor: UIViewRepresentable {
         var derniereSelection = NSRange(location: 0, length: 0)
         private var actionToolbarEnCours = false
         private var generationSelection = 0
+        private var typingAttrsPersos = false
         private weak var btnGras: UIButton?
         private weak var btnItalique: UIButton?
         private weak var btnSouligne: UIButton?
@@ -377,6 +378,7 @@ struct RichTextEditor: UIViewRepresentable {
             default: break
             }
 
+            typingAttrsPersos = false
             parent.spans = nsAttributedVersSpans(tv.attributedText, police: parent.baseFont)
             if tv.selectedRange.length == 0 { viderSelectionMemorisee() }
             tv.invalidateIntrinsicContentSize()
@@ -576,17 +578,23 @@ struct RichTextEditor: UIViewRepresentable {
 
         private func appliquerStyleTyping(tv: UITextView, style: InlineStyleFfi) {
             var attrs = tv.typingAttributes
+            let attr = tv.attributedText ?? NSAttributedString()
+            let cursor = tv.selectedRange.location
+            let attrsRef: [NSAttributedString.Key: Any] = (!typingAttrsPersos && cursor > 0 && cursor <= attr.length)
+                ? attr.attributes(at: cursor - 1, effectiveRange: nil)
+                : attrs
+            typingAttrsPersos = true
             switch style {
             case .bold:
-                let bold   = attrsContiennentBold(attrs)
-                let italic = attrsContiennentItalic(attrs)
+                let bold   = attrsContiennentBold(attrsRef)
+                let italic = attrsContiennentItalic(attrsRef)
                 attrs[.font] = fontAvecTraits(parent.baseFont, bold: !bold, italic: italic)
                 if !bold { attrs[.chaqaqBold] = true } else { attrs.removeValue(forKey: .chaqaqBold) }
                 if italic { attrs[.chaqaqObliqueness] = 0.2 }
                 else      { attrs.removeValue(forKey: .chaqaqObliqueness) }
             case .italic:
-                let bold   = attrsContiennentBold(attrs)
-                let italic = attrsContiennentItalic(attrs)
+                let bold   = attrsContiennentBold(attrsRef)
+                let italic = attrsContiennentItalic(attrsRef)
                 attrs[.font] = fontAvecTraits(parent.baseFont, bold: bold, italic: !italic)
                 if !italic {
                     attrs[.chaqaqItalic] = true
@@ -648,12 +656,18 @@ struct RichTextEditor: UIViewRepresentable {
                 strike   = attr.attribute(.strikethroughStyle, at: loc, effectiveRange: nil) != nil
                 couleur  = attr.attribute(.chaqaqColor,        at: loc, effectiveRange: nil) as? String
             } else {
-                let attrs = tv.typingAttributes
-                bold     = attrsContiennentBold(attrs)
-                italic   = attrsContiennentItalic(attrs)
-                underline = attrs[.underlineStyle]     != nil
-                strike   = attrs[.strikethroughStyle]  != nil
-                couleur  = attrs[.chaqaqColor] as? String
+                // UIKit supprime les attributs custom de typingAttributes après chaque insertion.
+                // On lit depuis le caractère précédant le curseur (textStorage = fiable),
+                // sauf juste après un toggle (typingAttrsPersos=true) où aucun caractère
+                // n'a encore été inséré avec le nouvel état.
+                let attrsRef: [NSAttributedString.Key: Any] = (!typingAttrsPersos && range.location > 0 && len > 0)
+                    ? attr.attributes(at: min(range.location - 1, len - 1), effectiveRange: nil)
+                    : tv.typingAttributes
+                bold     = attrsContiennentBold(attrsRef)
+                italic   = attrsContiennentItalic(attrsRef)
+                underline = attrsRef[.underlineStyle]     != nil
+                strike   = attrsRef[.strikethroughStyle]  != nil
+                couleur  = attrsRef[.chaqaqColor] as? String
             }
 
             setActifTexte(btnGras,     actif: bold,      font: .boldSystemFont(ofSize: 17))
