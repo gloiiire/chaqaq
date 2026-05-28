@@ -1,7 +1,7 @@
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum InlineStyle {
     Bold,
     Underline,
@@ -10,7 +10,7 @@ pub enum InlineStyle {
     Color(String),
     // etc…
 }
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InlineText {
     pub content: String,
     pub styles: Vec<InlineStyle>,
@@ -49,6 +49,23 @@ impl Block {
             id: Uuid::new_v4(),
             content,
             children: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DocumentMeta {
+    pub id: Uuid,
+    pub cover: Option<String>,
+    pub title: Vec<InlineText>,
+}
+
+impl From<&Document> for DocumentMeta {
+    fn from(doc: &Document) -> Self {
+        Self {
+            id: doc.id,
+            cover: doc.cover.clone(),
+            title: doc.title.clone(),
         }
     }
 }
