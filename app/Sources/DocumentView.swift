@@ -141,7 +141,8 @@ struct DocumentView: View {
 
     var body: some View {
         List {
-            TitreDocView(titre: $vm.titre, onSauvegarder: vm.sauvegarderTitre)
+            TitreDocView(titre: $vm.titre, onSauvegarder: vm.sauvegarderTitre,
+                         onNouveauBloc: { vm.ajouterBloc(type: .texte) })
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 8, trailing: 20))
@@ -222,14 +223,15 @@ struct DocumentView: View {
 private struct TitreDocView: View {
     @Binding var titre: String
     let onSauvegarder: () -> Void
+    let onNouveauBloc: () -> Void
     @FocusState private var focused: Bool
 
     var body: some View {
         TextField("Sans titre", text: $titre, axis: .vertical)
             .font(.system(size: 32, weight: .bold))
             .focused($focused)
-            .submitLabel(.done)
-            .onSubmit { onSauvegarder(); focused = false }
+            .submitLabel(.next)
+            .onSubmit { onSauvegarder(); focused = false; onNouveauBloc() }
             .onChange(of: focused) { _, estFocus in if !estFocus { onSauvegarder() } }
     }
 }

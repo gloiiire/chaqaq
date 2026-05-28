@@ -76,11 +76,13 @@ func uiCouleurDepuisNom(_ nom: String) -> UIColor {
 
 final class ExpandingTextView: UITextView {
     override var intrinsicContentSize: CGSize {
-        CGSize(width: UIView.noIntrinsicMetric, height: max(contentSize.height, font?.lineHeight ?? 20))
+        let w = bounds.width > 0 ? bounds.width : UIScreen.main.bounds.width
+        let h = sizeThatFits(CGSize(width: w, height: .greatestFiniteMagnitude)).height
+        return CGSize(width: UIView.noIntrinsicMetric, height: max(h, font?.lineHeight ?? 20))
     }
     override func layoutSubviews() {
         super.layoutSubviews()
-        if bounds.size != intrinsicContentSize { invalidateIntrinsicContentSize() }
+        invalidateIntrinsicContentSize()
     }
 }
 
@@ -335,7 +337,13 @@ struct RichTextEditor: UIViewRepresentable {
         private func appliquerStyle(_ style: InlineStyleFfi) {
             guard let tv, let attr = tv.attributedText else { return }
             let range = tv.selectedRange
-            guard range.length > 0 else { return }
+
+            // Sans sélection → modifier les attributs de frappe (texte futur)
+            guard range.length > 0 else {
+                appliquerStyleTyping(tv: tv, style: style)
+                return
+            }
+
             let m = NSMutableAttributedString(attributedString: attr)
 
             switch style {
@@ -362,6 +370,7 @@ struct RichTextEditor: UIViewRepresentable {
                 if actuelle == nom {
                     m.removeAttribute(.foregroundColor, range: range)
                     m.removeAttribute(.chaqaqColor,     range: range)
+                    m.addAttribute(.foregroundColor, value: UIColor.label, range: range)
                 } else {
                     m.addAttribute(.foregroundColor, value: uiCouleurDepuisNom(nom), range: range)
                     m.addAttribute(.chaqaqColor,     value: nom,                     range: range)
@@ -372,6 +381,36 @@ struct RichTextEditor: UIViewRepresentable {
             tv.attributedText = m
             tv.selectedRange  = range
             parent.spans = nsAttributedVersSpans(m, police: parent.baseFont)
+        }
+
+        // Applique le style aux typingAttributes quand rien n'est sélectionné
+        private func appliquerStyleTyping(tv: UITextView, style: InlineStyleFfi) {
+            var attrs = tv.typingAttributes
+            switch style {
+            case .bold:
+                let f      = (attrs[.font] as? UIFont) ?? parent.baseFont
+                let bold   = f.fontDescriptor.symbolicTraits.contains(.traitBold)
+                let italic = f.fontDescriptor.symbolicTraits.contains(.traitItalic)
+                attrs[.font] = fontAvecTraits(f, bold: !bold, italic: italic)
+            case .italic:
+                let f      = (attrs[.font] as? UIFont) ?? parent.baseFont
+                let bold   = f.fontDescriptor.symbolicTraits.contains(.traitBold)
+                let italic = f.fontDescriptor.symbolicTraits.contains(.traitItalic)
+                attrs[.font] = fontAvecTraits(f, bold: bold, italic: !italic)
+            case .underline:
+                if attrs[.underlineStyle] != nil { attrs.removeValue(forKey: .underlineStyle) }
+                else { attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue }
+            case .color(let nom):
+                if (attrs[.chaqaqColor] as? String) == nom {
+                    attrs.removeValue(forKey: .chaqaqColor)
+                    attrs[.foregroundColor] = UIColor.label
+                } else {
+                    attrs[.foregroundColor] = uiCouleurDepuisNom(nom)
+                    attrs[.chaqaqColor]     = nom
+                }
+            default: break
+            }
+            tv.typingAttributes = attrs
         }
 
         private func fontAvecTraits(_ base: UIFont, bold: Bool, italic: Bool) -> UIFont {
@@ -400,7 +439,9 @@ struct RichTextEditor: UIViewRepresentable {
                                 dans attr: NSAttributedString, range: NSRange) -> Bool {
             var result = true
             attr.enumerateAttribute(.font, in: range) { val, _, _ in
-                if let f = val as? UIFont, !f.fontDescriptor.symbolicTraits.contains(trait) { result = false }
+                // Pas de font → traiter comme "sans trait" (sinon le toggle s'inverse)
+                guard let f = val as? UIFont else { result = false; return }
+                if !f.fontDescriptor.symbolicTraits.contains(trait) { result = false }
             }
             return result
         }
