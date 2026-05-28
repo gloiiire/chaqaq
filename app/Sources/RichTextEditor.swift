@@ -214,11 +214,30 @@ struct RichTextEditor: UIViewRepresentable {
         }
 
         func textView(_ tv: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+            // Backspace sur bloc vide → supprimer le bloc
             if text.isEmpty, range == NSRange(location: 0, length: 0), tv.text.isEmpty {
                 enCoursDeSupression = true
-                DispatchQueue.main.async { [weak self] in
-                    self?.parent.onSupprimerBloc?()
+                DispatchQueue.main.async { [weak self] in self?.parent.onSupprimerBloc?() }
+                return false
+            }
+            // Enter
+            if text == "\n" {
+                if saisieSautDeLigne {
+                    // Shift+Enter : laisser le \n s'insérer normalement
+                    saisieSautDeLigne = false
+                    return true
                 }
+                // Enter normal : couper le bloc et en créer un nouveau
+                let attrAvant = tv.attributedText.attributedSubstring(
+                    from: NSRange(location: 0, length: range.location))
+                let apres = (tv.text as NSString).substring(from: range.location + range.length)
+                tv.attributedText = attrAvant.string.isEmpty
+                    ? NSAttributedString(string: "", attributes: [.font: parent.baseFont, .foregroundColor: UIColor.label])
+                    : attrAvant
+                tv.selectedRange = NSRange(location: attrAvant.length, length: 0)
+                parent.spans = nsAttributedVersSpans(attrAvant, police: parent.baseFont)
+                parent.onSave?()
+                parent.onNewBlock?(apres)
                 return false
             }
             return true
@@ -235,28 +254,6 @@ struct RichTextEditor: UIViewRepresentable {
 
         func textViewDidChange(_ tv: UITextView) {
             let texte = tv.text ?? ""
-
-            if texte.contains("\n") {
-                if saisieSautDeLigne {
-                    // Shift+Enter : saut de ligne dans le même bloc
-                    saisieSautDeLigne = false
-                    parent.spans = nsAttributedVersSpans(tv.attributedText, police: parent.baseFont)
-                    tv.invalidateIntrinsicContentSize()
-                    return
-                }
-                // Enter normal : nouveau bloc
-                let idx   = texte.firstIndex(of: "\n")!
-                let nsIdx = texte.distance(from: texte.startIndex, to: idx)
-                let attrAvant = tv.attributedText.attributedSubstring(from: NSRange(location: 0, length: nsIdx))
-                let apres = String(texte[texte.index(after: idx)...])
-                tv.attributedText = attrAvant.string.isEmpty
-                    ? NSAttributedString(string: "", attributes: [.font: parent.baseFont])
-                    : attrAvant
-                parent.spans = nsAttributedVersSpans(attrAvant, police: parent.baseFont)
-                parent.onSave?()
-                parent.onNewBlock?(apres)
-                return
-            }
 
             switch texte {
             case "# ":          parent.onConvert?(.heading(level: 1, text: [])); return
