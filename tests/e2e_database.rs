@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 use uuid::Uuid;
 use chaqaq::application::database_use_cases::{
-    ajouter_entree, ajouter_propriete, ajouter_vue, creer_database,
-    obtenir_database, requete,
+    agregat_colonne, ajouter_entree, ajouter_propriete, ajouter_vue,
+    creer_database, evaluer_rollups, obtenir_database, requete,
+    requete_groupee,
 };
 use chaqaq::application::repository::DocumentRepository;
 use chaqaq::application::use_cases::creer_document;
 use chaqaq::domain::database::{
-    ConditionFiltre, Filtre, Ordre, ProprieteType, Propriete,
+    Agregat, ConditionFiltre, Filtre, Ordre, ProprieteType, Propriete,
     Tri, TypeVue, ValeurPropriete, Vue,
 };
 use chaqaq::domain::document::{BlockContent, InlineText};
@@ -137,4 +138,103 @@ fn test_ajouter_propriete_a_database_existante() {
 
     ajouter_propriete(&db_store, db.id, Propriete::nouvelle("Date", ProprieteType::Date)).unwrap();
     assert_eq!(obtenir_database(&db_store, db.id).unwrap().proprietes.len(), 1);
+}
+
+// ── E2E Relations & Rollups ──────────────────────────────────────────────────
+
+#[test]
+fn test_flux_rollup_entre_deux_databases() {
+    let (_doc_store, db_store) = store_temp();
+
+    // Sprints (database source des relations)
+    let prop_points = Propriete::nouvelle("Points", ProprieteType::Nombre);
+    let points_id = prop_points.id;
+    let db_sprints = creer_database(&db_store, titre("Sprints"), vec![prop_points]).unwrap();
+
+    let mut s1 = HashMap::new(); s1.insert(points_id, ValeurPropriete::Nombre(8.0));
+    let mut s2 = HashMap::new(); s2.insert(points_id, ValeurPropriete::Nombre(13.0));
+    let sprint1 = ajouter_entree(&db_store, db_sprints.id, s1).unwrap();
+    let sprint2 = ajouter_entree(&db_store, db_sprints.id, s2).unwrap();
+
+    // Projets avec Relation → Sprints + Rollup (Somme des points)
+    let prop_rel = Propriete::nouvelle("Sprints", ProprieteType::Relation { db_id: db_sprints.id });
+    let prop_total = Propriete::nouvelle(
+        "Total points",
+        ProprieteType::Rollup {
+            relation_prop_id: prop_rel.id,
+            cible_prop_id: points_id,
+            agregat: Agregat::Somme,
+        },
+    );
+    let total_id = prop_total.id;
+    let rel_id = prop_rel.id;
+    let db_projets = creer_database(&db_store, titre("Projets"), vec![prop_rel, prop_total]).unwrap();
+
+    let mut vp = HashMap::new();
+    vp.insert(rel_id, ValeurPropriete::Relation(vec![sprint1.id, sprint2.id]));
+    let projet = ajouter_entree(&db_store, db_projets.id, vp).unwrap();
+
+    let db = obtenir_database(&db_store, db_projets.id).unwrap();
+    let enrichies = evaluer_rollups(&db_store, &db, vec![projet]).unwrap();
+
+    assert_eq!(enrichies[0].valeurs[&total_id], ValeurPropriete::Nombre(21.0));
+}
+
+// ── E2E Kanban (groupement) ──────────────────────────────────────────────────
+
+#[test]
+fn test_flux_kanban_complet() {
+    let (_doc_store, db_store) = store_temp();
+
+    let prop_statut = Propriete::nouvelle(
+        "Statut",
+        ProprieteType::Selection(vec!["Todo".into(), "En cours".into(), "Terminé".into()]),
+    );
+    let statut_id = prop_statut.id;
+    let db = creer_database(&db_store, titre("Backlog"), vec![prop_statut]).unwrap();
+
+    // Vue Kanban groupée par statut
+    let vue_kanban = Vue::nouvelle("Kanban", TypeVue::Kanban { grouper_par: statut_id });
+    let vue_kanban = ajouter_vue(&db_store, db.id, vue_kanban).unwrap();
+
+    let tickets = [
+        ("Todo", 3),
+        ("En cours", 2),
+        ("Terminé", 1),
+    ];
+    for (statut, n) in tickets {
+        for _ in 0..n {
+            let mut v = HashMap::new();
+            v.insert(statut_id, ValeurPropriete::Selection(Some(statut.to_string())));
+            ajouter_entree(&db_store, db.id, v).unwrap();
+        }
+    }
+
+    let groupes = requete_groupee(&db_store, db.id, vue_kanban.id, statut_id).unwrap();
+    assert_eq!(groupes.len(), 3);
+    let total: usize = groupes.iter().map(|g| g.entrees.len()).sum();
+    assert_eq!(total, 6);
+}
+
+// ── E2E Agrégat colonne ──────────────────────────────────────────────────────
+
+#[test]
+fn test_agregat_min_max_colonne() {
+    let (_doc_store, db_store) = store_temp();
+
+    let prop = Propriete::nouvelle("Durée", ProprieteType::Nombre);
+    let prop_id = prop.id;
+    let db = creer_database(&db_store, titre("Tâches"), vec![prop]).unwrap();
+
+    for n in [5.0, 1.0, 9.0, 3.0] {
+        let mut v = HashMap::new();
+        v.insert(prop_id, ValeurPropriete::Nombre(n));
+        ajouter_entree(&db_store, db.id, v).unwrap();
+    }
+
+    let min = agregat_colonne(&db_store, db.id, prop_id, Agregat::Min).unwrap();
+    let max = agregat_colonne(&db_store, db.id, prop_id, Agregat::Max).unwrap();
+
+    assert_eq!(min, ValeurPropriete::Nombre(1.0));
+    assert_eq!(max, ValeurPropriete::Nombre(9.0));
 }

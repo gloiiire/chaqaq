@@ -7,6 +7,15 @@ use crate::domain::document::InlineText;
 // ── Types de propriétés (colonnes) ───────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Agregat {
+    Compter,
+    Somme,
+    Moyenne,
+    Min,
+    Max,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ProprieteType {
     Titre,
     Texte,
@@ -16,6 +25,8 @@ pub enum ProprieteType {
     Date,
     Case,
     Url,
+    Relation { db_id: Uuid },
+    Rollup { relation_prop_id: Uuid, cible_prop_id: Uuid, agregat: Agregat },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -43,6 +54,7 @@ pub enum ValeurPropriete {
     Date(String), // ISO 8601
     Case(bool),
     Url(String),
+    Relation(Vec<Uuid>), // IDs d'entrées dans la database liée
     Vide,
 }
 
@@ -115,6 +127,14 @@ impl Vue {
             tris: vec![],
         }
     }
+}
+
+// ── Groupement ───────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Groupe {
+    pub valeur: ValeurPropriete, // valeur commune du groupe (Vide = sans valeur)
+    pub entrees: Vec<Entree>,
 }
 
 // ── Database ─────────────────────────────────────────────────────────────────
@@ -200,5 +220,43 @@ mod tests {
     fn test_nouvelle_database_sans_entrees() {
         let db = Database::nouvelle(titre("Vide"), vec![]);
         assert!(db.entrees.is_empty());
+    }
+
+    #[test]
+    fn test_relation_prop_type() {
+        let db_id = Uuid::new_v4();
+        let prop = Propriete::nouvelle("Tâches", ProprieteType::Relation { db_id });
+        assert_eq!(prop.type_, ProprieteType::Relation { db_id });
+    }
+
+    #[test]
+    fn test_rollup_prop_type() {
+        let rel_id = Uuid::new_v4();
+        let cible_id = Uuid::new_v4();
+        let prop = Propriete::nouvelle(
+            "Nb tâches",
+            ProprieteType::Rollup {
+                relation_prop_id: rel_id,
+                cible_prop_id: cible_id,
+                agregat: Agregat::Compter,
+            },
+        );
+        assert!(matches!(prop.type_, ProprieteType::Rollup { .. }));
+    }
+
+    #[test]
+    fn test_valeur_relation_stocke_ids() {
+        let ids = vec![Uuid::new_v4(), Uuid::new_v4()];
+        let v = ValeurPropriete::Relation(ids.clone());
+        assert_eq!(v, ValeurPropriete::Relation(ids));
+    }
+
+    #[test]
+    fn test_groupe_regroupe_entrees() {
+        let groupe = Groupe {
+            valeur: ValeurPropriete::Texte("En cours".to_string()),
+            entrees: vec![Entree::nouvelle(HashMap::new())],
+        };
+        assert_eq!(groupe.entrees.len(), 1);
     }
 }
