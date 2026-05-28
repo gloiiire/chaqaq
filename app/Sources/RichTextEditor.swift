@@ -1,10 +1,34 @@
 import SwiftUI
 import UIKit
 
-// ── Clé d'attribut custom pour le nom de couleur ──────────────────────────────
+// ── Clés d'attributs custom ───────────────────────────────────────────────────
 
 extension NSAttributedString.Key {
-    static let chaqaqColor = NSAttributedString.Key("com.chaqaq.color")
+    static let chaqaqColor  = NSAttributedString.Key("com.chaqaq.color")
+    static let chaqaqBold   = NSAttributedString.Key("com.chaqaq.bold")
+    static let chaqaqItalic = NSAttributedString.Key("com.chaqaq.italic")
+}
+
+// ── Utilitaire font (libre pour usage dans spansVersNSAttributed) ─────────────
+
+func fontAvecTraits(_ base: UIFont, bold: Bool, italic: Bool) -> UIFont {
+    let size = base.pointSize
+    var traits = base.fontDescriptor.symbolicTraits
+    if bold   { traits.insert(.traitBold) }   else { traits.remove(.traitBold) }
+    if italic { traits.insert(.traitItalic) } else { traits.remove(.traitItalic) }
+    if let d = base.fontDescriptor.withSymbolicTraits(traits) {
+        return UIFont(descriptor: d, size: size)
+    }
+    // Fallback : SF Pro ignore withSymbolicTraits dans certains contextes
+    switch (bold, italic) {
+    case (true, true):
+        let desc = UIFont.boldSystemFont(ofSize: size).fontDescriptor
+        if let d = desc.withSymbolicTraits([.traitBold, .traitItalic]) { return UIFont(descriptor: d, size: size) }
+        return UIFont.boldSystemFont(ofSize: size)
+    case (true, false):  return UIFont.boldSystemFont(ofSize: size)
+    case (false, true):  return UIFont.italicSystemFont(ofSize: size)
+    case (false, false): return UIFont.systemFont(ofSize: size)
+    }
 }
 
 // ── Conversion spans ↔ NSAttributedString ────────────────────────────────────
@@ -13,28 +37,22 @@ func spansVersNSAttributed(_ spans: [InlineTextFfi], police: UIFont) -> NSAttrib
     guard !spans.isEmpty else { return NSAttributedString() }
     let result = NSMutableAttributedString()
     for span in spans {
-        var font = police
+        var isBold   = false
+        var isItalic = false
         var attrs: [NSAttributedString.Key: Any] = [.foregroundColor: UIColor.label]
         for style in span.styles {
             switch style {
-            case .bold:
-                var t = font.fontDescriptor.symbolicTraits; t.insert(.traitBold)
-                if let d = font.fontDescriptor.withSymbolicTraits(t) { font = UIFont(descriptor: d, size: 0) }
-            case .italic:
-                var t = font.fontDescriptor.symbolicTraits; t.insert(.traitItalic)
-                if let d = font.fontDescriptor.withSymbolicTraits(t) { font = UIFont(descriptor: d, size: 0) }
-            case .underline:
-                attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
-            case .strikethrough:
-                attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
-            case .color(let nom):
-                attrs[.foregroundColor] = uiCouleurDepuisNom(nom)
-                attrs[.chaqaqColor]     = nom
-            case .link(let url):
-                if let u = URL(string: url) { attrs[.link] = u }
+            case .bold:              isBold = true
+            case .italic:            isItalic = true
+            case .underline:         attrs[.underlineStyle]      = NSUnderlineStyle.single.rawValue
+            case .strikethrough:     attrs[.strikethroughStyle]  = NSUnderlineStyle.single.rawValue
+            case .color(let nom):    attrs[.foregroundColor] = uiCouleurDepuisNom(nom); attrs[.chaqaqColor] = nom
+            case .link(let url):     if let u = URL(string: url) { attrs[.link] = u }
             }
         }
-        attrs[.font] = font
+        attrs[.font] = fontAvecTraits(police, bold: isBold, italic: isItalic)
+        if isBold   { attrs[.chaqaqBold]   = true }
+        if isItalic { attrs[.chaqaqItalic] = true }
         result.append(NSAttributedString(string: span.content, attributes: attrs))
     }
     return result
@@ -47,14 +65,15 @@ func nsAttributedVersSpans(_ attrStr: NSAttributedString, police: UIFont) -> [In
         let texte = (attrStr.string as NSString).substring(with: range)
         guard !texte.isEmpty else { return }
         var styles: [InlineStyleFfi] = []
-        if let f = attrs[.font] as? UIFont {
-            if f.fontDescriptor.symbolicTraits.contains(.traitBold)   { styles.append(.bold) }
-            if f.fontDescriptor.symbolicTraits.contains(.traitItalic) { styles.append(.italic) }
-        }
-        if (attrs[.underlineStyle] as? Int) != nil          { styles.append(.underline) }
-        if (attrs[.strikethroughStyle] as? Int) != nil      { styles.append(.strikethrough) }
-        if let nom = attrs[.chaqaqColor] as? String         { styles.append(.color(nom)) }
-        if let url = attrs[.link] as? URL                   { styles.append(.link(url.absoluteString)) }
+        // Attributs custom fiables (priorité sur les traits de police)
+        if (attrs[.chaqaqBold]   as? Bool) == true { styles.append(.bold) }
+        else if let f = attrs[.font] as? UIFont, f.fontDescriptor.symbolicTraits.contains(.traitBold) { styles.append(.bold) }
+        if (attrs[.chaqaqItalic] as? Bool) == true { styles.append(.italic) }
+        else if let f = attrs[.font] as? UIFont, f.fontDescriptor.symbolicTraits.contains(.traitItalic) { styles.append(.italic) }
+        if (attrs[.underlineStyle]     as? Int) != nil { styles.append(.underline) }
+        if (attrs[.strikethroughStyle] as? Int) != nil { styles.append(.strikethrough) }
+        if let nom = attrs[.chaqaqColor] as? String    { styles.append(.color(nom)) }
+        if let url = attrs[.link]        as? URL       { styles.append(.link(url.absoluteString)) }
         spans.append(InlineTextFfi(content: texte, styles: styles))
     }
     return spans
@@ -93,7 +112,7 @@ struct RichTextEditor: UIViewRepresentable {
     @Binding var isFocused: Bool
     var placeholder: String = ""
     var baseFont: UIFont = .preferredFont(forTextStyle: .body)
-    var extraAttrs: [NSAttributedString.Key: Any]? = nil  // ex: strikethrough quand done
+    var extraAttrs: [NSAttributedString.Key: Any]? = nil
     var onSave: (() -> Void)?
     var onNewBlock: ((String) -> Void)?
     var onSupprimerBloc: (() -> Void)?
@@ -201,7 +220,6 @@ struct RichTextEditor: UIViewRepresentable {
         func textViewDidChange(_ tv: UITextView) {
             let texte = tv.text ?? ""
 
-            // Saut de ligne → nouveau bloc
             if let idx = texte.firstIndex(of: "\n") {
                 let nsIdx = texte.distance(from: texte.startIndex, to: idx)
                 let attrAvant = tv.attributedText.attributedSubstring(from: NSRange(location: 0, length: nsIdx))
@@ -215,14 +233,13 @@ struct RichTextEditor: UIViewRepresentable {
                 return
             }
 
-            // Raccourcis markdown
             switch texte {
-            case "# ":         parent.onConvert?(.heading(level: 1, text: [])); return
-            case "## ":        parent.onConvert?(.heading(level: 2, text: [])); return
-            case "### ":       parent.onConvert?(.heading(level: 3, text: [])); return
-            case "> ":         parent.onConvert?(.quote(icon: "", text: [])); return
+            case "# ":          parent.onConvert?(.heading(level: 1, text: [])); return
+            case "## ":         parent.onConvert?(.heading(level: 2, text: [])); return
+            case "### ":        parent.onConvert?(.heading(level: 3, text: [])); return
+            case "> ":          parent.onConvert?(.quote(icon: "", text: []));   return
             case "[ ] ", "[] ": parent.onConvert?(.todo(done: false, text: [])); return
-            case "---":        parent.onConvert?(.divider); return
+            case "---":         parent.onConvert?(.divider);                     return
             default: break
             }
 
@@ -239,12 +256,10 @@ struct RichTextEditor: UIViewRepresentable {
             let largeur = UIScreen.main.bounds.width
             let totalH  = pillH + margeV * 2
 
-            // Conteneur transparent (pleine largeur)
             let container = UIView(frame: CGRect(x: 0, y: 0, width: largeur, height: totalH))
             container.backgroundColor = .clear
             container.autoresizingMask = [.flexibleWidth]
 
-            // Pill avec fond adaptatif (comme Notes)
             let pill = UIView(frame: CGRect(x: margeH, y: margeV,
                                             width: largeur - margeH * 2, height: pillH))
             pill.autoresizingMask = [.flexibleWidth]
@@ -257,13 +272,10 @@ struct RichTextEditor: UIViewRepresentable {
             pill.layer.masksToBounds = true
             container.addSubview(pill)
 
-            // Scroll à l'intérieur du pill
             let scroll = UIScrollView(frame: pill.bounds)
             scroll.autoresizingMask       = [.flexibleWidth, .flexibleHeight]
             scroll.showsHorizontalScrollIndicator = false
             pill.addSubview(scroll)
-
-            // ── Fabrique de boutons ───────────────────────────────────────────
 
             func boutonTexte(_ label: String, font: UIFont,
                              souligné: Bool = false, action: Selector) -> UIButton {
@@ -298,8 +310,6 @@ struct RichTextEditor: UIViewRepresentable {
                 b.addTarget(self, action: action, for: .touchUpInside)
                 return b
             }
-
-            // ── Disposition ───────────────────────────────────────────────────
 
             var x: CGFloat = 12
             let btnW: CGFloat = 52
@@ -347,7 +357,6 @@ struct RichTextEditor: UIViewRepresentable {
             guard let tv, let attr = tv.attributedText else { return }
             let range = tv.selectedRange
 
-            // Sans sélection → modifier les attributs de frappe (texte futur)
             guard range.length > 0 else {
                 appliquerStyleTyping(tv: tv, style: style)
                 return
@@ -357,23 +366,30 @@ struct RichTextEditor: UIViewRepresentable {
 
             switch style {
             case .bold:
-                let toutBold = toutTrait(.traitBold, dans: attr, range: range)
+                let toutBold = toutCustomAttr(.chaqaqBold, dans: attr, range: range)
                 m.enumerateAttribute(.font, in: range) { val, r, _ in
-                    let f = (val as? UIFont) ?? parent.baseFont
-                    let italic = f.fontDescriptor.symbolicTraits.contains(.traitItalic)
+                    let f      = (val as? UIFont) ?? parent.baseFont
+                    let italic = (attr.attribute(.chaqaqItalic, at: r.location, effectiveRange: nil) as? Bool) == true
                     m.addAttribute(.font, value: fontAvecTraits(f, bold: !toutBold, italic: italic), range: r)
                 }
+                if !toutBold { m.addAttribute(.chaqaqBold,    value: true, range: range) }
+                else         { m.removeAttribute(.chaqaqBold,              range: range) }
+
             case .italic:
-                let toutItalic = toutTrait(.traitItalic, dans: attr, range: range)
+                let toutItalic = toutCustomAttr(.chaqaqItalic, dans: attr, range: range)
                 m.enumerateAttribute(.font, in: range) { val, r, _ in
-                    let f = (val as? UIFont) ?? parent.baseFont
-                    let bold = f.fontDescriptor.symbolicTraits.contains(.traitBold)
+                    let f    = (val as? UIFont) ?? parent.baseFont
+                    let bold = (attr.attribute(.chaqaqBold, at: r.location, effectiveRange: nil) as? Bool) == true
                     m.addAttribute(.font, value: fontAvecTraits(f, bold: bold, italic: !toutItalic), range: r)
                 }
+                if !toutItalic { m.addAttribute(.chaqaqItalic,    value: true, range: range) }
+                else           { m.removeAttribute(.chaqaqItalic,              range: range) }
+
             case .underline:
                 let deja = attr.attribute(.underlineStyle, at: range.location, effectiveRange: nil) != nil
                 if deja { m.removeAttribute(.underlineStyle, range: range) }
                 else    { m.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: range) }
+
             case .color(let nom):
                 let actuelle = attr.attribute(.chaqaqColor, at: range.location, effectiveRange: nil) as? String
                 if actuelle == nom {
@@ -392,20 +408,21 @@ struct RichTextEditor: UIViewRepresentable {
             parent.spans = nsAttributedVersSpans(m, police: parent.baseFont)
         }
 
-        // Applique le style aux typingAttributes quand rien n'est sélectionné
         private func appliquerStyleTyping(tv: UITextView, style: InlineStyleFfi) {
             var attrs = tv.typingAttributes
             switch style {
             case .bold:
                 let f      = (attrs[.font] as? UIFont) ?? parent.baseFont
-                let bold   = f.fontDescriptor.symbolicTraits.contains(.traitBold)
-                let italic = f.fontDescriptor.symbolicTraits.contains(.traitItalic)
+                let bold   = (attrs[.chaqaqBold]   as? Bool) == true
+                let italic = (attrs[.chaqaqItalic] as? Bool) == true
                 attrs[.font] = fontAvecTraits(f, bold: !bold, italic: italic)
+                if !bold { attrs[.chaqaqBold] = true } else { attrs.removeValue(forKey: .chaqaqBold) }
             case .italic:
                 let f      = (attrs[.font] as? UIFont) ?? parent.baseFont
-                let bold   = f.fontDescriptor.symbolicTraits.contains(.traitBold)
-                let italic = f.fontDescriptor.symbolicTraits.contains(.traitItalic)
+                let bold   = (attrs[.chaqaqBold]   as? Bool) == true
+                let italic = (attrs[.chaqaqItalic] as? Bool) == true
                 attrs[.font] = fontAvecTraits(f, bold: bold, italic: !italic)
+                if !italic { attrs[.chaqaqItalic] = true } else { attrs.removeValue(forKey: .chaqaqItalic) }
             case .underline:
                 if attrs[.underlineStyle] != nil { attrs.removeValue(forKey: .underlineStyle) }
                 else { attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue }
@@ -422,35 +439,11 @@ struct RichTextEditor: UIViewRepresentable {
             tv.typingAttributes = attrs
         }
 
-        private func fontAvecTraits(_ base: UIFont, bold: Bool, italic: Bool) -> UIFont {
-            let size = base.pointSize
-            var traits = base.fontDescriptor.symbolicTraits
-            if bold { traits.insert(.traitBold) } else { traits.remove(.traitBold) }
-            if italic { traits.insert(.traitItalic) } else { traits.remove(.traitItalic) }
-
-            // Tentative via descriptor (préserve la famille de police)
-            if let d = base.fontDescriptor.withSymbolicTraits(traits) {
-                return UIFont(descriptor: d, size: size)
-            }
-            // Fallback direct pour SF Pro qui ignore withSymbolicTraits
-            switch (bold, italic) {
-            case (true, true):
-                let desc = UIFont.boldSystemFont(ofSize: size).fontDescriptor
-                if let d = desc.withSymbolicTraits([.traitBold, .traitItalic]) { return UIFont(descriptor: d, size: size) }
-                return UIFont.boldSystemFont(ofSize: size)
-            case (true, false):  return UIFont.boldSystemFont(ofSize: size)
-            case (false, true):  return UIFont.italicSystemFont(ofSize: size)
-            case (false, false): return UIFont.systemFont(ofSize: size)
-            }
-        }
-
-        private func toutTrait(_ trait: UIFontDescriptor.SymbolicTraits,
-                                dans attr: NSAttributedString, range: NSRange) -> Bool {
+        private func toutCustomAttr(_ key: NSAttributedString.Key,
+                                     dans attr: NSAttributedString, range: NSRange) -> Bool {
             var result = true
-            attr.enumerateAttribute(.font, in: range) { val, _, _ in
-                // Pas de font → traiter comme "sans trait" (sinon le toggle s'inverse)
-                guard let f = val as? UIFont else { result = false; return }
-                if !f.fontDescriptor.symbolicTraits.contains(trait) { result = false }
+            attr.enumerateAttribute(key, in: range) { val, _, _ in
+                if (val as? Bool) != true { result = false }
             }
             return result
         }
