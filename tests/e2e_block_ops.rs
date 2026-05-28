@@ -1,6 +1,7 @@
 use uuid::Uuid;
 use chaqaq::application::use_cases::{
-    ajouter_bloc, creer_document, modifier_bloc, obtenir_document,
+    ajouter_bloc, ajouter_bloc_enfant, creer_document, modifier_bloc,
+    modifier_couverture_document, modifier_titre_document, obtenir_document,
     reordonner_blocs, sauvegarder_bloc_edite, supprimer_bloc,
 };
 use chaqaq::domain::document::{BlockContent, InlineStyle, InlineText};
@@ -125,4 +126,40 @@ fn test_styles_preserves_apres_sauvegarde_bloc() {
     } else {
         panic!("type de bloc inattendu");
     }
+}
+
+/// Page avec titre modifiable, couverture, et blocs imbriqués — scénario page Notion.
+#[test]
+fn test_flux_page_complete() {
+    let store = store_temp();
+
+    let doc = creer_document(&store, "Brouillon").unwrap();
+
+    // Renomme et ajoute une couverture
+    modifier_titre_document(&store, doc.id, "Mon projet 2025").unwrap();
+    modifier_couverture_document(&store, doc.id, Some("🚀".to_string())).unwrap();
+
+    // Structure : Heading → paragraphes imbriqués
+    let doc = ajouter_bloc(&store, doc.id,
+        BlockContent::Heading { text: inlines("Objectifs"), level: 1 }).unwrap();
+    let heading_id = doc.blocks[0].id;
+
+    ajouter_bloc_enfant(&store, doc.id, heading_id,
+        BlockContent::Todo { text: inlines("Finir le backend"), done: true }).unwrap();
+    ajouter_bloc_enfant(&store, doc.id, heading_id,
+        BlockContent::Todo { text: inlines("Attaquer Flutter"), done: false }).unwrap();
+
+    // Recharge et vérifie tout
+    let page = obtenir_document(&store, doc.id).unwrap();
+    assert_eq!(page.title[0].content, "Mon projet 2025");
+    assert_eq!(page.cover, Some("🚀".to_string()));
+    assert_eq!(page.blocks[0].children.len(), 2);
+    assert!(matches!(
+        &page.blocks[0].children[0].content,
+        BlockContent::Todo { done: true, .. }
+    ));
+    assert!(matches!(
+        &page.blocks[0].children[1].content,
+        BlockContent::Todo { done: false, .. }
+    ));
 }

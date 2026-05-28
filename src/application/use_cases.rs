@@ -38,6 +38,28 @@ pub fn ajouter_bloc(
     Ok(doc)
 }
 
+// ── Métadonnées du document ───────────────────────────────────────────────────
+
+pub fn modifier_titre_document(
+    repo: &dyn DocumentRepository,
+    doc_id: Uuid,
+    nouveau_titre: &str,
+) -> Result<(), ChaqaqError> {
+    let mut doc = repo.load(doc_id)?;
+    doc.title = parse_inline(nouveau_titre);
+    repo.save(&doc)
+}
+
+pub fn modifier_couverture_document(
+    repo: &dyn DocumentRepository,
+    doc_id: Uuid,
+    couverture: Option<String>,
+) -> Result<(), ChaqaqError> {
+    let mut doc = repo.load(doc_id)?;
+    doc.cover = couverture;
+    repo.save(&doc)
+}
+
 // ── Bridge EditorState → Block ────────────────────────────────────────────────
 
 /// Applique le contenu de l'éditeur sur un bloc textuel et persiste le document.
@@ -115,6 +137,22 @@ pub fn reordonner_blocs(
     reordonnés.extend(doc.blocks);
     doc.blocks = reordonnés;
     repo.save(&doc)
+}
+
+/// Ajoute un bloc comme enfant direct d'un bloc existant (blocs imbriqués).
+pub fn ajouter_bloc_enfant(
+    repo: &dyn DocumentRepository,
+    doc_id: Uuid,
+    parent_id: Uuid,
+    contenu: BlockContent,
+) -> Result<Block, ChaqaqError> {
+    let mut doc = repo.load(doc_id)?;
+    let parent = trouver_bloc_mut(&mut doc.blocks, parent_id)
+        .ok_or(ChaqaqError::NonTrouve(parent_id))?;
+    let enfant = Block::new(contenu);
+    parent.children.push(enfant.clone());
+    repo.save(&doc)?;
+    Ok(enfant)
 }
 
 // ── Recherche ─────────────────────────────────────────────────────────────────

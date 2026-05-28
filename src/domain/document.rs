@@ -16,7 +16,7 @@ pub struct InlineText {
     pub styles: Vec<InlineStyle>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum BlockContent {
     Text(Vec<InlineText>),
     Heading {
@@ -36,7 +36,7 @@ pub enum BlockContent {
     Database { id: Uuid },
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Block {
     pub id: Uuid,
     pub content: BlockContent,
@@ -44,7 +44,7 @@ pub struct Block {
 }
 
 impl Block {
-    fn new(content: BlockContent) -> Self {
+    pub fn new(content: BlockContent) -> Self {
         Block {
             id: Uuid::new_v4(),
             content,

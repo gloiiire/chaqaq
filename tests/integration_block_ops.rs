@@ -1,7 +1,8 @@
 use uuid::Uuid;
 use chaqaq::application::error::ChaqaqError;
 use chaqaq::application::use_cases::{
-    ajouter_bloc, creer_document, modifier_bloc, obtenir_document,
+    ajouter_bloc, ajouter_bloc_enfant, creer_document, modifier_bloc,
+    modifier_couverture_document, modifier_titre_document, obtenir_document,
     reordonner_blocs, sauvegarder_bloc_edite, supprimer_bloc,
 };
 use chaqaq::domain::document::{BlockContent, InlineText};
@@ -153,4 +154,89 @@ fn test_reordonner_blocs_partiels_conserve_le_reste() {
     assert_eq!(recharge.blocks.len(), 3);
     assert_eq!(recharge.blocks[0].id, id_c);
     assert_eq!(recharge.blocks[1].id, id_a);
+}
+
+// ── Métadonnées document ──────────────────────────────────────────────────────
+
+#[test]
+fn test_modifier_titre_document() {
+    let store = store_temp();
+    let doc = creer_document(&store, "Titre initial").unwrap();
+
+    modifier_titre_document(&store, doc.id, "Nouveau titre").unwrap();
+
+    let recharge = obtenir_document(&store, doc.id).unwrap();
+    assert_eq!(recharge.title[0].content, "Nouveau titre");
+}
+
+#[test]
+fn test_modifier_couverture_document() {
+    let store = store_temp();
+    let doc = creer_document(&store, "Doc").unwrap();
+    assert!(doc.cover.is_none());
+
+    modifier_couverture_document(&store, doc.id, Some("🌄".to_string())).unwrap();
+    let recharge = obtenir_document(&store, doc.id).unwrap();
+    assert_eq!(recharge.cover, Some("🌄".to_string()));
+
+    modifier_couverture_document(&store, doc.id, None).unwrap();
+    let recharge = obtenir_document(&store, doc.id).unwrap();
+    assert!(recharge.cover.is_none());
+}
+
+// ── Blocs imbriqués ───────────────────────────────────────────────────────────
+
+#[test]
+fn test_ajouter_bloc_enfant() {
+    let store = store_temp();
+    let doc = creer_document(&store, "Doc").unwrap();
+    let doc = ajouter_bloc(&store, doc.id, BlockContent::Text(inlines("parent"))).unwrap();
+    let parent_id = doc.blocks[0].id;
+
+    let enfant = ajouter_bloc_enfant(&store, doc.id, parent_id,
+        BlockContent::Text(inlines("enfant"))).unwrap();
+
+    let recharge = obtenir_document(&store, doc.id).unwrap();
+    assert_eq!(recharge.blocks[0].children.len(), 1);
+    assert_eq!(recharge.blocks[0].children[0].id, enfant.id);
+}
+
+#[test]
+fn test_ajouter_plusieurs_enfants() {
+    let store = store_temp();
+    let doc = creer_document(&store, "Doc").unwrap();
+    let doc = ajouter_bloc(&store, doc.id, BlockContent::Text(inlines("parent"))).unwrap();
+    let parent_id = doc.blocks[0].id;
+
+    ajouter_bloc_enfant(&store, doc.id, parent_id, BlockContent::Text(inlines("enfant 1"))).unwrap();
+    ajouter_bloc_enfant(&store, doc.id, parent_id, BlockContent::Text(inlines("enfant 2"))).unwrap();
+
+    let recharge = obtenir_document(&store, doc.id).unwrap();
+    assert_eq!(recharge.blocks[0].children.len(), 2);
+}
+
+#[test]
+fn test_ajouter_bloc_enfant_parent_inexistant() {
+    let store = store_temp();
+    let doc = creer_document(&store, "Doc").unwrap();
+
+    let result = ajouter_bloc_enfant(&store, doc.id, Uuid::new_v4(),
+        BlockContent::Text(inlines("orphelin")));
+    assert!(matches!(result, Err(ChaqaqError::NonTrouve(_))));
+}
+
+#[test]
+fn test_supprimer_bloc_enfant_recursif() {
+    let store = store_temp();
+    let doc = creer_document(&store, "Doc").unwrap();
+    let doc = ajouter_bloc(&store, doc.id, BlockContent::Text(inlines("parent"))).unwrap();
+    let parent_id = doc.blocks[0].id;
+
+    let enfant = ajouter_bloc_enfant(&store, doc.id, parent_id,
+        BlockContent::Text(inlines("enfant"))).unwrap();
+
+    supprimer_bloc(&store, doc.id, enfant.id).unwrap();
+
+    let recharge = obtenir_document(&store, doc.id).unwrap();
+    assert!(recharge.blocks[0].children.is_empty());
 }
