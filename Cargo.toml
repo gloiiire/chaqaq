@@ -3,10 +3,18 @@ name = "chaqaq"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "chaqaq"
+crate-type = ["staticlib", "cdylib", "lib"]
+
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
 rusqlite_migration = "1.2"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
+uniffi = "0.31"
 uuid = { version = "1.22.0", features = ["serde", "v4"] }
+
+[build-dependencies]
+uniffi = { version = "0.31", features = ["build"] }
