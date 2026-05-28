@@ -71,7 +71,7 @@ impl DatabaseRepository for SqliteDatabaseStore {
     fn list_meta(&self) -> Result<Vec<DatabaseMeta>, ChaqaqError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn
-            .prepare("SELECT id, title_json FROM databases WHERE deleted_at IS NULL")
+            .prepare("SELECT id, title_json, updated_at FROM databases WHERE deleted_at IS NULL")
             .map_err(|e| ChaqaqError::Db(e.to_string()))?;
         let mut metas = Vec::new();
         let rows = stmt
@@ -79,15 +79,16 @@ impl DatabaseRepository for SqliteDatabaseStore {
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
                 ))
             })
             .map_err(|e| ChaqaqError::Db(e.to_string()))?;
         for row in rows {
-            let (id_str, title_json) = row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
+            let (id_str, title_json, updated_at) = row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
             let id = Uuid::parse_str(&id_str)
                 .map_err(|_| ChaqaqError::OperationInvalide(format!("UUID invalide : {id_str}")))?;
             let titre: Vec<InlineText> = serde_json::from_str(&title_json)?;
-            metas.push(DatabaseMeta { id, titre });
+            metas.push(DatabaseMeta { id, titre, updated_at });
         }
         Ok(metas)
     }
@@ -184,6 +185,15 @@ mod tests {
         store.save(&d).unwrap();
         assert!(store.load(d.id).is_ok());
         assert_eq!(store.list_meta().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_list_meta_contient_updated_at() {
+        let store = store();
+        store.save(&db("Test")).unwrap();
+        let metas = store.list_meta().unwrap();
+        assert!(!metas[0].updated_at.is_empty());
+        assert!(metas[0].updated_at.starts_with("20")); // ISO 8601
     }
 
     #[test]

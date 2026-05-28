@@ -59,6 +59,10 @@ pub struct DocumentMeta {
     pub id: Uuid,
     pub cover: Option<String>,
     pub title: Vec<InlineText>,
+    /// Timestamp ISO 8601 de la dernière modification — géré par l'infrastructure.
+    /// Vide si le backend ne le fournit pas (JsonStore, mock).
+    #[serde(default)]
+    pub updated_at: String,
 }
 
 impl From<&Document> for DocumentMeta {
@@ -67,6 +71,7 @@ impl From<&Document> for DocumentMeta {
             id: doc.id,
             cover: doc.cover.clone(),
             title: doc.title.clone(),
+            updated_at: String::new(),
         }
     }
 }

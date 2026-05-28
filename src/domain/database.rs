@@ -182,6 +182,10 @@ pub struct Groupe {
 pub struct DatabaseMeta {
     pub id: Uuid,
     pub titre: Vec<InlineText>,
+    /// Timestamp ISO 8601 de la dernière modification — géré par l'infrastructure.
+    /// Vide si le backend ne le fournit pas (DatabaseStore JSON, mock).
+    #[serde(default)]
+    pub updated_at: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -206,7 +210,7 @@ impl Database {
     }
 
     pub fn meta(&self) -> DatabaseMeta {
-        DatabaseMeta { id: self.id, titre: self.titre.clone() }
+        DatabaseMeta { id: self.id, titre: self.titre.clone(), updated_at: String::new() }
     }
 }
 

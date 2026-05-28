@@ -72,7 +72,7 @@ impl DocumentRepository for SqliteDocumentStore {
     fn list(&self) -> Result<Vec<DocumentMeta>, ChaqaqError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn
-            .prepare("SELECT id, title_json, cover FROM documents WHERE deleted_at IS NULL")
+            .prepare("SELECT id, title_json, cover, updated_at FROM documents WHERE deleted_at IS NULL")
             .map_err(|e| ChaqaqError::Db(e.to_string()))?;
         let mut metas = Vec::new();
         let rows = stmt
@@ -81,15 +81,16 @@ impl DocumentRepository for SqliteDocumentStore {
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
                     row.get::<_, Option<String>>(2)?,
+                    row.get::<_, String>(3)?,
                 ))
             })
             .map_err(|e| ChaqaqError::Db(e.to_string()))?;
         for row in rows {
-            let (id_str, title_json, cover) = row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
+            let (id_str, title_json, cover, updated_at) = row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
             let id = Uuid::parse_str(&id_str)
                 .map_err(|_| ChaqaqError::OperationInvalide(format!("UUID invalide : {id_str}")))?;
             let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
-            metas.push(DocumentMeta { id, title, cover });
+            metas.push(DocumentMeta { id, title, cover, updated_at });
         }
         Ok(metas)
     }
@@ -182,6 +183,15 @@ mod tests {
         store.save(&d).unwrap();
         assert!(store.load(d.id).is_ok());
         assert_eq!(store.list().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_list_meta_contient_updated_at() {
+        let store = store();
+        store.save(&doc("Test")).unwrap();
+        let metas = store.list().unwrap();
+        assert!(!metas[0].updated_at.is_empty());
+        assert!(metas[0].updated_at.starts_with("20")); // ISO 8601
     }
 
     #[test]
