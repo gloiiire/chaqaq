@@ -133,6 +133,37 @@ pub fn requete(
     Ok(entrees)
 }
 
+// ── Recherche ────────────────────────────────────────────────────────────────
+
+/// Recherche insensible à la casse dans toutes les valeurs textuelles des entrées.
+pub fn rechercher_entrees(
+    repo: &dyn DatabaseRepository,
+    db_id: Uuid,
+    query: &str,
+) -> Result<Vec<Entree>, ChaqaqError> {
+    let db = repo.load(db_id)?;
+    let q = query.to_lowercase();
+    Ok(db.entrees.into_iter()
+        .filter(|e| entree_correspond(e, &q))
+        .collect())
+}
+
+fn entree_correspond(entree: &Entree, query: &str) -> bool {
+    entree.valeurs.values().any(|v| valeur_contient(v, query))
+}
+
+fn valeur_contient(v: &ValeurPropriete, query: &str) -> bool {
+    match v {
+        ValeurPropriete::Texte(s)              => s.to_lowercase().contains(query),
+        ValeurPropriete::Url(s)                => s.to_lowercase().contains(query),
+        ValeurPropriete::Selection(Some(s))    => s.to_lowercase().contains(query),
+        ValeurPropriete::SelectionMultiple(vs) => vs.iter().any(|s| s.to_lowercase().contains(query)),
+        ValeurPropriete::Titre(inlines)        =>
+            inlines.iter().any(|i| i.content.to_lowercase().contains(query)),
+        _ => false,
+    }
+}
+
 // ── Relations, Rollups, Agrégats, Groupement ─────────────────────────────────
 
 /// Enrichit les entrées avec les valeurs calculées des colonnes Rollup.
@@ -399,5 +430,22 @@ mod tests {
     fn test_cle_groupe_texte() {
         assert_eq!(cle_groupe(&ValeurPropriete::Texte("A".to_string())), "A");
         assert_eq!(cle_groupe(&ValeurPropriete::Vide), String::new());
+    }
+
+    #[test]
+    fn test_valeur_contient_texte() {
+        assert!(valeur_contient(&ValeurPropriete::Texte("Bonjour monde".to_string()), "monde"));
+        assert!(!valeur_contient(&ValeurPropriete::Texte("Bonjour".to_string()), "monde"));
+    }
+
+    #[test]
+    fn test_valeur_contient_insensible_casse() {
+        assert!(valeur_contient(&ValeurPropriete::Texte("Journal".to_string()), "journal"));
+    }
+
+    #[test]
+    fn test_valeur_contient_vide_ne_match_pas() {
+        assert!(!valeur_contient(&ValeurPropriete::Vide, "anything"));
+        assert!(!valeur_contient(&ValeurPropriete::Nombre(42.0), "42"));
     }
 }
