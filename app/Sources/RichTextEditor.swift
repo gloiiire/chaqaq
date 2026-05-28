@@ -7,27 +7,24 @@ extension NSAttributedString.Key {
     static let chaqaqColor  = NSAttributedString.Key("com.chaqaq.color")
     static let chaqaqBold   = NSAttributedString.Key("com.chaqaq.bold")
     static let chaqaqItalic = NSAttributedString.Key("com.chaqaq.italic")
+    static let chaqaqObliqueness = NSAttributedString.Key("NSObliqueness")
 }
 
 // ── Utilitaire font (libre pour usage dans spansVersNSAttributed) ─────────────
 
 func fontAvecTraits(_ base: UIFont, bold: Bool, italic: Bool) -> UIFont {
     let size = base.pointSize
-    var traits = base.fontDescriptor.symbolicTraits
-    if bold   { traits.insert(.traitBold) }   else { traits.remove(.traitBold) }
-    if italic { traits.insert(.traitItalic) } else { traits.remove(.traitItalic) }
-    if let d = base.fontDescriptor.withSymbolicTraits(traits) {
-        return UIFont(descriptor: d, size: size)
-    }
-    // Fallback : SF Pro ignore withSymbolicTraits dans certains contextes
-    switch (bold, italic) {
+    let traitsBase = base.fontDescriptor.symbolicTraits
+    let renduBold = bold || traitsBase.contains(.traitBold)
+    let renduItalic = italic || traitsBase.contains(.traitItalic)
+    switch (renduBold, renduItalic) {
     case (true, true):
         let desc = UIFont.boldSystemFont(ofSize: size).fontDescriptor
         if let d = desc.withSymbolicTraits([.traitBold, .traitItalic]) { return UIFont(descriptor: d, size: size) }
         return UIFont.boldSystemFont(ofSize: size)
     case (true, false):  return UIFont.boldSystemFont(ofSize: size)
     case (false, true):  return UIFont.italicSystemFont(ofSize: size)
-    case (false, false): return UIFont.systemFont(ofSize: size)
+    case (false, false): return base
     }
 }
 
@@ -52,7 +49,10 @@ func spansVersNSAttributed(_ spans: [InlineTextFfi], police: UIFont) -> NSAttrib
         }
         attrs[.font] = fontAvecTraits(police, bold: isBold, italic: isItalic)
         if isBold   { attrs[.chaqaqBold]   = true }
-        if isItalic { attrs[.chaqaqItalic] = true }
+        if isItalic {
+            attrs[.chaqaqItalic] = true
+            attrs[.chaqaqObliqueness] = 0.2
+        }
         result.append(NSAttributedString(string: span.content, attributes: attrs))
     }
     return result
@@ -67,9 +67,7 @@ func nsAttributedVersSpans(_ attrStr: NSAttributedString, police: UIFont) -> [In
         var styles: [InlineStyleFfi] = []
         // Attributs custom fiables (priorité sur les traits de police)
         if (attrs[.chaqaqBold]   as? Bool) == true { styles.append(.bold) }
-        else if let f = attrs[.font] as? UIFont, f.fontDescriptor.symbolicTraits.contains(.traitBold) { styles.append(.bold) }
         if (attrs[.chaqaqItalic] as? Bool) == true { styles.append(.italic) }
-        else if let f = attrs[.font] as? UIFont, f.fontDescriptor.symbolicTraits.contains(.traitItalic) { styles.append(.italic) }
         if (attrs[.underlineStyle]     as? Int) != nil { styles.append(.underline) }
         if (attrs[.strikethroughStyle] as? Int) != nil { styles.append(.strikethrough) }
         if let nom = attrs[.chaqaqColor] as? String    { styles.append(.color(nom)) }
@@ -95,6 +93,9 @@ func uiCouleurDepuisNom(_ nom: String) -> UIColor {
 
 final class ExpandingTextView: UITextView {
     var onShiftEnter: (() -> Void)?
+    var onToggleBold: (() -> Void)?
+    var onToggleItalic: (() -> Void)?
+    var onToggleUnderline: (() -> Void)?
     var onNaviguerPrecedent: (() -> Void)?
     var onNaviguerSuivant: (() -> Void)?
     var onNavRepeterArreter: (() -> Void)?
@@ -106,6 +107,10 @@ final class ExpandingTextView: UITextView {
     }
 
     @objc private func gererShiftEnter() { onShiftEnter?() }
+
+    override func toggleBoldface(_ sender: Any?) { onToggleBold?() }
+    override func toggleItalics(_ sender: Any?) { onToggleItalic?() }
+    override func toggleUnderline(_ sender: Any?) { onToggleUnderline?() }
 
     override var intrinsicContentSize: CGSize {
         let w = bounds.width > 0 ? bounds.width : (window?.screen.bounds.width ?? 390)
@@ -184,6 +189,7 @@ struct RichTextEditor: UIViewRepresentable {
     var extraAttrs: [NSAttributedString.Key: Any]? = nil
     var focusCursorAt: Int? = nil
     var onSave: (() -> Void)?
+    var onSaveSpans: (([InlineTextFfi]) -> Void)? = nil
     var onNewBlock: ((String) -> Void)?
     var onSupprimerBloc: (() -> Void)?
     var onFusionnerAvecPrecedent: (([InlineTextFfi]) -> Void)?
@@ -199,6 +205,7 @@ struct RichTextEditor: UIViewRepresentable {
         tv.font = baseFont
         tv.textColor = .label
         tv.typingAttributes = [.font: baseFont, .foregroundColor: UIColor.label]
+        tv.allowsEditingTextAttributes = true
         tv.isScrollEnabled = false
         tv.textContainer.lineFragmentPadding = 0
         tv.textContainerInset = UIEdgeInsets(top: 5, left: 0, bottom: 5, right: 0)
@@ -209,6 +216,9 @@ struct RichTextEditor: UIViewRepresentable {
             coord?.saisieSautDeLigne = true
             coord?.tv?.insertText("\n")
         }
+        tv.onToggleBold      = { [weak coord] in coord?.toggleGras() }
+        tv.onToggleItalic    = { [weak coord] in coord?.toggleItalique() }
+        tv.onToggleUnderline = { [weak coord] in coord?.toggleSouligne() }
         tv.onNaviguerPrecedent  = { [weak coord] in coord?.parent.onNaviguerPrecedent?() }
         tv.onNaviguerSuivant    = { [weak coord] in coord?.parent.onNaviguerSuivant?() }
         tv.onNavRepeterArreter  = { [weak coord] in coord?.parent.onNavRepeterArreter?() }
@@ -258,6 +268,9 @@ struct RichTextEditor: UIViewRepresentable {
         var enEdition = false
         var enCoursDeSupression = false
         var saisieSautDeLigne = false
+        var derniereSelection = NSRange(location: 0, length: 0)
+        private var actionToolbarEnCours = false
+        private var generationSelection = 0
 
         init(parent: RichTextEditor) { self.parent = parent }
 
@@ -272,6 +285,7 @@ struct RichTextEditor: UIViewRepresentable {
         func textViewDidBeginEditing(_ tv: UITextView) {
             enEdition = true
             parent.isFocused = true
+            memoriserSelection(tv.selectedRange, longueur: tv.attributedText.length)
             if tv.textColor == .tertiaryLabel {
                 tv.attributedText = NSAttributedString(string: "", attributes: [
                     .font: parent.baseFont,
@@ -279,6 +293,15 @@ struct RichTextEditor: UIViewRepresentable {
                 ])
             }
             tv.typingAttributes = [.font: parent.baseFont, .foregroundColor: UIColor.label]
+        }
+
+        func textViewDidChangeSelection(_ tv: UITextView) {
+            let selection = selectionNormalisee(tv.selectedRange, longueur: tv.attributedText.length)
+            if selection.length > 0 {
+                memoriserSelection(selection, longueur: tv.attributedText.length)
+            } else {
+                nettoyerSelectionMemoriseeSiToujoursVide(tv)
+            }
         }
 
         func textView(_ tv: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
@@ -313,8 +336,7 @@ struct RichTextEditor: UIViewRepresentable {
                     ? NSAttributedString(string: "", attributes: [.font: parent.baseFont, .foregroundColor: UIColor.label])
                     : attrAvant
                 tv.selectedRange = NSRange(location: attrAvant.length, length: 0)
-                parent.spans = nsAttributedVersSpans(attrAvant, police: parent.baseFont)
-                parent.onSave?()
+                sauvegarder(nsAttributedVersSpans(attrAvant, police: parent.baseFont))
                 parent.onNewBlock?(apres)
                 return false
             }
@@ -325,8 +347,7 @@ struct RichTextEditor: UIViewRepresentable {
             enEdition = false
             parent.isFocused = false
             guard !enCoursDeSupression else { return }
-            parent.spans = nsAttributedVersSpans(tv.attributedText, police: parent.baseFont)
-            parent.onSave?()
+            sauvegarder(nsAttributedVersSpans(tv.attributedText, police: parent.baseFont))
             if parent.spans.isEmpty { tv.attributedText = placeholder() }
         }
 
@@ -344,6 +365,7 @@ struct RichTextEditor: UIViewRepresentable {
             }
 
             parent.spans = nsAttributedVersSpans(tv.attributedText, police: parent.baseFont)
+            if tv.selectedRange.length == 0 { viderSelectionMemorisee() }
             tv.invalidateIntrinsicContentSize()
         }
 
@@ -385,6 +407,7 @@ struct RichTextEditor: UIViewRepresentable {
                 b.setAttributedTitle(NSAttributedString(string: label, attributes: a), for: .normal)
                 a[.foregroundColor] = UIColor.label.withAlphaComponent(0.3)
                 b.setAttributedTitle(NSAttributedString(string: label, attributes: a), for: .highlighted)
+                b.addTarget(self, action: #selector(capturerSelectionAvantToolbar), for: .touchDown)
                 b.addTarget(self, action: action, for: .touchUpInside)
                 return b
             }
@@ -396,6 +419,7 @@ struct RichTextEditor: UIViewRepresentable {
                     UIImage(systemName: "circle.fill", withConfiguration: cfg)?
                         .withTintColor(couleur, renderingMode: .alwaysOriginal),
                     for: .normal)
+                b.addTarget(self, action: #selector(capturerSelectionAvantToolbar), for: .touchDown)
                 b.addTarget(self, action: action, for: .touchUpInside)
                 return b
             }
@@ -407,6 +431,7 @@ struct RichTextEditor: UIViewRepresentable {
                     UIImage(systemName: nom, withConfiguration: cfg)?
                         .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal),
                     for: .normal)
+                b.addTarget(self, action: #selector(capturerSelectionAvantToolbar), for: .touchDown)
                 b.addTarget(self, action: action, for: .touchUpInside)
                 return b
             }
@@ -443,7 +468,16 @@ struct RichTextEditor: UIViewRepresentable {
             return container
         }
 
-        @objc func dispenserClavier() { tv?.resignFirstResponder() }
+        @objc func capturerSelectionAvantToolbar() {
+            actionToolbarEnCours = true
+            guard let tv else { return }
+            memoriserSelection(tv.selectedRange, longueur: tv.attributedText.length)
+        }
+
+        @objc func dispenserClavier() {
+            actionToolbarEnCours = false
+            tv?.resignFirstResponder()
+        }
         @objc func toggleGras()       { appliquerStyle(.bold) }
         @objc func toggleItalique()   { appliquerStyle(.italic) }
         @objc func toggleSouligne()   { appliquerStyle(.underline) }
@@ -454,8 +488,9 @@ struct RichTextEditor: UIViewRepresentable {
         @objc func colorViolet()      { appliquerStyle(.color("violet")) }
 
         private func appliquerStyle(_ style: InlineStyleFfi) {
+            defer { actionToolbarEnCours = false }
             guard let tv, let attr = tv.attributedText else { return }
-            let range = tv.selectedRange
+            let range = selectionPourToolbar(selectionActuelle: tv.selectedRange, longueur: attr.length)
 
             guard range.length > 0 else {
                 appliquerStyleTyping(tv: tv, style: style)
@@ -466,24 +501,31 @@ struct RichTextEditor: UIViewRepresentable {
 
             switch style {
             case .bold:
-                let toutBold = toutCustomAttr(.chaqaqBold, dans: attr, range: range)
-                m.enumerateAttribute(.font, in: range) { val, r, _ in
+                let toutBold = touteLaPlage(dans: attr, range: range, verifie: attrsContiennentBold)
+                attr.enumerateAttribute(.font, in: range) { val, r, _ in
                     let f      = (val as? UIFont) ?? parent.baseFont
-                    let italic = (attr.attribute(.chaqaqItalic, at: r.location, effectiveRange: nil) as? Bool) == true
+                    let italic = attrsContiennentItalic(attributsA: attr, position: r.location)
                     m.addAttribute(.font, value: fontAvecTraits(f, bold: !toutBold, italic: italic), range: r)
+                    if italic { m.addAttribute(.chaqaqObliqueness, value: 0.2, range: r) }
+                    else       { m.removeAttribute(.chaqaqObliqueness, range: r) }
                 }
                 if !toutBold { m.addAttribute(.chaqaqBold,    value: true, range: range) }
                 else         { m.removeAttribute(.chaqaqBold,              range: range) }
 
             case .italic:
-                let toutItalic = toutCustomAttr(.chaqaqItalic, dans: attr, range: range)
-                m.enumerateAttribute(.font, in: range) { val, r, _ in
+                let toutItalic = touteLaPlage(dans: attr, range: range, verifie: attrsContiennentItalic)
+                attr.enumerateAttribute(.font, in: range) { val, r, _ in
                     let f    = (val as? UIFont) ?? parent.baseFont
-                    let bold = (attr.attribute(.chaqaqBold, at: r.location, effectiveRange: nil) as? Bool) == true
+                    let bold = attrsContiennentBold(attributsA: attr, position: r.location)
                     m.addAttribute(.font, value: fontAvecTraits(f, bold: bold, italic: !toutItalic), range: r)
                 }
-                if !toutItalic { m.addAttribute(.chaqaqItalic,    value: true, range: range) }
-                else           { m.removeAttribute(.chaqaqItalic,              range: range) }
+                if !toutItalic {
+                    m.addAttribute(.chaqaqItalic, value: true, range: range)
+                    m.addAttribute(.chaqaqObliqueness, value: 0.2, range: range)
+                } else {
+                    m.removeAttribute(.chaqaqItalic, range: range)
+                    m.removeAttribute(.chaqaqObliqueness, range: range)
+                }
 
             case .underline:
                 let deja = attr.attribute(.underlineStyle, at: range.location, effectiveRange: nil) != nil
@@ -508,9 +550,12 @@ struct RichTextEditor: UIViewRepresentable {
             default: break
             }
 
-            tv.attributedText = m
+            tv.textStorage.beginEditing()
+            tv.textStorage.setAttributedString(m)
+            tv.textStorage.endEditing()
             tv.selectedRange  = range
-            parent.spans = nsAttributedVersSpans(m, police: parent.baseFont)
+            memoriserSelection(range, longueur: m.length)
+            sauvegarder(nsAttributedVersSpans(tv.attributedText, police: parent.baseFont))
         }
 
         private func appliquerStyleTyping(tv: UITextView, style: InlineStyleFfi) {
@@ -518,16 +563,24 @@ struct RichTextEditor: UIViewRepresentable {
             switch style {
             case .bold:
                 let f      = (attrs[.font] as? UIFont) ?? parent.baseFont
-                let bold   = (attrs[.chaqaqBold]   as? Bool) == true
-                let italic = (attrs[.chaqaqItalic] as? Bool) == true
+                let bold   = attrsContiennentBold(attrs)
+                let italic = attrsContiennentItalic(attrs)
                 attrs[.font] = fontAvecTraits(f, bold: !bold, italic: italic)
                 if !bold { attrs[.chaqaqBold] = true } else { attrs.removeValue(forKey: .chaqaqBold) }
+                if italic { attrs[.chaqaqObliqueness] = 0.2 }
+                else      { attrs.removeValue(forKey: .chaqaqObliqueness) }
             case .italic:
                 let f      = (attrs[.font] as? UIFont) ?? parent.baseFont
-                let bold   = (attrs[.chaqaqBold]   as? Bool) == true
-                let italic = (attrs[.chaqaqItalic] as? Bool) == true
+                let bold   = attrsContiennentBold(attrs)
+                let italic = attrsContiennentItalic(attrs)
                 attrs[.font] = fontAvecTraits(f, bold: bold, italic: !italic)
-                if !italic { attrs[.chaqaqItalic] = true } else { attrs.removeValue(forKey: .chaqaqItalic) }
+                if !italic {
+                    attrs[.chaqaqItalic] = true
+                    attrs[.chaqaqObliqueness] = 0.2
+                } else {
+                    attrs.removeValue(forKey: .chaqaqItalic)
+                    attrs.removeValue(forKey: .chaqaqObliqueness)
+                }
             case .underline:
                 if attrs[.underlineStyle] != nil { attrs.removeValue(forKey: .underlineStyle) }
                 else { attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue }
@@ -545,15 +598,87 @@ struct RichTextEditor: UIViewRepresentable {
             default: break
             }
             tv.typingAttributes = attrs
+            viderSelectionMemorisee()
+            _ = tv.becomeFirstResponder()
         }
 
-        private func toutCustomAttr(_ key: NSAttributedString.Key,
-                                     dans attr: NSAttributedString, range: NSRange) -> Bool {
+        private func memoriserSelection(_ range: NSRange, longueur: Int) {
+            let selection = selectionNormalisee(range, longueur: longueur)
+            guard selection.length > 0 else { return }
+            generationSelection += 1
+            derniereSelection = selection
+        }
+
+        private func sauvegarder(_ spans: [InlineTextFfi]) {
+            parent.spans = spans
+            if let onSaveSpans = parent.onSaveSpans {
+                onSaveSpans(spans)
+            } else {
+                parent.onSave?()
+            }
+        }
+
+        private func viderSelectionMemorisee() {
+            generationSelection += 1
+            derniereSelection = NSRange(location: 0, length: 0)
+        }
+
+        private func nettoyerSelectionMemoriseeSiToujoursVide(_ textView: UITextView) {
+            let generation = generationSelection
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self, weak textView] in
+                guard let self, let textView else { return }
+                let selection = self.selectionNormalisee(textView.selectedRange, longueur: textView.attributedText.length)
+                if self.generationSelection == generation && !self.actionToolbarEnCours && selection.length == 0 {
+                    self.viderSelectionMemorisee()
+                }
+            }
+        }
+
+        private func selectionPourToolbar(selectionActuelle: NSRange, longueur: Int) -> NSRange {
+            let courante = selectionNormalisee(selectionActuelle, longueur: longueur)
+            if courante.length > 0 { return courante }
+            let memorisee = selectionNormalisee(derniereSelection, longueur: longueur)
+            return memorisee.length > 0 ? memorisee : courante
+        }
+
+        private func selectionNormalisee(_ range: NSRange, longueur: Int) -> NSRange {
+            guard range.location != NSNotFound, range.location <= longueur else {
+                return NSRange(location: longueur, length: 0)
+            }
+            let fin = min(range.location + range.length, longueur)
+            return NSRange(location: range.location, length: max(0, fin - range.location))
+        }
+
+        private func touteLaPlage(
+            dans attr: NSAttributedString,
+            range: NSRange,
+            verifie: ([NSAttributedString.Key: Any]) -> Bool
+        ) -> Bool {
+            guard range.length > 0 else { return false }
             var result = true
-            attr.enumerateAttribute(key, in: range) { val, _, _ in
-                if (val as? Bool) != true { result = false }
+            attr.enumerateAttributes(in: range) { attrs, _, stop in
+                if !verifie(attrs) {
+                    result = false
+                    stop.pointee = true
+                }
             }
             return result
+        }
+
+        private func attrsContiennentBold(attributsA attr: NSAttributedString, position: Int) -> Bool {
+            attrsContiennentBold(attr.attributes(at: position, effectiveRange: nil))
+        }
+
+        private func attrsContiennentItalic(attributsA attr: NSAttributedString, position: Int) -> Bool {
+            attrsContiennentItalic(attr.attributes(at: position, effectiveRange: nil))
+        }
+
+        private func attrsContiennentBold(_ attrs: [NSAttributedString.Key: Any]) -> Bool {
+            (attrs[.chaqaqBold] as? Bool) == true
+        }
+
+        private func attrsContiennentItalic(_ attrs: [NSAttributedString.Key: Any]) -> Bool {
+            (attrs[.chaqaqItalic] as? Bool) == true
         }
     }
 }

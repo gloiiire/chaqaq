@@ -84,6 +84,12 @@ final class DocumentViewModel: ObservableObject {
         } catch { erreur = error.localizedDescription }
     }
 
+    func sauvegarderBloc(id: String, spans: [InlineTextFfi]) {
+        guard let idx = blocs.firstIndex(where: { $0.id == id }) else { return }
+        blocs[idx].spans = spans
+        sauvegarderBloc(blocs[idx])
+    }
+
     func ajouterBloc(type: TypeBlocNouvel, texteInitial: String = "", apresId: String? = nil) {
         do {
             let contenu: BlockContentFfi
@@ -211,7 +217,13 @@ struct DocumentView: View {
                     bloc: $bloc,
                     autoFocusId: $vm.autoFocusId,
                     autoFocusOffset: $vm.autoFocusOffset,
-                    onSauvegarder: { vm.sauvegarderBloc(bloc) },
+                    onSauvegarder: {
+                        guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }) else { return }
+                        vm.sauvegarderBloc(vm.blocs[idx])
+                    },
+                    onSauvegarderSpans: { spans in
+                        vm.sauvegarderBloc(id: bloc.id, spans: spans)
+                    },
                     onSupprimer: {
                         if let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }) {
                             if idx > 0 {
@@ -445,6 +457,7 @@ private struct BlocRowView: View {
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     let onSauvegarder: () -> Void
+    let onSauvegarderSpans: ([InlineTextFfi]) -> Void
     let onSupprimer: () -> Void
     let onNouveauBloc: (String) -> Void
     var onFusionner: (([InlineTextFfi]) -> Void)?
@@ -457,25 +470,33 @@ private struct BlocRowView: View {
             switch bloc.content {
             case .text:
                 TexteRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                             onSauvegarder: onSauvegarder, onSupprimer: onSupprimer,
+                             onSauvegarder: onSauvegarder,
+                             onSauvegarderSpans: onSauvegarderSpans,
+                             onSupprimer: onSupprimer,
                              onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
                              onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
                              onNavRepeterArreter: onNavRepeterArreter)
             case .heading(let level, _):
                 HeadingRowView(bloc: $bloc, level: level, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                               onSauvegarder: onSauvegarder, onSupprimer: onSupprimer,
+                               onSauvegarder: onSauvegarder,
+                               onSauvegarderSpans: onSauvegarderSpans,
+                               onSupprimer: onSupprimer,
                                onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
                                onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
                                onNavRepeterArreter: onNavRepeterArreter)
             case .quote:
                 CitationRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                                onSauvegarder: onSauvegarder, onSupprimer: onSupprimer,
+                                onSauvegarder: onSauvegarder,
+                                onSauvegarderSpans: onSauvegarderSpans,
+                                onSupprimer: onSupprimer,
                                 onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
                                 onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
                                 onNavRepeterArreter: onNavRepeterArreter)
             case .todo:
                 TodoRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                            onSauvegarder: onSauvegarder, onSupprimer: onSupprimer,
+                            onSauvegarder: onSauvegarder,
+                            onSauvegarderSpans: onSauvegarderSpans,
+                            onSupprimer: onSupprimer,
                             onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
                             onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
                             onNavRepeterArreter: onNavRepeterArreter)
@@ -500,6 +521,7 @@ private struct TexteRowView: View {
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     let onSauvegarder: () -> Void
+    let onSauvegarderSpans: ([InlineTextFfi]) -> Void
     let onSupprimer: () -> Void
     let onNouveauBloc: (String) -> Void
     var onFusionner: (([InlineTextFfi]) -> Void)?
@@ -517,6 +539,7 @@ private struct TexteRowView: View {
             baseFont: .preferredFont(forTextStyle: .body),
             focusCursorAt: cursorAt,
             onSave: onSauvegarder,
+            onSaveSpans: onSauvegarderSpans,
             onNewBlock: onNouveauBloc,
             onSupprimerBloc: onSupprimer,
             onFusionnerAvecPrecedent: onFusionner,
@@ -537,6 +560,7 @@ private struct HeadingRowView: View {
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     let onSauvegarder: () -> Void
+    let onSauvegarderSpans: ([InlineTextFfi]) -> Void
     let onSupprimer: () -> Void
     let onNouveauBloc: (String) -> Void
     var onFusionner: (([InlineTextFfi]) -> Void)?
@@ -562,6 +586,7 @@ private struct HeadingRowView: View {
             baseFont: uiFont,
             focusCursorAt: cursorAt,
             onSave: onSauvegarder,
+            onSaveSpans: onSauvegarderSpans,
             onNewBlock: onNouveauBloc,
             onSupprimerBloc: onSupprimer,
             onFusionnerAvecPrecedent: onFusionner,
@@ -583,6 +608,7 @@ private struct CitationRowView: View {
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     let onSauvegarder: () -> Void
+    let onSauvegarderSpans: ([InlineTextFfi]) -> Void
     let onSupprimer: () -> Void
     let onNouveauBloc: (String) -> Void
     var onFusionner: (([InlineTextFfi]) -> Void)?
@@ -605,6 +631,7 @@ private struct CitationRowView: View {
                 baseFont: .italicSystemFont(ofSize: UIFont.preferredFont(forTextStyle: .body).pointSize),
                 focusCursorAt: cursorAt,
                 onSave: onSauvegarder,
+                onSaveSpans: onSauvegarderSpans,
                 onNewBlock: onNouveauBloc,
                 onSupprimerBloc: onSupprimer,
                 onFusionnerAvecPrecedent: onFusionner,
@@ -627,6 +654,7 @@ private struct TodoRowView: View {
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     let onSauvegarder: () -> Void
+    let onSauvegarderSpans: ([InlineTextFfi]) -> Void
     let onSupprimer: () -> Void
     let onNouveauBloc: (String) -> Void
     var onFusionner: (([InlineTextFfi]) -> Void)?
@@ -660,6 +688,7 @@ private struct TodoRowView: View {
                 ] : nil,
                 focusCursorAt: cursorAt,
                 onSave: onSauvegarder,
+                onSaveSpans: onSauvegarderSpans,
                 onNewBlock: onNouveauBloc,
                 onSupprimerBloc: onSupprimer,
                 onFusionnerAvecPrecedent: onFusionner,
