@@ -154,7 +154,9 @@ impl ChaqaqApi {
         let contenu: BlockContent = serde_json::from_str(&bloc_content_json)
             .map_err(|e| ChaqaqError::OperationInvalide { detail: e.to_string() })?;
         let doc = use_cases::ajouter_bloc(&self.docs, uuid, contenu).map_err(ChaqaqError::from)?;
-        serde_json::to_string(&doc).map_err(|e| ChaqaqError::Stockage { detail: e.to_string() })
+        doc.blocks.last()
+            .map(|b| b.id.to_string())
+            .ok_or_else(|| ChaqaqError::OperationInvalide { detail: "bloc introuvable après ajout".to_string() })
     }
 
     pub fn modifier_bloc(&self, doc_id: String, bloc_id: String, contenu_json: String) -> Result<(), ChaqaqError> {

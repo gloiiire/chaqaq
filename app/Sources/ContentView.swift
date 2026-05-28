@@ -7,6 +7,7 @@ final class ChaqaqStore: ObservableObject {
     @Published var documents: [DocumentMetaFfi] = []
     @Published var erreur: String?
 
+    private(set) var cheminDb: String = ""
     private var api: ChaqaqApi?
 
     func connecter() {
@@ -14,6 +15,7 @@ final class ChaqaqStore: ObservableObject {
         do {
             let dir  = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             let path = dir.appendingPathComponent("chaqaq.db").path
+            cheminDb = path
             api = try ChaqaqApi(cheminDb: path)
             charger()
         } catch {
@@ -57,33 +59,46 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if store.documents.isEmpty {
-                    ContentUnavailableView(
-                        "Aucun document",
-                        systemImage: "doc.text",
-                        description: Text("Appuie sur + pour créer ton premier document.")
-                    )
-                } else {
-                    List {
-                        ForEach(store.documents, id: \.id) { doc in
-                            DocumentRow(doc: doc)
+            ZStack(alignment: .bottomTrailing) {
+                List {
+                    Section {
+                        EnTeteBienvenue(salutation: salutation)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    }
+
+                    if store.documents.isEmpty {
+                        Section {
+                            EtatVide()
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 48)
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
                         }
-                        .onDelete { indexSet in
-                            for i in indexSet {
-                                store.supprimer(id: store.documents[i].id)
+                    } else {
+                        Section("Documents") {
+                            ForEach(store.documents, id: \.id) { doc in
+                                NavigationLink(destination: DocumentView(docId: doc.id, cheminDb: store.cheminDb)) {
+                                    DocumentRow(doc: doc)
+                                }
+                            }
+                            .onDelete { indexSet in
+                                for i in indexSet {
+                                    store.supprimer(id: store.documents[i].id)
+                                }
                             }
                         }
                     }
                 }
-            }
-            .navigationTitle("chaqaq")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Nouveau document", systemImage: "square.and.pencil") {
-                        showingCreer = true
-                    }
+                .listStyle(.insetGrouped)
+                .navigationTitle("chaqaq")
+                .navigationBarTitleDisplayMode(.inline)
+
+                BoutonCreer {
+                    showingCreer = true
                 }
+                .padding(.trailing, 24)
+                .padding(.bottom, 32)
             }
             .sheet(isPresented: $showingCreer) {
                 CreerDocumentSheet(titre: $nouveauTitre) {
@@ -106,9 +121,68 @@ struct ContentView: View {
         }
         .onAppear { store.connecter() }
     }
+
+    private var salutation: String {
+        let h = Calendar.current.component(.hour, from: .now)
+        switch h {
+        case 5..<12: return "Bonjour."
+        case 12..<18: return "Bon après-midi."
+        default:      return "Bonsoir."
+        }
+    }
 }
 
 // ── Composants ────────────────────────────────────────────────────────────────
+
+private struct EnTeteBienvenue: View {
+    let salutation: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(salutation)
+                .font(.largeTitle.bold())
+            Text("Tes notes, à toi.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct EtatVide: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "doc.text")
+                .font(.system(size: 48))
+                .foregroundStyle(.tertiary)
+            VStack(spacing: 6) {
+                Text("Aucun document")
+                    .font(.headline)
+                Text("Appuie sur le bouton en bas à droite\npour créer ta première note.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+    }
+}
+
+private struct BoutonCreer: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "square.and.pencil")
+                .font(.title2.weight(.semibold))
+                .frame(width: 56, height: 56)
+                .background(.tint)
+                .foregroundStyle(.white)
+                .clipShape(Circle())
+                .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+        }
+    }
+}
 
 struct DocumentRow: View {
     let doc: DocumentMetaFfi
@@ -116,14 +190,22 @@ struct DocumentRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(doc.titlePlain.isEmpty ? "Sans titre" : doc.titlePlain)
-                .font(.body)
-            if !doc.updatedAt.isEmpty {
-                Text(doc.updatedAt)
+                .font(.body.weight(.medium))
+            if let date = dateFormatee(doc.updatedAt) {
+                Text(date)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 2)
+    }
+
+    private func dateFormatee(_ iso: String) -> String? {
+        guard !iso.isEmpty else { return nil }
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = parser.date(from: iso) else { return nil }
+        return date.formatted(.relative(presentation: .named, unitsStyle: .wide))
     }
 }
 
