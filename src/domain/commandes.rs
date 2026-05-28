@@ -83,17 +83,37 @@ impl Commande for AppliquerStyle {
 
 // ── Historique ───────────────────────────────────────────────────────────────
 
-#[derive(Default)]
+const CAPACITE_PAR_DEFAUT: usize = 200;
+
 pub struct Historique {
     fait: Vec<Box<dyn Commande>>,
     annule: Vec<Box<dyn Commande>>,
+    capacite: usize,
+}
+
+impl Default for Historique {
+    fn default() -> Self {
+        Self::nouveau(CAPACITE_PAR_DEFAUT)
+    }
 }
 
 impl Historique {
+    pub fn nouveau(capacite: usize) -> Self {
+        Self {
+            fait: Vec::new(),
+            annule: Vec::new(),
+            capacite,
+        }
+    }
+
     pub fn appliquer(&mut self, cmd: Box<dyn Commande>, etat: &mut EditorState) {
         cmd.executer(etat);
         self.fait.push(cmd);
         self.annule.clear(); // une nouvelle action efface le redo
+        // supprime l'entrée la plus ancienne si la capacité est dépassée
+        if self.fait.len() > self.capacite {
+            self.fait.remove(0);
+        }
     }
 
     pub fn annuler(&mut self, etat: &mut EditorState) {
@@ -112,6 +132,8 @@ impl Historique {
 
     pub fn peut_annuler(&self) -> bool { !self.fait.is_empty() }
     pub fn peut_refaire(&self) -> bool { !self.annule.is_empty() }
+    pub fn capacite(&self) -> usize { self.capacite }
+    pub fn taille(&self) -> usize { self.fait.len() }
 }
 
 #[cfg(test)]
@@ -199,5 +221,38 @@ mod tests {
         hist.appliquer(Box::new(Inserer::nouveau(1, 'c')), &mut etat); // nouvelle action
         assert!(!hist.peut_refaire()); // redo effacé
         assert_eq!(etat.texte.contenu(), "ac");
+    }
+
+    #[test]
+    fn test_limite_undo_respectee() {
+        let mut etat = etat_depuis("");
+        let mut hist = Historique::nouveau(3);
+
+        // insère 5 caractères : seuls les 3 derniers doivent rester dans l'historique
+        for (i, ch) in ['a', 'b', 'c', 'd', 'e'].iter().enumerate() {
+            hist.appliquer(Box::new(Inserer::nouveau(i, *ch)), &mut etat);
+        }
+        assert_eq!(hist.taille(), 3);
+        assert_eq!(hist.capacite(), 3);
+    }
+
+    #[test]
+    fn test_undo_apres_limite() {
+        let mut etat = etat_depuis("");
+        let mut hist = Historique::nouveau(3);
+
+        for (i, ch) in ['a', 'b', 'c', 'd', 'e'].iter().enumerate() {
+            hist.appliquer(Box::new(Inserer::nouveau(i, *ch)), &mut etat);
+        }
+        assert_eq!(etat.texte.contenu(), "abcde");
+
+        // annule les 3 entrées conservées
+        hist.annuler(&mut etat);
+        hist.annuler(&mut etat);
+        hist.annuler(&mut etat);
+        assert!(!hist.peut_annuler());
+
+        // les 2 premières (a, b) sont irrécupérables — le texte restant est "ab"
+        assert_eq!(etat.texte.contenu(), "ab");
     }
 }
