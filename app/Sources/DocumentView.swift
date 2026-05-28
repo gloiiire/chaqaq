@@ -1,5 +1,17 @@
 import SwiftUI
 
+// ── Auto-focus (extension partagée) ──────────────────────────────────────────
+
+private extension View {
+    func autoFocuserSiBesoin(blocId: String, autoFocusId: Binding<String?>, focused: Binding<Bool>) -> some View {
+        onAppear {
+            guard autoFocusId.wrappedValue == blocId else { return }
+            autoFocusId.wrappedValue = nil
+            DispatchQueue.main.async { focused.wrappedValue = true }
+        }
+    }
+}
+
 // ── Modèle éditable ───────────────────────────────────────────────────────────
 
 struct EditableBlock: Identifiable {
@@ -20,16 +32,14 @@ final class DocumentViewModel: ObservableObject {
     @Published var erreur: String?
     @Published var autoFocusId: String?
 
-    private var api: ChaqaqApi?
+    private let api: ChaqaqApi
 
-    init(docId: String, cheminDb: String) {
+    init(docId: String, api: ChaqaqApi) {
         self.docId = docId
-        do { api = try ChaqaqApi(cheminDb: cheminDb) }
-        catch { erreur = error.localizedDescription }
+        self.api   = api
     }
 
     func charger() {
-        guard let api else { return }
         do {
             let json = try api.obtenirDocumentJson(id: docId)
             guard let data = json.data(using: .utf8) else { return }
@@ -44,22 +54,19 @@ final class DocumentViewModel: ObservableObject {
     }
 
     func sauvegarderTitre() {
-        guard let api, !titre.isEmpty else { return }
         try? api.modifierTitreDocument(id: docId, nouveauTitre: titre)
     }
 
     func sauvegarderBloc(_ bloc: EditableBlock) {
-        guard let api else { return }
         do {
             let nouveau = bloc.content.avecSpans(bloc.spans, done: bloc.done)
-            let data = try JSONEncoder().encode(nouveau)
+            let data    = try JSONEncoder().encode(nouveau)
             try api.modifierBloc(docId: docId, blocId: bloc.id,
                                  contenuJson: String(data: data, encoding: .utf8)!)
         } catch { erreur = error.localizedDescription }
     }
 
     func ajouterBloc(type: TypeBlocNouvel, texteInitial: String = "", apresId: String? = nil) {
-        guard let api else { return }
         do {
             let contenu: BlockContentFfi
             switch type {
@@ -71,7 +78,7 @@ final class DocumentViewModel: ObservableObject {
             case .todo:       contenu = .todo(done: false, text: [])
             case .separateur: contenu = .divider
             }
-            let data = try JSONEncoder().encode(contenu)
+            let data  = try JSONEncoder().encode(contenu)
             let newId = try api.ajouterBloc(docId: docId,
                                             blocContentJson: String(data: data, encoding: .utf8)!)
             let spansInit: [InlineTextFfi] = texteInitial.isEmpty
@@ -90,7 +97,6 @@ final class DocumentViewModel: ObservableObject {
     }
 
     func supprimerBloc(id: String) {
-        guard let api else { return }
         do {
             try api.supprimerBloc(docId: docId, blocId: id)
             blocs.removeAll { $0.id == id }
@@ -99,7 +105,6 @@ final class DocumentViewModel: ObservableObject {
 
     func deplacerBloc(from: IndexSet, to: Int) {
         blocs.move(fromOffsets: from, toOffset: to)
-        guard let api else { return }
         try? api.reordonnerBlocs(docId: docId, ordre: blocs.map(\.id))
     }
 }
@@ -130,8 +135,8 @@ struct DocumentView: View {
     @State private var showingBlocPicker = false
     @State private var editMode: EditMode = .inactive
 
-    init(docId: String, cheminDb: String) {
-        _vm = StateObject(wrappedValue: DocumentViewModel(docId: docId, cheminDb: cheminDb))
+    init(docId: String, api: ChaqaqApi) {
+        _vm = StateObject(wrappedValue: DocumentViewModel(docId: docId, api: api))
     }
 
     var body: some View {
@@ -231,7 +236,7 @@ private struct TitreDocView: View {
 
 // ── Ligne de bloc ─────────────────────────────────────────────────────────────
 
-struct BlocRowView: View {
+private struct BlocRowView: View {
     @Binding var bloc: EditableBlock
     @Binding var autoFocusId: String?
     let onSauvegarder: () -> Void
@@ -243,16 +248,20 @@ struct BlocRowView: View {
             switch bloc.content {
             case .text:
                 TexteRowView(bloc: $bloc, autoFocusId: $autoFocusId,
-                             onSauvegarder: onSauvegarder, onNouveauBloc: onNouveauBloc)
+                             onSauvegarder: onSauvegarder, onSupprimer: onSupprimer,
+                             onNouveauBloc: onNouveauBloc)
             case .heading(let level, _):
                 HeadingRowView(bloc: $bloc, level: level, autoFocusId: $autoFocusId,
-                               onSauvegarder: onSauvegarder, onNouveauBloc: onNouveauBloc)
+                               onSauvegarder: onSauvegarder, onSupprimer: onSupprimer,
+                               onNouveauBloc: onNouveauBloc)
             case .quote:
                 CitationRowView(bloc: $bloc, autoFocusId: $autoFocusId,
-                                onSauvegarder: onSauvegarder, onNouveauBloc: onNouveauBloc)
+                                onSauvegarder: onSauvegarder, onSupprimer: onSupprimer,
+                                onNouveauBloc: onNouveauBloc)
             case .todo:
                 TodoRowView(bloc: $bloc, autoFocusId: $autoFocusId,
-                            onSauvegarder: onSauvegarder, onNouveauBloc: onNouveauBloc)
+                            onSauvegarder: onSauvegarder, onSupprimer: onSupprimer,
+                            onNouveauBloc: onNouveauBloc)
             case .divider:
                 Divider().padding(.vertical, 12)
             default:
@@ -273,6 +282,7 @@ private struct TexteRowView: View {
     @Binding var bloc: EditableBlock
     @Binding var autoFocusId: String?
     let onSauvegarder: () -> Void
+    let onSupprimer: () -> Void
     let onNouveauBloc: (String) -> Void
     @State private var focused = false
 
@@ -284,17 +294,10 @@ private struct TexteRowView: View {
             baseFont: .preferredFont(forTextStyle: .body),
             onSave: onSauvegarder,
             onNewBlock: onNouveauBloc,
-            onConvert: { contenu in
-                bloc.content = contenu; bloc.spans = []; onSauvegarder()
-            }
+            onSupprimerBloc: onSupprimer,
+            onConvert: { contenu in bloc.content = contenu; bloc.spans = []; onSauvegarder() }
         )
-        .onAppear { autoFocuserSiBesoin() }
-    }
-
-    private func autoFocuserSiBesoin() {
-        guard autoFocusId == bloc.id else { return }
-        autoFocusId = nil
-        DispatchQueue.main.async { focused = true }
+        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId, focused: $focused)
     }
 }
 
@@ -305,6 +308,7 @@ private struct HeadingRowView: View {
     let level: Int
     @Binding var autoFocusId: String?
     let onSauvegarder: () -> Void
+    let onSupprimer: () -> Void
     let onNouveauBloc: (String) -> Void
     @State private var focused = false
 
@@ -324,15 +328,12 @@ private struct HeadingRowView: View {
             baseFont: uiFont,
             onSave: onSauvegarder,
             onNewBlock: onNouveauBloc,
-            onConvert: nil
+            onSupprimerBloc: onSupprimer,
+            onConvert: { contenu in bloc.content = contenu; bloc.spans = []; onSauvegarder() }
         )
         .padding(.top, level == 1 ? 16 : 10)
         .padding(.bottom, 4)
-        .onAppear {
-            guard autoFocusId == bloc.id else { return }
-            autoFocusId = nil
-            DispatchQueue.main.async { focused = true }
-        }
+        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId, focused: $focused)
     }
 }
 
@@ -342,6 +343,7 @@ private struct CitationRowView: View {
     @Binding var bloc: EditableBlock
     @Binding var autoFocusId: String?
     let onSauvegarder: () -> Void
+    let onSupprimer: () -> Void
     let onNouveauBloc: (String) -> Void
     @State private var focused = false
 
@@ -355,23 +357,16 @@ private struct CitationRowView: View {
                 spans: $bloc.spans,
                 isFocused: $focused,
                 placeholder: "Citation…",
-                baseFont: {
-                    let base = UIFont.preferredFont(forTextStyle: .body)
-                    let desc = base.fontDescriptor.withSymbolicTraits(.traitItalic)
-                    return desc.map { UIFont(descriptor: $0, size: 0) } ?? base
-                }(),
+                baseFont: .italicSystemFont(ofSize: UIFont.preferredFont(forTextStyle: .body).pointSize),
                 onSave: onSauvegarder,
                 onNewBlock: onNouveauBloc,
-                onConvert: nil
+                onSupprimerBloc: onSupprimer,
+                onConvert: { contenu in bloc.content = contenu; bloc.spans = []; onSauvegarder() }
             )
             .padding(.leading, 14)
         }
         .padding(.vertical, 4)
-        .onAppear {
-            guard autoFocusId == bloc.id else { return }
-            autoFocusId = nil
-            DispatchQueue.main.async { focused = true }
-        }
+        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId, focused: $focused)
     }
 }
 
@@ -381,6 +376,7 @@ private struct TodoRowView: View {
     @Binding var bloc: EditableBlock
     @Binding var autoFocusId: String?
     let onSauvegarder: () -> Void
+    let onSupprimer: () -> Void
     let onNouveauBloc: (String) -> Void
     @State private var focused = false
 
@@ -408,15 +404,12 @@ private struct TodoRowView: View {
                 ] : nil,
                 onSave: onSauvegarder,
                 onNewBlock: onNouveauBloc,
+                onSupprimerBloc: onSupprimer,
                 onConvert: nil
             )
         }
         .padding(.vertical, 2)
-        .onAppear {
-            guard autoFocusId == bloc.id else { return }
-            autoFocusId = nil
-            DispatchQueue.main.async { focused = true }
-        }
+        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId, focused: $focused)
     }
 }
 

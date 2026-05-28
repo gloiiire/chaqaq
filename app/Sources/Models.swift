@@ -22,18 +22,19 @@ struct InlineTextFfi: Codable {
 }
 
 enum InlineStyleFfi: Codable {
-    case bold, italic, underline
+    case bold, italic, underline, strikethrough
     case color(String)
     case link(String)
 
-    private enum K: String, CodingKey { case Bold, Italic, Underline, Color, Link }
+    private enum K: String, CodingKey { case Bold, Italic, Underline, Strikethrough, Color, Link }
 
     init(from decoder: Decoder) throws {
         if let sv = try? decoder.singleValueContainer(), let s = try? sv.decode(String.self) {
             switch s {
-            case "Bold":      self = .bold;      return
-            case "Italic":    self = .italic;    return
-            case "Underline": self = .underline; return
+            case "Bold":         self = .bold;         return
+            case "Italic":       self = .italic;       return
+            case "Underline":    self = .underline;    return
+            case "Strikethrough":self = .strikethrough; return
             default: break
             }
         }
@@ -45,9 +46,10 @@ enum InlineStyleFfi: Codable {
 
     func encode(to encoder: Encoder) throws {
         switch self {
-        case .bold:       var c = encoder.singleValueContainer(); try c.encode("Bold")
-        case .italic:     var c = encoder.singleValueContainer(); try c.encode("Italic")
-        case .underline:  var c = encoder.singleValueContainer(); try c.encode("Underline")
+        case .bold:         var c = encoder.singleValueContainer(); try c.encode("Bold")
+        case .italic:       var c = encoder.singleValueContainer(); try c.encode("Italic")
+        case .underline:    var c = encoder.singleValueContainer(); try c.encode("Underline")
+        case .strikethrough:var c = encoder.singleValueContainer(); try c.encode("Strikethrough")
         case .color(let v): var c = encoder.container(keyedBy: K.self); try c.encode(v, forKey: .Color)
         case .link(let v):  var c = encoder.container(keyedBy: K.self); try c.encode(v, forKey: .Link)
         }
@@ -167,6 +169,7 @@ enum BlockContentFfi: Codable {
                 case .bold:           part.inlinePresentationIntent = .stronglyEmphasized
                 case .italic:         part.inlinePresentationIntent = .emphasized
                 case .underline:      part.underlineStyle = .single
+                case .strikethrough:  part.strikethroughStyle = .single
                 case .color(let nom): part.foregroundColor = couleurDepuisNom(nom)
                 case .link(let url):  if let u = URL(string: url) { part.link = u }
                 }

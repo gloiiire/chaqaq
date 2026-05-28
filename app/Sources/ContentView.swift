@@ -7,15 +7,13 @@ final class ChaqaqStore: ObservableObject {
     @Published var documents: [DocumentMetaFfi] = []
     @Published var erreur: String?
 
-    private(set) var cheminDb: String = ""
-    private var api: ChaqaqApi?
+    private(set) var api: ChaqaqApi?
 
     func connecter() {
         guard api == nil else { return }
         do {
             let dir  = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             let path = dir.appendingPathComponent("chaqaq.db").path
-            cheminDb = path
             api = try ChaqaqApi(cheminDb: path)
             charger()
         } catch {
@@ -78,7 +76,7 @@ struct ContentView: View {
                     } else {
                         Section("Documents") {
                             ForEach(store.documents, id: \.id) { doc in
-                                NavigationLink(destination: DocumentView(docId: doc.id, cheminDb: store.cheminDb)) {
+                                NavigationLink(destination: DocumentView(docId: doc.id, api: store.api!)) {
                                     DocumentRow(doc: doc)
                                 }
                             }

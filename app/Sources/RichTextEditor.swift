@@ -25,6 +25,8 @@ func spansVersNSAttributed(_ spans: [InlineTextFfi], police: UIFont) -> NSAttrib
                 if let d = font.fontDescriptor.withSymbolicTraits(t) { font = UIFont(descriptor: d, size: 0) }
             case .underline:
                 attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
+            case .strikethrough:
+                attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
             case .color(let nom):
                 attrs[.foregroundColor] = uiCouleurDepuisNom(nom)
                 attrs[.chaqaqColor]     = nom
@@ -50,6 +52,7 @@ func nsAttributedVersSpans(_ attrStr: NSAttributedString, police: UIFont) -> [In
             if f.fontDescriptor.symbolicTraits.contains(.traitItalic) { styles.append(.italic) }
         }
         if (attrs[.underlineStyle] as? Int) != nil          { styles.append(.underline) }
+        if (attrs[.strikethroughStyle] as? Int) != nil      { styles.append(.strikethrough) }
         if let nom = attrs[.chaqaqColor] as? String         { styles.append(.color(nom)) }
         if let url = attrs[.link] as? URL                   { styles.append(.link(url.absoluteString)) }
         spans.append(InlineTextFfi(content: texte, styles: styles))
@@ -91,6 +94,7 @@ struct RichTextEditor: UIViewRepresentable {
     var extraAttrs: [NSAttributedString.Key: Any]? = nil  // ex: strikethrough quand done
     var onSave: (() -> Void)?
     var onNewBlock: ((String) -> Void)?
+    var onSupprimerBloc: (() -> Void)?
     var onConvert: ((BlockContentFfi) -> Void)?
 
     func makeUIView(context: Context) -> ExpandingTextView {
@@ -165,6 +169,14 @@ struct RichTextEditor: UIViewRepresentable {
                 ])
             }
             tv.typingAttributes = [.font: parent.baseFont, .foregroundColor: UIColor.label]
+        }
+
+        func textView(_ tv: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+            if text.isEmpty, range == NSRange(location: 0, length: 0), tv.text.isEmpty {
+                parent.onSupprimerBloc?()
+                return false
+            }
+            return true
         }
 
         func textViewDidEndEditing(_ tv: UITextView) {
@@ -297,6 +309,7 @@ struct RichTextEditor: UIViewRepresentable {
             ajouter(boutonTexte("B", font: .boldSystemFont(ofSize: 17),   action: #selector(toggleGras)))
             ajouter(boutonTexte("I", font: .italicSystemFont(ofSize: 17), action: #selector(toggleItalique)))
             ajouter(boutonTexte("U", font: .systemFont(ofSize: 17), souligné: true, action: #selector(toggleSouligne)))
+            ajouter(boutonSF("strikethrough", action: #selector(toggleBarré)))
             separateur()
             ajouter(boutonCercle(.systemRed,    action: #selector(colorRouge)))
             ajouter(boutonCercle(.systemBlue,   action: #selector(colorBleu)))
@@ -313,6 +326,7 @@ struct RichTextEditor: UIViewRepresentable {
         @objc func toggleGras()       { appliquerStyle(.bold) }
         @objc func toggleItalique()   { appliquerStyle(.italic) }
         @objc func toggleSouligne()   { appliquerStyle(.underline) }
+        @objc func toggleBarré()      { appliquerStyle(.strikethrough) }
         @objc func colorRouge()       { appliquerStyle(.color("rouge")) }
         @objc func colorBleu()        { appliquerStyle(.color("bleu")) }
         @objc func colorOrange()      { appliquerStyle(.color("orange")) }
