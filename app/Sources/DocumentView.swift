@@ -134,6 +134,7 @@ struct DocumentView: View {
     @StateObject private var vm: DocumentViewModel
     @State private var showingBlocPicker = false
     @State private var editMode: EditMode = .inactive
+    @State private var focusTitre = false
 
     init(docId: String, api: ChaqaqApi) {
         _vm = StateObject(wrappedValue: DocumentViewModel(docId: docId, api: api))
@@ -141,7 +142,8 @@ struct DocumentView: View {
 
     var body: some View {
         List {
-            TitreDocView(titre: $vm.titre, onSauvegarder: vm.sauvegarderTitre,
+            TitreDocView(titre: $vm.titre, focusDemande: $focusTitre,
+                         onSauvegarder: vm.sauvegarderTitre,
                          onNouveauBloc: { vm.ajouterBloc(type: .texte) })
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
@@ -165,7 +167,11 @@ struct DocumentView: View {
                     bloc: $bloc,
                     autoFocusId: $vm.autoFocusId,
                     onSauvegarder: { vm.sauvegarderBloc(bloc) },
-                    onSupprimer:   { vm.supprimerBloc(id: bloc.id) },
+                    onSupprimer: {
+                        let estPremier = vm.blocs.first?.id == bloc.id
+                        vm.supprimerBloc(id: bloc.id)
+                        if estPremier { focusTitre = true }
+                    },
                     onNouveauBloc: { apres in
                         vm.ajouterBloc(type: .texte, texteInitial: apres, apresId: bloc.id)
                     }
@@ -222,6 +228,7 @@ struct DocumentView: View {
 
 private struct TitreDocView: View {
     @Binding var titre: String
+    @Binding var focusDemande: Bool
     let onSauvegarder: () -> Void
     let onNouveauBloc: () -> Void
     @FocusState private var focused: Bool
@@ -233,6 +240,9 @@ private struct TitreDocView: View {
             .submitLabel(.next)
             .onSubmit { onSauvegarder(); focused = false; onNouveauBloc() }
             .onChange(of: focused) { _, estFocus in if !estFocus { onSauvegarder() } }
+            .onChange(of: focusDemande) { _, demande in
+                if demande { focused = true; focusDemande = false }
+            }
     }
 }
 
