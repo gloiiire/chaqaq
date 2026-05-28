@@ -244,21 +244,88 @@ private struct TitreDocView: View {
     @Binding var focusDemande: Bool
     let onSauvegarder: () -> Void
     let onNouveauBloc: () -> Void
-    @FocusState private var focused: Bool
+    @State private var focused = false
 
     var body: some View {
-        TextField("Sans titre", text: $titre, axis: .vertical)
-            .font(.system(size: 32, weight: .bold))
-            .focused($focused)
-            .submitLabel(.next)
-            .onSubmit { onSauvegarder(); focused = false; onNouveauBloc() }
-            .onChange(of: focused) { _, estFocus in if !estFocus { onSauvegarder() } }
+        TitreSaisie(texte: $titre, isFocused: $focused,
+                    onSauvegarder: onSauvegarder, onNouveauBloc: onNouveauBloc)
             .onChange(of: focusDemande) { _, demande in
                 if demande {
                     focusDemande = false
                     DispatchQueue.main.async { focused = true }
                 }
             }
+    }
+}
+
+private struct TitreSaisie: UIViewRepresentable {
+    @Binding var texte: String
+    @Binding var isFocused: Bool
+    let onSauvegarder: () -> Void
+    let onNouveauBloc: () -> Void
+
+    private let police = UIFont.systemFont(ofSize: 32, weight: .bold)
+
+    func makeUIView(context: Context) -> ExpandingTextView {
+        let tv = ExpandingTextView()
+        tv.delegate = context.coordinator
+        tv.backgroundColor = .clear
+        tv.font = police
+        tv.textColor = .label
+        tv.typingAttributes = [.font: police, .foregroundColor: UIColor.label]
+        tv.isScrollEnabled = false
+        tv.textContainer.lineFragmentPadding = 0
+        tv.textContainerInset = .zero
+        tv.text = texte
+        context.coordinator.tv = tv
+        return tv
+    }
+
+    func updateUIView(_ tv: ExpandingTextView, context: Context) {
+        context.coordinator.parent = self
+        if !context.coordinator.enEdition { tv.text = texte }
+        if isFocused && !tv.isFirstResponder {
+            DispatchQueue.main.async {
+                _ = tv.becomeFirstResponder()
+                tv.selectedRange = NSRange(location: tv.text.count, length: 0)
+            }
+        } else if !isFocused && tv.isFirstResponder {
+            tv.resignFirstResponder()
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+
+    final class Coordinator: NSObject, UITextViewDelegate {
+        var parent: TitreSaisie
+        weak var tv: ExpandingTextView?
+        var enEdition = false
+
+        init(parent: TitreSaisie) { self.parent = parent }
+
+        func textViewDidBeginEditing(_ tv: UITextView) {
+            enEdition = true
+            parent.isFocused = true
+        }
+
+        func textViewDidEndEditing(_ tv: UITextView) {
+            enEdition = false
+            parent.isFocused = false
+            parent.texte = tv.text ?? ""
+            parent.onSauvegarder()
+        }
+
+        func textViewDidChange(_ tv: UITextView) {
+            guard let texte = tv.text else { return }
+            if let idx = texte.firstIndex(of: "\n") {
+                tv.text = String(texte[texte.startIndex..<idx])
+                parent.texte = tv.text
+                parent.onSauvegarder()
+                parent.onNouveauBloc()
+                return
+            }
+            parent.texte = texte
+        }
     }
 }
 
