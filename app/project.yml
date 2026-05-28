@@ -25,6 +25,8 @@ targets:
     sources:
       - path: Sources
       - path: ../swift-bindings/chaqaq.swift
+    resources:
+      - path: Sources/Assets.xcassets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.chaqaq

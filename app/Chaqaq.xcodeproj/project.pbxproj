@@ -11,6 +11,7 @@
 		32CB7DE2D5E0652A08492D42 /* chaqaq.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = C2897833B5B3685586CACEB6 /* chaqaq.xcframework */; };
 		8751D1C7EF9DCA4901C58456 /* chaqaq.swift in Sources */ = {isa = PBXBuildFile; fileRef = D11598236B0E33C53528220E /* chaqaq.swift */; };
 		94766EC0131DB557DB393722 /* RichTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 468510DC930C6616110EE478 /* RichTextEditor.swift */; };
+		C17337002B16D605DFB278E5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 61FAF4827B7007C56EF3A1F9 /* Assets.xcassets */; };
 		D21CF0FB8443FCF3AE5B634E /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B37195EE5E973F6B64A028A /* Models.swift */; };
 		EB303519C033E0CEB4CF7DAC /* ChaqaqApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A3054081BFBDCD9AFC2D855 /* ChaqaqApp.swift */; };
 		EFEE8799F9AD12810344543E /* DocumentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FD048133513A5E55DEE58E3 /* DocumentView.swift */; };
@@ -19,11 +20,12 @@
 /* Begin PBXFileReference section */
 		30E08CB89B3F79766A108177 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		468510DC930C6616110EE478 /* RichTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextEditor.swift; sourceTree = "<group>"; };
+		61FAF4827B7007C56EF3A1F9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6A3054081BFBDCD9AFC2D855 /* ChaqaqApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChaqaqApp.swift; sourceTree = "<group>"; };
 		6FD048133513A5E55DEE58E3 /* DocumentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentView.swift; sourceTree = "<group>"; };
 		7B37195EE5E973F6B64A028A /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		B8C376A241CCD334055F01CB /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		C27BE87CC9C7794976F2B588 /* Chaqaq.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chaqaq.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C27BE87CC9C7794976F2B588 /* Chaqaq.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Chaqaq.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C2897833B5B3685586CACEB6 /* chaqaq.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = chaqaq.xcframework; path = ../chaqaq.xcframework; sourceTree = "<group>"; };
 		D11598236B0E33C53528220E /* chaqaq.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = chaqaq.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -86,6 +88,7 @@
 		CDCD32229FE0743A6011FDB2 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				61FAF4827B7007C56EF3A1F9 /* Assets.xcassets */,
 				6A3054081BFBDCD9AFC2D855 /* ChaqaqApp.swift */,
 				B8C376A241CCD334055F01CB /* ContentView.swift */,
 				6FD048133513A5E55DEE58E3 /* DocumentView.swift */,
@@ -104,6 +107,7 @@
 			buildConfigurationList = 796F691B06DB18D994D81641 /* Build configuration list for PBXNativeTarget "Chaqaq" */;
 			buildPhases = (
 				AF0ABAACC467937B27A93ECC /* Sources */,
+				2703096EFEA29B0A93A3943F /* Resources */,
 				BDAD44F4E512183AEC5106DE /* Frameworks */,
 			);
 			buildRules = (
@@ -124,7 +128,9 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2620;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
 			};
 			buildConfigurationList = AB7C2EBF5C272CAD4E65BC92 /* Build configuration list for PBXProject "Chaqaq" */;
 			developmentRegion = en;
@@ -144,6 +150,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		2703096EFEA29B0A93A3943F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C17337002B16D605DFB278E5 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		AF0ABAACC467937B27A93ECC /* Sources */ = {
@@ -165,10 +182,10 @@
 		5FF190F6EBF1A039D278161B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-					ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-					CODE_SIGN_IDENTITY = "iPhone Developer";
-					"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
-					FRAMEWORK_SEARCH_PATHS = (
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"..\"",
 				);
@@ -178,10 +195,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-lc++",
-				);
+				OTHER_LDFLAGS = "$(inherited) -lc++";
 				PRODUCT_BUNDLE_IDENTIFIER = com.gloiiire.chaqaq;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -193,7 +207,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -227,7 +240,6 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -241,7 +253,6 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
@@ -252,7 +263,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -286,7 +296,6 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -307,7 +316,6 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -318,9 +326,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-					CODE_SIGN_IDENTITY = "iPhone Developer";
-					"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
-					FRAMEWORK_SEARCH_PATHS = (
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"..\"",
 				);
@@ -330,10 +338,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-lc++",
-				);
+				OTHER_LDFLAGS = "$(inherited) -lc++";
 				PRODUCT_BUNDLE_IDENTIFIER = com.gloiiire.chaqaq;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;

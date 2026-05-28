@@ -668,7 +668,7 @@ struct RichTextEditor: UIViewRepresentable {
 
         private func setActifTexte(_ btn: UIButton?, actif: Bool, font: UIFont, souligne: Bool = false) {
             guard let btn, let str = btn.attributedTitle(for: .normal)?.string else { return }
-            let c: UIColor = actif ? .tintColor : .label
+            let c: UIColor = actif ? (UIColor(named: "Accent") ?? .tintColor) : .label
             var a: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: c]
             if souligne { a[.underlineStyle] = NSUnderlineStyle.single.rawValue }
             btn.setAttributedTitle(NSAttributedString(string: str, attributes: a), for: .normal)
@@ -678,7 +678,7 @@ struct RichTextEditor: UIViewRepresentable {
 
         private func setActifSF(_ btn: UIButton?, actif: Bool, nom: String) {
             guard let btn else { return }
-            let c: UIColor = actif ? .tintColor : .secondaryLabel
+            let c: UIColor = actif ? (UIColor(named: "Accent") ?? .tintColor) : .secondaryLabel
             let cfg = UIImage.SymbolConfiguration(pointSize: 15, weight: .medium)
             btn.setImage(UIImage(systemName: nom, withConfiguration: cfg)?
                 .withTintColor(c, renderingMode: .alwaysOriginal), for: .normal)
