@@ -150,6 +150,7 @@ struct RichTextEditor: UIViewRepresentable {
         var parent: RichTextEditor
         weak var tv: ExpandingTextView?
         var enEdition = false
+        var enCoursDeSupression = false
 
         init(parent: RichTextEditor) { self.parent = parent }
 
@@ -175,7 +176,10 @@ struct RichTextEditor: UIViewRepresentable {
 
         func textView(_ tv: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
             if text.isEmpty, range == NSRange(location: 0, length: 0), tv.text.isEmpty {
-                parent.onSupprimerBloc?()
+                enCoursDeSupression = true
+                DispatchQueue.main.async { [weak self] in
+                    self?.parent.onSupprimerBloc?()
+                }
                 return false
             }
             return true
@@ -184,6 +188,7 @@ struct RichTextEditor: UIViewRepresentable {
         func textViewDidEndEditing(_ tv: UITextView) {
             enEdition = false
             parent.isFocused = false
+            guard !enCoursDeSupression else { return }
             parent.spans = nsAttributedVersSpans(tv.attributedText, police: parent.baseFont)
             parent.onSave?()
             if parent.spans.isEmpty { tv.attributedText = placeholder() }
