@@ -15,6 +15,7 @@ pub fn appliquer_migrations_documents(conn: &mut Connection) -> Result<(), Chaqa
                 data        TEXT NOT NULL
             );"
         ),
+        M::up("ALTER TABLE documents ADD COLUMN created_at TEXT NOT NULL DEFAULT '';"),
     ])
     .to_latest(conn)
     .map_err(|e| ChaqaqError::Db(e.to_string()))
@@ -32,6 +33,7 @@ pub fn appliquer_migrations_databases(conn: &mut Connection) -> Result<(), Chaqa
                 data        TEXT NOT NULL
             );"
         ),
+        M::up("ALTER TABLE databases ADD COLUMN created_at TEXT NOT NULL DEFAULT '';"),
     ])
     .to_latest(conn)
     .map_err(|e| ChaqaqError::Db(e.to_string()))

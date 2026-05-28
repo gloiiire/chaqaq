@@ -63,6 +63,10 @@ pub struct DocumentMeta {
     /// Vide si le backend ne le fournit pas (JsonStore, mock).
     #[serde(default)]
     pub updated_at: String,
+    /// Timestamp ISO 8601 de création — setté à l'INSERT, jamais modifié.
+    /// Vide si le backend ne le fournit pas (JsonStore, mock).
+    #[serde(default)]
+    pub created_at: String,
 }
 
 impl From<&Document> for DocumentMeta {
@@ -72,6 +76,7 @@ impl From<&Document> for DocumentMeta {
             cover: doc.cover.clone(),
             title: doc.title.clone(),
             updated_at: String::new(),
+            created_at: String::new(),
         }
     }
 }

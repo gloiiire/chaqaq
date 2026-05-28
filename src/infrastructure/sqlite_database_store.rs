@@ -32,10 +32,10 @@ impl DatabaseRepository for SqliteDatabaseStore {
         let data = serde_json::to_string(db)?;
         let title_text: String = db.titre.iter().map(|i| i.content.as_str()).collect::<Vec<_>>().join("");
         let title_json = serde_json::to_string(&db.titre)?;
-        let updated_at = chrono::Utc::now().to_rfc3339();
+        let now = chrono::Utc::now().to_rfc3339();
         conn.execute(
-            "INSERT INTO databases (id, title_text, title_json, updated_at, data)
-             VALUES (?1, ?2, ?3, ?4, ?5)
+            "INSERT INTO databases (id, title_text, title_json, updated_at, created_at, data)
+             VALUES (?1, ?2, ?3, ?4, ?4, ?5)
              ON CONFLICT(id) DO UPDATE SET
                 title_text = excluded.title_text,
                 title_json = excluded.title_json,
@@ -46,7 +46,7 @@ impl DatabaseRepository for SqliteDatabaseStore {
                 db.id.to_string(),
                 title_text,
                 title_json,
-                updated_at,
+                now,
                 data,
             ],
         )
@@ -71,7 +71,7 @@ impl DatabaseRepository for SqliteDatabaseStore {
     fn list_meta(&self) -> Result<Vec<DatabaseMeta>, ChaqaqError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn
-            .prepare("SELECT id, title_json, updated_at FROM databases WHERE deleted_at IS NULL")
+            .prepare("SELECT id, title_json, updated_at, created_at FROM databases WHERE deleted_at IS NULL")
             .map_err(|e| ChaqaqError::Db(e.to_string()))?;
         let mut metas = Vec::new();
         let rows = stmt
@@ -80,15 +80,16 @@ impl DatabaseRepository for SqliteDatabaseStore {
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
                     row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
                 ))
             })
             .map_err(|e| ChaqaqError::Db(e.to_string()))?;
         for row in rows {
-            let (id_str, title_json, updated_at) = row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
+            let (id_str, title_json, updated_at, created_at) = row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
             let id = Uuid::parse_str(&id_str)
                 .map_err(|_| ChaqaqError::OperationInvalide(format!("UUID invalide : {id_str}")))?;
             let titre: Vec<InlineText> = serde_json::from_str(&title_json)?;
-            metas.push(DatabaseMeta { id, titre, updated_at });
+            metas.push(DatabaseMeta { id, titre, updated_at, created_at });
         }
         Ok(metas)
     }
@@ -185,6 +186,26 @@ mod tests {
         store.save(&d).unwrap();
         assert!(store.load(d.id).is_ok());
         assert_eq!(store.list_meta().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_list_meta_contient_created_at() {
+        let store = store();
+        store.save(&db("Test")).unwrap();
+        let metas = store.list_meta().unwrap();
+        assert!(!metas[0].created_at.is_empty());
+        assert!(metas[0].created_at.starts_with("20"));
+    }
+
+    #[test]
+    fn test_created_at_ne_change_pas_apres_save() {
+        let store = store();
+        let d = db("Test");
+        store.save(&d).unwrap();
+        let created_at_initial = store.list_meta().unwrap()[0].created_at.clone();
+        store.save(&d).unwrap();
+        let created_at_apres = store.list_meta().unwrap()[0].created_at.clone();
+        assert_eq!(created_at_initial, created_at_apres);
     }
 
     #[test]

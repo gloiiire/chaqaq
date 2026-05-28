@@ -186,6 +186,10 @@ pub struct DatabaseMeta {
     /// Vide si le backend ne le fournit pas (DatabaseStore JSON, mock).
     #[serde(default)]
     pub updated_at: String,
+    /// Timestamp ISO 8601 de création — setté à l'INSERT, jamais modifié.
+    /// Vide si le backend ne le fournit pas (DatabaseStore JSON, mock).
+    #[serde(default)]
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -210,7 +214,7 @@ impl Database {
     }
 
     pub fn meta(&self) -> DatabaseMeta {
-        DatabaseMeta { id: self.id, titre: self.titre.clone(), updated_at: String::new() }
+        DatabaseMeta { id: self.id, titre: self.titre.clone(), updated_at: String::new(), created_at: String::new() }
     }
 }
 

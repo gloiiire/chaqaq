@@ -31,10 +31,10 @@ impl DocumentRepository for SqliteDocumentStore {
         let data = serde_json::to_string(doc)?;
         let title_text: String = doc.title.iter().map(|i| i.content.as_str()).collect::<Vec<_>>().join("");
         let title_json = serde_json::to_string(&doc.title)?;
-        let updated_at = chrono::Utc::now().to_rfc3339();
+        let now = chrono::Utc::now().to_rfc3339();
         conn.execute(
-            "INSERT INTO documents (id, title_text, title_json, cover, updated_at, data)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            "INSERT INTO documents (id, title_text, title_json, cover, updated_at, created_at, data)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6)
              ON CONFLICT(id) DO UPDATE SET
                 title_text = excluded.title_text,
                 title_json = excluded.title_json,
@@ -47,7 +47,7 @@ impl DocumentRepository for SqliteDocumentStore {
                 title_text,
                 title_json,
                 doc.cover,
-                updated_at,
+                now,
                 data,
             ],
         )
@@ -72,7 +72,7 @@ impl DocumentRepository for SqliteDocumentStore {
     fn list(&self) -> Result<Vec<DocumentMeta>, ChaqaqError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn
-            .prepare("SELECT id, title_json, cover, updated_at FROM documents WHERE deleted_at IS NULL")
+            .prepare("SELECT id, title_json, cover, updated_at, created_at FROM documents WHERE deleted_at IS NULL")
             .map_err(|e| ChaqaqError::Db(e.to_string()))?;
         let mut metas = Vec::new();
         let rows = stmt
@@ -82,15 +82,16 @@ impl DocumentRepository for SqliteDocumentStore {
                     row.get::<_, String>(1)?,
                     row.get::<_, Option<String>>(2)?,
                     row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
                 ))
             })
             .map_err(|e| ChaqaqError::Db(e.to_string()))?;
         for row in rows {
-            let (id_str, title_json, cover, updated_at) = row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
+            let (id_str, title_json, cover, updated_at, created_at) = row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
             let id = Uuid::parse_str(&id_str)
                 .map_err(|_| ChaqaqError::OperationInvalide(format!("UUID invalide : {id_str}")))?;
             let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
-            metas.push(DocumentMeta { id, title, cover, updated_at });
+            metas.push(DocumentMeta { id, title, cover, updated_at, created_at });
         }
         Ok(metas)
     }
@@ -183,6 +184,26 @@ mod tests {
         store.save(&d).unwrap();
         assert!(store.load(d.id).is_ok());
         assert_eq!(store.list().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_list_meta_contient_created_at() {
+        let store = store();
+        store.save(&doc("Test")).unwrap();
+        let metas = store.list().unwrap();
+        assert!(!metas[0].created_at.is_empty());
+        assert!(metas[0].created_at.starts_with("20"));
+    }
+
+    #[test]
+    fn test_created_at_ne_change_pas_apres_save() {
+        let store = store();
+        let d = doc("Test");
+        store.save(&d).unwrap();
+        let created_at_initial = store.list().unwrap()[0].created_at.clone();
+        store.save(&d).unwrap(); // deuxième save
+        let created_at_apres = store.list().unwrap()[0].created_at.clone();
+        assert_eq!(created_at_initial, created_at_apres);
     }
 
     #[test]
