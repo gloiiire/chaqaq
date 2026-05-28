@@ -62,7 +62,7 @@ pub struct Document {
 }
 
 impl Document {
-    fn new(title: Vec<InlineText>) -> Self {
+    pub fn new(title: Vec<InlineText>) -> Self {
         Self {
             id: Uuid::new_v4(),
             title,
@@ -87,7 +87,7 @@ impl Document {
         }
         None
     }
-    fn add_block(&mut self, content: BlockContent) {
+    pub fn add_block(&mut self, content: BlockContent) {
         self.blocks.push(Block::new(content));
     }
 }
