@@ -5,7 +5,7 @@ use crate::application::database_repository::DatabaseRepository;
 use crate::application::error::ChaqaqError;
 use crate::domain::database::{
     Agregat, ConditionFiltre, Database, DatabaseMeta, Entree, Filtre, Groupe,
-    Ordre, Propriete, ProprieteType, SourceTri, ValeurPropriete, Vue,
+    Ordre, Propriete, ProprieteType, SourceTri, Tri, ValeurPropriete, Vue,
 };
 use crate::domain::document::InlineText;
 
@@ -138,6 +138,79 @@ pub fn requete(
     }
 
     Ok(entrees)
+}
+
+// ── Propriétés ───────────────────────────────────────────────────────────────
+
+pub fn renommer_propriete(
+    repo: &dyn DatabaseRepository,
+    db_id: Uuid,
+    prop_id: Uuid,
+    nouveau_nom: &str,
+) -> Result<(), ChaqaqError> {
+    let mut db = repo.load(db_id)?;
+    let prop = db.proprietes.iter_mut()
+        .find(|p| p.id == prop_id)
+        .ok_or(ChaqaqError::NonTrouve(prop_id))?;
+    prop.nom = nouveau_nom.to_string();
+    repo.save(&db)
+}
+
+/// Supprime une propriété et nettoie ses valeurs dans toutes les entrées.
+pub fn supprimer_propriete(
+    repo: &dyn DatabaseRepository,
+    db_id: Uuid,
+    prop_id: Uuid,
+) -> Result<(), ChaqaqError> {
+    let mut db = repo.load(db_id)?;
+    let avant = db.proprietes.len();
+    db.proprietes.retain(|p| p.id != prop_id);
+    if db.proprietes.len() == avant {
+        return Err(ChaqaqError::NonTrouve(prop_id));
+    }
+    for entree in &mut db.entrees {
+        entree.valeurs.remove(&prop_id);
+    }
+    repo.save(&db)
+}
+
+// ── Vues ─────────────────────────────────────────────────────────────────────
+
+/// Met à jour les filtres et tris d'une vue existante.
+pub fn modifier_vue(
+    repo: &dyn DatabaseRepository,
+    db_id: Uuid,
+    vue_id: Uuid,
+    filtres: Vec<Filtre>,
+    tris: Vec<Tri>,
+) -> Result<(), ChaqaqError> {
+    let mut db = repo.load(db_id)?;
+    let vue = db.vues.iter_mut()
+        .find(|v| v.id == vue_id)
+        .ok_or(ChaqaqError::NonTrouve(vue_id))?;
+    vue.filtres = filtres;
+    vue.tris = tris;
+    repo.save(&db)
+}
+
+/// Supprime une vue. Retourne OperationInvalide si c'est la dernière.
+pub fn supprimer_vue(
+    repo: &dyn DatabaseRepository,
+    db_id: Uuid,
+    vue_id: Uuid,
+) -> Result<(), ChaqaqError> {
+    let mut db = repo.load(db_id)?;
+    if db.vues.len() <= 1 {
+        return Err(ChaqaqError::OperationInvalide(
+            "impossible de supprimer la dernière vue".to_string(),
+        ));
+    }
+    let avant = db.vues.len();
+    db.vues.retain(|v| v.id != vue_id);
+    if db.vues.len() == avant {
+        return Err(ChaqaqError::NonTrouve(vue_id));
+    }
+    repo.save(&db)
 }
 
 // ── Recherche ────────────────────────────────────────────────────────────────
@@ -336,6 +409,150 @@ fn comparer_valeurs(a: &ValeurPropriete, b: &ValeurPropriete) -> Ordering {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::RefCell;
+    use crate::domain::database::{TypeVue, Vue};
+    use crate::domain::document::InlineText;
+
+    struct MockDbRepo {
+        dbs: RefCell<std::collections::HashMap<Uuid, Database>>,
+    }
+
+    impl MockDbRepo {
+        fn nouveau() -> Self {
+            Self { dbs: RefCell::new(std::collections::HashMap::new()) }
+        }
+    }
+
+    impl DatabaseRepository for MockDbRepo {
+        fn save(&self, db: &Database) -> Result<(), ChaqaqError> {
+            self.dbs.borrow_mut().insert(db.id, db.clone());
+            Ok(())
+        }
+        fn load(&self, id: Uuid) -> Result<Database, ChaqaqError> {
+            self.dbs.borrow().get(&id).cloned()
+                .ok_or(ChaqaqError::NonTrouve(id))
+        }
+        fn list_meta(&self) -> Result<Vec<crate::domain::database::DatabaseMeta>, ChaqaqError> {
+            Ok(self.dbs.borrow().values().map(|db| db.meta()).collect())
+        }
+        fn delete(&self, id: Uuid) -> Result<(), ChaqaqError> {
+            self.dbs.borrow_mut().remove(&id)
+                .map(|_| ())
+                .ok_or(ChaqaqError::NonTrouve(id))
+        }
+    }
+
+    fn titre(s: &str) -> Vec<InlineText> {
+        vec![InlineText { content: s.to_string(), styles: vec![] }]
+    }
+
+    #[test]
+    fn test_renommer_propriete() {
+        let repo = MockDbRepo::nouveau();
+        let prop = Propriete::nouvelle("Ancien", ProprieteType::Texte);
+        let prop_id = prop.id;
+        let db = Database::nouvelle(titre("DB"), vec![prop]);
+        repo.save(&db).unwrap();
+
+        renommer_propriete(&repo, db.id, prop_id, "Nouveau").unwrap();
+
+        let db = repo.load(db.id).unwrap();
+        assert_eq!(db.proprietes[0].nom, "Nouveau");
+    }
+
+    #[test]
+    fn test_renommer_propriete_inexistante_erreur() {
+        let repo = MockDbRepo::nouveau();
+        let db = Database::nouvelle(titre("DB"), vec![]);
+        repo.save(&db).unwrap();
+
+        let res = renommer_propriete(&repo, db.id, Uuid::new_v4(), "X");
+        assert!(matches!(res, Err(ChaqaqError::NonTrouve(_))));
+    }
+
+    #[test]
+    fn test_supprimer_propriete_retire_des_entrees() {
+        let repo = MockDbRepo::nouveau();
+        let prop = Propriete::nouvelle("Statut", ProprieteType::Texte);
+        let prop_id = prop.id;
+        let mut db = Database::nouvelle(titre("DB"), vec![prop]);
+        let mut valeurs = HashMap::new();
+        valeurs.insert(prop_id, ValeurPropriete::Texte("En cours".to_string()));
+        db.entrees.push(Entree::nouvelle(valeurs));
+        repo.save(&db).unwrap();
+
+        supprimer_propriete(&repo, db.id, prop_id).unwrap();
+
+        let db = repo.load(db.id).unwrap();
+        assert!(db.proprietes.is_empty());
+        assert!(!db.entrees[0].valeurs.contains_key(&prop_id));
+    }
+
+    #[test]
+    fn test_supprimer_propriete_inexistante_erreur() {
+        let repo = MockDbRepo::nouveau();
+        let db = Database::nouvelle(titre("DB"), vec![]);
+        repo.save(&db).unwrap();
+
+        let res = supprimer_propriete(&repo, db.id, Uuid::new_v4());
+        assert!(matches!(res, Err(ChaqaqError::NonTrouve(_))));
+    }
+
+    #[test]
+    fn test_modifier_vue_met_a_jour_filtres_et_tris() {
+        let repo = MockDbRepo::nouveau();
+        let prop = Propriete::nouvelle("Note", ProprieteType::Nombre);
+        let prop_id = prop.id;
+        let db = Database::nouvelle(titre("DB"), vec![prop]);
+        let vue_id = db.vues[0].id;
+        repo.save(&db).unwrap();
+
+        let filtre = Filtre { propriete_id: prop_id, condition: ConditionFiltre::EstPlein };
+        let tri = Tri::par_propriete(prop_id, Ordre::Decroissant);
+        modifier_vue(&repo, db.id, vue_id, vec![filtre], vec![tri]).unwrap();
+
+        let db = repo.load(db.id).unwrap();
+        assert_eq!(db.vues[0].filtres.len(), 1);
+        assert_eq!(db.vues[0].tris.len(), 1);
+    }
+
+    #[test]
+    fn test_supprimer_vue() {
+        let repo = MockDbRepo::nouveau();
+        let mut db = Database::nouvelle(titre("DB"), vec![]);
+        let vue2 = Vue::nouvelle("Kanban", TypeVue::Galerie);
+        let vue2_id = vue2.id;
+        db.vues.push(vue2);
+        repo.save(&db).unwrap();
+
+        supprimer_vue(&repo, db.id, vue2_id).unwrap();
+
+        let db = repo.load(db.id).unwrap();
+        assert_eq!(db.vues.len(), 1);
+        assert!(db.vues.iter().all(|v| v.id != vue2_id));
+    }
+
+    #[test]
+    fn test_supprimer_derniere_vue_erreur() {
+        let repo = MockDbRepo::nouveau();
+        let db = Database::nouvelle(titre("DB"), vec![]);
+        let vue_id = db.vues[0].id;
+        repo.save(&db).unwrap();
+
+        let res = supprimer_vue(&repo, db.id, vue_id);
+        assert!(matches!(res, Err(ChaqaqError::OperationInvalide(_))));
+    }
+
+    #[test]
+    fn test_supprimer_vue_inexistante_erreur() {
+        let repo = MockDbRepo::nouveau();
+        let mut db = Database::nouvelle(titre("DB"), vec![]);
+        db.vues.push(Vue::nouvelle("Extra", TypeVue::Galerie));
+        repo.save(&db).unwrap();
+
+        let res = supprimer_vue(&repo, db.id, Uuid::new_v4());
+        assert!(matches!(res, Err(ChaqaqError::NonTrouve(_))));
+    }
 
     fn entree_avec_nombre(prop_id: Uuid, n: f64) -> Entree {
         let mut map = HashMap::new();
