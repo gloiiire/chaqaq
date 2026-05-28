@@ -1,6 +1,6 @@
 use uuid::Uuid;
 use crate::application::repository::DocumentRepository;
-use crate::domain::document::{BlockContent, Document};
+use crate::domain::document::{BlockContent, Document, DocumentMeta};
 use crate::domain::parser::parse_inline;
 
 pub fn creer_document(
@@ -21,7 +21,7 @@ pub fn obtenir_document(
 
 pub fn lister_documents(
     repo: &dyn DocumentRepository,
-) -> Result<Vec<Document>, Box<dyn std::error::Error>> {
+) -> Result<Vec<DocumentMeta>, Box<dyn std::error::Error>> {
     repo.list()
 }
 

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use uuid::Uuid;
 use crate::application::repository::DocumentRepository;
-use crate::domain::document::Document;
+use crate::domain::document::{Document, DocumentMeta};
 
 pub struct JsonStore {
     dir: PathBuf,
@@ -26,9 +26,9 @@ impl DocumentRepository for JsonStore {
         Ok(serde_json::from_str(&json)?)
     }
 
-    fn list(&self) -> Result<Vec<Document>, Box<dyn std::error::Error>> {
+    fn list(&self) -> Result<Vec<DocumentMeta>, Box<dyn std::error::Error>> {
         std::fs::read_dir(&self.dir)?
-            .map(|entry| -> Result<Document, Box<dyn std::error::Error>> {
+            .map(|entry| -> Result<DocumentMeta, Box<dyn std::error::Error>> {
                 let json = std::fs::read_to_string(entry?.path())?;
                 Ok(serde_json::from_str(&json)?)
             })
