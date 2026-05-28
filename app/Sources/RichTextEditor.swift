@@ -28,6 +28,15 @@ func fontAvecTraits(_ base: UIFont, bold: Bool, italic: Bool) -> UIFont {
     }
 }
 
+// Italique avec un poids précis — `.italicSystemFont` est toujours regular.
+func policeItaliquePoids(_ size: CGFloat, weight: UIFont.Weight) -> UIFont {
+    let base = UIFont.systemFont(ofSize: size, weight: weight)
+    if let d = base.fontDescriptor.withSymbolicTraits(.traitItalic) {
+        return UIFont(descriptor: d, size: size)
+    }
+    return .italicSystemFont(ofSize: size)
+}
+
 // ── Conversion spans ↔ NSAttributedString ────────────────────────────────────
 
 func spansVersNSAttributed(_ spans: [InlineTextFfi], police: UIFont) -> NSAttributedString {
@@ -385,8 +394,8 @@ struct RichTextEditor: UIViewRepresentable {
         // ── Toolbar ───────────────────────────────────────────────────────────
 
         func faireToolbar() -> UIView {
-            let pillH: CGFloat  = 50
-            let margeV: CGFloat = 5
+            let pillH: CGFloat  = 64
+            let margeV: CGFloat = 8
             let margeH: CGFloat = 4
             let largeur = tv?.window?.screen.bounds.width ?? 390
             let totalH  = pillH + margeV * 2
@@ -417,10 +426,11 @@ struct RichTextEditor: UIViewRepresentable {
             pill.addSubview(scroll)
 
             func boutonTexte(_ label: String, font: UIFont,
-                             souligné: Bool = false, action: Selector) -> UIButton {
+                             souligné: Bool = false, barre: Bool = false, action: Selector) -> UIButton {
                 let b = UIButton(type: .custom)
                 var a: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: UIColor.label]
                 if souligné { a[.underlineStyle] = NSUnderlineStyle.single.rawValue }
+                if barre    { a[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
                 b.setAttributedTitle(NSAttributedString(string: label, attributes: a), for: .normal)
                 a[.foregroundColor] = UIColor.label.withAlphaComponent(0.3)
                 b.setAttributedTitle(NSAttributedString(string: label, attributes: a), for: .highlighted)
@@ -431,7 +441,7 @@ struct RichTextEditor: UIViewRepresentable {
 
             func boutonCercle(_ couleur: UIColor, action: Selector) -> UIButton {
                 let b   = UIButton(type: .custom)
-                let cfg = UIImage.SymbolConfiguration(pointSize: 18, weight: .regular)
+                let cfg = UIImage.SymbolConfiguration(pointSize: 22, weight: .regular)
                 b.setImage(
                     UIImage(systemName: "circle.fill", withConfiguration: cfg)?
                         .withTintColor(couleur, renderingMode: .alwaysOriginal),
@@ -443,7 +453,7 @@ struct RichTextEditor: UIViewRepresentable {
 
             func boutonSF(_ nom: String, action: Selector) -> UIButton {
                 let b   = UIButton(type: .custom)
-                let cfg = UIImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+                let cfg = UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)
                 b.setImage(
                     UIImage(systemName: nom, withConfiguration: cfg)?
                         .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal),
@@ -454,7 +464,7 @@ struct RichTextEditor: UIViewRepresentable {
             }
 
             var x: CGFloat = 12
-            let btnW: CGFloat = 52
+            let btnW: CGFloat = 62
 
             func ajouter(_ btn: UIButton) {
                 btn.frame = CGRect(x: x, y: 0, width: btnW, height: pillH)
@@ -463,16 +473,16 @@ struct RichTextEditor: UIViewRepresentable {
             }
 
             func separateur() {
-                let v = UIView(frame: CGRect(x: x + 4, y: (pillH - 22) / 2, width: 1, height: 22))
+                let v = UIView(frame: CGRect(x: x + 4, y: (pillH - 28) / 2, width: 1, height: 28))
                 v.backgroundColor = UIColor.separator
                 scroll.addSubview(v)
                 x += 10
             }
 
-            let bG = boutonTexte("B", font: .boldSystemFont(ofSize: 17),   action: #selector(toggleGras));   ajouter(bG); btnGras     = bG
-            let bI = boutonTexte("I", font: .italicSystemFont(ofSize: 17), action: #selector(toggleItalique)); ajouter(bI); btnItalique  = bI
-            let bU = boutonTexte("U", font: .systemFont(ofSize: 17), souligné: true, action: #selector(toggleSouligne)); ajouter(bU); btnSouligne = bU
-            let bS = boutonSF("strikethrough", action: #selector(toggleBarré)); ajouter(bS); btnBarre = bS
+            let bG = boutonTexte("B", font: .systemFont(ofSize: 22, weight: .heavy),  action: #selector(toggleGras));   ajouter(bG); btnGras     = bG
+            let bI = boutonTexte("I", font: policeItaliquePoids(22, weight: .medium), action: #selector(toggleItalique)); ajouter(bI); btnItalique  = bI
+            let bU = boutonTexte("U", font: .systemFont(ofSize: 22, weight: .medium), souligné: true, action: #selector(toggleSouligne)); ajouter(bU); btnSouligne = bU
+            let bS = boutonTexte("S", font: .systemFont(ofSize: 22, weight: .medium), barre: true, action: #selector(toggleBarré)); ajouter(bS); btnBarre = bS
             separateur()
             let bR = boutonCercle(.systemRed,    action: #selector(colorRouge));   ajouter(bR); btnRouge  = bR
             let bB = boutonCercle(.systemBlue,   action: #selector(colorBleu));    ajouter(bB); btnBleu   = bB
@@ -656,21 +666,22 @@ struct RichTextEditor: UIViewRepresentable {
                 couleur  = attrs[.chaqaqColor] as? String
             }
 
-            setActifTexte(btnGras,     actif: bold,      font: .boldSystemFont(ofSize: 17))
-            setActifTexte(btnItalique, actif: italic,    font: .italicSystemFont(ofSize: 17))
-            setActifTexte(btnSouligne, actif: underline, font: .systemFont(ofSize: 17), souligne: true)
-            setActifSF(btnBarre,       actif: strike,    nom: "strikethrough")
+            setActifTexte(btnGras,     actif: bold,      font: .systemFont(ofSize: 22, weight: .heavy))
+            setActifTexte(btnItalique, actif: italic,    font: policeItaliquePoids(22, weight: .medium))
+            setActifTexte(btnSouligne, actif: underline, font: .systemFont(ofSize: 22, weight: .medium), souligne: true)
+            setActifTexte(btnBarre,    actif: strike,    font: .systemFont(ofSize: 22, weight: .medium), barre: true)
             setActifCouleur(btnRouge,  actif: couleur == "rouge")
             setActifCouleur(btnBleu,   actif: couleur == "bleu")
             setActifCouleur(btnOrange, actif: couleur == "orange")
             setActifCouleur(btnViolet, actif: couleur == "violet")
         }
 
-        private func setActifTexte(_ btn: UIButton?, actif: Bool, font: UIFont, souligne: Bool = false) {
+        private func setActifTexte(_ btn: UIButton?, actif: Bool, font: UIFont, souligne: Bool = false, barre: Bool = false) {
             guard let btn, let str = btn.attributedTitle(for: .normal)?.string else { return }
             let c: UIColor = actif ? (UIColor(named: "Accent") ?? .tintColor) : .label
             var a: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: c]
-            if souligne { a[.underlineStyle] = NSUnderlineStyle.single.rawValue }
+            if souligne { a[.underlineStyle]      = NSUnderlineStyle.single.rawValue }
+            if barre    { a[.strikethroughStyle]  = NSUnderlineStyle.single.rawValue }
             btn.setAttributedTitle(NSAttributedString(string: str, attributes: a), for: .normal)
             a[.foregroundColor] = c.withAlphaComponent(0.3)
             btn.setAttributedTitle(NSAttributedString(string: str, attributes: a), for: .highlighted)
@@ -679,7 +690,7 @@ struct RichTextEditor: UIViewRepresentable {
         private func setActifSF(_ btn: UIButton?, actif: Bool, nom: String) {
             guard let btn else { return }
             let c: UIColor = actif ? (UIColor(named: "Accent") ?? .tintColor) : .secondaryLabel
-            let cfg = UIImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+            let cfg = UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)
             btn.setImage(UIImage(systemName: nom, withConfiguration: cfg)?
                 .withTintColor(c, renderingMode: .alwaysOriginal), for: .normal)
         }
