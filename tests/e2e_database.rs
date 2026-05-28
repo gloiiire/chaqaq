@@ -61,7 +61,7 @@ fn test_flux_complet_database() {
 
     // vue triée par score décroissant
     let mut vue = Vue::nouvelle("Top scores", TypeVue::Tableau);
-    vue.tris.push(Tri { propriete_id: score_id, ordre: Ordre::Decroissant });
+    vue.tris.push(Tri::par_propriete(score_id, Ordre::Decroissant));
     let vue = ajouter_vue(&db_store, db.id, vue).unwrap();
 
     let resultats = requete(&db_store, db.id, vue.id).unwrap();
@@ -119,7 +119,7 @@ fn test_vue_avec_filtre_et_tri_combines() {
         propriete_id: statut_id,
         condition: ConditionFiltre::Egal(ValeurPropriete::Texte("En cours".to_string())),
     });
-    vue.tris.push(Tri { propriete_id: priorite_id, ordre: Ordre::Croissant });
+    vue.tris.push(Tri::par_propriete(priorite_id, Ordre::Croissant));
     let vue = ajouter_vue(&db_store, db.id, vue).unwrap();
 
     let resultats = requete(&db_store, db.id, vue.id).unwrap();
@@ -237,4 +237,64 @@ fn test_agregat_min_max_colonne() {
 
     assert_eq!(min, ValeurPropriete::Nombre(1.0));
     assert_eq!(max, ValeurPropriete::Nombre(9.0));
+}
+
+// ── E2E Journal intime — le cas d'usage fondateur ────────────────────────────
+
+/// Scénario réel : tu importes d'anciennes notes avec des dates que tu as
+/// saisies à la main, et tu continues d'écrire de nouvelles notes dont la date
+/// est auto-générée. Une seule vue, un seul tri, tout dans le bon ordre.
+#[test]
+fn test_journal_intime_dates_mixtes() {
+    let (_doc_store, db_store) = store_temp();
+
+    let prop_date    = Propriete::nouvelle("Date",  ProprieteType::Date);
+    let prop_contenu = Propriete::nouvelle("Texte", ProprieteType::Texte);
+    let date_id    = prop_date.id;
+    let contenu_id = prop_contenu.id;
+
+    let db = creer_database(&db_store, titre("Journal"), vec![prop_date, prop_contenu]).unwrap();
+
+    // — Anciennes notes importées : date manuelle renseignée, cree_le = maintenant
+    let notes_anciennes = [
+        ("2019-03-22", "Première entrée retrouvée"),
+        ("2021-08-14", "Une pensée de l'été"),
+        ("2020-11-30", "Note de fin novembre"),
+    ];
+    for (date, texte) in notes_anciennes {
+        let mut v = HashMap::new();
+        v.insert(date_id,    ValeurPropriete::Date(date.to_string()));
+        v.insert(contenu_id, ValeurPropriete::Texte(texte.to_string()));
+        ajouter_entree(&db_store, db.id, v).unwrap();
+    }
+
+    // — Nouvelles notes : pas de date manuelle, cree_le auto (aujourd'hui ≈ 2024+)
+    let notes_nouvelles = ["Ce soir il pleut", "Réflexions du matin"];
+    for texte in notes_nouvelles {
+        let mut v = HashMap::new();
+        v.insert(contenu_id, ValeurPropriete::Texte(texte.to_string()));
+        ajouter_entree(&db_store, db.id, v).unwrap();
+    }
+
+    // Vue chronologique : ManuellePuisCreation croissant
+    let mut vue = Vue::nouvelle("Chronologique", TypeVue::Tableau);
+    vue.tris.push(Tri::manuelle_puis_creation(date_id, Ordre::Croissant));
+    let vue = ajouter_vue(&db_store, db.id, vue).unwrap();
+
+    let resultats = requete(&db_store, db.id, vue.id).unwrap();
+    assert_eq!(resultats.len(), 5);
+
+    // Les 3 premières doivent être les notes anciennes dans l'ordre chronologique
+    let dates: Vec<Option<&ValeurPropriete>> = resultats.iter()
+        .map(|e| e.valeurs.get(&date_id))
+        .collect();
+
+    assert_eq!(dates[0], Some(&ValeurPropriete::Date("2019-03-22".to_string())));
+    assert_eq!(dates[1], Some(&ValeurPropriete::Date("2020-11-30".to_string())));
+    assert_eq!(dates[2], Some(&ValeurPropriete::Date("2021-08-14".to_string())));
+    // Les 2 nouvelles arrivent après (cree_le récent > toutes les dates manuelles)
+    assert!(dates[3].is_none() || dates[3] == Some(&ValeurPropriete::Vide) || {
+        // pas de date manuelle donc tri par cree_le
+        resultats[3].cree_le > "2021".to_string()
+    });
 }

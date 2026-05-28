@@ -5,7 +5,7 @@ use crate::application::database_repository::DatabaseRepository;
 use crate::application::error::ChaqaqError;
 use crate::domain::database::{
     Agregat, ConditionFiltre, Database, DatabaseMeta, Entree, Filtre, Groupe,
-    Ordre, Propriete, ProprieteType, ValeurPropriete, Vue,
+    Ordre, Propriete, ProprieteType, SourceTri, ValeurPropriete, Vue,
 };
 use crate::domain::document::InlineText;
 
@@ -113,9 +113,19 @@ pub fn requete(
 
     for tri in vue.tris.iter().rev() {
         entrees.sort_by(|a, b| {
-            let va = a.valeurs.get(&tri.propriete_id).unwrap_or(&ValeurPropriete::Vide);
-            let vb = b.valeurs.get(&tri.propriete_id).unwrap_or(&ValeurPropriete::Vide);
-            let ord = comparer_valeurs(va, vb);
+            let ord = match &tri.source {
+                SourceTri::Propriete => {
+                    let va = a.valeurs.get(&tri.propriete_id).unwrap_or(&ValeurPropriete::Vide);
+                    let vb = b.valeurs.get(&tri.propriete_id).unwrap_or(&ValeurPropriete::Vide);
+                    comparer_valeurs(va, vb)
+                }
+                SourceTri::Creation => a.cree_le.cmp(&b.cree_le),
+                SourceTri::ManuellePuisCreation => {
+                    let va = a.valeurs.get(&tri.propriete_id).unwrap_or(&ValeurPropriete::Vide);
+                    let vb = b.valeurs.get(&tri.propriete_id).unwrap_or(&ValeurPropriete::Vide);
+                    date_effective(va, &a.cree_le).cmp(date_effective(vb, &b.cree_le))
+                }
+            };
             if tri.ordre == Ordre::Decroissant { ord.reverse() } else { ord }
         });
     }
@@ -217,6 +227,14 @@ pub fn requete_groupee(
 }
 
 // ── Helpers internes ─────────────────────────────────────────────────────────
+
+/// Retourne la date effective : valeur manuelle si renseignée, sinon `cree_le`.
+fn date_effective<'a>(v: &'a ValeurPropriete, cree_le: &'a str) -> &'a str {
+    match v {
+        ValeurPropriete::Date(d) if !d.is_empty() => d.as_str(),
+        _ => cree_le,
+    }
+}
 
 fn calculer_agregat(entrees: &[&Entree], prop_id: Uuid, agregat: &Agregat) -> ValeurPropriete {
     let nums: Vec<f64> = entrees.iter()

@@ -89,7 +89,7 @@ fn test_trier_entrees_par_nombre() {
     ajouter_entree(&store, db.id, entree_nombre(prop_id, 2.0)).unwrap();
 
     let mut vue = Vue::nouvelle("Par priorité", TypeVue::Tableau);
-    vue.tris.push(Tri { propriete_id: prop_id, ordre: Ordre::Croissant });
+    vue.tris.push(Tri::par_propriete(prop_id, Ordre::Croissant));
     let vue = ajouter_vue(&store, db.id, vue).unwrap();
 
     let resultats = requete(&store, db.id, vue.id).unwrap();
@@ -251,4 +251,70 @@ fn test_requete_groupee_vide_en_dernier() {
     assert_eq!(groupes.len(), 2);
     // Vide trié en dernier
     assert_eq!(groupes.last().unwrap().valeur, ValeurPropriete::Vide);
+}
+
+// ── SourceTri : date auto, manuelle, hybride ─────────────────────────────────
+
+#[test]
+fn test_tri_par_creation_auto() {
+    let store = store_temp();
+    let db = creer_database(&store, titre("Journal"), vec![]).unwrap();
+    let vue_id = db.vues[0].id;
+
+    // 3 entrées créées avec des cree_le manuellement espacés pour le test
+    let mut e1 = chaqaq::domain::database::Entree::nouvelle(HashMap::new());
+    e1.cree_le = "2023-01-01T00:00:00+00:00".to_string();
+    let mut e2 = chaqaq::domain::database::Entree::nouvelle(HashMap::new());
+    e2.cree_le = "2023-06-15T00:00:00+00:00".to_string();
+    let mut e3 = chaqaq::domain::database::Entree::nouvelle(HashMap::new());
+    e3.cree_le = "2022-12-01T00:00:00+00:00".to_string();
+
+    // Persiste via save direct
+    use chaqaq::application::database_repository::DatabaseRepository;
+    let mut db = obtenir_database(&store, db.id).unwrap();
+    db.entrees = vec![e1.clone(), e2.clone(), e3.clone()];
+    store.save(&db).unwrap();
+
+    let mut vue = Vue::nouvelle("Chronologique", TypeVue::Tableau);
+    vue.tris.push(Tri::par_creation(Ordre::Croissant));
+    let vue = ajouter_vue(&store, db.id, vue).unwrap();
+
+    let resultats = requete(&store, db.id, vue.id).unwrap();
+    assert_eq!(resultats[0].cree_le, "2022-12-01T00:00:00+00:00");
+    assert_eq!(resultats[1].cree_le, "2023-01-01T00:00:00+00:00");
+    assert_eq!(resultats[2].cree_le, "2023-06-15T00:00:00+00:00");
+}
+
+#[test]
+fn test_tri_manuelle_puis_creation_cas_journal() {
+    let store = store_temp();
+    let prop_date = Propriete::nouvelle("Date", ProprieteType::Date);
+    let date_id = prop_date.id;
+    let db = creer_database(&store, titre("Journal"), vec![prop_date]).unwrap();
+    let vue_id = db.vues[0].id;
+
+    // Note ancienne : date manuelle renseignée, cree_le récent (import)
+    let mut v_ancienne = HashMap::new();
+    v_ancienne.insert(date_id, ValeurPropriete::Date("2020-05-10".to_string()));
+    let mut e_ancienne = chaqaq::domain::database::Entree::nouvelle(v_ancienne);
+    e_ancienne.cree_le = "2024-01-01T00:00:00+00:00".to_string(); // importée récemment
+
+    // Note nouvelle : pas de date manuelle, cree_le = date réelle d'écriture
+    let mut e_nouvelle = chaqaq::domain::database::Entree::nouvelle(HashMap::new());
+    e_nouvelle.cree_le = "2024-06-01T00:00:00+00:00".to_string();
+
+    use chaqaq::application::database_repository::DatabaseRepository;
+    let mut db = obtenir_database(&store, db.id).unwrap();
+    db.entrees = vec![e_nouvelle.clone(), e_ancienne.clone()]; // ordre inversé intentionnel
+    store.save(&db).unwrap();
+
+    // Vue avec tri ManuellePuisCreation croissant
+    let mut vue = Vue::nouvelle("Chronologique", TypeVue::Tableau);
+    vue.tris.push(Tri::manuelle_puis_creation(date_id, Ordre::Croissant));
+    let vue = ajouter_vue(&store, db.id, vue).unwrap();
+
+    let resultats = requete(&store, db.id, vue.id).unwrap();
+    // L'ancienne note (date manuelle 2020) doit passer AVANT la nouvelle (cree_le 2024)
+    let date_premiere = resultats[0].valeurs.get(&date_id);
+    assert_eq!(date_premiere, Some(&ValeurPropriete::Date("2020-05-10".to_string())));
 }

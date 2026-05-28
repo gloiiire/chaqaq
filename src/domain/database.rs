@@ -2,6 +2,7 @@
 use std::collections::HashMap;
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
+use chrono::Utc;
 use crate::domain::document::InlineText;
 
 // ── Types de propriétés (colonnes) ───────────────────────────────────────────
@@ -63,12 +64,19 @@ pub enum ValeurPropriete {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Entree {
     pub id: Uuid,
+    /// Timestamp ISO 8601 auto-généré à la création — jamais modifié après.
+    #[serde(default)]
+    pub cree_le: String,
     pub valeurs: HashMap<Uuid, ValeurPropriete>,
 }
 
 impl Entree {
     pub fn nouvelle(valeurs: HashMap<Uuid, ValeurPropriete>) -> Self {
-        Self { id: Uuid::new_v4(), valeurs }
+        Self {
+            id: Uuid::new_v4(),
+            cree_le: Utc::now().to_rfc3339(),
+            valeurs,
+        }
     }
 }
 
@@ -102,10 +110,41 @@ pub enum Ordre {
     Decroissant,
 }
 
+/// Détermine quelle date utiliser lors d'un tri.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub enum SourceTri {
+    /// Tri standard sur la valeur de `propriete_id`.
+    #[default]
+    Propriete,
+    /// Tri sur `cree_le` uniquement (date auto-générée, `propriete_id` ignoré).
+    Creation,
+    /// Utilise la valeur de `propriete_id` si elle est renseignée, sinon `cree_le`.
+    /// Résout le cas journal : anciennes notes avec date manuelle + nouvelles notes sans.
+    ManuellePuisCreation,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Tri {
     pub propriete_id: Uuid,
     pub ordre: Ordre,
+    #[serde(default)]
+    pub source: SourceTri,
+}
+
+impl Tri {
+    pub fn par_propriete(propriete_id: Uuid, ordre: Ordre) -> Self {
+        Self { propriete_id, ordre, source: SourceTri::Propriete }
+    }
+
+    /// Tri par date auto-générée. `propriete_id` peut être `Uuid::nil()`.
+    pub fn par_creation(ordre: Ordre) -> Self {
+        Self { propriete_id: Uuid::nil(), ordre, source: SourceTri::Creation }
+    }
+
+    /// Date manuelle si renseignée, sinon date de création automatique.
+    pub fn manuelle_puis_creation(propriete_id: Uuid, ordre: Ordre) -> Self {
+        Self { propriete_id, ordre, source: SourceTri::ManuellePuisCreation }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -249,6 +288,28 @@ mod tests {
         let ids = vec![Uuid::new_v4(), Uuid::new_v4()];
         let v = ValeurPropriete::Relation(ids.clone());
         assert_eq!(v, ValeurPropriete::Relation(ids));
+    }
+
+    #[test]
+    fn test_entree_nouvelle_a_cree_le_non_vide() {
+        let e = Entree::nouvelle(HashMap::new());
+        assert!(!e.cree_le.is_empty());
+        // ISO 8601 commence par l'année
+        assert!(e.cree_le.starts_with("20"));
+    }
+
+    #[test]
+    fn test_tri_par_creation_ignore_propriete_id() {
+        let t = Tri::par_creation(Ordre::Decroissant);
+        assert_eq!(t.source, SourceTri::Creation);
+    }
+
+    #[test]
+    fn test_tri_manuelle_puis_creation() {
+        let id = Uuid::new_v4();
+        let t = Tri::manuelle_puis_creation(id, Ordre::Croissant);
+        assert_eq!(t.source, SourceTri::ManuellePuisCreation);
+        assert_eq!(t.propriete_id, id);
     }
 
     #[test]
