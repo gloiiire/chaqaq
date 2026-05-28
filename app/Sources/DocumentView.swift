@@ -4,11 +4,17 @@ import SwiftUI
 
 private extension View {
     func autoFocuserSiBesoin(blocId: String, autoFocusId: Binding<String?>, focused: Binding<Bool>) -> some View {
-        onAppear {
-            guard autoFocusId.wrappedValue == blocId else { return }
-            autoFocusId.wrappedValue = nil
-            DispatchQueue.main.async { focused.wrappedValue = true }
-        }
+        self
+            .onAppear {
+                guard autoFocusId.wrappedValue == blocId else { return }
+                autoFocusId.wrappedValue = nil
+                DispatchQueue.main.async { focused.wrappedValue = true }
+            }
+            .onChange(of: autoFocusId.wrappedValue) { _, newId in
+                guard newId == blocId else { return }
+                autoFocusId.wrappedValue = nil
+                DispatchQueue.main.async { focused.wrappedValue = true }
+            }
     }
 }
 
@@ -168,9 +174,16 @@ struct DocumentView: View {
                     autoFocusId: $vm.autoFocusId,
                     onSauvegarder: { vm.sauvegarderBloc(bloc) },
                     onSupprimer: {
-                        let estPremier = vm.blocs.first?.id == bloc.id
-                        vm.supprimerBloc(id: bloc.id)
-                        if estPremier { focusTitre = true }
+                        if let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }) {
+                            if idx > 0 {
+                                let prevId = vm.blocs[idx - 1].id
+                                vm.supprimerBloc(id: bloc.id)
+                                vm.autoFocusId = prevId
+                            } else {
+                                vm.supprimerBloc(id: bloc.id)
+                                focusTitre = true
+                            }
+                        }
                     },
                     onNouveauBloc: { apres in
                         vm.ajouterBloc(type: .texte, texteInitial: apres, apresId: bloc.id)

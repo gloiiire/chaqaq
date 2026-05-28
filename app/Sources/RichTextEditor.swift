@@ -129,7 +129,11 @@ struct RichTextEditor: UIViewRepresentable {
         }
 
         if isFocused && !tv.isFirstResponder {
-            DispatchQueue.main.async { _ = tv.becomeFirstResponder() }
+            DispatchQueue.main.async {
+                _ = tv.becomeFirstResponder()
+                let fin = tv.text.count
+                tv.selectedRange = NSRange(location: fin, length: 0)
+            }
         } else if !isFocused && tv.isFirstResponder {
             tv.resignFirstResponder()
         }
