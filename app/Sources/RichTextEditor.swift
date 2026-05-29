@@ -1,6 +1,8 @@
 import SwiftUI
 import UIKit
 
+let chaqaqSelectionTint = UIColor(named: "SelectionTint") ?? .systemOrange
+
 // ── Clés d'attributs custom ───────────────────────────────────────────────────
 
 extension NSAttributedString.Key {
@@ -202,6 +204,7 @@ final class ExpandingTextView: UITextView {
 struct RichTextEditor: UIViewRepresentable {
     @Binding var spans: [InlineTextFfi]
     @Binding var isFocused: Bool
+    @Environment(\.isEnabled) private var isEnabled
     var placeholder: String = ""
     var baseFont: UIFont = .preferredFont(forTextStyle: .body)
     var extraAttrs: [NSAttributedString.Key: Any]? = nil
@@ -212,6 +215,7 @@ struct RichTextEditor: UIViewRepresentable {
     var onSupprimerBloc: (() -> Void)?
     var onFusionnerAvecPrecedent: (([InlineTextFfi]) -> Void)?
     var onConvert: ((BlockContentFfi) -> Void)?
+    var onLongPressSelection: (() -> Void)? = nil
     var onNaviguerPrecedent: (() -> Void)? = nil
     var onNaviguerSuivant: (() -> Void)? = nil
     var onNavRepeterArreter: (() -> Void)? = nil
@@ -222,6 +226,9 @@ struct RichTextEditor: UIViewRepresentable {
         tv.backgroundColor = .clear
         tv.font = baseFont
         tv.textColor = .label
+        tv.tintColor = chaqaqSelectionTint
+        tv.isEditable = isEnabled
+        tv.isSelectable = isEnabled
         tv.typingAttributes = [.font: baseFont, .foregroundColor: UIColor.label]
         tv.allowsEditingTextAttributes = true
         tv.isScrollEnabled = false
@@ -240,6 +247,11 @@ struct RichTextEditor: UIViewRepresentable {
         tv.onNaviguerPrecedent  = { [weak coord] in coord?.parent.onNaviguerPrecedent?() }
         tv.onNaviguerSuivant    = { [weak coord] in coord?.parent.onNaviguerSuivant?() }
         tv.onNavRepeterArreter  = { [weak coord] in coord?.parent.onNavRepeterArreter?() }
+        let longPress = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleLongPressSelection(_:)))
+        longPress.minimumPressDuration = 0.35
+        longPress.cancelsTouchesInView = false
+        longPress.delegate = context.coordinator
+        tv.addGestureRecognizer(longPress)
         if spans.isEmpty { tv.attributedText = context.coordinator.placeholder() }
         else { tv.attributedText = avecExtras(spansVersNSAttributed(spans, police: baseFont)) }
         return tv
@@ -248,6 +260,13 @@ struct RichTextEditor: UIViewRepresentable {
     func updateUIView(_ tv: ExpandingTextView, context: Context) {
         let coord = context.coordinator
         coord.parent = self
+        tv.tintColor = chaqaqSelectionTint
+        tv.isEditable = isEnabled
+        tv.isSelectable = isEnabled
+        if !isEnabled && tv.isFirstResponder {
+            tv.resignFirstResponder()
+            DispatchQueue.main.async { isFocused = false }
+        }
 
         // Ne pas réassigner tv.font pendant l'édition : UITextView.font ré-applique
         // la fonte à TOUT le texte et écraserait le gras/italique par caractère.
@@ -283,7 +302,7 @@ struct RichTextEditor: UIViewRepresentable {
 
     // ── Coordinator ───────────────────────────────────────────────────────────
 
-    final class Coordinator: NSObject, UITextViewDelegate {
+    final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate {
         var parent: RichTextEditor
         weak var tv: ExpandingTextView?
         var enEdition = false
@@ -304,10 +323,21 @@ struct RichTextEditor: UIViewRepresentable {
 
         init(parent: RichTextEditor) { self.parent = parent }
 
+        @objc func handleLongPressSelection(_ gesture: UILongPressGestureRecognizer) {
+            guard gesture.state == .began else { return }
+            parent.onLongPressSelection?()
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            true
+        }
+
         func placeholder() -> NSAttributedString {
-            NSAttributedString(string: parent.placeholder,
-                               attributes: [.foregroundColor: UIColor.tertiaryLabel,
-                                            .font: parent.baseFont])
+            guard parent.isEnabled else { return NSAttributedString(string: "") }
+            return NSAttributedString(string: parent.placeholder,
+                                      attributes: [.foregroundColor: UIColor.tertiaryLabel,
+                                                   .font: parent.baseFont])
         }
 
         // ── Delegate ──────────────────────────────────────────────────────────
@@ -391,6 +421,7 @@ struct RichTextEditor: UIViewRepresentable {
             case "## ":         parent.onConvert?(.heading(level: 2, text: [])); return
             case "### ":        parent.onConvert?(.heading(level: 3, text: [])); return
             case "> ":          parent.onConvert?(.quote(icon: "", text: []));   return
+            case "!! ":         parent.onConvert?(.quote(icon: "💡", text: [])); return
             case "[ ] ", "[] ": parent.onConvert?(.todo(done: false, text: [])); return
             case "---":         parent.onConvert?(.divider);                     return
             default: break
@@ -499,8 +530,8 @@ struct RichTextEditor: UIViewRepresentable {
             let bI = boutonTexte("I", font: policeItaliquePoids(22, weight: .medium), action: #selector(toggleItalique)); ajouter(bI); btnItalique  = bI
             let bU = boutonTexte("U", font: .systemFont(ofSize: 22, weight: .medium), souligné: true, action: #selector(toggleSouligne)); ajouter(bU); btnSouligne = bU
             let bS = boutonTexte("S", font: .systemFont(ofSize: 22, weight: .medium), barre: true, action: #selector(toggleBarré)); ajouter(bS); btnBarre = bS
-					separateur()
-					ajouter(boutonSF("return",                         action: #selector(sautDeLigneToolbar)))
+            separateur()
+            ajouter(boutonSF("return", action: #selector(sautDeLigneToolbar)))
             separateur()
             let bR = boutonCercle(.systemRed,    action: #selector(colorRouge));   ajouter(bR); btnRouge  = bR
             let bB = boutonCercle(.systemBlue,   action: #selector(colorBleu));    ajouter(bB); btnBleu   = bB

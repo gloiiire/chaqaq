@@ -172,16 +172,52 @@ private struct EtatVide: View {
 
 private struct BoutonCreer: View {
     let action: () -> Void
+    @State private var impulsion = false
 
     var body: some View {
-        Button(action: action) {
-            Image(systemName: "square.and.pencil")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(.primary)
-                .frame(width: 56, height: 56)
+        Button {
+            withAnimation(.spring(response: 0.24, dampingFraction: 0.58)) {
+                impulsion = true
+            }
+            action()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+                withAnimation(.easeOut(duration: 0.18)) {
+                    impulsion = false
+                }
+            }
+        } label: {
+            ZStack {
+                if impulsion {
+                    Circle()
+                        .fill(Color("SelectionTint").opacity(0.18))
+                        .frame(width: 78, height: 78)
+                        .transition(.scale.combined(with: .opacity))
+                }
+
+                Image(systemName: "square.and.pencil")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .frame(width: 56, height: 56)
+                    .symbolEffect(.bounce, value: impulsion)
+            }
+            .frame(width: 78, height: 78)
+            .contentShape(Circle())
         }
-        .buttonStyle(.plain)
-        .glassEffect(.regular, in: .circle)
+        .buttonStyle(BoutonCreerStyle())
+        .sensoryFeedback(.impact(flexibility: .soft), trigger: impulsion)
+    }
+}
+
+private struct BoutonCreerStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .glassEffect(.regular.interactive(), in: .circle)
+            .scaleEffect(configuration.isPressed ? 0.84 : 1)
+            .rotationEffect(.degrees(configuration.isPressed ? -6 : 0))
+            .shadow(color: Color("SelectionTint").opacity(configuration.isPressed ? 0.34 : 0.18),
+                    radius: configuration.isPressed ? 20 : 12,
+                    y: configuration.isPressed ? 8 : 6)
+            .animation(.spring(response: 0.22, dampingFraction: 0.62), value: configuration.isPressed)
     }
 }
 
@@ -189,16 +225,40 @@ struct DocumentRow: View {
     let doc: DocumentMetaFfi
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(doc.titlePlain.isEmpty ? "Sans titre" : doc.titlePlain)
-                .font(.body.weight(.medium))
-            if let date = dateFormatee(doc.updatedAt) {
-                Text(date)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        HStack(spacing: 12) {
+            iconeDocument
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(doc.titlePlain.isEmpty ? "Sans titre" : doc.titlePlain)
+                    .font(.body.weight(.medium))
+                if let date = dateFormatee(doc.updatedAt) {
+                    Text(date)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 2)
+    }
+
+    @ViewBuilder
+    private var iconeDocument: some View {
+        if let icone = UserDefaults.standard.string(forKey: Self.cleIcone(docId: doc.id)), !icone.isEmpty {
+            Text(icone)
+                .font(.title2)
+                .frame(width: 34, height: 34)
+        } else {
+            Image(systemName: "doc.text")
+                .font(.body.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 34, height: 34)
+                .background(.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+    }
+
+    private static func cleIcone(docId: String) -> String {
+        "document.icon.\(docId)"
     }
 
     private func dateFormatee(_ iso: String) -> String? {
