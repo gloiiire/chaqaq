@@ -295,6 +295,7 @@ struct DocumentView: View {
     }
 
     var body: some View {
+        ZStack(alignment: .bottomTrailing) {
         List {
             DocumentDecorView(
                 couverture: vm.couverture,
@@ -519,6 +520,13 @@ struct DocumentView: View {
         } message: {
             Text(vm.erreur ?? "")
         }
+
+        if !documentVerrouille && editMode == .inactive {
+            BoutonActionDoc { showingBlocPicker = true }
+                .padding(.trailing, 24)
+                .padding(.bottom, 32)
+        }
+        } // fin ZStack
     }
 
     private func boutonSelectionBloc(_ id: String) -> some View {
@@ -1390,6 +1398,54 @@ private struct BoutonAjouterBloc: View {
             .padding(.vertical, 12)
         }
         .buttonStyle(.plain)
+    }
+}
+
+// ── FAB document ──────────────────────────────────────────────────────────────
+
+private struct BoutonActionDoc: View {
+    let action: () -> Void
+    @State private var impulsion = false
+
+    var body: some View {
+        Button {
+            withAnimation(.spring(response: 0.24, dampingFraction: 0.58)) { impulsion = true }
+            action()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+                withAnimation(.easeOut(duration: 0.18)) { impulsion = false }
+            }
+        } label: {
+            ZStack {
+                if impulsion {
+                    Circle()
+                        .fill(Color("SelectionTint").opacity(0.18))
+                        .frame(width: 54, height: 54)
+                        .transition(.scale.combined(with: .opacity))
+                }
+                Image(systemName: "pencil.and.outline")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .frame(width: 44, height: 44)
+                    .symbolEffect(.bounce, value: impulsion)
+            }
+            .frame(width: 54, height: 54)
+            .contentShape(Circle())
+        }
+        .buttonStyle(BoutonActionDocStyle())
+        .sensoryFeedback(.impact(flexibility: .soft), trigger: impulsion)
+    }
+}
+
+private struct BoutonActionDocStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .glassEffect(.regular.interactive(), in: .circle)
+            .scaleEffect(configuration.isPressed ? 0.84 : 1)
+            .rotationEffect(.degrees(configuration.isPressed ? -6 : 0))
+            .shadow(color: Color("SelectionTint").opacity(configuration.isPressed ? 0.34 : 0.18),
+                    radius: configuration.isPressed ? 20 : 12,
+                    y: configuration.isPressed ? 8 : 6)
+            .animation(.spring(response: 0.22, dampingFraction: 0.62), value: configuration.isPressed)
     }
 }
 

@@ -190,17 +190,17 @@ private struct BoutonCreer: View {
                 if impulsion {
                     Circle()
                         .fill(Color("SelectionTint").opacity(0.18))
-                        .frame(width: 78, height: 78)
+                        .frame(width: 54, height: 54)
                         .transition(.scale.combined(with: .opacity))
                 }
 
                 Image(systemName: "square.and.pencil")
-                    .font(.title2.weight(.semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(.primary)
-                    .frame(width: 56, height: 56)
+                    .frame(width: 44, height: 44)
                     .symbolEffect(.bounce, value: impulsion)
             }
-            .frame(width: 78, height: 78)
+            .frame(width: 54, height: 54)
             .contentShape(Circle())
         }
         .buttonStyle(BoutonCreerStyle())
@@ -283,6 +283,11 @@ struct CreerDocumentSheet: View {
                 Section {
                     TextField("Titre du document", text: $titre)
                         .focused($focused)
+                        .submitLabel(.done)
+                        .onSubmit {
+                            guard !titre.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                            onCreate()
+                        }
                 }
             }
             .navigationTitle("Nouveau document")

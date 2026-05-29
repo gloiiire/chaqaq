@@ -542,10 +542,10 @@ struct RichTextEditor: UIViewRepresentable {
             ajouter(bColler); btnColler = bColler
             separateur()
 
-            let bG = boutonTexte("B", font: .systemFont(ofSize: 22, weight: .heavy),  action: #selector(toggleGras));   ajouter(bG); btnGras     = bG
-            let bI = boutonTexte("I", font: policeItaliquePoids(22, weight: .medium), action: #selector(toggleItalique)); ajouter(bI); btnItalique  = bI
+            let bG = boutonTexte("B", font: .systemFont(ofSize: 22, weight: .heavy), action: #selector(toggleGras)); ajouter(bG); btnGras = bG
+            let bI = boutonSF("italic",         action: #selector(toggleItalique)); ajouter(bI); btnItalique = bI
             let bU = boutonTexte("U", font: .systemFont(ofSize: 22, weight: .medium), souligné: true, action: #selector(toggleSouligne)); ajouter(bU); btnSouligne = bU
-            let bS = boutonTexte("S", font: .systemFont(ofSize: 22, weight: .medium), barre: true, action: #selector(toggleBarré)); ajouter(bS); btnBarre = bS
+            let bS = boutonSF("strikethrough",  action: #selector(toggleBarré));    ajouter(bS); btnBarre = bS
             separateur()
             ajouter(boutonSF("return", action: #selector(sautDeLigneToolbar)))
             separateur()
@@ -742,9 +742,9 @@ struct RichTextEditor: UIViewRepresentable {
             }
 
             setActifTexte(btnGras,     actif: bold,      font: .systemFont(ofSize: 22, weight: .heavy))
-            setActifTexte(btnItalique, actif: italic,    font: policeItaliquePoids(22, weight: .medium))
+            setActifSF(btnItalique,    actif: italic,    nom: "italic")
             setActifTexte(btnSouligne, actif: underline, font: .systemFont(ofSize: 22, weight: .medium), souligne: true)
-            setActifTexte(btnBarre,    actif: strike,    font: .systemFont(ofSize: 22, weight: .medium), barre: true)
+            setActifSF(btnBarre,       actif: strike,    nom: "strikethrough")
             setActifCouleur(btnRouge,  actif: couleur == "rouge")
             setActifCouleur(btnBleu,   actif: couleur == "bleu")
             setActifCouleur(btnOrange, actif: couleur == "orange")
