@@ -291,6 +291,7 @@ struct RichTextEditor: UIViewRepresentable {
         private weak var btnBleu: UIButton?
         private weak var btnOrange: UIButton?
         private weak var btnViolet: UIButton?
+        private weak var btnColler: UIButton?
 
         init(parent: RichTextEditor) { self.parent = parent }
 
@@ -472,17 +473,25 @@ struct RichTextEditor: UIViewRepresentable {
                 x += btnW
             }
 
-            func separateur() {
+            @discardableResult
+            func separateur() -> UIView {
                 let v = UIView(frame: CGRect(x: x + 4, y: (pillH - 28) / 2, width: 1, height: 28))
                 v.backgroundColor = UIColor.separator
                 scroll.addSubview(v)
                 x += 10
+                return v
             }
+
+            let bColler = boutonSF("doc.on.clipboard", action: #selector(coller))
+            ajouter(bColler); btnColler = bColler
+            separateur()
 
             let bG = boutonTexte("B", font: .systemFont(ofSize: 22, weight: .heavy),  action: #selector(toggleGras));   ajouter(bG); btnGras     = bG
             let bI = boutonTexte("I", font: policeItaliquePoids(22, weight: .medium), action: #selector(toggleItalique)); ajouter(bI); btnItalique  = bI
             let bU = boutonTexte("U", font: .systemFont(ofSize: 22, weight: .medium), souligné: true, action: #selector(toggleSouligne)); ajouter(bU); btnSouligne = bU
             let bS = boutonTexte("S", font: .systemFont(ofSize: 22, weight: .medium), barre: true, action: #selector(toggleBarré)); ajouter(bS); btnBarre = bS
+					separateur()
+					ajouter(boutonSF("return",                         action: #selector(sautDeLigneToolbar)))
             separateur()
             let bR = boutonCercle(.systemRed,    action: #selector(colorRouge));   ajouter(bR); btnRouge  = bR
             let bB = boutonCercle(.systemBlue,   action: #selector(colorBleu));    ajouter(bB); btnBleu   = bB
@@ -505,6 +514,16 @@ struct RichTextEditor: UIViewRepresentable {
             actionToolbarEnCours = false
             tv?.resignFirstResponder()
         }
+        @objc func sautDeLigneToolbar() {
+            actionToolbarEnCours = false
+            saisieSautDeLigne = true
+            tv?.insertText("\n")
+        }
+        @objc func coller() {
+            actionToolbarEnCours = false
+            tv?.paste(nil)
+        }
+
         @objc func toggleGras()       { appliquerStyle(.bold) }
         @objc func toggleItalique()   { appliquerStyle(.italic) }
         @objc func toggleSouligne()   { appliquerStyle(.underline) }
@@ -674,6 +693,8 @@ struct RichTextEditor: UIViewRepresentable {
             setActifCouleur(btnBleu,   actif: couleur == "bleu")
             setActifCouleur(btnOrange, actif: couleur == "orange")
             setActifCouleur(btnViolet, actif: couleur == "violet")
+
+            setActifSF(btnColler, actif: UIPasteboard.general.hasStrings, nom: "doc.on.clipboard")
         }
 
         private func setActifTexte(_ btn: UIButton?, actif: Bool, font: UIFont, souligne: Bool = false, barre: Bool = false) {
