@@ -187,6 +187,7 @@ struct DocumentView: View {
     @State private var showingBlocPicker = false
     @State private var editMode: EditMode = .inactive
     @State private var focusTitre = false
+    @State private var titreDansNavBar = false
 
     var onDisparaitre: (() -> Void)? = nil
 
@@ -295,11 +296,23 @@ struct DocumentView: View {
                 .deleteDisabled(true)
         }
         .listStyle(.plain)
+        .onScrollGeometryChange(for: CGFloat.self) { geo in
+            geo.contentOffset.y + geo.contentInsets.top
+        } action: { _, offset in
+            withAnimation(.easeInOut(duration: 0.15)) { titreDansNavBar = offset > 60 }
+        }
         .scrollDismissesKeyboard(.interactively)
         .environment(\.editMode, $editMode)
-        .navigationTitle(vm.titre.isEmpty ? "Sans titre" : vm.titre)
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text(vm.titre.isEmpty ? "Sans titre" : vm.titre)
+                    .font(.headline)
+                    .opacity(titreDansNavBar ? 1 : 0)
+                    .offset(y: titreDansNavBar ? 0 : 8)
+                    .animation(.easeOut(duration: 0.2), value: titreDansNavBar)
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     withAnimation { editMode = editMode == .active ? .inactive : .active }
