@@ -70,13 +70,22 @@ func spansVersNSAttributed(_ spans: [InlineTextFfi], police: UIFont) -> NSAttrib
 func nsAttributedVersSpans(_ attrStr: NSAttributedString, police: UIFont) -> [InlineTextFfi] {
     guard !attrStr.string.isEmpty else { return [] }
     var spans: [InlineTextFfi] = []
+    let traitsBase = police.fontDescriptor.symbolicTraits
+    let baseEstBold = traitsBase.contains(.traitBold)
+    let baseEstItalic = traitsBase.contains(.traitItalic)
     attrStr.enumerateAttributes(in: NSRange(location: 0, length: attrStr.length)) { attrs, range, _ in
         let texte = (attrStr.string as NSString).substring(with: range)
         guard !texte.isEmpty else { return }
         var styles: [InlineStyleFfi] = []
-        // Attributs custom fiables (priorité sur les traits de police)
-        if (attrs[.chaqaqBold]   as? Bool) == true { styles.append(.bold) }
-        if (attrs[.chaqaqItalic] as? Bool) == true { styles.append(.italic) }
+        let fontTraits = (attrs[.font] as? UIFont)?.fontDescriptor.symbolicTraits ?? []
+        let boldCustom = (attrs[.chaqaqBold] as? Bool) == true
+        let italicCustom = (attrs[.chaqaqItalic] as? Bool) == true
+        let boldParFonte = fontTraits.contains(.traitBold) && !baseEstBold
+        let italicParFonte = fontTraits.contains(.traitItalic) && !baseEstItalic
+        let italicParObliqueness = attrs[.chaqaqObliqueness] != nil && !baseEstItalic
+
+        if boldCustom || boldParFonte { styles.append(.bold) }
+        if italicCustom || italicParFonte || italicParObliqueness { styles.append(.italic) }
         if (attrs[.underlineStyle]     as? Int) != nil { styles.append(.underline) }
         if (attrs[.strikethroughStyle] as? Int) != nil { styles.append(.strikethrough) }
         if let nom = attrs[.chaqaqColor] as? String    { styles.append(.color(nom)) }
