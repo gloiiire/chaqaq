@@ -584,6 +584,7 @@ private struct DocumentDecorView: View {
     let onImageFichier: (URL) -> Void
     let onIcone: (String?) -> Void
     @State private var photoSelection: PhotosPickerItem?
+    @State private var photosPickerOuvert = false
     @State private var fichierOuvert = false
     @State private var emojiPickerOuvert = false
 
@@ -629,6 +630,7 @@ private struct DocumentDecorView: View {
             }
         }
         .containerRelativeFrame(.horizontal, alignment: .leading)
+        .photosPicker(isPresented: $photosPickerOuvert, selection: $photoSelection, matching: .images)
         .fileImporter(isPresented: $fichierOuvert, allowedContentTypes: [.image]) { result in
             if case .success(let url) = result {
                 onImageFichier(url)
@@ -683,7 +685,9 @@ private struct DocumentDecorView: View {
 
     @ViewBuilder
     private var coverMenuContenu: some View {
-        PhotosPicker(selection: $photoSelection, matching: .images) {
+        Button {
+            photosPickerOuvert = true
+        } label: {
             Label("Choisir dans Photos", systemImage: "photo.on.rectangle")
         }
         Button {
@@ -710,15 +714,15 @@ private struct DocumentDecorView: View {
         } label: {
             Label("Tous les emojis", systemImage: "face.smiling")
         }
+        Divider()
+        ForEach(icones, id: \.self) { emoji in
+            Button(emoji) { onIcone(emoji) }
+        }
         if icone != nil {
             Divider()
             Button(role: .destructive) { onIcone(nil) } label: {
                 Label("Retirer l’icône", systemImage: "trash")
             }
-        }
-        Divider()
-        ForEach(icones, id: \.self) { emoji in
-            Button(emoji) { onIcone(emoji) }
         }
     }
 

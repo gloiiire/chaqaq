@@ -321,7 +321,23 @@ struct RichTextEditor: UIViewRepresentable {
         private weak var btnViolet: UIButton?
         private weak var btnColler: UIButton?
 
-        init(parent: RichTextEditor) { self.parent = parent }
+        init(parent: RichTextEditor) {
+            self.parent = parent
+            super.init()
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(paPressePapierChange),
+                name: UIPasteboard.changedNotification,
+                object: nil)
+        }
+
+        @objc private func paPressePapierChange() {
+            DispatchQueue.main.async { [weak self] in self?.mettreAJourBoutonColler() }
+        }
+
+        private func mettreAJourBoutonColler() {
+            setActifSF(btnColler, actif: UIPasteboard.general.hasStrings, nom: "doc.on.clipboard")
+        }
 
         @objc func handleLongPressSelection(_ gesture: UILongPressGestureRecognizer) {
             guard gesture.state == .began else { return }
@@ -734,7 +750,7 @@ struct RichTextEditor: UIViewRepresentable {
             setActifCouleur(btnOrange, actif: couleur == "orange")
             setActifCouleur(btnViolet, actif: couleur == "violet")
 
-            setActifSF(btnColler, actif: UIPasteboard.general.hasStrings, nom: "doc.on.clipboard")
+            mettreAJourBoutonColler()
         }
 
         private func setActifTexte(_ btn: UIButton?, actif: Bool, font: UIFont, souligne: Bool = false, barre: Bool = false) {
