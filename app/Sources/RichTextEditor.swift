@@ -99,13 +99,17 @@ func nsAttributedVersSpans(_ attrStr: NSAttributedString, police: UIFont) -> [In
 
 func uiCouleurDepuisNom(_ nom: String) -> UIColor {
     switch nom.lowercased() {
-    case "rouge", "red":     return .systemRed
-    case "bleu", "blue":     return .systemBlue
-    case "vert", "green":    return .systemGreen
-    case "orange":           return .systemOrange
-    case "violet", "purple": return .systemPurple
-    case "gris", "gray":     return .systemGray
-    default:                 return .label
+    case "rouge", "red":             return .systemRed
+    case "rose", "pink":             return .systemPink
+    case "orange":                   return .systemOrange
+    case "jaune", "yellow":          return .systemYellow
+    case "vert", "green":            return .systemGreen
+    case "cyan", "menthe", "mint":   return .cyan
+    case "bleu", "blue":             return .systemBlue
+    case "violet", "purple":         return .systemPurple
+    case "marron", "brown":          return .brown
+    case "gris", "gray":             return .systemGray
+    default:                         return .label
     }
 }
 
@@ -309,16 +313,18 @@ struct RichTextEditor: UIViewRepresentable {
         var enCoursDeSupression = false
         var saisieSautDeLigne = false
         var derniereSelection = NSRange(location: 0, length: 0)
+        // Couleur appliquée à la frappe sans sélection : UIKit réinitialise
+        // typingAttributes après chaque caractère (et le menu fait perdre le first
+        // responder), donc on la ré-applique à chaque insertion. Reste active tant
+        // que l'utilisateur ne la désactive pas (re-toggle ou « Aucune »).
+        private var couleurEnAttente: String? = nil
         private var actionToolbarEnCours = false
         private var generationSelection = 0
         private weak var btnGras: UIButton?
         private weak var btnItalique: UIButton?
         private weak var btnSouligne: UIButton?
         private weak var btnBarre: UIButton?
-        private weak var btnRouge: UIButton?
-        private weak var btnBleu: UIButton?
-        private weak var btnOrange: UIButton?
-        private weak var btnViolet: UIButton?
+        private weak var btnCouleur: UIButton?
         private weak var btnColler: UIButton?
 
         init(parent: RichTextEditor) {
@@ -418,6 +424,12 @@ struct RichTextEditor: UIViewRepresentable {
                 parent.onNewBlock?(apres)
                 return false
             }
+            // Couleur de frappe : UIKit réinitialise typingAttributes après chaque
+            // caractère, on la ré-injecte juste avant l'insertion.
+            if !text.isEmpty, text != "\n", let nom = couleurEnAttente {
+                tv.typingAttributes[.foregroundColor] = uiCouleurDepuisNom(nom)
+                tv.typingAttributes[.chaqaqColor]     = nom
+            }
             return true
         }
 
@@ -496,21 +508,11 @@ struct RichTextEditor: UIViewRepresentable {
                 return b
             }
 
-            func boutonCercle(_ couleur: UIColor, action: Selector) -> UIButton {
-                let b   = UIButton(type: .custom)
-                let cfg = UIImage.SymbolConfiguration(pointSize: 22, weight: .regular)
-                b.setImage(
-                    UIImage(systemName: "circle.fill", withConfiguration: cfg)?
-                        .withTintColor(couleur, renderingMode: .alwaysOriginal),
-                    for: .normal)
-                b.addTarget(self, action: #selector(capturerSelectionAvantToolbar), for: .touchDown)
-                b.addTarget(self, action: action, for: .touchUpInside)
-                return b
-            }
+            let tailleIcone: CGFloat = 22
 
-            func boutonSF(_ nom: String, action: Selector) -> UIButton {
+            func boutonSF(_ nom: String, taille: CGFloat = tailleIcone, action: Selector) -> UIButton {
                 let b   = UIButton(type: .custom)
-                let cfg = UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)
+                let cfg = UIImage.SymbolConfiguration(pointSize: taille, weight: .medium)
                 b.setImage(
                     UIImage(systemName: nom, withConfiguration: cfg)?
                         .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal),
@@ -543,16 +545,20 @@ struct RichTextEditor: UIViewRepresentable {
             separateur()
 
             let bG = boutonTexte("B", font: .systemFont(ofSize: 22, weight: .heavy), action: #selector(toggleGras)); ajouter(bG); btnGras = bG
-            let bI = boutonSF("italic",         action: #selector(toggleItalique)); ajouter(bI); btnItalique = bI
+            let bI = boutonSF("italic",        taille: 22, action: #selector(toggleItalique)); ajouter(bI); btnItalique = bI
             let bU = boutonTexte("U", font: .systemFont(ofSize: 22, weight: .medium), souligné: true, action: #selector(toggleSouligne)); ajouter(bU); btnSouligne = bU
-            let bS = boutonSF("strikethrough",  action: #selector(toggleBarré));    ajouter(bS); btnBarre = bS
+            let bS = boutonSF("strikethrough", taille: 22, action: #selector(toggleBarré));    ajouter(bS); btnBarre = bS
             separateur()
             ajouter(boutonSF("return", action: #selector(sautDeLigneToolbar)))
             separateur()
-            let bR = boutonCercle(.systemRed,    action: #selector(colorRouge));   ajouter(bR); btnRouge  = bR
-            let bB = boutonCercle(.systemBlue,   action: #selector(colorBleu));    ajouter(bB); btnBleu   = bB
-            let bO = boutonCercle(.systemOrange, action: #selector(colorOrange));  ajouter(bO); btnOrange = bO
-            let bV = boutonCercle(.systemPurple, action: #selector(colorViolet));  ajouter(bV); btnViolet = bV
+            let bCouleur = UIButton(type: .custom)
+            bCouleur.showsMenuAsPrimaryAction = true
+            bCouleur.menu = menuCouleurs(actuelle: nil)
+            bCouleur.addTarget(self, action: #selector(capturerSelectionAvantToolbar), for: .touchDown)
+            let cfgH = UIImage.SymbolConfiguration(pointSize: tailleIcone, weight: .medium)
+            bCouleur.setImage(UIImage(systemName: "highlighter", withConfiguration: cfgH)?
+                .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal), for: .normal)
+            ajouter(bCouleur); btnCouleur = bCouleur
             separateur()
             ajouter(boutonSF("keyboard.chevron.compact.down", action: #selector(dispenserClavier)))
 
@@ -563,6 +569,7 @@ struct RichTextEditor: UIViewRepresentable {
         @objc func capturerSelectionAvantToolbar() {
             actionToolbarEnCours = true
             guard let tv else { return }
+            if tv.selectedRange.length == 0 { viderSelectionMemorisee() }
             memoriserSelection(tv.selectedRange, longueur: tv.attributedText.length)
         }
 
@@ -584,10 +591,34 @@ struct RichTextEditor: UIViewRepresentable {
         @objc func toggleItalique()   { appliquerStyle(.italic) }
         @objc func toggleSouligne()   { appliquerStyle(.underline) }
         @objc func toggleBarré()      { appliquerStyle(.strikethrough) }
-        @objc func colorRouge()       { appliquerStyle(.color("rouge")) }
-        @objc func colorBleu()        { appliquerStyle(.color("bleu")) }
-        @objc func colorOrange()      { appliquerStyle(.color("orange")) }
-        @objc func colorViolet()      { appliquerStyle(.color("violet")) }
+        private func appliquerCouleurNom(_ nom: String) { appliquerStyle(.color(nom)) }
+
+        private func supprimerCouleur() {
+            defer { actionToolbarEnCours = false }
+            guard let tv, let attr = tv.attributedText else { return }
+            let range = selectionPourToolbar(selectionActuelle: tv.selectedRange, longueur: attr.length)
+            guard range.length > 0 else {
+                var attrs = tv.typingAttributes
+                attrs.removeValue(forKey: .chaqaqColor)
+                attrs[.foregroundColor] = UIColor.label
+                tv.typingAttributes = attrs
+                couleurEnAttente = nil
+                mettreAJourToolbar()
+                viderSelectionMemorisee()
+                _ = tv.becomeFirstResponder()
+                return
+            }
+            let m = NSMutableAttributedString(attributedString: attr)
+            m.removeAttribute(.chaqaqColor, range: range)
+            m.addAttribute(.foregroundColor, value: UIColor.label, range: range)
+            tv.textStorage.beginEditing()
+            tv.textStorage.setAttributedString(m)
+            tv.textStorage.endEditing()
+            tv.selectedRange = range
+            memoriserSelection(range, longueur: m.length)
+            sauvegarder(nsAttributedVersSpans(tv.attributedText, police: parent.baseFont))
+            mettreAJourToolbar()
+        }
 
         private func appliquerStyle(_ style: InlineStyleFfi) {
             defer { actionToolbarEnCours = false }
@@ -690,9 +721,11 @@ struct RichTextEditor: UIViewRepresentable {
                 if (attrs[.chaqaqColor] as? String) == nom {
                     attrs.removeValue(forKey: .chaqaqColor)
                     attrs[.foregroundColor] = UIColor.label
+                    couleurEnAttente = nil
                 } else {
                     attrs[.foregroundColor] = uiCouleurDepuisNom(nom)
                     attrs[.chaqaqColor]     = nom
+                    couleurEnAttente = nom
                 }
             default: break
             }
@@ -738,17 +771,16 @@ struct RichTextEditor: UIViewRepresentable {
                 italic   = attrsContiennentItalic(attrs)
                 underline = attrs[.underlineStyle]     != nil
                 strike   = attrs[.strikethroughStyle]  != nil
-                couleur  = attrs[.chaqaqColor] as? String
+                // couleurEnAttente prime : typingAttributes est réinitialisé par
+                // textViewDidBeginEditing après le menu, mais le mode frappe reste actif.
+                couleur  = couleurEnAttente ?? (attrs[.chaqaqColor] as? String)
             }
 
             setActifTexte(btnGras,     actif: bold,      font: .systemFont(ofSize: 22, weight: .heavy))
-            setActifSF(btnItalique,    actif: italic,    nom: "italic")
+            setActifSF(btnItalique,    actif: italic,    nom: "italic",         taille: 22)
             setActifTexte(btnSouligne, actif: underline, font: .systemFont(ofSize: 22, weight: .medium), souligne: true)
-            setActifSF(btnBarre,       actif: strike,    nom: "strikethrough")
-            setActifCouleur(btnRouge,  actif: couleur == "rouge")
-            setActifCouleur(btnBleu,   actif: couleur == "bleu")
-            setActifCouleur(btnOrange, actif: couleur == "orange")
-            setActifCouleur(btnViolet, actif: couleur == "violet")
+            setActifSF(btnBarre,       actif: strike,    nom: "strikethrough",  taille: 22)
+            mettreAJourBoutonCouleur(couleur)
 
             mettreAJourBoutonColler()
         }
@@ -764,16 +796,55 @@ struct RichTextEditor: UIViewRepresentable {
             btn.setAttributedTitle(NSAttributedString(string: str, attributes: a), for: .highlighted)
         }
 
-        private func setActifSF(_ btn: UIButton?, actif: Bool, nom: String) {
+        private func setActifSF(_ btn: UIButton?, actif: Bool, nom: String, taille: CGFloat = 22) {
             guard let btn else { return }
             let c: UIColor = actif ? (UIColor(named: "Accent") ?? .tintColor) : .secondaryLabel
-            let cfg = UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)
+            let cfg = UIImage.SymbolConfiguration(pointSize: taille, weight: .medium)
             btn.setImage(UIImage(systemName: nom, withConfiguration: cfg)?
                 .withTintColor(c, renderingMode: .alwaysOriginal), for: .normal)
         }
 
-        private func setActifCouleur(_ btn: UIButton?, actif: Bool) {
-            btn?.alpha = actif ? 1.0 : 0.45
+        private func menuCouleurs(actuelle: String?) -> UIMenu {
+            let palette: [(String, UIColor, String)] = [
+                ("rouge",  .systemRed,    "Rouge"),
+                ("rose",   .systemPink,   "Rose"),
+                ("orange", .systemOrange, "Orange"),
+                ("jaune",  .systemYellow, "Jaune"),
+                ("vert",   .systemGreen,  "Vert"),
+                ("cyan",   .cyan,         "Cyan"),
+                ("bleu",   .systemBlue,   "Bleu"),
+                ("violet", .systemPurple, "Violet"),
+                ("marron", .brown,        "Marron"),
+            ]
+            let cfgDot = UIImage.SymbolConfiguration(pointSize: 12, weight: .regular)
+            let cfgX   = UIImage.SymbolConfiguration(pointSize: 12, weight: .medium)
+
+            let aucune = UIAction(
+                title: "Aucune",
+                image: UIImage(systemName: "xmark", withConfiguration: cfgX)
+            ) { [weak self] _ in self?.supprimerCouleur() }
+            if actuelle == nil { aucune.state = .on }
+
+            let items = palette.map { (nom, couleur, label) -> UIAction in
+                let img = UIImage(systemName: "circle.fill", withConfiguration: cfgDot)?
+                    .withTintColor(couleur, renderingMode: .alwaysOriginal)
+                let action = UIAction(title: label, image: img) { [weak self] _ in
+                    self?.appliquerCouleurNom(nom)
+                }
+                if actuelle == nom { action.state = .on }
+                return action
+            }
+            return UIMenu(title: "", children: [aucune] + items)
+        }
+
+        private func mettreAJourBoutonCouleur(_ actuelle: String?) {
+            guard let btn = btnCouleur else { return }
+            let nomIcone = actuelle != nil ? "highlighter.badge.ellipsis" : "highlighter"
+            let c: UIColor = actuelle.map { uiCouleurDepuisNom($0) } ?? .secondaryLabel
+            let cfg = UIImage.SymbolConfiguration(pointSize: 22, weight: .medium)
+            btn.setImage(UIImage(systemName: nomIcone, withConfiguration: cfg)?
+                .withTintColor(c, renderingMode: .alwaysOriginal), for: .normal)
+            btn.menu = menuCouleurs(actuelle: actuelle)
         }
 
         private func viderSelectionMemorisee() {

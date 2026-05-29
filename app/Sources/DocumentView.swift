@@ -49,6 +49,7 @@ final class DocumentViewModel: ObservableObject {
     @Published var erreur: String?
     @Published var autoFocusId: String?
     @Published var autoFocusOffset: Int? = nil
+    var idBlocActif: String? = nil
     private var idBlocFocuse: String? = nil
     private var navTimer: Timer?
     var navEnRepetition: Bool { navTimer != nil }
@@ -277,6 +278,7 @@ struct DocumentView: View {
     @State private var documentIcone: String?
     @State private var emojisRecents: [String]
     @State private var blocsSelectionnes: Set<String> = []
+    @State private var clavierVisible = false
     private let verrouillageKey: String
     private let iconeKey: String
 
@@ -405,7 +407,8 @@ struct DocumentView: View {
                             vm.demarrerNavRepetition(depuis: nid, suivant: true)
                         },
                         onNavRepeterArreter: { vm.stopNavRepetition() },
-                        onLongPressSelection: { selectionnerBlocDepuisPressionLongue(bloc.id) }
+                        onLongPressSelection: { selectionnerBlocDepuisPressionLongue(bloc.id) },
+                        onFocus: { vm.idBlocActif = bloc.id }
                     )
                     .disabled(documentVerrouille || editMode == .active)
                     .allowsHitTesting(!documentVerrouille && editMode != .active)
@@ -507,10 +510,16 @@ struct DocumentView: View {
                 .disabled(documentVerrouille)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            withAnimation(.easeInOut(duration: 0.2)) { clavierVisible = true }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            withAnimation(.easeInOut(duration: 0.2)) { clavierVisible = false }
+        }
         .onAppear { vm.charger() }
         .onDisappear { vm.sauvegarderTitre(); onDisparaitre?() }
         .sheet(isPresented: $showingBlocPicker) {
-            BlocPickerSheet { type in vm.ajouterBloc(type: type) }
+            BlocPickerSheet { type in vm.ajouterBloc(type: type, apresId: vm.idBlocActif) }
         }
         .alert("Erreur", isPresented: Binding(
             get: { vm.erreur != nil },
@@ -521,10 +530,11 @@ struct DocumentView: View {
             Text(vm.erreur ?? "")
         }
 
-        if !documentVerrouille && editMode == .inactive {
+        if !documentVerrouille && editMode == .inactive && !clavierVisible {
             BoutonActionDoc { showingBlocPicker = true }
                 .padding(.trailing, 24)
                 .padding(.bottom, 32)
+                .transition(.scale.combined(with: .opacity))
         }
         } // fin ZStack
     }
@@ -1046,6 +1056,7 @@ private struct BlocRowView: View {
     var onNaviguerSuivant: (() -> Void)?
     var onNavRepeterArreter: (() -> Void)?
     var onLongPressSelection: (() -> Void)?
+    var onFocus: (() -> Void)?
 
     var body: some View {
         Group {
@@ -1058,7 +1069,8 @@ private struct BlocRowView: View {
                              onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
                              onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
                              onNavRepeterArreter: onNavRepeterArreter,
-                             onLongPressSelection: onLongPressSelection)
+                             onLongPressSelection: onLongPressSelection,
+                             onFocus: onFocus)
             case .heading(let level, _):
                 HeadingRowView(bloc: $bloc, level: level, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
                                onSauvegarder: onSauvegarder,
@@ -1067,7 +1079,8 @@ private struct BlocRowView: View {
                                onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
                                onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
                                onNavRepeterArreter: onNavRepeterArreter,
-                               onLongPressSelection: onLongPressSelection)
+                               onLongPressSelection: onLongPressSelection,
+                               onFocus: onFocus)
             case .quote(let icon, _):
                 if icon.isEmpty {
                     CitationRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
@@ -1077,7 +1090,8 @@ private struct BlocRowView: View {
                                     onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
                                     onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
                                     onNavRepeterArreter: onNavRepeterArreter,
-                                    onLongPressSelection: onLongPressSelection)
+                                    onLongPressSelection: onLongPressSelection,
+                                    onFocus: onFocus)
                 } else {
                     CalloutRowView(bloc: $bloc, icon: icon, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
                                    onSauvegarder: onSauvegarder,
@@ -1086,7 +1100,8 @@ private struct BlocRowView: View {
                                    onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
                                    onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
                                    onNavRepeterArreter: onNavRepeterArreter,
-                                   onLongPressSelection: onLongPressSelection)
+                                   onLongPressSelection: onLongPressSelection,
+                                   onFocus: onFocus)
                 }
             case .todo:
                 TodoRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
@@ -1096,7 +1111,8 @@ private struct BlocRowView: View {
                             onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
                             onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
                             onNavRepeterArreter: onNavRepeterArreter,
-                            onLongPressSelection: onLongPressSelection)
+                            onLongPressSelection: onLongPressSelection,
+                            onFocus: onFocus)
             case .divider:
                 Divider().padding(.vertical, 12)
             default:
@@ -1126,6 +1142,7 @@ private struct TexteRowView: View {
     var onNaviguerSuivant: (() -> Void)?
     var onNavRepeterArreter: (() -> Void)?
     var onLongPressSelection: (() -> Void)?
+    var onFocus: (() -> Void)?
     @State private var focused = false
     @State private var cursorAt: Int?
 
@@ -1148,6 +1165,7 @@ private struct TexteRowView: View {
             onNavRepeterArreter: onNavRepeterArreter)
         .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId,
                               autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
+        .onChange(of: focused) { _, f in if f { onFocus?() } }
     }
 }
 
@@ -1167,6 +1185,7 @@ private struct HeadingRowView: View {
     var onNaviguerSuivant: (() -> Void)?
     var onNavRepeterArreter: (() -> Void)?
     var onLongPressSelection: (() -> Void)?
+    var onFocus: (() -> Void)?
     @State private var focused = false
     @State private var cursorAt: Int?
 
@@ -1199,6 +1218,7 @@ private struct HeadingRowView: View {
         .padding(.bottom, 4)
         .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId,
                               autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
+        .onChange(of: focused) { _, f in if f { onFocus?() } }
     }
 }
 
@@ -1217,6 +1237,7 @@ private struct CitationRowView: View {
     var onNaviguerSuivant: (() -> Void)?
     var onNavRepeterArreter: (() -> Void)?
     var onLongPressSelection: (() -> Void)?
+    var onFocus: (() -> Void)?
     @State private var focused = false
     @State private var cursorAt: Int?
 
@@ -1247,6 +1268,7 @@ private struct CitationRowView: View {
         .padding(.vertical, 4)
         .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId,
                               autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
+        .onChange(of: focused) { _, f in if f { onFocus?() } }
     }
 }
 
@@ -1266,6 +1288,7 @@ private struct CalloutRowView: View {
     var onNaviguerSuivant: (() -> Void)?
     var onNavRepeterArreter: (() -> Void)?
     var onLongPressSelection: (() -> Void)?
+    var onFocus: (() -> Void)?
     @State private var focused = false
     @State private var cursorAt: Int?
     @State private var emojiPickerOuvert = false
@@ -1314,6 +1337,7 @@ private struct CalloutRowView: View {
         .padding(.vertical, 8)
         .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId,
                               autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
+        .onChange(of: focused) { _, f in if f { onFocus?() } }
         .sheet(isPresented: $emojiPickerOuvert) {
             EmojiPickerSheet(selection: icon, recents: emojisRecents) { emoji in
                 bloc.content = .quote(icon: emoji, text: bloc.spans)
@@ -1340,6 +1364,7 @@ private struct TodoRowView: View {
     var onNaviguerSuivant: (() -> Void)?
     var onNavRepeterArreter: (() -> Void)?
     var onLongPressSelection: (() -> Void)?
+    var onFocus: (() -> Void)?
     @State private var focused = false
     @State private var cursorAt: Int?
 
@@ -1380,6 +1405,7 @@ private struct TodoRowView: View {
         .padding(.vertical, 2)
         .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId,
                               autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
+        .onChange(of: focused) { _, f in if f { onFocus?() } }
     }
 }
 
