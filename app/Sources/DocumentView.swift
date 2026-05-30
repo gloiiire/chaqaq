@@ -706,7 +706,7 @@ private struct DocumentDecorView: View {
         Menu {
             coverMenuContenu
         } label: {
-            Label(cover == nil ? "Ajouter une cover" : "Changer la cover", systemImage: "photo")
+            Label(cover == nil ? "Ajouter une couverture" : "Changer la couverture", systemImage: "photo")
         }
     }
 
@@ -737,7 +737,7 @@ private struct DocumentDecorView: View {
         if cover != nil {
             Divider()
             Button(role: .destructive) { onCouverture(nil) } label: {
-                Label("Retirer la cover", systemImage: "trash")
+                Label("Retirer la couverture", systemImage: "trash")
             }
         }
     }

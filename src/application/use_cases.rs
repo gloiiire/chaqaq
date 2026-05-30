@@ -58,7 +58,7 @@ pub fn update_document_cover(
 
 // ── Bridge EditorState → Block ────────────────────────────────────────────────
 
-/// Applique le content de l'éditeur sur un bloc textuel et persiste le document.
+/// Applique le contenu de l'éditeur sur un bloc textuel et persiste le document.
 /// Retourne InvalidOperation si le bloc ne porte pas de texte (Divider, Database…).
 pub fn save_edited_block(
     repo: &dyn DocumentRepository,
@@ -96,7 +96,7 @@ pub fn save_edited_block(
 
 // ── Gestion des blocs ─────────────────────────────────────────────────────────
 
-/// Remplace le content d'un bloc existant (toggle todo, changement de type…).
+/// Remplace le contenu d'un bloc existant (toggle todo, changement de type…).
 pub fn update_block(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
@@ -285,7 +285,7 @@ pub fn move_block(
 
 // ── Recherche plein texte ─────────────────────────────────────────────────────
 
-/// Recherche insensible à la casse dans le content textuel des blocs de tous les documents.
+/// Recherche insensible à la casse dans le contenu textuel des blocs de tous les documents.
 /// Retourne les métadonnées des documents qui contiennent au moins un bloc correspondant.
 pub fn search_in_blocks(
     repo: &dyn DocumentRepository,

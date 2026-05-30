@@ -389,7 +389,7 @@ struct RichTextEditor: UIViewRepresentable {
         }
 
         func textView(_ tv: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
-            // Backspace sur block vide → supprimer le block
+            // Backspace sur bloc vide → supprimer le bloc
             if text.isEmpty, range == NSRange(location: 0, length: 0), tv.text.isEmpty {
                 isDeleting = true
                 DispatchQueue.main.async { [weak self] in self?.parent.onDeleteBloc?() }
@@ -412,7 +412,7 @@ struct RichTextEditor: UIViewRepresentable {
                     shiftEnterTyped = false
                     return true
                 }
-                // Enter normal : couper le block et en créer un new.
+                // Enter normal : couper le bloc et en créer un nouveau.
                 // On conserve les attributs (couleur, gras…) de la portion après le curseur.
                 let debutApres = range.location + range.length
                 let attrAvant = tv.attributedText.attributedSubstring(

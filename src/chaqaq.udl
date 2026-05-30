@@ -61,12 +61,12 @@ interface ChaqaqApi {
     [Throws=ChaqaqError]
     void update_document_cover(string id, string? cover);
 
-    /// Ajoute un bloc ; le content est passé en JSON (BlockContent sérialisé).
+    /// Ajoute un bloc ; le contenu est passé en JSON (BlockContent sérialisé).
     /// Retourne le document mis à jour en JSON.
     [Throws=ChaqaqError]
     string add_block(string doc_id, string block_content_json);
 
-    /// Remplace le content d'un bloc existant (JSON de BlockContent).
+    /// Remplace le contenu d'un bloc existant (JSON de BlockContent).
     [Throws=ChaqaqError]
     void update_block(string doc_id, string block_id, string content_json);
 
@@ -77,7 +77,7 @@ interface ChaqaqApi {
     [Throws=ChaqaqError]
     void reorder_blocks(string doc_id, sequence<string> order);
 
-    /// Ajoute un bloc enfant ; le content est passé en JSON (BlockContent sérialisé).
+    /// Ajoute un bloc enfant ; le contenu est passé en JSON (BlockContent sérialisé).
     [Throws=ChaqaqError]
     string add_child_block(string doc_id, string parent_id, string block_content_json);
 
