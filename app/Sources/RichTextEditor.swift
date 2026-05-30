@@ -97,6 +97,22 @@ func attributedToSpans(_ attrStr: NSAttributedString, police: UIFont) -> [Inline
     return spans
 }
 
+/// Convertit un raccourci markdown (à la Notion) en `BlockContentFfi`.
+/// Retourne `nil` si la chaîne n'est pas un raccourci reconnu.
+/// Pur, testable indépendamment de la couche UI.
+func markdownShortcut(for text: String) -> BlockContentFfi? {
+    switch text {
+    case "# ":          return .heading(level: 1, text: [])
+    case "## ":         return .heading(level: 2, text: [])
+    case "### ":        return .heading(level: 3, text: [])
+    case "> ":          return .quote(icon: "", text: [])
+    case "!! ":         return .quote(icon: "💡", text: [])
+    case "[ ] ", "[] ": return .todo(done: false, text: [])
+    case "---":         return .divider
+    default:            return nil
+    }
+}
+
 func uiColorFromName(_ nom: String) -> UIColor {
     switch nom.lowercased() {
     case "rouge", "red":             return .systemRed
@@ -448,15 +464,9 @@ struct RichTextEditor: UIViewRepresentable {
         func textViewDidChange(_ tv: UITextView) {
             let text = tv.text ?? ""
 
-            switch text {
-            case "# ":          parent.onConvert?(.heading(level: 1, text: [])); return
-            case "## ":         parent.onConvert?(.heading(level: 2, text: [])); return
-            case "### ":        parent.onConvert?(.heading(level: 3, text: [])); return
-            case "> ":          parent.onConvert?(.quote(icon: "", text: []));   return
-            case "!! ":         parent.onConvert?(.quote(icon: "💡", text: [])); return
-            case "[ ] ", "[] ": parent.onConvert?(.todo(done: false, text: [])); return
-            case "---":         parent.onConvert?(.divider);                     return
-            default: break
+            if let shortcut = markdownShortcut(for: text) {
+                parent.onConvert?(shortcut)
+                return
             }
 
             parent.spans = attributedToSpans(tv.attributedText, police: parent.baseFont)
