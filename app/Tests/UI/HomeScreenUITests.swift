@@ -30,6 +30,18 @@ final class HomeScreenUITests: XCTestCase {
         // La sheet de création doit afficher "Nouveau document".
         XCTAssertTrue(app.staticTexts["Nouveau document"].waitForExistence(timeout: 3))
     }
+
+    func testCancelCreateSheetClosesIt() {
+        let app = XCUIApplication()
+        app.launch()
+        let fab = app.buttons["createDocumentFAB"]
+        XCTAssertTrue(fab.waitForExistence(timeout: 3))
+        fab.tap()
+        let cancel = app.buttons["Annuler"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 1))
+        cancel.tap()
+        XCTAssertFalse(app.staticTexts["Nouveau document"].waitForExistence(timeout: 1))
+    }
 }
 
 private extension XCUIElementQuery {
