@@ -81,9 +81,9 @@
 		360E322DAC690D96965C457C /* DocumentApiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentApiTests.swift; sourceTree = "<group>"; };
 		3AED1172713AB546EE500CB4 /* FontHelpersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontHelpersTests.swift; sourceTree = "<group>"; };
 		3B9DFCD117F0D67067513AF4 /* MarkdownShortcutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownShortcutTests.swift; sourceTree = "<group>"; };
-		4029840F37F43A8D8340DFFD /* ChaqaqTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ChaqaqTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4029840F37F43A8D8340DFFD /* ChaqaqTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChaqaqTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		432A43577995128EAF0870EF /* AttributedRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttributedRoundTripTests.swift; sourceTree = "<group>"; };
-		4422FAB015F50295362A6D42 /* ChaqaqIntegrationTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ChaqaqIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4422FAB015F50295362A6D42 /* ChaqaqIntegrationTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChaqaqIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		468510DC930C6616110EE478 /* RichTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextEditor.swift; sourceTree = "<group>"; };
 		4DFA7B8AEE36EB632DBD0166 /* BlockPickerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockPickerUITests.swift; sourceTree = "<group>"; };
 		57832BB85495E1DBBAC6C32D /* ColorPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorPersistenceTests.swift; sourceTree = "<group>"; };
@@ -93,7 +93,7 @@
 		6A3054081BFBDCD9AFC2D855 /* ChaqaqApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChaqaqApp.swift; sourceTree = "<group>"; };
 		6FD048133513A5E55DEE58E3 /* DocumentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentView.swift; sourceTree = "<group>"; };
 		7B37195EE5E973F6B64A028A /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
-		81B9A0DC80F9A91D0EC3FAA8 /* ChaqaqUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ChaqaqUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		81B9A0DC80F9A91D0EC3FAA8 /* ChaqaqUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChaqaqUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		84B9F747EEE2F9A259B0D72E /* DatabaseEntitiesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseEntitiesTests.swift; sourceTree = "<group>"; };
 		8B6B5EA5219F0422733302C5 /* DatabaseApiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseApiTests.swift; sourceTree = "<group>"; };
 		8D29F1324B9C40EC592CF5FB /* SeededDataUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeededDataUITests.swift; sourceTree = "<group>"; };
@@ -105,7 +105,7 @@
 		BB5EBAC510475F3D4181D142 /* HelpersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpersTests.swift; sourceTree = "<group>"; };
 		BE9CD40AE5421DE56199DAB9 /* BlockOpsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockOpsTests.swift; sourceTree = "<group>"; };
 		C0EE9738ADE609486CB8D9AE /* SwipeDeleteUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeDeleteUITests.swift; sourceTree = "<group>"; };
-		C27BE87CC9C7794976F2B588 /* Chaqaq.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Chaqaq.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C27BE87CC9C7794976F2B588 /* Chaqaq.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chaqaq.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C2897833B5B3685586CACEB6 /* chaqaq.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = chaqaq.xcframework; path = ../chaqaq.xcframework; sourceTree = "<group>"; };
 		D11598236B0E33C53528220E /* chaqaq.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = chaqaq.swift; sourceTree = "<group>"; };
 		D852776D49D4F06F13B51597 /* EdgeCasesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeCasesTests.swift; sourceTree = "<group>"; };
@@ -472,6 +472,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -491,6 +492,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -510,6 +512,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -530,6 +533,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -541,7 +545,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				OTHER_LDFLAGS = "$(inherited) -lc++";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.gloiiire.chaqaq;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -609,6 +616,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -628,6 +636,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -710,6 +719,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -730,6 +740,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -741,7 +752,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				OTHER_LDFLAGS = "$(inherited) -lc++";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.gloiiire.chaqaq;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;

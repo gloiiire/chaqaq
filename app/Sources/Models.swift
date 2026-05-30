@@ -16,12 +16,12 @@ struct BlockFfi: Codable, Identifiable {
     let children: [BlockFfi]
 }
 
-struct InlineTextFfi: Codable {
+struct InlineTextFfi: Codable, Equatable {
     let content: String
     let styles: [InlineStyleFfi]
 }
 
-enum InlineStyleFfi: Codable {
+enum InlineStyleFfi: Codable, Equatable {
     case bold, italic, underline, strikethrough
     case color(String)
     case link(String)
@@ -56,7 +56,7 @@ enum InlineStyleFfi: Codable {
     }
 }
 
-enum BlockContentFfi: Codable {
+enum BlockContentFfi: Codable, Equatable {
     case text([InlineTextFfi])
     case heading(level: Int, text: [InlineTextFfi])
     case quote(icon: String, text: [InlineTextFfi])

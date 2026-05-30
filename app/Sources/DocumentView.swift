@@ -73,11 +73,119 @@ final class DocumentViewModel: ObservableObject {
     private let repeater = ActionRepeater()
     var isNavigating: Bool { repeater.active }
 
+    // ── Undo / redo ─────────────────────────────────────────────────────
+    // Capacité alignée sur CAPACITE_PAR_DEFAUT du back Rust (1000).
+    let undoMgr = UndoManager()
+    var canUndo: Bool { undoMgr.canUndo }
+    var canRedo: Bool { undoMgr.canRedo }
+    /// Snapshot du dernier titre persisté pour calculer l'inverse à enregistrer.
+    private var lastPersistedTitle: String = ""
+
+    // ── Burst undo pour la frappe ───────────────────────────────────────
+    // Style Notes : une rafale continue de saveBlock sur le même bloc =
+    // 1 seule étape d'undo. Pause de 400 ms → flush du burst.
+    struct BlockSnapshot: Equatable {
+        let content: BlockContentFfi
+        let spans: [InlineTextFfi]
+        let done: Bool
+    }
+    /// Dernière state stable connue par bloc (mise à jour à chaque flush ou
+    /// mutation hors-burst). Sert d'anchor au démarrage du burst suivant.
+    private var blockSnapshots: [String: BlockSnapshot] = [:]
+    /// State pré-burst capturée au premier saveBlock du burst. C'est ce qu'on
+    /// restaurera quand l'utilisateur fera undo.
+    private var blockBurstAnchor: [String: BlockSnapshot] = [:]
+    private var burstFlushWork: DispatchWorkItem?
+    private var burstFlushBlockId: String?
+    private let burstInterval: TimeInterval = 0.4
+
     private let api: ChaqaqApi
 
     init(docId: String, api: ChaqaqApi) {
         self.docId = docId
         self.api   = api
+        undoMgr.levelsOfUndo = 1000
+        // SwiftUI rafraîchit canUndo/canRedo via objectWillChange à chaque
+        // mutation de la pile undo. On dispatch en async pour éviter de notifier
+        // pendant un cycle de view update (warning « Publishing changes from
+        // within view updates »), car NSUndoManagerCheckpoint peut être posté
+        // synchrone depuis n'importe quel registerUndo, y compris ceux déclenchés
+        // par un onChange/binding pendant le body.
+        NotificationCenter.default.addObserver(
+            forName: .NSUndoManagerCheckpoint,
+            object: undoMgr,
+            queue: .main
+        ) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.objectWillChange.send()
+            }
+        }
+    }
+
+    func undo() { flushAllBursts(); undoMgr.undo() }
+    func redo() { flushAllBursts(); undoMgr.redo() }
+
+    private func snapshotOf(_ block: EditableBlock) -> BlockSnapshot {
+        BlockSnapshot(content: block.content, spans: block.spans, done: block.done)
+    }
+
+    /// Enregistre l'inverse d'une rafale de frappe : restaure l'anchor pré-burst.
+    /// Auto-réenregistre redo via le pattern UndoManager (registerUndo pendant
+    /// un undo → bascule sur la pile redo).
+    func applyBlockSnapshot(blockId: String, snapshot snap: BlockSnapshot) {
+        guard let idx = blocks.firstIndex(where: { $0.id == blockId }) else { return }
+        let previous = snapshotOf(blocks[idx])
+        blocks[idx].content = snap.content
+        blocks[idx].spans = snap.spans
+        blocks[idx].done = snap.done
+        persistBlockRaw(blocks[idx])
+        blockSnapshots[blockId] = snap
+        undoMgr.registerUndo(withTarget: self) { vm in
+            vm.applyBlockSnapshot(blockId: blockId, snapshot: previous)
+        }
+    }
+
+    /// Persiste un bloc sans toucher au burst ni à blockSnapshots. Utilisé par
+    /// saveBlock (qui gère le burst à part) et par applyBlockSnapshot.
+    private func persistBlockRaw(_ block: EditableBlock) {
+        do {
+            let new = block.content.withSpans(block.spans, done: block.done)
+            let data = try JSONEncoder().encode(new)
+            try api.updateBlock(docId: docId, blockId: block.id,
+                                 contentJson: String(data: data, encoding: .utf8)!)
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// Persistance pour les mutations hors frappe (toggle, icon, convert…).
+    /// Flush d'abord le burst en cours sur ce bloc pour ne pas avaler la
+    /// modification structurelle dans la rafale de typing.
+    func persistBlock(_ block: EditableBlock) {
+        flushBurst(blockId: block.id)
+        persistBlockRaw(block)
+        blockSnapshots[block.id] = snapshotOf(block)
+    }
+
+    /// Flush le burst d'un bloc : enregistre l'undo avec l'anchor capturé.
+    private func flushBurst(blockId: String) {
+        guard let anchor = blockBurstAnchor[blockId] else { return }
+        let current = blockSnapshots[blockId]
+        blockBurstAnchor.removeValue(forKey: blockId)
+        if burstFlushBlockId == blockId {
+            burstFlushBlockId = nil
+            burstFlushWork?.cancel()
+            burstFlushWork = nil
+        }
+        guard let current, anchor != current else { return }
+        undoMgr.registerUndo(withTarget: self) { vm in
+            vm.applyBlockSnapshot(blockId: blockId, snapshot: anchor)
+        }
+    }
+
+    private func flushAllBursts() {
+        burstFlushWork?.cancel()
+        burstFlushWork = nil
+        for id in Array(blockBurstAnchor.keys) { flushBurst(blockId: id) }
+        burstFlushBlockId = nil
     }
 
     func load() {
@@ -86,23 +194,43 @@ final class DocumentViewModel: ObservableObject {
             guard let data = json.data(using: .utf8) else { return }
             let doc = try JSONDecoder().decode(DocumentFfi.self, from: data)
             title = doc.title.map(\.content).joined()
+            lastPersistedTitle = title
             cover = doc.cover
             blocks = doc.blocks.map {
                 EditableBlock(id: $0.id, content: $0.content,
                               spans: $0.content.spansOrEmpty,
                               done:  $0.content.isTodoDone)
             }
+            // Initialise les snapshots stables pour le burst undo.
+            blockSnapshots = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, snapshotOf($0)) })
+            blockBurstAnchor.removeAll()
         } catch { errorMessage = error.localizedDescription }
     }
 
     func saveTitle() {
-        try? api.updateDocumentTitle(id: docId, newTitle: title)
+        let oldTitle = lastPersistedTitle
+        let newTitle = title
+        guard oldTitle != newTitle else { return }
+        do {
+            try api.updateDocumentTitle(id: docId, newTitle: newTitle)
+            lastPersistedTitle = newTitle
+            undoMgr.registerUndo(withTarget: self) { vm in
+                vm.title = oldTitle
+                vm.saveTitle()
+            }
+        } catch { errorMessage = error.localizedDescription }
     }
 
     func saveCover(_ newCover: String?) {
+        let oldCover = self.cover
+        guard oldCover != newCover else {
+            cover = newCover
+            return
+        }
         do {
             cover = newCover
             try api.updateDocumentCover(id: docId, cover: newCover)
+            undoMgr.registerUndo(withTarget: self) { vm in vm.saveCover(oldCover) }
         } catch { errorMessage = error.localizedDescription }
     }
 
@@ -152,13 +280,29 @@ final class DocumentViewModel: ObservableObject {
         return ["jpg", "jpeg", "png", "heic", "webp"].contains(cleaned) ? cleaned : "jpg"
     }
 
+    /// Save chaud appelé par la frappe (RichTextEditor → onSave). Gère le
+    /// burst undo : 1 rafale continue de saveBlock sur le même bloc = 1 étape.
     func saveBlock(_ block: EditableBlock) {
-        do {
-            let new = block.content.withSpans(block.spans, done: block.done)
-            let data    = try JSONEncoder().encode(new)
-            try api.updateBlock(docId: docId, blockId: block.id,
-                                 contentJson: String(data: data, encoding: .utf8)!)
-        } catch { errorMessage = error.localizedDescription }
+        let id = block.id
+        // Si on tape dans un autre bloc, on flush l'ancien burst d'abord.
+        if let prevId = burstFlushBlockId, prevId != id {
+            flushBurst(blockId: prevId)
+        }
+        // Démarrage du burst : on capture l'état pré-changement comme anchor.
+        if blockBurstAnchor[id] == nil, let baseline = blockSnapshots[id] {
+            blockBurstAnchor[id] = baseline
+        }
+        persistBlockRaw(block)
+        // Le snapshot stable suit la state actuelle (post-changement).
+        blockSnapshots[id] = snapshotOf(block)
+        burstFlushBlockId = id
+        // Debounce : pas de saveBlock pendant burstInterval → flush.
+        burstFlushWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.flushBurst(blockId: id)
+        }
+        burstFlushWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + burstInterval, execute: work)
     }
 
     func saveBlock(id: String, spans: [InlineTextFfi]) {
@@ -191,27 +335,116 @@ final class DocumentViewModel: ObservableObject {
             } else {
                 blocks.append(newBlock)
             }
-            if !initialSpans.isEmpty { saveBlock(newBlock) }
+            if !initialSpans.isEmpty { persistBlockRaw(newBlock) }
+            blockSnapshots[newId] = snapshotOf(newBlock)
             autoFocusOffset = 0
             autoFocusId = newId
+            // Undo : supprime le bloc qu'on vient de créer. deleteBlock enregistre
+            // automatiquement le redo (réinsertion).
+            undoMgr.registerUndo(withTarget: self) { vm in vm.deleteBlock(id: newId) }
         } catch { errorMessage = error.localizedDescription }
     }
 
     func deleteBlock(id: String) {
+        flushBurst(blockId: id)
+        guard let block = blocks.first(where: { $0.id == id }),
+              let index = blocks.firstIndex(where: { $0.id == id })
+        else { return }
         do {
             try api.deleteBlock(docId: docId, blockId: id)
             blocks.removeAll { $0.id == id }
+            blockSnapshots.removeValue(forKey: id)
+            // Undo : réinsère le bloc à sa position. reinsertBlock enregistre
+            // le redo (re-suppression du bloc nouvellement créé).
+            undoMgr.registerUndo(withTarget: self) { vm in
+                vm.reinsertBlock(block, at: index)
+            }
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// Recrée un bloc supprimé : passe par l'API (nouveau UUID) puis réordonne
+    /// pour le placer à sa position d'origine. Le UUID change entre undo cycles
+    /// mais le contenu est préservé — comportement standard d'undo iOS.
+    private func reinsertBlock(_ block: EditableBlock, at index: Int) {
+        do {
+            let content = block.content.withSpans(block.spans, done: block.done)
+            let data = try JSONEncoder().encode(content)
+            let newId = try api.addBlock(docId: docId,
+                                         blockContentJson: String(data: data, encoding: .utf8)!)
+            let recreated = EditableBlock(id: newId, content: content,
+                                          spans: block.spans, done: block.done)
+            let safeIndex = min(index, blocks.count)
+            blocks.insert(recreated, at: safeIndex)
+            try api.reorderBlocks(docId: docId, order: blocks.map(\.id))
+            blockSnapshots[newId] = snapshotOf(recreated)
+            // Redo : re-supprimer ce bloc.
+            undoMgr.registerUndo(withTarget: self) { vm in vm.deleteBlock(id: newId) }
         } catch { errorMessage = error.localizedDescription }
     }
 
     func deleteBlocks(ids: Set<String>) {
         guard !ids.isEmpty else { return }
+        for id in ids { flushBurst(blockId: id) }
+        // Snapshots avec index (triés croissant) pour restauration ordonnée.
+        let snapshots: [(Int, EditableBlock)] = blocks.enumerated()
+            .filter { ids.contains($0.element.id) }
+            .map { ($0.offset, $0.element) }
         do {
             for id in ids {
                 try api.deleteBlock(docId: docId, blockId: id)
             }
             blocks.removeAll { ids.contains($0.id) }
+            for id in ids { blockSnapshots.removeValue(forKey: id) }
+            undoMgr.registerUndo(withTarget: self) { vm in
+                vm.undoMgr.beginUndoGrouping()
+                for (index, block) in snapshots {
+                    vm.reinsertBlock(block, at: index)
+                }
+                vm.undoMgr.endUndoGrouping()
+            }
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// Toggle done d'un bloc todo. Undo flippe à nouveau (s'auto-réenregistre).
+    func toggleBlockDone(id: String) {
+        guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
+        blocks[idx].done.toggle()
+        persistBlock(blocks[idx])
+        undoMgr.registerUndo(withTarget: self) { vm in vm.toggleBlockDone(id: id) }
+    }
+
+    /// Change l'icône d'un bloc callout. Undo restaure l'ancienne icône.
+    func updateBlockIcon(id: String, icon: String) {
+        guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
+        guard case .quote(let oldIcon, _) = blocks[idx].content, oldIcon != icon else { return }
+        blocks[idx].content = .quote(icon: icon, text: blocks[idx].spans)
+        persistBlock(blocks[idx])
+        undoMgr.registerUndo(withTarget: self) { vm in
+            vm.updateBlockIcon(id: id, icon: oldIcon)
+        }
+    }
+
+    /// Convertit le contenu d'un bloc (markdown shortcut : text → heading, etc.).
+    /// Undo restaure l'ancien content + spans, redo réapplique.
+    func convertBlockContent(id: String, to newContent: BlockContentFfi) {
+        guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
+        let oldContent = blocks[idx].content
+        let oldSpans = blocks[idx].spans
+        let oldDone = blocks[idx].done
+        blocks[idx].content = newContent
+        blocks[idx].spans = []
+        blocks[idx].done = false
+        persistBlock(blocks[idx])
+        undoMgr.registerUndo(withTarget: self) { vm in
+            guard let i = vm.blocks.firstIndex(where: { $0.id == id }) else { return }
+            vm.blocks[i].content = oldContent
+            vm.blocks[i].spans = oldSpans
+            vm.blocks[i].done = oldDone
+            vm.persistBlock(vm.blocks[i])
+            vm.undoMgr.registerUndo(withTarget: vm) { vm in
+                vm.convertBlockContent(id: id, to: newContent)
+            }
+        }
     }
 
     func startNavigationRepeat(from: String, next: Bool) {
@@ -240,8 +473,21 @@ final class DocumentViewModel: ObservableObject {
     }
 
     func moveBlock(from: IndexSet, to: Int) {
+        let oldOrder = blocks.map(\.id)
         blocks.move(fromOffsets: from, toOffset: to)
-        try? api.reorderBlocks(docId: docId, order: blocks.map(\.id))
+        let newOrder = blocks.map(\.id)
+        guard oldOrder != newOrder else { return }
+        try? api.reorderBlocks(docId: docId, order: newOrder)
+        undoMgr.registerUndo(withTarget: self) { vm in vm.applyBlockOrder(oldOrder) }
+    }
+
+    /// Applique un ordre de blocs (utilisé par l'undo/redo de moveBlock).
+    private func applyBlockOrder(_ order: [String]) {
+        let oldOrder = blocks.map(\.id)
+        let lookup = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, $0) })
+        blocks = order.compactMap { lookup[$0] }
+        try? api.reorderBlocks(docId: docId, order: order)
+        undoMgr.registerUndo(withTarget: self) { vm in vm.applyBlockOrder(oldOrder) }
     }
 }
 
@@ -424,7 +670,10 @@ struct DocumentView: View {
                             },
                             onStopNavigationRepeat: { vm.stopNavigationRepeat() },
                             onLongPressSelection: { selectFromLongPress(block.id) },
-                            onFocus: { vm.activeBlockId = block.id }
+                            onFocus: { vm.activeBlockId = block.id },
+                            onToggleDone: { vm.toggleBlockDone(id: block.id) },
+                            onChangeIcon: { icon in vm.updateBlockIcon(id: block.id, icon: icon) },
+                            onConvertContent: { content in vm.convertBlockContent(id: block.id, to: content) }
                         )
                     )
                     .disabled(documentLocked || editMode == .active)
@@ -551,6 +800,17 @@ struct DocumentView: View {
             FloatingButton(icon: "pencil.and.outline") { showingBlockPicker = true }
                 .padding(.trailing, 24)
                 .padding(.bottom, 32)
+                .transition(.scale.combined(with: .opacity))
+        }
+
+        // Undo / redo en bas-gauche, miroir du FAB. Pill unique style lock/réordo
+        // de la barre de navigation : un seul fond glass capsule pour les deux.
+        if !documentLocked && editMode == .inactive && !keyboardVisible {
+            UndoRedoPill(canUndo: vm.canUndo, canRedo: vm.canRedo,
+                         onUndo: { vm.undo() }, onRedo: { vm.redo() })
+                .padding(.leading, 24)
+                .padding(.bottom, 32)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .transition(.scale.combined(with: .opacity))
         }
         } // fin ZStack
@@ -1074,6 +1334,11 @@ struct BlockCallbacks {
     var onStopNavigationRepeat: (() -> Void)? = nil
     var onLongPressSelection: (() -> Void)? = nil
     var onFocus: (() -> Void)? = nil
+    // Mutations atomiques avec undo : passent par le VM (toggleBlockDone, etc.)
+    // pour que l'inverse soit enregistré sur la pile undo.
+    var onToggleDone: (() -> Void)? = nil
+    var onChangeIcon: ((String) -> Void)? = nil
+    var onConvertContent: ((BlockContentFfi) -> Void)? = nil
 }
 
 // ── Éditeur de texte commun à tous les blocks ──────────────────────────────────
@@ -1105,7 +1370,7 @@ private struct BlockTextEditor: View {
             onNewBlock: cb.onNewBlock,
             onDeleteBloc: cb.onDelete,
             onMergeAvecPrecedent: cb.onMerge,
-            onConvert: convertible ? { content in block.content = content; block.spans = []; cb.onSave() } : nil,
+            onConvert: convertible ? { content in cb.onConvertContent?(content) } : nil,
             onLongPressSelection: cb.onLongPressSelection,
             onNavigatePrevious: cb.onNavigatePrevious,
             onNavigateNext: cb.onNavigateNext,
@@ -1257,9 +1522,9 @@ private struct CalloutRowView: View {
         .padding(.vertical, 8)
         .sheet(isPresented: $emojiPickerOuvert) {
             EmojiPickerSheet(selection: icon, recents: recentEmojis) { emoji in
-                block.content = .quote(icon: emoji, text: block.spans)
                 recentEmojis = saveRecentEmoji(emoji)
-                cb.onSave()
+                // Passe par le VM pour bénéficier de l'undo.
+                cb.onChangeIcon?(emoji)
             }
         }
     }
@@ -1283,8 +1548,7 @@ private struct TodoRowView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Button {
-                block.done.toggle()
-                cb.onSave()
+                cb.onToggleDone?()
             } label: {
                 Image(systemName: block.done ? "checkmark.square.fill" : "square")
                     .font(.body)
@@ -1316,6 +1580,39 @@ private struct AddBlockButton: View {
             .padding(.vertical, 12)
         }
         .buttonStyle(.plain)
+    }
+}
+
+// ── Undo / Redo ───────────────────────────────────────────────────────────────
+// Pill unique avec deux icônes — visuellement identique à la pill lock/réordo
+// de la nav bar : un seul fond glass capsule, chaque icône reste tappable.
+
+private struct UndoRedoPill: View {
+    let canUndo: Bool
+    let canRedo: Bool
+    let onUndo: () -> Void
+    let onRedo: () -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            iconButton(icon: "arrow.uturn.backward", enabled: canUndo, action: onUndo)
+            iconButton(icon: "arrow.uturn.forward",  enabled: canRedo, action: onRedo)
+        }
+        .glassEffect(.regular.interactive(), in: .capsule)
+        .sensoryFeedback(.impact(flexibility: .soft), trigger: canUndo)
+        .sensoryFeedback(.impact(flexibility: .soft), trigger: canRedo)
+    }
+
+    private func iconButton(icon: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(enabled ? Color.primary : Color.secondary.opacity(0.45))
+                .frame(width: 54, height: 54)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
     }
 }
 

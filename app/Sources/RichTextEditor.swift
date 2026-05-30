@@ -39,6 +39,25 @@ func italicFontWithWeight(_ size: CGFloat, weight: UIFont.Weight) -> UIFont {
     return .italicSystemFont(ofSize: size)
 }
 
+// ── Bouton de menu avec hooks de présentation/fermeture ─────────────────────
+
+/// `UIButton` enrichi : on intercepte `willEndFor` du `UIContextMenuInteraction`
+/// interne (que UIButton installe en `showsMenuAsPrimaryAction = true`) pour
+/// savoir quand le menu se ferme — y compris quand l'utilisateur dismisse en
+/// tapant en dehors (cas où `textViewDidChangeSelection` ne fire pas).
+final class MenuButton: UIButton {
+    var onMenuWillEnd: (() -> Void)?
+
+    override func contextMenuInteraction(
+        _ interaction: UIContextMenuInteraction,
+        willEndFor configuration: UIContextMenuConfiguration,
+        animator: (any UIContextMenuInteractionAnimating)?
+    ) {
+        super.contextMenuInteraction(interaction, willEndFor: configuration, animator: animator)
+        onMenuWillEnd?()
+    }
+}
+
 // ── Conversion spans ↔ NSAttributedString ────────────────────────────────────
 
 func spansToAttributed(_ spans: [InlineTextFfi], police: UIFont) -> NSAttributedString {
@@ -336,12 +355,17 @@ struct RichTextEditor: UIViewRepresentable {
         private var pendingColor: String? = nil
         private var toolbarActionInProgress = false
         private var selectionGeneration = 0
-        private weak var btnBold: UIButton?
-        private weak var btnItalic: UIButton?
-        private weak var btnUnderline: UIButton?
-        private weak var btnStrike: UIButton?
+        private weak var btnTextStyle: UIButton?
         private weak var btnColor: UIButton?
         private weak var btnPaste: UIButton?
+        // Pill de la toolbar — on l'anime à alpha 0 quand un menu déroulant
+        // s'ouvre (style Notes.app : la toolbar laisse la place au menu).
+        private weak var toolbarPill: UIView?
+        private var toolbarHidden = false
+        // Fenêtre de garde : pendant ~700ms après l'ouverture d'un menu, on ignore
+        // les `textViewDidChangeSelection` parasites que UIKit émet quand le menu
+        // se présente (sinon la pill clignote ou ne se cache jamais).
+        private var menuPresentingUntil: Date?
 
         init(parent: RichTextEditor) {
             self.parent = parent
@@ -402,6 +426,13 @@ struct RichTextEditor: UIViewRepresentable {
                 cleanRememberedIfStillEmpty(tv)
             }
             updateToolbar()
+            // Si l'utilisateur a dismissé un menu (tap dans le texte → selection
+            // change), on restaure la pill au cas où elle est encore cachée. On
+            // ignore pendant la fenêtre de garde post-ouverture du menu pour ne
+            // pas annuler le hide qu'on vient de demander.
+            if let until = menuPresentingUntil, Date() < until { return }
+            menuPresentingUntil = nil
+            setToolbarHidden(false)
         }
 
         func textView(_ tv: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
@@ -494,6 +525,7 @@ struct RichTextEditor: UIViewRepresentable {
             pill.layer.cornerRadius  = pillH / 2
             pill.layer.masksToBounds = true
             container.addSubview(pill)
+            toolbarPill = pill
 
             let glass = UIVisualEffectView(effect: UIGlassEffect())
             glass.frame               = pill.bounds
@@ -507,20 +539,6 @@ struct RichTextEditor: UIViewRepresentable {
             scroll.showsHorizontalScrollIndicator = false
             scroll.backgroundColor = .clear
             pill.addSubview(scroll)
-
-            func textButton(_ label: String, font: UIFont,
-                             souligné: Bool = false, barre: Bool = false, action: Selector) -> UIButton {
-                let b = UIButton(type: .custom)
-                var a: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: UIColor.label]
-                if souligné { a[.underlineStyle] = NSUnderlineStyle.single.rawValue }
-                if barre    { a[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
-                b.setAttributedTitle(NSAttributedString(string: label, attributes: a), for: .normal)
-                a[.foregroundColor] = UIColor.label.withAlphaComponent(0.3)
-                b.setAttributedTitle(NSAttributedString(string: label, attributes: a), for: .highlighted)
-                b.addTarget(self, action: #selector(captureSelectionBeforeToolbar), for: .touchDown)
-                b.addTarget(self, action: action, for: .touchUpInside)
-                return b
-            }
 
             let iconSize: CGFloat = 22
 
@@ -558,21 +576,36 @@ struct RichTextEditor: UIViewRepresentable {
             ajouter(bColler); btnPaste = bColler
             separateur()
 
-            let bG = textButton("B", font: .systemFont(ofSize: 22, weight: .heavy), action: #selector(toggleBold)); ajouter(bG); btnBold = bG
-            let bI = symbolButton("italic",        taille: 22, action: #selector(toggleItalic)); ajouter(bI); btnItalic = bI
-            let bU = textButton("U", font: .systemFont(ofSize: 22, weight: .medium), souligné: true, action: #selector(toggleUnderline)); ajouter(bU); btnUnderline = bU
-            let bS = symbolButton("strikethrough", taille: 22, action: #selector(toggleStrike));    ajouter(bS); btnStrike = bS
-            separateur()
-            ajouter(symbolButton("return", action: #selector(toolbarLineBreak)))
-            separateur()
-            let bCouleur = UIButton(type: .custom)
+            // Bouton unique pour B/I/U/S — menu déroulant comme pour les couleurs.
+            // Open : `UIDeferredMenuElement.uncached` cache la pill.
+            // Close : `onMenuWillEnd` la restaure (couvre le cas « tap dehors »).
+            let bTextStyle = MenuButton(type: .custom)
+            bTextStyle.showsMenuAsPrimaryAction = true
+            bTextStyle.menu = textStyleMenu(bold: false, italic: false, underline: false, strike: false)
+            bTextStyle.onMenuWillEnd = { [weak self] in
+                self?.menuPresentingUntil = nil
+                self?.setToolbarHidden(false)
+            }
+            let cfgTS = UIImage.SymbolConfiguration(pointSize: iconSize, weight: .medium)
+            bTextStyle.setImage(UIImage(systemName: "bold.italic.underline", withConfiguration: cfgTS)?
+                .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal), for: .normal)
+            ajouter(bTextStyle); btnTextStyle = bTextStyle
+
+            // Highlighter collé à droite de Aa (pas de séparateur entre les deux).
+            let bCouleur = MenuButton(type: .custom)
             bCouleur.showsMenuAsPrimaryAction = true
             bCouleur.menu = colorMenu(actuelle: nil)
-            bCouleur.addTarget(self, action: #selector(captureSelectionBeforeToolbar), for: .touchDown)
+            bCouleur.onMenuWillEnd = { [weak self] in
+                self?.menuPresentingUntil = nil
+                self?.setToolbarHidden(false)
+            }
             let cfgH = UIImage.SymbolConfiguration(pointSize: iconSize, weight: .medium)
             bCouleur.setImage(UIImage(systemName: "highlighter", withConfiguration: cfgH)?
                 .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal), for: .normal)
             ajouter(bCouleur); btnColor = bCouleur
+
+            separateur()
+            ajouter(symbolButton("return", action: #selector(toolbarLineBreak)))
             separateur()
             ajouter(symbolButton("keyboard.chevron.compact.down", action: #selector(dismissKeyboard)))
 
@@ -585,6 +618,24 @@ struct RichTextEditor: UIViewRepresentable {
             guard let tv else { return }
             if tv.selectedRange.length == 0 { clearRememberedSelection() }
             rememberSelection(tv.selectedRange, longueur: tv.attributedText.length)
+        }
+
+        /// Comme `captureSelectionBeforeToolbar` mais cache aussi la pill : utilisé
+        /// par les boutons qui ouvrent un menu (Aa, Highlighter) pour laisser la
+        /// place au menu déroulant, façon Notes.app.
+        @objc func captureAndHideToolbarForMenu() {
+            captureSelectionBeforeToolbar()
+            menuPresentingUntil = Date().addingTimeInterval(0.7)
+            setToolbarHidden(true)
+        }
+
+        private func setToolbarHidden(_ hidden: Bool) {
+            guard hidden != toolbarHidden, let pill = toolbarPill else { return }
+            toolbarHidden = hidden
+            UIView.animate(withDuration: 0.18, delay: 0,
+                           options: [.curveEaseOut, .beginFromCurrentState]) {
+                pill.alpha = hidden ? 0 : 1
+            }
         }
 
         @objc func dismissKeyboard() {
@@ -796,25 +847,12 @@ struct RichTextEditor: UIViewRepresentable {
                 couleur  = pendingColor ?? (attrs[.chaqaqColor] as? String)
             }
 
-            setTextActive(btnBold,     actif: bold,      font: .systemFont(ofSize: 22, weight: .heavy))
-            setSymbolActive(btnItalic,    actif: italic,    nom: "italic",         taille: 22)
-            setTextActive(btnUnderline, actif: underline, font: .systemFont(ofSize: 22, weight: .medium), souligne: true)
-            setSymbolActive(btnStrike,       actif: strike,    nom: "strikethrough",  taille: 22)
+            updateTextStyleButton(bold: bold, italic: italic, underline: underline, strike: strike)
             updateColorButton(couleur)
 
             updatePasteButton()
         }
 
-        private func setTextActive(_ btn: UIButton?, actif: Bool, font: UIFont, souligne: Bool = false, barre: Bool = false) {
-            guard let btn, let str = btn.attributedTitle(for: .normal)?.string else { return }
-            let c: UIColor = actif ? (UIColor(named: "Accent") ?? .tintColor) : .label
-            var a: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: c]
-            if souligne { a[.underlineStyle]      = NSUnderlineStyle.single.rawValue }
-            if barre    { a[.strikethroughStyle]  = NSUnderlineStyle.single.rawValue }
-            btn.setAttributedTitle(NSAttributedString(string: str, attributes: a), for: .normal)
-            a[.foregroundColor] = c.withAlphaComponent(0.3)
-            btn.setAttributedTitle(NSAttributedString(string: str, attributes: a), for: .highlighted)
-        }
 
         private func setSymbolActive(_ btn: UIButton?, actif: Bool, nom: String, taille: CGFloat = 22) {
             guard let btn else { return }
@@ -824,7 +862,23 @@ struct RichTextEditor: UIViewRepresentable {
                 .withTintColor(c, renderingMode: .alwaysOriginal), for: .normal)
         }
 
+        // Menu déroulant des couleurs. Le contenu est calculé paresseusement via
+        // `UIDeferredMenuElement.uncached` : chaque fois que l'utilisateur ouvre
+        // le menu, la closure s'exécute — c'est le hook fiable pour cacher la
+        // pill au moment précis de la présentation (le `.touchDown` est avalé
+        // par le gesture recognizer de `showsMenuAsPrimaryAction`).
         private func colorMenu(actuelle: String?) -> UIMenu {
+            let deferred = UIDeferredMenuElement.uncached { [weak self] completion in
+                guard let self else { completion([]); return }
+                self.captureSelectionBeforeToolbar()
+                self.menuPresentingUntil = Date().addingTimeInterval(0.7)
+                self.setToolbarHidden(true)
+                completion(self.colorMenuChildren(actuelle: actuelle))
+            }
+            return UIMenu(title: "", children: [deferred])
+        }
+
+        private func colorMenuChildren(actuelle: String?) -> [UIMenuElement] {
             let palette: [(String, UIColor, String)] = [
                 ("rouge",  .systemRed,    "Rouge"),
                 ("rose",   .systemPink,   "Rose"),
@@ -842,7 +896,11 @@ struct RichTextEditor: UIViewRepresentable {
             let aucune = UIAction(
                 title: "Aucune",
                 image: UIImage(systemName: "xmark", withConfiguration: cfgX)
-            ) { [weak self] _ in self?.clearColor() }
+            ) { [weak self] _ in
+                self?.clearColor()
+                self?.menuPresentingUntil = nil
+                self?.setToolbarHidden(false)
+            }
             if actuelle == nil { aucune.state = .on }
 
             let items = palette.map { (nom, couleur, label) -> UIAction in
@@ -850,11 +908,13 @@ struct RichTextEditor: UIViewRepresentable {
                     .withTintColor(couleur, renderingMode: .alwaysOriginal)
                 let action = UIAction(title: label, image: img) { [weak self] _ in
                     self?.applyColor(nom)
+                    self?.menuPresentingUntil = nil
+                    self?.setToolbarHidden(false)
                 }
                 if actuelle == nom { action.state = .on }
                 return action
             }
-            return UIMenu(title: "", children: [aucune] + items)
+            return [aucune] + items
         }
 
         private func updateColorButton(_ actuelle: String?) {
@@ -865,6 +925,50 @@ struct RichTextEditor: UIViewRepresentable {
             btn.setImage(UIImage(systemName: iconName, withConfiguration: cfg)?
                 .withTintColor(c, renderingMode: .alwaysOriginal), for: .normal)
             btn.menu = colorMenu(actuelle: actuelle)
+        }
+
+        // Idem pour B/I/U/S — deferred element pour le hook fiable de présentation.
+        private func textStyleMenu(bold: Bool, italic: Bool, underline: Bool, strike: Bool) -> UIMenu {
+            let deferred = UIDeferredMenuElement.uncached { [weak self] completion in
+                guard let self else { completion([]); return }
+                self.captureSelectionBeforeToolbar()
+                self.menuPresentingUntil = Date().addingTimeInterval(0.7)
+                self.setToolbarHidden(true)
+                completion(self.textStyleMenuChildren(bold: bold, italic: italic,
+                                                      underline: underline, strike: strike))
+            }
+            return UIMenu(title: "", children: [deferred])
+        }
+
+        private func textStyleMenuChildren(bold: Bool, italic: Bool, underline: Bool, strike: Bool) -> [UIMenuElement] {
+            let cfg = UIImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+            func styleAction(label: String, symbol: String, active: Bool,
+                             handler: @escaping () -> Void) -> UIAction {
+                let img = UIImage(systemName: symbol, withConfiguration: cfg)
+                let action = UIAction(title: label, image: img) { [weak self] _ in
+                    handler()
+                    self?.menuPresentingUntil = nil
+                    self?.setToolbarHidden(false)
+                }
+                if active { action.state = .on }
+                return action
+            }
+            return [
+                styleAction(label: "Gras",     symbol: "bold",          active: bold)      { [weak self] in self?.toggleBold() },
+                styleAction(label: "Italique", symbol: "italic",        active: italic)    { [weak self] in self?.toggleItalic() },
+                styleAction(label: "Souligné", symbol: "underline",     active: underline) { [weak self] in self?.toggleUnderline() },
+                styleAction(label: "Barré",    symbol: "strikethrough", active: strike)    { [weak self] in self?.toggleStrike() },
+            ]
+        }
+
+        private func updateTextStyleButton(bold: Bool, italic: Bool, underline: Bool, strike: Bool) {
+            guard let btn = btnTextStyle else { return }
+            let anyActive = bold || italic || underline || strike
+            let c: UIColor = anyActive ? (UIColor(named: "Accent") ?? .tintColor) : .secondaryLabel
+            let cfg = UIImage.SymbolConfiguration(pointSize: 22, weight: .medium)
+            btn.setImage(UIImage(systemName: "bold.italic.underline", withConfiguration: cfg)?
+                .withTintColor(c, renderingMode: .alwaysOriginal), for: .normal)
+            btn.menu = textStyleMenu(bold: bold, italic: italic, underline: underline, strike: strike)
         }
 
         private func clearRememberedSelection() {
