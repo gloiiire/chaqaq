@@ -28,7 +28,9 @@
 		8D6AC9E782AD4A9965B94718 /* EdgeCasesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D852776D49D4F06F13B51597 /* EdgeCasesTests.swift */; };
 		94766EC0131DB557DB393722 /* RichTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 468510DC930C6616110EE478 /* RichTextEditor.swift */; };
 		A8148D81C3FC1CEECBF51E48 /* ModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0D5EF3410EEA5D9A1D6808 /* ModelsTests.swift */; };
+		B13BAFE8F8B712E9FC544354 /* SeededDataUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D29F1324B9C40EC592CF5FB /* SeededDataUITests.swift */; };
 		B2CE43ADC5AE0E594AE37B88 /* ResilienceFFITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC19F4873E2FB0D3F59FC174 /* ResilienceFFITests.swift */; };
+		B4E6EB2D7A6D475F93A081E8 /* ConcurrencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93CE3D689ED3556BECE4B34B /* ConcurrencyTests.swift */; };
 		C17337002B16D605DFB278E5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 61FAF4827B7007C56EF3A1F9 /* Assets.xcassets */; };
 		CB742789018700DFCDE5D6E6 /* DocumentApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 360E322DAC690D96965C457C /* DocumentApiTests.swift */; };
 		D21CF0FB8443FCF3AE5B634E /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B37195EE5E973F6B64A028A /* Models.swift */; };
@@ -80,6 +82,8 @@
 		7B37195EE5E973F6B64A028A /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		81B9A0DC80F9A91D0EC3FAA8 /* ChaqaqUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ChaqaqUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8B6B5EA5219F0422733302C5 /* DatabaseApiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseApiTests.swift; sourceTree = "<group>"; };
+		8D29F1324B9C40EC592CF5FB /* SeededDataUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeededDataUITests.swift; sourceTree = "<group>"; };
+		93CE3D689ED3556BECE4B34B /* ConcurrencyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConcurrencyTests.swift; sourceTree = "<group>"; };
 		AB5C4CC442340B4BBFA8DC7C /* PersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceTests.swift; sourceTree = "<group>"; };
 		B7D590DABED7E2CDD49B2E4F /* CodableRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableRoundTripTests.swift; sourceTree = "<group>"; };
 		B8C376A241CCD334055F01CB /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -116,6 +120,7 @@
 			children = (
 				BE9CD40AE5421DE56199DAB9 /* BlockOpsTests.swift */,
 				57832BB85495E1DBBAC6C32D /* ColorPersistenceTests.swift */,
+				93CE3D689ED3556BECE4B34B /* ConcurrencyTests.swift */,
 				8B6B5EA5219F0422733302C5 /* DatabaseApiTests.swift */,
 				360E322DAC690D96965C457C /* DocumentApiTests.swift */,
 				F1F401B4D9863428B73BF78E /* DocumentViewModelTests.swift */,
@@ -220,6 +225,7 @@
 				F3BD3DEA551FDF139D7CF4C7 /* CreateDocumentFlowTests.swift */,
 				154B3AE20F89F5C7DB50D9FC /* DocumentEditorUITests.swift */,
 				DA8725F0F0F35A74E2885BF3 /* HomeScreenUITests.swift */,
+				8D29F1324B9C40EC592CF5FB /* SeededDataUITests.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -355,6 +361,7 @@
 				60A5045396792C4FD55B3526 /* CreateDocumentFlowTests.swift in Sources */,
 				611B587BA01844FC23C1CDB6 /* DocumentEditorUITests.swift in Sources */,
 				1D1DD07C0EFEDECD11786079 /* HomeScreenUITests.swift in Sources */,
+				B13BAFE8F8B712E9FC544354 /* SeededDataUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -392,6 +399,7 @@
 			files = (
 				EBEE393B64CA85A6759B89B6 /* BlockOpsTests.swift in Sources */,
 				273634F9619099760E720D72 /* ColorPersistenceTests.swift in Sources */,
+				B4E6EB2D7A6D475F93A081E8 /* ConcurrencyTests.swift in Sources */,
 				5AD9BF95B63F3CC6C1163107 /* DatabaseApiTests.swift in Sources */,
 				CB742789018700DFCDE5D6E6 /* DocumentApiTests.swift in Sources */,
 				E291D8DF01FD7DBFF1E382F6 /* DocumentViewModelTests.swift in Sources */,

@@ -13,8 +13,15 @@ final class ChaqaqStore: ObservableObject {
         guard api == nil else { return }
         tryCatch(into: &errorMessage) {
             let dir  = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            let path = dir.appendingPathComponent("chaqaq.db").path
+            // Mode UI-test : DB éphémère + docs pré-seedés pour éviter typeText.
+            let isUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-data")
+            let dbName = isUITest ? "chaqaq_uitest_\(UUID().uuidString).db" : "chaqaq.db"
+            let path = dir.appendingPathComponent(dbName).path
             api = try ChaqaqApi(dbPath: path)
+            if isUITest {
+                _ = try api?.createDocument(title: "Seeded Note 1")
+                _ = try api?.createDocument(title: "Seeded Note 2")
+            }
         }
         if api != nil { load() }
     }
