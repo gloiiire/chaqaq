@@ -108,7 +108,7 @@ enum BlockContentFfi: Codable {
         }
     }
 
-    var texteSimple: String {
+    var plainText: String {
         switch self {
         case .text(let s):         return s.map(\.content).joined()
         case .heading(_, let s):   return s.map(\.content).joined()
@@ -118,7 +118,7 @@ enum BlockContentFfi: Codable {
         }
     }
 
-    var spansOuVide: [InlineTextFfi] {
+    var spansOrEmpty: [InlineTextFfi] {
         switch self {
         case .text(let s):       return s
         case .heading(_, let s): return s
@@ -128,11 +128,11 @@ enum BlockContentFfi: Codable {
         }
     }
 
-    var estTodo: Bool { if case .todo = self { return true }; return false }
-    var doneTodo: Bool { if case .todo(let d, _) = self { return d }; return false }
+    var isTodo: Bool { if case .todo = self { return true }; return false }
+    var isTodoDone: Bool { if case .todo(let d, _) = self { return d }; return false }
 
-    func avecTexte(_ nouveau: String, done: Bool = false) -> BlockContentFfi {
-        let spans = nouveau.isEmpty ? [] : [InlineTextFfi(content: nouveau, styles: [])]
+    func withText(_ newText: String, done: Bool = false) -> BlockContentFfi {
+        let spans = newText.isEmpty ? [] : [InlineTextFfi(content: newText, styles: [])]
         switch self {
         case .text:              return .text(spans)
         case .heading(let l, _): return .heading(level: l, text: spans)
@@ -142,7 +142,7 @@ enum BlockContentFfi: Codable {
         }
     }
 
-    func avecSpans(_ spans: [InlineTextFfi], done: Bool = false) -> BlockContentFfi {
+    func withSpans(_ spans: [InlineTextFfi], done: Bool = false) -> BlockContentFfi {
         switch self {
         case .text:              return .text(spans)
         case .heading(let l, _): return .heading(level: l, text: spans)
@@ -150,44 +150,5 @@ enum BlockContentFfi: Codable {
         case .todo(_, _):        return .todo(done: done, text: spans)
         default:                 return self
         }
-    }
-
-    func toAttributedString() -> AttributedString {
-        let spans: [InlineTextFfi]
-        switch self {
-        case .text(let s): spans = s
-        case .heading(_, let s): spans = s
-        case .quote(_, let s): spans = s
-        case .todo(_, let s): spans = s
-        default: return AttributedString()
-        }
-        var result = AttributedString()
-        for span in spans {
-            var part = AttributedString(span.content)
-            for style in span.styles {
-                switch style {
-                case .bold:           part.inlinePresentationIntent = .stronglyEmphasized
-                case .italic:         part.inlinePresentationIntent = .emphasized
-                case .underline:      part.underlineStyle = .single
-                case .strikethrough:  part.strikethroughStyle = .single
-                case .color(let nom): part.foregroundColor = couleurDepuisNom(nom)
-                case .link(let url):  if let u = URL(string: url) { part.link = u }
-                }
-            }
-            result += part
-        }
-        return result
-    }
-}
-
-private func couleurDepuisNom(_ nom: String) -> Color {
-    switch nom.lowercased() {
-    case "rouge", "red":      return .red
-    case "bleu", "blue":      return .blue
-    case "vert", "green":     return .green
-    case "orange":            return .orange
-    case "violet", "purple":  return .purple
-    case "gris", "gray":      return .gray
-    default:                  return .primary
     }
 }

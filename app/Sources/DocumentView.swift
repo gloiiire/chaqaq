@@ -35,7 +35,26 @@ struct EditableBlock: Identifiable {
     var content: BlockContentFfi
     var spans: [InlineTextFfi]
     var done: Bool
-    var texteSimple: String { spans.map(\.content).joined() }
+    var plainText: String { spans.map(\.content).joined() }
+}
+
+// ── Répéteur d'action ─────────────────────────────────────────────────────────
+// Répète une closure à intervalle régulier (maintien d'une touche de navigation).
+// Isole la mécanique du Timer hors du view model.
+
+final class RepeteurAction {
+    private var timer: Timer?
+    var actif: Bool { timer != nil }
+
+    func demarrer(intervalle: TimeInterval = 0.12, _ pas: @escaping () -> Void) {
+        guard timer == nil else { return }
+        timer = Timer.scheduledTimer(withTimeInterval: intervalle, repeats: true) { _ in pas() }
+    }
+
+    func arreter() {
+        timer?.invalidate()
+        timer = nil
+    }
 }
 
 // ── View Model ────────────────────────────────────────────────────────────────
@@ -51,8 +70,8 @@ final class DocumentViewModel: ObservableObject {
     @Published var autoFocusOffset: Int? = nil
     var idBlocActif: String? = nil
     private var idBlocFocuse: String? = nil
-    private var navTimer: Timer?
-    var navEnRepetition: Bool { navTimer != nil }
+    private let repeteur = RepeteurAction()
+    var navEnRepetition: Bool { repeteur.actif }
 
     private let api: ChaqaqApi
 
@@ -70,8 +89,8 @@ final class DocumentViewModel: ObservableObject {
             couverture = doc.cover
             blocs = doc.blocks.map {
                 EditableBlock(id: $0.id, content: $0.content,
-                              spans: $0.content.spansOuVide,
-                              done:  $0.content.doneTodo)
+                              spans: $0.content.spansOrEmpty,
+                              done:  $0.content.isTodoDone)
             }
         } catch { erreur = error.localizedDescription }
     }
@@ -135,7 +154,7 @@ final class DocumentViewModel: ObservableObject {
 
     func sauvegarderBloc(_ bloc: EditableBlock) {
         do {
-            let nouveau = bloc.content.avecSpans(bloc.spans, done: bloc.done)
+            let nouveau = bloc.content.withSpans(bloc.spans, done: bloc.done)
             let data    = try JSONEncoder().encode(nouveau)
             try api.modifierBloc(docId: docId, blocId: bloc.id,
                                  contenuJson: String(data: data, encoding: .utf8)!)
@@ -148,7 +167,7 @@ final class DocumentViewModel: ObservableObject {
         sauvegarderBloc(blocs[idx])
     }
 
-    func ajouterBloc(type: TypeBlocNouvel, texteInitial: String = "", apresId: String? = nil) {
+    func ajouterBloc(type: TypeBlocNouvel, spansInitiaux: [InlineTextFfi] = [], apresId: String? = nil) {
         do {
             let contenu: BlockContentFfi
             switch type {
@@ -164,9 +183,7 @@ final class DocumentViewModel: ObservableObject {
             let data  = try JSONEncoder().encode(contenu)
             let newId = try api.ajouterBloc(docId: docId,
                                             blocContentJson: String(data: data, encoding: .utf8)!)
-            let spansInit: [InlineTextFfi] = texteInitial.isEmpty
-                ? [] : [InlineTextFfi(content: texteInitial, styles: [])]
-            let newBloc = EditableBlock(id: newId, content: contenu, spans: spansInit, done: false)
+            let newBloc = EditableBlock(id: newId, content: contenu, spans: spansInitiaux, done: false)
 
             if let apresId, let idx = blocs.firstIndex(where: { $0.id == apresId }) {
                 blocs.insert(newBloc, at: idx + 1)
@@ -174,7 +191,8 @@ final class DocumentViewModel: ObservableObject {
             } else {
                 blocs.append(newBloc)
             }
-            if !texteInitial.isEmpty { sauvegarderBloc(newBloc) }
+            if !spansInitiaux.isEmpty { sauvegarderBloc(newBloc) }
+            autoFocusOffset = 0
             autoFocusId = newId
         } catch { erreur = error.localizedDescription }
     }
@@ -197,16 +215,13 @@ final class DocumentViewModel: ObservableObject {
     }
 
     func demarrerNavRepetition(depuis: String, suivant: Bool) {
-        guard !navEnRepetition else { return }
+        guard !repeteur.actif else { return }
         idBlocFocuse = depuis
-        navTimer = Timer.scheduledTimer(withTimeInterval: 0.12, repeats: true) { [weak self] _ in
-            self?.pasNavigation(suivant: suivant)
-        }
+        repeteur.demarrer { [weak self] in self?.pasNavigation(suivant: suivant) }
     }
 
     func stopNavRepetition() {
-        navTimer?.invalidate()
-        navTimer = nil
+        repeteur.arreter()
         idBlocFocuse = nil
     }
 
@@ -352,63 +367,65 @@ struct DocumentView: View {
                         bloc: $bloc,
                         autoFocusId: $vm.autoFocusId,
                         autoFocusOffset: $vm.autoFocusOffset,
-                        onSauvegarder: {
-                            guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }) else { return }
-                            vm.sauvegarderBloc(vm.blocs[idx])
-                        },
-                        onSauvegarderSpans: { spans in
-                            vm.sauvegarderBloc(id: bloc.id, spans: spans)
-                        },
-                        onSupprimer: {
-                            if let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }) {
+                        cb: BlocCallbacks(
+                            onSauvegarder: {
+                                guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }) else { return }
+                                vm.sauvegarderBloc(vm.blocs[idx])
+                            },
+                            onSauvegarderSpans: { spans in
+                                vm.sauvegarderBloc(id: bloc.id, spans: spans)
+                            },
+                            onSupprimer: {
+                                if let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }) {
+                                    if idx > 0 {
+                                        let prevId = vm.blocs[idx - 1].id
+                                        vm.supprimerBloc(id: bloc.id)
+                                        vm.autoFocusId = prevId
+                                    } else {
+                                        vm.supprimerBloc(id: bloc.id)
+                                        focusTitre = true
+                                    }
+                                }
+                            },
+                            onNouveauBloc: { spansApres in
+                                vm.ajouterBloc(type: .texte, spansInitiaux: spansApres, apresId: bloc.id)
+                            },
+                            onFusionner: vm.blocs.first?.id == bloc.id ? nil : { spansAMerger in
+                                guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }), idx > 0 else { return }
+                                let prevIdx      = idx - 1
+                                let prevId       = vm.blocs[prevIdx].id
+                                let offsetFusion = vm.blocs[prevIdx].spans.map(\.content).joined().count
+                                vm.blocs[prevIdx].spans += spansAMerger
+                                vm.sauvegarderBloc(vm.blocs[prevIdx])
+                                vm.supprimerBloc(id: bloc.id)
+                                vm.autoFocusOffset = offsetFusion
+                                vm.autoFocusId     = prevId
+                            },
+                            onNaviguerPrecedent: {
+                                guard !vm.navEnRepetition else { return }
+                                guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }) else { return }
                                 if idx > 0 {
-                                    let prevId = vm.blocs[idx - 1].id
-                                    vm.supprimerBloc(id: bloc.id)
-                                    vm.autoFocusId = prevId
+                                    let nid = vm.blocs[idx - 1].id
+                                    vm.autoFocusOffset = nil
+                                    vm.autoFocusId = nid
+                                    vm.demarrerNavRepetition(depuis: nid, suivant: false)
                                 } else {
-                                    vm.supprimerBloc(id: bloc.id)
                                     focusTitre = true
                                 }
-                            }
-                        },
-                        onNouveauBloc: { apres in
-                            vm.ajouterBloc(type: .texte, texteInitial: apres, apresId: bloc.id)
-                        },
-                        onFusionner: vm.blocs.first?.id == bloc.id ? nil : { spansAMerger in
-                            guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }), idx > 0 else { return }
-                            let prevIdx      = idx - 1
-                            let prevId       = vm.blocs[prevIdx].id
-                            let offsetFusion = vm.blocs[prevIdx].spans.map(\.content).joined().count
-                            vm.blocs[prevIdx].spans += spansAMerger
-                            vm.sauvegarderBloc(vm.blocs[prevIdx])
-                            vm.supprimerBloc(id: bloc.id)
-                            vm.autoFocusOffset = offsetFusion
-                            vm.autoFocusId     = prevId
-                        },
-                        onNaviguerPrecedent: {
-                            guard !vm.navEnRepetition else { return }
-                            guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }) else { return }
-                            if idx > 0 {
-                                let nid = vm.blocs[idx - 1].id
-                                vm.autoFocusOffset = nil
+                            },
+                            onNaviguerSuivant: {
+                                guard !vm.navEnRepetition else { return }
+                                guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }),
+                                      idx < vm.blocs.count - 1 else { return }
+                                let nid = vm.blocs[idx + 1].id
+                                vm.autoFocusOffset = 0
                                 vm.autoFocusId = nid
-                                vm.demarrerNavRepetition(depuis: nid, suivant: false)
-                            } else {
-                                focusTitre = true
-                            }
-                        },
-                        onNaviguerSuivant: {
-                            guard !vm.navEnRepetition else { return }
-                            guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }),
-                                  idx < vm.blocs.count - 1 else { return }
-                            let nid = vm.blocs[idx + 1].id
-                            vm.autoFocusOffset = 0
-                            vm.autoFocusId = nid
-                            vm.demarrerNavRepetition(depuis: nid, suivant: true)
-                        },
-                        onNavRepeterArreter: { vm.stopNavRepetition() },
-                        onLongPressSelection: { selectionnerBlocDepuisPressionLongue(bloc.id) },
-                        onFocus: { vm.idBlocActif = bloc.id }
+                                vm.demarrerNavRepetition(depuis: nid, suivant: true)
+                            },
+                            onNavRepeterArreter: { vm.stopNavRepetition() },
+                            onLongPressSelection: { selectionnerBlocDepuisPressionLongue(bloc.id) },
+                            onFocus: { vm.idBlocActif = bloc.id }
+                        )
                     )
                     .disabled(documentVerrouille || editMode == .active)
                     .allowsHitTesting(!documentVerrouille && editMode != .active)
@@ -531,7 +548,7 @@ struct DocumentView: View {
         }
 
         if !documentVerrouille && editMode == .inactive && !clavierVisible {
-            BoutonActionDoc { showingBlocPicker = true }
+            FloatingButton(icon: "pencil.and.outline") { showingBlocPicker = true }
                 .padding(.trailing, 24)
                 .padding(.bottom, 32)
                 .transition(.scale.combined(with: .opacity))
@@ -825,7 +842,8 @@ private struct EmojiPickerSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { dismiss() }
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
+                        .accessibilityLabel("Annuler")
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -1041,78 +1059,86 @@ private struct EtatVideSaisie: View {
     }
 }
 
+// ── Callbacks d'édition d'un bloc ─────────────────────────────────────────────
+// Regroupe les closures partagées par tous les types de blocs pour éviter de les
+// répéter dans chaque RowView et dans BlocRowView.
+
+struct BlocCallbacks {
+    var onSauvegarder: () -> Void
+    var onSauvegarderSpans: ([InlineTextFfi]) -> Void
+    var onSupprimer: () -> Void
+    var onNouveauBloc: ([InlineTextFfi]) -> Void
+    var onFusionner: (([InlineTextFfi]) -> Void)? = nil
+    var onNaviguerPrecedent: (() -> Void)? = nil
+    var onNaviguerSuivant: (() -> Void)? = nil
+    var onNavRepeterArreter: (() -> Void)? = nil
+    var onLongPressSelection: (() -> Void)? = nil
+    var onFocus: (() -> Void)? = nil
+}
+
+// ── Éditeur de texte commun à tous les blocs ──────────────────────────────────
+// Câblage unique du RichTextEditor + auto-focus + détection de focus. Chaque
+// RowView ne fournit que placeholder, fonte, décor et options spécifiques.
+
+private struct BlocTextEditor: View {
+    @Binding var bloc: EditableBlock
+    @Binding var autoFocusId: String?
+    @Binding var autoFocusOffset: Int?
+    let placeholder: String
+    let baseFont: UIFont
+    var extraAttrs: [NSAttributedString.Key: Any]? = nil
+    var convertible: Bool = true
+    let cb: BlocCallbacks
+    @State private var focused = false
+    @State private var cursorAt: Int?
+
+    var body: some View {
+        RichTextEditor(
+            spans: $bloc.spans,
+            isFocused: $focused,
+            placeholder: placeholder,
+            baseFont: baseFont,
+            extraAttrs: extraAttrs,
+            focusCursorAt: cursorAt,
+            onSave: cb.onSauvegarder,
+            onSaveSpans: cb.onSauvegarderSpans,
+            onNewBlock: cb.onNouveauBloc,
+            onSupprimerBloc: cb.onSupprimer,
+            onFusionnerAvecPrecedent: cb.onFusionner,
+            onConvert: convertible ? { contenu in bloc.content = contenu; bloc.spans = []; cb.onSauvegarder() } : nil,
+            onLongPressSelection: cb.onLongPressSelection,
+            onNaviguerPrecedent: cb.onNaviguerPrecedent,
+            onNaviguerSuivant: cb.onNaviguerSuivant,
+            onNavRepeterArreter: cb.onNavRepeterArreter)
+        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId,
+                              autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
+        .onChange(of: focused) { _, f in if f { cb.onFocus?() } }
+    }
+}
+
 // ── Ligne de bloc ─────────────────────────────────────────────────────────────
 
 private struct BlocRowView: View {
     @Binding var bloc: EditableBlock
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let onSauvegarder: () -> Void
-    let onSauvegarderSpans: ([InlineTextFfi]) -> Void
-    let onSupprimer: () -> Void
-    let onNouveauBloc: (String) -> Void
-    var onFusionner: (([InlineTextFfi]) -> Void)?
-    var onNaviguerPrecedent: (() -> Void)?
-    var onNaviguerSuivant: (() -> Void)?
-    var onNavRepeterArreter: (() -> Void)?
-    var onLongPressSelection: (() -> Void)?
-    var onFocus: (() -> Void)?
+    let cb: BlocCallbacks
 
     var body: some View {
         Group {
             switch bloc.content {
             case .text:
-                TexteRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                             onSauvegarder: onSauvegarder,
-                             onSauvegarderSpans: onSauvegarderSpans,
-                             onSupprimer: onSupprimer,
-                             onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
-                             onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
-                             onNavRepeterArreter: onNavRepeterArreter,
-                             onLongPressSelection: onLongPressSelection,
-                             onFocus: onFocus)
+                TexteRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
             case .heading(let level, _):
-                HeadingRowView(bloc: $bloc, level: level, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                               onSauvegarder: onSauvegarder,
-                               onSauvegarderSpans: onSauvegarderSpans,
-                               onSupprimer: onSupprimer,
-                               onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
-                               onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
-                               onNavRepeterArreter: onNavRepeterArreter,
-                               onLongPressSelection: onLongPressSelection,
-                               onFocus: onFocus)
+                HeadingRowView(bloc: $bloc, level: level, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
             case .quote(let icon, _):
                 if icon.isEmpty {
-                    CitationRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                                    onSauvegarder: onSauvegarder,
-                                    onSauvegarderSpans: onSauvegarderSpans,
-                                    onSupprimer: onSupprimer,
-                                    onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
-                                    onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
-                                    onNavRepeterArreter: onNavRepeterArreter,
-                                    onLongPressSelection: onLongPressSelection,
-                                    onFocus: onFocus)
+                    CitationRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
                 } else {
-                    CalloutRowView(bloc: $bloc, icon: icon, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                                   onSauvegarder: onSauvegarder,
-                                   onSauvegarderSpans: onSauvegarderSpans,
-                                   onSupprimer: onSupprimer,
-                                   onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
-                                   onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
-                                   onNavRepeterArreter: onNavRepeterArreter,
-                                   onLongPressSelection: onLongPressSelection,
-                                   onFocus: onFocus)
+                    CalloutRowView(bloc: $bloc, icon: icon, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
                 }
             case .todo:
-                TodoRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                            onSauvegarder: onSauvegarder,
-                            onSauvegarderSpans: onSauvegarderSpans,
-                            onSupprimer: onSupprimer,
-                            onNouveauBloc: onNouveauBloc, onFusionner: onFusionner,
-                            onNaviguerPrecedent: onNaviguerPrecedent, onNaviguerSuivant: onNaviguerSuivant,
-                            onNavRepeterArreter: onNavRepeterArreter,
-                            onLongPressSelection: onLongPressSelection,
-                            onFocus: onFocus)
+                TodoRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
             case .divider:
                 Divider().padding(.vertical, 12)
             default:
@@ -1120,7 +1146,7 @@ private struct BlocRowView: View {
             }
         }
         .contextMenu {
-            Button(role: .destructive, action: onSupprimer) {
+            Button(role: .destructive, action: cb.onSupprimer) {
                 Label("Supprimer le bloc", systemImage: "trash")
             }
         }
@@ -1133,39 +1159,11 @@ private struct TexteRowView: View {
     @Binding var bloc: EditableBlock
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let onSauvegarder: () -> Void
-    let onSauvegarderSpans: ([InlineTextFfi]) -> Void
-    let onSupprimer: () -> Void
-    let onNouveauBloc: (String) -> Void
-    var onFusionner: (([InlineTextFfi]) -> Void)?
-    var onNaviguerPrecedent: (() -> Void)?
-    var onNaviguerSuivant: (() -> Void)?
-    var onNavRepeterArreter: (() -> Void)?
-    var onLongPressSelection: (() -> Void)?
-    var onFocus: (() -> Void)?
-    @State private var focused = false
-    @State private var cursorAt: Int?
+    let cb: BlocCallbacks
 
     var body: some View {
-        RichTextEditor(
-            spans: $bloc.spans,
-            isFocused: $focused,
-            placeholder: "Texte…",
-            baseFont: .preferredFont(forTextStyle: .body),
-            focusCursorAt: cursorAt,
-            onSave: onSauvegarder,
-            onSaveSpans: onSauvegarderSpans,
-            onNewBlock: onNouveauBloc,
-            onSupprimerBloc: onSupprimer,
-            onFusionnerAvecPrecedent: onFusionner,
-            onConvert: { contenu in bloc.content = contenu; bloc.spans = []; onSauvegarder() },
-            onLongPressSelection: onLongPressSelection,
-            onNaviguerPrecedent: onNaviguerPrecedent,
-            onNaviguerSuivant: onNaviguerSuivant,
-            onNavRepeterArreter: onNavRepeterArreter)
-        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId,
-                              autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
-        .onChange(of: focused) { _, f in if f { onFocus?() } }
+        BlocTextEditor(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
+                       placeholder: "Texte…", baseFont: .preferredFont(forTextStyle: .body), cb: cb)
     }
 }
 
@@ -1176,18 +1174,7 @@ private struct HeadingRowView: View {
     let level: Int
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let onSauvegarder: () -> Void
-    let onSauvegarderSpans: ([InlineTextFfi]) -> Void
-    let onSupprimer: () -> Void
-    let onNouveauBloc: (String) -> Void
-    var onFusionner: (([InlineTextFfi]) -> Void)?
-    var onNaviguerPrecedent: (() -> Void)?
-    var onNaviguerSuivant: (() -> Void)?
-    var onNavRepeterArreter: (() -> Void)?
-    var onLongPressSelection: (() -> Void)?
-    var onFocus: (() -> Void)?
-    @State private var focused = false
-    @State private var cursorAt: Int?
+    let cb: BlocCallbacks
 
     private var uiFont: UIFont {
         switch level {
@@ -1198,27 +1185,10 @@ private struct HeadingRowView: View {
     }
 
     var body: some View {
-        RichTextEditor(
-            spans: $bloc.spans,
-            isFocused: $focused,
-            placeholder: "Titre…",
-            baseFont: uiFont,
-            focusCursorAt: cursorAt,
-            onSave: onSauvegarder,
-            onSaveSpans: onSauvegarderSpans,
-            onNewBlock: onNouveauBloc,
-            onSupprimerBloc: onSupprimer,
-            onFusionnerAvecPrecedent: onFusionner,
-            onConvert: { contenu in bloc.content = contenu; bloc.spans = []; onSauvegarder() },
-            onLongPressSelection: onLongPressSelection,
-            onNaviguerPrecedent: onNaviguerPrecedent,
-            onNaviguerSuivant: onNaviguerSuivant,
-            onNavRepeterArreter: onNavRepeterArreter)
-        .padding(.top, level == 1 ? 16 : 10)
-        .padding(.bottom, 4)
-        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId,
-                              autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
-        .onChange(of: focused) { _, f in if f { onFocus?() } }
+        BlocTextEditor(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
+                       placeholder: "Titre…", baseFont: uiFont, cb: cb)
+            .padding(.top, level == 1 ? 16 : 10)
+            .padding(.bottom, 4)
     }
 }
 
@@ -1228,18 +1198,7 @@ private struct CitationRowView: View {
     @Binding var bloc: EditableBlock
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let onSauvegarder: () -> Void
-    let onSauvegarderSpans: ([InlineTextFfi]) -> Void
-    let onSupprimer: () -> Void
-    let onNouveauBloc: (String) -> Void
-    var onFusionner: (([InlineTextFfi]) -> Void)?
-    var onNaviguerPrecedent: (() -> Void)?
-    var onNaviguerSuivant: (() -> Void)?
-    var onNavRepeterArreter: (() -> Void)?
-    var onLongPressSelection: (() -> Void)?
-    var onFocus: (() -> Void)?
-    @State private var focused = false
-    @State private var cursorAt: Int?
+    let cb: BlocCallbacks
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
@@ -1247,28 +1206,14 @@ private struct CitationRowView: View {
                 .fill(Color.secondary.opacity(0.4))
                 .frame(width: 3)
                 .padding(.vertical, 6)
-            RichTextEditor(
-                spans: $bloc.spans,
-                isFocused: $focused,
+            BlocTextEditor(
+                bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
                 placeholder: "Citation…",
                 baseFont: .italicSystemFont(ofSize: UIFont.preferredFont(forTextStyle: .body).pointSize),
-                focusCursorAt: cursorAt,
-                onSave: onSauvegarder,
-                onSaveSpans: onSauvegarderSpans,
-                onNewBlock: onNouveauBloc,
-                onSupprimerBloc: onSupprimer,
-                onFusionnerAvecPrecedent: onFusionner,
-                onConvert: { contenu in bloc.content = contenu; bloc.spans = []; onSauvegarder() },
-                onLongPressSelection: onLongPressSelection,
-                onNaviguerPrecedent: onNaviguerPrecedent,
-                onNaviguerSuivant: onNaviguerSuivant,
-                onNavRepeterArreter: onNavRepeterArreter)
+                cb: cb)
             .padding(.leading, 14)
         }
         .padding(.vertical, 4)
-        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId,
-                              autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
-        .onChange(of: focused) { _, f in if f { onFocus?() } }
     }
 }
 
@@ -1279,18 +1224,7 @@ private struct CalloutRowView: View {
     let icon: String
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let onSauvegarder: () -> Void
-    let onSauvegarderSpans: ([InlineTextFfi]) -> Void
-    let onSupprimer: () -> Void
-    let onNouveauBloc: (String) -> Void
-    var onFusionner: (([InlineTextFfi]) -> Void)?
-    var onNaviguerPrecedent: (() -> Void)?
-    var onNaviguerSuivant: (() -> Void)?
-    var onNavRepeterArreter: (() -> Void)?
-    var onLongPressSelection: (() -> Void)?
-    var onFocus: (() -> Void)?
-    @State private var focused = false
-    @State private var cursorAt: Int?
+    let cb: BlocCallbacks
     @State private var emojiPickerOuvert = false
     @State private var emojisRecents = chargerEmojisRecents()
 
@@ -1307,22 +1241,8 @@ private struct CalloutRowView: View {
             .buttonStyle(.plain)
             .padding(.top, 8)
 
-            RichTextEditor(
-                spans: $bloc.spans,
-                isFocused: $focused,
-                placeholder: "Callout…",
-                baseFont: .preferredFont(forTextStyle: .body),
-                focusCursorAt: cursorAt,
-                onSave: onSauvegarder,
-                onSaveSpans: onSauvegarderSpans,
-                onNewBlock: onNouveauBloc,
-                onSupprimerBloc: onSupprimer,
-                onFusionnerAvecPrecedent: onFusionner,
-                onConvert: { contenu in bloc.content = contenu; bloc.spans = []; onSauvegarder() },
-                onLongPressSelection: onLongPressSelection,
-                onNaviguerPrecedent: onNaviguerPrecedent,
-                onNaviguerSuivant: onNaviguerSuivant,
-                onNavRepeterArreter: onNavRepeterArreter)
+            BlocTextEditor(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
+                           placeholder: "Callout…", baseFont: .preferredFont(forTextStyle: .body), cb: cb)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
@@ -1335,18 +1255,14 @@ private struct CalloutRowView: View {
                 .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
         )
         .padding(.vertical, 8)
-        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId,
-                              autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
-        .onChange(of: focused) { _, f in if f { onFocus?() } }
         .sheet(isPresented: $emojiPickerOuvert) {
             EmojiPickerSheet(selection: icon, recents: emojisRecents) { emoji in
                 bloc.content = .quote(icon: emoji, text: bloc.spans)
                 emojisRecents = enregistrerEmojiRecent(emoji)
-                onSauvegarder()
+                cb.onSauvegarder()
             }
         }
     }
-
 }
 
 // ── Todo ──────────────────────────────────────────────────────────────────────
@@ -1355,24 +1271,20 @@ private struct TodoRowView: View {
     @Binding var bloc: EditableBlock
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let onSauvegarder: () -> Void
-    let onSauvegarderSpans: ([InlineTextFfi]) -> Void
-    let onSupprimer: () -> Void
-    let onNouveauBloc: (String) -> Void
-    var onFusionner: (([InlineTextFfi]) -> Void)?
-    var onNaviguerPrecedent: (() -> Void)?
-    var onNaviguerSuivant: (() -> Void)?
-    var onNavRepeterArreter: (() -> Void)?
-    var onLongPressSelection: (() -> Void)?
-    var onFocus: (() -> Void)?
-    @State private var focused = false
-    @State private var cursorAt: Int?
+    let cb: BlocCallbacks
+
+    private var attrsCoche: [NSAttributedString.Key: Any]? {
+        bloc.done ? [
+            .strikethroughStyle: NSUnderlineStyle.single.rawValue,
+            .foregroundColor: UIColor.secondaryLabel
+        ] : nil
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Button {
                 bloc.done.toggle()
-                onSauvegarder()
+                cb.onSauvegarder()
             } label: {
                 Image(systemName: bloc.done ? "checkmark.square.fill" : "square")
                     .font(.body)
@@ -1381,31 +1293,11 @@ private struct TodoRowView: View {
             .buttonStyle(.plain)
             .padding(.top, 8)
 
-            RichTextEditor(
-                spans: $bloc.spans,
-                isFocused: $focused,
-                placeholder: "À faire…",
-                baseFont: .preferredFont(forTextStyle: .body),
-                extraAttrs: bloc.done ? [
-                    .strikethroughStyle: NSUnderlineStyle.single.rawValue,
-                    .foregroundColor: UIColor.secondaryLabel
-                ] : nil,
-                focusCursorAt: cursorAt,
-                onSave: onSauvegarder,
-                onSaveSpans: onSauvegarderSpans,
-                onNewBlock: onNouveauBloc,
-                onSupprimerBloc: onSupprimer,
-                onFusionnerAvecPrecedent: onFusionner,
-                onConvert: nil,
-                onLongPressSelection: onLongPressSelection,
-                onNaviguerPrecedent: onNaviguerPrecedent,
-                onNaviguerSuivant: onNaviguerSuivant,
-                onNavRepeterArreter: onNavRepeterArreter)
+            BlocTextEditor(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
+                           placeholder: "À faire…", baseFont: .preferredFont(forTextStyle: .body),
+                           extraAttrs: attrsCoche, convertible: false, cb: cb)
         }
         .padding(.vertical, 2)
-        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId,
-                              autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
-        .onChange(of: focused) { _, f in if f { onFocus?() } }
     }
 }
 
@@ -1424,54 +1316,6 @@ private struct BoutonAjouterBloc: View {
             .padding(.vertical, 12)
         }
         .buttonStyle(.plain)
-    }
-}
-
-// ── FAB document ──────────────────────────────────────────────────────────────
-
-private struct BoutonActionDoc: View {
-    let action: () -> Void
-    @State private var impulsion = false
-
-    var body: some View {
-        Button {
-            withAnimation(.spring(response: 0.24, dampingFraction: 0.58)) { impulsion = true }
-            action()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
-                withAnimation(.easeOut(duration: 0.18)) { impulsion = false }
-            }
-        } label: {
-            ZStack {
-                if impulsion {
-                    Circle()
-                        .fill(Color("SelectionTint").opacity(0.18))
-                        .frame(width: 54, height: 54)
-                        .transition(.scale.combined(with: .opacity))
-                }
-                Image(systemName: "pencil.and.outline")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 44, height: 44)
-                    .symbolEffect(.bounce, value: impulsion)
-            }
-            .frame(width: 54, height: 54)
-            .contentShape(Circle())
-        }
-        .buttonStyle(BoutonActionDocStyle())
-        .sensoryFeedback(.impact(flexibility: .soft), trigger: impulsion)
-    }
-}
-
-private struct BoutonActionDocStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .glassEffect(.regular.interactive(), in: .circle)
-            .scaleEffect(configuration.isPressed ? 0.84 : 1)
-            .rotationEffect(.degrees(configuration.isPressed ? -6 : 0))
-            .shadow(color: Color("SelectionTint").opacity(configuration.isPressed ? 0.34 : 0.18),
-                    radius: configuration.isPressed ? 20 : 12,
-                    y: configuration.isPressed ? 8 : 6)
-            .animation(.spring(response: 0.22, dampingFraction: 0.62), value: configuration.isPressed)
     }
 }
 
@@ -1496,7 +1340,8 @@ private struct BlocPickerSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { dismiss() }
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
+                        .accessibilityLabel("Annuler")
                 }
             }
         }

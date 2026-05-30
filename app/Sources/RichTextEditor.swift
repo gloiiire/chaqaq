@@ -215,7 +215,7 @@ struct RichTextEditor: UIViewRepresentable {
     var focusCursorAt: Int? = nil
     var onSave: (() -> Void)?
     var onSaveSpans: (([InlineTextFfi]) -> Void)? = nil
-    var onNewBlock: ((String) -> Void)?
+    var onNewBlock: (([InlineTextFfi]) -> Void)?
     var onSupprimerBloc: (() -> Void)?
     var onFusionnerAvecPrecedent: (([InlineTextFfi]) -> Void)?
     var onConvert: ((BlockContentFfi) -> Void)?
@@ -412,16 +412,20 @@ struct RichTextEditor: UIViewRepresentable {
                     saisieSautDeLigne = false
                     return true
                 }
-                // Enter normal : couper le bloc et en créer un nouveau
+                // Enter normal : couper le bloc et en créer un nouveau.
+                // On conserve les attributs (couleur, gras…) de la portion après le curseur.
+                let debutApres = range.location + range.length
                 let attrAvant = tv.attributedText.attributedSubstring(
                     from: NSRange(location: 0, length: range.location))
-                let apres = (tv.text as NSString).substring(from: range.location + range.length)
+                let attrApres = tv.attributedText.attributedSubstring(
+                    from: NSRange(location: debutApres, length: tv.attributedText.length - debutApres))
+                let spansApres = nsAttributedVersSpans(attrApres, police: parent.baseFont)
                 tv.attributedText = attrAvant.string.isEmpty
                     ? NSAttributedString(string: "", attributes: [.font: parent.baseFont, .foregroundColor: UIColor.label])
                     : attrAvant
                 tv.selectedRange = NSRange(location: attrAvant.length, length: 0)
                 sauvegarder(nsAttributedVersSpans(attrAvant, police: parent.baseFont))
-                parent.onNewBlock?(apres)
+                parent.onNewBlock?(spansApres)
                 return false
             }
             // Couleur de frappe : UIKit réinitialise typingAttributes après chaque
@@ -688,6 +692,9 @@ struct RichTextEditor: UIViewRepresentable {
             memoriserSelection(range, longueur: m.length)
             sauvegarder(nsAttributedVersSpans(tv.attributedText, police: parent.baseFont))
             mettreAJourToolbar()
+            // Le menu couleur (showsMenuAsPrimaryAction) fait perdre le first
+            // responder : on le rétablit pour garder le clavier et la sélection.
+            _ = tv.becomeFirstResponder()
         }
 
         private func appliquerStyleTyping(tv: UITextView, style: InlineStyleFfi) {
@@ -718,7 +725,10 @@ struct RichTextEditor: UIViewRepresentable {
                 if attrs[.strikethroughStyle] != nil { attrs.removeValue(forKey: .strikethroughStyle) }
                 else { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
             case .color(let nom):
-                if (attrs[.chaqaqColor] as? String) == nom {
+                // Source de vérité : couleurEnAttente (typingAttributes est réinitialisé
+                // par textViewDidBeginEditing après l'ouverture du menu).
+                let couleurActuelle = couleurEnAttente ?? (attrs[.chaqaqColor] as? String)
+                if couleurActuelle == nom {
                     attrs.removeValue(forKey: .chaqaqColor)
                     attrs[.foregroundColor] = UIColor.label
                     couleurEnAttente = nil

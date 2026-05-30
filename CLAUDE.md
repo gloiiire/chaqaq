@@ -241,10 +241,33 @@ Ce qui **reste** à construire :
 4. Sync entre appareils (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
 
 ## Code style
-- Commentaires en français
-- Pas de `unwrap()` — toujours `?` et `Result`
-- Nommage idiomatique Rust (snake_case, PascalCase)
+
+### Langue
+- **Code en anglais** : tous les identifiants (types, fonctions, variables, champs, paramètres, méthodes FFI) en anglais idiomatique. Pas d'identifiants français (pas de `creer`, `titre`, `bloc`…).
+- **Commentaires en français** : tout commentaire, doc-comment et explication inline est en français.
+- **Chaînes utilisateur en français** : `Text("Bonjour")`, `placeholder("Titre du document")`, `accessibilityLabel("Annuler")` — restent en français car visibles par l'utilisateur final francophone.
+
+### Conventions
+- Pas de `unwrap()` — toujours `?` et `Result` côté Rust
+- Nommage idiomatique : Rust `snake_case`/`PascalCase`, Swift `camelCase`/`PascalCase`
 - `flush()` pattern pour les parsers
+
+### Architecture — SOLID + Clean Architecture
+- **Single Responsibility** : chaque module/type fait une chose. Domain (types purs), application (use cases + traits), infrastructure (stockage), ffi (adaptateur). Pas de "God objects".
+- **Open/Closed** : ajout d'une fonctionnalité = nouveau type/impl, pas de modification des use cases. Les `match` exhaustifs forcent par le compilateur à traiter chaque variant ajouté (voulu).
+- **Liskov** : toute impl de `DocumentRepository`/`DatabaseRepository` doit être strictement substituable (les tests tournent sur `MockRepo`, la prod sur `SqliteDocumentStore`).
+- **Interface Segregation** : un trait = un rôle. `DocumentRepository` et `DatabaseRepository` sont séparés ; un client documents ne dépend pas des méthodes database.
+- **Dependency Inversion** : les use cases dépendent d'abstractions (`&dyn DocumentRepository`), jamais de stores concrets. Seul `ffi.rs` (composition root) connaît les implémentations concrètes (`SqliteDocumentStore`).
+
+### Résilience (back + front)
+- **Erreurs typées, pas de panic** : `Result<T, ChaqaqError>` côté Rust, throws/Result côté Swift. Jamais de `unwrap()`/`!` en production.
+- **Conversion d'erreurs aux frontières** : `From<E>` Rust (cf. `From<CoreError> for ChaqaqError` FFI) ; mapping en `ChaqaqError` côté Swift via `do/catch` qui remonte un `errorMessage: String?` au store.
+- **Pas de couplage à l'impl** : `ChaqaqError::Db(String)` convertit les erreurs `rusqlite` en string pour ne pas coupler l'application à SQLite.
+- **Soft delete + `updated_at`** : pas d'effacement dur, préparation CRDT/sync. Toute écriture passe par `save()` qui met à jour `updated_at`.
+- **Mutations UI optimistes** : mémoire d'abord (les blocs en mémoire), persistance ensuite — évite l'effacement du contenu en cours de frappe lors d'un rechargement SQLite. La désync mémoire/disque est détectée au rechargement.
+- **Concurrence** : SQLite en `WAL` pour la lecture concurrente. `@MainActor` côté Swift pour les view models. Pas d'accès direct au store hors façade.
+- **Validation aux entrées** : `parse_uuid`/`parse_json` à la frontière FFI rejettent les payloads invalides avant d'atteindre la couche application.
+- **Tests à 3 niveaux** : unitaires (`#[cfg(test)] mod tests` dans chaque module), intégration (`tests/integration_*`), E2E (`tests/e2e_*`). Toute fonctionnalité critique doit avoir des tests aux 3 niveaux.
 
 ## Notes
 - `#![allow(dead_code)]` intentionnel pour le code database non encore connecté à l'UI.

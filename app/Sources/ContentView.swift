@@ -5,45 +5,45 @@ import SwiftUI
 @MainActor
 final class ChaqaqStore: ObservableObject {
     @Published var documents: [DocumentMetaFfi] = []
-    @Published var erreur: String?
+    @Published var errorMessage: String?
 
     private(set) var api: ChaqaqApi?
 
-    func connecter() {
+    func connect() {
         guard api == nil else { return }
         do {
             let dir  = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             let path = dir.appendingPathComponent("chaqaq.db").path
             api = try ChaqaqApi(cheminDb: path)
-            charger()
+            load()
         } catch {
-            erreur = error.localizedDescription
+            errorMessage = error.localizedDescription
         }
     }
 
-    func charger() {
+    func load() {
         do {
             documents = try api?.listerDocuments() ?? []
         } catch {
-            erreur = error.localizedDescription
+            errorMessage = error.localizedDescription
         }
     }
 
-    func creer(titre: String) {
+    func create(title: String) {
         do {
-            _ = try api?.creerDocument(titre: titre)
-            charger()
+            _ = try api?.creerDocument(titre: title)
+            load()
         } catch {
-            erreur = error.localizedDescription
+            errorMessage = error.localizedDescription
         }
     }
 
-    func supprimer(id: String) {
+    func delete(id: String) {
         do {
             try api?.supprimerDocument(id: id)
-            charger()
+            load()
         } catch {
-            erreur = error.localizedDescription
+            errorMessage = error.localizedDescription
         }
     }
 }
@@ -52,22 +52,22 @@ final class ChaqaqStore: ObservableObject {
 
 struct ContentView: View {
     @StateObject private var store = ChaqaqStore()
-    @State private var showingCreer = false
-    @State private var nouveauTitre = ""
+    @State private var showingCreate = false
+    @State private var newTitle = ""
 
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
                 List {
                     Section {
-                        EnTeteBienvenue(salutation: salutation)
+                        WelcomeHeader(greeting: greeting)
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                     }
 
                     if store.documents.isEmpty {
                         Section {
-                            EtatVide()
+                            EmptyState()
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 48)
                                 .listRowBackground(Color.clear)
@@ -77,13 +77,13 @@ struct ContentView: View {
                         Section("Documents") {
                             if let api = store.api {
                                 ForEach(store.documents, id: \.id) { doc in
-                                    NavigationLink(destination: DocumentView(docId: doc.id, api: api, onDisparaitre: store.charger)) {
+                                    NavigationLink(destination: DocumentView(docId: doc.id, api: api, onDisparaitre: store.load)) {
                                         DocumentRow(doc: doc)
                                     }
                                 }
                                 .onDelete { indexSet in
                                     for i in indexSet {
-                                        store.supprimer(id: store.documents[i].id)
+                                        store.delete(id: store.documents[i].id)
                                     }
                                 }
                             } else {
@@ -96,35 +96,35 @@ struct ContentView: View {
                 .navigationTitle("chaqaq")
                 .navigationBarTitleDisplayMode(.inline)
 
-                BoutonCreer {
-                    showingCreer = true
+                FloatingButton(icon: "square.and.pencil") {
+                    showingCreate = true
                 }
                 .padding(.trailing, 24)
                 .padding(.bottom, 32)
             }
-            .sheet(isPresented: $showingCreer) {
-                CreerDocumentSheet(titre: $nouveauTitre) {
-                    store.creer(titre: nouveauTitre)
-                    nouveauTitre = ""
-                    showingCreer = false
+            .sheet(isPresented: $showingCreate) {
+                CreateDocumentSheet(title: $newTitle) {
+                    store.create(title: newTitle)
+                    newTitle = ""
+                    showingCreate = false
                 } onCancel: {
-                    nouveauTitre = ""
-                    showingCreer = false
+                    newTitle = ""
+                    showingCreate = false
                 }
             }
             .alert("Erreur", isPresented: Binding(
-                get: { store.erreur != nil },
-                set: { if !$0 { store.erreur = nil } }
+                get: { store.errorMessage != nil },
+                set: { if !$0 { store.errorMessage = nil } }
             )) {
-                Button("OK") { store.erreur = nil }
+                Button("OK") { store.errorMessage = nil }
             } message: {
-                Text(store.erreur ?? "")
+                Text(store.errorMessage ?? "")
             }
         }
-        .onAppear { store.connecter() }
+        .onAppear { store.connect() }
     }
 
-    private var salutation: String {
+    private var greeting: String {
         let h = Calendar.current.component(.hour, from: .now)
         switch h {
         case 5..<12: return "Bonjour."
@@ -136,12 +136,12 @@ struct ContentView: View {
 
 // ── Composants ────────────────────────────────────────────────────────────────
 
-private struct EnTeteBienvenue: View {
-    let salutation: String
+private struct WelcomeHeader: View {
+    let greeting: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(salutation)
+            Text(greeting)
                 .font(.largeTitle.bold())
             Text("Tes notes, à toi.")
                 .font(.subheadline)
@@ -152,7 +152,7 @@ private struct EnTeteBienvenue: View {
     }
 }
 
-private struct EtatVide: View {
+private struct EmptyState: View {
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "doc.text")
@@ -170,45 +170,48 @@ private struct EtatVide: View {
     }
 }
 
-private struct BoutonCreer: View {
+// Bouton d'action flottant (FAB) partagé : accueil (square.and.pencil) et
+// document (pencil.and.outline). Style verre + pulse + retour haptique.
+struct FloatingButton: View {
+    let icon: String
     let action: () -> Void
-    @State private var impulsion = false
+    @State private var pulse = false
 
     var body: some View {
         Button {
             withAnimation(.spring(response: 0.24, dampingFraction: 0.58)) {
-                impulsion = true
+                pulse = true
             }
             action()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
                 withAnimation(.easeOut(duration: 0.18)) {
-                    impulsion = false
+                    pulse = false
                 }
             }
         } label: {
             ZStack {
-                if impulsion {
+                if pulse {
                     Circle()
                         .fill(Color("SelectionTint").opacity(0.18))
                         .frame(width: 54, height: 54)
                         .transition(.scale.combined(with: .opacity))
                 }
 
-                Image(systemName: "square.and.pencil")
+                Image(systemName: icon)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(.primary)
                     .frame(width: 44, height: 44)
-                    .symbolEffect(.bounce, value: impulsion)
+                    .symbolEffect(.bounce, value: pulse)
             }
             .frame(width: 54, height: 54)
             .contentShape(Circle())
         }
-        .buttonStyle(BoutonCreerStyle())
-        .sensoryFeedback(.impact(flexibility: .soft), trigger: impulsion)
+        .buttonStyle(FloatingButtonStyle())
+        .sensoryFeedback(.impact(flexibility: .soft), trigger: pulse)
     }
 }
 
-private struct BoutonCreerStyle: ButtonStyle {
+private struct FloatingButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .glassEffect(.regular.interactive(), in: .circle)
@@ -226,12 +229,12 @@ struct DocumentRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            iconeDocument
+            documentIcon
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(doc.titlePlain.isEmpty ? "Sans titre" : doc.titlePlain)
                     .font(.body.weight(.medium))
-                if let date = dateFormatee(doc.updatedAt) {
+                if let date = formattedDate(doc.updatedAt) {
                     Text(date)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -243,9 +246,9 @@ struct DocumentRow: View {
     }
 
     @ViewBuilder
-    private var iconeDocument: some View {
-        if let icone = UserDefaults.standard.string(forKey: Self.cleIcone(docId: doc.id)), !icone.isEmpty {
-            Text(icone)
+    private var documentIcon: some View {
+        if let icon = UserDefaults.standard.string(forKey: Self.iconKey(docId: doc.id)), !icon.isEmpty {
+            Text(icon)
                 .font(.title2)
                 .frame(width: 34, height: 34)
         } else {
@@ -257,11 +260,11 @@ struct DocumentRow: View {
         }
     }
 
-    private static func cleIcone(docId: String) -> String {
+    private static func iconKey(docId: String) -> String {
         "document.icon.\(docId)"
     }
 
-    private func dateFormatee(_ iso: String) -> String? {
+    private func formattedDate(_ iso: String) -> String? {
         guard !iso.isEmpty else { return nil }
         let parser = ISO8601DateFormatter()
         parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -270,8 +273,8 @@ struct DocumentRow: View {
     }
 }
 
-struct CreerDocumentSheet: View {
-    @Binding var titre: String
+struct CreateDocumentSheet: View {
+    @Binding var title: String
     let onCreate: () -> Void
     let onCancel: () -> Void
 
@@ -281,11 +284,11 @@ struct CreerDocumentSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Titre du document", text: $titre)
+                    TextField("Titre du document", text: $title)
                         .focused($focused)
                         .submitLabel(.done)
                         .onSubmit {
-                            guard !titre.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                            guard !title.trimmingCharacters(in: .whitespaces).isEmpty else { return }
                             onCreate()
                         }
                 }
@@ -294,11 +297,13 @@ struct CreerDocumentSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler", action: onCancel)
+                    Button(action: onCancel) { Image(systemName: "xmark") }
+                        .accessibilityLabel("Annuler")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Créer") { onCreate() }
-                        .disabled(titre.trimmingCharacters(in: .whitespaces).isEmpty)
+                    Button { onCreate() } label: { Image(systemName: "checkmark") }
+                        .accessibilityLabel("Créer")
+                        .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
         }

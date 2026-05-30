@@ -284,9 +284,11 @@ impl ChaqaqApi {
             use_cases::rechercher_dans_blocs(&self.docs, &query).map_err(ChaqaqError::from)?;
         Ok(metas.into_iter().map(doc_meta_vers_ffi).collect())
     }
+}
 
-    // ── Databases ─────────────────────────────────────────────
+// ── Façade : databases ────────────────────────────────────────────────────────
 
+impl ChaqaqApi {
     pub fn creer_database(&self, titre: String) -> Result<String, ChaqaqError> {
         let db = database_use_cases::creer_database(&self.dbs, parse_inline(&titre), vec![])
             .map_err(ChaqaqError::from)?;
