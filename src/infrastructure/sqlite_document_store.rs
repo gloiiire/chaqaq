@@ -43,7 +43,7 @@ impl DocumentRepository for SqliteDocumentStore {
         let cover = doc.cover.clone();
 
         retry_with_backoff(|| {
-            let conn = self.conn.lock().unwrap();
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             conn.execute(
                 "INSERT INTO documents (id, title_text, title_json, cover, updated_at, created_at, data)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6)
@@ -63,7 +63,7 @@ impl DocumentRepository for SqliteDocumentStore {
 
     fn load(&self, id: Uuid) -> Result<Document, ChaqaqError> {
         retry_with_backoff(|| {
-            let conn = self.conn.lock().unwrap();
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let result = conn.query_row(
                 "SELECT data FROM documents WHERE id = ?1 AND deleted_at IS NULL",
                 params![id.to_string()],
@@ -78,42 +78,44 @@ impl DocumentRepository for SqliteDocumentStore {
     }
 
     fn list(&self) -> Result<Vec<DocumentMeta>, ChaqaqError> {
-        let conn = self.conn.lock().unwrap();
-        let mut stmt = conn
-            .prepare("SELECT id, title_json, cover, updated_at, created_at FROM documents WHERE deleted_at IS NULL")
-            .map_err(|e| ChaqaqError::Db(e.to_string()))?;
-        let mut metas = Vec::new();
-        let rows = stmt
-            .query_map([], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, Option<String>>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, String>(4)?,
-                ))
-            })
-            .map_err(|e| ChaqaqError::Db(e.to_string()))?;
-        for row in rows {
-            let (id_str, title_json, cover, updated_at, created_at) =
-                row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
-            let id = Uuid::parse_str(&id_str)
-                .map_err(|_| ChaqaqError::InvalidOperation(format!("UUID invalide : {id_str}")))?;
-            let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
-            metas.push(DocumentMeta {
-                id,
-                title,
-                cover,
-                updated_at,
-                created_at,
-            });
-        }
-        Ok(metas)
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let mut stmt = conn
+                .prepare("SELECT id, title_json, cover, updated_at, created_at FROM documents WHERE deleted_at IS NULL")
+                .map_err(|e| ChaqaqError::Db(e.to_string()))?;
+            let rows = stmt
+                .query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, Option<String>>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, String>(4)?,
+                    ))
+                })
+                .map_err(|e| ChaqaqError::Db(e.to_string()))?;
+            let mut metas = Vec::new();
+            for row in rows {
+                let (id_str, title_json, cover, updated_at, created_at) =
+                    row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
+                let id = Uuid::parse_str(&id_str)
+                    .map_err(|_| ChaqaqError::InvalidOperation(format!("UUID invalide : {id_str}")))?;
+                let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
+                metas.push(DocumentMeta {
+                    id,
+                    title,
+                    cover,
+                    updated_at,
+                    created_at,
+                });
+            }
+            Ok(metas)
+        })
     }
 
     fn delete(&self, id: Uuid) -> Result<(), ChaqaqError> {
         retry_with_backoff(|| {
-            let conn = self.conn.lock().unwrap();
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let modifies = conn
                 .execute(
                     "UPDATE documents SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
