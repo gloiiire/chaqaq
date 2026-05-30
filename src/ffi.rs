@@ -104,6 +104,13 @@ fn db_meta_vers_ffi(m: DatabaseMeta) -> DatabaseMetaFfi {
     }
 }
 
+/// Taille max des payloads JSON acceptés à la frontière FFI (5 Mo) —
+/// protection contre les requêtes monstres qui satureraient la mémoire.
+const MAX_JSON_BYTES: usize = 5 * 1024 * 1024;
+
+/// Taille max d'une chaîne d'entrée (titre, requête de recherche).
+const MAX_STRING_BYTES: usize = 64 * 1024;
+
 fn parse_uuid(s: &str) -> Result<Uuid, ChaqaqError> {
     Uuid::parse_str(s).map_err(|_| ChaqaqError::InvalidOperation {
         detail: format!("UUID invalide : {s}"),
@@ -114,7 +121,28 @@ fn parse_uuids(ids: Vec<String>) -> Result<Vec<Uuid>, ChaqaqError> {
     ids.iter().map(|s| parse_uuid(s)).collect()
 }
 
+/// Refuse les chaînes trop longues à la frontière FFI (protection ressources).
+fn check_string(s: &str, field: &str) -> Result<(), ChaqaqError> {
+    if s.len() > MAX_STRING_BYTES {
+        return Err(ChaqaqError::InvalidOperation {
+            detail: format!(
+                "{field} trop grand : {} octets (max {MAX_STRING_BYTES})",
+                s.len()
+            ),
+        });
+    }
+    Ok(())
+}
+
 fn parse_json<T: DeserializeOwned>(json: &str) -> Result<T, ChaqaqError> {
+    if json.len() > MAX_JSON_BYTES {
+        return Err(ChaqaqError::InvalidOperation {
+            detail: format!(
+                "payload JSON trop grand : {} octets (max {MAX_JSON_BYTES})",
+                json.len()
+            ),
+        });
+    }
     serde_json::from_str(json).map_err(|e| ChaqaqError::InvalidOperation {
         detail: e.to_string(),
     })
@@ -147,6 +175,7 @@ impl ChaqaqApi {
     // ── Documents ─────────────────────────────────────────────
 
     pub fn create_document(&self, title: String) -> Result<String, ChaqaqError> {
+        check_string(&title, "title")?;
         let doc = use_cases::create_document(&self.docs, &title).map_err(ChaqaqError::from)?;
         Ok(doc.id.to_string())
     }
@@ -174,6 +203,7 @@ impl ChaqaqApi {
         id: String,
         new_title: String,
     ) -> Result<(), ChaqaqError> {
+        check_string(&new_title, "new_title")?;
         let uuid = parse_uuid(&id)?;
         use_cases::update_document_title(&self.docs, uuid, &new_title)
             .map_err(ChaqaqError::from)
@@ -271,6 +301,7 @@ impl ChaqaqApi {
     }
 
     pub fn search_documents(&self, query: String) -> Result<Vec<DocumentMetaFfi>, ChaqaqError> {
+        check_string(&query, "query")?;
         let metas =
             use_cases::search_documents(&self.docs, &query).map_err(ChaqaqError::from)?;
         Ok(metas.into_iter().map(doc_meta_vers_ffi).collect())
@@ -280,6 +311,7 @@ impl ChaqaqApi {
         &self,
         query: String,
     ) -> Result<Vec<DocumentMetaFfi>, ChaqaqError> {
+        check_string(&query, "query")?;
         let metas =
             use_cases::search_in_blocks(&self.docs, &query).map_err(ChaqaqError::from)?;
         Ok(metas.into_iter().map(doc_meta_vers_ffi).collect())
@@ -290,6 +322,7 @@ impl ChaqaqApi {
 
 impl ChaqaqApi {
     pub fn create_database(&self, title: String) -> Result<String, ChaqaqError> {
+        check_string(&title, "title")?;
         let db = database_use_cases::create_database(&self.dbs, parse_inline(&title), vec![])
             .map_err(ChaqaqError::from)?;
         Ok(db.id.to_string())
@@ -363,6 +396,7 @@ impl ChaqaqApi {
         property_id: String,
         new_name: String,
     ) -> Result<(), ChaqaqError> {
+        check_string(&new_name, "new_name")?;
         let db_uuid = parse_uuid(&db_id)?;
         let prop_uuid = parse_uuid(&property_id)?;
         database_use_cases::rename_property(&self.dbs, db_uuid, prop_uuid, &new_name)
@@ -467,6 +501,7 @@ impl ChaqaqApi {
         db_id: String,
         query: String,
     ) -> Result<String, ChaqaqError> {
+        check_string(&query, "query")?;
         let db_uuid = parse_uuid(&db_id)?;
         let entries = database_use_cases::search_entries(&self.dbs, db_uuid, &query)
             .map_err(ChaqaqError::from)?;

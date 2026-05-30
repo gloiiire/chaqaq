@@ -11,39 +11,29 @@ final class ChaqaqStore: ObservableObject {
 
     func connect() {
         guard api == nil else { return }
-        do {
+        tryCatch(into: &errorMessage) {
             let dir  = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             let path = dir.appendingPathComponent("chaqaq.db").path
             api = try ChaqaqApi(dbPath: path)
-            load()
-        } catch {
-            errorMessage = error.localizedDescription
         }
+        if api != nil { load() }
     }
 
     func load() {
-        do {
-            documents = try api?.listDocuments() ?? []
-        } catch {
-            errorMessage = error.localizedDescription
+        if let docs = tryCatch(into: &errorMessage, { try api?.listDocuments() ?? [] }) {
+            documents = docs
         }
     }
 
     func create(title: String) {
-        do {
-            _ = try api?.createDocument(title: title)
+        if tryCatch(into: &errorMessage, { try api?.createDocument(title: title) }) != nil {
             load()
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 
     func delete(id: String) {
-        do {
-            try api?.deleteDocument(id: id)
+        if tryCatch(into: &errorMessage, { try api?.deleteDocument(id: id) }) != nil {
             load()
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 }
@@ -112,14 +102,7 @@ struct ContentView: View {
                     showingCreate = false
                 }
             }
-            .alert("Erreur", isPresented: Binding(
-                get: { store.errorMessage != nil },
-                set: { if !$0 { store.errorMessage = nil } }
-            )) {
-                Button("OK") { store.errorMessage = nil }
-            } message: {
-                Text(store.errorMessage ?? "")
-            }
+            .errorAlert(message: $store.errorMessage, onRetry: store.load)
         }
         .onAppear { store.connect() }
     }

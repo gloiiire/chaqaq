@@ -263,11 +263,20 @@ Ce qui **reste** à construire :
 - **Erreurs typées, pas de panic** : `Result<T, ChaqaqError>` côté Rust, throws/Result côté Swift. Jamais de `unwrap()`/`!` en production.
 - **Conversion d'erreurs aux frontières** : `From<E>` Rust (cf. `From<CoreError> for ChaqaqError` FFI) ; mapping en `ChaqaqError` côté Swift via `do/catch` qui remonte un `errorMessage: String?` au store.
 - **Pas de couplage à l'impl** : `ChaqaqError::Db(String)` convertit les erreurs `rusqlite` en string pour ne pas coupler l'application à SQLite.
+- **Retry avec backoff exponentiel** : `application/resilience.rs::retry_with_backoff` (3 essais, 50ms→500ms doublés) wrappe les opérations SQLite write/read. `is_transient()` ne retente que les erreurs verrou/I/O bloquante, jamais les erreurs métier (`NotFound`, `InvalidOperation`).
+- **Validation aux frontières FFI** (`ffi.rs`) :
+  - `parse_uuid` rejette les UUID malformés en `InvalidOperation`
+  - `parse_json` refuse les payloads > **5 Mo** (`MAX_JSON_BYTES`)
+  - `check_string` refuse les chaînes > **64 Ko** (`MAX_STRING_BYTES`) — appliqué à title/query/new_name
 - **Soft delete + `updated_at`** : pas d'effacement dur, préparation CRDT/sync. Toute écriture passe par `save()` qui met à jour `updated_at`.
 - **Mutations UI optimistes** : mémoire d'abord (les blocs en mémoire), persistance ensuite — évite l'effacement du contenu en cours de frappe lors d'un rechargement SQLite. La désync mémoire/disque est détectée au rechargement.
 - **Concurrence** : SQLite en `WAL` pour la lecture concurrente. `@MainActor` côté Swift pour les view models. Pas d'accès direct au store hors façade.
-- **Validation aux entrées** : `parse_uuid`/`parse_json` à la frontière FFI rejettent les payloads invalides avant d'atteindre la couche application.
-- **Tests à 3 niveaux** : unitaires (`#[cfg(test)] mod tests` dans chaque module), intégration (`tests/integration_*`), E2E (`tests/e2e_*`). Toute fonctionnalité critique doit avoir des tests aux 3 niveaux.
+- **UX erreur Swift** (`Resilience.swift`) :
+  - `ChaqaqError.userMessage` → message français lisible par utilisateur (au lieu de l'erreur brute)
+  - `ChaqaqError.isRecoverable` → true pour `Storage` (retry possible)
+  - `tryCatch(into: &errorMessage)` capture l'erreur sans propager, remonte le message au view model
+  - `.errorAlert(message:onRetry:)` modificateur SwiftUI qui présente l'alert avec bouton « Réessayer » optionnel
+- **Tests à 3 niveaux** : unitaires (`#[cfg(test)] mod tests` dans chaque module — y compris `resilience.rs` avec 6 tests), intégration (`tests/integration_*`), E2E (`tests/e2e_*`). Toute fonctionnalité critique doit avoir des tests aux 3 niveaux.
 
 ## Notes
 - `#![allow(dead_code)]` intentionnel pour le code database non encore connecté à l'UI.

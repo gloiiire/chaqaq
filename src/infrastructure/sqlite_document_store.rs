@@ -1,5 +1,6 @@
 use crate::application::error::ChaqaqError;
 use crate::application::repository::DocumentRepository;
+use crate::application::resilience::retry_with_backoff;
 use crate::domain::document::{Document, DocumentMeta, InlineText};
 use crate::infrastructure::migrations::appliquer_migrations_documents;
 use rusqlite::{Connection, params};
@@ -28,7 +29,7 @@ impl SqliteDocumentStore {
 
 impl DocumentRepository for SqliteDocumentStore {
     fn save(&self, doc: &Document) -> Result<(), ChaqaqError> {
-        let conn = self.conn.lock().unwrap();
+        // Pré-calcul hors retry : pas de coût supplémentaire en cas de relance.
         let data = serde_json::to_string(doc)?;
         let title_text: String = doc
             .title
@@ -38,41 +39,42 @@ impl DocumentRepository for SqliteDocumentStore {
             .join("");
         let title_json = serde_json::to_string(&doc.title)?;
         let now = chrono::Utc::now().to_rfc3339();
-        conn.execute(
-            "INSERT INTO documents (id, title_text, title_json, cover, updated_at, created_at, data)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6)
-             ON CONFLICT(id) DO UPDATE SET
-                title_text = excluded.title_text,
-                title_json = excluded.title_json,
-                cover      = excluded.cover,
-                updated_at = excluded.updated_at,
-                data       = excluded.data,
-                deleted_at = NULL",
-            params![
-                doc.id.to_string(),
-                title_text,
-                title_json,
-                doc.cover,
-                now,
-                data,
-            ],
-        )
-        .map_err(|e| ChaqaqError::Db(e.to_string()))?;
-        Ok(())
+        let id = doc.id.to_string();
+        let cover = doc.cover.clone();
+
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap();
+            conn.execute(
+                "INSERT INTO documents (id, title_text, title_json, cover, updated_at, created_at, data)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6)
+                 ON CONFLICT(id) DO UPDATE SET
+                    title_text = excluded.title_text,
+                    title_json = excluded.title_json,
+                    cover      = excluded.cover,
+                    updated_at = excluded.updated_at,
+                    data       = excluded.data,
+                    deleted_at = NULL",
+                params![id, title_text, title_json, cover, now, data],
+            )
+            .map_err(|e| ChaqaqError::Db(e.to_string()))?;
+            Ok(())
+        })
     }
 
     fn load(&self, id: Uuid) -> Result<Document, ChaqaqError> {
-        let conn = self.conn.lock().unwrap();
-        let result = conn.query_row(
-            "SELECT data FROM documents WHERE id = ?1 AND deleted_at IS NULL",
-            params![id.to_string()],
-            |row| row.get::<_, String>(0),
-        );
-        match result {
-            Ok(data) => Ok(serde_json::from_str(&data)?),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Err(ChaqaqError::NotFound(id)),
-            Err(e) => Err(ChaqaqError::Db(e.to_string())),
-        }
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap();
+            let result = conn.query_row(
+                "SELECT data FROM documents WHERE id = ?1 AND deleted_at IS NULL",
+                params![id.to_string()],
+                |row| row.get::<_, String>(0),
+            );
+            match result {
+                Ok(data) => Ok(serde_json::from_str(&data)?),
+                Err(rusqlite::Error::QueryReturnedNoRows) => Err(ChaqaqError::NotFound(id)),
+                Err(e) => Err(ChaqaqError::Db(e.to_string())),
+            }
+        })
     }
 
     fn list(&self) -> Result<Vec<DocumentMeta>, ChaqaqError> {
@@ -110,17 +112,19 @@ impl DocumentRepository for SqliteDocumentStore {
     }
 
     fn delete(&self, id: Uuid) -> Result<(), ChaqaqError> {
-        let conn = self.conn.lock().unwrap();
-        let modifies = conn
-            .execute(
-                "UPDATE documents SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
-                params![chrono::Utc::now().to_rfc3339(), id.to_string()],
-            )
-            .map_err(|e| ChaqaqError::Db(e.to_string()))?;
-        if modifies == 0 {
-            return Err(ChaqaqError::NotFound(id));
-        }
-        Ok(())
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap();
+            let modifies = conn
+                .execute(
+                    "UPDATE documents SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
+                    params![chrono::Utc::now().to_rfc3339(), id.to_string()],
+                )
+                .map_err(|e| ChaqaqError::Db(e.to_string()))?;
+            if modifies == 0 {
+                return Err(ChaqaqError::NotFound(id));
+            }
+            Ok(())
+        })
     }
 }
 
