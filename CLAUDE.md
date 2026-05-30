@@ -277,7 +277,28 @@ Ce qui **reste** à construire :
   - `tryCatch(into: &errorMessage)` capture l'erreur sans propager, remonte le message au view model
   - `.errorAlert(message:onRetry:)` modificateur SwiftUI qui présente l'alert avec bouton « Réessayer » optionnel
 - **Tests à 3 niveaux côté Rust** : unitaires (`#[cfg(test)] mod tests` dans chaque module — y compris `resilience.rs` avec 6 tests), intégration (`tests/integration_*`), E2E (`tests/e2e_*`). 204+ tests.
-- **Tests à 3 niveaux côté Swift** : `app/Tests/Unit/` (Swift Testing — `@Suite`/`@Test`/`#expect`, code pur), `app/Tests/Integration/` (Swift ↔ FFI réelle avec DB SQLite temporaire), `app/Tests/UI/` (XCUITest — pilote l'app comme utilisateur). Cibles xcodegen : `ChaqaqTests`, `ChaqaqIntegrationTests`, `ChaqaqUITests`. Lancer avec `xcodebuild test -scheme Chaqaq`. 37+ tests.
+- **Tests à 3 niveaux côté Swift** : `app/Tests/Unit/` (Swift Testing — `@Suite`/`@Test`/`#expect`, code pur), `app/Tests/Integration/` (Swift ↔ FFI réelle avec DB SQLite temporaire), `app/Tests/UI/` (XCUITest — pilote l'app comme utilisateur). Cibles xcodegen : `ChaqaqTests`, `ChaqaqIntegrationTests`, `ChaqaqUITests`. **186+ tests Swift.**
+
+**Commandes de test** :
+```bash
+# Rust seul (rapide, sans simulateur) :
+cargo test
+
+# Swift complet (tous niveaux, nécessite simulateur booté) :
+xcodebuild test -project app/Chaqaq.xcodeproj -scheme Chaqaq -destination 'id=<UDID>'
+
+# Swift unit + integration seulement (rapide, pas de XCUITest) :
+xcodebuild test -project app/Chaqaq.xcodeproj -scheme Chaqaq -destination 'id=<UDID>' \
+    -only-testing:ChaqaqTests -only-testing:ChaqaqIntegrationTests
+
+# Swift UI seulement :
+xcodebuild test -project app/Chaqaq.xcodeproj -scheme Chaqaq -destination 'id=<UDID>' \
+    -only-testing:ChaqaqUITests
+```
+
+**Launch arguments pour UI tests** (évitent `typeText`, flaky sur simulateur iOS 26) :
+- `--ui-test-data` : DB éphémère + 2 docs pré-seedés ("Seeded Note 1", "Seeded Note 2")
+- `--ui-test-clean` : DB éphémère vide (pour tester l'état vide)
 - **Règle** : toute fonctionnalité doit avoir des tests aux 3 niveaux, pas seulement les features critiques.
 
 ## Notes
