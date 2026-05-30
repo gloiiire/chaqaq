@@ -305,5 +305,39 @@ xcodebuild test -project app/Chaqaq.xcodeproj -scheme Chaqaq -destination 'id=<U
 - `#![allow(dead_code)]` intentionnel pour le code database non encore connecté à l'UI.
 - `#[serde(alias = "style")]` sur `InlineText.styles` pour charger les anciens JSON.
 - Les mutations de blocs en Swift se font en mémoire d'abord (pas de rechargement SQLite après insert/delete) pour éviter l'effacement du contenu en cours de frappe.
-- `fontAvecTraits(_:bold:italic:)` utilise `boldSystemFont`/`italicSystemFont` en fallback car `withSymbolicTraits` retourne `nil` sur SF Pro dans certains contextes iOS.
+- `fontWithTraits(_:bold:italic:)` utilise `boldSystemFont`/`italicSystemFont` en fallback car `withSymbolicTraits` retourne `nil` sur SF Pro dans certains contextes iOS.
 - `NSAttributedString.Key.chaqaqColor` stocke le nom de couleur (String) en parallèle de `.foregroundColor` pour un round-trip `NSAttributedString ↔ [InlineTextFfi]` fiable.
+
+## Dette technique — à reprendre avant scaling / mise en prod sérieuse
+
+Ces points sont **acceptables en l'état actuel** (projet solo, 401 tests locaux) mais devront être traités avant d'ouvrir aux contributeurs / déployer en App Store. Ordre de priorité :
+
+### Infrastructure (haute priorité dès qu'on collabore)
+- **CI GitHub Actions** : workflow qui lance `cargo test` + `xcodebuild test` sur chaque push/PR. Sans ça, la suite de 401 tests est purement locale et "chez moi ça marche" devient le mode opératoire.
+- **Code coverage** : `xcodebuild -enableCodeCoverage YES` (Swift) + `cargo-llvm-cov` (Rust). On compte les tests mais on ne connaît pas leur couverture réelle (peut être 30% ou 90%).
+- **Workflow contributeur** : feature branches + PRs reviewables au lieu de gros sessions tout-en-un.
+
+### Tests à renforcer
+- **Coordinator class** (`RichTextEditor.Coordinator`) : selection memory (`rememberSelection`/`selectionForToolbar`), toolbar state updates (`updateToolbar`), color application chain — tout n'est testé qu'**en bout-en-bout** via le VM. Un bug subtil dans cette logique passerait. Extraire en helpers libres ou exposer pour tests.
+- **`integration_retry.rs`** : prouve que les ops concurrentes ne cassent pas, **pas** que le retry se déclenche vraiment (test passe en 0.16s, scheduler n'a probablement pas créé de contention). Pour valider l'activation : ajouter point d'injection (mock connection avec `busy_timeout=0` + lock forcé) qui force un retry attendu.
+- **`ActionRepeater` async test** : utilise `Task.sleep(220ms)` puis vérifie `≥3 ticks`. Flaky-prone sous CI chargée. Remplacer par mock timer (interface `Timer`-like injectable).
+- **Database FFI** : 13 tests sur une surface énorme. Manque : `queryWithRollups` avec vrais Relation + Aggregate (j'ai juste testé que DB vide retourne `[]`), filters complexes (`Equal`/`Contains` avec valeurs typées), `groupedQuery` avec données, `MultiSelect`/`Relation`/`Date` round-trip JSON.
+- **Markdown shortcuts E2E** : `markdownShortcut(for:)` helper unit-testé, mais le déclenchement effectif via `textViewDidChange` jamais validé end-to-end (faut taper "# " puis vérifier conversion).
+- **`errorAlert` SwiftUI** : modificateur testé indirectement via les helpers Resilience, jamais visuellement. Ajouter snapshot testing (`swift-snapshot-testing`) pour les composants UI critiques.
+
+### Limitations connues à résoudre
+- **`typeText` flaky sur simulateur iOS 26** : bypass actuel via launch args `--ui-test-data`/`--ui-test-clean`. **Blocage** : impossible de tester E2E les flows demandant vraie saisie utilisateur (édition de titre dans la sheet de création, recherche). Pistes : `UIPasteboard` + long-press + Coller, `app.keys["X"].tap()` sur le clavier software, custom URL scheme pour pré-remplir.
+- **`xcframework` métadonnées trackées** (136K headers + plist) : `.a` binaires gitignored, mais headers + Info.plist en git. Acceptable car petit, mais idéalement reconstruit par CI sur chaque release.
+
+### Features prioritaires (par valeur perçue)
+1. **UI Databases** — backend full testé, manque juste les vues SwiftUI. Énorme impact, faisabilité élevée (réutiliser `BlockTextEditor`/`BlockCallbacks` patterns).
+2. **Barre de recherche** — `searchDocuments`/`searchInBlocks` FFI testés, faut une UI au-dessus (TextField + List filtrée). Quick win.
+3. **iPad / Mac NavigationSplitView** — élargit drastiquement le public, faisabilité moyenne (gestion adaptive layout).
+4. **Sync CRDT entre appareils** — gros morceau, à faire après les 3 du dessus. `updated_at` et soft delete déjà en place côté Rust.
+
+### Pour chaque nouvelle feature, exige (règle non négociable)
+- 1 test unitaire sur la logique pure (si y'en a)
+- 1 test d'intégration sur le flow FFI / VM
+- 1 test UI E2E si c'est interactif (avec launch args seeded si saisie nécessaire)
+
+Cette discipline maintient la pyramide vivante sans CI. Le jour où on ajoute CI, ça force aussi PR-by-PR.
