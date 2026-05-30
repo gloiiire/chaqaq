@@ -57,6 +57,36 @@ struct ActionRepeaterTests {
         #expect(r.active)
         r.stop()
     }
+
+    @MainActor
+    @Test func firesClosureRepeatedly() async throws {
+        let counter = Counter()
+        let r = ActionRepeater()
+        r.start(interval: 0.05) { counter.increment() }
+        // Laisse passer ~ 4 ticks (200ms à 50ms d'intervalle)
+        try await Task.sleep(nanoseconds: 220_000_000)
+        r.stop()
+        #expect(counter.value >= 3, "au moins 3 ticks attendus, observé \(counter.value)")
+    }
+
+    @MainActor
+    @Test func doesNotFireAfterStop() async throws {
+        let counter = Counter()
+        let r = ActionRepeater()
+        r.start(interval: 0.05) { counter.increment() }
+        try await Task.sleep(nanoseconds: 70_000_000)
+        r.stop()
+        let snapshot = counter.value
+        try await Task.sleep(nanoseconds: 150_000_000)
+        #expect(counter.value == snapshot, "le timer doit s'arrêter après stop()")
+    }
+}
+
+/// Compteur minimal pour les tests async (évite l'usage d'`actor` qui complique
+/// les closures non-isolées passées au `Timer`).
+private final class Counter {
+    private(set) var value: Int = 0
+    func increment() { value += 1 }
 }
 
 @Suite("tryCatch — capture des erreurs sans propagation")
