@@ -276,7 +276,9 @@ Ce qui **reste** à construire :
   - `ChaqaqError.isRecoverable` → true pour `Storage` (retry possible)
   - `tryCatch(into: &errorMessage)` capture l'erreur sans propager, remonte le message au view model
   - `.errorAlert(message:onRetry:)` modificateur SwiftUI qui présente l'alert avec bouton « Réessayer » optionnel
-- **Tests à 3 niveaux** : unitaires (`#[cfg(test)] mod tests` dans chaque module — y compris `resilience.rs` avec 6 tests), intégration (`tests/integration_*`), E2E (`tests/e2e_*`). Toute fonctionnalité critique doit avoir des tests aux 3 niveaux.
+- **Tests à 3 niveaux côté Rust** : unitaires (`#[cfg(test)] mod tests` dans chaque module — y compris `resilience.rs` avec 6 tests), intégration (`tests/integration_*`), E2E (`tests/e2e_*`). 204+ tests.
+- **Tests à 3 niveaux côté Swift** : `app/Tests/Unit/` (Swift Testing — `@Suite`/`@Test`/`#expect`, code pur), `app/Tests/Integration/` (Swift ↔ FFI réelle avec DB SQLite temporaire), `app/Tests/UI/` (XCUITest — pilote l'app comme utilisateur). Cibles xcodegen : `ChaqaqTests`, `ChaqaqIntegrationTests`, `ChaqaqUITests`. Lancer avec `xcodebuild test -scheme Chaqaq`. 37+ tests.
+- **Règle** : toute fonctionnalité doit avoir des tests aux 3 niveaux, pas seulement les features critiques.
 
 ## Notes
 - `#![allow(dead_code)]` intentionnel pour le code database non encore connecté à l'UI.

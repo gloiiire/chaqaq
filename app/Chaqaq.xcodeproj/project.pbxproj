@@ -8,28 +8,65 @@
 
 /* Begin PBXBuildFile section */
 		10192E1DF36988E71B726941 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8C376A241CCD334055F01CB /* ContentView.swift */; };
+		1D1DD07C0EFEDECD11786079 /* HomeScreenUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA8725F0F0F35A74E2885BF3 /* HomeScreenUITests.swift */; };
 		2AFFBCC5D77E6BCE8E855942 /* Resilience.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9F5A78072F05AA576874C58 /* Resilience.swift */; };
 		32CB7DE2D5E0652A08492D42 /* chaqaq.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = C2897833B5B3685586CACEB6 /* chaqaq.xcframework */; };
+		6852346BA35475CD2310283F /* ResilienceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3D5F7C753720610A7AE2EBA /* ResilienceTests.swift */; };
 		8751D1C7EF9DCA4901C58456 /* chaqaq.swift in Sources */ = {isa = PBXBuildFile; fileRef = D11598236B0E33C53528220E /* chaqaq.swift */; };
 		94766EC0131DB557DB393722 /* RichTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 468510DC930C6616110EE478 /* RichTextEditor.swift */; };
+		A8148D81C3FC1CEECBF51E48 /* ModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0D5EF3410EEA5D9A1D6808 /* ModelsTests.swift */; };
+		B2CE43ADC5AE0E594AE37B88 /* ResilienceFFITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC19F4873E2FB0D3F59FC174 /* ResilienceFFITests.swift */; };
 		C17337002B16D605DFB278E5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 61FAF4827B7007C56EF3A1F9 /* Assets.xcassets */; };
+		CB742789018700DFCDE5D6E6 /* DocumentApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 360E322DAC690D96965C457C /* DocumentApiTests.swift */; };
 		D21CF0FB8443FCF3AE5B634E /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B37195EE5E973F6B64A028A /* Models.swift */; };
 		EB303519C033E0CEB4CF7DAC /* ChaqaqApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A3054081BFBDCD9AFC2D855 /* ChaqaqApp.swift */; };
 		EFEE8799F9AD12810344543E /* DocumentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FD048133513A5E55DEE58E3 /* DocumentView.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		2F90C74A36A316F03305A859 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F1EB934F0F2890C1F8E3B35 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1BAC28065CC3998F303FB401;
+			remoteInfo = Chaqaq;
+		};
+		5619600F752AD25C38B6D46D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F1EB934F0F2890C1F8E3B35 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1BAC28065CC3998F303FB401;
+			remoteInfo = Chaqaq;
+		};
+		7115EA8F38A709FCE02E770D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F1EB934F0F2890C1F8E3B35 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1BAC28065CC3998F303FB401;
+			remoteInfo = Chaqaq;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		30E08CB89B3F79766A108177 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		360E322DAC690D96965C457C /* DocumentApiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentApiTests.swift; sourceTree = "<group>"; };
+		4029840F37F43A8D8340DFFD /* ChaqaqTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ChaqaqTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4422FAB015F50295362A6D42 /* ChaqaqIntegrationTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ChaqaqIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		468510DC930C6616110EE478 /* RichTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextEditor.swift; sourceTree = "<group>"; };
 		61FAF4827B7007C56EF3A1F9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6A3054081BFBDCD9AFC2D855 /* ChaqaqApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChaqaqApp.swift; sourceTree = "<group>"; };
 		6FD048133513A5E55DEE58E3 /* DocumentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentView.swift; sourceTree = "<group>"; };
 		7B37195EE5E973F6B64A028A /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		81B9A0DC80F9A91D0EC3FAA8 /* ChaqaqUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ChaqaqUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B8C376A241CCD334055F01CB /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		C27BE87CC9C7794976F2B588 /* Chaqaq.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Chaqaq.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C2897833B5B3685586CACEB6 /* chaqaq.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = chaqaq.xcframework; path = ../chaqaq.xcframework; sourceTree = "<group>"; };
 		D11598236B0E33C53528220E /* chaqaq.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = chaqaq.swift; sourceTree = "<group>"; };
 		D9F5A78072F05AA576874C58 /* Resilience.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Resilience.swift; sourceTree = "<group>"; };
+		DA8725F0F0F35A74E2885BF3 /* HomeScreenUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreenUITests.swift; sourceTree = "<group>"; };
+		DC19F4873E2FB0D3F59FC174 /* ResilienceFFITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilienceFFITests.swift; sourceTree = "<group>"; };
+		DE0D5EF3410EEA5D9A1D6808 /* ModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsTests.swift; sourceTree = "<group>"; };
+		F3D5F7C753720610A7AE2EBA /* ResilienceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilienceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -44,11 +81,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		21B8F48E09590762DD7CEB31 /* Integration */ = {
+			isa = PBXGroup;
+			children = (
+				360E322DAC690D96965C457C /* DocumentApiTests.swift */,
+				DC19F4873E2FB0D3F59FC174 /* ResilienceFFITests.swift */,
+			);
+			path = Integration;
+			sourceTree = "<group>";
+		};
 		319B517576F972A68C24518D = {
 			isa = PBXGroup;
 			children = (
 				B338699B4A26B8DB16A12B1E /* chaqaq */,
 				CDCD32229FE0743A6011FDB2 /* Sources */,
+				CAE9526D6F7DC3BF41443494 /* Tests */,
 				7CF3A08DC1BBDEA71AEC28AF /* Frameworks */,
 				5D112C4D04D58803B10FE7A2 /* Products */,
 			);
@@ -66,6 +113,9 @@
 			isa = PBXGroup;
 			children = (
 				C27BE87CC9C7794976F2B588 /* Chaqaq.app */,
+				4422FAB015F50295362A6D42 /* ChaqaqIntegrationTests.xctest */,
+				4029840F37F43A8D8340DFFD /* ChaqaqTests.xctest */,
+				81B9A0DC80F9A91D0EC3FAA8 /* ChaqaqUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -78,6 +128,15 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		7DAAEF6469CFC6B05D1A0410 /* Unit */ = {
+			isa = PBXGroup;
+			children = (
+				DE0D5EF3410EEA5D9A1D6808 /* ModelsTests.swift */,
+				F3D5F7C753720610A7AE2EBA /* ResilienceTests.swift */,
+			);
+			path = Unit;
+			sourceTree = "<group>";
+		};
 		B338699B4A26B8DB16A12B1E /* chaqaq */ = {
 			isa = PBXGroup;
 			children = (
@@ -85,6 +144,16 @@
 			);
 			name = chaqaq;
 			path = ..;
+			sourceTree = "<group>";
+		};
+		CAE9526D6F7DC3BF41443494 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				21B8F48E09590762DD7CEB31 /* Integration */,
+				F7421A1D3B767EA9C4458C16 /* UI */,
+				7DAAEF6469CFC6B05D1A0410 /* Unit */,
+			);
+			path = Tests;
 			sourceTree = "<group>";
 		};
 		CDCD32229FE0743A6011FDB2 /* Sources */ = {
@@ -100,6 +169,14 @@
 				468510DC930C6616110EE478 /* RichTextEditor.swift */,
 			);
 			path = Sources;
+			sourceTree = "<group>";
+		};
+		F7421A1D3B767EA9C4458C16 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				DA8725F0F0F35A74E2885BF3 /* HomeScreenUITests.swift */,
+			);
+			path = UI;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -124,6 +201,60 @@
 			productReference = C27BE87CC9C7794976F2B588 /* Chaqaq.app */;
 			productType = "com.apple.product-type.application";
 		};
+		760C20460D9739BD0F086E50 /* ChaqaqIntegrationTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 66C8B18DCC4433A2D3664301 /* Build configuration list for PBXNativeTarget "ChaqaqIntegrationTests" */;
+			buildPhases = (
+				FC8F112D76271DDECECED916 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				EA90A634EDE80ED8AEF3D81D /* PBXTargetDependency */,
+			);
+			name = ChaqaqIntegrationTests;
+			packageProductDependencies = (
+			);
+			productName = ChaqaqIntegrationTests;
+			productReference = 4422FAB015F50295362A6D42 /* ChaqaqIntegrationTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		D6970CFEC1BF8AC2BDA1A5B6 /* ChaqaqTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3119E170EB3F3B516702B313 /* Build configuration list for PBXNativeTarget "ChaqaqTests" */;
+			buildPhases = (
+				DA44B019164B82018BB13ABC /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6A948D3C8424FEBB86EA853C /* PBXTargetDependency */,
+			);
+			name = ChaqaqTests;
+			packageProductDependencies = (
+			);
+			productName = ChaqaqTests;
+			productReference = 4029840F37F43A8D8340DFFD /* ChaqaqTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		E3A89FBCA3D10C699E3029C2 /* ChaqaqUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C6A2E48FBB347B495DBAC666 /* Build configuration list for PBXNativeTarget "ChaqaqUITests" */;
+			buildPhases = (
+				36B55CDF640888AA96CEA48E /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				ECAAE462D2EB0D702831172D /* PBXTargetDependency */,
+			);
+			name = ChaqaqUITests;
+			packageProductDependencies = (
+			);
+			productName = ChaqaqUITests;
+			productReference = 81B9A0DC80F9A91D0EC3FAA8 /* ChaqaqUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -133,6 +264,9 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					E3A89FBCA3D10C699E3029C2 = {
+						TestTargetID = 1BAC28065CC3998F303FB401;
+					};
 				};
 			};
 			buildConfigurationList = AB7C2EBF5C272CAD4E65BC92 /* Build configuration list for PBXProject "Chaqaq" */;
@@ -150,6 +284,9 @@
 			projectRoot = "";
 			targets = (
 				1BAC28065CC3998F303FB401 /* Chaqaq */,
+				760C20460D9739BD0F086E50 /* ChaqaqIntegrationTests */,
+				D6970CFEC1BF8AC2BDA1A5B6 /* ChaqaqTests */,
+				E3A89FBCA3D10C699E3029C2 /* ChaqaqUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -166,6 +303,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		36B55CDF640888AA96CEA48E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1D1DD07C0EFEDECD11786079 /* HomeScreenUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		AF0ABAACC467937B27A93ECC /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -180,9 +325,102 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DA44B019164B82018BB13ABC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A8148D81C3FC1CEECBF51E48 /* ModelsTests.swift in Sources */,
+				6852346BA35475CD2310283F /* ResilienceTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FC8F112D76271DDECECED916 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CB742789018700DFCDE5D6E6 /* DocumentApiTests.swift in Sources */,
+				B2CE43ADC5AE0E594AE37B88 /* ResilienceFFITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		6A948D3C8424FEBB86EA853C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1BAC28065CC3998F303FB401 /* Chaqaq */;
+			targetProxy = 5619600F752AD25C38B6D46D /* PBXContainerItemProxy */;
+		};
+		EA90A634EDE80ED8AEF3D81D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1BAC28065CC3998F303FB401 /* Chaqaq */;
+			targetProxy = 2F90C74A36A316F03305A859 /* PBXContainerItemProxy */;
+		};
+		ECAAE462D2EB0D702831172D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1BAC28065CC3998F303FB401 /* Chaqaq */;
+			targetProxy = 7115EA8F38A709FCE02E770D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		2C7D990CC49E4A41A278D186 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.gloiiire.chaqaq.integration;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Chaqaq.app/Chaqaq";
+			};
+			name = Release;
+		};
+		4591EA6DF893B754B10F8CAB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.gloiiire.chaqaq.integration;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Chaqaq.app/Chaqaq";
+			};
+			name = Debug;
+		};
+		5EE5895221EF048E8534FE33 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.gloiiire.chaqaq.uitests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Chaqaq;
+			};
+			name = Release;
+		};
 		5FF190F6EBF1A039D278161B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -263,6 +501,44 @@
 			};
 			name = Release;
 		};
+		A163D33E47B86D4CE6880240 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.gloiiire.chaqaq.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Chaqaq.app/Chaqaq";
+			};
+			name = Debug;
+		};
+		A4763DE551A790223968A627 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.gloiiire.chaqaq.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Chaqaq.app/Chaqaq";
+			};
+			name = Release;
+		};
 		B38A878961BDA5DCBD88D325 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -326,6 +602,25 @@
 			};
 			name = Debug;
 		};
+		C11345B2720C90ABD5DED822 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.gloiiire.chaqaq.uitests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Chaqaq;
+			};
+			name = Debug;
+		};
 		D942E95DC0F425D5959E289C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -353,6 +648,24 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		3119E170EB3F3B516702B313 /* Build configuration list for PBXNativeTarget "ChaqaqTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A163D33E47B86D4CE6880240 /* Debug */,
+				A4763DE551A790223968A627 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		66C8B18DCC4433A2D3664301 /* Build configuration list for PBXNativeTarget "ChaqaqIntegrationTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4591EA6DF893B754B10F8CAB /* Debug */,
+				2C7D990CC49E4A41A278D186 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		796F691B06DB18D994D81641 /* Build configuration list for PBXNativeTarget "Chaqaq" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -367,6 +680,15 @@
 			buildConfigurations = (
 				B38A878961BDA5DCBD88D325 /* Debug */,
 				8386F2E235B677EDB30EAB1C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C6A2E48FBB347B495DBAC666 /* Build configuration list for PBXNativeTarget "ChaqaqUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C11345B2720C90ABD5DED822 /* Debug */,
+				5EE5895221EF048E8534FE33 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

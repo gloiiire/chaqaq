@@ -10,10 +10,17 @@ schemes:
     build:
       targets:
         Chaqaq: all
+        ChaqaqTests: test
+        ChaqaqIntegrationTests: test
+        ChaqaqUITests: test
     run:
       config: Debug
     test:
       config: Debug
+      targets:
+        - ChaqaqTests
+        - ChaqaqIntegrationTests
+        - ChaqaqUITests
     archive:
       config: Release
 
@@ -37,3 +44,48 @@ targets:
     dependencies:
       - framework: ../chaqaq.xcframework
         embed: false
+
+  # Tests unitaires : code Swift pur (modèles Codable, helpers, extensions).
+  ChaqaqTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: Tests/Unit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.chaqaq.tests
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: Chaqaq
+
+  # Tests d'intégration : Swift ↔ FFI Rust (création doc, round-trip JSON, erreurs).
+  ChaqaqIntegrationTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: Tests/Integration
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.chaqaq.integration
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: Chaqaq
+
+  # Tests E2E (UI XCUITest) : pilote l'app comme un utilisateur (tap, swipe…).
+  ChaqaqUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: Tests/UI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.chaqaq.uitests
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: Chaqaq

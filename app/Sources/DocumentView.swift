@@ -44,14 +44,14 @@ struct EditableBlock: Identifiable {
 
 final class ActionRepeater {
     private var timer: Timer?
-    var actif: Bool { timer != nil }
+    var active: Bool { timer != nil }
 
-    func demarrer(intervalle: TimeInterval = 0.12, _ pas: @escaping () -> Void) {
+    func start(interval: TimeInterval = 0.12, _ step: @escaping () -> Void) {
         guard timer == nil else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: intervalle, repeats: true) { _ in pas() }
+        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in step() }
     }
 
-    func arreter() {
+    func stop() {
         timer?.invalidate()
         timer = nil
     }
@@ -70,8 +70,8 @@ final class DocumentViewModel: ObservableObject {
     @Published var autoFocusOffset: Int? = nil
     var activeBlockId: String? = nil
     private var focusedBlockId: String? = nil
-    private let repeteur = ActionRepeater()
-    var isNavigating: Bool { repeteur.actif }
+    private let repeater = ActionRepeater()
+    var isNavigating: Bool { repeater.active }
 
     private let api: ChaqaqApi
 
@@ -214,21 +214,21 @@ final class DocumentViewModel: ObservableObject {
         } catch { errorMessage = error.localizedDescription }
     }
 
-    func startNavigationRepeat(depuis: String, suivant: Bool) {
-        guard !repeteur.actif else { return }
-        focusedBlockId = depuis
-        repeteur.demarrer { [weak self] in self?.navigationStep(suivant: suivant) }
+    func startNavigationRepeat(from: String, next: Bool) {
+        guard !repeater.active else { return }
+        focusedBlockId = from
+        repeater.start { [weak self] in self?.navigationStep(next: next) }
     }
 
     func stopNavigationRepeat() {
-        repeteur.arreter()
+        repeater.stop()
         focusedBlockId = nil
     }
 
-    private func navigationStep(suivant: Bool) {
+    private func navigationStep(next: Bool) {
         guard let cid = focusedBlockId,
               let idx = blocks.firstIndex(where: { $0.id == cid }) else { stopNavigationRepeat(); return }
-        if suivant {
+        if next {
             guard idx < blocks.count - 1 else { stopNavigationRepeat(); return }
             let nid = blocks[idx + 1].id
             autoFocusOffset = 0; focusedBlockId = nid; autoFocusId = nid
@@ -408,7 +408,7 @@ struct DocumentView: View {
                                     let nid = vm.blocks[idx - 1].id
                                     vm.autoFocusOffset = nil
                                     vm.autoFocusId = nid
-                                    vm.startNavigationRepeat(depuis: nid, suivant: false)
+                                    vm.startNavigationRepeat(from: nid, next: false)
                                 } else {
                                     focusTitle = true
                                 }
@@ -420,7 +420,7 @@ struct DocumentView: View {
                                 let nid = vm.blocks[idx + 1].id
                                 vm.autoFocusOffset = 0
                                 vm.autoFocusId = nid
-                                vm.startNavigationRepeat(depuis: nid, suivant: true)
+                                vm.startNavigationRepeat(from: nid, next: true)
                             },
                             onStopNavigationRepeat: { vm.stopNavigationRepeat() },
                             onLongPressSelection: { selectFromLongPress(block.id) },
