@@ -18,7 +18,11 @@ impl DocumentRepository for JsonStore {
     fn save(&self, doc: &Document) -> Result<(), ChaqaqError> {
         std::fs::create_dir_all(&self.dir)?;
         let path = self.dir.join(format!("{}.json", doc.id));
-        std::fs::write(path, serde_json::to_string_pretty(doc)?)?;
+        // Écriture atomique : .tmp puis rename — évite la corruption
+        // si le process meurt en cours d'écriture (le fichier final reste l'ancien).
+        let tmp = self.dir.join(format!(".{}.json.tmp", doc.id));
+        std::fs::write(&tmp, serde_json::to_string_pretty(doc)?)?;
+        std::fs::rename(&tmp, &path)?;
         Ok(())
     }
 
@@ -35,12 +39,22 @@ impl DocumentRepository for JsonStore {
     }
 
     fn list(&self) -> Result<Vec<DocumentMeta>, ChaqaqError> {
-        std::fs::read_dir(&self.dir)?
-            .map(|entry| -> Result<DocumentMeta, ChaqaqError> {
-                let json = std::fs::read_to_string(entry?.path())?;
-                Ok(serde_json::from_str(&json)?)
-            })
-            .collect()
+        // On filtre sur l'extension `.json` (les .tmp d'écritures interrompues sont ignorés)
+        // et on ignore silencieusement les fichiers corrompus pour ne pas casser
+        // tout le listing à cause d'un seul fichier endommagé.
+        let mut metas = Vec::new();
+        for entry in std::fs::read_dir(&self.dir)? {
+            let path = entry?.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("json") {
+                continue;
+            }
+            if let Ok(json) = std::fs::read_to_string(&path) {
+                if let Ok(meta) = serde_json::from_str::<DocumentMeta>(&json) {
+                    metas.push(meta);
+                }
+            }
+        }
+        Ok(metas)
     }
 
     fn delete(&self, id: Uuid) -> Result<(), ChaqaqError> {
@@ -96,5 +110,41 @@ mod tests {
         let store = store_temp();
         let id = Uuid::new_v4();
         assert!(matches!(store.delete(id), Err(ChaqaqError::NotFound(_))));
+    }
+
+    #[test]
+    fn test_list_ignore_les_fichiers_corrompus() {
+        let store = store_temp();
+        store.save(&doc("Sain")).unwrap();
+        // Fichier corrompu : un .json non-déserialisable
+        let corrupt = store.dir.join(format!("{}.json", Uuid::new_v4()));
+        std::fs::write(&corrupt, "{ pas du JSON valide").unwrap();
+        let metas = store.list().unwrap();
+        assert_eq!(metas.len(), 1, "le fichier sain doit être listé, le corrompu ignoré");
+    }
+
+    #[test]
+    fn test_list_ignore_les_fichiers_non_json() {
+        let store = store_temp();
+        store.save(&doc("Sain")).unwrap();
+        // Fichiers parasites : .tmp d'écriture interrompue, fichier sans extension
+        std::fs::write(store.dir.join(".abc.json.tmp"), "incomplet").unwrap();
+        std::fs::write(store.dir.join("notes.txt"), "rien à voir").unwrap();
+        let metas = store.list().unwrap();
+        assert_eq!(metas.len(), 1);
+    }
+
+    #[test]
+    fn test_save_est_atomique() {
+        let store = store_temp();
+        let d = doc("Atomique");
+        store.save(&d).unwrap();
+        // Aucun .tmp ne doit traîner après un save réussi
+        let tmps: Vec<_> = std::fs::read_dir(&store.dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("tmp"))
+            .collect();
+        assert!(tmps.is_empty(), "aucun .tmp ne doit subsister après save atomique");
     }
 }

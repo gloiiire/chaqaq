@@ -23,7 +23,12 @@ impl DatabaseStore {
 impl DatabaseRepository for DatabaseStore {
     fn save(&self, db: &Database) -> Result<(), ChaqaqError> {
         let json = serde_json::to_string_pretty(db)?;
-        fs::write(self.chemin(db.id), json)?;
+        // Écriture atomique : .tmp puis rename — la base reste cohérente
+        // si le process meurt en cours d'écriture.
+        let target = self.chemin(db.id);
+        let tmp = self.dir.join(format!(".{}.json.tmp", db.id));
+        fs::write(&tmp, json)?;
+        fs::rename(&tmp, &target)?;
         Ok(())
     }
 
@@ -41,13 +46,18 @@ impl DatabaseRepository for DatabaseStore {
     }
 
     fn list_meta(&self) -> Result<Vec<DatabaseMeta>, ChaqaqError> {
-        let mut metas = vec![];
+        // Tolérance aux fichiers corrompus : on les ignore plutôt que de
+        // faire échouer tout le listing.
+        let mut metas = Vec::new();
         for entry in fs::read_dir(&self.dir)? {
-            let entry = entry?;
-            if entry.path().extension().and_then(|e| e.to_str()) == Some("json") {
-                let content = fs::read_to_string(entry.path())?;
-                let db: Database = serde_json::from_str(&content)?;
-                metas.push(db.meta());
+            let path = entry?.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("json") {
+                continue;
+            }
+            if let Ok(content) = fs::read_to_string(&path) {
+                if let Ok(db) = serde_json::from_str::<Database>(&content) {
+                    metas.push(db.meta());
+                }
             }
         }
         Ok(metas)
