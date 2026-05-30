@@ -1,6 +1,6 @@
 use chaqaq::application::database_use_cases::{add_entry, create_database, search_entries};
 use chaqaq::application::use_cases::{create_document, search_documents};
-use chaqaq::domain::database::{Propriete, ProprieteType, ValeurPropriete};
+use chaqaq::domain::database::{Property, PropertyType, PropertyValue};
 use chaqaq::domain::document::InlineText;
 use chaqaq::infrastructure::database_store::DatabaseStore;
 use chaqaq::infrastructure::json_store::JsonStore;
@@ -72,13 +72,13 @@ fn test_search_documents_query_vide_retourne_tout() {
 #[test]
 fn test_search_entries_par_texte() {
     let store = db_store_temp();
-    let prop = Propriete::nouvelle("Contenu", ProprieteType::Texte);
+    let prop = Property::new("Contenu", PropertyType::Text);
     let prop_id = prop.id;
     let db = create_database(&store, inlines("Notes"), vec![prop]).unwrap();
 
     for texte in ["Première pensée", "Deuxième réflexion", "Troisième pensée"] {
         let mut v = HashMap::new();
-        v.insert(prop_id, ValeurPropriete::Texte(texte.to_string()));
+        v.insert(prop_id, PropertyValue::Text(texte.to_string()));
         add_entry(&store, db.id, v).unwrap();
     }
 
@@ -89,14 +89,14 @@ fn test_search_entries_par_texte() {
 #[test]
 fn test_search_entries_insensible_casse() {
     let store = db_store_temp();
-    let prop = Propriete::nouvelle("Titre", ProprieteType::Texte);
+    let prop = Property::new("Titre", PropertyType::Text);
     let prop_id = prop.id;
     let db = create_database(&store, inlines("DB"), vec![prop]).unwrap();
 
     let mut v = HashMap::new();
     v.insert(
         prop_id,
-        ValeurPropriete::Texte("Vacances d'Été".to_string()),
+        PropertyValue::Text("Vacances d'Été".to_string()),
     );
     add_entry(&store, db.id, v).unwrap();
 
@@ -107,8 +107,8 @@ fn test_search_entries_insensible_casse() {
 #[test]
 fn test_search_entries_multi_champs() {
     let store = db_store_temp();
-    let prop_title = Propriete::nouvelle("Titre", ProprieteType::Texte);
-    let prop_tags = Propriete::nouvelle("Tags", ProprieteType::SelectionMultiple(vec![]));
+    let prop_title = Property::new("Titre", PropertyType::Text);
+    let prop_tags = Property::new("Tags", PropertyType::SelectionMultiple(vec![]));
     let title_id = prop_title.id;
     let tags_id = prop_tags.id;
     let db = create_database(&store, inlines("Articles"), vec![prop_title, prop_tags]).unwrap();
@@ -116,21 +116,21 @@ fn test_search_entries_multi_champs() {
     let mut v1 = HashMap::new();
     v1.insert(
         title_id,
-        ValeurPropriete::Texte("Rust et WebAssembly".to_string()),
+        PropertyValue::Text("Rust et WebAssembly".to_string()),
     );
     v1.insert(
         tags_id,
-        ValeurPropriete::SelectionMultiple(vec!["tech".to_string()]),
+        PropertyValue::SelectionMultiple(vec!["tech".to_string()]),
     );
 
     let mut v2 = HashMap::new();
     v2.insert(
         title_id,
-        ValeurPropriete::Texte("Recette de Pâtes".to_string()),
+        PropertyValue::Text("Recette de Pâtes".to_string()),
     );
     v2.insert(
         tags_id,
-        ValeurPropriete::SelectionMultiple(vec!["cuisine".to_string(), "tech".to_string()]),
+        PropertyValue::SelectionMultiple(vec!["cuisine".to_string(), "tech".to_string()]),
     );
 
     add_entry(&store, db.id, v1).unwrap();
@@ -148,12 +148,12 @@ fn test_search_entries_multi_champs() {
 #[test]
 fn test_search_entries_aucun_resultat() {
     let store = db_store_temp();
-    let prop = Propriete::nouvelle("Texte", ProprieteType::Texte);
+    let prop = Property::new("Texte", PropertyType::Text);
     let prop_id = prop.id;
     let db = create_database(&store, inlines("DB"), vec![prop]).unwrap();
 
     let mut v = HashMap::new();
-    v.insert(prop_id, ValeurPropriete::Texte("bonjour".to_string()));
+    v.insert(prop_id, PropertyValue::Text("bonjour".to_string()));
     add_entry(&store, db.id, v).unwrap();
 
     let resultats = search_entries(&store, db.id, "xyzzy").unwrap();

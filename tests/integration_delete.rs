@@ -3,7 +3,7 @@ use chaqaq::application::database_use_cases::{
 };
 use chaqaq::application::error::ChaqaqError;
 use chaqaq::application::use_cases::{create_document, get_document, delete_document};
-use chaqaq::domain::database::{Propriete, ProprieteType};
+use chaqaq::domain::database::{Property, PropertyType};
 use chaqaq::domain::document::InlineText;
 use chaqaq::infrastructure::database_store::DatabaseStore;
 use chaqaq::infrastructure::json_store::JsonStore;
@@ -72,7 +72,7 @@ fn test_delete_document_ne_supprime_pas_les_autres() {
 #[test]
 fn test_delete_database_existante() {
     let store = db_store_temp();
-    let prop = Propriete::nouvelle("Titre", ProprieteType::Titre);
+    let prop = Property::new("Titre", PropertyType::Title);
     let db = create_database(&store, inlines("À supprimer"), vec![prop]).unwrap();
     let id = db.id;
 

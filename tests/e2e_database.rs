@@ -5,8 +5,8 @@ use chaqaq::application::database_use_cases::{
 use chaqaq::application::repository::DocumentRepository;
 use chaqaq::application::use_cases::create_document;
 use chaqaq::domain::database::{
-    Agregat, ConditionFiltre, Filtre, Ordre, Propriete, ProprieteType, Tri, TypeVue,
-    ValeurPropriete, Vue,
+    Aggregate, FilterCondition, Filter, Order, Property, PropertyType, Sort, ViewType,
+    PropertyValue, View,
 };
 use chaqaq::domain::document::{BlockContent, InlineText};
 use chaqaq::infrastructure::database_store::DatabaseStore;
@@ -37,8 +37,8 @@ fn test_flux_complet_database() {
     let (_doc_store, db_store) = store_temp();
 
     // crée une database avec deux propriétés
-    let prop_nom = Propriete::nouvelle("Nom", ProprieteType::Titre);
-    let prop_score = Propriete::nouvelle("Score", ProprieteType::Nombre);
+    let prop_nom = Property::new("Nom", PropertyType::Title);
+    let prop_score = Property::new("Score", PropertyType::Number);
     let nom_id = prop_nom.id;
     let score_id = prop_score.id;
 
@@ -46,32 +46,32 @@ fn test_flux_complet_database() {
 
     // ajoute des entrées
     let mut v1 = HashMap::new();
-    v1.insert(nom_id, ValeurPropriete::Titre(title("Alice")));
-    v1.insert(score_id, ValeurPropriete::Nombre(95.0));
+    v1.insert(nom_id, PropertyValue::Title(title("Alice")));
+    v1.insert(score_id, PropertyValue::Number(95.0));
 
     let mut v2 = HashMap::new();
-    v2.insert(nom_id, ValeurPropriete::Titre(title("Bob")));
-    v2.insert(score_id, ValeurPropriete::Nombre(82.0));
+    v2.insert(nom_id, PropertyValue::Title(title("Bob")));
+    v2.insert(score_id, PropertyValue::Number(82.0));
 
     let mut v3 = HashMap::new();
-    v3.insert(nom_id, ValeurPropriete::Titre(title("Charlie")));
-    v3.insert(score_id, ValeurPropriete::Nombre(88.0));
+    v3.insert(nom_id, PropertyValue::Title(title("Charlie")));
+    v3.insert(score_id, PropertyValue::Number(88.0));
 
     add_entry(&db_store, db.id, v1).unwrap();
     add_entry(&db_store, db.id, v2).unwrap();
     add_entry(&db_store, db.id, v3).unwrap();
 
     // vue triée par score décroissant
-    let mut vue = Vue::nouvelle("Top scores", TypeVue::Tableau);
-    vue.tris
-        .push(Tri::par_propriete(score_id, Ordre::Decroissant));
+    let mut vue = View::new("Top scores", ViewType::Table);
+    vue.sorts
+        .push(Sort::by_property(score_id, Order::Descending));
     let vue = add_view(&db_store, db.id, vue).unwrap();
 
     let resultats = requete(&db_store, db.id, vue.id).unwrap();
     assert_eq!(resultats.len(), 3);
     assert_eq!(
-        resultats[0].valeurs[&score_id],
-        ValeurPropriete::Nombre(95.0)
+        resultats[0].values[&score_id],
+        PropertyValue::Number(95.0)
     );
 }
 
@@ -97,8 +97,8 @@ fn test_database_liee_a_document() {
 fn test_vue_avec_filtre_et_tri_combines() {
     let (_doc_store, db_store) = store_temp();
 
-    let prop_statut = Propriete::nouvelle("Statut", ProprieteType::Texte);
-    let prop_priorite = Propriete::nouvelle("Priorité", ProprieteType::Nombre);
+    let prop_statut = Property::new("Statut", PropertyType::Text);
+    let prop_priorite = Property::new("Priorité", PropertyType::Number);
     let statut_id = prop_statut.id;
     let priorite_id = prop_priorite.id;
 
@@ -109,33 +109,33 @@ fn test_vue_avec_filtre_et_tri_combines() {
     )
     .unwrap();
 
-    let entrees = vec![
+    let entries = vec![
         ("En cours", 3.0),
         ("Terminé", 1.0),
         ("En cours", 1.0),
         ("Terminé", 2.0),
     ];
-    for (s, p) in entrees {
+    for (s, p) in entries {
         let mut v = HashMap::new();
-        v.insert(statut_id, ValeurPropriete::Texte(s.to_string()));
-        v.insert(priorite_id, ValeurPropriete::Nombre(p));
+        v.insert(statut_id, PropertyValue::Text(s.to_string()));
+        v.insert(priorite_id, PropertyValue::Number(p));
         add_entry(&db_store, db.id, v).unwrap();
     }
 
-    let mut vue = Vue::nouvelle("En cours par priorité", TypeVue::Tableau);
-    vue.filtres.push(Filtre {
+    let mut vue = View::new("En cours par priorité", ViewType::Table);
+    vue.filters.push(Filter {
         property_id: statut_id,
-        condition: ConditionFiltre::Egal(ValeurPropriete::Texte("En cours".to_string())),
+        condition: FilterCondition::Equal(PropertyValue::Text("En cours".to_string())),
     });
-    vue.tris
-        .push(Tri::par_propriete(priorite_id, Ordre::Croissant));
+    vue.sorts
+        .push(Sort::by_property(priorite_id, Order::Ascending));
     let vue = add_view(&db_store, db.id, vue).unwrap();
 
     let resultats = requete(&db_store, db.id, vue.id).unwrap();
     assert_eq!(resultats.len(), 2);
     assert_eq!(
-        resultats[0].valeurs[&priorite_id],
-        ValeurPropriete::Nombre(1.0)
+        resultats[0].values[&priorite_id],
+        PropertyValue::Number(1.0)
     );
 }
 
@@ -144,18 +144,18 @@ fn test_add_property_a_database_existante() {
     let (_doc_store, db_store) = store_temp();
     let db = create_database(&db_store, title("Notes"), vec![]).unwrap();
     assert_eq!(
-        get_database(&db_store, db.id).unwrap().proprietes.len(),
+        get_database(&db_store, db.id).unwrap().properties.len(),
         0
     );
 
     add_property(
         &db_store,
         db.id,
-        Propriete::nouvelle("Date", ProprieteType::Date),
+        Property::new("Date", PropertyType::Date),
     )
     .unwrap();
     assert_eq!(
-        get_database(&db_store, db.id).unwrap().proprietes.len(),
+        get_database(&db_store, db.id).unwrap().properties.len(),
         1
     );
 }
@@ -167,30 +167,30 @@ fn test_flux_rollup_entre_deux_databases() {
     let (_doc_store, db_store) = store_temp();
 
     // Sprints (database source des relations)
-    let prop_points = Propriete::nouvelle("Points", ProprieteType::Nombre);
+    let prop_points = Property::new("Points", PropertyType::Number);
     let points_id = prop_points.id;
     let db_sprints = create_database(&db_store, title("Sprints"), vec![prop_points]).unwrap();
 
     let mut s1 = HashMap::new();
-    s1.insert(points_id, ValeurPropriete::Nombre(8.0));
+    s1.insert(points_id, PropertyValue::Number(8.0));
     let mut s2 = HashMap::new();
-    s2.insert(points_id, ValeurPropriete::Nombre(13.0));
+    s2.insert(points_id, PropertyValue::Number(13.0));
     let sprint1 = add_entry(&db_store, db_sprints.id, s1).unwrap();
     let sprint2 = add_entry(&db_store, db_sprints.id, s2).unwrap();
 
-    // Projets avec Relation → Sprints + Rollup (Somme des points)
-    let prop_rel = Propriete::nouvelle(
+    // Projets avec Relation → Sprints + Rollup (Sum des points)
+    let prop_rel = Property::new(
         "Sprints",
-        ProprieteType::Relation {
+        PropertyType::Relation {
             db_id: db_sprints.id,
         },
     );
-    let prop_total = Propriete::nouvelle(
+    let prop_total = Property::new(
         "Total points",
-        ProprieteType::Rollup {
+        PropertyType::Rollup {
             relation_prop_id: prop_rel.id,
-            cible_prop_id: points_id,
-            agregat: Agregat::Somme,
+            target_prop_id: points_id,
+            aggregate: Aggregate::Sum,
         },
     );
     let total_id = prop_total.id;
@@ -201,7 +201,7 @@ fn test_flux_rollup_entre_deux_databases() {
     let mut vp = HashMap::new();
     vp.insert(
         rel_id,
-        ValeurPropriete::Relation(vec![sprint1.id, sprint2.id]),
+        PropertyValue::Relation(vec![sprint1.id, sprint2.id]),
     );
     let projet = add_entry(&db_store, db_projets.id, vp).unwrap();
 
@@ -209,8 +209,8 @@ fn test_flux_rollup_entre_deux_databases() {
     let enrichies = evaluate_rollups(&db_store, &db, vec![projet]).unwrap();
 
     assert_eq!(
-        enrichies[0].valeurs[&total_id],
-        ValeurPropriete::Nombre(21.0)
+        enrichies[0].values[&total_id],
+        PropertyValue::Number(21.0)
     );
 }
 
@@ -220,17 +220,17 @@ fn test_flux_rollup_entre_deux_databases() {
 fn test_flux_kanban_complet() {
     let (_doc_store, db_store) = store_temp();
 
-    let prop_statut = Propriete::nouvelle(
+    let prop_statut = Property::new(
         "Statut",
-        ProprieteType::Selection(vec!["Todo".into(), "En cours".into(), "Terminé".into()]),
+        PropertyType::Selection(vec!["Todo".into(), "En cours".into(), "Terminé".into()]),
     );
     let statut_id = prop_statut.id;
     let db = create_database(&db_store, title("Backlog"), vec![prop_statut]).unwrap();
 
-    // Vue Kanban groupée par statut
-    let vue_kanban = Vue::nouvelle(
+    // View Kanban groupée par statut
+    let vue_kanban = View::new(
         "Kanban",
-        TypeVue::Kanban {
+        ViewType::Kanban {
             group_by: statut_id,
         },
     );
@@ -242,58 +242,58 @@ fn test_flux_kanban_complet() {
             let mut v = HashMap::new();
             v.insert(
                 statut_id,
-                ValeurPropriete::Selection(Some(statut.to_string())),
+                PropertyValue::Selection(Some(statut.to_string())),
             );
             add_entry(&db_store, db.id, v).unwrap();
         }
     }
 
-    let groupes = grouped_query(&db_store, db.id, vue_kanban.id, statut_id).unwrap();
-    assert_eq!(groupes.len(), 3);
-    let total: usize = groupes.iter().map(|g| g.entrees.len()).sum();
+    let groups = grouped_query(&db_store, db.id, vue_kanban.id, statut_id).unwrap();
+    assert_eq!(groups.len(), 3);
+    let total: usize = groups.iter().map(|g| g.entries.len()).sum();
     assert_eq!(total, 6);
 }
 
 // ── E2E Agrégat colonne ──────────────────────────────────────────────────────
 
 #[test]
-fn test_agregat_min_max_colonne() {
+fn test_aggregate_min_max_colonne() {
     let (_doc_store, db_store) = store_temp();
 
-    let prop = Propriete::nouvelle("Durée", ProprieteType::Nombre);
+    let prop = Property::new("Durée", PropertyType::Number);
     let prop_id = prop.id;
     let db = create_database(&db_store, title("Tâches"), vec![prop]).unwrap();
 
     for n in [5.0, 1.0, 9.0, 3.0] {
         let mut v = HashMap::new();
-        v.insert(prop_id, ValeurPropriete::Nombre(n));
+        v.insert(prop_id, PropertyValue::Number(n));
         add_entry(&db_store, db.id, v).unwrap();
     }
 
-    let min = column_aggregate(&db_store, db.id, prop_id, Agregat::Min).unwrap();
-    let max = column_aggregate(&db_store, db.id, prop_id, Agregat::Max).unwrap();
+    let min = column_aggregate(&db_store, db.id, prop_id, Aggregate::Min).unwrap();
+    let max = column_aggregate(&db_store, db.id, prop_id, Aggregate::Max).unwrap();
 
-    assert_eq!(min, ValeurPropriete::Nombre(1.0));
-    assert_eq!(max, ValeurPropriete::Nombre(9.0));
+    assert_eq!(min, PropertyValue::Number(1.0));
+    assert_eq!(max, PropertyValue::Number(9.0));
 }
 
 // ── E2E Journal intime — le cas d'usage fondateur ────────────────────────────
 
 /// Scénario réel : tu importes d'anciennes notes avec des dates que tu as
-/// saisies à la main, et tu continues d'écrire de nouvelles notes dont la date
+/// saisies à la main, et tu continues d'écrire de news notes dont la date
 /// est auto-générée. Une seule vue, un seul tri, tout dans le bon order.
 #[test]
 fn test_journal_intime_dates_mixtes() {
     let (_doc_store, db_store) = store_temp();
 
-    let prop_date = Propriete::nouvelle("Date", ProprieteType::Date);
-    let prop_content = Propriete::nouvelle("Texte", ProprieteType::Texte);
+    let prop_date = Property::new("Date", PropertyType::Date);
+    let prop_content = Property::new("Texte", PropertyType::Text);
     let date_id = prop_date.id;
     let content_id = prop_content.id;
 
     let db = create_database(&db_store, title("Journal"), vec![prop_date, prop_content]).unwrap();
 
-    // — Anciennes notes importées : date manuelle renseignée, cree_le = maintenant
+    // — Anciennes notes importées : date manuelle renseignée, created_at = maintenant
     let notes_anciennes = [
         ("2019-03-22", "Première entrée retrouvée"),
         ("2021-08-14", "Une pensée de l'été"),
@@ -301,49 +301,49 @@ fn test_journal_intime_dates_mixtes() {
     ];
     for (date, texte) in notes_anciennes {
         let mut v = HashMap::new();
-        v.insert(date_id, ValeurPropriete::Date(date.to_string()));
-        v.insert(content_id, ValeurPropriete::Texte(texte.to_string()));
+        v.insert(date_id, PropertyValue::Date(date.to_string()));
+        v.insert(content_id, PropertyValue::Text(texte.to_string()));
         add_entry(&db_store, db.id, v).unwrap();
     }
 
-    // — Nouvelles notes : pas de date manuelle, cree_le auto (aujourd'hui ≈ 2024+)
-    let notes_nouvelles = ["Ce soir il pleut", "Réflexions du matin"];
-    for texte in notes_nouvelles {
+    // — Nouvelles notes : pas de date manuelle, created_at auto (aujourd'hui ≈ 2024+)
+    let notes_news = ["Ce soir il pleut", "Réflexions du matin"];
+    for texte in notes_news {
         let mut v = HashMap::new();
-        v.insert(content_id, ValeurPropriete::Texte(texte.to_string()));
+        v.insert(content_id, PropertyValue::Text(texte.to_string()));
         add_entry(&db_store, db.id, v).unwrap();
     }
 
-    // Vue chronologique : ManuellePuisCreation croissant
-    let mut vue = Vue::nouvelle("Chronologique", TypeVue::Tableau);
-    vue.tris
-        .push(Tri::manuelle_puis_creation(date_id, Ordre::Croissant));
+    // View chronologique : ManualThenCreated croissant
+    let mut vue = View::new("Chronologique", ViewType::Table);
+    vue.sorts
+        .push(Sort::manual_then_creation(date_id, Order::Ascending));
     let vue = add_view(&db_store, db.id, vue).unwrap();
 
     let resultats = requete(&db_store, db.id, vue.id).unwrap();
     assert_eq!(resultats.len(), 5);
 
     // Les 3 premières doivent être les notes anciennes dans l'order chronologique
-    let dates: Vec<Option<&ValeurPropriete>> =
-        resultats.iter().map(|e| e.valeurs.get(&date_id)).collect();
+    let dates: Vec<Option<&PropertyValue>> =
+        resultats.iter().map(|e| e.values.get(&date_id)).collect();
 
     assert_eq!(
         dates[0],
-        Some(&ValeurPropriete::Date("2019-03-22".to_string()))
+        Some(&PropertyValue::Date("2019-03-22".to_string()))
     );
     assert_eq!(
         dates[1],
-        Some(&ValeurPropriete::Date("2020-11-30".to_string()))
+        Some(&PropertyValue::Date("2020-11-30".to_string()))
     );
     assert_eq!(
         dates[2],
-        Some(&ValeurPropriete::Date("2021-08-14".to_string()))
+        Some(&PropertyValue::Date("2021-08-14".to_string()))
     );
-    // Les 2 nouvelles arrivent après (cree_le récent > toutes les dates manuelles)
+    // Les 2 news arrivent après (created_at récent > toutes les dates manuelles)
     assert!(
-        dates[3].is_none() || dates[3] == Some(&ValeurPropriete::Vide) || {
-            // pas de date manuelle donc tri par cree_le
-            resultats[3].cree_le > "2021".to_string()
+        dates[3].is_none() || dates[3] == Some(&PropertyValue::Empty) || {
+            // pas de date manuelle donc tri par created_at
+            resultats[3].created_at > "2021".to_string()
         }
     );
 }

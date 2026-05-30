@@ -8,46 +8,46 @@ use uuid::Uuid;
 // ── Types de propriétés (colonnes) ───────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Agregat {
-    Compter,
-    Somme,
-    Moyenne,
+pub enum Aggregate {
+    Count,
+    Sum,
+    Average,
     Min,
     Max,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ProprieteType {
-    Titre,
-    Texte,
-    Nombre,
+pub enum PropertyType {
+    Title,
+    Text,
+    Number,
     Selection(Vec<String>),
     SelectionMultiple(Vec<String>),
     Date,
-    Case,
+    Checkbox,
     Url,
     Relation {
         db_id: Uuid,
     },
     Rollup {
         relation_prop_id: Uuid,
-        cible_prop_id: Uuid,
-        agregat: Agregat,
+        target_prop_id: Uuid,
+        aggregate: Aggregate,
     },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Propriete {
+pub struct Property {
     pub id: Uuid,
-    pub nom: String,
-    pub type_: ProprieteType,
+    pub name: String,
+    pub type_: PropertyType,
 }
 
-impl Propriete {
-    pub fn nouvelle(nom: impl Into<String>, type_: ProprieteType) -> Self {
+impl Property {
+    pub fn new(name: impl Into<String>, type_: PropertyType) -> Self {
         Self {
             id: Uuid::new_v4(),
-            nom: nom.into(),
+            name: name.into(),
             type_,
         }
     }
@@ -56,146 +56,146 @@ impl Propriete {
 // ── Valeurs des cellules ─────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ValeurPropriete {
-    Titre(Vec<InlineText>),
-    Texte(String),
-    Nombre(f64),
+pub enum PropertyValue {
+    Title(Vec<InlineText>),
+    Text(String),
+    Number(f64),
     Selection(Option<String>),
     SelectionMultiple(Vec<String>),
     Date(String), // ISO 8601
-    Case(bool),
+    Checkbox(bool),
     Url(String),
     Relation(Vec<Uuid>), // IDs d'entrées dans la database liée
-    Vide,
+    Empty,
 }
 
 // ── Entrées (lignes) ─────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Entree {
+pub struct Entry {
     pub id: Uuid,
     /// Timestamp ISO 8601 auto-généré à la création — jamais modifié après.
     #[serde(default)]
-    pub cree_le: String,
-    pub valeurs: HashMap<Uuid, ValeurPropriete>,
+    pub created_at: String,
+    pub values: HashMap<Uuid, PropertyValue>,
 }
 
-impl Entree {
-    pub fn nouvelle(valeurs: HashMap<Uuid, ValeurPropriete>) -> Self {
+impl Entry {
+    pub fn new(values: HashMap<Uuid, PropertyValue>) -> Self {
         Self {
             id: Uuid::new_v4(),
-            cree_le: Utc::now().to_rfc3339(),
-            valeurs,
+            created_at: Utc::now().to_rfc3339(),
+            values,
         }
     }
 }
 
-// ── Vues ─────────────────────────────────────────────────────────────────────
+// ── Views ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum TypeVue {
-    Tableau,
+pub enum ViewType {
+    Table,
     Kanban { group_by: Uuid },
-    Calendrier { property_id: Uuid },
-    Galerie,
+    Calendar { property_id: Uuid },
+    Gallery,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ConditionFiltre {
-    Egal(ValeurPropriete),
-    Contient(String),
-    EstVide,
-    EstPlein,
+pub enum FilterCondition {
+    Equal(PropertyValue),
+    Contains(String),
+    IsEmpty,
+    IsFilled,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Filtre {
+pub struct Filter {
     pub property_id: Uuid,
-    pub condition: ConditionFiltre,
+    pub condition: FilterCondition,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Ordre {
-    Croissant,
-    Decroissant,
+pub enum Order {
+    Ascending,
+    Descending,
 }
 
 /// Détermine quelle date utiliser lors d'un tri.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub enum SourceTri {
-    /// Tri standard sur la valeur de `property_id`.
+pub enum SortSource {
+    /// Sort standard sur la valeur de `property_id`.
     #[default]
-    Propriete,
-    /// Tri sur `cree_le` uniquement (date auto-générée, `property_id` ignoré).
-    Creation,
-    /// Utilise la valeur de `property_id` si elle est renseignée, sinon `cree_le`.
-    /// Résout le cas journal : anciennes notes avec date manuelle + nouvelles notes sans.
-    ManuellePuisCreation,
+    Property,
+    /// Sort sur `created_at` uniquement (date auto-générée, `property_id` ignoré).
+    Created,
+    /// Utilise la valeur de `property_id` si elle est renseignée, sinon `created_at`.
+    /// Résout le cas journal : anciennes notes avec date manuelle + news notes sans.
+    ManualThenCreated,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Tri {
+pub struct Sort {
     pub property_id: Uuid,
-    pub order: Ordre,
+    pub order: Order,
     #[serde(default)]
-    pub source: SourceTri,
+    pub source: SortSource,
 }
 
-impl Tri {
-    pub fn par_propriete(property_id: Uuid, order: Ordre) -> Self {
+impl Sort {
+    pub fn by_property(property_id: Uuid, order: Order) -> Self {
         Self {
             property_id,
             order,
-            source: SourceTri::Propriete,
+            source: SortSource::Property,
         }
     }
 
-    /// Tri par date auto-générée. `property_id` peut être `Uuid::nil()`.
-    pub fn par_creation(order: Ordre) -> Self {
+    /// Sort par date auto-générée. `property_id` peut être `Uuid::nil()`.
+    pub fn by_creation(order: Order) -> Self {
         Self {
             property_id: Uuid::nil(),
             order,
-            source: SourceTri::Creation,
+            source: SortSource::Created,
         }
     }
 
     /// Date manuelle si renseignée, sinon date de création automatique.
-    pub fn manuelle_puis_creation(property_id: Uuid, order: Ordre) -> Self {
+    pub fn manual_then_creation(property_id: Uuid, order: Order) -> Self {
         Self {
             property_id,
             order,
-            source: SourceTri::ManuellePuisCreation,
+            source: SortSource::ManualThenCreated,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Vue {
+pub struct View {
     pub id: Uuid,
-    pub nom: String,
-    pub type_: TypeVue,
-    pub filtres: Vec<Filtre>,
-    pub tris: Vec<Tri>,
+    pub name: String,
+    pub type_: ViewType,
+    pub filters: Vec<Filter>,
+    pub sorts: Vec<Sort>,
 }
 
-impl Vue {
-    pub fn nouvelle(nom: impl Into<String>, type_: TypeVue) -> Self {
+impl View {
+    pub fn new(name: impl Into<String>, type_: ViewType) -> Self {
         Self {
             id: Uuid::new_v4(),
-            nom: nom.into(),
+            name: name.into(),
             type_,
-            filtres: vec![],
-            tris: vec![],
+            filters: vec![],
+            sorts: vec![],
         }
     }
 }
 
-// ── Groupement ───────────────────────────────────────────────────────────────
+// ── Groupment ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Groupe {
-    pub valeur: ValeurPropriete, // valeur commune du groupe (Vide = sans valeur)
-    pub entrees: Vec<Entree>,
+pub struct Group {
+    pub value: PropertyValue, // valeur commune du groupe (Empty = sans valeur)
+    pub entries: Vec<Entry>,
 }
 
 // ── Database ─────────────────────────────────────────────────────────────────
@@ -205,11 +205,11 @@ pub struct DatabaseMeta {
     pub id: Uuid,
     pub title: Vec<InlineText>,
     /// Timestamp ISO 8601 de la dernière modification — géré par l'infrastructure.
-    /// Vide si le backend ne le fournit pas (DatabaseStore JSON, mock).
+    /// Empty si le backend ne le fournit pas (DatabaseStore JSON, mock).
     #[serde(default)]
     pub updated_at: String,
     /// Timestamp ISO 8601 de création — setté à l'INSERT, jamais modifié.
-    /// Vide si le backend ne le fournit pas (DatabaseStore JSON, mock).
+    /// Empty si le backend ne le fournit pas (DatabaseStore JSON, mock).
     #[serde(default)]
     pub created_at: String,
 }
@@ -218,20 +218,20 @@ pub struct DatabaseMeta {
 pub struct Database {
     pub id: Uuid,
     pub title: Vec<InlineText>,
-    pub proprietes: Vec<Propriete>,
-    pub entrees: Vec<Entree>,
-    pub vues: Vec<Vue>,
+    pub properties: Vec<Property>,
+    pub entries: Vec<Entry>,
+    pub views: Vec<View>,
 }
 
 impl Database {
-    pub fn nouvelle(title: Vec<InlineText>, proprietes: Vec<Propriete>) -> Self {
-        let vue_defaut = Vue::nouvelle("Tableau", TypeVue::Tableau);
+    pub fn new(title: Vec<InlineText>, properties: Vec<Property>) -> Self {
+        let vue_defaut = View::new("Table", ViewType::Table);
         Self {
             id: Uuid::new_v4(),
             title,
-            proprietes,
-            entrees: vec![],
-            vues: vec![vue_defaut],
+            properties,
+            entries: vec![],
+            views: vec![vue_defaut],
         }
     }
 
@@ -257,105 +257,105 @@ mod tests {
     }
 
     #[test]
-    fn test_nouvelle_database_a_vue_tableau_par_defaut() {
-        let db = Database::nouvelle(title("Projets"), vec![]);
-        assert_eq!(db.vues.len(), 1);
-        assert_eq!(db.vues[0].type_, TypeVue::Tableau);
-        assert_eq!(db.vues[0].nom, "Tableau");
+    fn test_new_database_a_vue_tableau_par_defaut() {
+        let db = Database::new(title("Projets"), vec![]);
+        assert_eq!(db.views.len(), 1);
+        assert_eq!(db.views[0].type_, ViewType::Table);
+        assert_eq!(db.views[0].name, "Table");
     }
 
     #[test]
     fn test_meta_extrait_id_et_title() {
-        let db = Database::nouvelle(title("Tâches"), vec![]);
+        let db = Database::new(title("Tâches"), vec![]);
         let meta = db.meta();
         assert_eq!(meta.id, db.id);
         assert_eq!(meta.title, db.title);
     }
 
     #[test]
-    fn test_entree_nouvelle_genere_id_unique() {
-        let e1 = Entree::nouvelle(HashMap::new());
-        let e2 = Entree::nouvelle(HashMap::new());
+    fn test_entry_new_genere_id_unique() {
+        let e1 = Entry::new(HashMap::new());
+        let e2 = Entry::new(HashMap::new());
         assert_ne!(e1.id, e2.id);
     }
 
     #[test]
-    fn test_propriete_nouvelle_genere_id_unique() {
-        let p1 = Propriete::nouvelle("Nom", ProprieteType::Titre);
-        let p2 = Propriete::nouvelle("Nom", ProprieteType::Titre);
+    fn test_propriete_new_genere_id_unique() {
+        let p1 = Property::new("Nom", PropertyType::Title);
+        let p2 = Property::new("Nom", PropertyType::Title);
         assert_ne!(p1.id, p2.id);
     }
 
     #[test]
-    fn test_vue_nouvelle_sans_filtres_ni_tris() {
-        let vue = Vue::nouvelle("Board", TypeVue::Galerie);
-        assert!(vue.filtres.is_empty());
-        assert!(vue.tris.is_empty());
+    fn test_vue_new_sans_filters_ni_sorts() {
+        let vue = View::new("Board", ViewType::Gallery);
+        assert!(vue.filters.is_empty());
+        assert!(vue.sorts.is_empty());
     }
 
     #[test]
-    fn test_nouvelle_database_sans_entrees() {
-        let db = Database::nouvelle(title("Vide"), vec![]);
-        assert!(db.entrees.is_empty());
+    fn test_new_database_sans_entries() {
+        let db = Database::new(title("Empty"), vec![]);
+        assert!(db.entries.is_empty());
     }
 
     #[test]
     fn test_relation_prop_type() {
         let db_id = Uuid::new_v4();
-        let prop = Propriete::nouvelle("Tâches", ProprieteType::Relation { db_id });
-        assert_eq!(prop.type_, ProprieteType::Relation { db_id });
+        let prop = Property::new("Tâches", PropertyType::Relation { db_id });
+        assert_eq!(prop.type_, PropertyType::Relation { db_id });
     }
 
     #[test]
     fn test_rollup_prop_type() {
         let rel_id = Uuid::new_v4();
         let cible_id = Uuid::new_v4();
-        let prop = Propriete::nouvelle(
+        let prop = Property::new(
             "Nb tâches",
-            ProprieteType::Rollup {
+            PropertyType::Rollup {
                 relation_prop_id: rel_id,
-                cible_prop_id: cible_id,
-                agregat: Agregat::Compter,
+                target_prop_id: cible_id,
+                aggregate: Aggregate::Count,
             },
         );
-        assert!(matches!(prop.type_, ProprieteType::Rollup { .. }));
+        assert!(matches!(prop.type_, PropertyType::Rollup { .. }));
     }
 
     #[test]
     fn test_valeur_relation_stocke_ids() {
         let ids = vec![Uuid::new_v4(), Uuid::new_v4()];
-        let v = ValeurPropriete::Relation(ids.clone());
-        assert_eq!(v, ValeurPropriete::Relation(ids));
+        let v = PropertyValue::Relation(ids.clone());
+        assert_eq!(v, PropertyValue::Relation(ids));
     }
 
     #[test]
-    fn test_entree_nouvelle_a_cree_le_non_vide() {
-        let e = Entree::nouvelle(HashMap::new());
-        assert!(!e.cree_le.is_empty());
+    fn test_entry_new_a_created_at_non_vide() {
+        let e = Entry::new(HashMap::new());
+        assert!(!e.created_at.is_empty());
         // ISO 8601 commence par l'année
-        assert!(e.cree_le.starts_with("20"));
+        assert!(e.created_at.starts_with("20"));
     }
 
     #[test]
-    fn test_tri_par_creation_ignore_property_id() {
-        let t = Tri::par_creation(Ordre::Decroissant);
-        assert_eq!(t.source, SourceTri::Creation);
+    fn test_tri_by_creation_ignore_property_id() {
+        let t = Sort::by_creation(Order::Descending);
+        assert_eq!(t.source, SortSource::Created);
     }
 
     #[test]
-    fn test_tri_manuelle_puis_creation() {
+    fn test_tri_manual_then_creation() {
         let id = Uuid::new_v4();
-        let t = Tri::manuelle_puis_creation(id, Ordre::Croissant);
-        assert_eq!(t.source, SourceTri::ManuellePuisCreation);
+        let t = Sort::manual_then_creation(id, Order::Ascending);
+        assert_eq!(t.source, SortSource::ManualThenCreated);
         assert_eq!(t.property_id, id);
     }
 
     #[test]
-    fn test_groupe_regroupe_entrees() {
-        let groupe = Groupe {
-            valeur: ValeurPropriete::Texte("En cours".to_string()),
-            entrees: vec![Entree::nouvelle(HashMap::new())],
+    fn test_groupe_regroupe_entries() {
+        let groupe = Group {
+            value: PropertyValue::Text("En cours".to_string()),
+            entries: vec![Entry::new(HashMap::new())],
         };
-        assert_eq!(groupe.entrees.len(), 1);
+        assert_eq!(groupe.entries.len(), 1);
     }
 }

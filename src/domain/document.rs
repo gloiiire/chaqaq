@@ -63,11 +63,11 @@ pub struct DocumentMeta {
     pub cover: Option<String>,
     pub title: Vec<InlineText>,
     /// Timestamp ISO 8601 de la dernière modification — géré par l'infrastructure.
-    /// Vide si le backend ne le fournit pas (JsonStore, mock).
+    /// Empty si le backend ne le fournit pas (JsonStore, mock).
     #[serde(default)]
     pub updated_at: String,
     /// Timestamp ISO 8601 de création — setté à l'INSERT, jamais modifié.
-    /// Vide si le backend ne le fournit pas (JsonStore, mock).
+    /// Empty si le backend ne le fournit pas (JsonStore, mock).
     #[serde(default)]
     pub created_at: String,
 }

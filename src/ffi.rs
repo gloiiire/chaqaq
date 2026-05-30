@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::application::error::ChaqaqError as CoreError;
 use crate::application::{database_use_cases, use_cases};
 use crate::domain::database::{
-    Agregat, DatabaseMeta, Entree, Filtre, Propriete, Tri, ValeurPropriete, Vue,
+    Aggregate, DatabaseMeta, Entry, Filter, Property, Sort, PropertyValue, View,
 };
 use crate::domain::document::{Block, BlockContent, DocumentMeta};
 use crate::domain::parser::parse_inline;
@@ -320,10 +320,10 @@ impl ChaqaqApi {
         values_json: String,
     ) -> Result<String, ChaqaqError> {
         let db_uuid = parse_uuid(&db_id)?;
-        let valeurs: HashMap<Uuid, ValeurPropriete> = parse_json(&values_json)?;
-        let entree = database_use_cases::add_entry(&self.dbs, db_uuid, valeurs)
+        let values: HashMap<Uuid, PropertyValue> = parse_json(&values_json)?;
+        let entry = database_use_cases::add_entry(&self.dbs, db_uuid, values)
             .map_err(ChaqaqError::from)?;
-        Ok(entree.id.to_string())
+        Ok(entry.id.to_string())
     }
 
     pub fn update_entry(
@@ -333,16 +333,16 @@ impl ChaqaqApi {
         values_json: String,
     ) -> Result<(), ChaqaqError> {
         let db_uuid = parse_uuid(&db_id)?;
-        let entree_uuid = parse_uuid(&entry_id)?;
-        let valeurs: HashMap<Uuid, ValeurPropriete> = parse_json(&values_json)?;
-        database_use_cases::update_entry(&self.dbs, db_uuid, entree_uuid, valeurs)
+        let entry_uuid = parse_uuid(&entry_id)?;
+        let values: HashMap<Uuid, PropertyValue> = parse_json(&values_json)?;
+        database_use_cases::update_entry(&self.dbs, db_uuid, entry_uuid, values)
             .map_err(ChaqaqError::from)
     }
 
     pub fn delete_entry(&self, db_id: String, entry_id: String) -> Result<(), ChaqaqError> {
         let db_uuid = parse_uuid(&db_id)?;
-        let entree_uuid = parse_uuid(&entry_id)?;
-        database_use_cases::delete_entry(&self.dbs, db_uuid, entree_uuid)
+        let entry_uuid = parse_uuid(&entry_id)?;
+        database_use_cases::delete_entry(&self.dbs, db_uuid, entry_uuid)
             .map_err(ChaqaqError::from)
     }
 
@@ -352,7 +352,7 @@ impl ChaqaqApi {
         property_json: String,
     ) -> Result<(), ChaqaqError> {
         let db_uuid = parse_uuid(&db_id)?;
-        let propriete: Propriete = parse_json(&property_json)?;
+        let propriete: Property = parse_json(&property_json)?;
         database_use_cases::add_property(&self.dbs, db_uuid, propriete)
             .map_err(ChaqaqError::from)
     }
@@ -382,7 +382,7 @@ impl ChaqaqApi {
 
     pub fn add_view(&self, db_id: String, view_json: String) -> Result<String, ChaqaqError> {
         let db_uuid = parse_uuid(&db_id)?;
-        let vue: Vue = parse_json(&view_json)?;
+        let vue: View = parse_json(&view_json)?;
         let vue =
             database_use_cases::add_view(&self.dbs, db_uuid, vue).map_err(ChaqaqError::from)?;
         Ok(vue.id.to_string())
@@ -397,9 +397,9 @@ impl ChaqaqApi {
     ) -> Result<(), ChaqaqError> {
         let db_uuid = parse_uuid(&db_id)?;
         let vue_uuid = parse_uuid(&view_id)?;
-        let filtres: Vec<Filtre> = parse_json(&filters_json)?;
-        let tris: Vec<Tri> = parse_json(&sorts_json)?;
-        database_use_cases::update_view(&self.dbs, db_uuid, vue_uuid, filtres, tris)
+        let filters: Vec<Filter> = parse_json(&filters_json)?;
+        let sorts: Vec<Sort> = parse_json(&sorts_json)?;
+        database_use_cases::update_view(&self.dbs, db_uuid, vue_uuid, filters, sorts)
             .map_err(ChaqaqError::from)
     }
 
@@ -416,9 +416,9 @@ impl ChaqaqApi {
     ) -> Result<String, ChaqaqError> {
         let db_uuid = parse_uuid(&db_id)?;
         let vue_uuid = parse_uuid(&view_id)?;
-        let entrees: Vec<Entree> =
+        let entries: Vec<Entry> =
             database_use_cases::requete(&self.dbs, db_uuid, vue_uuid).map_err(ChaqaqError::from)?;
-        to_json(&entrees)
+        to_json(&entries)
     }
 
     pub fn query_database_with_rollups_json(
@@ -428,10 +428,10 @@ impl ChaqaqApi {
     ) -> Result<String, ChaqaqError> {
         let db_uuid = parse_uuid(&db_id)?;
         let vue_uuid = parse_uuid(&view_id)?;
-        let entrees: Vec<Entree> =
+        let entries: Vec<Entry> =
             database_use_cases::query_with_rollups(&self.dbs, db_uuid, vue_uuid)
                 .map_err(ChaqaqError::from)?;
-        to_json(&entrees)
+        to_json(&entries)
     }
 
     pub fn grouped_query_database_json(
@@ -443,9 +443,9 @@ impl ChaqaqApi {
         let db_uuid = parse_uuid(&db_id)?;
         let vue_uuid = parse_uuid(&view_id)?;
         let prop_uuid = parse_uuid(&group_by)?;
-        let groupes = database_use_cases::grouped_query(&self.dbs, db_uuid, vue_uuid, prop_uuid)
+        let groups = database_use_cases::grouped_query(&self.dbs, db_uuid, vue_uuid, prop_uuid)
             .map_err(ChaqaqError::from)?;
-        to_json(&groupes)
+        to_json(&groups)
     }
 
     pub fn column_aggregate_database_json(
@@ -456,8 +456,8 @@ impl ChaqaqApi {
     ) -> Result<String, ChaqaqError> {
         let db_uuid = parse_uuid(&db_id)?;
         let prop_uuid = parse_uuid(&property_id)?;
-        let agregat: Agregat = parse_json(&aggregate_json)?;
-        let valeur = database_use_cases::column_aggregate(&self.dbs, db_uuid, prop_uuid, agregat)
+        let aggregate: Aggregate = parse_json(&aggregate_json)?;
+        let valeur = database_use_cases::column_aggregate(&self.dbs, db_uuid, prop_uuid, aggregate)
             .map_err(ChaqaqError::from)?;
         to_json(&valeur)
     }
@@ -468,8 +468,8 @@ impl ChaqaqApi {
         query: String,
     ) -> Result<String, ChaqaqError> {
         let db_uuid = parse_uuid(&db_id)?;
-        let entrees = database_use_cases::search_entries(&self.dbs, db_uuid, &query)
+        let entries = database_use_cases::search_entries(&self.dbs, db_uuid, &query)
             .map_err(ChaqaqError::from)?;
-        to_json(&entrees)
+        to_json(&entries)
     }
 }

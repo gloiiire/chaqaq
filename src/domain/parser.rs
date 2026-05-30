@@ -9,7 +9,7 @@ enum LinkState {
 
 enum ColorState {
     NomCouleur(String),
-    Texte(String, String), // (couleur, texte)
+    Text(String, String), // (couleur, texte)
 }
 
 fn flush(result: &mut Vec<InlineText>, current_text: &mut String, styles: Vec<InlineStyle>) {
@@ -107,13 +107,13 @@ pub fn parse_inline(input: &str) -> Vec<InlineText> {
             // couleur : ':' sépare le nom de la couleur du texte
             ':' if matches!(color, Some(ColorState::NomCouleur(_))) => {
                 if let Some(ColorState::NomCouleur(nom)) = color.take() {
-                    color = Some(ColorState::Texte(nom, String::new()));
+                    color = Some(ColorState::Text(nom, String::new()));
                 }
             }
             // couleur : fin
             '}' if color.is_some() => {
                 match color.take() {
-                    Some(ColorState::Texte(couleur, mut texte)) => {
+                    Some(ColorState::Text(couleur, mut texte)) => {
                         flush(&mut block, &mut texte, vec![InlineStyle::Color(couleur)]);
                     }
                     Some(ColorState::NomCouleur(nom)) => {
@@ -162,7 +162,7 @@ pub fn parse_inline(input: &str) -> Vec<InlineText> {
                     url.push(ch);
                 } else if let Some(ColorState::NomCouleur(ref mut nom)) = color {
                     nom.push(ch);
-                } else if let Some(ColorState::Texte(_, ref mut texte)) = color {
+                } else if let Some(ColorState::Text(_, ref mut texte)) = color {
                     texte.push(ch);
                 } else {
                     current_text.push(ch);

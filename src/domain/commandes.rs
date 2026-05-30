@@ -110,7 +110,7 @@ impl Historique {
     pub fn appliquer(&mut self, cmd: Box<dyn Commande>, etat: &mut EditorState) {
         cmd.executer(etat);
         self.fait.push(cmd);
-        self.annule.clear(); // une nouvelle action efface le redo
+        self.annule.clear(); // une new action efface le redo
         // supprime l'entrée la plus ancienne si la capacité est dépassée
         if self.fait.len() > self.capacite {
             self.fait.remove(0);
@@ -222,7 +222,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nouvelle_action_efface_redo() {
+    fn test_new_action_efface_redo() {
         let mut etat = etat_depuis("");
         let mut hist = Historique::default();
 
@@ -230,7 +230,7 @@ mod tests {
         hist.appliquer(Box::new(Inserer::nouveau(1, 'b')), &mut etat);
         hist.annuler(&mut etat); // peut refaire 'b'
 
-        hist.appliquer(Box::new(Inserer::nouveau(1, 'c')), &mut etat); // nouvelle action
+        hist.appliquer(Box::new(Inserer::nouveau(1, 'c')), &mut etat); // new action
         assert!(!hist.peut_refaire()); // redo effacé
         assert_eq!(etat.texte.content(), "ac");
     }

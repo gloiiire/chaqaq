@@ -5,7 +5,7 @@ use chaqaq::application::error::ChaqaqError;
 use chaqaq::application::use_cases::{
     add_block, create_document, list_documents, get_document, delete_document,
 };
-use chaqaq::domain::database::{Propriete, ProprieteType, ValeurPropriete};
+use chaqaq::domain::database::{Property, PropertyType, PropertyValue};
 use chaqaq::domain::document::{BlockContent, InlineText};
 use chaqaq::infrastructure::database_store::DatabaseStore;
 use chaqaq::infrastructure::json_store::JsonStore;
@@ -71,7 +71,7 @@ fn test_flux_suppression_document() {
 fn test_flux_suppression_database() {
     let store = db_store_temp();
 
-    let prop = Propriete::nouvelle("Nom", ProprieteType::Texte);
+    let prop = Property::new("Nom", PropertyType::Text);
     let prop_id = prop.id;
 
     let db_a = create_database(&store, inlines("Archive"), vec![prop]).unwrap();
@@ -79,7 +79,7 @@ fn test_flux_suppression_database() {
 
     // Ajoute une entrée à Archive
     let mut v = HashMap::new();
-    v.insert(prop_id, ValeurPropriete::Texte("Ancienne note".to_string()));
+    v.insert(prop_id, PropertyValue::Text("Ancienne note".to_string()));
     add_entry(&store, db_a.id, v).unwrap();
 
     delete_database(&store, db_a.id).unwrap();

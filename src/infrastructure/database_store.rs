@@ -68,7 +68,7 @@ impl DatabaseRepository for DatabaseStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::database::{Entree, Propriete, ProprieteType, ValeurPropriete};
+    use crate::domain::database::{Entry, Property, PropertyType, PropertyValue};
     use crate::domain::document::InlineText;
     use std::collections::HashMap;
 
@@ -87,7 +87,7 @@ mod tests {
     #[test]
     fn test_save_puis_load() {
         let store = store_temp();
-        let db = Database::nouvelle(title("Projets"), vec![]);
+        let db = Database::new(title("Projets"), vec![]);
         store.save(&db).unwrap();
         let chargee = store.load(db.id).unwrap();
         assert_eq!(chargee.id, db.id);
@@ -104,8 +104,8 @@ mod tests {
     #[test]
     fn test_list_meta_retourne_toutes_les_databases() {
         let store = store_temp();
-        let db1 = Database::nouvelle(title("Projets"), vec![]);
-        let db2 = Database::nouvelle(title("Tâches"), vec![]);
+        let db1 = Database::new(title("Projets"), vec![]);
+        let db2 = Database::new(title("Tâches"), vec![]);
         store.save(&db1).unwrap();
         store.save(&db2).unwrap();
         let metas = store.list_meta().unwrap();
@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn test_delete_supprime_la_database() {
         let store = store_temp();
-        let db = Database::nouvelle(title("Temp"), vec![]);
+        let db = Database::new(title("Temp"), vec![]);
         store.save(&db).unwrap();
         store.delete(db.id).unwrap();
         assert!(matches!(store.load(db.id), Err(ChaqaqError::NotFound(_))));
@@ -131,17 +131,17 @@ mod tests {
     #[test]
     fn test_save_ecrase_version_precedente() {
         let store = store_temp();
-        let prop = Propriete::nouvelle("Statut", ProprieteType::Texte);
+        let prop = Property::new("Statut", PropertyType::Text);
         let prop_id = prop.id;
-        let mut db = Database::nouvelle(title("Test"), vec![prop]);
+        let mut db = Database::new(title("Test"), vec![prop]);
         store.save(&db).unwrap();
 
-        let mut valeurs = HashMap::new();
-        valeurs.insert(prop_id, ValeurPropriete::Texte("En cours".to_string()));
-        db.entrees.push(Entree::nouvelle(valeurs));
+        let mut values = HashMap::new();
+        values.insert(prop_id, PropertyValue::Text("En cours".to_string()));
+        db.entries.push(Entry::new(values));
         store.save(&db).unwrap();
 
         let chargee = store.load(db.id).unwrap();
-        assert_eq!(chargee.entrees.len(), 1);
+        assert_eq!(chargee.entries.len(), 1);
     }
 }

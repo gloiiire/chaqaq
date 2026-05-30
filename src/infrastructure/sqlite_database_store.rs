@@ -132,7 +132,7 @@ mod tests {
     }
 
     fn db(nom: &str) -> Database {
-        Database::nouvelle(title(nom), vec![])
+        Database::new(title(nom), vec![])
     }
 
     #[test]
@@ -233,16 +233,16 @@ mod tests {
     }
 
     #[test]
-    fn test_list_meta_sans_deserialiser_les_entrees() {
+    fn test_list_meta_sans_deserialiser_les_entries() {
         let store = store();
-        use crate::domain::database::{Entree, Propriete, ProprieteType, ValeurPropriete};
+        use crate::domain::database::{Entry, Property, PropertyType, PropertyValue};
         use std::collections::HashMap;
-        let prop = Propriete::nouvelle("Nom", ProprieteType::Texte);
+        let prop = Property::new("Nom", PropertyType::Text);
         let prop_id = prop.id;
-        let mut d = Database::nouvelle(title("DB riche"), vec![prop]);
-        let mut valeurs = HashMap::new();
-        valeurs.insert(prop_id, ValeurPropriete::Texte("entrée test".to_string()));
-        d.entrees.push(Entree::nouvelle(valeurs));
+        let mut d = Database::new(title("DB riche"), vec![prop]);
+        let mut values = HashMap::new();
+        values.insert(prop_id, PropertyValue::Text("entrée test".to_string()));
+        d.entries.push(Entry::new(values));
         store.save(&d).unwrap();
         let metas = store.list_meta().unwrap();
         assert_eq!(metas[0].title[0].content, "DB riche");
