@@ -80,7 +80,7 @@ final class DocumentViewModel: ObservableObject {
         self.api   = api
     }
 
-    func charger() {
+    func load() {
         do {
             let json = try api.getDocumentJson(id: docId)
             guard let data = json.data(using: .utf8) else { return }
@@ -167,31 +167,31 @@ final class DocumentViewModel: ObservableObject {
         saveBlock(blocks[idx])
     }
 
-    func addBlock(type: NewBlockType, spansInitiaux: [InlineTextFfi] = [], afterId: String? = nil) {
+    func addBlock(type: NewBlockType, initialSpans: [InlineTextFfi] = [], afterId: String? = nil) {
         do {
             let content: BlockContentFfi
             switch type {
-            case .texte:      content = .text([])
+            case .text:      content = .text([])
             case .title1:     content = .heading(level: 1, text: [])
             case .title2:     content = .heading(level: 2, text: [])
             case .title3:     content = .heading(level: 3, text: [])
-            case .citation:   content = .quote(icon: "", text: [])
+            case .quote:   content = .quote(icon: "", text: [])
             case .callout:    content = .quote(icon: "💡", text: [])
             case .todo:       content = .todo(done: false, text: [])
-            case .separateur: content = .divider
+            case .divider: content = .divider
             }
             let data  = try JSONEncoder().encode(content)
             let newId = try api.addBlock(docId: docId,
                                             blockContentJson: String(data: data, encoding: .utf8)!)
-            let newBloc = EditableBlock(id: newId, content: content, spans: spansInitiaux, done: false)
+            let newBlock = EditableBlock(id: newId, content: content, spans: initialSpans, done: false)
 
             if let afterId, let idx = blocks.firstIndex(where: { $0.id == afterId }) {
-                blocks.insert(newBloc, at: idx + 1)
+                blocks.insert(newBlock, at: idx + 1)
                 try? api.reorderBlocks(docId: docId, order: blocks.map(\.id))
             } else {
-                blocks.append(newBloc)
+                blocks.append(newBlock)
             }
-            if !spansInitiaux.isEmpty { saveBlock(newBloc) }
+            if !initialSpans.isEmpty { saveBlock(newBlock) }
             autoFocusOffset = 0
             autoFocusId = newId
         } catch { errorMessage = error.localizedDescription }
@@ -248,19 +248,19 @@ final class DocumentViewModel: ObservableObject {
 // ── Types de blocks ────────────────────────────────────────────────────────────
 
 enum NewBlockType: String, CaseIterable, Identifiable {
-    case texte = "Texte", title1 = "Titre 1", title2 = "Titre 2", title3 = "Titre 3"
-    case citation = "Citation", callout = "Callout", todo = "À faire", separateur = "Séparateur"
+    case text = "Texte", title1 = "Titre 1", title2 = "Titre 2", title3 = "Titre 3"
+    case quote = "Citation", callout = "Callout", todo = "À faire", divider = "Séparateur"
     var id: String { rawValue }
     var icone: String {
         switch self {
-        case .texte:      return "text.alignleft"
+        case .text:      return "text.alignleft"
         case .title1:     return "1.circle.fill"
         case .title2:     return "2.circle"
         case .title3:     return "3.circle"
-        case .citation:   return "quote.bubble"
+        case .quote:   return "quote.bubble"
         case .callout:    return "lightbulb"
         case .todo:       return "checkmark.square"
-        case .separateur: return "minus"
+        case .divider: return "minus"
         }
     }
 }
@@ -340,7 +340,7 @@ struct DocumentView: View {
 
             DocumentTitleView(title: $vm.title, focusDemande: $focusTitle,
                          onSave: vm.saveTitle,
-                         onNewBlock: { vm.addBlock(type: .texte) })
+                         onNewBlock: { vm.addBlock(type: .text) })
                 .disabled(documentLocked)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
@@ -349,7 +349,7 @@ struct DocumentView: View {
                 .deleteDisabled(true)
 
             if vm.blocks.isEmpty && !documentLocked {
-                EmptyEditorState { vm.addBlock(type: .texte) }
+                EmptyEditorState { vm.addBlock(type: .text) }
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
@@ -388,7 +388,7 @@ struct DocumentView: View {
                                 }
                             },
                             onNewBlock: { afterSpans in
-                                vm.addBlock(type: .texte, spansInitiaux: afterSpans, afterId: block.id)
+                                vm.addBlock(type: .text, initialSpans: afterSpans, afterId: block.id)
                             },
                             onMerge: vm.blocks.first?.id == block.id ? nil : { spansAMerger in
                                 guard let idx = vm.blocks.firstIndex(where: { $0.id == block.id }), idx > 0 else { return }
@@ -533,7 +533,7 @@ struct DocumentView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             withAnimation(.easeInOut(duration: 0.2)) { keyboardVisible = false }
         }
-        .onAppear { vm.charger() }
+        .onAppear { vm.load() }
         .onDisappear { vm.saveTitle(); onDisappear?() }
         .sheet(isPresented: $showingBlockPicker) {
             BlockPickerSheet { type in vm.addBlock(type: type, afterId: vm.activeBlockId) }
@@ -929,7 +929,7 @@ private struct DocumentTitleView: View {
     @State private var focused = false
 
     var body: some View {
-        TitleEditor(texte: $title, isFocused: $focused,
+        TitleEditor(text: $title, isFocused: $focused,
                     onSave: onSave, onNewBlock: onNewBlock)
             .onChange(of: focusDemande) { _, demande in
                 if demande {
@@ -941,7 +941,7 @@ private struct DocumentTitleView: View {
 }
 
 private struct TitleEditor: UIViewRepresentable {
-    @Binding var texte: String
+    @Binding var text: String
     @Binding var isFocused: Bool
     @Environment(\.isEnabled) private var isEnabled
     let onSave: () -> Void
@@ -961,9 +961,9 @@ private struct TitleEditor: UIViewRepresentable {
         tv.textContainer.lineFragmentPadding = 0
         tv.textContainerInset = .zero
         context.coordinator.tv = tv
-        tv.attributedText = texte.isEmpty
+        tv.attributedText = text.isEmpty
             ? context.coordinator.placeholderAttr()
-            : NSAttributedString(string: texte, attributes: [.font: police, .foregroundColor: UIColor.label])
+            : NSAttributedString(string: text, attributes: [.font: police, .foregroundColor: UIColor.label])
         return tv
     }
 
@@ -977,9 +977,9 @@ private struct TitleEditor: UIViewRepresentable {
             DispatchQueue.main.async { isFocused = false }
         }
         if !context.coordinator.isEditing {
-            tv.attributedText = texte.isEmpty
+            tv.attributedText = text.isEmpty
                 ? context.coordinator.placeholderAttr()
-                : NSAttributedString(string: texte, attributes: [.font: police, .foregroundColor: UIColor.label])
+                : NSAttributedString(string: text, attributes: [.font: police, .foregroundColor: UIColor.label])
         }
         if isFocused && !tv.isFirstResponder {
             DispatchQueue.main.async {
@@ -1018,21 +1018,21 @@ private struct TitleEditor: UIViewRepresentable {
         func textViewDidEndEditing(_ tv: UITextView) {
             isEditing = false
             parent.isFocused = false
-            parent.texte = tv.text ?? ""
+            parent.text = tv.text ?? ""
             parent.onSave()
-            if parent.texte.isEmpty { tv.attributedText = placeholderAttr() }
+            if parent.text.isEmpty { tv.attributedText = placeholderAttr() }
         }
 
         func textViewDidChange(_ tv: UITextView) {
-            guard let texte = tv.text else { return }
-            if let idx = texte.firstIndex(of: "\n") {
-                tv.text = String(texte[texte.startIndex..<idx])
-                parent.texte = tv.text
+            guard let text = tv.text else { return }
+            if let idx = text.firstIndex(of: "\n") {
+                tv.text = String(text[text.startIndex..<idx])
+                parent.text = tv.text
                 parent.onSave()
                 parent.onNewBlock()
                 return
             }
-            parent.texte = texte
+            parent.text = text
         }
     }
 }

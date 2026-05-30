@@ -24,13 +24,9 @@ final class HomeScreenUITests: XCTestCase {
         app.launch()
         // Le FAB d'accueil utilise l'icône "square.and.pencil" — son accessibilityLabel
         // par défaut suffit à le retrouver, ou on cible le bouton avec icône.
-        let fab = app.buttons.matching(identifier: "square.and.pencil").firstMatch
-        if fab.exists {
-            fab.tap()
-        } else {
-            // Fallback : le premier bouton de la zone bottom-trailing
-            app.buttons.lastMatch.tap()
-        }
+        let fab = app.buttons["createDocumentFAB"]
+        XCTAssertTrue(fab.waitForExistence(timeout: 3))
+        fab.tap()
         // La sheet de création doit afficher "Nouveau document".
         XCTAssertTrue(app.staticTexts["Nouveau document"].waitForExistence(timeout: 3))
     }

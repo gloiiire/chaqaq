@@ -89,6 +89,7 @@ struct ContentView: View {
                 FloatingButton(icon: "square.and.pencil") {
                     showingCreate = true
                 }
+                .accessibilityIdentifier("createDocumentFAB")
                 .padding(.trailing, 24)
                 .padding(.bottom, 32)
             }

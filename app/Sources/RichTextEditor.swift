@@ -76,8 +76,8 @@ func attributedToSpans(_ attrStr: NSAttributedString, police: UIFont) -> [Inline
     let baseEstBold = traitsBase.contains(.traitBold)
     let baseEstItalic = traitsBase.contains(.traitItalic)
     attrStr.enumerateAttributes(in: NSRange(location: 0, length: attrStr.length)) { attrs, range, _ in
-        let texte = (attrStr.string as NSString).substring(with: range)
-        guard !texte.isEmpty else { return }
+        let text = (attrStr.string as NSString).substring(with: range)
+        guard !text.isEmpty else { return }
         var styles: [InlineStyleFfi] = []
         let fontTraits = (attrs[.font] as? UIFont)?.fontDescriptor.symbolicTraits ?? []
         let boldCustom = (attrs[.chaqaqBold] as? Bool) == true
@@ -92,7 +92,7 @@ func attributedToSpans(_ attrStr: NSAttributedString, police: UIFont) -> [Inline
         if (attrs[.strikethroughStyle] as? Int) != nil { styles.append(.strikethrough) }
         if let nom = attrs[.chaqaqColor] as? String    { styles.append(.color(nom)) }
         if let url = attrs[.link]        as? URL       { styles.append(.link(url.absoluteString)) }
-        spans.append(InlineTextFfi(content: texte, styles: styles))
+        spans.append(InlineTextFfi(content: text, styles: styles))
     }
     return spans
 }
@@ -446,9 +446,9 @@ struct RichTextEditor: UIViewRepresentable {
         }
 
         func textViewDidChange(_ tv: UITextView) {
-            let texte = tv.text ?? ""
+            let text = tv.text ?? ""
 
-            switch texte {
+            switch text {
             case "# ":          parent.onConvert?(.heading(level: 1, text: [])); return
             case "## ":         parent.onConvert?(.heading(level: 2, text: [])); return
             case "### ":        parent.onConvert?(.heading(level: 3, text: [])); return
