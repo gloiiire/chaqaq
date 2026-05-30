@@ -12,9 +12,9 @@ extension NSAttributedString.Key {
     static let chaqaqObliqueness = NSAttributedString.Key("NSObliqueness")
 }
 
-// ── Utilitaire font (libre pour usage dans spansVersNSAttributed) ─────────────
+// ── Utilitaire font (libre pour usage dans spansToAttributed) ─────────────
 
-func fontAvecTraits(_ base: UIFont, bold: Bool, italic: Bool) -> UIFont {
+func fontWithTraits(_ base: UIFont, bold: Bool, italic: Bool) -> UIFont {
     let size = base.pointSize
     let traitsBase = base.fontDescriptor.symbolicTraits
     let renduBold = bold || traitsBase.contains(.traitBold)
@@ -31,7 +31,7 @@ func fontAvecTraits(_ base: UIFont, bold: Bool, italic: Bool) -> UIFont {
 }
 
 // Italique avec un poids précis — `.italicSystemFont` est toujours regular.
-func policeItaliquePoids(_ size: CGFloat, weight: UIFont.Weight) -> UIFont {
+func italicFontWithWeight(_ size: CGFloat, weight: UIFont.Weight) -> UIFont {
     let base = UIFont.systemFont(ofSize: size, weight: weight)
     if let d = base.fontDescriptor.withSymbolicTraits(.traitItalic) {
         return UIFont(descriptor: d, size: size)
@@ -41,7 +41,7 @@ func policeItaliquePoids(_ size: CGFloat, weight: UIFont.Weight) -> UIFont {
 
 // ── Conversion spans ↔ NSAttributedString ────────────────────────────────────
 
-func spansVersNSAttributed(_ spans: [InlineTextFfi], police: UIFont) -> NSAttributedString {
+func spansToAttributed(_ spans: [InlineTextFfi], police: UIFont) -> NSAttributedString {
     guard !spans.isEmpty else { return NSAttributedString() }
     let result = NSMutableAttributedString()
     for span in spans {
@@ -54,11 +54,11 @@ func spansVersNSAttributed(_ spans: [InlineTextFfi], police: UIFont) -> NSAttrib
             case .italic:            isItalic = true
             case .underline:         attrs[.underlineStyle]      = NSUnderlineStyle.single.rawValue
             case .strikethrough:     attrs[.strikethroughStyle]  = NSUnderlineStyle.single.rawValue
-            case .color(let nom):    attrs[.foregroundColor] = uiCouleurDepuisNom(nom); attrs[.chaqaqColor] = nom
+            case .color(let nom):    attrs[.foregroundColor] = uiColorFromName(nom); attrs[.chaqaqColor] = nom
             case .link(let url):     if let u = URL(string: url) { attrs[.link] = u }
             }
         }
-        attrs[.font] = fontAvecTraits(police, bold: isBold, italic: isItalic)
+        attrs[.font] = fontWithTraits(police, bold: isBold, italic: isItalic)
         if isBold   { attrs[.chaqaqBold]   = true }
         if isItalic {
             attrs[.chaqaqItalic] = true
@@ -69,7 +69,7 @@ func spansVersNSAttributed(_ spans: [InlineTextFfi], police: UIFont) -> NSAttrib
     return result
 }
 
-func nsAttributedVersSpans(_ attrStr: NSAttributedString, police: UIFont) -> [InlineTextFfi] {
+func attributedToSpans(_ attrStr: NSAttributedString, police: UIFont) -> [InlineTextFfi] {
     guard !attrStr.string.isEmpty else { return [] }
     var spans: [InlineTextFfi] = []
     let traitsBase = police.fontDescriptor.symbolicTraits
@@ -97,7 +97,7 @@ func nsAttributedVersSpans(_ attrStr: NSAttributedString, police: UIFont) -> [In
     return spans
 }
 
-func uiCouleurDepuisNom(_ nom: String) -> UIColor {
+func uiColorFromName(_ nom: String) -> UIColor {
     switch nom.lowercased() {
     case "rouge", "red":             return .systemRed
     case "rose", "pink":             return .systemPink
@@ -120,9 +120,9 @@ final class ExpandingTextView: UITextView {
     var onToggleBold: (() -> Void)?
     var onToggleItalic: (() -> Void)?
     var onToggleUnderline: (() -> Void)?
-    var onNaviguerPrecedent: (() -> Void)?
-    var onNaviguerSuivant: (() -> Void)?
-    var onNavRepeterArreter: (() -> Void)?
+    var onNavigatePrevious: (() -> Void)?
+    var onNavigateNext: (() -> Void)?
+    var onStopNavigationRepeat: (() -> Void)?
 
     override var keyCommands: [UIKeyCommand]? {
         let cmd = UIKeyCommand(input: "\r", modifierFlags: .shift, action: #selector(gererShiftEnter))
@@ -163,13 +163,13 @@ final class ExpandingTextView: UITextView {
             guard let key = press.key else { unhandled.insert(press); continue }
             switch key.keyCode {
             case .keyboardLeftArrow where selectedRange.location == 0 && selectedRange.length == 0:
-                onNaviguerPrecedent?()
+                onNavigatePrevious?()
             case .keyboardRightArrow where selectedRange.location == (text as NSString).length && selectedRange.length == 0:
-                onNaviguerSuivant?()
+                onNavigateNext?()
             case .keyboardUpArrow where estSurPremiereLigne():
-                onNaviguerPrecedent?()
+                onNavigatePrevious?()
             case .keyboardDownArrow where estSurDerniereLigne():
-                onNaviguerSuivant?()
+                onNavigateNext?()
             default:
                 unhandled.insert(press)
             }
@@ -181,7 +181,7 @@ final class ExpandingTextView: UITextView {
         for press in presses {
             switch press.key?.keyCode {
             case .keyboardLeftArrow, .keyboardRightArrow, .keyboardUpArrow, .keyboardDownArrow:
-                onNavRepeterArreter?()
+                onStopNavigationRepeat?()
             default: break
             }
         }
@@ -216,13 +216,13 @@ struct RichTextEditor: UIViewRepresentable {
     var onSave: (() -> Void)?
     var onSaveSpans: (([InlineTextFfi]) -> Void)? = nil
     var onNewBlock: (([InlineTextFfi]) -> Void)?
-    var onSupprimerBloc: (() -> Void)?
-    var onFusionnerAvecPrecedent: (([InlineTextFfi]) -> Void)?
+    var onDeleteBloc: (() -> Void)?
+    var onMergeAvecPrecedent: (([InlineTextFfi]) -> Void)?
     var onConvert: ((BlockContentFfi) -> Void)?
     var onLongPressSelection: (() -> Void)? = nil
-    var onNaviguerPrecedent: (() -> Void)? = nil
-    var onNaviguerSuivant: (() -> Void)? = nil
-    var onNavRepeterArreter: (() -> Void)? = nil
+    var onNavigatePrevious: (() -> Void)? = nil
+    var onNavigateNext: (() -> Void)? = nil
+    var onStopNavigationRepeat: (() -> Void)? = nil
 
     func makeUIView(context: Context) -> ExpandingTextView {
         let tv = ExpandingTextView()
@@ -238,26 +238,26 @@ struct RichTextEditor: UIViewRepresentable {
         tv.isScrollEnabled = false
         tv.textContainer.lineFragmentPadding = 0
         tv.textContainerInset = UIEdgeInsets(top: 5, left: 0, bottom: 5, right: 0)
-        tv.inputAccessoryView = context.coordinator.faireToolbar()
+        tv.inputAccessoryView = context.coordinator.makeToolbar()
         context.coordinator.tv = tv
         let coord = context.coordinator
         tv.onShiftEnter = { [weak coord] in
-            coord?.saisieSautDeLigne = true
+            coord?.shiftEnterTyped = true
             coord?.tv?.insertText("\n")
         }
-        tv.onToggleBold      = { [weak coord] in coord?.toggleGras() }
-        tv.onToggleItalic    = { [weak coord] in coord?.toggleItalique() }
-        tv.onToggleUnderline = { [weak coord] in coord?.toggleSouligne() }
-        tv.onNaviguerPrecedent  = { [weak coord] in coord?.parent.onNaviguerPrecedent?() }
-        tv.onNaviguerSuivant    = { [weak coord] in coord?.parent.onNaviguerSuivant?() }
-        tv.onNavRepeterArreter  = { [weak coord] in coord?.parent.onNavRepeterArreter?() }
+        tv.onToggleBold      = { [weak coord] in coord?.toggleBold() }
+        tv.onToggleItalic    = { [weak coord] in coord?.toggleItalic() }
+        tv.onToggleUnderline = { [weak coord] in coord?.toggleUnderline() }
+        tv.onNavigatePrevious  = { [weak coord] in coord?.parent.onNavigatePrevious?() }
+        tv.onNavigateNext    = { [weak coord] in coord?.parent.onNavigateNext?() }
+        tv.onStopNavigationRepeat  = { [weak coord] in coord?.parent.onStopNavigationRepeat?() }
         let longPress = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleLongPressSelection(_:)))
         longPress.minimumPressDuration = 0.35
         longPress.cancelsTouchesInView = false
         longPress.delegate = context.coordinator
         tv.addGestureRecognizer(longPress)
         if spans.isEmpty { tv.attributedText = context.coordinator.placeholder() }
-        else { tv.attributedText = avecExtras(spansVersNSAttributed(spans, police: baseFont)) }
+        else { tv.attributedText = withExtras(spansToAttributed(spans, police: baseFont)) }
         return tv
     }
 
@@ -275,12 +275,12 @@ struct RichTextEditor: UIViewRepresentable {
         // Ne pas réassigner tv.font pendant l'édition : UITextView.font ré-applique
         // la fonte à TOUT le texte et écraserait le gras/italique par caractère.
         // L'underline (attribut .underlineStyle) survivrait, mais pas .font.
-        if !coord.enEdition {
+        if !coord.isEditing {
             tv.font = baseFont
-            let nouveau = spans.isEmpty
+            let new = spans.isEmpty
                 ? coord.placeholder()
-                : avecExtras(spansVersNSAttributed(spans, police: baseFont))
-            tv.attributedText = nouveau
+                : withExtras(spansToAttributed(spans, police: baseFont))
+            tv.attributedText = new
         }
 
         if isFocused && !tv.isFirstResponder {
@@ -295,7 +295,7 @@ struct RichTextEditor: UIViewRepresentable {
         }
     }
 
-    private func avecExtras(_ attr: NSAttributedString) -> NSAttributedString {
+    private func withExtras(_ attr: NSAttributedString) -> NSAttributedString {
         guard let extras = extraAttrs, !extras.isEmpty else { return attr }
         let m = NSMutableAttributedString(attributedString: attr)
         m.addAttributes(extras, range: NSRange(location: 0, length: m.length))
@@ -309,40 +309,40 @@ struct RichTextEditor: UIViewRepresentable {
     final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate {
         var parent: RichTextEditor
         weak var tv: ExpandingTextView?
-        var enEdition = false
-        var enCoursDeSupression = false
-        var saisieSautDeLigne = false
-        var derniereSelection = NSRange(location: 0, length: 0)
+        var isEditing = false
+        var isDeleting = false
+        var shiftEnterTyped = false
+        var lastSelection = NSRange(location: 0, length: 0)
         // Couleur appliquée à la frappe sans sélection : UIKit réinitialise
         // typingAttributes après chaque caractère (et le menu fait perdre le first
         // responder), donc on la ré-applique à chaque insertion. Reste active tant
         // que l'utilisateur ne la désactive pas (re-toggle ou « Aucune »).
-        private var couleurEnAttente: String? = nil
-        private var actionToolbarEnCours = false
-        private var generationSelection = 0
-        private weak var btnGras: UIButton?
-        private weak var btnItalique: UIButton?
-        private weak var btnSouligne: UIButton?
-        private weak var btnBarre: UIButton?
-        private weak var btnCouleur: UIButton?
-        private weak var btnColler: UIButton?
+        private var pendingColor: String? = nil
+        private var toolbarActionInProgress = false
+        private var selectionGeneration = 0
+        private weak var btnBold: UIButton?
+        private weak var btnItalic: UIButton?
+        private weak var btnUnderline: UIButton?
+        private weak var btnStrike: UIButton?
+        private weak var btnColor: UIButton?
+        private weak var btnPaste: UIButton?
 
         init(parent: RichTextEditor) {
             self.parent = parent
             super.init()
             NotificationCenter.default.addObserver(
                 self,
-                selector: #selector(paPressePapierChange),
+                selector: #selector(pasteboardChanged),
                 name: UIPasteboard.changedNotification,
                 object: nil)
         }
 
-        @objc private func paPressePapierChange() {
-            DispatchQueue.main.async { [weak self] in self?.mettreAJourBoutonColler() }
+        @objc private func pasteboardChanged() {
+            DispatchQueue.main.async { [weak self] in self?.updatePasteButton() }
         }
 
-        private func mettreAJourBoutonColler() {
-            setActifSF(btnColler, actif: UIPasteboard.general.hasStrings, nom: "doc.on.clipboard")
+        private func updatePasteButton() {
+            setSymbolActive(btnPaste, actif: UIPasteboard.general.hasStrings, nom: "doc.on.clipboard")
         }
 
         @objc func handleLongPressSelection(_ gesture: UILongPressGestureRecognizer) {
@@ -365,9 +365,9 @@ struct RichTextEditor: UIViewRepresentable {
         // ── Delegate ──────────────────────────────────────────────────────────
 
         func textViewDidBeginEditing(_ tv: UITextView) {
-            enEdition = true
+            isEditing = true
             parent.isFocused = true
-            memoriserSelection(tv.selectedRange, longueur: tv.attributedText.length)
+            rememberSelection(tv.selectedRange, longueur: tv.attributedText.length)
             if tv.textColor == .tertiaryLabel {
                 tv.attributedText = NSAttributedString(string: "", attributes: [
                     .font: parent.baseFont,
@@ -375,73 +375,73 @@ struct RichTextEditor: UIViewRepresentable {
                 ])
             }
             tv.typingAttributes = [.font: parent.baseFont, .foregroundColor: UIColor.label]
-            mettreAJourToolbar()
+            updateToolbar()
         }
 
         func textViewDidChangeSelection(_ tv: UITextView) {
-            let selection = selectionNormalisee(tv.selectedRange, longueur: tv.attributedText.length)
+            let selection = normalizedSelection(tv.selectedRange, longueur: tv.attributedText.length)
             if selection.length > 0 {
-                memoriserSelection(selection, longueur: tv.attributedText.length)
+                rememberSelection(selection, longueur: tv.attributedText.length)
             } else {
-                nettoyerSelectionMemoriseeSiToujoursVide(tv)
+                cleanRememberedIfStillEmpty(tv)
             }
-            mettreAJourToolbar()
+            updateToolbar()
         }
 
         func textView(_ tv: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
-            // Backspace sur bloc vide → supprimer le bloc
+            // Backspace sur block vide → supprimer le block
             if text.isEmpty, range == NSRange(location: 0, length: 0), tv.text.isEmpty {
-                enCoursDeSupression = true
-                DispatchQueue.main.async { [weak self] in self?.parent.onSupprimerBloc?() }
+                isDeleting = true
+                DispatchQueue.main.async { [weak self] in self?.parent.onDeleteBloc?() }
                 return false
             }
-            // Backspace au début d'un bloc non vide → fusionner avec le précédent
+            // Backspace au début d'un block non vide → fusionner avec le précédent
             if text.isEmpty, range == NSRange(location: 0, length: 0), !tv.text.isEmpty,
-               parent.onFusionnerAvecPrecedent != nil {
-                enCoursDeSupression = true
-                let spansActuels = nsAttributedVersSpans(tv.attributedText, police: parent.baseFont)
+               parent.onMergeAvecPrecedent != nil {
+                isDeleting = true
+                let spansActuels = attributedToSpans(tv.attributedText, police: parent.baseFont)
                 DispatchQueue.main.async { [weak self] in
-                    self?.parent.onFusionnerAvecPrecedent?(spansActuels)
+                    self?.parent.onMergeAvecPrecedent?(spansActuels)
                 }
                 return false
             }
             // Enter
             if text == "\n" {
-                if saisieSautDeLigne {
+                if shiftEnterTyped {
                     // Shift+Enter : laisser le \n s'insérer normalement
-                    saisieSautDeLigne = false
+                    shiftEnterTyped = false
                     return true
                 }
-                // Enter normal : couper le bloc et en créer un nouveau.
+                // Enter normal : couper le block et en créer un new.
                 // On conserve les attributs (couleur, gras…) de la portion après le curseur.
                 let debutApres = range.location + range.length
                 let attrAvant = tv.attributedText.attributedSubstring(
                     from: NSRange(location: 0, length: range.location))
                 let attrApres = tv.attributedText.attributedSubstring(
                     from: NSRange(location: debutApres, length: tv.attributedText.length - debutApres))
-                let spansApres = nsAttributedVersSpans(attrApres, police: parent.baseFont)
+                let afterSpans = attributedToSpans(attrApres, police: parent.baseFont)
                 tv.attributedText = attrAvant.string.isEmpty
                     ? NSAttributedString(string: "", attributes: [.font: parent.baseFont, .foregroundColor: UIColor.label])
                     : attrAvant
                 tv.selectedRange = NSRange(location: attrAvant.length, length: 0)
-                sauvegarder(nsAttributedVersSpans(attrAvant, police: parent.baseFont))
-                parent.onNewBlock?(spansApres)
+                save(attributedToSpans(attrAvant, police: parent.baseFont))
+                parent.onNewBlock?(afterSpans)
                 return false
             }
             // Couleur de frappe : UIKit réinitialise typingAttributes après chaque
             // caractère, on la ré-injecte juste avant l'insertion.
-            if !text.isEmpty, text != "\n", let nom = couleurEnAttente {
-                tv.typingAttributes[.foregroundColor] = uiCouleurDepuisNom(nom)
+            if !text.isEmpty, text != "\n", let nom = pendingColor {
+                tv.typingAttributes[.foregroundColor] = uiColorFromName(nom)
                 tv.typingAttributes[.chaqaqColor]     = nom
             }
             return true
         }
 
         func textViewDidEndEditing(_ tv: UITextView) {
-            enEdition = false
+            isEditing = false
             parent.isFocused = false
-            guard !enCoursDeSupression else { return }
-            sauvegarder(nsAttributedVersSpans(tv.attributedText, police: parent.baseFont))
+            guard !isDeleting else { return }
+            save(attributedToSpans(tv.attributedText, police: parent.baseFont))
             if parent.spans.isEmpty { tv.attributedText = placeholder() }
         }
 
@@ -459,14 +459,14 @@ struct RichTextEditor: UIViewRepresentable {
             default: break
             }
 
-            parent.spans = nsAttributedVersSpans(tv.attributedText, police: parent.baseFont)
-            if tv.selectedRange.length == 0 { viderSelectionMemorisee() }
+            parent.spans = attributedToSpans(tv.attributedText, police: parent.baseFont)
+            if tv.selectedRange.length == 0 { clearRememberedSelection() }
             tv.invalidateIntrinsicContentSize()
         }
 
         // ── Toolbar ───────────────────────────────────────────────────────────
 
-        func faireToolbar() -> UIView {
+        func makeToolbar() -> UIView {
             let pillH: CGFloat  = 64
             let margeV: CGFloat = 8
             let margeH: CGFloat = 4
@@ -498,7 +498,7 @@ struct RichTextEditor: UIViewRepresentable {
             scroll.backgroundColor = .clear
             pill.addSubview(scroll)
 
-            func boutonTexte(_ label: String, font: UIFont,
+            func textButton(_ label: String, font: UIFont,
                              souligné: Bool = false, barre: Bool = false, action: Selector) -> UIButton {
                 let b = UIButton(type: .custom)
                 var a: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: UIColor.label]
@@ -507,21 +507,21 @@ struct RichTextEditor: UIViewRepresentable {
                 b.setAttributedTitle(NSAttributedString(string: label, attributes: a), for: .normal)
                 a[.foregroundColor] = UIColor.label.withAlphaComponent(0.3)
                 b.setAttributedTitle(NSAttributedString(string: label, attributes: a), for: .highlighted)
-                b.addTarget(self, action: #selector(capturerSelectionAvantToolbar), for: .touchDown)
+                b.addTarget(self, action: #selector(captureSelectionBeforeToolbar), for: .touchDown)
                 b.addTarget(self, action: action, for: .touchUpInside)
                 return b
             }
 
-            let tailleIcone: CGFloat = 22
+            let iconSize: CGFloat = 22
 
-            func boutonSF(_ nom: String, taille: CGFloat = tailleIcone, action: Selector) -> UIButton {
+            func symbolButton(_ nom: String, taille: CGFloat = iconSize, action: Selector) -> UIButton {
                 let b   = UIButton(type: .custom)
                 let cfg = UIImage.SymbolConfiguration(pointSize: taille, weight: .medium)
                 b.setImage(
                     UIImage(systemName: nom, withConfiguration: cfg)?
                         .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal),
                     for: .normal)
-                b.addTarget(self, action: #selector(capturerSelectionAvantToolbar), for: .touchDown)
+                b.addTarget(self, action: #selector(captureSelectionBeforeToolbar), for: .touchDown)
                 b.addTarget(self, action: action, for: .touchUpInside)
                 return b
             }
@@ -544,71 +544,71 @@ struct RichTextEditor: UIViewRepresentable {
                 return v
             }
 
-            let bColler = boutonSF("doc.on.clipboard", action: #selector(coller))
-            ajouter(bColler); btnColler = bColler
+            let bColler = symbolButton("doc.on.clipboard", action: #selector(paste))
+            ajouter(bColler); btnPaste = bColler
             separateur()
 
-            let bG = boutonTexte("B", font: .systemFont(ofSize: 22, weight: .heavy), action: #selector(toggleGras)); ajouter(bG); btnGras = bG
-            let bI = boutonSF("italic",        taille: 22, action: #selector(toggleItalique)); ajouter(bI); btnItalique = bI
-            let bU = boutonTexte("U", font: .systemFont(ofSize: 22, weight: .medium), souligné: true, action: #selector(toggleSouligne)); ajouter(bU); btnSouligne = bU
-            let bS = boutonSF("strikethrough", taille: 22, action: #selector(toggleBarré));    ajouter(bS); btnBarre = bS
+            let bG = textButton("B", font: .systemFont(ofSize: 22, weight: .heavy), action: #selector(toggleBold)); ajouter(bG); btnBold = bG
+            let bI = symbolButton("italic",        taille: 22, action: #selector(toggleItalic)); ajouter(bI); btnItalic = bI
+            let bU = textButton("U", font: .systemFont(ofSize: 22, weight: .medium), souligné: true, action: #selector(toggleUnderline)); ajouter(bU); btnUnderline = bU
+            let bS = symbolButton("strikethrough", taille: 22, action: #selector(toggleStrike));    ajouter(bS); btnStrike = bS
             separateur()
-            ajouter(boutonSF("return", action: #selector(sautDeLigneToolbar)))
+            ajouter(symbolButton("return", action: #selector(toolbarLineBreak)))
             separateur()
             let bCouleur = UIButton(type: .custom)
             bCouleur.showsMenuAsPrimaryAction = true
-            bCouleur.menu = menuCouleurs(actuelle: nil)
-            bCouleur.addTarget(self, action: #selector(capturerSelectionAvantToolbar), for: .touchDown)
-            let cfgH = UIImage.SymbolConfiguration(pointSize: tailleIcone, weight: .medium)
+            bCouleur.menu = colorMenu(actuelle: nil)
+            bCouleur.addTarget(self, action: #selector(captureSelectionBeforeToolbar), for: .touchDown)
+            let cfgH = UIImage.SymbolConfiguration(pointSize: iconSize, weight: .medium)
             bCouleur.setImage(UIImage(systemName: "highlighter", withConfiguration: cfgH)?
                 .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal), for: .normal)
-            ajouter(bCouleur); btnCouleur = bCouleur
+            ajouter(bCouleur); btnColor = bCouleur
             separateur()
-            ajouter(boutonSF("keyboard.chevron.compact.down", action: #selector(dispenserClavier)))
+            ajouter(symbolButton("keyboard.chevron.compact.down", action: #selector(dismissKeyboard)))
 
             scroll.contentSize = CGSize(width: x + 12, height: pillH)
             return container
         }
 
-        @objc func capturerSelectionAvantToolbar() {
-            actionToolbarEnCours = true
+        @objc func captureSelectionBeforeToolbar() {
+            toolbarActionInProgress = true
             guard let tv else { return }
-            if tv.selectedRange.length == 0 { viderSelectionMemorisee() }
-            memoriserSelection(tv.selectedRange, longueur: tv.attributedText.length)
+            if tv.selectedRange.length == 0 { clearRememberedSelection() }
+            rememberSelection(tv.selectedRange, longueur: tv.attributedText.length)
         }
 
-        @objc func dispenserClavier() {
-            actionToolbarEnCours = false
+        @objc func dismissKeyboard() {
+            toolbarActionInProgress = false
             tv?.resignFirstResponder()
         }
-        @objc func sautDeLigneToolbar() {
-            actionToolbarEnCours = false
-            saisieSautDeLigne = true
+        @objc func toolbarLineBreak() {
+            toolbarActionInProgress = false
+            shiftEnterTyped = true
             tv?.insertText("\n")
         }
-        @objc func coller() {
-            actionToolbarEnCours = false
+        @objc func paste() {
+            toolbarActionInProgress = false
             tv?.paste(nil)
         }
 
-        @objc func toggleGras()       { appliquerStyle(.bold) }
-        @objc func toggleItalique()   { appliquerStyle(.italic) }
-        @objc func toggleSouligne()   { appliquerStyle(.underline) }
-        @objc func toggleBarré()      { appliquerStyle(.strikethrough) }
-        private func appliquerCouleurNom(_ nom: String) { appliquerStyle(.color(nom)) }
+        @objc func toggleBold()       { applyStyle(.bold) }
+        @objc func toggleItalic()   { applyStyle(.italic) }
+        @objc func toggleUnderline()   { applyStyle(.underline) }
+        @objc func toggleStrike()      { applyStyle(.strikethrough) }
+        private func applyColor(_ nom: String) { applyStyle(.color(nom)) }
 
-        private func supprimerCouleur() {
-            defer { actionToolbarEnCours = false }
+        private func clearColor() {
+            defer { toolbarActionInProgress = false }
             guard let tv, let attr = tv.attributedText else { return }
-            let range = selectionPourToolbar(selectionActuelle: tv.selectedRange, longueur: attr.length)
+            let range = selectionForToolbar(selectionActuelle: tv.selectedRange, longueur: attr.length)
             guard range.length > 0 else {
                 var attrs = tv.typingAttributes
                 attrs.removeValue(forKey: .chaqaqColor)
                 attrs[.foregroundColor] = UIColor.label
                 tv.typingAttributes = attrs
-                couleurEnAttente = nil
-                mettreAJourToolbar()
-                viderSelectionMemorisee()
+                pendingColor = nil
+                updateToolbar()
+                clearRememberedSelection()
                 _ = tv.becomeFirstResponder()
                 return
             }
@@ -619,18 +619,18 @@ struct RichTextEditor: UIViewRepresentable {
             tv.textStorage.setAttributedString(m)
             tv.textStorage.endEditing()
             tv.selectedRange = range
-            memoriserSelection(range, longueur: m.length)
-            sauvegarder(nsAttributedVersSpans(tv.attributedText, police: parent.baseFont))
-            mettreAJourToolbar()
+            rememberSelection(range, longueur: m.length)
+            save(attributedToSpans(tv.attributedText, police: parent.baseFont))
+            updateToolbar()
         }
 
-        private func appliquerStyle(_ style: InlineStyleFfi) {
-            defer { actionToolbarEnCours = false }
+        private func applyStyle(_ style: InlineStyleFfi) {
+            defer { toolbarActionInProgress = false }
             guard let tv, let attr = tv.attributedText else { return }
-            let range = selectionPourToolbar(selectionActuelle: tv.selectedRange, longueur: attr.length)
+            let range = selectionForToolbar(selectionActuelle: tv.selectedRange, longueur: attr.length)
 
             guard range.length > 0 else {
-                appliquerStyleTyping(tv: tv, style: style)
+                applyStyleTyping(tv: tv, style: style)
                 return
             }
 
@@ -638,10 +638,10 @@ struct RichTextEditor: UIViewRepresentable {
 
             switch style {
             case .bold:
-                let toutBold = touteLaPlage(dans: attr, range: range, verifie: attrsContiennentBold)
+                let toutBold = touteLaPlage(dans: attr, range: range, verifie: attrsContainBold)
                 attr.enumerateAttribute(.font, in: range) { _, r, _ in
-                    let italic = attrsContiennentItalic(attributsA: attr, position: r.location)
-                    m.addAttribute(.font, value: fontAvecTraits(parent.baseFont, bold: !toutBold, italic: italic), range: r)
+                    let italic = attrsContainItalic(attributsA: attr, position: r.location)
+                    m.addAttribute(.font, value: fontWithTraits(parent.baseFont, bold: !toutBold, italic: italic), range: r)
                     if italic { m.addAttribute(.chaqaqObliqueness, value: 0.2, range: r) }
                     else       { m.removeAttribute(.chaqaqObliqueness, range: r) }
                 }
@@ -649,10 +649,10 @@ struct RichTextEditor: UIViewRepresentable {
                 else         { m.removeAttribute(.chaqaqBold,              range: range) }
 
             case .italic:
-                let toutItalic = touteLaPlage(dans: attr, range: range, verifie: attrsContiennentItalic)
+                let toutItalic = touteLaPlage(dans: attr, range: range, verifie: attrsContainItalic)
                 attr.enumerateAttribute(.font, in: range) { _, r, _ in
-                    let bold = attrsContiennentBold(attributsA: attr, position: r.location)
-                    m.addAttribute(.font, value: fontAvecTraits(parent.baseFont, bold: bold, italic: !toutItalic), range: r)
+                    let bold = attrsContainBold(attributsA: attr, position: r.location)
+                    m.addAttribute(.font, value: fontWithTraits(parent.baseFont, bold: bold, italic: !toutItalic), range: r)
                 }
                 if !toutItalic {
                     m.addAttribute(.chaqaqItalic, value: true, range: range)
@@ -679,7 +679,7 @@ struct RichTextEditor: UIViewRepresentable {
                     m.removeAttribute(.chaqaqColor,     range: range)
                     m.addAttribute(.foregroundColor, value: UIColor.label, range: range)
                 } else {
-                    m.addAttribute(.foregroundColor, value: uiCouleurDepuisNom(nom), range: range)
+                    m.addAttribute(.foregroundColor, value: uiColorFromName(nom), range: range)
                     m.addAttribute(.chaqaqColor,     value: nom,                     range: range)
                 }
             default: break
@@ -689,28 +689,28 @@ struct RichTextEditor: UIViewRepresentable {
             tv.textStorage.setAttributedString(m)
             tv.textStorage.endEditing()
             tv.selectedRange  = range
-            memoriserSelection(range, longueur: m.length)
-            sauvegarder(nsAttributedVersSpans(tv.attributedText, police: parent.baseFont))
-            mettreAJourToolbar()
+            rememberSelection(range, longueur: m.length)
+            save(attributedToSpans(tv.attributedText, police: parent.baseFont))
+            updateToolbar()
             // Le menu couleur (showsMenuAsPrimaryAction) fait perdre le first
             // responder : on le rétablit pour garder le clavier et la sélection.
             _ = tv.becomeFirstResponder()
         }
 
-        private func appliquerStyleTyping(tv: UITextView, style: InlineStyleFfi) {
+        private func applyStyleTyping(tv: UITextView, style: InlineStyleFfi) {
             var attrs = tv.typingAttributes
             switch style {
             case .bold:
-                let bold   = attrsContiennentBold(attrs)
-                let italic = attrsContiennentItalic(attrs)
-                attrs[.font] = fontAvecTraits(parent.baseFont, bold: !bold, italic: italic)
+                let bold   = attrsContainBold(attrs)
+                let italic = attrsContainItalic(attrs)
+                attrs[.font] = fontWithTraits(parent.baseFont, bold: !bold, italic: italic)
                 if !bold { attrs[.chaqaqBold] = true } else { attrs.removeValue(forKey: .chaqaqBold) }
                 if italic { attrs[.chaqaqObliqueness] = 0.2 }
                 else      { attrs.removeValue(forKey: .chaqaqObliqueness) }
             case .italic:
-                let bold   = attrsContiennentBold(attrs)
-                let italic = attrsContiennentItalic(attrs)
-                attrs[.font] = fontAvecTraits(parent.baseFont, bold: bold, italic: !italic)
+                let bold   = attrsContainBold(attrs)
+                let italic = attrsContainItalic(attrs)
+                attrs[.font] = fontWithTraits(parent.baseFont, bold: bold, italic: !italic)
                 if !italic {
                     attrs[.chaqaqItalic] = true
                     attrs[.chaqaqObliqueness] = 0.2
@@ -725,34 +725,34 @@ struct RichTextEditor: UIViewRepresentable {
                 if attrs[.strikethroughStyle] != nil { attrs.removeValue(forKey: .strikethroughStyle) }
                 else { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
             case .color(let nom):
-                // Source de vérité : couleurEnAttente (typingAttributes est réinitialisé
+                // Source de vérité : pendingColor (typingAttributes est réinitialisé
                 // par textViewDidBeginEditing après l'ouverture du menu).
-                let couleurActuelle = couleurEnAttente ?? (attrs[.chaqaqColor] as? String)
-                if couleurActuelle == nom {
+                let currentColor = pendingColor ?? (attrs[.chaqaqColor] as? String)
+                if currentColor == nom {
                     attrs.removeValue(forKey: .chaqaqColor)
                     attrs[.foregroundColor] = UIColor.label
-                    couleurEnAttente = nil
+                    pendingColor = nil
                 } else {
-                    attrs[.foregroundColor] = uiCouleurDepuisNom(nom)
+                    attrs[.foregroundColor] = uiColorFromName(nom)
                     attrs[.chaqaqColor]     = nom
-                    couleurEnAttente = nom
+                    pendingColor = nom
                 }
             default: break
             }
             tv.typingAttributes = attrs
-            mettreAJourToolbar()
-            viderSelectionMemorisee()
+            updateToolbar()
+            clearRememberedSelection()
             _ = tv.becomeFirstResponder()
         }
 
-        private func memoriserSelection(_ range: NSRange, longueur: Int) {
-            let selection = selectionNormalisee(range, longueur: longueur)
+        private func rememberSelection(_ range: NSRange, longueur: Int) {
+            let selection = normalizedSelection(range, longueur: longueur)
             guard selection.length > 0 else { return }
-            generationSelection += 1
-            derniereSelection = selection
+            selectionGeneration += 1
+            lastSelection = selection
         }
 
-        private func sauvegarder(_ spans: [InlineTextFfi]) {
+        private func save(_ spans: [InlineTextFfi]) {
             parent.spans = spans
             if let onSaveSpans = parent.onSaveSpans {
                 onSaveSpans(spans)
@@ -761,7 +761,7 @@ struct RichTextEditor: UIViewRepresentable {
             }
         }
 
-        private func mettreAJourToolbar() {
+        private func updateToolbar() {
             guard let tv else { return }
             let attr = tv.attributedText ?? NSAttributedString()
             let len  = attr.length
@@ -770,32 +770,32 @@ struct RichTextEditor: UIViewRepresentable {
             let bold: Bool; let italic: Bool; let underline: Bool; let strike: Bool; let couleur: String?
             if range.length > 0, range.location < len {
                 let loc = min(range.location, len - 1)
-                bold     = touteLaPlage(dans: attr, range: range, verifie: attrsContiennentBold)
-                italic   = touteLaPlage(dans: attr, range: range, verifie: attrsContiennentItalic)
+                bold     = touteLaPlage(dans: attr, range: range, verifie: attrsContainBold)
+                italic   = touteLaPlage(dans: attr, range: range, verifie: attrsContainItalic)
                 underline = attr.attribute(.underlineStyle,     at: loc, effectiveRange: nil) != nil
                 strike   = attr.attribute(.strikethroughStyle, at: loc, effectiveRange: nil) != nil
                 couleur  = attr.attribute(.chaqaqColor,        at: loc, effectiveRange: nil) as? String
             } else {
                 let attrs = tv.typingAttributes
-                bold     = attrsContiennentBold(attrs)
-                italic   = attrsContiennentItalic(attrs)
+                bold     = attrsContainBold(attrs)
+                italic   = attrsContainItalic(attrs)
                 underline = attrs[.underlineStyle]     != nil
                 strike   = attrs[.strikethroughStyle]  != nil
-                // couleurEnAttente prime : typingAttributes est réinitialisé par
+                // pendingColor prime : typingAttributes est réinitialisé par
                 // textViewDidBeginEditing après le menu, mais le mode frappe reste actif.
-                couleur  = couleurEnAttente ?? (attrs[.chaqaqColor] as? String)
+                couleur  = pendingColor ?? (attrs[.chaqaqColor] as? String)
             }
 
-            setActifTexte(btnGras,     actif: bold,      font: .systemFont(ofSize: 22, weight: .heavy))
-            setActifSF(btnItalique,    actif: italic,    nom: "italic",         taille: 22)
-            setActifTexte(btnSouligne, actif: underline, font: .systemFont(ofSize: 22, weight: .medium), souligne: true)
-            setActifSF(btnBarre,       actif: strike,    nom: "strikethrough",  taille: 22)
-            mettreAJourBoutonCouleur(couleur)
+            setTextActive(btnBold,     actif: bold,      font: .systemFont(ofSize: 22, weight: .heavy))
+            setSymbolActive(btnItalic,    actif: italic,    nom: "italic",         taille: 22)
+            setTextActive(btnUnderline, actif: underline, font: .systemFont(ofSize: 22, weight: .medium), souligne: true)
+            setSymbolActive(btnStrike,       actif: strike,    nom: "strikethrough",  taille: 22)
+            updateColorButton(couleur)
 
-            mettreAJourBoutonColler()
+            updatePasteButton()
         }
 
-        private func setActifTexte(_ btn: UIButton?, actif: Bool, font: UIFont, souligne: Bool = false, barre: Bool = false) {
+        private func setTextActive(_ btn: UIButton?, actif: Bool, font: UIFont, souligne: Bool = false, barre: Bool = false) {
             guard let btn, let str = btn.attributedTitle(for: .normal)?.string else { return }
             let c: UIColor = actif ? (UIColor(named: "Accent") ?? .tintColor) : .label
             var a: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: c]
@@ -806,7 +806,7 @@ struct RichTextEditor: UIViewRepresentable {
             btn.setAttributedTitle(NSAttributedString(string: str, attributes: a), for: .highlighted)
         }
 
-        private func setActifSF(_ btn: UIButton?, actif: Bool, nom: String, taille: CGFloat = 22) {
+        private func setSymbolActive(_ btn: UIButton?, actif: Bool, nom: String, taille: CGFloat = 22) {
             guard let btn else { return }
             let c: UIColor = actif ? (UIColor(named: "Accent") ?? .tintColor) : .secondaryLabel
             let cfg = UIImage.SymbolConfiguration(pointSize: taille, weight: .medium)
@@ -814,7 +814,7 @@ struct RichTextEditor: UIViewRepresentable {
                 .withTintColor(c, renderingMode: .alwaysOriginal), for: .normal)
         }
 
-        private func menuCouleurs(actuelle: String?) -> UIMenu {
+        private func colorMenu(actuelle: String?) -> UIMenu {
             let palette: [(String, UIColor, String)] = [
                 ("rouge",  .systemRed,    "Rouge"),
                 ("rose",   .systemPink,   "Rose"),
@@ -832,14 +832,14 @@ struct RichTextEditor: UIViewRepresentable {
             let aucune = UIAction(
                 title: "Aucune",
                 image: UIImage(systemName: "xmark", withConfiguration: cfgX)
-            ) { [weak self] _ in self?.supprimerCouleur() }
+            ) { [weak self] _ in self?.clearColor() }
             if actuelle == nil { aucune.state = .on }
 
             let items = palette.map { (nom, couleur, label) -> UIAction in
                 let img = UIImage(systemName: "circle.fill", withConfiguration: cfgDot)?
                     .withTintColor(couleur, renderingMode: .alwaysOriginal)
                 let action = UIAction(title: label, image: img) { [weak self] _ in
-                    self?.appliquerCouleurNom(nom)
+                    self?.applyColor(nom)
                 }
                 if actuelle == nom { action.state = .on }
                 return action
@@ -847,40 +847,40 @@ struct RichTextEditor: UIViewRepresentable {
             return UIMenu(title: "", children: [aucune] + items)
         }
 
-        private func mettreAJourBoutonCouleur(_ actuelle: String?) {
-            guard let btn = btnCouleur else { return }
-            let nomIcone = actuelle != nil ? "highlighter.badge.ellipsis" : "highlighter"
-            let c: UIColor = actuelle.map { uiCouleurDepuisNom($0) } ?? .secondaryLabel
+        private func updateColorButton(_ actuelle: String?) {
+            guard let btn = btnColor else { return }
+            let iconName = actuelle != nil ? "highlighter.badge.ellipsis" : "highlighter"
+            let c: UIColor = actuelle.map { uiColorFromName($0) } ?? .secondaryLabel
             let cfg = UIImage.SymbolConfiguration(pointSize: 22, weight: .medium)
-            btn.setImage(UIImage(systemName: nomIcone, withConfiguration: cfg)?
+            btn.setImage(UIImage(systemName: iconName, withConfiguration: cfg)?
                 .withTintColor(c, renderingMode: .alwaysOriginal), for: .normal)
-            btn.menu = menuCouleurs(actuelle: actuelle)
+            btn.menu = colorMenu(actuelle: actuelle)
         }
 
-        private func viderSelectionMemorisee() {
-            generationSelection += 1
-            derniereSelection = NSRange(location: 0, length: 0)
+        private func clearRememberedSelection() {
+            selectionGeneration += 1
+            lastSelection = NSRange(location: 0, length: 0)
         }
 
-        private func nettoyerSelectionMemoriseeSiToujoursVide(_ textView: UITextView) {
-            let generation = generationSelection
+        private func cleanRememberedIfStillEmpty(_ textView: UITextView) {
+            let generation = selectionGeneration
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self, weak textView] in
                 guard let self, let textView else { return }
-                let selection = self.selectionNormalisee(textView.selectedRange, longueur: textView.attributedText.length)
-                if self.generationSelection == generation && !self.actionToolbarEnCours && selection.length == 0 {
-                    self.viderSelectionMemorisee()
+                let selection = self.normalizedSelection(textView.selectedRange, longueur: textView.attributedText.length)
+                if self.selectionGeneration == generation && !self.toolbarActionInProgress && selection.length == 0 {
+                    self.clearRememberedSelection()
                 }
             }
         }
 
-        private func selectionPourToolbar(selectionActuelle: NSRange, longueur: Int) -> NSRange {
-            let courante = selectionNormalisee(selectionActuelle, longueur: longueur)
+        private func selectionForToolbar(selectionActuelle: NSRange, longueur: Int) -> NSRange {
+            let courante = normalizedSelection(selectionActuelle, longueur: longueur)
             if courante.length > 0 { return courante }
-            let memorisee = selectionNormalisee(derniereSelection, longueur: longueur)
+            let memorisee = normalizedSelection(lastSelection, longueur: longueur)
             return memorisee.length > 0 ? memorisee : courante
         }
 
-        private func selectionNormalisee(_ range: NSRange, longueur: Int) -> NSRange {
+        private func normalizedSelection(_ range: NSRange, longueur: Int) -> NSRange {
             guard range.location != NSNotFound, range.location <= longueur else {
                 return NSRange(location: longueur, length: 0)
             }
@@ -904,25 +904,25 @@ struct RichTextEditor: UIViewRepresentable {
             return result
         }
 
-        private func attrsContiennentBold(attributsA attr: NSAttributedString, position: Int) -> Bool {
-            attrsContiennentBold(attr.attributes(at: position, effectiveRange: nil))
+        private func attrsContainBold(attributsA attr: NSAttributedString, position: Int) -> Bool {
+            attrsContainBold(attr.attributes(at: position, effectiveRange: nil))
         }
 
-        private func attrsContiennentItalic(attributsA attr: NSAttributedString, position: Int) -> Bool {
-            attrsContiennentItalic(attr.attributes(at: position, effectiveRange: nil))
+        private func attrsContainItalic(attributsA attr: NSAttributedString, position: Int) -> Bool {
+            attrsContainItalic(attr.attributes(at: position, effectiveRange: nil))
         }
 
-        private func attrsContiennentBold(_ attrs: [NSAttributedString.Key: Any]) -> Bool {
+        private func attrsContainBold(_ attrs: [NSAttributedString.Key: Any]) -> Bool {
             if (attrs[.chaqaqBold] as? Bool) == true { return true }
             // Repli sur la fonte : UIKit supprime les attributs custom de typingAttributes
             // après insertion, mais la fonte (grasse) reste fiable. Comparaison au baseFont
-            // pour ne pas marquer un titre (déjà gras) comme gras appliqué par l'utilisateur.
+            // pour ne pas marquer un title (déjà gras) comme gras appliqué par l'utilisateur.
             guard let f = attrs[.font] as? UIFont else { return false }
             return f.fontDescriptor.symbolicTraits.contains(.traitBold)
                 && !parent.baseFont.fontDescriptor.symbolicTraits.contains(.traitBold)
         }
 
-        private func attrsContiennentItalic(_ attrs: [NSAttributedString.Key: Any]) -> Bool {
+        private func attrsContainItalic(_ attrs: [NSAttributedString.Key: Any]) -> Bool {
             if (attrs[.chaqaqItalic] as? Bool) == true { return true }
             guard let f = attrs[.font] as? UIFont else { return false }
             return f.fontDescriptor.symbolicTraits.contains(.traitItalic)

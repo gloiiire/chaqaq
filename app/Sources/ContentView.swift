@@ -77,7 +77,7 @@ struct ContentView: View {
                         Section("Documents") {
                             if let api = store.api {
                                 ForEach(store.documents, id: \.id) { doc in
-                                    NavigationLink(destination: DocumentView(docId: doc.id, api: api, onDisparaitre: store.load)) {
+                                    NavigationLink(destination: DocumentView(docId: doc.id, api: api, onDisappear: store.load)) {
                                         DocumentRow(doc: doc)
                                     }
                                 }

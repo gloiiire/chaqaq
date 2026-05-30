@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 // ── Auto-focus (extension partagée) ──────────────────────────────────────────
 
 private extension View {
-    func autoFocuserSiBesoin(blockId: String,
+    func autoFocusIfNeeded(blockId: String,
                               autoFocusId: Binding<String?>,
                               autoFocusOffset: Binding<Int?>,
                               cursorAt: Binding<Int?>,
@@ -42,7 +42,7 @@ struct EditableBlock: Identifiable {
 // Répète une closure à intervalle régulier (maintien d'une touche de navigation).
 // Isole la mécanique du Timer hors du view model.
 
-final class RepeteurAction {
+final class ActionRepeater {
     private var timer: Timer?
     var actif: Bool { timer != nil }
 
@@ -62,16 +62,16 @@ final class RepeteurAction {
 @MainActor
 final class DocumentViewModel: ObservableObject {
     let docId: String
-    @Published var titre: String = ""
-    @Published var couverture: String?
-    @Published var blocs: [EditableBlock] = []
-    @Published var erreur: String?
+    @Published var title: String = ""
+    @Published var cover: String?
+    @Published var blocks: [EditableBlock] = []
+    @Published var errorMessage: String?
     @Published var autoFocusId: String?
     @Published var autoFocusOffset: Int? = nil
-    var idBlocActif: String? = nil
-    private var idBlocFocuse: String? = nil
-    private let repeteur = RepeteurAction()
-    var navEnRepetition: Bool { repeteur.actif }
+    var activeBlockId: String? = nil
+    private var focusedBlockId: String? = nil
+    private let repeteur = ActionRepeater()
+    var isNavigating: Bool { repeteur.actif }
 
     private let api: ChaqaqApi
 
@@ -85,35 +85,35 @@ final class DocumentViewModel: ObservableObject {
             let json = try api.getDocumentJson(id: docId)
             guard let data = json.data(using: .utf8) else { return }
             let doc = try JSONDecoder().decode(DocumentFfi.self, from: data)
-            titre = doc.title.map(\.content).joined()
-            couverture = doc.cover
-            blocs = doc.blocks.map {
+            title = doc.title.map(\.content).joined()
+            cover = doc.cover
+            blocks = doc.blocks.map {
                 EditableBlock(id: $0.id, content: $0.content,
                               spans: $0.content.spansOrEmpty,
                               done:  $0.content.isTodoDone)
             }
-        } catch { erreur = error.localizedDescription }
+        } catch { errorMessage = error.localizedDescription }
     }
 
-    func sauvegarderTitre() {
-        try? api.updateDocumentTitle(id: docId, newTitle: titre)
+    func saveTitle() {
+        try? api.updateDocumentTitle(id: docId, newTitle: title)
     }
 
-    func sauvegarderCouverture(_ nouvelleCouverture: String?) {
+    func saveCover(_ newCover: String?) {
         do {
-            couverture = nouvelleCouverture
-            try api.updateDocumentCover(id: docId, cover: nouvelleCouverture)
-        } catch { erreur = error.localizedDescription }
+            cover = newCover
+            try api.updateDocumentCover(id: docId, cover: newCover)
+        } catch { errorMessage = error.localizedDescription }
     }
 
-    func sauvegarderImageCouverture(data: Data, extensionFichier: String = "jpg") {
+    func saveCoverImage(data: Data, fileExtension: String = "jpg") {
         do {
-            let nom = try Self.ecrireImageCouverture(data: data, docId: docId, extensionFichier: extensionFichier)
-            sauvegarderCouverture(nom)
-        } catch { erreur = error.localizedDescription }
+            let nom = try Self.writeCoverImage(data: data, docId: docId, fileExtension: fileExtension)
+            saveCover(nom)
+        } catch { errorMessage = error.localizedDescription }
     }
 
-    func sauvegarderImageCouvertureDepuisFichier(_ url: URL) {
+    func saveCoverImageFromFile(_ url: URL) {
         let acces = url.startAccessingSecurityScopedResource()
         defer {
             if acces { url.stopAccessingSecurityScopedResource() }
@@ -121,87 +121,87 @@ final class DocumentViewModel: ObservableObject {
 
         do {
             let data = try Data(contentsOf: url)
-            let ext = Self.extensionImage(url.pathExtension)
-            let nom = try Self.ecrireImageCouverture(data: data, docId: docId, extensionFichier: ext)
-            sauvegarderCouverture(nom)
-        } catch { erreur = error.localizedDescription }
+            let ext = Self.imageExtension(url.pathExtension)
+            let nom = try Self.writeCoverImage(data: data, docId: docId, fileExtension: ext)
+            saveCover(nom)
+        } catch { errorMessage = error.localizedDescription }
     }
 
-    private static func ecrireImageCouverture(data: Data, docId: String, extensionFichier: String) throws -> String {
-        let dossier = try dossierCouvertures()
-        let nom = docId.replacingOccurrences(of: "/", with: "-") + "." + extensionFichier
-        let url = dossier.appendingPathComponent(nom)
+    private static func writeCoverImage(data: Data, docId: String, fileExtension: String) throws -> String {
+        let directory = try coversDirectory()
+        let nom = docId.replacingOccurrences(of: "/", with: "-") + "." + fileExtension
+        let url = directory.appendingPathComponent(nom)
         try data.write(to: url, options: .atomic)
         return nom
     }
 
-    fileprivate static func dossierCouvertures() throws -> URL {
+    fileprivate static func coversDirectory() throws -> URL {
         let base = try FileManager.default.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
             appropriateFor: nil,
             create: true
         )
-        let dossier = base.appendingPathComponent("Chaqaq/Covers", isDirectory: true)
-        try FileManager.default.createDirectory(at: dossier, withIntermediateDirectories: true)
-        return dossier
+        let directory = base.appendingPathComponent("Chaqaq/Covers", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
     }
 
-    private static func extensionImage(_ ext: String) -> String {
-        let nettoyee = ext.lowercased()
-        return ["jpg", "jpeg", "png", "heic", "webp"].contains(nettoyee) ? nettoyee : "jpg"
+    private static func imageExtension(_ ext: String) -> String {
+        let cleaned = ext.lowercased()
+        return ["jpg", "jpeg", "png", "heic", "webp"].contains(cleaned) ? cleaned : "jpg"
     }
 
-    func sauvegarderBloc(_ bloc: EditableBlock) {
+    func saveBlock(_ block: EditableBlock) {
         do {
-            let nouveau = bloc.content.withSpans(bloc.spans, done: bloc.done)
-            let data    = try JSONEncoder().encode(nouveau)
-            try api.updateBlock(docId: docId, blockId: bloc.id,
+            let new = block.content.withSpans(block.spans, done: block.done)
+            let data    = try JSONEncoder().encode(new)
+            try api.updateBlock(docId: docId, blockId: block.id,
                                  contentJson: String(data: data, encoding: .utf8)!)
-        } catch { erreur = error.localizedDescription }
+        } catch { errorMessage = error.localizedDescription }
     }
 
-    func sauvegarderBloc(id: String, spans: [InlineTextFfi]) {
-        guard let idx = blocs.firstIndex(where: { $0.id == id }) else { return }
-        blocs[idx].spans = spans
-        sauvegarderBloc(blocs[idx])
+    func saveBlock(id: String, spans: [InlineTextFfi]) {
+        guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
+        blocks[idx].spans = spans
+        saveBlock(blocks[idx])
     }
 
-    func addBlock(type: TypeBlocNouvel, spansInitiaux: [InlineTextFfi] = [], apresId: String? = nil) {
+    func addBlock(type: NewBlockType, spansInitiaux: [InlineTextFfi] = [], afterId: String? = nil) {
         do {
-            let contenu: BlockContentFfi
+            let content: BlockContentFfi
             switch type {
-            case .texte:      contenu = .text([])
-            case .titre1:     contenu = .heading(level: 1, text: [])
-            case .titre2:     contenu = .heading(level: 2, text: [])
-            case .titre3:     contenu = .heading(level: 3, text: [])
-            case .citation:   contenu = .quote(icon: "", text: [])
-            case .callout:    contenu = .quote(icon: "💡", text: [])
-            case .todo:       contenu = .todo(done: false, text: [])
-            case .separateur: contenu = .divider
+            case .texte:      content = .text([])
+            case .title1:     content = .heading(level: 1, text: [])
+            case .title2:     content = .heading(level: 2, text: [])
+            case .title3:     content = .heading(level: 3, text: [])
+            case .citation:   content = .quote(icon: "", text: [])
+            case .callout:    content = .quote(icon: "💡", text: [])
+            case .todo:       content = .todo(done: false, text: [])
+            case .separateur: content = .divider
             }
-            let data  = try JSONEncoder().encode(contenu)
+            let data  = try JSONEncoder().encode(content)
             let newId = try api.addBlock(docId: docId,
                                             blockContentJson: String(data: data, encoding: .utf8)!)
-            let newBloc = EditableBlock(id: newId, content: contenu, spans: spansInitiaux, done: false)
+            let newBloc = EditableBlock(id: newId, content: content, spans: spansInitiaux, done: false)
 
-            if let apresId, let idx = blocs.firstIndex(where: { $0.id == apresId }) {
-                blocs.insert(newBloc, at: idx + 1)
-                try? api.reorderBlocks(docId: docId, order: blocs.map(\.id))
+            if let afterId, let idx = blocks.firstIndex(where: { $0.id == afterId }) {
+                blocks.insert(newBloc, at: idx + 1)
+                try? api.reorderBlocks(docId: docId, order: blocks.map(\.id))
             } else {
-                blocs.append(newBloc)
+                blocks.append(newBloc)
             }
-            if !spansInitiaux.isEmpty { sauvegarderBloc(newBloc) }
+            if !spansInitiaux.isEmpty { saveBlock(newBloc) }
             autoFocusOffset = 0
             autoFocusId = newId
-        } catch { erreur = error.localizedDescription }
+        } catch { errorMessage = error.localizedDescription }
     }
 
     func deleteBlock(id: String) {
         do {
             try api.deleteBlock(docId: docId, blockId: id)
-            blocs.removeAll { $0.id == id }
-        } catch { erreur = error.localizedDescription }
+            blocks.removeAll { $0.id == id }
+        } catch { errorMessage = error.localizedDescription }
     }
 
     func deleteBlocks(ids: Set<String>) {
@@ -210,53 +210,53 @@ final class DocumentViewModel: ObservableObject {
             for id in ids {
                 try api.deleteBlock(docId: docId, blockId: id)
             }
-            blocs.removeAll { ids.contains($0.id) }
-        } catch { erreur = error.localizedDescription }
+            blocks.removeAll { ids.contains($0.id) }
+        } catch { errorMessage = error.localizedDescription }
     }
 
-    func demarrerNavRepetition(depuis: String, suivant: Bool) {
+    func startNavigationRepeat(depuis: String, suivant: Bool) {
         guard !repeteur.actif else { return }
-        idBlocFocuse = depuis
-        repeteur.demarrer { [weak self] in self?.pasNavigation(suivant: suivant) }
+        focusedBlockId = depuis
+        repeteur.demarrer { [weak self] in self?.navigationStep(suivant: suivant) }
     }
 
-    func stopNavRepetition() {
+    func stopNavigationRepeat() {
         repeteur.arreter()
-        idBlocFocuse = nil
+        focusedBlockId = nil
     }
 
-    private func pasNavigation(suivant: Bool) {
-        guard let cid = idBlocFocuse,
-              let idx = blocs.firstIndex(where: { $0.id == cid }) else { stopNavRepetition(); return }
+    private func navigationStep(suivant: Bool) {
+        guard let cid = focusedBlockId,
+              let idx = blocks.firstIndex(where: { $0.id == cid }) else { stopNavigationRepeat(); return }
         if suivant {
-            guard idx < blocs.count - 1 else { stopNavRepetition(); return }
-            let nid = blocs[idx + 1].id
-            autoFocusOffset = 0; idBlocFocuse = nid; autoFocusId = nid
+            guard idx < blocks.count - 1 else { stopNavigationRepeat(); return }
+            let nid = blocks[idx + 1].id
+            autoFocusOffset = 0; focusedBlockId = nid; autoFocusId = nid
         } else {
-            guard idx > 0 else { stopNavRepetition(); return }
-            let nid = blocs[idx - 1].id
-            autoFocusOffset = nil; idBlocFocuse = nid; autoFocusId = nid
+            guard idx > 0 else { stopNavigationRepeat(); return }
+            let nid = blocks[idx - 1].id
+            autoFocusOffset = nil; focusedBlockId = nid; autoFocusId = nid
         }
     }
 
     func moveBlock(from: IndexSet, to: Int) {
-        blocs.move(fromOffsets: from, toOffset: to)
-        try? api.reorderBlocks(docId: docId, order: blocs.map(\.id))
+        blocks.move(fromOffsets: from, toOffset: to)
+        try? api.reorderBlocks(docId: docId, order: blocks.map(\.id))
     }
 }
 
-// ── Types de blocs ────────────────────────────────────────────────────────────
+// ── Types de blocks ────────────────────────────────────────────────────────────
 
-enum TypeBlocNouvel: String, CaseIterable, Identifiable {
-    case texte = "Texte", titre1 = "Titre 1", titre2 = "Titre 2", titre3 = "Titre 3"
+enum NewBlockType: String, CaseIterable, Identifiable {
+    case texte = "Texte", title1 = "Titre 1", title2 = "Titre 2", title3 = "Titre 3"
     case citation = "Citation", callout = "Callout", todo = "À faire", separateur = "Séparateur"
     var id: String { rawValue }
     var icone: String {
         switch self {
         case .texte:      return "text.alignleft"
-        case .titre1:     return "1.circle.fill"
-        case .titre2:     return "2.circle"
-        case .titre3:     return "3.circle"
+        case .title1:     return "1.circle.fill"
+        case .title2:     return "2.circle"
+        case .title3:     return "3.circle"
         case .citation:   return "quote.bubble"
         case .callout:    return "lightbulb"
         case .todo:       return "checkmark.square"
@@ -267,17 +267,17 @@ enum TypeBlocNouvel: String, CaseIterable, Identifiable {
 
 // ── Helpers emoji persistance ─────────────────────────────────────────────────
 
-private let kEmojisRecentsKey = "document.icon.recentEmojis"
+private let recentEmojisKey = "document.icon.recentEmojis"
 
-private func chargerEmojisRecents() -> [String] {
-    UserDefaults.standard.stringArray(forKey: kEmojisRecentsKey) ?? []
+private func loadRecentEmojis() -> [String] {
+    UserDefaults.standard.stringArray(forKey: recentEmojisKey) ?? []
 }
 
 @discardableResult
-private func enregistrerEmojiRecent(_ emoji: String) -> [String] {
-    let existants = UserDefaults.standard.stringArray(forKey: kEmojisRecentsKey) ?? []
+private func saveRecentEmoji(_ emoji: String) -> [String] {
+    let existants = UserDefaults.standard.stringArray(forKey: recentEmojisKey) ?? []
     let liste = Array(([emoji] + existants.filter { $0 != emoji }).prefix(6))
-    UserDefaults.standard.set(liste, forKey: kEmojisRecentsKey)
+    UserDefaults.standard.set(liste, forKey: recentEmojisKey)
     return liste
 }
 
@@ -285,50 +285,50 @@ private func enregistrerEmojiRecent(_ emoji: String) -> [String] {
 
 struct DocumentView: View {
     @StateObject private var vm: DocumentViewModel
-    @State private var showingBlocPicker = false
+    @State private var showingBlockPicker = false
     @State private var editMode: EditMode = .inactive
-    @State private var focusTitre = false
-    @State private var titreDansNavBar = false
-    @State private var documentVerrouille: Bool
-    @State private var documentIcone: String?
-    @State private var emojisRecents: [String]
-    @State private var blocsSelectionnes: Set<String> = []
-    @State private var clavierVisible = false
-    private let verrouillageKey: String
-    private let iconeKey: String
+    @State private var focusTitle = false
+    @State private var titleInNavBar = false
+    @State private var documentLocked: Bool
+    @State private var documentIcon: String?
+    @State private var recentEmojis: [String]
+    @State private var selectedBlocks: Set<String> = []
+    @State private var keyboardVisible = false
+    private let lockKey: String
+    private let iconKey: String
 
-    var onDisparaitre: (() -> Void)? = nil
+    var onDisappear: (() -> Void)? = nil
 
-    init(docId: String, api: ChaqaqApi, onDisparaitre: (() -> Void)? = nil) {
-        let lockKey = Self.cleVerrouillage(docId: docId)
-        let iconKey = Self.cleIcone(docId: docId)
+    init(docId: String, api: ChaqaqApi, onDisappear: (() -> Void)? = nil) {
+        let lockKey = Self.lockKeyFor(docId: docId)
+        let iconKey = Self.iconKeyFor(docId: docId)
         _vm = StateObject(wrappedValue: DocumentViewModel(docId: docId, api: api))
-        _documentVerrouille = State(initialValue: UserDefaults.standard.bool(forKey: lockKey))
-        _documentIcone = State(initialValue: UserDefaults.standard.string(forKey: iconKey))
-        _emojisRecents = State(initialValue: chargerEmojisRecents())
-        verrouillageKey = lockKey
-        iconeKey = iconKey
-        self.onDisparaitre = onDisparaitre
+        _documentLocked = State(initialValue: UserDefaults.standard.bool(forKey: lockKey))
+        _documentIcon = State(initialValue: UserDefaults.standard.string(forKey: iconKey))
+        _recentEmojis = State(initialValue: loadRecentEmojis())
+        self.lockKey = lockKey
+        self.iconKey = iconKey
+        self.onDisappear = onDisappear
     }
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
         List {
             DocumentDecorView(
-                couverture: vm.couverture,
-                icone: documentIcone,
-                emojisRecents: emojisRecents,
-                verrouille: documentVerrouille,
-                onCouverture: { vm.sauvegarderCouverture($0) },
-                onImageData: { data in vm.sauvegarderImageCouverture(data: data) },
-                onImageFichier: { url in vm.sauvegarderImageCouvertureDepuisFichier(url) },
+                cover: vm.cover,
+                icone: documentIcon,
+                recentEmojis: recentEmojis,
+                verrouille: documentLocked,
+                onCouverture: { vm.saveCover($0) },
+                onImageData: { data in vm.saveCoverImage(data: data) },
+                onImageFichier: { url in vm.saveCoverImageFromFile(url) },
                 onIcone: { nouvelleIcone in
-                    documentIcone = nouvelleIcone
+                    documentIcon = nouvelleIcone
                     if let nouvelleIcone {
-                        UserDefaults.standard.set(nouvelleIcone, forKey: iconeKey)
-                        emojisRecents = enregistrerEmojiRecent(nouvelleIcone)
+                        UserDefaults.standard.set(nouvelleIcone, forKey: iconKey)
+                        recentEmojis = saveRecentEmoji(nouvelleIcone)
                     } else {
-                        UserDefaults.standard.removeObject(forKey: iconeKey)
+                        UserDefaults.standard.removeObject(forKey: iconKey)
                     }
                 }
             )
@@ -338,18 +338,18 @@ struct DocumentView: View {
             .moveDisabled(true)
             .deleteDisabled(true)
 
-            TitreDocView(titre: $vm.titre, focusDemande: $focusTitre,
-                         onSauvegarder: vm.sauvegarderTitre,
-                         onNouveauBloc: { vm.addBlock(type: .texte) })
-                .disabled(documentVerrouille)
+            DocumentTitleView(title: $vm.title, focusDemande: $focusTitle,
+                         onSave: vm.saveTitle,
+                         onNewBlock: { vm.addBlock(type: .texte) })
+                .disabled(documentLocked)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 8, trailing: 20))
                 .moveDisabled(true)
                 .deleteDisabled(true)
 
-            if vm.blocs.isEmpty && !documentVerrouille {
-                EtatVideSaisie { vm.addBlock(type: .texte) }
+            if vm.blocks.isEmpty && !documentLocked {
+                EmptyEditorState { vm.addBlock(type: .texte) }
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
@@ -357,98 +357,98 @@ struct DocumentView: View {
                     .deleteDisabled(true)
             }
 
-            ForEach($vm.blocs) { $bloc in
+            ForEach($vm.blocks) { $block in
                 HStack(alignment: .center, spacing: 10) {
                     if editMode == .active {
-                        boutonSelectionBloc(bloc.id)
+                        selectionButton(block.id)
                     }
 
-                    BlocRowView(
-                        bloc: $bloc,
+                    BlockRowView(
+                        block: $block,
                         autoFocusId: $vm.autoFocusId,
                         autoFocusOffset: $vm.autoFocusOffset,
-                        cb: BlocCallbacks(
-                            onSauvegarder: {
-                                guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }) else { return }
-                                vm.sauvegarderBloc(vm.blocs[idx])
+                        cb: BlockCallbacks(
+                            onSave: {
+                                guard let idx = vm.blocks.firstIndex(where: { $0.id == block.id }) else { return }
+                                vm.saveBlock(vm.blocks[idx])
                             },
-                            onSauvegarderSpans: { spans in
-                                vm.sauvegarderBloc(id: bloc.id, spans: spans)
+                            onSaveSpans: { spans in
+                                vm.saveBlock(id: block.id, spans: spans)
                             },
-                            onSupprimer: {
-                                if let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }) {
+                            onDelete: {
+                                if let idx = vm.blocks.firstIndex(where: { $0.id == block.id }) {
                                     if idx > 0 {
-                                        let prevId = vm.blocs[idx - 1].id
-                                        vm.deleteBlock(id: bloc.id)
+                                        let prevId = vm.blocks[idx - 1].id
+                                        vm.deleteBlock(id: block.id)
                                         vm.autoFocusId = prevId
                                     } else {
-                                        vm.deleteBlock(id: bloc.id)
-                                        focusTitre = true
+                                        vm.deleteBlock(id: block.id)
+                                        focusTitle = true
                                     }
                                 }
                             },
-                            onNouveauBloc: { spansApres in
-                                vm.addBlock(type: .texte, spansInitiaux: spansApres, apresId: bloc.id)
+                            onNewBlock: { afterSpans in
+                                vm.addBlock(type: .texte, spansInitiaux: afterSpans, afterId: block.id)
                             },
-                            onFusionner: vm.blocs.first?.id == bloc.id ? nil : { spansAMerger in
-                                guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }), idx > 0 else { return }
+                            onMerge: vm.blocks.first?.id == block.id ? nil : { spansAMerger in
+                                guard let idx = vm.blocks.firstIndex(where: { $0.id == block.id }), idx > 0 else { return }
                                 let prevIdx      = idx - 1
-                                let prevId       = vm.blocs[prevIdx].id
-                                let offsetFusion = vm.blocs[prevIdx].spans.map(\.content).joined().count
-                                vm.blocs[prevIdx].spans += spansAMerger
-                                vm.sauvegarderBloc(vm.blocs[prevIdx])
-                                vm.deleteBlock(id: bloc.id)
+                                let prevId       = vm.blocks[prevIdx].id
+                                let offsetFusion = vm.blocks[prevIdx].spans.map(\.content).joined().count
+                                vm.blocks[prevIdx].spans += spansAMerger
+                                vm.saveBlock(vm.blocks[prevIdx])
+                                vm.deleteBlock(id: block.id)
                                 vm.autoFocusOffset = offsetFusion
                                 vm.autoFocusId     = prevId
                             },
-                            onNaviguerPrecedent: {
-                                guard !vm.navEnRepetition else { return }
-                                guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }) else { return }
+                            onNavigatePrevious: {
+                                guard !vm.isNavigating else { return }
+                                guard let idx = vm.blocks.firstIndex(where: { $0.id == block.id }) else { return }
                                 if idx > 0 {
-                                    let nid = vm.blocs[idx - 1].id
+                                    let nid = vm.blocks[idx - 1].id
                                     vm.autoFocusOffset = nil
                                     vm.autoFocusId = nid
-                                    vm.demarrerNavRepetition(depuis: nid, suivant: false)
+                                    vm.startNavigationRepeat(depuis: nid, suivant: false)
                                 } else {
-                                    focusTitre = true
+                                    focusTitle = true
                                 }
                             },
-                            onNaviguerSuivant: {
-                                guard !vm.navEnRepetition else { return }
-                                guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }),
-                                      idx < vm.blocs.count - 1 else { return }
-                                let nid = vm.blocs[idx + 1].id
+                            onNavigateNext: {
+                                guard !vm.isNavigating else { return }
+                                guard let idx = vm.blocks.firstIndex(where: { $0.id == block.id }),
+                                      idx < vm.blocks.count - 1 else { return }
+                                let nid = vm.blocks[idx + 1].id
                                 vm.autoFocusOffset = 0
                                 vm.autoFocusId = nid
-                                vm.demarrerNavRepetition(depuis: nid, suivant: true)
+                                vm.startNavigationRepeat(depuis: nid, suivant: true)
                             },
-                            onNavRepeterArreter: { vm.stopNavRepetition() },
-                            onLongPressSelection: { selectionnerBlocDepuisPressionLongue(bloc.id) },
-                            onFocus: { vm.idBlocActif = bloc.id }
+                            onStopNavigationRepeat: { vm.stopNavigationRepeat() },
+                            onLongPressSelection: { selectFromLongPress(block.id) },
+                            onFocus: { vm.activeBlockId = block.id }
                         )
                     )
-                    .disabled(documentVerrouille || editMode == .active)
-                    .allowsHitTesting(!documentVerrouille && editMode != .active)
+                    .disabled(documentLocked || editMode == .active)
+                    .allowsHitTesting(!documentLocked && editMode != .active)
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
                     if editMode == .active {
                         withAnimation(.easeInOut(duration: 0.15)) {
-                            basculerSelectionBloc(bloc.id)
+                            toggleSelection(block.id)
                         }
                     }
                 }
                 .simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.35).onEnded { _ in
-                        selectionnerBlocDepuisPressionLongue(bloc.id)
+                        selectFromLongPress(block.id)
                     }
                 )
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
                 .swipeActions(edge: .trailing) {
-                    if !documentVerrouille && editMode != .active {
-                        Button(role: .destructive) { vm.deleteBlock(id: bloc.id) } label: {
+                    if !documentLocked && editMode != .active {
+                        Button(role: .destructive) { vm.deleteBlock(id: block.id) } label: {
                             Label("Supprimer", systemImage: "trash")
                         }
                     }
@@ -456,8 +456,8 @@ struct DocumentView: View {
             }
             .onMove(perform: vm.moveBlock)
 
-            if !documentVerrouille {
-                BoutonAjouterBloc { showingBlocPicker = true }
+            if !documentLocked {
+                AddBlockButton { showingBlockPicker = true }
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 40, trailing: 20))
@@ -466,27 +466,27 @@ struct DocumentView: View {
             }
         }
         .listStyle(.plain)
-        .ignoresSafeArea(.container, edges: vm.couverture == nil ? [] : .top)
+        .ignoresSafeArea(.container, edges: vm.cover == nil ? [] : .top)
         .onScrollGeometryChange(for: CGFloat.self) { geo in
             geo.contentOffset.y + geo.contentInsets.top
         } action: { _, offset in
-            withAnimation(.easeInOut(duration: 0.15)) { titreDansNavBar = offset > 60 }
+            withAnimation(.easeInOut(duration: 0.15)) { titleInNavBar = offset > 60 }
         }
         .scrollDismissesKeyboard(.interactively)
         .environment(\.editMode, $editMode)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(vm.couverture == nil ? .visible : .hidden, for: .navigationBar)
-        .toolbarColorScheme(vm.couverture == nil ? nil : .dark, for: .navigationBar)
+        .toolbarBackground(vm.cover == nil ? .visible : .hidden, for: .navigationBar)
+        .toolbarColorScheme(vm.cover == nil ? nil : .dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Text(vm.titre.isEmpty ? "Sans titre" : vm.titre)
+                Text(vm.title.isEmpty ? "Sans titre" : vm.title)
                     .font(.headline)
-                    .opacity(titreDansNavBar ? 1 : 0)
-                    .offset(y: titreDansNavBar ? 0 : 8)
-                    .animation(.easeOut(duration: 0.2), value: titreDansNavBar)
+                    .opacity(titleInNavBar ? 1 : 0)
+                    .offset(y: titleInNavBar ? 0 : 8)
+                    .animation(.easeOut(duration: 0.2), value: titleInNavBar)
             }
-            if editMode == .active && !blocsSelectionnes.isEmpty && !documentVerrouille {
+            if editMode == .active && !selectedBlocks.isEmpty && !documentLocked {
                 ToolbarItem(placement: .primaryAction) {
                     Button(role: .destructive) {
                         deleteBlocksSelectionnes()
@@ -498,57 +498,57 @@ struct DocumentView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    let nouveauVerrouillage = !documentVerrouille
+                    let newVerrouillage = !documentLocked
                     withAnimation(.easeInOut(duration: 0.15)) {
-                        documentVerrouille = nouveauVerrouillage
-                        if documentVerrouille {
+                        documentLocked = newVerrouillage
+                        if documentLocked {
                             editMode = .inactive
-                            blocsSelectionnes.removeAll()
-                            focusTitre = false
-                            showingBlocPicker = false
-                            vm.stopNavRepetition()
+                            selectedBlocks.removeAll()
+                            focusTitle = false
+                            showingBlockPicker = false
+                            vm.stopNavigationRepeat()
                         }
                     }
-                    UserDefaults.standard.set(nouveauVerrouillage, forKey: verrouillageKey)
+                    UserDefaults.standard.set(newVerrouillage, forKey: lockKey)
                 } label: {
-                    Image(systemName: documentVerrouille ? "lock.fill" : "lock.open.fill")
+                    Image(systemName: documentLocked ? "lock.fill" : "lock.open.fill")
                 }
-                .accessibilityLabel(documentVerrouille ? "Déverrouiller le document" : "Verrouiller le document")
+                .accessibilityLabel(documentLocked ? "Déverrouiller le document" : "Verrouiller le document")
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     withAnimation {
                         editMode = editMode == .active ? .inactive : .active
-                        if editMode != .active { blocsSelectionnes.removeAll() }
+                        if editMode != .active { selectedBlocks.removeAll() }
                     }
                 } label: {
                     Image(systemName: editMode == .active ? "checkmark" : "arrow.up.arrow.down")
                 }
-                .disabled(documentVerrouille)
+                .disabled(documentLocked)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-            withAnimation(.easeInOut(duration: 0.2)) { clavierVisible = true }
+            withAnimation(.easeInOut(duration: 0.2)) { keyboardVisible = true }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-            withAnimation(.easeInOut(duration: 0.2)) { clavierVisible = false }
+            withAnimation(.easeInOut(duration: 0.2)) { keyboardVisible = false }
         }
         .onAppear { vm.charger() }
-        .onDisappear { vm.sauvegarderTitre(); onDisparaitre?() }
-        .sheet(isPresented: $showingBlocPicker) {
-            BlocPickerSheet { type in vm.addBlock(type: type, apresId: vm.idBlocActif) }
+        .onDisappear { vm.saveTitle(); onDisappear?() }
+        .sheet(isPresented: $showingBlockPicker) {
+            BlockPickerSheet { type in vm.addBlock(type: type, afterId: vm.activeBlockId) }
         }
         .alert("Erreur", isPresented: Binding(
-            get: { vm.erreur != nil },
-            set: { if !$0 { vm.erreur = nil } }
+            get: { vm.errorMessage != nil },
+            set: { if !$0 { vm.errorMessage = nil } }
         )) {
-            Button("OK") { vm.erreur = nil }
+            Button("OK") { vm.errorMessage = nil }
         } message: {
-            Text(vm.erreur ?? "")
+            Text(vm.errorMessage ?? "")
         }
 
-        if !documentVerrouille && editMode == .inactive && !clavierVisible {
-            FloatingButton(icon: "pencil.and.outline") { showingBlocPicker = true }
+        if !documentLocked && editMode == .inactive && !keyboardVisible {
+            FloatingButton(icon: "pencil.and.outline") { showingBlockPicker = true }
                 .padding(.trailing, 24)
                 .padding(.bottom, 32)
                 .transition(.scale.combined(with: .opacity))
@@ -556,52 +556,52 @@ struct DocumentView: View {
         } // fin ZStack
     }
 
-    private func boutonSelectionBloc(_ id: String) -> some View {
+    private func selectionButton(_ id: String) -> some View {
         Button {
             withAnimation(.easeInOut(duration: 0.15)) {
-                basculerSelectionBloc(id)
+                toggleSelection(id)
             }
         } label: {
-            Image(systemName: blocsSelectionnes.contains(id) ? "checkmark.circle.fill" : "circle")
+            Image(systemName: selectedBlocks.contains(id) ? "checkmark.circle.fill" : "circle")
                 .font(.title3)
-                .foregroundStyle(blocsSelectionnes.contains(id) ? Color("SelectionTint") : .secondary)
+                .foregroundStyle(selectedBlocks.contains(id) ? Color("SelectionTint") : .secondary)
                 .frame(width: 28, height: 44)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
 
-    private func basculerSelectionBloc(_ id: String) {
-        if blocsSelectionnes.contains(id) {
-            blocsSelectionnes.remove(id)
+    private func toggleSelection(_ id: String) {
+        if selectedBlocks.contains(id) {
+            selectedBlocks.remove(id)
         } else {
-            blocsSelectionnes.insert(id)
+            selectedBlocks.insert(id)
         }
     }
 
-    private func selectionnerBlocDepuisPressionLongue(_ id: String) {
-        guard !documentVerrouille else { return }
+    private func selectFromLongPress(_ id: String) {
+        guard !documentLocked else { return }
         withAnimation(.easeInOut(duration: 0.18)) {
             editMode = .active
-            blocsSelectionnes.insert(id)
-            focusTitre = false
-            vm.stopNavRepetition()
+            selectedBlocks.insert(id)
+            focusTitle = false
+            vm.stopNavigationRepeat()
         }
     }
 
     private func deleteBlocksSelectionnes() {
-        let ids = blocsSelectionnes
+        let ids = selectedBlocks
         withAnimation(.easeInOut(duration: 0.18)) {
-            blocsSelectionnes.removeAll()
+            selectedBlocks.removeAll()
             vm.deleteBlocks(ids: ids)
         }
     }
 
-    private static func cleVerrouillage(docId: String) -> String {
+    private static func lockKeyFor(docId: String) -> String {
         "document.locked.\(docId)"
     }
 
-    private static func cleIcone(docId: String) -> String {
+    private static func iconKeyFor(docId: String) -> String {
         "document.icon.\(docId)"
     }
 
@@ -610,9 +610,9 @@ struct DocumentView: View {
 // ── Cover + icône ─────────────────────────────────────────────────────────────
 
 private struct DocumentDecorView: View {
-    let couverture: String?
+    let cover: String?
     let icone: String?
-    let emojisRecents: [String]
+    let recentEmojis: [String]
     let verrouille: Bool
     let onCouverture: (String?) -> Void
     let onImageData: (Data) -> Void
@@ -635,8 +635,8 @@ private struct DocumentDecorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let couverture {
-                cover(couverture)
+            if let coverId = cover {
+                cover(coverId)
                     .containerRelativeFrame(.horizontal)
                     .frame(height: 220)
                     .clipped()
@@ -659,8 +659,8 @@ private struct DocumentDecorView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 20)
-                .padding(.top, couverture == nil && icone == nil ? 12 : 50)
-            } else if couverture != nil {
+                .padding(.top, cover == nil && icone == nil ? 12 : 50)
+            } else if cover != nil {
                 Color.clear.frame(height: 50)
             }
         }
@@ -683,7 +683,7 @@ private struct DocumentDecorView: View {
             }
         }
         .sheet(isPresented: $emojiPickerOuvert) {
-            EmojiPickerSheet(selection: icone, recents: emojisRecents) { emoji in
+            EmojiPickerSheet(selection: icone, recents: recentEmojis) { emoji in
                 onIcone(emoji)
             }
         }
@@ -706,7 +706,7 @@ private struct DocumentDecorView: View {
         Menu {
             coverMenuContenu
         } label: {
-            Label(couverture == nil ? "Ajouter une couverture" : "Changer la couverture", systemImage: "photo")
+            Label(cover == nil ? "Ajouter une cover" : "Changer la cover", systemImage: "photo")
         }
     }
 
@@ -734,10 +734,10 @@ private struct DocumentDecorView: View {
         ForEach(covers, id: \.0) { id, nom in
             Button(nom) { onCouverture(id) }
         }
-        if couverture != nil {
+        if cover != nil {
             Divider()
             Button(role: .destructive) { onCouverture(nil) } label: {
-                Label("Retirer la couverture", systemImage: "trash")
+                Label("Retirer la cover", systemImage: "trash")
             }
         }
     }
@@ -763,7 +763,7 @@ private struct DocumentDecorView: View {
 
     @ViewBuilder
     private func cover(_ id: String) -> some View {
-        if let image = imageCouverture(id) {
+        if let image = coverImage(id) {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()
@@ -794,10 +794,10 @@ private struct DocumentDecorView: View {
         }
     }
 
-    private func imageCouverture(_ id: String) -> UIImage? {
+    private func coverImage(_ id: String) -> UIImage? {
         if !id.hasPrefix("file://") && !id.hasPrefix("cover.") {
-            guard let dossier = try? DocumentViewModel.dossierCouvertures() else { return nil }
-            return UIImage(contentsOfFile: dossier.appendingPathComponent(id).path)
+            guard let directory = try? DocumentViewModel.coversDirectory() else { return nil }
+            return UIImage(contentsOfFile: directory.appendingPathComponent(id).path)
         }
         guard let url = URL(string: id), url.isFileURL else { return nil }
         return UIImage(contentsOfFile: url.path)
@@ -921,16 +921,16 @@ private struct EmojiPickerSheet: View {
 
 // ── Titre du document ─────────────────────────────────────────────────────────
 
-private struct TitreDocView: View {
-    @Binding var titre: String
+private struct DocumentTitleView: View {
+    @Binding var title: String
     @Binding var focusDemande: Bool
-    let onSauvegarder: () -> Void
-    let onNouveauBloc: () -> Void
+    let onSave: () -> Void
+    let onNewBlock: () -> Void
     @State private var focused = false
 
     var body: some View {
-        TitreSaisie(texte: $titre, isFocused: $focused,
-                    onSauvegarder: onSauvegarder, onNouveauBloc: onNouveauBloc)
+        TitleEditor(texte: $title, isFocused: $focused,
+                    onSave: onSave, onNewBlock: onNewBlock)
             .onChange(of: focusDemande) { _, demande in
                 if demande {
                     focusDemande = false
@@ -940,12 +940,12 @@ private struct TitreDocView: View {
     }
 }
 
-private struct TitreSaisie: UIViewRepresentable {
+private struct TitleEditor: UIViewRepresentable {
     @Binding var texte: String
     @Binding var isFocused: Bool
     @Environment(\.isEnabled) private var isEnabled
-    let onSauvegarder: () -> Void
-    let onNouveauBloc: () -> Void
+    let onSave: () -> Void
+    let onNewBlock: () -> Void
 
     private let police = UIFont.systemFont(ofSize: 32, weight: .bold)
 
@@ -976,7 +976,7 @@ private struct TitreSaisie: UIViewRepresentable {
             tv.resignFirstResponder()
             DispatchQueue.main.async { isFocused = false }
         }
-        if !context.coordinator.enEdition {
+        if !context.coordinator.isEditing {
             tv.attributedText = texte.isEmpty
                 ? context.coordinator.placeholderAttr()
                 : NSAttributedString(string: texte, attributes: [.font: police, .foregroundColor: UIColor.label])
@@ -994,11 +994,11 @@ private struct TitreSaisie: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
     final class Coordinator: NSObject, UITextViewDelegate {
-        var parent: TitreSaisie
+        var parent: TitleEditor
         weak var tv: ExpandingTextView?
-        var enEdition = false
+        var isEditing = false
 
-        init(parent: TitreSaisie) { self.parent = parent }
+        init(parent: TitleEditor) { self.parent = parent }
 
         func placeholderAttr() -> NSAttributedString {
             NSAttributedString(string: "Sans titre",
@@ -1006,7 +1006,7 @@ private struct TitreSaisie: UIViewRepresentable {
         }
 
         func textViewDidBeginEditing(_ tv: UITextView) {
-            enEdition = true
+            isEditing = true
             parent.isFocused = true
             if tv.textColor == .tertiaryLabel {
                 tv.attributedText = NSAttributedString(string: "",
@@ -1016,10 +1016,10 @@ private struct TitreSaisie: UIViewRepresentable {
         }
 
         func textViewDidEndEditing(_ tv: UITextView) {
-            enEdition = false
+            isEditing = false
             parent.isFocused = false
             parent.texte = tv.text ?? ""
-            parent.onSauvegarder()
+            parent.onSave()
             if parent.texte.isEmpty { tv.attributedText = placeholderAttr() }
         }
 
@@ -1028,8 +1028,8 @@ private struct TitreSaisie: UIViewRepresentable {
             if let idx = texte.firstIndex(of: "\n") {
                 tv.text = String(texte[texte.startIndex..<idx])
                 parent.texte = tv.text
-                parent.onSauvegarder()
-                parent.onNouveauBloc()
+                parent.onSave()
+                parent.onNewBlock()
                 return
             }
             parent.texte = texte
@@ -1039,8 +1039,8 @@ private struct TitreSaisie: UIViewRepresentable {
 
 // ── État vide cliquable ───────────────────────────────────────────────────────
 
-private struct EtatVideSaisie: View {
-    let onCommencer: () -> Void
+private struct EmptyEditorState: View {
+    let onBegin: () -> Void
     @State private var focused = false
 
     var body: some View {
@@ -1050,95 +1050,95 @@ private struct EtatVideSaisie: View {
             placeholder: "Commence à écrire…",
             onSave: nil,
             onNewBlock: nil,
-            onSupprimerBloc: nil,
+            onDeleteBloc: nil,
             onConvert: nil
         )
         .onChange(of: focused) { _, estFocus in
-            if estFocus { onCommencer() }
+            if estFocus { onBegin() }
         }
     }
 }
 
-// ── Callbacks d'édition d'un bloc ─────────────────────────────────────────────
-// Regroupe les closures partagées par tous les types de blocs pour éviter de les
-// répéter dans chaque RowView et dans BlocRowView.
+// ── Callbacks d'édition d'un block ─────────────────────────────────────────────
+// Regroupe les closures partagées par tous les types de blocks pour éviter de les
+// répéter dans chaque RowView et dans BlockRowView.
 
-struct BlocCallbacks {
-    var onSauvegarder: () -> Void
-    var onSauvegarderSpans: ([InlineTextFfi]) -> Void
-    var onSupprimer: () -> Void
-    var onNouveauBloc: ([InlineTextFfi]) -> Void
-    var onFusionner: (([InlineTextFfi]) -> Void)? = nil
-    var onNaviguerPrecedent: (() -> Void)? = nil
-    var onNaviguerSuivant: (() -> Void)? = nil
-    var onNavRepeterArreter: (() -> Void)? = nil
+struct BlockCallbacks {
+    var onSave: () -> Void
+    var onSaveSpans: ([InlineTextFfi]) -> Void
+    var onDelete: () -> Void
+    var onNewBlock: ([InlineTextFfi]) -> Void
+    var onMerge: (([InlineTextFfi]) -> Void)? = nil
+    var onNavigatePrevious: (() -> Void)? = nil
+    var onNavigateNext: (() -> Void)? = nil
+    var onStopNavigationRepeat: (() -> Void)? = nil
     var onLongPressSelection: (() -> Void)? = nil
     var onFocus: (() -> Void)? = nil
 }
 
-// ── Éditeur de texte commun à tous les blocs ──────────────────────────────────
+// ── Éditeur de texte commun à tous les blocks ──────────────────────────────────
 // Câblage unique du RichTextEditor + auto-focus + détection de focus. Chaque
 // RowView ne fournit que placeholder, fonte, décor et options spécifiques.
 
-private struct BlocTextEditor: View {
-    @Binding var bloc: EditableBlock
+private struct BlockTextEditor: View {
+    @Binding var block: EditableBlock
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     let placeholder: String
     let baseFont: UIFont
     var extraAttrs: [NSAttributedString.Key: Any]? = nil
     var convertible: Bool = true
-    let cb: BlocCallbacks
+    let cb: BlockCallbacks
     @State private var focused = false
     @State private var cursorAt: Int?
 
     var body: some View {
         RichTextEditor(
-            spans: $bloc.spans,
+            spans: $block.spans,
             isFocused: $focused,
             placeholder: placeholder,
             baseFont: baseFont,
             extraAttrs: extraAttrs,
             focusCursorAt: cursorAt,
-            onSave: cb.onSauvegarder,
-            onSaveSpans: cb.onSauvegarderSpans,
-            onNewBlock: cb.onNouveauBloc,
-            onSupprimerBloc: cb.onSupprimer,
-            onFusionnerAvecPrecedent: cb.onFusionner,
-            onConvert: convertible ? { contenu in bloc.content = contenu; bloc.spans = []; cb.onSauvegarder() } : nil,
+            onSave: cb.onSave,
+            onSaveSpans: cb.onSaveSpans,
+            onNewBlock: cb.onNewBlock,
+            onDeleteBloc: cb.onDelete,
+            onMergeAvecPrecedent: cb.onMerge,
+            onConvert: convertible ? { content in block.content = content; block.spans = []; cb.onSave() } : nil,
             onLongPressSelection: cb.onLongPressSelection,
-            onNaviguerPrecedent: cb.onNaviguerPrecedent,
-            onNaviguerSuivant: cb.onNaviguerSuivant,
-            onNavRepeterArreter: cb.onNavRepeterArreter)
-        .autoFocuserSiBesoin(blockId: bloc.id, autoFocusId: $autoFocusId,
+            onNavigatePrevious: cb.onNavigatePrevious,
+            onNavigateNext: cb.onNavigateNext,
+            onStopNavigationRepeat: cb.onStopNavigationRepeat)
+        .autoFocusIfNeeded(blockId: block.id, autoFocusId: $autoFocusId,
                               autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
         .onChange(of: focused) { _, f in if f { cb.onFocus?() } }
     }
 }
 
-// ── Ligne de bloc ─────────────────────────────────────────────────────────────
+// ── Ligne de block ─────────────────────────────────────────────────────────────
 
-private struct BlocRowView: View {
-    @Binding var bloc: EditableBlock
+private struct BlockRowView: View {
+    @Binding var block: EditableBlock
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let cb: BlocCallbacks
+    let cb: BlockCallbacks
 
     var body: some View {
         Group {
-            switch bloc.content {
+            switch block.content {
             case .text:
-                TexteRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
+                TextRowView(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
             case .heading(let level, _):
-                HeadingRowView(bloc: $bloc, level: level, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
+                HeadingRowView(block: $block, level: level, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
             case .quote(let icon, _):
                 if icon.isEmpty {
-                    CitationRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
+                    QuoteRowView(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
                 } else {
-                    CalloutRowView(bloc: $bloc, icon: icon, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
+                    CalloutRowView(block: $block, icon: icon, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
                 }
             case .todo:
-                TodoRowView(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
+                TodoRowView(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
             case .divider:
                 Divider().padding(.vertical, 12)
             default:
@@ -1146,7 +1146,7 @@ private struct BlocRowView: View {
             }
         }
         .contextMenu {
-            Button(role: .destructive, action: cb.onSupprimer) {
+            Button(role: .destructive, action: cb.onDelete) {
                 Label("Supprimer le bloc", systemImage: "trash")
             }
         }
@@ -1155,14 +1155,14 @@ private struct BlocRowView: View {
 
 // ── Texte ─────────────────────────────────────────────────────────────────────
 
-private struct TexteRowView: View {
-    @Binding var bloc: EditableBlock
+private struct TextRowView: View {
+    @Binding var block: EditableBlock
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let cb: BlocCallbacks
+    let cb: BlockCallbacks
 
     var body: some View {
-        BlocTextEditor(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
+        BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
                        placeholder: "Texte…", baseFont: .preferredFont(forTextStyle: .body), cb: cb)
     }
 }
@@ -1170,11 +1170,11 @@ private struct TexteRowView: View {
 // ── Heading ───────────────────────────────────────────────────────────────────
 
 private struct HeadingRowView: View {
-    @Binding var bloc: EditableBlock
+    @Binding var block: EditableBlock
     let level: Int
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let cb: BlocCallbacks
+    let cb: BlockCallbacks
 
     private var uiFont: UIFont {
         switch level {
@@ -1185,7 +1185,7 @@ private struct HeadingRowView: View {
     }
 
     var body: some View {
-        BlocTextEditor(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
+        BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
                        placeholder: "Titre…", baseFont: uiFont, cb: cb)
             .padding(.top, level == 1 ? 16 : 10)
             .padding(.bottom, 4)
@@ -1194,11 +1194,11 @@ private struct HeadingRowView: View {
 
 // ── Citation ──────────────────────────────────────────────────────────────────
 
-private struct CitationRowView: View {
-    @Binding var bloc: EditableBlock
+private struct QuoteRowView: View {
+    @Binding var block: EditableBlock
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let cb: BlocCallbacks
+    let cb: BlockCallbacks
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
@@ -1206,8 +1206,8 @@ private struct CitationRowView: View {
                 .fill(Color.secondary.opacity(0.4))
                 .frame(width: 3)
                 .padding(.vertical, 6)
-            BlocTextEditor(
-                bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
+            BlockTextEditor(
+                block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
                 placeholder: "Citation…",
                 baseFont: .italicSystemFont(ofSize: UIFont.preferredFont(forTextStyle: .body).pointSize),
                 cb: cb)
@@ -1220,13 +1220,13 @@ private struct CitationRowView: View {
 // ── Callout ───────────────────────────────────────────────────────────────────
 
 private struct CalloutRowView: View {
-    @Binding var bloc: EditableBlock
+    @Binding var block: EditableBlock
     let icon: String
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let cb: BlocCallbacks
+    let cb: BlockCallbacks
     @State private var emojiPickerOuvert = false
-    @State private var emojisRecents = chargerEmojisRecents()
+    @State private var recentEmojis = loadRecentEmojis()
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
@@ -1241,7 +1241,7 @@ private struct CalloutRowView: View {
             .buttonStyle(.plain)
             .padding(.top, 8)
 
-            BlocTextEditor(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
+            BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
                            placeholder: "Callout…", baseFont: .preferredFont(forTextStyle: .body), cb: cb)
         }
         .padding(.horizontal, 18)
@@ -1256,10 +1256,10 @@ private struct CalloutRowView: View {
         )
         .padding(.vertical, 8)
         .sheet(isPresented: $emojiPickerOuvert) {
-            EmojiPickerSheet(selection: icon, recents: emojisRecents) { emoji in
-                bloc.content = .quote(icon: emoji, text: bloc.spans)
-                emojisRecents = enregistrerEmojiRecent(emoji)
-                cb.onSauvegarder()
+            EmojiPickerSheet(selection: icon, recents: recentEmojis) { emoji in
+                block.content = .quote(icon: emoji, text: block.spans)
+                recentEmojis = saveRecentEmoji(emoji)
+                cb.onSave()
             }
         }
     }
@@ -1268,13 +1268,13 @@ private struct CalloutRowView: View {
 // ── Todo ──────────────────────────────────────────────────────────────────────
 
 private struct TodoRowView: View {
-    @Binding var bloc: EditableBlock
+    @Binding var block: EditableBlock
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let cb: BlocCallbacks
+    let cb: BlockCallbacks
 
-    private var attrsCoche: [NSAttributedString.Key: Any]? {
-        bloc.done ? [
+    private var checkedAttrs: [NSAttributedString.Key: Any]? {
+        block.done ? [
             .strikethroughStyle: NSUnderlineStyle.single.rawValue,
             .foregroundColor: UIColor.secondaryLabel
         ] : nil
@@ -1283,19 +1283,19 @@ private struct TodoRowView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Button {
-                bloc.done.toggle()
-                cb.onSauvegarder()
+                block.done.toggle()
+                cb.onSave()
             } label: {
-                Image(systemName: bloc.done ? "checkmark.square.fill" : "square")
+                Image(systemName: block.done ? "checkmark.square.fill" : "square")
                     .font(.body)
-                    .foregroundStyle(bloc.done ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(block.done ? Color.accentColor : Color.secondary)
             }
             .buttonStyle(.plain)
             .padding(.top, 8)
 
-            BlocTextEditor(bloc: $bloc, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
+            BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
                            placeholder: "À faire…", baseFont: .preferredFont(forTextStyle: .body),
-                           extraAttrs: attrsCoche, convertible: false, cb: cb)
+                           extraAttrs: checkedAttrs, convertible: false, cb: cb)
         }
         .padding(.vertical, 2)
     }
@@ -1303,7 +1303,7 @@ private struct TodoRowView: View {
 
 // ── Bouton ajouter ────────────────────────────────────────────────────────────
 
-private struct BoutonAjouterBloc: View {
+private struct AddBlockButton: View {
     let action: () -> Void
     var body: some View {
         Button(action: action) {
@@ -1321,13 +1321,13 @@ private struct BoutonAjouterBloc: View {
 
 // ── Sélecteur de type ─────────────────────────────────────────────────────────
 
-private struct BlocPickerSheet: View {
-    let onSelect: (TypeBlocNouvel) -> Void
+private struct BlockPickerSheet: View {
+    let onSelect: (NewBlockType) -> Void
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            List(TypeBlocNouvel.allCases) { type in
+            List(NewBlockType.allCases) { type in
                 Button {
                     onSelect(type)
                     dismiss()
