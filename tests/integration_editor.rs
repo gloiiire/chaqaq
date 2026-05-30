@@ -21,7 +21,7 @@ fn test_sequence_insertion() {
         hist.appliquer(Box::new(Inserer::nouveau(i, ch)), &mut etat);
     }
 
-    assert_eq!(etat.texte.contenu(), "bonjour");
+    assert_eq!(etat.texte.content(), "bonjour");
     assert_eq!(etat.curseur, 7);
 }
 
@@ -36,13 +36,13 @@ fn test_undo_redo_multiple() {
 
     hist.annuler(&mut etat);
     hist.annuler(&mut etat);
-    assert_eq!(etat.texte.contenu(), "a");
+    assert_eq!(etat.texte.content(), "a");
 
     hist.refaire(&mut etat);
-    assert_eq!(etat.texte.contenu(), "ab");
+    assert_eq!(etat.texte.content(), "ab");
 
     hist.refaire(&mut etat);
-    assert_eq!(etat.texte.contenu(), "abc");
+    assert_eq!(etat.texte.content(), "abc");
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn test_style_et_edition_combinees() {
 
     // insérer un caractère dans la zone en gras
     hist.appliquer(Box::new(Inserer::nouveau(2, '!')), &mut etat);
-    assert_eq!(etat.texte.contenu(), "he!llo world");
+    assert_eq!(etat.texte.content(), "he!llo world");
 
     // le span gras doit s'être étendu
     let retour: Vec<InlineText> = Vec::from(&etat.texte);
@@ -82,10 +82,10 @@ fn test_supprimer_dans_texte_style() {
     // supprime le 'g' de "gras" (position 6)
     let cmd = Supprimer::nouveau(&etat, 6).unwrap();
     hist.appliquer(Box::new(cmd), &mut etat);
-    assert_eq!(etat.texte.contenu(), "avant ras");
+    assert_eq!(etat.texte.content(), "avant ras");
 
     hist.annuler(&mut etat);
-    assert_eq!(etat.texte.contenu(), "avant gras");
+    assert_eq!(etat.texte.content(), "avant gras");
 
     let retour: Vec<InlineText> = Vec::from(&etat.texte);
     assert_eq!(retour[1].styles, vec![InlineStyle::Bold]);

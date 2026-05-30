@@ -32,12 +32,12 @@ impl DatabaseRepository for SqliteDatabaseStore {
         let conn = self.conn.lock().unwrap();
         let data = serde_json::to_string(db)?;
         let title_text: String = db
-            .titre
+            .title
             .iter()
             .map(|i| i.content.as_str())
             .collect::<Vec<_>>()
             .join("");
-        let title_json = serde_json::to_string(&db.titre)?;
+        let title_json = serde_json::to_string(&db.title)?;
         let now = chrono::Utc::now().to_rfc3339();
         conn.execute(
             "INSERT INTO databases (id, title_text, title_json, updated_at, created_at, data)
@@ -63,7 +63,7 @@ impl DatabaseRepository for SqliteDatabaseStore {
         );
         match result {
             Ok(data) => Ok(serde_json::from_str(&data)?),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Err(ChaqaqError::NonTrouve(id)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Err(ChaqaqError::NotFound(id)),
             Err(e) => Err(ChaqaqError::Db(e.to_string())),
         }
     }
@@ -88,11 +88,11 @@ impl DatabaseRepository for SqliteDatabaseStore {
             let (id_str, title_json, updated_at, created_at) =
                 row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
             let id = Uuid::parse_str(&id_str)
-                .map_err(|_| ChaqaqError::OperationInvalide(format!("UUID invalide : {id_str}")))?;
-            let titre: Vec<InlineText> = serde_json::from_str(&title_json)?;
+                .map_err(|_| ChaqaqError::InvalidOperation(format!("UUID invalide : {id_str}")))?;
+            let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
             metas.push(DatabaseMeta {
                 id,
-                titre,
+                title,
                 updated_at,
                 created_at,
             });
@@ -109,7 +109,7 @@ impl DatabaseRepository for SqliteDatabaseStore {
             )
             .map_err(|e| ChaqaqError::Db(e.to_string()))?;
         if modifies == 0 {
-            return Err(ChaqaqError::NonTrouve(id));
+            return Err(ChaqaqError::NotFound(id));
         }
         Ok(())
     }
@@ -124,7 +124,7 @@ mod tests {
         SqliteDatabaseStore::en_memoire().unwrap()
     }
 
-    fn titre(s: &str) -> Vec<InlineText> {
+    fn title(s: &str) -> Vec<InlineText> {
         vec![InlineText {
             content: s.to_string(),
             styles: vec![],
@@ -132,7 +132,7 @@ mod tests {
     }
 
     fn db(nom: &str) -> Database {
-        Database::nouvelle(titre(nom), vec![])
+        Database::nouvelle(title(nom), vec![])
     }
 
     #[test]
@@ -142,7 +142,7 @@ mod tests {
         store.save(&d).unwrap();
         let chargee = store.load(d.id).unwrap();
         assert_eq!(chargee.id, d.id);
-        assert_eq!(chargee.titre, d.titre);
+        assert_eq!(chargee.title, d.title);
     }
 
     #[test]
@@ -150,7 +150,7 @@ mod tests {
         let store = store();
         assert!(matches!(
             store.load(Uuid::new_v4()),
-            Err(ChaqaqError::NonTrouve(_))
+            Err(ChaqaqError::NotFound(_))
         ));
     }
 
@@ -169,7 +169,7 @@ mod tests {
         store.save(&d).unwrap();
         store.delete(d.id).unwrap();
         assert!(store.list_meta().unwrap().is_empty());
-        assert!(matches!(store.load(d.id), Err(ChaqaqError::NonTrouve(_))));
+        assert!(matches!(store.load(d.id), Err(ChaqaqError::NotFound(_))));
     }
 
     #[test]
@@ -177,7 +177,7 @@ mod tests {
         let store = store();
         assert!(matches!(
             store.delete(Uuid::new_v4()),
-            Err(ChaqaqError::NonTrouve(_))
+            Err(ChaqaqError::NotFound(_))
         ));
     }
 
@@ -186,10 +186,10 @@ mod tests {
         let store = store();
         let mut d = db("Ancien");
         store.save(&d).unwrap();
-        d.titre = titre("Nouveau");
+        d.title = title("Nouveau");
         store.save(&d).unwrap();
         let chargee = store.load(d.id).unwrap();
-        assert_eq!(chargee.titre[0].content, "Nouveau");
+        assert_eq!(chargee.title[0].content, "Nouveau");
     }
 
     #[test]
@@ -239,12 +239,12 @@ mod tests {
         use std::collections::HashMap;
         let prop = Propriete::nouvelle("Nom", ProprieteType::Texte);
         let prop_id = prop.id;
-        let mut d = Database::nouvelle(titre("DB riche"), vec![prop]);
+        let mut d = Database::nouvelle(title("DB riche"), vec![prop]);
         let mut valeurs = HashMap::new();
         valeurs.insert(prop_id, ValeurPropriete::Texte("entrée test".to_string()));
         d.entrees.push(Entree::nouvelle(valeurs));
         store.save(&d).unwrap();
         let metas = store.list_meta().unwrap();
-        assert_eq!(metas[0].titre[0].content, "DB riche");
+        assert_eq!(metas[0].title[0].content, "DB riche");
     }
 }

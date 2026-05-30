@@ -1,7 +1,7 @@
-/// Flux complet : création d'un document → édition du titre avec l'éditeur
+/// Flux complet : création d'un document → édition du title avec l'éditeur
 /// → sauvegarde → rechargement → vérification.
 use chaqaq::application::repository::DocumentRepository;
-use chaqaq::application::use_cases::{creer_document, obtenir_document};
+use chaqaq::application::use_cases::{create_document, get_document};
 use chaqaq::domain::commandes::{AppliquerStyle, Historique, Inserer};
 use chaqaq::domain::document::InlineStyle;
 use chaqaq::domain::editor::EditorState;
@@ -17,25 +17,25 @@ fn store_temp() -> (JsonStore, PathBuf) {
 }
 
 #[test]
-fn test_editer_titre_puis_sauvegarder() {
+fn test_editer_title_puis_sauvegarder() {
     let (store, dir) = store_temp();
 
     // création du document
-    let mut doc = creer_document(&store, "Titre").unwrap();
+    let mut doc = create_document(&store, "Titre").unwrap();
 
-    // édition du titre via l'éditeur
+    // édition du title via l'éditeur
     let mut etat = EditorState::nouveau(RichText::from(&doc.title));
     let mut hist = Historique::default();
 
     hist.appliquer(Box::new(Inserer::nouveau(5, '!')), &mut etat);
-    assert_eq!(etat.texte.contenu(), "Titre!");
+    assert_eq!(etat.texte.content(), "Titre!");
 
-    // on réécrit le titre dans le document et on sauvegarde
+    // on réécrit le title dans le document et on sauvegarde
     doc.title = Vec::from(&etat.texte);
     store.save(&doc).unwrap();
 
     // rechargement et vérification
-    let recharge = obtenir_document(&store, doc.id).unwrap();
+    let recharge = get_document(&store, doc.id).unwrap();
     assert_eq!(recharge.title[0].content, "Titre!");
 
     std::fs::remove_dir_all(dir).unwrap();
@@ -45,7 +45,7 @@ fn test_editer_titre_puis_sauvegarder() {
 fn test_style_persisté_apres_sauvegarde() {
     let (store, dir) = store_temp();
 
-    let mut doc = creer_document(&store, "Notes").unwrap();
+    let mut doc = create_document(&store, "Notes").unwrap();
 
     let mut etat = EditorState::nouveau(RichText::from(&doc.title));
     let mut hist = Historique::default();
@@ -58,7 +58,7 @@ fn test_style_persisté_apres_sauvegarde() {
     doc.title = Vec::from(&etat.texte);
     store.save(&doc).unwrap();
 
-    let recharge = obtenir_document(&store, doc.id).unwrap();
+    let recharge = get_document(&store, doc.id).unwrap();
     assert!(
         recharge
             .title
@@ -73,22 +73,22 @@ fn test_style_persisté_apres_sauvegarde() {
 fn test_undo_avant_sauvegarde() {
     let (store, dir) = store_temp();
 
-    let mut doc = creer_document(&store, "Brouillon").unwrap();
+    let mut doc = create_document(&store, "Brouillon").unwrap();
 
     let mut etat = EditorState::nouveau(RichText::from(&doc.title));
     let mut hist = Historique::default();
 
     hist.appliquer(Box::new(Inserer::nouveau(9, 'X')), &mut etat);
-    assert_eq!(etat.texte.contenu(), "BrouillonX");
+    assert_eq!(etat.texte.content(), "BrouillonX");
 
     hist.annuler(&mut etat);
-    assert_eq!(etat.texte.contenu(), "Brouillon");
+    assert_eq!(etat.texte.content(), "Brouillon");
 
     // sauvegarde de l'état après undo
     doc.title = Vec::from(&etat.texte);
     store.save(&doc).unwrap();
 
-    let recharge = obtenir_document(&store, doc.id).unwrap();
+    let recharge = get_document(&store, doc.id).unwrap();
     assert_eq!(recharge.title[0].content, "Brouillon");
 
     std::fs::remove_dir_all(dir).unwrap();

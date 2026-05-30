@@ -1,8 +1,8 @@
 use chaqaq::application::database_use_cases::{
-    creer_database, obtenir_database, supprimer_database,
+    create_database, get_database, delete_database,
 };
 use chaqaq::application::error::ChaqaqError;
-use chaqaq::application::use_cases::{creer_document, obtenir_document, supprimer_document};
+use chaqaq::application::use_cases::{create_document, get_document, delete_document};
 use chaqaq::domain::database::{Propriete, ProprieteType};
 use chaqaq::domain::document::InlineText;
 use chaqaq::infrastructure::database_store::DatabaseStore;
@@ -27,83 +27,83 @@ fn inlines(s: &str) -> Vec<InlineText> {
     }]
 }
 
-// ── supprimer_document ────────────────────────────────────────────────────────
+// ── delete_document ────────────────────────────────────────────────────────
 
 #[test]
-fn test_supprimer_document_existant() {
+fn test_delete_document_existant() {
     let store = doc_store_temp();
-    let doc = creer_document(&store, "À supprimer").unwrap();
+    let doc = create_document(&store, "À supprimer").unwrap();
     let id = doc.id;
 
-    supprimer_document(&store, id).unwrap();
+    delete_document(&store, id).unwrap();
 
     assert!(matches!(
-        obtenir_document(&store, id),
-        Err(ChaqaqError::NonTrouve(_))
+        get_document(&store, id),
+        Err(ChaqaqError::NotFound(_))
     ));
 }
 
 #[test]
-fn test_supprimer_document_inexistant_retourne_non_trouve() {
+fn test_delete_document_inexistant_retourne_non_trouve() {
     let store = doc_store_temp();
     let faux_id = Uuid::new_v4();
 
-    let result = supprimer_document(&store, faux_id);
-    assert!(matches!(result, Err(ChaqaqError::NonTrouve(_))));
+    let result = delete_document(&store, faux_id);
+    assert!(matches!(result, Err(ChaqaqError::NotFound(_))));
 }
 
 #[test]
-fn test_supprimer_document_ne_supprime_pas_les_autres() {
+fn test_delete_document_ne_supprime_pas_les_autres() {
     let store = doc_store_temp();
-    let doc_a = creer_document(&store, "A").unwrap();
-    let doc_b = creer_document(&store, "B").unwrap();
+    let doc_a = create_document(&store, "A").unwrap();
+    let doc_b = create_document(&store, "B").unwrap();
 
-    supprimer_document(&store, doc_a.id).unwrap();
+    delete_document(&store, doc_a.id).unwrap();
 
     assert!(matches!(
-        obtenir_document(&store, doc_a.id),
-        Err(ChaqaqError::NonTrouve(_))
+        get_document(&store, doc_a.id),
+        Err(ChaqaqError::NotFound(_))
     ));
-    assert!(obtenir_document(&store, doc_b.id).is_ok());
+    assert!(get_document(&store, doc_b.id).is_ok());
 }
 
-// ── supprimer_database ────────────────────────────────────────────────────────
+// ── delete_database ────────────────────────────────────────────────────────
 
 #[test]
-fn test_supprimer_database_existante() {
+fn test_delete_database_existante() {
     let store = db_store_temp();
     let prop = Propriete::nouvelle("Titre", ProprieteType::Titre);
-    let db = creer_database(&store, inlines("À supprimer"), vec![prop]).unwrap();
+    let db = create_database(&store, inlines("À supprimer"), vec![prop]).unwrap();
     let id = db.id;
 
-    supprimer_database(&store, id).unwrap();
+    delete_database(&store, id).unwrap();
 
     assert!(matches!(
-        obtenir_database(&store, id),
-        Err(ChaqaqError::NonTrouve(_))
+        get_database(&store, id),
+        Err(ChaqaqError::NotFound(_))
     ));
 }
 
 #[test]
-fn test_supprimer_database_inexistante_retourne_non_trouve() {
+fn test_delete_database_inexistante_retourne_non_trouve() {
     let store = db_store_temp();
     let faux_id = Uuid::new_v4();
 
-    let result = supprimer_database(&store, faux_id);
-    assert!(matches!(result, Err(ChaqaqError::NonTrouve(_))));
+    let result = delete_database(&store, faux_id);
+    assert!(matches!(result, Err(ChaqaqError::NotFound(_))));
 }
 
 #[test]
-fn test_supprimer_database_ne_supprime_pas_les_autres() {
+fn test_delete_database_ne_supprime_pas_les_autres() {
     let store = db_store_temp();
-    let db_a = creer_database(&store, inlines("A"), vec![]).unwrap();
-    let db_b = creer_database(&store, inlines("B"), vec![]).unwrap();
+    let db_a = create_database(&store, inlines("A"), vec![]).unwrap();
+    let db_b = create_database(&store, inlines("B"), vec![]).unwrap();
 
-    supprimer_database(&store, db_a.id).unwrap();
+    delete_database(&store, db_a.id).unwrap();
 
     assert!(matches!(
-        obtenir_database(&store, db_a.id),
-        Err(ChaqaqError::NonTrouve(_))
+        get_database(&store, db_a.id),
+        Err(ChaqaqError::NotFound(_))
     ));
-    assert!(obtenir_database(&store, db_b.id).is_ok());
+    assert!(get_database(&store, db_b.id).is_ok());
 }

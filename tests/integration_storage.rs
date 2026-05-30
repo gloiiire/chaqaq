@@ -63,7 +63,7 @@ fn test_load_document_inexistant() {
     let store = JsonStore::new(dir.clone());
 
     let result = store.load(Uuid::new_v4());
-    assert!(matches!(result, Err(ChaqaqError::NonTrouve(_))));
+    assert!(matches!(result, Err(ChaqaqError::NotFound(_))));
 
     std::fs::remove_dir_all(dir).unwrap();
 }
@@ -76,7 +76,7 @@ fn test_save_ecrase_la_version_precedente() {
     let mut doc = Document::new(parse_inline("Titre initial"));
     store.save(&doc).unwrap();
 
-    // on modifie le titre en mémoire et on re-sauvegarde
+    // on modifie le title en mémoire et on re-sauvegarde
     doc.title = parse_inline("Titre modifié");
     store.save(&doc).unwrap();
 

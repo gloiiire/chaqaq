@@ -3,8 +3,8 @@ use uuid::Uuid;
 
 #[derive(Debug)]
 pub enum ChaqaqError {
-    NonTrouve(Uuid),
-    OperationInvalide(String),
+    NotFound(Uuid),
+    InvalidOperation(String),
     Io(std::io::Error),
     Json(serde_json::Error),
     /// Erreur base de données — message converti pour ne pas coupler
@@ -15,8 +15,8 @@ pub enum ChaqaqError {
 impl fmt::Display for ChaqaqError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ChaqaqError::NonTrouve(id) => write!(f, "ressource introuvable : {id}"),
-            ChaqaqError::OperationInvalide(msg) => write!(f, "opération invalide : {msg}"),
+            ChaqaqError::NotFound(id) => write!(f, "ressource introuvable : {id}"),
+            ChaqaqError::InvalidOperation(msg) => write!(f, "opération invalide : {msg}"),
             ChaqaqError::Io(e) => write!(f, "erreur I/O : {e}"),
             ChaqaqError::Json(e) => write!(f, "erreur JSON : {e}"),
             ChaqaqError::Db(msg) => write!(f, "erreur base de données : {msg}"),
@@ -29,8 +29,8 @@ impl std::error::Error for ChaqaqError {
         match self {
             ChaqaqError::Io(e) => Some(e),
             ChaqaqError::Json(e) => Some(e),
-            ChaqaqError::NonTrouve(_) => None,
-            ChaqaqError::OperationInvalide(_) => None,
+            ChaqaqError::NotFound(_) => None,
+            ChaqaqError::InvalidOperation(_) => None,
             ChaqaqError::Db(_) => None,
         }
     }
@@ -57,7 +57,7 @@ mod tests {
     #[test]
     fn test_display_non_trouve() {
         let id = Uuid::new_v4();
-        let msg = ChaqaqError::NonTrouve(id).to_string();
+        let msg = ChaqaqError::NotFound(id).to_string();
         assert!(msg.contains("introuvable"));
         assert!(msg.contains(&id.to_string()));
     }
@@ -96,20 +96,20 @@ mod tests {
 
     #[test]
     fn test_source_non_trouve_est_none() {
-        let err = ChaqaqError::NonTrouve(Uuid::new_v4());
+        let err = ChaqaqError::NotFound(Uuid::new_v4());
         assert!(err.source().is_none());
     }
 
     #[test]
     fn test_display_operation_invalide() {
-        let err = ChaqaqError::OperationInvalide("bloc non textuel".to_string());
+        let err = ChaqaqError::InvalidOperation("bloc non textuel".to_string());
         assert!(err.to_string().contains("invalide"));
         assert!(err.to_string().contains("bloc non textuel"));
     }
 
     #[test]
     fn test_source_operation_invalide_est_none() {
-        let err = ChaqaqError::OperationInvalide("x".to_string());
+        let err = ChaqaqError::InvalidOperation("x".to_string());
         assert!(err.source().is_none());
     }
 }

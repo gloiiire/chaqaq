@@ -40,7 +40,7 @@ pub struct Supprimer {
 
 impl Supprimer {
     pub fn nouveau(etat: &EditorState, pos: usize) -> Option<Self> {
-        let ch = etat.texte.contenu().chars().nth(pos)?;
+        let ch = etat.texte.content().chars().nth(pos)?;
         Some(Self { pos, ch })
     }
 }
@@ -166,11 +166,11 @@ mod tests {
         etat.curseur = 1;
 
         hist.appliquer(Box::new(Inserer::nouveau(1, 'b')), &mut etat);
-        assert_eq!(etat.texte.contenu(), "abc");
+        assert_eq!(etat.texte.content(), "abc");
         assert_eq!(etat.curseur, 2);
 
         hist.annuler(&mut etat);
-        assert_eq!(etat.texte.contenu(), "ac");
+        assert_eq!(etat.texte.content(), "ac");
         assert_eq!(etat.curseur, 1);
     }
 
@@ -181,10 +181,10 @@ mod tests {
 
         let cmd = Supprimer::nouveau(&etat, 1).unwrap();
         hist.appliquer(Box::new(cmd), &mut etat);
-        assert_eq!(etat.texte.contenu(), "ac");
+        assert_eq!(etat.texte.content(), "ac");
 
         hist.annuler(&mut etat);
-        assert_eq!(etat.texte.contenu(), "abc");
+        assert_eq!(etat.texte.content(), "abc");
         assert_eq!(etat.curseur, 2);
     }
 
@@ -210,14 +210,14 @@ mod tests {
 
         hist.appliquer(Box::new(Inserer::nouveau(0, 'a')), &mut etat);
         hist.appliquer(Box::new(Inserer::nouveau(1, 'b')), &mut etat);
-        assert_eq!(etat.texte.contenu(), "ab");
+        assert_eq!(etat.texte.content(), "ab");
 
         hist.annuler(&mut etat);
-        assert_eq!(etat.texte.contenu(), "a");
+        assert_eq!(etat.texte.content(), "a");
         assert!(hist.peut_refaire());
 
         hist.refaire(&mut etat);
-        assert_eq!(etat.texte.contenu(), "ab");
+        assert_eq!(etat.texte.content(), "ab");
         assert!(!hist.peut_refaire());
     }
 
@@ -232,7 +232,7 @@ mod tests {
 
         hist.appliquer(Box::new(Inserer::nouveau(1, 'c')), &mut etat); // nouvelle action
         assert!(!hist.peut_refaire()); // redo effacé
-        assert_eq!(etat.texte.contenu(), "ac");
+        assert_eq!(etat.texte.content(), "ac");
     }
 
     #[test]
@@ -256,7 +256,7 @@ mod tests {
         for (i, ch) in ['a', 'b', 'c', 'd', 'e'].iter().enumerate() {
             hist.appliquer(Box::new(Inserer::nouveau(i, *ch)), &mut etat);
         }
-        assert_eq!(etat.texte.contenu(), "abcde");
+        assert_eq!(etat.texte.content(), "abcde");
 
         // annule les 3 entrées conservées
         hist.annuler(&mut etat);
@@ -265,6 +265,6 @@ mod tests {
         assert!(!hist.peut_annuler());
 
         // les 2 premières (a, b) sont irrécupérables — le texte restant est "ab"
-        assert_eq!(etat.texte.contenu(), "ab");
+        assert_eq!(etat.texte.content(), "ab");
     }
 }

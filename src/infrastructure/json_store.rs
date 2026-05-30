@@ -26,7 +26,7 @@ impl DocumentRepository for JsonStore {
         let path = self.dir.join(format!("{}.json", id));
         let json = std::fs::read_to_string(&path).map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                ChaqaqError::NonTrouve(id)
+                ChaqaqError::NotFound(id)
             } else {
                 ChaqaqError::Io(e)
             }
@@ -47,7 +47,7 @@ impl DocumentRepository for JsonStore {
         let path = self.dir.join(format!("{}.json", id));
         std::fs::remove_file(&path).map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                ChaqaqError::NonTrouve(id)
+                ChaqaqError::NotFound(id)
             } else {
                 ChaqaqError::Io(e)
             }
@@ -68,9 +68,9 @@ mod tests {
         JsonStore::new(dir)
     }
 
-    fn doc(titre: &str) -> Document {
+    fn doc(title: &str) -> Document {
         Document::new(vec![InlineText {
-            content: titre.to_string(),
+            content: title.to_string(),
             styles: vec![],
         }])
     }
@@ -79,7 +79,7 @@ mod tests {
     fn test_load_retourne_non_trouve() {
         let store = JsonStore::new(PathBuf::from("/tmp/chaqaq_inexistant"));
         let id = Uuid::new_v4();
-        assert!(matches!(store.load(id), Err(ChaqaqError::NonTrouve(_))));
+        assert!(matches!(store.load(id), Err(ChaqaqError::NotFound(_))));
     }
 
     #[test]
@@ -88,13 +88,13 @@ mod tests {
         let d = doc("Test");
         store.save(&d).unwrap();
         store.delete(d.id).unwrap();
-        assert!(matches!(store.load(d.id), Err(ChaqaqError::NonTrouve(_))));
+        assert!(matches!(store.load(d.id), Err(ChaqaqError::NotFound(_))));
     }
 
     #[test]
     fn test_delete_inexistant_retourne_non_trouve() {
         let store = store_temp();
         let id = Uuid::new_v4();
-        assert!(matches!(store.delete(id), Err(ChaqaqError::NonTrouve(_))));
+        assert!(matches!(store.delete(id), Err(ChaqaqError::NotFound(_))));
     }
 }

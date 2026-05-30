@@ -1,9 +1,9 @@
 use chaqaq::application::database_use_cases::{
-    ajouter_entree, creer_database, lister_databases, obtenir_database, supprimer_database,
+    add_entry, create_database, list_databases, get_database, delete_database,
 };
 use chaqaq::application::error::ChaqaqError;
 use chaqaq::application::use_cases::{
-    ajouter_bloc, creer_document, lister_documents, obtenir_document, supprimer_document,
+    add_block, create_document, list_documents, get_document, delete_document,
 };
 use chaqaq::domain::database::{Propriete, ProprieteType, ValeurPropriete};
 use chaqaq::domain::document::{BlockContent, InlineText};
@@ -35,33 +35,33 @@ fn inlines(s: &str) -> Vec<InlineText> {
 fn test_flux_suppression_document() {
     let store = doc_store_temp();
 
-    let doc_a = creer_document(&store, "Projet Alpha").unwrap();
-    let doc_b = creer_document(&store, "Projet Beta").unwrap();
-    let doc_c = creer_document(&store, "Projet Gamma").unwrap();
+    let doc_a = create_document(&store, "Projet Alpha").unwrap();
+    let doc_b = create_document(&store, "Projet Beta").unwrap();
+    let doc_c = create_document(&store, "Projet Gamma").unwrap();
 
     // Ajoute des blocs à A pour s'assurer que supprimer A ne touche pas B/C
-    ajouter_bloc(
+    add_block(
         &store,
         doc_a.id,
         BlockContent::Text(inlines("Note interne")),
     )
     .unwrap();
 
-    supprimer_document(&store, doc_b.id).unwrap();
+    delete_document(&store, doc_b.id).unwrap();
 
     // B est inaccessible
     assert!(matches!(
-        obtenir_document(&store, doc_b.id),
-        Err(ChaqaqError::NonTrouve(_))
+        get_document(&store, doc_b.id),
+        Err(ChaqaqError::NotFound(_))
     ));
 
     // A et C sont intacts
-    let a = obtenir_document(&store, doc_a.id).unwrap();
+    let a = get_document(&store, doc_a.id).unwrap();
     assert_eq!(a.blocks.len(), 1);
-    assert!(obtenir_document(&store, doc_c.id).is_ok());
+    assert!(get_document(&store, doc_c.id).is_ok());
 
     // La liste ne contient plus B
-    let liste = lister_documents(&store).unwrap();
+    let liste = list_documents(&store).unwrap();
     assert_eq!(liste.len(), 2);
     assert!(!liste.iter().any(|m| m.id == doc_b.id));
 }
@@ -74,38 +74,38 @@ fn test_flux_suppression_database() {
     let prop = Propriete::nouvelle("Nom", ProprieteType::Texte);
     let prop_id = prop.id;
 
-    let db_a = creer_database(&store, inlines("Archive"), vec![prop]).unwrap();
-    let db_b = creer_database(&store, inlines("Active"), vec![]).unwrap();
+    let db_a = create_database(&store, inlines("Archive"), vec![prop]).unwrap();
+    let db_b = create_database(&store, inlines("Active"), vec![]).unwrap();
 
     // Ajoute une entrée à Archive
     let mut v = HashMap::new();
     v.insert(prop_id, ValeurPropriete::Texte("Ancienne note".to_string()));
-    ajouter_entree(&store, db_a.id, v).unwrap();
+    add_entry(&store, db_a.id, v).unwrap();
 
-    supprimer_database(&store, db_a.id).unwrap();
+    delete_database(&store, db_a.id).unwrap();
 
     // Archive est inaccessible
     assert!(matches!(
-        obtenir_database(&store, db_a.id),
-        Err(ChaqaqError::NonTrouve(_))
+        get_database(&store, db_a.id),
+        Err(ChaqaqError::NotFound(_))
     ));
 
     // Active reste intacte
-    assert!(obtenir_database(&store, db_b.id).is_ok());
+    assert!(get_database(&store, db_b.id).is_ok());
 
     // La liste ne contient plus Archive
-    let liste = lister_databases(&store).unwrap();
+    let liste = list_databases(&store).unwrap();
     assert_eq!(liste.len(), 1);
     assert_eq!(liste[0].id, db_b.id);
 }
 
-/// Double suppression retourne NonTrouve la deuxième fois.
+/// Double suppression retourne NotFound la deuxième fois.
 #[test]
 fn test_double_suppression_retourne_erreur() {
     let store = doc_store_temp();
-    let doc = creer_document(&store, "Unique").unwrap();
+    let doc = create_document(&store, "Unique").unwrap();
 
-    supprimer_document(&store, doc.id).unwrap();
-    let result = supprimer_document(&store, doc.id);
-    assert!(matches!(result, Err(ChaqaqError::NonTrouve(_))));
+    delete_document(&store, doc.id).unwrap();
+    let result = delete_document(&store, doc.id);
+    assert!(matches!(result, Err(ChaqaqError::NotFound(_))));
 }

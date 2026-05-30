@@ -1,5 +1,5 @@
-use chaqaq::application::database_use_cases::{ajouter_entree, creer_database, rechercher_entrees};
-use chaqaq::application::use_cases::{creer_document, rechercher_documents};
+use chaqaq::application::database_use_cases::{add_entry, create_database, search_entries};
+use chaqaq::application::use_cases::{create_document, search_documents};
 use chaqaq::domain::database::{Propriete, ProprieteType, ValeurPropriete};
 use chaqaq::domain::document::InlineText;
 use chaqaq::infrastructure::database_store::DatabaseStore;
@@ -25,21 +25,21 @@ fn inlines(s: &str) -> Vec<InlineText> {
     }]
 }
 
-/// Scénario journal : rechercher dans les titres de pages ET dans les entrées
+/// Scénario journal : rechercher dans les titles de pages ET dans les entrées
 /// de la database journal — les deux coexistent.
 #[test]
 fn test_recherche_dans_journal_complet() {
     let (doc_store, db_store) = stores_temp();
 
     // Pages de notes libres
-    creer_document(&doc_store, "Réflexions sur Rust").unwrap();
-    creer_document(&doc_store, "Recettes végétariennes").unwrap();
-    creer_document(&doc_store, "Notes de lecture : Rust book").unwrap();
+    create_document(&doc_store, "Réflexions sur Rust").unwrap();
+    create_document(&doc_store, "Recettes végétariennes").unwrap();
+    create_document(&doc_store, "Notes de lecture : Rust book").unwrap();
 
     // Database journal avec entrées
     let prop = Propriete::nouvelle("Texte", ProprieteType::Texte);
     let prop_id = prop.id;
-    let db = creer_database(&db_store, inlines("Journal"), vec![prop]).unwrap();
+    let db = create_database(&db_store, inlines("Journal"), vec![prop]).unwrap();
 
     for texte in [
         "Aujourd'hui j'ai lu un article sur Rust",
@@ -48,15 +48,15 @@ fn test_recherche_dans_journal_complet() {
     ] {
         let mut v = HashMap::new();
         v.insert(prop_id, ValeurPropriete::Texte(texte.to_string()));
-        ajouter_entree(&db_store, db.id, v).unwrap();
+        add_entry(&db_store, db.id, v).unwrap();
     }
 
     // Recherche "rust" dans les pages
-    let pages = rechercher_documents(&doc_store, "rust").unwrap();
+    let pages = search_documents(&doc_store, "rust").unwrap();
     assert_eq!(pages.len(), 2); // "Réflexions sur Rust" et "Notes de lecture : Rust book"
 
     // Recherche "rust" dans les entrées journal
-    let entrees = rechercher_entrees(&db_store, db.id, "rust").unwrap();
+    let entrees = search_entries(&db_store, db.id, "rust").unwrap();
     assert_eq!(entrees.len(), 2);
 }
 
@@ -65,21 +65,21 @@ fn test_recherche_dans_journal_complet() {
 fn test_recherche_vide_retourne_tout() {
     let (doc_store, db_store) = stores_temp();
 
-    creer_document(&doc_store, "A").unwrap();
-    creer_document(&doc_store, "B").unwrap();
-    creer_document(&doc_store, "C").unwrap();
+    create_document(&doc_store, "A").unwrap();
+    create_document(&doc_store, "B").unwrap();
+    create_document(&doc_store, "C").unwrap();
 
     let prop = Propriete::nouvelle("X", ProprieteType::Texte);
     let prop_id = prop.id;
-    let db = creer_database(&db_store, inlines("DB"), vec![prop]).unwrap();
+    let db = create_database(&db_store, inlines("DB"), vec![prop]).unwrap();
     for t in ["un", "deux"] {
         let mut v = HashMap::new();
         v.insert(prop_id, ValeurPropriete::Texte(t.to_string()));
-        ajouter_entree(&db_store, db.id, v).unwrap();
+        add_entry(&db_store, db.id, v).unwrap();
     }
 
-    assert_eq!(rechercher_documents(&doc_store, "").unwrap().len(), 3);
-    assert_eq!(rechercher_entrees(&db_store, db.id, "").unwrap().len(), 2);
+    assert_eq!(search_documents(&doc_store, "").unwrap().len(), 3);
+    assert_eq!(search_entries(&db_store, db.id, "").unwrap().len(), 2);
 }
 
 /// Recherche dans une database avec plusieurs types de propriétés.
@@ -91,14 +91,14 @@ fn test_recherche_entrees_selection_et_texte() {
         "Statut",
         ProprieteType::Selection(vec!["Brouillon".into(), "Publié".into()]),
     );
-    let prop_titre = Propriete::nouvelle("Titre", ProprieteType::Texte);
+    let prop_title = Propriete::nouvelle("Titre", ProprieteType::Texte);
     let statut_id = prop_statut.id;
-    let titre_id = prop_titre.id;
+    let title_id = prop_title.id;
 
-    let db = creer_database(
+    let db = create_database(
         &db_store,
         inlines("Articles"),
-        vec![prop_statut, prop_titre],
+        vec![prop_statut, prop_title],
     )
     .unwrap();
 
@@ -107,21 +107,21 @@ fn test_recherche_entrees_selection_et_texte() {
         ("Publié", "Guide complet Rust"),
         ("Brouillon", "Idées pour plus tard"),
     ];
-    for (statut, titre) in articles {
+    for (statut, title) in articles {
         let mut v = HashMap::new();
         v.insert(
             statut_id,
             ValeurPropriete::Selection(Some(statut.to_string())),
         );
-        v.insert(titre_id, ValeurPropriete::Texte(titre.to_string()));
-        ajouter_entree(&db_store, db.id, v).unwrap();
+        v.insert(title_id, ValeurPropriete::Texte(title.to_string()));
+        add_entry(&db_store, db.id, v).unwrap();
     }
 
     // "brouillon" matche les 2 articles en brouillon (via la colonne Statut)
-    let brouillons = rechercher_entrees(&db_store, db.id, "brouillon").unwrap();
+    let brouillons = search_entries(&db_store, db.id, "brouillon").unwrap();
     assert_eq!(brouillons.len(), 2);
 
-    // "rust" ne matche que dans le titre du second
-    let rust = rechercher_entrees(&db_store, db.id, "rust").unwrap();
+    // "rust" ne matche que dans le title du second
+    let rust = search_entries(&db_store, db.id, "rust").unwrap();
     assert_eq!(rust.len(), 1);
 }

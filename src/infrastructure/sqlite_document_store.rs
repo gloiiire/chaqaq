@@ -70,7 +70,7 @@ impl DocumentRepository for SqliteDocumentStore {
         );
         match result {
             Ok(data) => Ok(serde_json::from_str(&data)?),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Err(ChaqaqError::NonTrouve(id)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Err(ChaqaqError::NotFound(id)),
             Err(e) => Err(ChaqaqError::Db(e.to_string())),
         }
     }
@@ -96,7 +96,7 @@ impl DocumentRepository for SqliteDocumentStore {
             let (id_str, title_json, cover, updated_at, created_at) =
                 row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
             let id = Uuid::parse_str(&id_str)
-                .map_err(|_| ChaqaqError::OperationInvalide(format!("UUID invalide : {id_str}")))?;
+                .map_err(|_| ChaqaqError::InvalidOperation(format!("UUID invalide : {id_str}")))?;
             let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
             metas.push(DocumentMeta {
                 id,
@@ -118,7 +118,7 @@ impl DocumentRepository for SqliteDocumentStore {
             )
             .map_err(|e| ChaqaqError::Db(e.to_string()))?;
         if modifies == 0 {
-            return Err(ChaqaqError::NonTrouve(id));
+            return Err(ChaqaqError::NotFound(id));
         }
         Ok(())
     }
@@ -133,9 +133,9 @@ mod tests {
         SqliteDocumentStore::en_memoire().unwrap()
     }
 
-    fn doc(titre: &str) -> Document {
+    fn doc(title: &str) -> Document {
         Document::new(vec![InlineText {
-            content: titre.to_string(),
+            content: title.to_string(),
             styles: vec![],
         }])
     }
@@ -155,7 +155,7 @@ mod tests {
         let store = store();
         assert!(matches!(
             store.load(Uuid::new_v4()),
-            Err(ChaqaqError::NonTrouve(_))
+            Err(ChaqaqError::NotFound(_))
         ));
     }
 
@@ -174,7 +174,7 @@ mod tests {
         store.save(&d).unwrap();
         store.delete(d.id).unwrap();
         assert!(store.list().unwrap().is_empty());
-        assert!(matches!(store.load(d.id), Err(ChaqaqError::NonTrouve(_))));
+        assert!(matches!(store.load(d.id), Err(ChaqaqError::NotFound(_))));
     }
 
     #[test]
@@ -182,7 +182,7 @@ mod tests {
         let store = store();
         assert!(matches!(
             store.delete(Uuid::new_v4()),
-            Err(ChaqaqError::NonTrouve(_))
+            Err(ChaqaqError::NotFound(_))
         ));
     }
 
@@ -246,7 +246,7 @@ mod tests {
         let mut d = doc("Titre riche");
         d.add_block(crate::domain::document::BlockContent::Text(vec![
             InlineText {
-                content: "contenu".to_string(),
+                content: "content".to_string(),
                 styles: vec![],
             },
         ]));

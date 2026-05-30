@@ -1,8 +1,8 @@
 use chaqaq::application::error::ChaqaqError;
 use chaqaq::application::use_cases::{
-    ajouter_bloc, ajouter_bloc_enfant, creer_document, modifier_bloc, modifier_couverture_document,
-    modifier_titre_document, obtenir_document, reordonner_blocs, sauvegarder_bloc_edite,
-    supprimer_bloc,
+    add_block, add_child_block, create_document, update_block, update_document_cover,
+    update_document_title, get_document, reorder_blocks, save_edited_block,
+    delete_block,
 };
 use chaqaq::domain::document::{BlockContent, InlineText};
 use chaqaq::domain::editor::EditorState;
@@ -31,62 +31,62 @@ fn etat_depuis(s: &str) -> EditorState {
 // ── Bridge EditorState → Block ────────────────────────────────────────────────
 
 #[test]
-fn test_sauvegarder_bloc_edite_text() {
+fn test_save_edited_block_text() {
     let store = store_temp();
-    let doc = creer_document(&store, "Doc").unwrap();
-    let doc = ajouter_bloc(&store, doc.id, BlockContent::Text(inlines("initial"))).unwrap();
+    let doc = create_document(&store, "Doc").unwrap();
+    let doc = add_block(&store, doc.id, BlockContent::Text(inlines("initial"))).unwrap();
     let block_id = doc.blocks[0].id;
 
-    sauvegarder_bloc_edite(&store, doc.id, block_id, &etat_depuis("modifié")).unwrap();
+    save_edited_block(&store, doc.id, block_id, &etat_depuis("modifié")).unwrap();
 
-    let recharge = obtenir_document(&store, doc.id).unwrap();
+    let recharge = get_document(&store, doc.id).unwrap();
     assert!(
         matches!(&recharge.blocks[0].content, BlockContent::Text(t) if t[0].content == "modifié")
     );
 }
 
 #[test]
-fn test_sauvegarder_bloc_edite_heading() {
+fn test_save_edited_block_heading() {
     let store = store_temp();
-    let doc = creer_document(&store, "Doc").unwrap();
-    let doc = ajouter_bloc(
+    let doc = create_document(&store, "Doc").unwrap();
+    let doc = add_block(
         &store,
         doc.id,
         BlockContent::Heading {
-            text: inlines("titre initial"),
+            text: inlines("title initial"),
             level: 1,
         },
     )
     .unwrap();
     let block_id = doc.blocks[0].id;
 
-    sauvegarder_bloc_edite(&store, doc.id, block_id, &etat_depuis("titre modifié")).unwrap();
+    save_edited_block(&store, doc.id, block_id, &etat_depuis("title modifié")).unwrap();
 
-    let recharge = obtenir_document(&store, doc.id).unwrap();
+    let recharge = get_document(&store, doc.id).unwrap();
     assert!(matches!(
         &recharge.blocks[0].content,
-        BlockContent::Heading { text: t, level: 1 } if t[0].content == "titre modifié"
+        BlockContent::Heading { text: t, level: 1 } if t[0].content == "title modifié"
     ));
 }
 
 #[test]
 fn test_sauvegarder_bloc_non_textuel_retourne_erreur() {
     let store = store_temp();
-    let doc = creer_document(&store, "Doc").unwrap();
-    let doc = ajouter_bloc(&store, doc.id, BlockContent::Divider).unwrap();
+    let doc = create_document(&store, "Doc").unwrap();
+    let doc = add_block(&store, doc.id, BlockContent::Divider).unwrap();
     let block_id = doc.blocks[0].id;
 
-    let result = sauvegarder_bloc_edite(&store, doc.id, block_id, &etat_depuis("x"));
-    assert!(matches!(result, Err(ChaqaqError::OperationInvalide(_))));
+    let result = save_edited_block(&store, doc.id, block_id, &etat_depuis("x"));
+    assert!(matches!(result, Err(ChaqaqError::InvalidOperation(_))));
 }
 
 // ── Gestion des blocs ─────────────────────────────────────────────────────────
 
 #[test]
-fn test_modifier_bloc_toggle_todo() {
+fn test_update_block_toggle_todo() {
     let store = store_temp();
-    let doc = creer_document(&store, "Tâches").unwrap();
-    let doc = ajouter_bloc(
+    let doc = create_document(&store, "Tâches").unwrap();
+    let doc = add_block(
         &store,
         doc.id,
         BlockContent::Todo {
@@ -97,7 +97,7 @@ fn test_modifier_bloc_toggle_todo() {
     .unwrap();
     let block_id = doc.blocks[0].id;
 
-    modifier_bloc(
+    update_block(
         &store,
         doc.id,
         block_id,
@@ -108,7 +108,7 @@ fn test_modifier_bloc_toggle_todo() {
     )
     .unwrap();
 
-    let recharge = obtenir_document(&store, doc.id).unwrap();
+    let recharge = get_document(&store, doc.id).unwrap();
     assert!(matches!(
         &recharge.blocks[0].content,
         BlockContent::Todo { done: true, .. }
@@ -116,71 +116,71 @@ fn test_modifier_bloc_toggle_todo() {
 }
 
 #[test]
-fn test_modifier_bloc_inexistant_retourne_non_trouve() {
+fn test_update_block_inexistant_retourne_non_trouve() {
     let store = store_temp();
-    let doc = creer_document(&store, "Doc").unwrap();
+    let doc = create_document(&store, "Doc").unwrap();
     let faux_id = Uuid::new_v4();
 
-    let result = modifier_bloc(&store, doc.id, faux_id, BlockContent::Divider);
-    assert!(matches!(result, Err(ChaqaqError::NonTrouve(_))));
+    let result = update_block(&store, doc.id, faux_id, BlockContent::Divider);
+    assert!(matches!(result, Err(ChaqaqError::NotFound(_))));
 }
 
 #[test]
-fn test_supprimer_bloc() {
+fn test_delete_block() {
     let store = store_temp();
-    let doc = creer_document(&store, "Doc").unwrap();
-    let doc = ajouter_bloc(&store, doc.id, BlockContent::Text(inlines("A"))).unwrap();
-    let doc = ajouter_bloc(&store, doc.id, BlockContent::Text(inlines("B"))).unwrap();
+    let doc = create_document(&store, "Doc").unwrap();
+    let doc = add_block(&store, doc.id, BlockContent::Text(inlines("A"))).unwrap();
+    let doc = add_block(&store, doc.id, BlockContent::Text(inlines("B"))).unwrap();
     let id_a = doc.blocks[0].id;
 
-    supprimer_bloc(&store, doc.id, id_a).unwrap();
+    delete_block(&store, doc.id, id_a).unwrap();
 
-    let recharge = obtenir_document(&store, doc.id).unwrap();
+    let recharge = get_document(&store, doc.id).unwrap();
     assert_eq!(recharge.blocks.len(), 1);
     assert!(matches!(&recharge.blocks[0].content, BlockContent::Text(t) if t[0].content == "B"));
 }
 
 #[test]
-fn test_supprimer_bloc_inexistant_retourne_non_trouve() {
+fn test_delete_block_inexistant_retourne_non_trouve() {
     let store = store_temp();
-    let doc = creer_document(&store, "Doc").unwrap();
-    let result = supprimer_bloc(&store, doc.id, Uuid::new_v4());
-    assert!(matches!(result, Err(ChaqaqError::NonTrouve(_))));
+    let doc = create_document(&store, "Doc").unwrap();
+    let result = delete_block(&store, doc.id, Uuid::new_v4());
+    assert!(matches!(result, Err(ChaqaqError::NotFound(_))));
 }
 
 #[test]
-fn test_reordonner_blocs() {
+fn test_reorder_blocks() {
     let store = store_temp();
-    let doc = creer_document(&store, "Doc").unwrap();
-    let doc = ajouter_bloc(&store, doc.id, BlockContent::Text(inlines("A"))).unwrap();
-    let doc = ajouter_bloc(&store, doc.id, BlockContent::Text(inlines("B"))).unwrap();
-    let doc = ajouter_bloc(&store, doc.id, BlockContent::Text(inlines("C"))).unwrap();
+    let doc = create_document(&store, "Doc").unwrap();
+    let doc = add_block(&store, doc.id, BlockContent::Text(inlines("A"))).unwrap();
+    let doc = add_block(&store, doc.id, BlockContent::Text(inlines("B"))).unwrap();
+    let doc = add_block(&store, doc.id, BlockContent::Text(inlines("C"))).unwrap();
     let id_a = doc.blocks[0].id;
     let id_b = doc.blocks[1].id;
     let id_c = doc.blocks[2].id;
 
-    reordonner_blocs(&store, doc.id, vec![id_c, id_a, id_b]).unwrap();
+    reorder_blocks(&store, doc.id, vec![id_c, id_a, id_b]).unwrap();
 
-    let recharge = obtenir_document(&store, doc.id).unwrap();
+    let recharge = get_document(&store, doc.id).unwrap();
     assert_eq!(recharge.blocks[0].id, id_c);
     assert_eq!(recharge.blocks[1].id, id_a);
     assert_eq!(recharge.blocks[2].id, id_b);
 }
 
 #[test]
-fn test_reordonner_blocs_partiels_conserve_le_reste() {
+fn test_reorder_blocks_partiels_conserve_le_reste() {
     let store = store_temp();
-    let doc = creer_document(&store, "Doc").unwrap();
-    let doc = ajouter_bloc(&store, doc.id, BlockContent::Text(inlines("A"))).unwrap();
-    let doc = ajouter_bloc(&store, doc.id, BlockContent::Text(inlines("B"))).unwrap();
-    let doc = ajouter_bloc(&store, doc.id, BlockContent::Text(inlines("C"))).unwrap();
+    let doc = create_document(&store, "Doc").unwrap();
+    let doc = add_block(&store, doc.id, BlockContent::Text(inlines("A"))).unwrap();
+    let doc = add_block(&store, doc.id, BlockContent::Text(inlines("B"))).unwrap();
+    let doc = add_block(&store, doc.id, BlockContent::Text(inlines("C"))).unwrap();
     let id_a = doc.blocks[0].id;
     let id_c = doc.blocks[2].id;
 
     // Réordonne seulement A et C ; B est non mentionné → va en fin
-    reordonner_blocs(&store, doc.id, vec![id_c, id_a]).unwrap();
+    reorder_blocks(&store, doc.id, vec![id_c, id_a]).unwrap();
 
-    let recharge = obtenir_document(&store, doc.id).unwrap();
+    let recharge = get_document(&store, doc.id).unwrap();
     assert_eq!(recharge.blocks.len(), 3);
     assert_eq!(recharge.blocks[0].id, id_c);
     assert_eq!(recharge.blocks[1].id, id_a);
@@ -189,41 +189,41 @@ fn test_reordonner_blocs_partiels_conserve_le_reste() {
 // ── Métadonnées document ──────────────────────────────────────────────────────
 
 #[test]
-fn test_modifier_titre_document() {
+fn test_update_document_title() {
     let store = store_temp();
-    let doc = creer_document(&store, "Titre initial").unwrap();
+    let doc = create_document(&store, "Titre initial").unwrap();
 
-    modifier_titre_document(&store, doc.id, "Nouveau titre").unwrap();
+    update_document_title(&store, doc.id, "Nouveau title").unwrap();
 
-    let recharge = obtenir_document(&store, doc.id).unwrap();
-    assert_eq!(recharge.title[0].content, "Nouveau titre");
+    let recharge = get_document(&store, doc.id).unwrap();
+    assert_eq!(recharge.title[0].content, "Nouveau title");
 }
 
 #[test]
-fn test_modifier_couverture_document() {
+fn test_update_document_cover() {
     let store = store_temp();
-    let doc = creer_document(&store, "Doc").unwrap();
+    let doc = create_document(&store, "Doc").unwrap();
     assert!(doc.cover.is_none());
 
-    modifier_couverture_document(&store, doc.id, Some("🌄".to_string())).unwrap();
-    let recharge = obtenir_document(&store, doc.id).unwrap();
+    update_document_cover(&store, doc.id, Some("🌄".to_string())).unwrap();
+    let recharge = get_document(&store, doc.id).unwrap();
     assert_eq!(recharge.cover, Some("🌄".to_string()));
 
-    modifier_couverture_document(&store, doc.id, None).unwrap();
-    let recharge = obtenir_document(&store, doc.id).unwrap();
+    update_document_cover(&store, doc.id, None).unwrap();
+    let recharge = get_document(&store, doc.id).unwrap();
     assert!(recharge.cover.is_none());
 }
 
 // ── Blocs imbriqués ───────────────────────────────────────────────────────────
 
 #[test]
-fn test_ajouter_bloc_enfant() {
+fn test_add_child_block() {
     let store = store_temp();
-    let doc = creer_document(&store, "Doc").unwrap();
-    let doc = ajouter_bloc(&store, doc.id, BlockContent::Text(inlines("parent"))).unwrap();
+    let doc = create_document(&store, "Doc").unwrap();
+    let doc = add_block(&store, doc.id, BlockContent::Text(inlines("parent"))).unwrap();
     let parent_id = doc.blocks[0].id;
 
-    let enfant = ajouter_bloc_enfant(
+    let enfant = add_child_block(
         &store,
         doc.id,
         parent_id,
@@ -231,7 +231,7 @@ fn test_ajouter_bloc_enfant() {
     )
     .unwrap();
 
-    let recharge = obtenir_document(&store, doc.id).unwrap();
+    let recharge = get_document(&store, doc.id).unwrap();
     assert_eq!(recharge.blocks[0].children.len(), 1);
     assert_eq!(recharge.blocks[0].children[0].id, enfant.id);
 }
@@ -239,18 +239,18 @@ fn test_ajouter_bloc_enfant() {
 #[test]
 fn test_ajouter_plusieurs_enfants() {
     let store = store_temp();
-    let doc = creer_document(&store, "Doc").unwrap();
-    let doc = ajouter_bloc(&store, doc.id, BlockContent::Text(inlines("parent"))).unwrap();
+    let doc = create_document(&store, "Doc").unwrap();
+    let doc = add_block(&store, doc.id, BlockContent::Text(inlines("parent"))).unwrap();
     let parent_id = doc.blocks[0].id;
 
-    ajouter_bloc_enfant(
+    add_child_block(
         &store,
         doc.id,
         parent_id,
         BlockContent::Text(inlines("enfant 1")),
     )
     .unwrap();
-    ajouter_bloc_enfant(
+    add_child_block(
         &store,
         doc.id,
         parent_id,
@@ -258,32 +258,32 @@ fn test_ajouter_plusieurs_enfants() {
     )
     .unwrap();
 
-    let recharge = obtenir_document(&store, doc.id).unwrap();
+    let recharge = get_document(&store, doc.id).unwrap();
     assert_eq!(recharge.blocks[0].children.len(), 2);
 }
 
 #[test]
-fn test_ajouter_bloc_enfant_parent_inexistant() {
+fn test_add_child_block_parent_inexistant() {
     let store = store_temp();
-    let doc = creer_document(&store, "Doc").unwrap();
+    let doc = create_document(&store, "Doc").unwrap();
 
-    let result = ajouter_bloc_enfant(
+    let result = add_child_block(
         &store,
         doc.id,
         Uuid::new_v4(),
         BlockContent::Text(inlines("orphelin")),
     );
-    assert!(matches!(result, Err(ChaqaqError::NonTrouve(_))));
+    assert!(matches!(result, Err(ChaqaqError::NotFound(_))));
 }
 
 #[test]
-fn test_supprimer_bloc_enfant_recursif() {
+fn test_delete_block_enfant_recursif() {
     let store = store_temp();
-    let doc = creer_document(&store, "Doc").unwrap();
-    let doc = ajouter_bloc(&store, doc.id, BlockContent::Text(inlines("parent"))).unwrap();
+    let doc = create_document(&store, "Doc").unwrap();
+    let doc = add_block(&store, doc.id, BlockContent::Text(inlines("parent"))).unwrap();
     let parent_id = doc.blocks[0].id;
 
-    let enfant = ajouter_bloc_enfant(
+    let enfant = add_child_block(
         &store,
         doc.id,
         parent_id,
@@ -291,8 +291,8 @@ fn test_supprimer_bloc_enfant_recursif() {
     )
     .unwrap();
 
-    supprimer_bloc(&store, doc.id, enfant.id).unwrap();
+    delete_block(&store, doc.id, enfant.id).unwrap();
 
-    let recharge = obtenir_document(&store, doc.id).unwrap();
+    let recharge = get_document(&store, doc.id).unwrap();
     assert!(recharge.blocks[0].children.is_empty());
 }

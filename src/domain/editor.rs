@@ -97,7 +97,7 @@ mod tests {
         let mut etat = etat_depuis("ab");
         etat.curseur = 1;
         etat.inserer('X');
-        assert_eq!(etat.texte.contenu(), "aXb");
+        assert_eq!(etat.texte.content(), "aXb");
         assert_eq!(etat.curseur, 2);
     }
 
@@ -106,7 +106,7 @@ mod tests {
         let mut etat = etat_depuis("abc");
         etat.curseur = 2;
         etat.supprimer_avant();
-        assert_eq!(etat.texte.contenu(), "ac");
+        assert_eq!(etat.texte.content(), "ac");
         assert_eq!(etat.curseur, 1);
     }
 
@@ -115,7 +115,7 @@ mod tests {
         let mut etat = etat_depuis("abc");
         etat.curseur = 0;
         etat.supprimer_avant();
-        assert_eq!(etat.texte.contenu(), "abc");
+        assert_eq!(etat.texte.content(), "abc");
         assert_eq!(etat.curseur, 0);
     }
 
@@ -124,7 +124,7 @@ mod tests {
         let mut etat = etat_depuis("abc");
         etat.curseur = 1;
         etat.supprimer_apres();
-        assert_eq!(etat.texte.contenu(), "ac");
+        assert_eq!(etat.texte.content(), "ac");
         assert_eq!(etat.curseur, 1);
     }
 

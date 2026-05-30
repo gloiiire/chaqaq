@@ -14,7 +14,7 @@ final class ChaqaqStore: ObservableObject {
         do {
             let dir  = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             let path = dir.appendingPathComponent("chaqaq.db").path
-            api = try ChaqaqApi(cheminDb: path)
+            api = try ChaqaqApi(dbPath: path)
             load()
         } catch {
             errorMessage = error.localizedDescription
@@ -23,7 +23,7 @@ final class ChaqaqStore: ObservableObject {
 
     func load() {
         do {
-            documents = try api?.listerDocuments() ?? []
+            documents = try api?.listDocuments() ?? []
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -31,7 +31,7 @@ final class ChaqaqStore: ObservableObject {
 
     func create(title: String) {
         do {
-            _ = try api?.creerDocument(titre: title)
+            _ = try api?.createDocument(title: title)
             load()
         } catch {
             errorMessage = error.localizedDescription
@@ -40,7 +40,7 @@ final class ChaqaqStore: ObservableObject {
 
     func delete(id: String) {
         do {
-            try api?.supprimerDocument(id: id)
+            try api?.deleteDocument(id: id)
             load()
         } catch {
             errorMessage = error.localizedDescription

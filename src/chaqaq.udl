@@ -4,9 +4,9 @@ namespace chaqaq {};
 
 [Error]
 interface ChaqaqError {
-    NonTrouve(string id);
-    OperationInvalide(string detail);
-    Stockage(string detail);
+    NotFound(string id);
+    InvalidOperation(string detail);
+    Storage(string detail);
 };
 
 // ── Types retournés ───────────────────────────────────────────────────────────
@@ -24,8 +24,8 @@ dictionary DocumentMetaFfi {
 /// Métadonnées légères d'une database (sans entrées).
 dictionary DatabaseMetaFfi {
     string id;
-    string titre_plain;
-    string titre_json;
+    string title_plain;
+    string title_json;
     string updated_at;
     string created_at;
 };
@@ -35,133 +35,133 @@ dictionary DatabaseMetaFfi {
 interface ChaqaqApi {
     /// Ouvre (ou crée) la base SQLite au chemin donné.
     [Throws=ChaqaqError]
-    constructor(string chemin_db);
+    constructor(string db_path);
 
     // ── Documents ─────────────────────────────────────────────
 
     /// Crée un nouveau document et retourne son UUID.
     [Throws=ChaqaqError]
-    string creer_document(string titre);
+    string create_document(string title);
 
     /// Retourne le document complet sérialisé en JSON (avec blocs).
     [Throws=ChaqaqError]
-    string obtenir_document_json(string id);
+    string get_document_json(string id);
 
     /// Liste les métadonnées de tous les documents actifs.
     [Throws=ChaqaqError]
-    sequence<DocumentMetaFfi> lister_documents();
+    sequence<DocumentMetaFfi> list_documents();
 
     /// Soft-delete du document.
     [Throws=ChaqaqError]
-    void supprimer_document(string id);
+    void delete_document(string id);
 
     [Throws=ChaqaqError]
-    void modifier_titre_document(string id, string nouveau_titre);
+    void update_document_title(string id, string new_title);
 
     [Throws=ChaqaqError]
-    void modifier_couverture_document(string id, string? couverture);
+    void update_document_cover(string id, string? cover);
 
-    /// Ajoute un bloc ; le contenu est passé en JSON (BlockContent sérialisé).
+    /// Ajoute un bloc ; le content est passé en JSON (BlockContent sérialisé).
     /// Retourne le document mis à jour en JSON.
     [Throws=ChaqaqError]
-    string ajouter_bloc(string doc_id, string bloc_content_json);
+    string add_block(string doc_id, string block_content_json);
 
-    /// Remplace le contenu d'un bloc existant (JSON de BlockContent).
+    /// Remplace le content d'un bloc existant (JSON de BlockContent).
     [Throws=ChaqaqError]
-    void modifier_bloc(string doc_id, string bloc_id, string contenu_json);
+    void update_block(string doc_id, string block_id, string content_json);
 
     [Throws=ChaqaqError]
-    void supprimer_bloc(string doc_id, string bloc_id);
+    void delete_block(string doc_id, string block_id);
 
     /// Réordonne les blocs racine selon la liste d'UUIDs fournie.
     [Throws=ChaqaqError]
-    void reordonner_blocs(string doc_id, sequence<string> ordre);
+    void reorder_blocks(string doc_id, sequence<string> order);
 
-    /// Ajoute un bloc enfant ; le contenu est passé en JSON (BlockContent sérialisé).
+    /// Ajoute un bloc enfant ; le content est passé en JSON (BlockContent sérialisé).
     [Throws=ChaqaqError]
-    string ajouter_bloc_enfant(string doc_id, string parent_id, string bloc_content_json);
+    string add_child_block(string doc_id, string parent_id, string block_content_json);
 
     /// Réordonne les enfants directs d'un bloc parent.
     [Throws=ChaqaqError]
-    void reordonner_blocs_enfants(string doc_id, string parent_id, sequence<string> ordre);
+    void reorder_child_blocks(string doc_id, string parent_id, sequence<string> order);
 
-    /// Déplace un bloc vers un parent ou vers la racine si `nouveau_parent_id` est nul.
+    /// Déplace un bloc vers un parent ou vers la racine si `new_parent_id` est nul.
     [Throws=ChaqaqError]
-    void deplacer_bloc(string doc_id, string bloc_id, string? nouveau_parent_id);
+    void move_block(string doc_id, string block_id, string? new_parent_id);
 
-    /// Recherche insensible à la casse dans les titres.
+    /// Recherche insensible à la casse dans les titles.
     [Throws=ChaqaqError]
-    sequence<DocumentMetaFfi> rechercher_documents(string query);
+    sequence<DocumentMetaFfi> search_documents(string query);
 
     /// Recherche plein texte dans les blocs.
     [Throws=ChaqaqError]
-    sequence<DocumentMetaFfi> rechercher_dans_blocs(string query);
+    sequence<DocumentMetaFfi> search_in_blocks(string query);
 
     // ── Databases ─────────────────────────────────────────────
 
     /// Crée une nouvelle database et retourne son UUID.
     [Throws=ChaqaqError]
-    string creer_database(string titre);
+    string create_database(string title);
 
     /// Retourne la database complète sérialisée en JSON (avec entrées et vues).
     [Throws=ChaqaqError]
-    string obtenir_database_json(string id);
+    string get_database_json(string id);
 
     /// Liste les métadonnées de toutes les databases actives.
     [Throws=ChaqaqError]
-    sequence<DatabaseMetaFfi> lister_databases();
+    sequence<DatabaseMetaFfi> list_databases();
 
     /// Soft-delete de la database.
     [Throws=ChaqaqError]
-    void supprimer_database(string id);
+    void delete_database(string id);
 
-    /// Ajoute une entrée ; `valeurs_json` est une map UUID -> ValeurPropriete sérialisée.
+    /// Ajoute une entrée ; `values_json` est une map UUID -> ValeurPropriete sérialisée.
     [Throws=ChaqaqError]
-    string ajouter_entree(string db_id, string valeurs_json);
-
-    [Throws=ChaqaqError]
-    void modifier_entree(string db_id, string entree_id, string valeurs_json);
+    string add_entry(string db_id, string values_json);
 
     [Throws=ChaqaqError]
-    void supprimer_entree(string db_id, string entree_id);
+    void update_entry(string db_id, string entry_id, string values_json);
+
+    [Throws=ChaqaqError]
+    void delete_entry(string db_id, string entry_id);
 
     /// Ajoute une propriété sérialisée en JSON.
     [Throws=ChaqaqError]
-    void ajouter_propriete(string db_id, string propriete_json);
+    void add_property(string db_id, string property_json);
 
     [Throws=ChaqaqError]
-    void renommer_propriete(string db_id, string propriete_id, string nouveau_nom);
+    void rename_property(string db_id, string property_id, string new_name);
 
     [Throws=ChaqaqError]
-    void supprimer_propriete(string db_id, string propriete_id);
+    void delete_property(string db_id, string property_id);
 
     /// Ajoute une vue sérialisée en JSON.
     [Throws=ChaqaqError]
-    string ajouter_vue(string db_id, string vue_json);
+    string add_view(string db_id, string view_json);
 
     [Throws=ChaqaqError]
-    void modifier_vue(string db_id, string vue_id, string filtres_json, string tris_json);
+    void update_view(string db_id, string view_id, string filters_json, string sorts_json);
 
     [Throws=ChaqaqError]
-    void supprimer_vue(string db_id, string vue_id);
+    void delete_view(string db_id, string view_id);
 
     /// Retourne les entrées filtrées/triées en JSON.
     [Throws=ChaqaqError]
-    string requete_database_json(string db_id, string vue_id);
+    string query_database_json(string db_id, string view_id);
 
     /// Retourne les entrées filtrées/triées avec rollups calculés en JSON.
     [Throws=ChaqaqError]
-    string requete_database_avec_rollups_json(string db_id, string vue_id);
+    string query_database_with_rollups_json(string db_id, string view_id);
 
     /// Retourne les groupes d'entrées en JSON.
     [Throws=ChaqaqError]
-    string requete_groupee_database_json(string db_id, string vue_id, string grouper_par);
+    string grouped_query_database_json(string db_id, string view_id, string group_by);
 
     /// Retourne l'agrégat d'une colonne en JSON.
     [Throws=ChaqaqError]
-    string agregat_colonne_database_json(string db_id, string propriete_id, string agregat_json);
+    string column_aggregate_database_json(string db_id, string property_id, string aggregate_json);
 
     /// Retourne les entrées correspondant à la recherche en JSON.
     [Throws=ChaqaqError]
-    string rechercher_entrees_database_json(string db_id, string query);
+    string search_database_entries_json(string db_id, string query);
 };

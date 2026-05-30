@@ -26,7 +26,7 @@ impl RichText {
         }
     }
 
-    pub fn contenu(&self) -> String {
+    pub fn content(&self) -> String {
         self.chars.iter().collect()
     }
 
@@ -213,7 +213,7 @@ mod tests {
     fn test_conversion_depuis_inlines() {
         let inlines = vec![texte("avant "), gras("gras"), texte(" après")];
         let rt = RichText::from(&inlines);
-        assert_eq!(rt.contenu(), "avant gras après");
+        assert_eq!(rt.content(), "avant gras après");
         assert_eq!(rt.spans().len(), 1);
         assert_eq!(rt.spans()[0].range, 6..10);
         assert_eq!(rt.spans()[0].styles, vec![InlineStyle::Bold]);
@@ -240,7 +240,7 @@ mod tests {
         let mut rt = RichText::from(&inlines);
         // insertion à la position 0
         rt.inserer_char(0, 'X');
-        assert_eq!(rt.contenu(), "Xavant gras après");
+        assert_eq!(rt.content(), "Xavant gras après");
         assert_eq!(rt.spans()[0].range, 7..11); // décalé de 1
     }
 
@@ -250,7 +250,7 @@ mod tests {
         let mut rt = RichText::from(&inlines);
         // insertion au milieu du span "gras" (pos 8 = entre 'r' et 'a' de "gras")
         rt.inserer_char(8, 'X');
-        assert_eq!(rt.contenu(), "avant grXas après");
+        assert_eq!(rt.content(), "avant grXas après");
         assert_eq!(rt.spans()[0].range, 6..11); // étendu de 1
     }
 
@@ -259,7 +259,7 @@ mod tests {
         let inlines = vec![texte("avant "), gras("gras"), texte(" après")];
         let mut rt = RichText::from(&inlines);
         rt.supprimer_char(0); // supprime 'a' de "avant"
-        assert_eq!(rt.contenu(), "vant gras après");
+        assert_eq!(rt.content(), "vant gras après");
         assert_eq!(rt.spans()[0].range, 5..9);
     }
 
@@ -268,7 +268,7 @@ mod tests {
         let inlines = vec![texte("a"), gras("b"), texte("c")];
         let mut rt = RichText::from(&inlines);
         rt.supprimer_char(1); // supprime le 'b' en gras
-        assert_eq!(rt.contenu(), "ac");
+        assert_eq!(rt.content(), "ac");
         assert!(rt.spans().is_empty());
     }
 
@@ -296,6 +296,6 @@ mod tests {
         let mut rt = RichText::from(&inlines);
         assert_eq!(rt.longueur(), 3); // 3 chars, pas 6 bytes
         rt.inserer_char(1, 'X');
-        assert_eq!(rt.contenu(), "éXàü");
+        assert_eq!(rt.content(), "éXàü");
     }
 }

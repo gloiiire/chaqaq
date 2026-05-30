@@ -5,21 +5,21 @@ import UniformTypeIdentifiers
 // ── Auto-focus (extension partagée) ──────────────────────────────────────────
 
 private extension View {
-    func autoFocuserSiBesoin(blocId: String,
+    func autoFocuserSiBesoin(blockId: String,
                               autoFocusId: Binding<String?>,
                               autoFocusOffset: Binding<Int?>,
                               cursorAt: Binding<Int?>,
                               focused: Binding<Bool>) -> some View {
         self
             .onAppear {
-                guard autoFocusId.wrappedValue == blocId else { return }
+                guard autoFocusId.wrappedValue == blockId else { return }
                 autoFocusId.wrappedValue = nil
                 let off = autoFocusOffset.wrappedValue
                 autoFocusOffset.wrappedValue = nil
                 DispatchQueue.main.async { cursorAt.wrappedValue = off; focused.wrappedValue = true }
             }
             .onChange(of: autoFocusId.wrappedValue) { _, newId in
-                guard newId == blocId else { return }
+                guard newId == blockId else { return }
                 autoFocusId.wrappedValue = nil
                 let off = autoFocusOffset.wrappedValue
                 autoFocusOffset.wrappedValue = nil
@@ -82,7 +82,7 @@ final class DocumentViewModel: ObservableObject {
 
     func charger() {
         do {
-            let json = try api.obtenirDocumentJson(id: docId)
+            let json = try api.getDocumentJson(id: docId)
             guard let data = json.data(using: .utf8) else { return }
             let doc = try JSONDecoder().decode(DocumentFfi.self, from: data)
             titre = doc.title.map(\.content).joined()
@@ -96,13 +96,13 @@ final class DocumentViewModel: ObservableObject {
     }
 
     func sauvegarderTitre() {
-        try? api.modifierTitreDocument(id: docId, nouveauTitre: titre)
+        try? api.updateDocumentTitle(id: docId, newTitle: titre)
     }
 
     func sauvegarderCouverture(_ nouvelleCouverture: String?) {
         do {
             couverture = nouvelleCouverture
-            try api.modifierCouvertureDocument(id: docId, couverture: nouvelleCouverture)
+            try api.updateDocumentCover(id: docId, cover: nouvelleCouverture)
         } catch { erreur = error.localizedDescription }
     }
 
@@ -156,8 +156,8 @@ final class DocumentViewModel: ObservableObject {
         do {
             let nouveau = bloc.content.withSpans(bloc.spans, done: bloc.done)
             let data    = try JSONEncoder().encode(nouveau)
-            try api.modifierBloc(docId: docId, blocId: bloc.id,
-                                 contenuJson: String(data: data, encoding: .utf8)!)
+            try api.updateBlock(docId: docId, blockId: bloc.id,
+                                 contentJson: String(data: data, encoding: .utf8)!)
         } catch { erreur = error.localizedDescription }
     }
 
@@ -167,7 +167,7 @@ final class DocumentViewModel: ObservableObject {
         sauvegarderBloc(blocs[idx])
     }
 
-    func ajouterBloc(type: TypeBlocNouvel, spansInitiaux: [InlineTextFfi] = [], apresId: String? = nil) {
+    func addBlock(type: TypeBlocNouvel, spansInitiaux: [InlineTextFfi] = [], apresId: String? = nil) {
         do {
             let contenu: BlockContentFfi
             switch type {
@@ -181,13 +181,13 @@ final class DocumentViewModel: ObservableObject {
             case .separateur: contenu = .divider
             }
             let data  = try JSONEncoder().encode(contenu)
-            let newId = try api.ajouterBloc(docId: docId,
-                                            blocContentJson: String(data: data, encoding: .utf8)!)
+            let newId = try api.addBlock(docId: docId,
+                                            blockContentJson: String(data: data, encoding: .utf8)!)
             let newBloc = EditableBlock(id: newId, content: contenu, spans: spansInitiaux, done: false)
 
             if let apresId, let idx = blocs.firstIndex(where: { $0.id == apresId }) {
                 blocs.insert(newBloc, at: idx + 1)
-                try? api.reordonnerBlocs(docId: docId, ordre: blocs.map(\.id))
+                try? api.reorderBlocks(docId: docId, order: blocs.map(\.id))
             } else {
                 blocs.append(newBloc)
             }
@@ -197,18 +197,18 @@ final class DocumentViewModel: ObservableObject {
         } catch { erreur = error.localizedDescription }
     }
 
-    func supprimerBloc(id: String) {
+    func deleteBlock(id: String) {
         do {
-            try api.supprimerBloc(docId: docId, blocId: id)
+            try api.deleteBlock(docId: docId, blockId: id)
             blocs.removeAll { $0.id == id }
         } catch { erreur = error.localizedDescription }
     }
 
-    func supprimerBlocs(ids: Set<String>) {
+    func deleteBlocks(ids: Set<String>) {
         guard !ids.isEmpty else { return }
         do {
             for id in ids {
-                try api.supprimerBloc(docId: docId, blocId: id)
+                try api.deleteBlock(docId: docId, blockId: id)
             }
             blocs.removeAll { ids.contains($0.id) }
         } catch { erreur = error.localizedDescription }
@@ -239,9 +239,9 @@ final class DocumentViewModel: ObservableObject {
         }
     }
 
-    func deplacerBloc(from: IndexSet, to: Int) {
+    func moveBlock(from: IndexSet, to: Int) {
         blocs.move(fromOffsets: from, toOffset: to)
-        try? api.reordonnerBlocs(docId: docId, ordre: blocs.map(\.id))
+        try? api.reorderBlocks(docId: docId, order: blocs.map(\.id))
     }
 }
 
@@ -340,7 +340,7 @@ struct DocumentView: View {
 
             TitreDocView(titre: $vm.titre, focusDemande: $focusTitre,
                          onSauvegarder: vm.sauvegarderTitre,
-                         onNouveauBloc: { vm.ajouterBloc(type: .texte) })
+                         onNouveauBloc: { vm.addBlock(type: .texte) })
                 .disabled(documentVerrouille)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
@@ -349,7 +349,7 @@ struct DocumentView: View {
                 .deleteDisabled(true)
 
             if vm.blocs.isEmpty && !documentVerrouille {
-                EtatVideSaisie { vm.ajouterBloc(type: .texte) }
+                EtatVideSaisie { vm.addBlock(type: .texte) }
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
@@ -379,16 +379,16 @@ struct DocumentView: View {
                                 if let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }) {
                                     if idx > 0 {
                                         let prevId = vm.blocs[idx - 1].id
-                                        vm.supprimerBloc(id: bloc.id)
+                                        vm.deleteBlock(id: bloc.id)
                                         vm.autoFocusId = prevId
                                     } else {
-                                        vm.supprimerBloc(id: bloc.id)
+                                        vm.deleteBlock(id: bloc.id)
                                         focusTitre = true
                                     }
                                 }
                             },
                             onNouveauBloc: { spansApres in
-                                vm.ajouterBloc(type: .texte, spansInitiaux: spansApres, apresId: bloc.id)
+                                vm.addBlock(type: .texte, spansInitiaux: spansApres, apresId: bloc.id)
                             },
                             onFusionner: vm.blocs.first?.id == bloc.id ? nil : { spansAMerger in
                                 guard let idx = vm.blocs.firstIndex(where: { $0.id == bloc.id }), idx > 0 else { return }
@@ -397,7 +397,7 @@ struct DocumentView: View {
                                 let offsetFusion = vm.blocs[prevIdx].spans.map(\.content).joined().count
                                 vm.blocs[prevIdx].spans += spansAMerger
                                 vm.sauvegarderBloc(vm.blocs[prevIdx])
-                                vm.supprimerBloc(id: bloc.id)
+                                vm.deleteBlock(id: bloc.id)
                                 vm.autoFocusOffset = offsetFusion
                                 vm.autoFocusId     = prevId
                             },
@@ -448,13 +448,13 @@ struct DocumentView: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
                 .swipeActions(edge: .trailing) {
                     if !documentVerrouille && editMode != .active {
-                        Button(role: .destructive) { vm.supprimerBloc(id: bloc.id) } label: {
+                        Button(role: .destructive) { vm.deleteBlock(id: bloc.id) } label: {
                             Label("Supprimer", systemImage: "trash")
                         }
                     }
                 }
             }
-            .onMove(perform: vm.deplacerBloc)
+            .onMove(perform: vm.moveBlock)
 
             if !documentVerrouille {
                 BoutonAjouterBloc { showingBlocPicker = true }
@@ -489,7 +489,7 @@ struct DocumentView: View {
             if editMode == .active && !blocsSelectionnes.isEmpty && !documentVerrouille {
                 ToolbarItem(placement: .primaryAction) {
                     Button(role: .destructive) {
-                        supprimerBlocsSelectionnes()
+                        deleteBlocksSelectionnes()
                     } label: {
                         Image(systemName: "trash")
                     }
@@ -536,7 +536,7 @@ struct DocumentView: View {
         .onAppear { vm.charger() }
         .onDisappear { vm.sauvegarderTitre(); onDisparaitre?() }
         .sheet(isPresented: $showingBlocPicker) {
-            BlocPickerSheet { type in vm.ajouterBloc(type: type, apresId: vm.idBlocActif) }
+            BlocPickerSheet { type in vm.addBlock(type: type, apresId: vm.idBlocActif) }
         }
         .alert("Erreur", isPresented: Binding(
             get: { vm.erreur != nil },
@@ -589,11 +589,11 @@ struct DocumentView: View {
         }
     }
 
-    private func supprimerBlocsSelectionnes() {
+    private func deleteBlocksSelectionnes() {
         let ids = blocsSelectionnes
         withAnimation(.easeInOut(duration: 0.18)) {
             blocsSelectionnes.removeAll()
-            vm.supprimerBlocs(ids: ids)
+            vm.deleteBlocks(ids: ids)
         }
     }
 
@@ -1110,7 +1110,7 @@ private struct BlocTextEditor: View {
             onNaviguerPrecedent: cb.onNaviguerPrecedent,
             onNaviguerSuivant: cb.onNaviguerSuivant,
             onNavRepeterArreter: cb.onNavRepeterArreter)
-        .autoFocuserSiBesoin(blocId: bloc.id, autoFocusId: $autoFocusId,
+        .autoFocuserSiBesoin(blockId: bloc.id, autoFocusId: $autoFocusId,
                               autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
         .onChange(of: focused) { _, f in if f { cb.onFocus?() } }
     }

@@ -1,5 +1,5 @@
-use chaqaq::application::database_use_cases::{ajouter_entree, creer_database, rechercher_entrees};
-use chaqaq::application::use_cases::{creer_document, rechercher_documents};
+use chaqaq::application::database_use_cases::{add_entry, create_database, search_entries};
+use chaqaq::application::use_cases::{create_document, search_documents};
 use chaqaq::domain::database::{Propriete, ProprieteType, ValeurPropriete};
 use chaqaq::domain::document::InlineText;
 use chaqaq::infrastructure::database_store::DatabaseStore;
@@ -28,94 +28,94 @@ fn inlines(s: &str) -> Vec<InlineText> {
 // ── Recherche documents ───────────────────────────────────────────────────────
 
 #[test]
-fn test_rechercher_documents_par_titre() {
+fn test_search_documents_par_title() {
     let store = doc_store_temp();
-    creer_document(&store, "Journal de voyage").unwrap();
-    creer_document(&store, "Recettes de cuisine").unwrap();
-    creer_document(&store, "Journal personnel").unwrap();
+    create_document(&store, "Journal de voyage").unwrap();
+    create_document(&store, "Recettes de cuisine").unwrap();
+    create_document(&store, "Journal personnel").unwrap();
 
-    let resultats = rechercher_documents(&store, "journal").unwrap();
+    let resultats = search_documents(&store, "journal").unwrap();
     assert_eq!(resultats.len(), 2);
 }
 
 #[test]
-fn test_rechercher_documents_insensible_casse() {
+fn test_search_documents_insensible_casse() {
     let store = doc_store_temp();
-    creer_document(&store, "Notes de Réunion").unwrap();
-    creer_document(&store, "Todo list").unwrap();
+    create_document(&store, "Notes de Réunion").unwrap();
+    create_document(&store, "Todo list").unwrap();
 
-    let resultats = rechercher_documents(&store, "NOTES").unwrap();
+    let resultats = search_documents(&store, "NOTES").unwrap();
     assert_eq!(resultats.len(), 1);
 }
 
 #[test]
-fn test_rechercher_documents_aucun_resultat() {
+fn test_search_documents_aucun_resultat() {
     let store = doc_store_temp();
-    creer_document(&store, "Journal").unwrap();
+    create_document(&store, "Journal").unwrap();
 
-    let resultats = rechercher_documents(&store, "xyzzy").unwrap();
+    let resultats = search_documents(&store, "xyzzy").unwrap();
     assert!(resultats.is_empty());
 }
 
 #[test]
-fn test_rechercher_documents_query_vide_retourne_tout() {
+fn test_search_documents_query_vide_retourne_tout() {
     let store = doc_store_temp();
-    creer_document(&store, "Doc A").unwrap();
-    creer_document(&store, "Doc B").unwrap();
+    create_document(&store, "Doc A").unwrap();
+    create_document(&store, "Doc B").unwrap();
 
-    let resultats = rechercher_documents(&store, "").unwrap();
+    let resultats = search_documents(&store, "").unwrap();
     assert_eq!(resultats.len(), 2);
 }
 
 // ── Recherche entrées database ────────────────────────────────────────────────
 
 #[test]
-fn test_rechercher_entrees_par_texte() {
+fn test_search_entries_par_texte() {
     let store = db_store_temp();
     let prop = Propriete::nouvelle("Contenu", ProprieteType::Texte);
     let prop_id = prop.id;
-    let db = creer_database(&store, inlines("Notes"), vec![prop]).unwrap();
+    let db = create_database(&store, inlines("Notes"), vec![prop]).unwrap();
 
     for texte in ["Première pensée", "Deuxième réflexion", "Troisième pensée"] {
         let mut v = HashMap::new();
         v.insert(prop_id, ValeurPropriete::Texte(texte.to_string()));
-        ajouter_entree(&store, db.id, v).unwrap();
+        add_entry(&store, db.id, v).unwrap();
     }
 
-    let resultats = rechercher_entrees(&store, db.id, "pensée").unwrap();
+    let resultats = search_entries(&store, db.id, "pensée").unwrap();
     assert_eq!(resultats.len(), 2);
 }
 
 #[test]
-fn test_rechercher_entrees_insensible_casse() {
+fn test_search_entries_insensible_casse() {
     let store = db_store_temp();
     let prop = Propriete::nouvelle("Titre", ProprieteType::Texte);
     let prop_id = prop.id;
-    let db = creer_database(&store, inlines("DB"), vec![prop]).unwrap();
+    let db = create_database(&store, inlines("DB"), vec![prop]).unwrap();
 
     let mut v = HashMap::new();
     v.insert(
         prop_id,
         ValeurPropriete::Texte("Vacances d'Été".to_string()),
     );
-    ajouter_entree(&store, db.id, v).unwrap();
+    add_entry(&store, db.id, v).unwrap();
 
-    let resultats = rechercher_entrees(&store, db.id, "été").unwrap();
+    let resultats = search_entries(&store, db.id, "été").unwrap();
     assert_eq!(resultats.len(), 1);
 }
 
 #[test]
-fn test_rechercher_entrees_multi_champs() {
+fn test_search_entries_multi_champs() {
     let store = db_store_temp();
-    let prop_titre = Propriete::nouvelle("Titre", ProprieteType::Texte);
+    let prop_title = Propriete::nouvelle("Titre", ProprieteType::Texte);
     let prop_tags = Propriete::nouvelle("Tags", ProprieteType::SelectionMultiple(vec![]));
-    let titre_id = prop_titre.id;
+    let title_id = prop_title.id;
     let tags_id = prop_tags.id;
-    let db = creer_database(&store, inlines("Articles"), vec![prop_titre, prop_tags]).unwrap();
+    let db = create_database(&store, inlines("Articles"), vec![prop_title, prop_tags]).unwrap();
 
     let mut v1 = HashMap::new();
     v1.insert(
-        titre_id,
+        title_id,
         ValeurPropriete::Texte("Rust et WebAssembly".to_string()),
     );
     v1.insert(
@@ -125,7 +125,7 @@ fn test_rechercher_entrees_multi_champs() {
 
     let mut v2 = HashMap::new();
     v2.insert(
-        titre_id,
+        title_id,
         ValeurPropriete::Texte("Recette de Pâtes".to_string()),
     );
     v2.insert(
@@ -133,29 +133,29 @@ fn test_rechercher_entrees_multi_champs() {
         ValeurPropriete::SelectionMultiple(vec!["cuisine".to_string(), "tech".to_string()]),
     );
 
-    ajouter_entree(&store, db.id, v1).unwrap();
-    ajouter_entree(&store, db.id, v2).unwrap();
+    add_entry(&store, db.id, v1).unwrap();
+    add_entry(&store, db.id, v2).unwrap();
 
     // "tech" apparaît dans le tag des deux entrées
-    let resultats = rechercher_entrees(&store, db.id, "tech").unwrap();
+    let resultats = search_entries(&store, db.id, "tech").unwrap();
     assert_eq!(resultats.len(), 2);
 
-    // "rust" n'est que dans le titre de la première
-    let resultats = rechercher_entrees(&store, db.id, "rust").unwrap();
+    // "rust" n'est que dans le title de la première
+    let resultats = search_entries(&store, db.id, "rust").unwrap();
     assert_eq!(resultats.len(), 1);
 }
 
 #[test]
-fn test_rechercher_entrees_aucun_resultat() {
+fn test_search_entries_aucun_resultat() {
     let store = db_store_temp();
     let prop = Propriete::nouvelle("Texte", ProprieteType::Texte);
     let prop_id = prop.id;
-    let db = creer_database(&store, inlines("DB"), vec![prop]).unwrap();
+    let db = create_database(&store, inlines("DB"), vec![prop]).unwrap();
 
     let mut v = HashMap::new();
     v.insert(prop_id, ValeurPropriete::Texte("bonjour".to_string()));
-    ajouter_entree(&store, db.id, v).unwrap();
+    add_entry(&store, db.id, v).unwrap();
 
-    let resultats = rechercher_entrees(&store, db.id, "xyzzy").unwrap();
+    let resultats = search_entries(&store, db.id, "xyzzy").unwrap();
     assert!(resultats.is_empty());
 }

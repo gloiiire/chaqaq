@@ -9,29 +9,29 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn creer_database(
+pub fn create_database(
     repo: &dyn DatabaseRepository,
-    titre: Vec<InlineText>,
+    title: Vec<InlineText>,
     proprietes: Vec<Propriete>,
 ) -> Result<Database, ChaqaqError> {
-    let db = Database::nouvelle(titre, proprietes);
+    let db = Database::nouvelle(title, proprietes);
     repo.save(&db)?;
     Ok(db)
 }
 
-pub fn obtenir_database(repo: &dyn DatabaseRepository, id: Uuid) -> Result<Database, ChaqaqError> {
+pub fn get_database(repo: &dyn DatabaseRepository, id: Uuid) -> Result<Database, ChaqaqError> {
     repo.load(id)
 }
 
-pub fn lister_databases(repo: &dyn DatabaseRepository) -> Result<Vec<DatabaseMeta>, ChaqaqError> {
+pub fn list_databases(repo: &dyn DatabaseRepository) -> Result<Vec<DatabaseMeta>, ChaqaqError> {
     repo.list_meta()
 }
 
-pub fn supprimer_database(repo: &dyn DatabaseRepository, db_id: Uuid) -> Result<(), ChaqaqError> {
+pub fn delete_database(repo: &dyn DatabaseRepository, db_id: Uuid) -> Result<(), ChaqaqError> {
     repo.delete(db_id)
 }
 
-pub fn ajouter_entree(
+pub fn add_entry(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     valeurs: HashMap<Uuid, ValeurPropriete>,
@@ -43,37 +43,37 @@ pub fn ajouter_entree(
     Ok(entree)
 }
 
-pub fn modifier_entree(
+pub fn update_entry(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
-    entree_id: Uuid,
+    entry_id: Uuid,
     valeurs: HashMap<Uuid, ValeurPropriete>,
 ) -> Result<(), ChaqaqError> {
     let mut db = repo.load(db_id)?;
     let entree = db
         .entrees
         .iter_mut()
-        .find(|e| e.id == entree_id)
-        .ok_or(ChaqaqError::NonTrouve(entree_id))?;
+        .find(|e| e.id == entry_id)
+        .ok_or(ChaqaqError::NotFound(entry_id))?;
     entree.valeurs = valeurs;
     repo.save(&db)
 }
 
-pub fn supprimer_entree(
+pub fn delete_entry(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
-    entree_id: Uuid,
+    entry_id: Uuid,
 ) -> Result<(), ChaqaqError> {
     let mut db = repo.load(db_id)?;
     let avant = db.entrees.len();
-    db.entrees.retain(|e| e.id != entree_id);
+    db.entrees.retain(|e| e.id != entry_id);
     if db.entrees.len() == avant {
-        return Err(ChaqaqError::NonTrouve(entree_id));
+        return Err(ChaqaqError::NotFound(entry_id));
     }
     repo.save(&db)
 }
 
-pub fn ajouter_propriete(
+pub fn add_property(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     propriete: Propriete,
@@ -83,7 +83,7 @@ pub fn ajouter_propriete(
     repo.save(&db)
 }
 
-pub fn ajouter_vue(
+pub fn add_view(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     vue: Vue,
@@ -97,14 +97,14 @@ pub fn ajouter_vue(
 pub fn requete(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
-    vue_id: Uuid,
+    view_id: Uuid,
 ) -> Result<Vec<Entree>, ChaqaqError> {
     let db = repo.load(db_id)?;
     let vue = db
         .vues
         .iter()
-        .find(|v| v.id == vue_id)
-        .ok_or(ChaqaqError::NonTrouve(vue_id))?;
+        .find(|v| v.id == view_id)
+        .ok_or(ChaqaqError::NotFound(view_id))?;
 
     let mut entrees: Vec<Entree> = db
         .entrees
@@ -119,11 +119,11 @@ pub fn requete(
                 SourceTri::Propriete => {
                     let va = a
                         .valeurs
-                        .get(&tri.propriete_id)
+                        .get(&tri.property_id)
                         .unwrap_or(&ValeurPropriete::Vide);
                     let vb = b
                         .valeurs
-                        .get(&tri.propriete_id)
+                        .get(&tri.property_id)
                         .unwrap_or(&ValeurPropriete::Vide);
                     comparer_valeurs(va, vb)
                 }
@@ -131,16 +131,16 @@ pub fn requete(
                 SourceTri::ManuellePuisCreation => {
                     let va = a
                         .valeurs
-                        .get(&tri.propriete_id)
+                        .get(&tri.property_id)
                         .unwrap_or(&ValeurPropriete::Vide);
                     let vb = b
                         .valeurs
-                        .get(&tri.propriete_id)
+                        .get(&tri.property_id)
                         .unwrap_or(&ValeurPropriete::Vide);
                     date_effective(va, &a.cree_le).cmp(date_effective(vb, &b.cree_le))
                 }
             };
-            if tri.ordre == Ordre::Decroissant {
+            if tri.order == Ordre::Decroissant {
                 ord.reverse()
             } else {
                 ord
@@ -153,24 +153,24 @@ pub fn requete(
 
 // ── Propriétés ───────────────────────────────────────────────────────────────
 
-pub fn renommer_propriete(
+pub fn rename_property(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     prop_id: Uuid,
-    nouveau_nom: &str,
+    new_name: &str,
 ) -> Result<(), ChaqaqError> {
     let mut db = repo.load(db_id)?;
     let prop = db
         .proprietes
         .iter_mut()
         .find(|p| p.id == prop_id)
-        .ok_or(ChaqaqError::NonTrouve(prop_id))?;
-    prop.nom = nouveau_nom.to_string();
+        .ok_or(ChaqaqError::NotFound(prop_id))?;
+    prop.nom = new_name.to_string();
     repo.save(&db)
 }
 
 /// Supprime une propriété et nettoie ses valeurs dans toutes les entrées.
-pub fn supprimer_propriete(
+pub fn delete_property(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     prop_id: Uuid,
@@ -179,7 +179,7 @@ pub fn supprimer_propriete(
     let avant = db.proprietes.len();
     db.proprietes.retain(|p| p.id != prop_id);
     if db.proprietes.len() == avant {
-        return Err(ChaqaqError::NonTrouve(prop_id));
+        return Err(ChaqaqError::NotFound(prop_id));
     }
     for entree in &mut db.entrees {
         entree.valeurs.remove(&prop_id);
@@ -190,10 +190,10 @@ pub fn supprimer_propriete(
 // ── Vues ─────────────────────────────────────────────────────────────────────
 
 /// Met à jour les filtres et tris d'une vue existante.
-pub fn modifier_vue(
+pub fn update_view(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
-    vue_id: Uuid,
+    view_id: Uuid,
     filtres: Vec<Filtre>,
     tris: Vec<Tri>,
 ) -> Result<(), ChaqaqError> {
@@ -201,29 +201,29 @@ pub fn modifier_vue(
     let vue = db
         .vues
         .iter_mut()
-        .find(|v| v.id == vue_id)
-        .ok_or(ChaqaqError::NonTrouve(vue_id))?;
+        .find(|v| v.id == view_id)
+        .ok_or(ChaqaqError::NotFound(view_id))?;
     vue.filtres = filtres;
     vue.tris = tris;
     repo.save(&db)
 }
 
-/// Supprime une vue. Retourne OperationInvalide si c'est la dernière.
-pub fn supprimer_vue(
+/// Supprime une vue. Retourne InvalidOperation si c'est la dernière.
+pub fn delete_view(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
-    vue_id: Uuid,
+    view_id: Uuid,
 ) -> Result<(), ChaqaqError> {
     let mut db = repo.load(db_id)?;
     if db.vues.len() <= 1 {
-        return Err(ChaqaqError::OperationInvalide(
+        return Err(ChaqaqError::InvalidOperation(
             "impossible de supprimer la dernière vue".to_string(),
         ));
     }
     let avant = db.vues.len();
-    db.vues.retain(|v| v.id != vue_id);
+    db.vues.retain(|v| v.id != view_id);
     if db.vues.len() == avant {
-        return Err(ChaqaqError::NonTrouve(vue_id));
+        return Err(ChaqaqError::NotFound(view_id));
     }
     repo.save(&db)
 }
@@ -231,7 +231,7 @@ pub fn supprimer_vue(
 // ── Recherche ────────────────────────────────────────────────────────────────
 
 /// Recherche insensible à la casse dans toutes les valeurs textuelles des entrées.
-pub fn rechercher_entrees(
+pub fn search_entries(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     query: &str,
@@ -268,7 +268,7 @@ fn valeur_contient(v: &ValeurPropriete, query: &str) -> bool {
 
 /// Enrichit les entrées avec les valeurs calculées des colonnes Rollup.
 /// Les valeurs rollup ne sont pas persistées — calculées à la lecture.
-pub fn evaluer_rollups(
+pub fn evaluate_rollups(
     repo: &dyn DatabaseRepository,
     db: &Database,
     mut entrees: Vec<Entree>,
@@ -299,7 +299,7 @@ pub fn evaluer_rollups(
                 ProprieteType::Relation { db_id } => Some(*db_id),
                 _ => None,
             })
-            .ok_or(ChaqaqError::NonTrouve(relation_prop_id))?;
+            .ok_or(ChaqaqError::NotFound(relation_prop_id))?;
 
         let db_liee = repo.load(db_liee_id)?;
 
@@ -323,18 +323,18 @@ pub fn evaluer_rollups(
 }
 
 /// Requête filtrée + triée + rollups calculés.
-pub fn requete_avec_rollups(
+pub fn query_with_rollups(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
-    vue_id: Uuid,
+    view_id: Uuid,
 ) -> Result<Vec<Entree>, ChaqaqError> {
     let db = repo.load(db_id)?;
-    let entrees = requete(repo, db_id, vue_id)?;
-    evaluer_rollups(repo, &db, entrees)
+    let entrees = requete(repo, db_id, view_id)?;
+    evaluate_rollups(repo, &db, entrees)
 }
 
 /// Agrège toutes les valeurs d'une colonne numérique sur l'ensemble des entrées.
-pub fn agregat_colonne(
+pub fn column_aggregate(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     prop_id: Uuid,
@@ -346,19 +346,19 @@ pub fn agregat_colonne(
 }
 
 /// Regroupe les entrées d'une vue par valeur d'une propriété.
-pub fn requete_groupee(
+pub fn grouped_query(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
-    vue_id: Uuid,
-    grouper_par: Uuid,
+    view_id: Uuid,
+    group_by: Uuid,
 ) -> Result<Vec<Groupe>, ChaqaqError> {
-    let entrees = requete(repo, db_id, vue_id)?;
+    let entrees = requete(repo, db_id, view_id)?;
     let mut map: HashMap<String, Groupe> = HashMap::new();
 
     for entree in entrees {
         let valeur = entree
             .valeurs
-            .get(&grouper_par)
+            .get(&group_by)
             .cloned()
             .unwrap_or(ValeurPropriete::Vide);
         let cle = cle_groupe(&valeur);
@@ -429,7 +429,7 @@ fn cle_groupe(v: &ValeurPropriete) -> String {
 fn appliquer_filtre(entree: &Entree, filtre: &Filtre) -> bool {
     let valeur = entree
         .valeurs
-        .get(&filtre.propriete_id)
+        .get(&filtre.property_id)
         .unwrap_or(&ValeurPropriete::Vide);
     match &filtre.condition {
         ConditionFiltre::EstVide => matches!(valeur, ValeurPropriete::Vide),
@@ -490,7 +490,7 @@ mod tests {
                 .borrow()
                 .get(&id)
                 .cloned()
-                .ok_or(ChaqaqError::NonTrouve(id))
+                .ok_or(ChaqaqError::NotFound(id))
         }
         fn list_meta(&self) -> Result<Vec<crate::domain::database::DatabaseMeta>, ChaqaqError> {
             Ok(self.dbs.borrow().values().map(|db| db.meta()).collect())
@@ -500,11 +500,11 @@ mod tests {
                 .borrow_mut()
                 .remove(&id)
                 .map(|_| ())
-                .ok_or(ChaqaqError::NonTrouve(id))
+                .ok_or(ChaqaqError::NotFound(id))
         }
     }
 
-    fn titre(s: &str) -> Vec<InlineText> {
+    fn title(s: &str) -> Vec<InlineText> {
         vec![InlineText {
             content: s.to_string(),
             styles: vec![],
@@ -512,41 +512,41 @@ mod tests {
     }
 
     #[test]
-    fn test_renommer_propriete() {
+    fn test_rename_property() {
         let repo = MockDbRepo::nouveau();
         let prop = Propriete::nouvelle("Ancien", ProprieteType::Texte);
         let prop_id = prop.id;
-        let db = Database::nouvelle(titre("DB"), vec![prop]);
+        let db = Database::nouvelle(title("DB"), vec![prop]);
         repo.save(&db).unwrap();
 
-        renommer_propriete(&repo, db.id, prop_id, "Nouveau").unwrap();
+        rename_property(&repo, db.id, prop_id, "Nouveau").unwrap();
 
         let db = repo.load(db.id).unwrap();
         assert_eq!(db.proprietes[0].nom, "Nouveau");
     }
 
     #[test]
-    fn test_renommer_propriete_inexistante_erreur() {
+    fn test_rename_property_inexistante_erreur() {
         let repo = MockDbRepo::nouveau();
-        let db = Database::nouvelle(titre("DB"), vec![]);
+        let db = Database::nouvelle(title("DB"), vec![]);
         repo.save(&db).unwrap();
 
-        let res = renommer_propriete(&repo, db.id, Uuid::new_v4(), "X");
-        assert!(matches!(res, Err(ChaqaqError::NonTrouve(_))));
+        let res = rename_property(&repo, db.id, Uuid::new_v4(), "X");
+        assert!(matches!(res, Err(ChaqaqError::NotFound(_))));
     }
 
     #[test]
-    fn test_supprimer_propriete_retire_des_entrees() {
+    fn test_delete_property_retire_des_entrees() {
         let repo = MockDbRepo::nouveau();
         let prop = Propriete::nouvelle("Statut", ProprieteType::Texte);
         let prop_id = prop.id;
-        let mut db = Database::nouvelle(titre("DB"), vec![prop]);
+        let mut db = Database::nouvelle(title("DB"), vec![prop]);
         let mut valeurs = HashMap::new();
         valeurs.insert(prop_id, ValeurPropriete::Texte("En cours".to_string()));
         db.entrees.push(Entree::nouvelle(valeurs));
         repo.save(&db).unwrap();
 
-        supprimer_propriete(&repo, db.id, prop_id).unwrap();
+        delete_property(&repo, db.id, prop_id).unwrap();
 
         let db = repo.load(db.id).unwrap();
         assert!(db.proprietes.is_empty());
@@ -554,30 +554,30 @@ mod tests {
     }
 
     #[test]
-    fn test_supprimer_propriete_inexistante_erreur() {
+    fn test_delete_property_inexistante_erreur() {
         let repo = MockDbRepo::nouveau();
-        let db = Database::nouvelle(titre("DB"), vec![]);
+        let db = Database::nouvelle(title("DB"), vec![]);
         repo.save(&db).unwrap();
 
-        let res = supprimer_propriete(&repo, db.id, Uuid::new_v4());
-        assert!(matches!(res, Err(ChaqaqError::NonTrouve(_))));
+        let res = delete_property(&repo, db.id, Uuid::new_v4());
+        assert!(matches!(res, Err(ChaqaqError::NotFound(_))));
     }
 
     #[test]
-    fn test_modifier_vue_met_a_jour_filtres_et_tris() {
+    fn test_update_view_met_a_jour_filtres_et_tris() {
         let repo = MockDbRepo::nouveau();
         let prop = Propriete::nouvelle("Note", ProprieteType::Nombre);
         let prop_id = prop.id;
-        let db = Database::nouvelle(titre("DB"), vec![prop]);
-        let vue_id = db.vues[0].id;
+        let db = Database::nouvelle(title("DB"), vec![prop]);
+        let view_id = db.vues[0].id;
         repo.save(&db).unwrap();
 
         let filtre = Filtre {
-            propriete_id: prop_id,
+            property_id: prop_id,
             condition: ConditionFiltre::EstPlein,
         };
         let tri = Tri::par_propriete(prop_id, Ordre::Decroissant);
-        modifier_vue(&repo, db.id, vue_id, vec![filtre], vec![tri]).unwrap();
+        update_view(&repo, db.id, view_id, vec![filtre], vec![tri]).unwrap();
 
         let db = repo.load(db.id).unwrap();
         assert_eq!(db.vues[0].filtres.len(), 1);
@@ -585,15 +585,15 @@ mod tests {
     }
 
     #[test]
-    fn test_supprimer_vue() {
+    fn test_delete_view() {
         let repo = MockDbRepo::nouveau();
-        let mut db = Database::nouvelle(titre("DB"), vec![]);
+        let mut db = Database::nouvelle(title("DB"), vec![]);
         let vue2 = Vue::nouvelle("Kanban", TypeVue::Galerie);
         let vue2_id = vue2.id;
         db.vues.push(vue2);
         repo.save(&db).unwrap();
 
-        supprimer_vue(&repo, db.id, vue2_id).unwrap();
+        delete_view(&repo, db.id, vue2_id).unwrap();
 
         let db = repo.load(db.id).unwrap();
         assert_eq!(db.vues.len(), 1);
@@ -603,23 +603,23 @@ mod tests {
     #[test]
     fn test_supprimer_derniere_vue_erreur() {
         let repo = MockDbRepo::nouveau();
-        let db = Database::nouvelle(titre("DB"), vec![]);
-        let vue_id = db.vues[0].id;
+        let db = Database::nouvelle(title("DB"), vec![]);
+        let view_id = db.vues[0].id;
         repo.save(&db).unwrap();
 
-        let res = supprimer_vue(&repo, db.id, vue_id);
-        assert!(matches!(res, Err(ChaqaqError::OperationInvalide(_))));
+        let res = delete_view(&repo, db.id, view_id);
+        assert!(matches!(res, Err(ChaqaqError::InvalidOperation(_))));
     }
 
     #[test]
-    fn test_supprimer_vue_inexistante_erreur() {
+    fn test_delete_view_inexistante_erreur() {
         let repo = MockDbRepo::nouveau();
-        let mut db = Database::nouvelle(titre("DB"), vec![]);
+        let mut db = Database::nouvelle(title("DB"), vec![]);
         db.vues.push(Vue::nouvelle("Extra", TypeVue::Galerie));
         repo.save(&db).unwrap();
 
-        let res = supprimer_vue(&repo, db.id, Uuid::new_v4());
-        assert!(matches!(res, Err(ChaqaqError::NonTrouve(_))));
+        let res = delete_view(&repo, db.id, Uuid::new_v4());
+        assert!(matches!(res, Err(ChaqaqError::NotFound(_))));
     }
 
     fn entree_avec_nombre(prop_id: Uuid, n: f64) -> Entree {
@@ -639,7 +639,7 @@ mod tests {
         let prop_id = Uuid::new_v4();
         let entree = Entree::nouvelle(HashMap::new());
         let filtre = Filtre {
-            propriete_id: prop_id,
+            property_id: prop_id,
             condition: ConditionFiltre::EstVide,
         };
         assert!(appliquer_filtre(&entree, &filtre));
@@ -650,7 +650,7 @@ mod tests {
         let prop_id = Uuid::new_v4();
         let entree = entree_avec_texte(prop_id, "valeur");
         let filtre = Filtre {
-            propriete_id: prop_id,
+            property_id: prop_id,
             condition: ConditionFiltre::EstPlein,
         };
         assert!(appliquer_filtre(&entree, &filtre));
@@ -661,7 +661,7 @@ mod tests {
         let prop_id = Uuid::new_v4();
         let entree = entree_avec_texte(prop_id, "Bonjour monde");
         let filtre = Filtre {
-            propriete_id: prop_id,
+            property_id: prop_id,
             condition: ConditionFiltre::Contient("monde".to_string()),
         };
         assert!(appliquer_filtre(&entree, &filtre));
@@ -672,7 +672,7 @@ mod tests {
         let prop_id = Uuid::new_v4();
         let entree = entree_avec_nombre(prop_id, 42.0);
         let filtre = Filtre {
-            propriete_id: prop_id,
+            property_id: prop_id,
             condition: ConditionFiltre::Egal(ValeurPropriete::Nombre(42.0)),
         };
         assert!(appliquer_filtre(&entree, &filtre));

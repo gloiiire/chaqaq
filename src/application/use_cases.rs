@@ -5,62 +5,62 @@ use crate::domain::editor::EditorState;
 use crate::domain::parser::parse_inline;
 use uuid::Uuid;
 
-pub fn creer_document(repo: &dyn DocumentRepository, titre: &str) -> Result<Document, ChaqaqError> {
-    let doc = Document::new(parse_inline(titre));
+pub fn create_document(repo: &dyn DocumentRepository, title: &str) -> Result<Document, ChaqaqError> {
+    let doc = Document::new(parse_inline(title));
     repo.save(&doc)?;
     Ok(doc)
 }
 
-pub fn obtenir_document(repo: &dyn DocumentRepository, id: Uuid) -> Result<Document, ChaqaqError> {
+pub fn get_document(repo: &dyn DocumentRepository, id: Uuid) -> Result<Document, ChaqaqError> {
     repo.load(id)
 }
 
-pub fn lister_documents(repo: &dyn DocumentRepository) -> Result<Vec<DocumentMeta>, ChaqaqError> {
+pub fn list_documents(repo: &dyn DocumentRepository) -> Result<Vec<DocumentMeta>, ChaqaqError> {
     repo.list()
 }
 
-pub fn supprimer_document(repo: &dyn DocumentRepository, doc_id: Uuid) -> Result<(), ChaqaqError> {
+pub fn delete_document(repo: &dyn DocumentRepository, doc_id: Uuid) -> Result<(), ChaqaqError> {
     repo.delete(doc_id)
 }
 
-pub fn ajouter_bloc(
+pub fn add_block(
     repo: &dyn DocumentRepository,
     id: Uuid,
-    contenu: BlockContent,
+    content: BlockContent,
 ) -> Result<Document, ChaqaqError> {
     let mut doc = repo.load(id)?;
-    doc.add_block(contenu);
+    doc.add_block(content);
     repo.save(&doc)?;
     Ok(doc)
 }
 
 // ── Métadonnées du document ───────────────────────────────────────────────────
 
-pub fn modifier_titre_document(
+pub fn update_document_title(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
-    nouveau_titre: &str,
+    new_title: &str,
 ) -> Result<(), ChaqaqError> {
     let mut doc = repo.load(doc_id)?;
-    doc.title = parse_inline(nouveau_titre);
+    doc.title = parse_inline(new_title);
     repo.save(&doc)
 }
 
-pub fn modifier_couverture_document(
+pub fn update_document_cover(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
-    couverture: Option<String>,
+    cover: Option<String>,
 ) -> Result<(), ChaqaqError> {
     let mut doc = repo.load(doc_id)?;
-    doc.cover = couverture;
+    doc.cover = cover;
     repo.save(&doc)
 }
 
 // ── Bridge EditorState → Block ────────────────────────────────────────────────
 
-/// Applique le contenu de l'éditeur sur un bloc textuel et persiste le document.
-/// Retourne OperationInvalide si le bloc ne porte pas de texte (Divider, Database…).
-pub fn sauvegarder_bloc_edite(
+/// Applique le content de l'éditeur sur un bloc textuel et persiste le document.
+/// Retourne InvalidOperation si le bloc ne porte pas de texte (Divider, Database…).
+pub fn save_edited_block(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
     block_id: Uuid,
@@ -69,7 +69,7 @@ pub fn sauvegarder_bloc_edite(
     let mut doc = repo.load(doc_id)?;
     let inlines: Vec<InlineText> = Vec::from(&etat.texte);
     let bloc =
-        trouver_bloc_mut(&mut doc.blocks, block_id).ok_or(ChaqaqError::NonTrouve(block_id))?;
+        find_block_mut(&mut doc.blocks, block_id).ok_or(ChaqaqError::NotFound(block_id))?;
 
     bloc.content = match &bloc.content {
         BlockContent::Text(_) => BlockContent::Text(inlines),
@@ -86,7 +86,7 @@ pub fn sauvegarder_bloc_edite(
             done: *done,
         },
         _ => {
-            return Err(ChaqaqError::OperationInvalide(format!(
+            return Err(ChaqaqError::InvalidOperation(format!(
                 "le bloc {block_id} ne contient pas de texte éditable"
             )));
         }
@@ -96,43 +96,43 @@ pub fn sauvegarder_bloc_edite(
 
 // ── Gestion des blocs ─────────────────────────────────────────────────────────
 
-/// Remplace le contenu d'un bloc existant (toggle todo, changement de type…).
-pub fn modifier_bloc(
+/// Remplace le content d'un bloc existant (toggle todo, changement de type…).
+pub fn update_block(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
     block_id: Uuid,
-    nouveau_contenu: BlockContent,
+    new_content: BlockContent,
 ) -> Result<(), ChaqaqError> {
     let mut doc = repo.load(doc_id)?;
     let bloc =
-        trouver_bloc_mut(&mut doc.blocks, block_id).ok_or(ChaqaqError::NonTrouve(block_id))?;
-    bloc.content = nouveau_contenu;
+        find_block_mut(&mut doc.blocks, block_id).ok_or(ChaqaqError::NotFound(block_id))?;
+    bloc.content = new_content;
     repo.save(&doc)
 }
 
 /// Supprime un bloc (et ses enfants) dans l'arbre du document.
-pub fn supprimer_bloc(
+pub fn delete_block(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
     block_id: Uuid,
 ) -> Result<(), ChaqaqError> {
     let mut doc = repo.load(doc_id)?;
-    if !supprimer_de_tree(&mut doc.blocks, block_id) {
-        return Err(ChaqaqError::NonTrouve(block_id));
+    if !delete_from_tree(&mut doc.blocks, block_id) {
+        return Err(ChaqaqError::NotFound(block_id));
     }
     repo.save(&doc)
 }
 
 /// Réordonne les blocs racine selon la liste d'UUIDs fournie.
 /// Les blocs absents de la liste sont conservés et placés à la fin.
-pub fn reordonner_blocs(
+pub fn reorder_blocks(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
-    ordre: Vec<Uuid>,
+    order: Vec<Uuid>,
 ) -> Result<(), ChaqaqError> {
     let mut doc = repo.load(doc_id)?;
     let mut reordonnés: Vec<Block> = Vec::with_capacity(doc.blocks.len());
-    for id in &ordre {
+    for id in &order {
         if let Some(pos) = doc.blocks.iter().position(|b| b.id == *id) {
             reordonnés.push(doc.blocks.remove(pos));
         }
@@ -143,16 +143,16 @@ pub fn reordonner_blocs(
 }
 
 /// Ajoute un bloc comme enfant direct d'un bloc existant (blocs imbriqués).
-pub fn ajouter_bloc_enfant(
+pub fn add_child_block(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
     parent_id: Uuid,
-    contenu: BlockContent,
+    content: BlockContent,
 ) -> Result<Block, ChaqaqError> {
     let mut doc = repo.load(doc_id)?;
     let parent =
-        trouver_bloc_mut(&mut doc.blocks, parent_id).ok_or(ChaqaqError::NonTrouve(parent_id))?;
-    let enfant = Block::new(contenu);
+        find_block_mut(&mut doc.blocks, parent_id).ok_or(ChaqaqError::NotFound(parent_id))?;
+    let enfant = Block::new(content);
     parent.children.push(enfant.clone());
     repo.save(&doc)?;
     Ok(enfant)
@@ -160,8 +160,8 @@ pub fn ajouter_bloc_enfant(
 
 // ── Recherche ─────────────────────────────────────────────────────────────────
 
-/// Recherche insensible à la casse dans les titres de documents.
-pub fn rechercher_documents(
+/// Recherche insensible à la casse dans les titles de documents.
+pub fn search_documents(
     repo: &dyn DocumentRepository,
     query: &str,
 ) -> Result<Vec<DocumentMeta>, ChaqaqError> {
@@ -179,21 +179,21 @@ pub fn rechercher_documents(
 
 // ── Helpers internes ──────────────────────────────────────────────────────────
 
-fn trouver_bloc_mut(blocs: &mut Vec<Block>, id: Uuid) -> Option<&mut Block> {
+fn find_block_mut(blocs: &mut Vec<Block>, id: Uuid) -> Option<&mut Block> {
     // première passe : cherche au niveau courant
     if let Some(pos) = blocs.iter().position(|b| b.id == id) {
         return Some(&mut blocs[pos]);
     }
     // deuxième passe : récursion dans les enfants
     for bloc in blocs.iter_mut() {
-        if let Some(found) = trouver_bloc_mut(&mut bloc.children, id) {
+        if let Some(found) = find_block_mut(&mut bloc.children, id) {
             return Some(found);
         }
     }
     None
 }
 
-fn supprimer_de_tree(blocs: &mut Vec<Block>, id: Uuid) -> bool {
+fn delete_from_tree(blocs: &mut Vec<Block>, id: Uuid) -> bool {
     let avant = blocs.len();
     blocs.retain(|b| b.id != id);
     if blocs.len() < avant {
@@ -201,26 +201,26 @@ fn supprimer_de_tree(blocs: &mut Vec<Block>, id: Uuid) -> bool {
     }
     blocs
         .iter_mut()
-        .any(|b| supprimer_de_tree(&mut b.children, id))
+        .any(|b| delete_from_tree(&mut b.children, id))
 }
 
-fn extraire_bloc(blocs: &mut Vec<Block>, id: Uuid) -> Option<Block> {
+fn extract_block(blocs: &mut Vec<Block>, id: Uuid) -> Option<Block> {
     if let Some(pos) = blocs.iter().position(|b| b.id == id) {
         return Some(blocs.remove(pos));
     }
     for bloc in blocs.iter_mut() {
-        if let Some(found) = extraire_bloc(&mut bloc.children, id) {
+        if let Some(found) = extract_block(&mut bloc.children, id) {
             return Some(found);
         }
     }
     None
 }
 
-fn blocs_contiennent(blocs: &[Block], query: &str) -> bool {
-    blocs.iter().any(|b| bloc_contient(b, query))
+fn blocks_contain(blocs: &[Block], query: &str) -> bool {
+    blocs.iter().any(|b| block_contains(b, query))
 }
 
-fn bloc_contient(bloc: &Block, query: &str) -> bool {
+fn block_contains(bloc: &Block, query: &str) -> bool {
     let texte = match &bloc.content {
         BlockContent::Text(inlines)
         | BlockContent::Heading { text: inlines, .. }
@@ -230,24 +230,24 @@ fn bloc_contient(bloc: &Block, query: &str) -> bool {
             .any(|i| i.content.to_lowercase().contains(query)),
         _ => false,
     };
-    texte || blocs_contiennent(&bloc.children, query)
+    texte || blocks_contain(&bloc.children, query)
 }
 
 // ── Blocs imbriqués — réordonnement et déplacement ───────────────────────────
 
 /// Réordonne les blocs enfants d'un bloc parent selon la liste d'UUIDs fournie.
 /// Les enfants absents de la liste sont conservés et placés à la fin.
-pub fn reordonner_blocs_enfants(
+pub fn reorder_child_blocks(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
     parent_id: Uuid,
-    ordre: Vec<Uuid>,
+    order: Vec<Uuid>,
 ) -> Result<(), ChaqaqError> {
     let mut doc = repo.load(doc_id)?;
     let parent =
-        trouver_bloc_mut(&mut doc.blocks, parent_id).ok_or(ChaqaqError::NonTrouve(parent_id))?;
+        find_block_mut(&mut doc.blocks, parent_id).ok_or(ChaqaqError::NotFound(parent_id))?;
     let mut reordonnes: Vec<Block> = Vec::with_capacity(parent.children.len());
-    for id in &ordre {
+    for id in &order {
         if let Some(pos) = parent.children.iter().position(|b| b.id == *id) {
             reordonnes.push(parent.children.remove(pos));
         }
@@ -258,25 +258,25 @@ pub fn reordonner_blocs_enfants(
 }
 
 /// Déplace un bloc vers un nouveau parent (None = racine du document).
-/// Retourne OperationInvalide si block_id == nouveau_parent_id.
-pub fn deplacer_bloc(
+/// Retourne InvalidOperation si block_id == new_parent_id.
+pub fn move_block(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
     block_id: Uuid,
-    nouveau_parent_id: Option<Uuid>,
+    new_parent_id: Option<Uuid>,
 ) -> Result<(), ChaqaqError> {
-    if nouveau_parent_id == Some(block_id) {
-        return Err(ChaqaqError::OperationInvalide(
+    if new_parent_id == Some(block_id) {
+        return Err(ChaqaqError::InvalidOperation(
             "impossible de déplacer un bloc dans lui-même".to_string(),
         ));
     }
     let mut doc = repo.load(doc_id)?;
-    let bloc = extraire_bloc(&mut doc.blocks, block_id).ok_or(ChaqaqError::NonTrouve(block_id))?;
-    match nouveau_parent_id {
+    let bloc = extract_block(&mut doc.blocks, block_id).ok_or(ChaqaqError::NotFound(block_id))?;
+    match new_parent_id {
         None => doc.blocks.push(bloc),
         Some(parent_id) => {
-            let parent = trouver_bloc_mut(&mut doc.blocks, parent_id)
-                .ok_or(ChaqaqError::NonTrouve(parent_id))?;
+            let parent = find_block_mut(&mut doc.blocks, parent_id)
+                .ok_or(ChaqaqError::NotFound(parent_id))?;
             parent.children.push(bloc);
         }
     }
@@ -285,9 +285,9 @@ pub fn deplacer_bloc(
 
 // ── Recherche plein texte ─────────────────────────────────────────────────────
 
-/// Recherche insensible à la casse dans le contenu textuel des blocs de tous les documents.
+/// Recherche insensible à la casse dans le content textuel des blocs de tous les documents.
 /// Retourne les métadonnées des documents qui contiennent au moins un bloc correspondant.
-pub fn rechercher_dans_blocs(
+pub fn search_in_blocks(
     repo: &dyn DocumentRepository,
     query: &str,
 ) -> Result<Vec<DocumentMeta>, ChaqaqError> {
@@ -296,7 +296,7 @@ pub fn rechercher_dans_blocs(
     let mut resultats = Vec::new();
     for meta in metas {
         let doc = repo.load(meta.id)?;
-        if blocs_contiennent(&doc.blocks, &q) {
+        if blocks_contain(&doc.blocks, &q) {
             resultats.push(meta);
         }
     }
@@ -332,7 +332,7 @@ mod tests {
                 .borrow()
                 .get(&id)
                 .cloned()
-                .ok_or(ChaqaqError::NonTrouve(id))
+                .ok_or(ChaqaqError::NotFound(id))
         }
         fn list(&self) -> Result<Vec<DocumentMeta>, ChaqaqError> {
             Ok(self
@@ -347,7 +347,7 @@ mod tests {
                 .borrow_mut()
                 .remove(&id)
                 .map(|_| ())
-                .ok_or(ChaqaqError::NonTrouve(id))
+                .ok_or(ChaqaqError::NotFound(id))
         }
     }
 
@@ -358,8 +358,8 @@ mod tests {
         }]
     }
 
-    fn doc_avec_blocs(titre: &str, blocs: Vec<Block>) -> Document {
-        let mut doc = Document::new(inline(titre));
+    fn doc_avec_blocs(title: &str, blocs: Vec<Block>) -> Document {
+        let mut doc = Document::new(inline(title));
         doc.blocks = blocs;
         doc
     }
@@ -369,7 +369,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reordonner_blocs_enfants() {
+    fn test_reorder_child_blocks() {
         let repo = MockRepo::nouveau();
         let mut doc = Document::new(inline("Test"));
         let parent = Block::new(BlockContent::Text(inline("parent")));
@@ -378,13 +378,13 @@ mod tests {
         repo.save(&doc).unwrap();
 
         let enfant_a =
-            ajouter_bloc_enfant(&repo, doc.id, parent_id, BlockContent::Text(inline("A"))).unwrap();
+            add_child_block(&repo, doc.id, parent_id, BlockContent::Text(inline("A"))).unwrap();
         let enfant_b =
-            ajouter_bloc_enfant(&repo, doc.id, parent_id, BlockContent::Text(inline("B"))).unwrap();
+            add_child_block(&repo, doc.id, parent_id, BlockContent::Text(inline("B"))).unwrap();
         let enfant_c =
-            ajouter_bloc_enfant(&repo, doc.id, parent_id, BlockContent::Text(inline("C"))).unwrap();
+            add_child_block(&repo, doc.id, parent_id, BlockContent::Text(inline("C"))).unwrap();
 
-        reordonner_blocs_enfants(
+        reorder_child_blocks(
             &repo,
             doc.id,
             parent_id,
@@ -400,7 +400,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deplacer_bloc_racine_vers_enfant() {
+    fn test_move_block_racine_vers_enfant() {
         let repo = MockRepo::nouveau();
         let mut doc = Document::new(inline("Test"));
         let parent = bloc_texte("parent");
@@ -411,7 +411,7 @@ mod tests {
         doc.blocks.push(enfant);
         repo.save(&doc).unwrap();
 
-        deplacer_bloc(&repo, doc.id, enfant_id, Some(parent_id)).unwrap();
+        move_block(&repo, doc.id, enfant_id, Some(parent_id)).unwrap();
 
         let doc = repo.load(doc.id).unwrap();
         assert_eq!(doc.blocks.len(), 1);
@@ -420,7 +420,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deplacer_bloc_enfant_vers_racine() {
+    fn test_move_block_enfant_vers_racine() {
         let repo = MockRepo::nouveau();
         let mut doc = Document::new(inline("Test"));
         let mut parent = bloc_texte("parent");
@@ -430,7 +430,7 @@ mod tests {
         doc.blocks.push(parent);
         repo.save(&doc).unwrap();
 
-        deplacer_bloc(&repo, doc.id, enfant_id, None).unwrap();
+        move_block(&repo, doc.id, enfant_id, None).unwrap();
 
         let doc = repo.load(doc.id).unwrap();
         assert_eq!(doc.blocks.len(), 2);
@@ -439,41 +439,41 @@ mod tests {
     }
 
     #[test]
-    fn test_deplacer_bloc_dans_lui_meme_erreur() {
+    fn test_move_block_dans_lui_meme_erreur() {
         let repo = MockRepo::nouveau();
         let mut doc = Document::new(inline("Test"));
         let bloc = bloc_texte("bloc");
-        let bloc_id = bloc.id;
+        let block_id = bloc.id;
         doc.blocks.push(bloc);
         repo.save(&doc).unwrap();
 
-        let res = deplacer_bloc(&repo, doc.id, bloc_id, Some(bloc_id));
-        assert!(matches!(res, Err(ChaqaqError::OperationInvalide(_))));
+        let res = move_block(&repo, doc.id, block_id, Some(block_id));
+        assert!(matches!(res, Err(ChaqaqError::InvalidOperation(_))));
     }
 
     #[test]
-    fn test_rechercher_dans_blocs_trouve() {
+    fn test_search_in_blocks_trouve() {
         let repo = MockRepo::nouveau();
         let doc = doc_avec_blocs("Doc", vec![bloc_texte("Rust est génial")]);
         repo.save(&doc).unwrap();
 
-        let resultats = rechercher_dans_blocs(&repo, "rust").unwrap();
+        let resultats = search_in_blocks(&repo, "rust").unwrap();
         assert_eq!(resultats.len(), 1);
         assert_eq!(resultats[0].id, doc.id);
     }
 
     #[test]
-    fn test_rechercher_dans_blocs_pas_de_resultat() {
+    fn test_search_in_blocks_pas_de_resultat() {
         let repo = MockRepo::nouveau();
         let doc = doc_avec_blocs("Doc", vec![bloc_texte("Bonjour monde")]);
         repo.save(&doc).unwrap();
 
-        let resultats = rechercher_dans_blocs(&repo, "flutter").unwrap();
+        let resultats = search_in_blocks(&repo, "flutter").unwrap();
         assert!(resultats.is_empty());
     }
 
     #[test]
-    fn test_rechercher_dans_blocs_enfants() {
+    fn test_search_in_blocks_enfants() {
         let repo = MockRepo::nouveau();
         let mut parent = bloc_texte("parent");
         parent
@@ -482,7 +482,7 @@ mod tests {
         let doc = doc_avec_blocs("Doc", vec![parent]);
         repo.save(&doc).unwrap();
 
-        let resultats = rechercher_dans_blocs(&repo, "profondeur").unwrap();
+        let resultats = search_in_blocks(&repo, "profondeur").unwrap();
         assert_eq!(resultats.len(), 1);
     }
 }

@@ -95,8 +95,8 @@ impl Entree {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeVue {
     Tableau,
-    Kanban { grouper_par: Uuid },
-    Calendrier { propriete_id: Uuid },
+    Kanban { group_by: Uuid },
+    Calendrier { property_id: Uuid },
     Galerie,
 }
 
@@ -110,7 +110,7 @@ pub enum ConditionFiltre {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Filtre {
-    pub propriete_id: Uuid,
+    pub property_id: Uuid,
     pub condition: ConditionFiltre,
 }
 
@@ -123,47 +123,47 @@ pub enum Ordre {
 /// Détermine quelle date utiliser lors d'un tri.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum SourceTri {
-    /// Tri standard sur la valeur de `propriete_id`.
+    /// Tri standard sur la valeur de `property_id`.
     #[default]
     Propriete,
-    /// Tri sur `cree_le` uniquement (date auto-générée, `propriete_id` ignoré).
+    /// Tri sur `cree_le` uniquement (date auto-générée, `property_id` ignoré).
     Creation,
-    /// Utilise la valeur de `propriete_id` si elle est renseignée, sinon `cree_le`.
+    /// Utilise la valeur de `property_id` si elle est renseignée, sinon `cree_le`.
     /// Résout le cas journal : anciennes notes avec date manuelle + nouvelles notes sans.
     ManuellePuisCreation,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Tri {
-    pub propriete_id: Uuid,
-    pub ordre: Ordre,
+    pub property_id: Uuid,
+    pub order: Ordre,
     #[serde(default)]
     pub source: SourceTri,
 }
 
 impl Tri {
-    pub fn par_propriete(propriete_id: Uuid, ordre: Ordre) -> Self {
+    pub fn par_propriete(property_id: Uuid, order: Ordre) -> Self {
         Self {
-            propriete_id,
-            ordre,
+            property_id,
+            order,
             source: SourceTri::Propriete,
         }
     }
 
-    /// Tri par date auto-générée. `propriete_id` peut être `Uuid::nil()`.
-    pub fn par_creation(ordre: Ordre) -> Self {
+    /// Tri par date auto-générée. `property_id` peut être `Uuid::nil()`.
+    pub fn par_creation(order: Ordre) -> Self {
         Self {
-            propriete_id: Uuid::nil(),
-            ordre,
+            property_id: Uuid::nil(),
+            order,
             source: SourceTri::Creation,
         }
     }
 
     /// Date manuelle si renseignée, sinon date de création automatique.
-    pub fn manuelle_puis_creation(propriete_id: Uuid, ordre: Ordre) -> Self {
+    pub fn manuelle_puis_creation(property_id: Uuid, order: Ordre) -> Self {
         Self {
-            propriete_id,
-            ordre,
+            property_id,
+            order,
             source: SourceTri::ManuellePuisCreation,
         }
     }
@@ -203,7 +203,7 @@ pub struct Groupe {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DatabaseMeta {
     pub id: Uuid,
-    pub titre: Vec<InlineText>,
+    pub title: Vec<InlineText>,
     /// Timestamp ISO 8601 de la dernière modification — géré par l'infrastructure.
     /// Vide si le backend ne le fournit pas (DatabaseStore JSON, mock).
     #[serde(default)]
@@ -217,18 +217,18 @@ pub struct DatabaseMeta {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Database {
     pub id: Uuid,
-    pub titre: Vec<InlineText>,
+    pub title: Vec<InlineText>,
     pub proprietes: Vec<Propriete>,
     pub entrees: Vec<Entree>,
     pub vues: Vec<Vue>,
 }
 
 impl Database {
-    pub fn nouvelle(titre: Vec<InlineText>, proprietes: Vec<Propriete>) -> Self {
+    pub fn nouvelle(title: Vec<InlineText>, proprietes: Vec<Propriete>) -> Self {
         let vue_defaut = Vue::nouvelle("Tableau", TypeVue::Tableau);
         Self {
             id: Uuid::new_v4(),
-            titre,
+            title,
             proprietes,
             entrees: vec![],
             vues: vec![vue_defaut],
@@ -238,7 +238,7 @@ impl Database {
     pub fn meta(&self) -> DatabaseMeta {
         DatabaseMeta {
             id: self.id,
-            titre: self.titre.clone(),
+            title: self.title.clone(),
             updated_at: String::new(),
             created_at: String::new(),
         }
@@ -249,7 +249,7 @@ impl Database {
 mod tests {
     use super::*;
 
-    fn titre(s: &str) -> Vec<InlineText> {
+    fn title(s: &str) -> Vec<InlineText> {
         vec![InlineText {
             content: s.to_string(),
             styles: vec![],
@@ -258,18 +258,18 @@ mod tests {
 
     #[test]
     fn test_nouvelle_database_a_vue_tableau_par_defaut() {
-        let db = Database::nouvelle(titre("Projets"), vec![]);
+        let db = Database::nouvelle(title("Projets"), vec![]);
         assert_eq!(db.vues.len(), 1);
         assert_eq!(db.vues[0].type_, TypeVue::Tableau);
         assert_eq!(db.vues[0].nom, "Tableau");
     }
 
     #[test]
-    fn test_meta_extrait_id_et_titre() {
-        let db = Database::nouvelle(titre("Tâches"), vec![]);
+    fn test_meta_extrait_id_et_title() {
+        let db = Database::nouvelle(title("Tâches"), vec![]);
         let meta = db.meta();
         assert_eq!(meta.id, db.id);
-        assert_eq!(meta.titre, db.titre);
+        assert_eq!(meta.title, db.title);
     }
 
     #[test]
@@ -295,7 +295,7 @@ mod tests {
 
     #[test]
     fn test_nouvelle_database_sans_entrees() {
-        let db = Database::nouvelle(titre("Vide"), vec![]);
+        let db = Database::nouvelle(title("Vide"), vec![]);
         assert!(db.entrees.is_empty());
     }
 
@@ -337,7 +337,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tri_par_creation_ignore_propriete_id() {
+    fn test_tri_par_creation_ignore_property_id() {
         let t = Tri::par_creation(Ordre::Decroissant);
         assert_eq!(t.source, SourceTri::Creation);
     }
@@ -347,7 +347,7 @@ mod tests {
         let id = Uuid::new_v4();
         let t = Tri::manuelle_puis_creation(id, Ordre::Croissant);
         assert_eq!(t.source, SourceTri::ManuellePuisCreation);
-        assert_eq!(t.propriete_id, id);
+        assert_eq!(t.property_id, id);
     }
 
     #[test]
