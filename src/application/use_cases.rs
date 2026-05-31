@@ -64,14 +64,14 @@ pub fn save_edited_block(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
     block_id: Uuid,
-    etat: &EditorState,
+    editor_state: &EditorState,
 ) -> Result<(), PinkhaError> {
     let mut doc = repo.load(doc_id)?;
-    let inlines: Vec<InlineText> = Vec::from(&etat.texte);
-    let bloc =
+    let inlines: Vec<InlineText> = Vec::from(&editor_state.text);
+    let block =
         find_block_mut(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
 
-    bloc.content = match &bloc.content {
+    block.content = match &block.content {
         BlockContent::Text(_) => BlockContent::Text(inlines),
         BlockContent::Heading { level, .. } => BlockContent::Heading {
             text: inlines,
@@ -104,9 +104,9 @@ pub fn update_block(
     new_content: BlockContent,
 ) -> Result<(), PinkhaError> {
     let mut doc = repo.load(doc_id)?;
-    let bloc =
+    let block =
         find_block_mut(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
-    bloc.content = new_content;
+    block.content = new_content;
     repo.save(&doc)
 }
 
@@ -131,14 +131,14 @@ pub fn reorder_blocks(
     order: Vec<Uuid>,
 ) -> Result<(), PinkhaError> {
     let mut doc = repo.load(doc_id)?;
-    let mut reordonnés: Vec<Block> = Vec::with_capacity(doc.blocks.len());
+    let mut reordered: Vec<Block> = Vec::with_capacity(doc.blocks.len());
     for id in &order {
         if let Some(pos) = doc.blocks.iter().position(|b| b.id == *id) {
-            reordonnés.push(doc.blocks.remove(pos));
+            reordered.push(doc.blocks.remove(pos));
         }
     }
-    reordonnés.extend(doc.blocks);
-    doc.blocks = reordonnés;
+    reordered.extend(doc.blocks);
+    doc.blocks = reordered;
     repo.save(&doc)
 }
 
@@ -152,10 +152,10 @@ pub fn add_child_block(
     let mut doc = repo.load(doc_id)?;
     let parent =
         find_block_mut(&mut doc.blocks, parent_id).ok_or(PinkhaError::NotFound(parent_id))?;
-    let enfant = Block::new(content);
-    parent.children.push(enfant.clone());
+    let child = Block::new(content);
+    parent.children.push(child.clone());
     repo.save(&doc)?;
-    Ok(enfant)
+    Ok(child)
 }
 
 // ── Recherche ─────────────────────────────────────────────────────────────────
@@ -179,49 +179,49 @@ pub fn search_documents(
 
 // ── Helpers internes ──────────────────────────────────────────────────────────
 
-fn find_block_mut(blocs: &mut Vec<Block>, id: Uuid) -> Option<&mut Block> {
+fn find_block_mut(blocks: &mut Vec<Block>, id: Uuid) -> Option<&mut Block> {
     // première passe : cherche au niveau courant
-    if let Some(pos) = blocs.iter().position(|b| b.id == id) {
-        return Some(&mut blocs[pos]);
+    if let Some(pos) = blocks.iter().position(|b| b.id == id) {
+        return Some(&mut blocks[pos]);
     }
     // deuxième passe : récursion dans les enfants
-    for bloc in blocs.iter_mut() {
-        if let Some(found) = find_block_mut(&mut bloc.children, id) {
+    for block in blocks.iter_mut() {
+        if let Some(found) = find_block_mut(&mut block.children, id) {
             return Some(found);
         }
     }
     None
 }
 
-fn delete_from_tree(blocs: &mut Vec<Block>, id: Uuid) -> bool {
-    let avant = blocs.len();
-    blocs.retain(|b| b.id != id);
-    if blocs.len() < avant {
+fn delete_from_tree(blocks: &mut Vec<Block>, id: Uuid) -> bool {
+    let before = blocks.len();
+    blocks.retain(|b| b.id != id);
+    if blocks.len() < before {
         return true;
     }
-    blocs
+    blocks
         .iter_mut()
         .any(|b| delete_from_tree(&mut b.children, id))
 }
 
-fn extract_block(blocs: &mut Vec<Block>, id: Uuid) -> Option<Block> {
-    if let Some(pos) = blocs.iter().position(|b| b.id == id) {
-        return Some(blocs.remove(pos));
+fn extract_block(blocks: &mut Vec<Block>, id: Uuid) -> Option<Block> {
+    if let Some(pos) = blocks.iter().position(|b| b.id == id) {
+        return Some(blocks.remove(pos));
     }
-    for bloc in blocs.iter_mut() {
-        if let Some(found) = extract_block(&mut bloc.children, id) {
+    for block in blocks.iter_mut() {
+        if let Some(found) = extract_block(&mut block.children, id) {
             return Some(found);
         }
     }
     None
 }
 
-fn blocks_contain(blocs: &[Block], query: &str) -> bool {
-    blocs.iter().any(|b| block_contains(b, query))
+fn blocks_contain(blocks: &[Block], query: &str) -> bool {
+    blocks.iter().any(|b| block_contains(b, query))
 }
 
-fn block_contains(bloc: &Block, query: &str) -> bool {
-    let texte = match &bloc.content {
+fn block_contains(block: &Block, query: &str) -> bool {
+    let matches_text = match &block.content {
         BlockContent::Text(inlines)
         | BlockContent::Heading { text: inlines, .. }
         | BlockContent::Quote { text: inlines, .. }
@@ -230,7 +230,7 @@ fn block_contains(bloc: &Block, query: &str) -> bool {
             .any(|i| i.content.to_lowercase().contains(query)),
         _ => false,
     };
-    texte || blocks_contain(&bloc.children, query)
+    matches_text || blocks_contain(&block.children, query)
 }
 
 // ── Blocs imbriqués — réordonnement et déplacement ───────────────────────────
@@ -246,14 +246,14 @@ pub fn reorder_child_blocks(
     let mut doc = repo.load(doc_id)?;
     let parent =
         find_block_mut(&mut doc.blocks, parent_id).ok_or(PinkhaError::NotFound(parent_id))?;
-    let mut reordonnes: Vec<Block> = Vec::with_capacity(parent.children.len());
+    let mut reordered: Vec<Block> = Vec::with_capacity(parent.children.len());
     for id in &order {
         if let Some(pos) = parent.children.iter().position(|b| b.id == *id) {
-            reordonnes.push(parent.children.remove(pos));
+            reordered.push(parent.children.remove(pos));
         }
     }
-    reordonnes.extend(parent.children.drain(..));
-    parent.children = reordonnes;
+    reordered.extend(parent.children.drain(..));
+    parent.children = reordered;
     repo.save(&doc)
 }
 
@@ -271,13 +271,13 @@ pub fn move_block(
         ));
     }
     let mut doc = repo.load(doc_id)?;
-    let bloc = extract_block(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
+    let block = extract_block(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
     match new_parent_id {
-        None => doc.blocks.push(bloc),
+        None => doc.blocks.push(block),
         Some(parent_id) => {
             let parent = find_block_mut(&mut doc.blocks, parent_id)
                 .ok_or(PinkhaError::NotFound(parent_id))?;
-            parent.children.push(bloc);
+            parent.children.push(block);
         }
     }
     repo.save(&doc)
@@ -293,14 +293,14 @@ pub fn search_in_blocks(
 ) -> Result<Vec<DocumentMeta>, PinkhaError> {
     let q = query.to_lowercase();
     let metas = repo.list()?;
-    let mut resultats = Vec::new();
+    let mut results = Vec::new();
     for meta in metas {
         let doc = repo.load(meta.id)?;
         if blocks_contain(&doc.blocks, &q) {
-            resultats.push(meta);
+            results.push(meta);
         }
     }
-    Ok(resultats)
+    Ok(results)
 }
 
 #[cfg(test)]
@@ -315,7 +315,7 @@ mod tests {
     }
 
     impl MockRepo {
-        fn nouveau() -> Self {
+        fn new() -> Self {
             Self {
                 docs: RefCell::new(HashMap::new()),
             }
@@ -358,93 +358,93 @@ mod tests {
         }]
     }
 
-    fn doc_avec_blocs(title: &str, blocs: Vec<Block>) -> Document {
+    fn doc_with_blocks(title: &str, blocks: Vec<Block>) -> Document {
         let mut doc = Document::new(inline(title));
-        doc.blocks = blocs;
+        doc.blocks = blocks;
         doc
     }
 
-    fn bloc_texte(s: &str) -> Block {
+    fn text_block(s: &str) -> Block {
         Block::new(BlockContent::Text(inline(s)))
     }
 
     #[test]
     fn test_reorder_child_blocks() {
-        let repo = MockRepo::nouveau();
+        let repo = MockRepo::new();
         let mut doc = Document::new(inline("Test"));
         let parent = Block::new(BlockContent::Text(inline("parent")));
         let parent_id = parent.id;
         doc.blocks.push(parent);
         repo.save(&doc).unwrap();
 
-        let enfant_a =
+        let child_a =
             add_child_block(&repo, doc.id, parent_id, BlockContent::Text(inline("A"))).unwrap();
-        let enfant_b =
+        let child_b =
             add_child_block(&repo, doc.id, parent_id, BlockContent::Text(inline("B"))).unwrap();
-        let enfant_c =
+        let child_c =
             add_child_block(&repo, doc.id, parent_id, BlockContent::Text(inline("C"))).unwrap();
 
         reorder_child_blocks(
             &repo,
             doc.id,
             parent_id,
-            vec![enfant_c.id, enfant_a.id, enfant_b.id],
+            vec![child_c.id, child_a.id, child_b.id],
         )
         .unwrap();
 
         let doc = repo.load(doc.id).unwrap();
-        let enfants = &doc.blocks[0].children;
-        assert_eq!(enfants[0].id, enfant_c.id);
-        assert_eq!(enfants[1].id, enfant_a.id);
-        assert_eq!(enfants[2].id, enfant_b.id);
+        let children = &doc.blocks[0].children;
+        assert_eq!(children[0].id, child_c.id);
+        assert_eq!(children[1].id, child_a.id);
+        assert_eq!(children[2].id, child_b.id);
     }
 
     #[test]
     fn test_move_block_racine_vers_enfant() {
-        let repo = MockRepo::nouveau();
+        let repo = MockRepo::new();
         let mut doc = Document::new(inline("Test"));
-        let parent = bloc_texte("parent");
-        let enfant = bloc_texte("à déplacer");
+        let parent = text_block("parent");
+        let child = text_block("à déplacer");
         let parent_id = parent.id;
-        let enfant_id = enfant.id;
+        let child_id = child.id;
         doc.blocks.push(parent);
-        doc.blocks.push(enfant);
+        doc.blocks.push(child);
         repo.save(&doc).unwrap();
 
-        move_block(&repo, doc.id, enfant_id, Some(parent_id)).unwrap();
+        move_block(&repo, doc.id, child_id, Some(parent_id)).unwrap();
 
         let doc = repo.load(doc.id).unwrap();
         assert_eq!(doc.blocks.len(), 1);
         assert_eq!(doc.blocks[0].children.len(), 1);
-        assert_eq!(doc.blocks[0].children[0].id, enfant_id);
+        assert_eq!(doc.blocks[0].children[0].id, child_id);
     }
 
     #[test]
     fn test_move_block_enfant_vers_racine() {
-        let repo = MockRepo::nouveau();
+        let repo = MockRepo::new();
         let mut doc = Document::new(inline("Test"));
-        let mut parent = bloc_texte("parent");
-        let enfant = bloc_texte("enfant");
-        let enfant_id = enfant.id;
-        parent.children.push(enfant);
+        let mut parent = text_block("parent");
+        let child = text_block("enfant");
+        let child_id = child.id;
+        parent.children.push(child);
         doc.blocks.push(parent);
         repo.save(&doc).unwrap();
 
-        move_block(&repo, doc.id, enfant_id, None).unwrap();
+        move_block(&repo, doc.id, child_id, None).unwrap();
 
         let doc = repo.load(doc.id).unwrap();
         assert_eq!(doc.blocks.len(), 2);
         assert!(doc.blocks[0].children.is_empty());
-        assert_eq!(doc.blocks[1].id, enfant_id);
+        assert_eq!(doc.blocks[1].id, child_id);
     }
 
     #[test]
     fn test_move_block_dans_lui_meme_erreur() {
-        let repo = MockRepo::nouveau();
+        let repo = MockRepo::new();
         let mut doc = Document::new(inline("Test"));
-        let bloc = bloc_texte("bloc");
-        let block_id = bloc.id;
-        doc.blocks.push(bloc);
+        let block = text_block("bloc");
+        let block_id = block.id;
+        doc.blocks.push(block);
         repo.save(&doc).unwrap();
 
         let res = move_block(&repo, doc.id, block_id, Some(block_id));
@@ -453,36 +453,36 @@ mod tests {
 
     #[test]
     fn test_search_in_blocks_trouve() {
-        let repo = MockRepo::nouveau();
-        let doc = doc_avec_blocs("Doc", vec![bloc_texte("Rust est génial")]);
+        let repo = MockRepo::new();
+        let doc = doc_with_blocks("Doc", vec![text_block("Rust est génial")]);
         repo.save(&doc).unwrap();
 
-        let resultats = search_in_blocks(&repo, "rust").unwrap();
-        assert_eq!(resultats.len(), 1);
-        assert_eq!(resultats[0].id, doc.id);
+        let results = search_in_blocks(&repo, "rust").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, doc.id);
     }
 
     #[test]
     fn test_search_in_blocks_pas_de_resultat() {
-        let repo = MockRepo::nouveau();
-        let doc = doc_avec_blocs("Doc", vec![bloc_texte("Bonjour monde")]);
+        let repo = MockRepo::new();
+        let doc = doc_with_blocks("Doc", vec![text_block("Bonjour monde")]);
         repo.save(&doc).unwrap();
 
-        let resultats = search_in_blocks(&repo, "flutter").unwrap();
-        assert!(resultats.is_empty());
+        let results = search_in_blocks(&repo, "flutter").unwrap();
+        assert!(results.is_empty());
     }
 
     #[test]
     fn test_search_in_blocks_enfants() {
-        let repo = MockRepo::nouveau();
-        let mut parent = bloc_texte("parent");
+        let repo = MockRepo::new();
+        let mut parent = text_block("parent");
         parent
             .children
-            .push(bloc_texte("texte caché en profondeur"));
-        let doc = doc_avec_blocs("Doc", vec![parent]);
+            .push(text_block("texte caché en profondeur"));
+        let doc = doc_with_blocks("Doc", vec![parent]);
         repo.save(&doc).unwrap();
 
-        let resultats = search_in_blocks(&repo, "profondeur").unwrap();
-        assert_eq!(resultats.len(), 1);
+        let results = search_in_blocks(&repo, "profondeur").unwrap();
+        assert_eq!(results.len(), 1);
     }
 }

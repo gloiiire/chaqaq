@@ -2,7 +2,7 @@
 /// → sauvegarde → rechargement → vérification.
 use pinkha::application::repository::DocumentRepository;
 use pinkha::application::use_cases::{create_document, get_document};
-use pinkha::domain::commandes::{AppliquerStyle, Historique, Inserer};
+use pinkha::domain::commandes::{ApplyStyle, History, Insert};
 use pinkha::domain::document::InlineStyle;
 use pinkha::domain::editor::EditorState;
 use pinkha::domain::rich_text::RichText;
@@ -24,14 +24,14 @@ fn test_editer_title_puis_sauvegarder() {
     let mut doc = create_document(&store, "Titre").unwrap();
 
     // édition du title via l'éditeur
-    let mut etat = EditorState::nouveau(RichText::from(&doc.title));
-    let mut hist = Historique::default();
+    let mut state = EditorState::new(RichText::from(&doc.title));
+    let mut hist = History::default();
 
-    hist.appliquer(Box::new(Inserer::nouveau(5, '!')), &mut etat);
-    assert_eq!(etat.texte.content(), "Titre!");
+    hist.apply(Box::new(Insert::new(5, '!')), &mut state);
+    assert_eq!(state.text.content(), "Titre!");
 
     // on réécrit le title dans le document et on sauvegarde
-    doc.title = Vec::from(&etat.texte);
+    doc.title = Vec::from(&state.text);
     store.save(&doc).unwrap();
 
     // rechargement et vérification
@@ -47,15 +47,15 @@ fn test_style_persisté_apres_sauvegarde() {
 
     let mut doc = create_document(&store, "Notes").unwrap();
 
-    let mut etat = EditorState::nouveau(RichText::from(&doc.title));
-    let mut hist = Historique::default();
+    let mut state = EditorState::new(RichText::from(&doc.title));
+    let mut hist = History::default();
 
     // mettre "Notes" en gras
-    etat.selectionner(0..5);
-    let cmd = AppliquerStyle::nouveau(&etat, 0..5, InlineStyle::Bold);
-    hist.appliquer(Box::new(cmd), &mut etat);
+    state.select(0..5);
+    let cmd = ApplyStyle::new(&state, 0..5, InlineStyle::Bold);
+    hist.apply(Box::new(cmd), &mut state);
 
-    doc.title = Vec::from(&etat.texte);
+    doc.title = Vec::from(&state.text);
     store.save(&doc).unwrap();
 
     let recharge = get_document(&store, doc.id).unwrap();
@@ -75,17 +75,17 @@ fn test_undo_avant_sauvegarde() {
 
     let mut doc = create_document(&store, "Brouillon").unwrap();
 
-    let mut etat = EditorState::nouveau(RichText::from(&doc.title));
-    let mut hist = Historique::default();
+    let mut state = EditorState::new(RichText::from(&doc.title));
+    let mut hist = History::default();
 
-    hist.appliquer(Box::new(Inserer::nouveau(9, 'X')), &mut etat);
-    assert_eq!(etat.texte.content(), "BrouillonX");
+    hist.apply(Box::new(Insert::new(9, 'X')), &mut state);
+    assert_eq!(state.text.content(), "BrouillonX");
 
-    hist.annuler(&mut etat);
-    assert_eq!(etat.texte.content(), "Brouillon");
+    hist.undo(&mut state);
+    assert_eq!(state.text.content(), "Brouillon");
 
     // sauvegarde de l'état après undo
-    doc.title = Vec::from(&etat.texte);
+    doc.title = Vec::from(&state.text);
     store.save(&doc).unwrap();
 
     let recharge = get_document(&store, doc.id).unwrap();

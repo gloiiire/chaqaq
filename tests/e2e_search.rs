@@ -14,7 +14,7 @@ fn stores_temp() -> (JsonStore, DatabaseStore) {
     std::fs::create_dir_all(&doc_dir).unwrap();
     (
         JsonStore::new(doc_dir),
-        DatabaseStore::nouveau(db_dir).unwrap(),
+        DatabaseStore::new(db_dir).unwrap(),
     )
 }
 

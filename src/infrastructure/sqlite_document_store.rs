@@ -2,7 +2,7 @@ use crate::application::error::PinkhaError;
 use crate::application::repository::DocumentRepository;
 use crate::application::resilience::retry_with_backoff;
 use crate::domain::document::{Document, DocumentMeta, InlineText};
-use crate::infrastructure::migrations::appliquer_migrations_documents;
+use crate::infrastructure::migrations::apply_document_migrations;
 use rusqlite::{Connection, params};
 use std::sync::Mutex;
 use uuid::Uuid;
@@ -12,18 +12,18 @@ pub struct SqliteDocumentStore {
 }
 
 impl SqliteDocumentStore {
-    pub fn nouveau(chemin: &str) -> Result<Self, PinkhaError> {
-        let mut conn = Connection::open(chemin).map_err(|e| PinkhaError::Db(e.to_string()))?;
+    pub fn new(path: &str) -> Result<Self, PinkhaError> {
+        let mut conn = Connection::open(path).map_err(|e| PinkhaError::Db(e.to_string()))?;
         conn.execute_batch("PRAGMA journal_mode=WAL;")
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
-        appliquer_migrations_documents(&mut conn)?;
+        apply_document_migrations(&mut conn)?;
         Ok(Self {
             conn: Mutex::new(conn),
         })
     }
 
-    pub fn en_memoire() -> Result<Self, PinkhaError> {
-        Self::nouveau(":memory:")
+    pub fn in_memory() -> Result<Self, PinkhaError> {
+        Self::new(":memory:")
     }
 }
 
@@ -116,13 +116,13 @@ impl DocumentRepository for SqliteDocumentStore {
     fn delete(&self, id: Uuid) -> Result<(), PinkhaError> {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
-            let modifies = conn
+            let affected = conn
                 .execute(
                     "UPDATE documents SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
                     params![chrono::Utc::now().to_rfc3339(), id.to_string()],
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
-            if modifies == 0 {
+            if affected == 0 {
                 return Err(PinkhaError::NotFound(id));
             }
             Ok(())
@@ -136,7 +136,7 @@ mod tests {
     use crate::domain::document::Document;
 
     fn store() -> SqliteDocumentStore {
-        SqliteDocumentStore::en_memoire().unwrap()
+        SqliteDocumentStore::in_memory().unwrap()
     }
 
     fn doc(title: &str) -> Document {
@@ -151,9 +151,9 @@ mod tests {
         let store = store();
         let d = doc("Test");
         store.save(&d).unwrap();
-        let charge = store.load(d.id).unwrap();
-        assert_eq!(charge.id, d.id);
-        assert_eq!(charge.title, d.title);
+        let loaded = store.load(d.id).unwrap();
+        assert_eq!(loaded.id, d.id);
+        assert_eq!(loaded.title, d.title);
     }
 
     #[test]
@@ -202,8 +202,8 @@ mod tests {
             styles: vec![],
         }];
         store.save(&d).unwrap();
-        let charge = store.load(d.id).unwrap();
-        assert_eq!(charge.title[0].content, "Nouveau");
+        let loaded = store.load(d.id).unwrap();
+        assert_eq!(loaded.title[0].content, "Nouveau");
     }
 
     #[test]
@@ -233,8 +233,8 @@ mod tests {
         store.save(&d).unwrap();
         let created_at_initial = store.list().unwrap()[0].created_at.clone();
         store.save(&d).unwrap(); // deuxième save
-        let created_at_apres = store.list().unwrap()[0].created_at.clone();
-        assert_eq!(created_at_initial, created_at_apres);
+        let created_at_after = store.list().unwrap()[0].created_at.clone();
+        assert_eq!(created_at_initial, created_at_after);
     }
 
     #[test]

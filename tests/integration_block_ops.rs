@@ -23,9 +23,9 @@ fn inlines(s: &str) -> Vec<InlineText> {
     }]
 }
 
-fn etat_depuis(s: &str) -> EditorState {
+fn state_from(s: &str) -> EditorState {
     let il = inlines(s);
-    EditorState::nouveau(RichText::from(&il))
+    EditorState::new(RichText::from(&il))
 }
 
 // ── Bridge EditorState → Block ────────────────────────────────────────────────
@@ -37,7 +37,7 @@ fn test_save_edited_block_text() {
     let doc = add_block(&store, doc.id, BlockContent::Text(inlines("initial"))).unwrap();
     let block_id = doc.blocks[0].id;
 
-    save_edited_block(&store, doc.id, block_id, &etat_depuis("modifié")).unwrap();
+    save_edited_block(&store, doc.id, block_id, &state_from("modifié")).unwrap();
 
     let recharge = get_document(&store, doc.id).unwrap();
     assert!(
@@ -60,7 +60,7 @@ fn test_save_edited_block_heading() {
     .unwrap();
     let block_id = doc.blocks[0].id;
 
-    save_edited_block(&store, doc.id, block_id, &etat_depuis("title modifié")).unwrap();
+    save_edited_block(&store, doc.id, block_id, &state_from("title modifié")).unwrap();
 
     let recharge = get_document(&store, doc.id).unwrap();
     assert!(matches!(
@@ -76,7 +76,7 @@ fn test_sauvegarder_bloc_non_textuel_retourne_erreur() {
     let doc = add_block(&store, doc.id, BlockContent::Divider).unwrap();
     let block_id = doc.blocks[0].id;
 
-    let result = save_edited_block(&store, doc.id, block_id, &etat_depuis("x"));
+    let result = save_edited_block(&store, doc.id, block_id, &state_from("x"));
     assert!(matches!(result, Err(PinkhaError::InvalidOperation(_))));
 }
 
