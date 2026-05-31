@@ -1,0 +1,14 @@
+[package]
+name = "realm-reader"
+version = "0.1.0"
+edition = "2021"
+description = "Read-only parser for Realm binary database files (v9) — extract tables, schemas, and rows"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/gloiiire/pinkha"
+keywords = ["realm", "database", "parser", "binary", "reader"]
+categories = ["parser-implementations", "database"]
+readme = "README.md"
+
+[dependencies]
+
+[dev-dependencies]
