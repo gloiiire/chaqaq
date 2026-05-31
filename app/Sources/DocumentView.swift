@@ -76,9 +76,9 @@ final class DocumentViewModel: ObservableObject {
     // ── Undo / redo ─────────────────────────────────────────────────────
     // Capacité alignée sur CAPACITE_PAR_DEFAUT du back Rust (1000).
     let undoMgr = UndoManager()
-    /// `canUndo` doit aussi refléter les bursts en cours : si l'utilisateur
-    /// tape et tape immédiatement le bouton undo (avant les 400 ms de flush),
-    /// l'undo doit fonctionner — `vm.undo()` flush d'abord puis annule.
+    /// `canUndo` reflète aussi les bursts en cours : si l'utilisateur tape et
+    /// déclenche undo avant la fin du burst (`burstInterval`), `vm.undo()` flush
+    /// d'abord puis annule.
     var canUndo: Bool { undoMgr.canUndo || !blockBurstAnchor.isEmpty }
     var canRedo: Bool { undoMgr.canRedo }
     /// Snapshot du dernier titre persisté pour calculer l'inverse à enregistrer.
@@ -86,7 +86,7 @@ final class DocumentViewModel: ObservableObject {
 
     // ── Burst undo pour la frappe ───────────────────────────────────────
     // Style Notes : une rafale continue de saveBlock sur le même bloc =
-    // 1 seule étape d'undo. Pause de 400 ms → flush du burst.
+    // 1 seule étape d'undo. Pause de `burstInterval` → flush du burst.
     struct BlockSnapshot: Equatable {
         let content: BlockContentFfi
         let spans: [InlineTextFfi]
@@ -138,13 +138,10 @@ final class DocumentViewModel: ObservableObject {
     func applyBlockSnapshot(blockId: String, snapshot snap: BlockSnapshot) {
         guard let idx = blocks.firstIndex(where: { $0.id == blockId }) else { return }
         let previous = snapshotOf(blocks[idx])
-        // Remplacement de l'élément entier pour garantir le déclenchement de
-        // `@Published var blocks` (les mutations field-by-field via _modify
-        // peuvent parfois ne pas propager pendant que le textView est focus).
         blocks[idx] = EditableBlock(id: blockId,
-                                      content: snap.content,
-                                      spans: snap.spans,
-                                      done: snap.done)
+                                    content: snap.content,
+                                    spans: snap.spans,
+                                    done: snap.done)
         persistBlockRaw(blocks[idx])
         blockSnapshots[blockId] = snap
         undoMgr.registerUndo(withTarget: self) { vm in
@@ -287,8 +284,9 @@ final class DocumentViewModel: ObservableObject {
         return ["jpg", "jpeg", "png", "heic", "webp"].contains(cleaned) ? cleaned : "jpg"
     }
 
-    /// Save chaud appelé par la frappe (RichTextEditor → onSave). Gère le
-    /// burst undo : 1 rafale continue de saveBlock sur le même bloc = 1 étape.
+    /// Save appelé à chaque frappe (RichTextEditor → save() → onSaveSpans).
+    /// Gère le burst undo : une rafale continue de saveBlock sur le même bloc
+    /// = 1 seule étape undo, finalisée après `burstInterval` d'inactivité.
     func saveBlock(_ block: EditableBlock) {
         let id = block.id
         // Si on tape dans un autre bloc, on flush l'ancien burst d'abord.

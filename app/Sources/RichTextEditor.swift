@@ -657,15 +657,6 @@ struct RichTextEditor: UIViewRepresentable {
             rememberSelection(tv.selectedRange, longueur: tv.attributedText.length)
         }
 
-        /// Comme `captureSelectionBeforeToolbar` mais cache aussi la pill : utilisé
-        /// par les boutons qui ouvrent un menu (Aa, Highlighter) pour laisser la
-        /// place au menu déroulant, façon Notes.app.
-        @objc func captureAndHideToolbarForMenu() {
-            captureSelectionBeforeToolbar()
-            menuPresentingUntil = Date().addingTimeInterval(0.7)
-            setToolbarHidden(true)
-        }
-
         private func setToolbarHidden(_ hidden: Bool) {
             guard hidden != toolbarHidden, let pill = toolbarPill else { return }
             toolbarHidden = hidden
@@ -697,10 +688,10 @@ struct RichTextEditor: UIViewRepresentable {
             parent.onRedo?()
         }
 
-        /// Met à jour la couleur (Accent/secondary) et l'opacité des boutons undo/redo
-        /// selon l'état live via `canUndoProvider`/`canRedoProvider`. Appelé via
-        /// l'abonnement Combine au VM (pas via le cycle SwiftUI qui est paresseux
-        /// quand le textView a le first responder).
+        /// Met à jour la couleur et l'opacité des boutons undo/redo selon l'état
+        /// live lu via `canUndoProvider`/`canRedoProvider`. Appelé depuis
+        /// `updateUIView`, `textViewDidChange` et `textViewDidChangeSelection`
+        /// pour couvrir respectivement re-renders SwiftUI, frappe et undo/redo.
         fileprivate func updateUndoRedoButtons() {
             let cU = parent.canUndoProvider?() ?? false
             let cR = parent.canRedoProvider?() ?? false
