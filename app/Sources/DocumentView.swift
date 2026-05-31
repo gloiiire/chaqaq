@@ -909,7 +909,9 @@ private struct DocumentDecorView: View {
         ("cover.ocean", "Océan")
     ]
 
-    private let icones = ["🦁", "🌙", "🔥", "📜", "✨", "📚", "🧠", "🪐", "🌊", "🕊️", "💼", "🎯", "🧩"]
+    // Le menu inline affiche les récents (UIMenu ne scrolle pas — si on mettait
+    // une liste fixe trop longue, les derniers items seraient clipés hors écran).
+    // Pour la liste complète : 'Tous les emojis' ouvre la sheet avec grid + catégories.
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -1027,9 +1029,11 @@ private struct DocumentDecorView: View {
         } label: {
             Label("Tous les emojis", systemImage: "face.smiling")
         }
-        Divider()
-        ForEach(icones, id: \.self) { emoji in
-            Button(emoji) { onIcone(emoji) }
+        if !recentEmojis.isEmpty {
+            Divider()
+            ForEach(recentEmojis.prefix(8), id: \.self) { emoji in
+                Button(emoji) { onIcone(emoji) }
+            }
         }
         if icone != nil {
             Divider()
