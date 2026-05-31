@@ -26,7 +26,7 @@ const FILE_HEADER_SIZE: usize = 24;
 /// # Example
 ///
 /// ```
-/// use realm_reader::{RealmBuilder, RealmFile, ColumnType, Value};
+/// use realm_rs::{RealmBuilder, RealmFile, ColumnType, Value};
 ///
 /// let mut builder = RealmBuilder::new();
 /// builder

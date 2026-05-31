@@ -1,4 +1,4 @@
-//! # realm-reader
+//! # realm-rs
 //!
 //! Parser and writer for [Realm](https://github.com/realm/realm-core) binary database
 //! files (format version 9).
@@ -9,7 +9,7 @@
 //! ## Reading
 //!
 //! ```no_run
-//! use realm_reader::{RealmFile, Value};
+//! use realm_rs::{RealmFile, Value};
 //!
 //! let realm = RealmFile::open("/path/to/file.realm")?;
 //!
@@ -18,13 +18,13 @@
 //!         println!("{}", table.get(row, "content").as_str());
 //!     }
 //! }
-//! # Ok::<(), realm_reader::RealmError>(())
+//! # Ok::<(), realm_rs::RealmError>(())
 //! ```
 //!
 //! ## Writing
 //!
 //! ```no_run
-//! use realm_reader::{RealmBuilder, ColumnType, Value};
+//! use realm_rs::{RealmBuilder, ColumnType, Value};
 //!
 //! let mut builder = RealmBuilder::new();
 //! builder
@@ -34,7 +34,7 @@
 //!     .row(vec![Value::String("1".into()), Value::String("Hello".into())]);
 //!
 //! builder.write("/path/to/out.realm")?;
-//! # Ok::<(), realm_reader::RealmError>(())
+//! # Ok::<(), realm_rs::RealmError>(())
 //! ```
 
 #![forbid(unsafe_code)]
