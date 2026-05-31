@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [master, staging, dev]
+  pull_request:
+    branches: [master, staging, dev]
+
+# Annule les runs en cours quand un nouveau commit arrive sur la même branche.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: Rust tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+      - name: cargo test
+        run: cargo test --verbose
+
+  swift:
+    name: Swift tests (unit + integration)
+    runs-on: macos-15  # arm64 runner, Xcode récent avec iOS SDK ≥ 18
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust + iOS targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios-sim,aarch64-apple-ios,aarch64-apple-darwin
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: Available simulators
+        run: xcrun simctl list devices available | head -50
+
+      - name: Build XCFramework (debug)
+        run: ./build-xcframework.sh debug
+
+      - name: Run Swift tests
+        run: |
+          xcodebuild test \
+            -project app/Chaqaq.xcodeproj \
+            -scheme Chaqaq \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
+            -only-testing:ChaqaqTests \
+            -only-testing:ChaqaqIntegrationTests \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM=""
