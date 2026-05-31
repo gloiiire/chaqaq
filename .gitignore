@@ -6,4 +6,7 @@
 app/build/
 app/*.xcodeproj/xcuserdata/
 app/*.xcodeproj/project.xcworkspace/xcuserdata/
-pinkha.xcframework/**/*.a
+# XCFramework : pur artefact de build, reconstruit via build-xcframework.sh.
+# On le sort entièrement de git (était partiel : .a gitignored mais headers/plist
+# trackés, ce qui causait des diffs spurious à chaque rebuild).
+pinkha.xcframework/

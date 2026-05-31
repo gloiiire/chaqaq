@@ -1,65 +1,65 @@
 /// Teste les opérations d'édition en séquence sur un texte riche.
-use pinkha::domain::commandes::{AppliquerStyle, Historique, Inserer, Supprimer};
+use pinkha::domain::commandes::{ApplyStyle, History, Insert, Delete};
 use pinkha::domain::document::{InlineStyle, InlineText};
 use pinkha::domain::editor::EditorState;
 use pinkha::domain::rich_text::RichText;
 
-fn etat_depuis(s: &str) -> EditorState {
+fn state_from(s: &str) -> EditorState {
     let inlines = vec![InlineText {
         content: s.to_string(),
         styles: vec![],
     }];
-    EditorState::nouveau(RichText::from(&inlines))
+    EditorState::new(RichText::from(&inlines))
 }
 
 #[test]
 fn test_sequence_insertion() {
-    let mut etat = etat_depuis("");
-    let mut hist = Historique::default();
+    let mut state = state_from("");
+    let mut hist = History::default();
 
     for (i, ch) in "bonjour".chars().enumerate() {
-        hist.appliquer(Box::new(Inserer::nouveau(i, ch)), &mut etat);
+        hist.apply(Box::new(Insert::new(i, ch)), &mut state);
     }
 
-    assert_eq!(etat.texte.content(), "bonjour");
-    assert_eq!(etat.curseur, 7);
+    assert_eq!(state.text.content(), "bonjour");
+    assert_eq!(state.cursor, 7);
 }
 
 #[test]
 fn test_undo_redo_multiple() {
-    let mut etat = etat_depuis("");
-    let mut hist = Historique::default();
+    let mut state = state_from("");
+    let mut hist = History::default();
 
-    hist.appliquer(Box::new(Inserer::nouveau(0, 'a')), &mut etat);
-    hist.appliquer(Box::new(Inserer::nouveau(1, 'b')), &mut etat);
-    hist.appliquer(Box::new(Inserer::nouveau(2, 'c')), &mut etat);
+    hist.apply(Box::new(Insert::new(0, 'a')), &mut state);
+    hist.apply(Box::new(Insert::new(1, 'b')), &mut state);
+    hist.apply(Box::new(Insert::new(2, 'c')), &mut state);
 
-    hist.annuler(&mut etat);
-    hist.annuler(&mut etat);
-    assert_eq!(etat.texte.content(), "a");
+    hist.undo(&mut state);
+    hist.undo(&mut state);
+    assert_eq!(state.text.content(), "a");
 
-    hist.refaire(&mut etat);
-    assert_eq!(etat.texte.content(), "ab");
+    hist.redo(&mut state);
+    assert_eq!(state.text.content(), "ab");
 
-    hist.refaire(&mut etat);
-    assert_eq!(etat.texte.content(), "abc");
+    hist.redo(&mut state);
+    assert_eq!(state.text.content(), "abc");
 }
 
 #[test]
 fn test_style_et_edition_combinees() {
-    let mut etat = etat_depuis("hello world");
-    let mut hist = Historique::default();
+    let mut state = state_from("hello world");
+    let mut hist = History::default();
 
     // mettre "hello" en gras
-    let cmd_style = AppliquerStyle::nouveau(&etat, 0..5, InlineStyle::Bold);
-    hist.appliquer(Box::new(cmd_style), &mut etat);
+    let cmd_style = ApplyStyle::new(&state, 0..5, InlineStyle::Bold);
+    hist.apply(Box::new(cmd_style), &mut state);
 
     // insérer un caractère dans la zone en gras
-    hist.appliquer(Box::new(Inserer::nouveau(2, '!')), &mut etat);
-    assert_eq!(etat.texte.content(), "he!llo world");
+    hist.apply(Box::new(Insert::new(2, '!')), &mut state);
+    assert_eq!(state.text.content(), "he!llo world");
 
     // le span gras doit s'être étendu
-    let retour: Vec<InlineText> = Vec::from(&etat.texte);
+    let retour: Vec<InlineText> = Vec::from(&state.text);
     assert_eq!(retour[0].styles, vec![InlineStyle::Bold]);
     assert_eq!(retour[0].content, "he!llo");
 }
@@ -76,17 +76,17 @@ fn test_supprimer_dans_texte_style() {
             styles: vec![InlineStyle::Bold],
         },
     ];
-    let mut etat = EditorState::nouveau(RichText::from(&inlines));
-    let mut hist = Historique::default();
+    let mut state = EditorState::new(RichText::from(&inlines));
+    let mut hist = History::default();
 
     // supprime le 'g' de "gras" (position 6)
-    let cmd = Supprimer::nouveau(&etat, 6).unwrap();
-    hist.appliquer(Box::new(cmd), &mut etat);
-    assert_eq!(etat.texte.content(), "avant ras");
+    let cmd = Delete::new(&state, 6).unwrap();
+    hist.apply(Box::new(cmd), &mut state);
+    assert_eq!(state.text.content(), "avant ras");
 
-    hist.annuler(&mut etat);
-    assert_eq!(etat.texte.content(), "avant gras");
+    hist.undo(&mut state);
+    assert_eq!(state.text.content(), "avant gras");
 
-    let retour: Vec<InlineText> = Vec::from(&etat.texte);
+    let retour: Vec<InlineText> = Vec::from(&state.text);
     assert_eq!(retour[1].styles, vec![InlineStyle::Bold]);
 }

@@ -1,6 +1,6 @@
 use pinkha::application::database_use_cases::{
     column_aggregate, add_entry, add_property, add_view, create_database,
-    evaluate_rollups, get_database, requete, grouped_query,
+    evaluate_rollups, get_database, query, grouped_query,
 };
 use pinkha::application::repository::DocumentRepository;
 use pinkha::application::use_cases::create_document;
@@ -28,7 +28,7 @@ fn store_temp() -> (JsonStore, DatabaseStore) {
     std::fs::create_dir_all(&doc_dir).unwrap();
     (
         JsonStore::new(doc_dir),
-        DatabaseStore::nouveau(db_dir).unwrap(),
+        DatabaseStore::new(db_dir).unwrap(),
     )
 }
 
@@ -67,7 +67,7 @@ fn test_flux_complet_database() {
         .push(Sort::by_property(score_id, Order::Descending));
     let vue = add_view(&db_store, db.id, vue).unwrap();
 
-    let resultats = requete(&db_store, db.id, vue.id).unwrap();
+    let resultats = query(&db_store, db.id, vue.id).unwrap();
     assert_eq!(resultats.len(), 3);
     assert_eq!(
         resultats[0].values[&score_id],
@@ -131,7 +131,7 @@ fn test_vue_avec_filtre_et_tri_combines() {
         .push(Sort::by_property(priorite_id, Order::Ascending));
     let vue = add_view(&db_store, db.id, vue).unwrap();
 
-    let resultats = requete(&db_store, db.id, vue.id).unwrap();
+    let resultats = query(&db_store, db.id, vue.id).unwrap();
     assert_eq!(resultats.len(), 2);
     assert_eq!(
         resultats[0].values[&priorite_id],
@@ -320,7 +320,7 @@ fn test_journal_intime_dates_mixtes() {
         .push(Sort::manual_then_creation(date_id, Order::Ascending));
     let vue = add_view(&db_store, db.id, vue).unwrap();
 
-    let resultats = requete(&db_store, db.id, vue.id).unwrap();
+    let resultats = query(&db_store, db.id, vue.id).unwrap();
     assert_eq!(resultats.len(), 5);
 
     // Les 3 premières doivent être les notes anciennes dans l'order chronologique
