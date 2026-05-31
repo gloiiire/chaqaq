@@ -1,0 +1,12 @@
+[package]
+name = "realm-rs"
+version = "0.1.0"
+edition = "2021"
+description = "Parser and writer for Realm binary database files (v9) — read tables, build new files"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/gloiiire/pinkha"
+documentation = "https://docs.rs/realm-rs"
+keywords = ["realm", "database", "parser", "binary", "reader"]
+categories = ["parser-implementations", "database"]
+readme = "README.md"
+exclude = ["*.realm"]
