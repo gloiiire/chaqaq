@@ -1,0 +1,44 @@
+# Dependabot — mises à jour des deps non-sécurité (les alertes CVE sont gérées
+# séparément via Dependabot Security Updates côté repo settings).
+# Config minimaliste : monthly + groupes par écosystème pour éviter le bruit.
+version: 2
+updates:
+  # Crate Rust : uniffi, rusqlite, serde, uuid, etc.
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 5
+    target-branch: "dev"
+    groups:
+      cargo-all:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "rust"
+
+  # Actions GitHub : checkout, rust-toolchain, etc.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 3
+    target-branch: "dev"
+    groups:
+      gha-all:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - "dependencies"
+      - "github-actions"
