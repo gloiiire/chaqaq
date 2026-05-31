@@ -19,9 +19,10 @@ struct NotesHomeView: View {
                 List {
                     // ── Salutation ────────────────────────────────────────
                     Section {
-                        WelcomeHeader(greeting: greeting)
+                        GreetingHeader(text: greeting)
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets())
                     }
 
                     // ── Strip récents (uniquement quand des documents existent) ──
@@ -70,6 +71,7 @@ struct NotesHomeView: View {
                     }
                 }
                 .listStyle(.insetGrouped)
+                .navigationTitle(greeting)
                 .toolbar(.hidden, for: .navigationBar)
 
                 FloatingButton(icon: "square.and.pencil") {

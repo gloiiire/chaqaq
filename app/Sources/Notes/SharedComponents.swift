@@ -14,19 +14,15 @@ struct SectionHeader: View {
     }
 }
 
-/// Grande salutation affichée en haut de l'onglet Notes.
-struct WelcomeHeader: View {
-    let greeting: String
+/// Salutation affichée en haut de l'onglet Notes.
+struct GreetingHeader: View {
+    let text: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(greeting).font(.largeTitle.bold())
-            Text("Tes notes, à toi.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        Text(text)
+            .font(.largeTitle.bold())
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

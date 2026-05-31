@@ -51,6 +51,7 @@ struct VMErrorHandlingTests {
         let phantom = EditableBlock(id: UUID().uuidString, content: .text([]),
                                      spans: [], done: false)
         vm.saveBlock(phantom)
+        vm.flushAllBursts() // le persist est différé — flush pour déclencher l'erreur synchronement
         #expect(vm.errorMessage != nil)
     }
 }

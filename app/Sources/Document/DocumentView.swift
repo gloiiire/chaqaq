@@ -107,7 +107,7 @@ struct DocumentView: View {
             withAnimation(.easeInOut(duration: 0.2)) { keyboardVisible = false }
         }
         .onAppear { vm.load() }
-        .onDisappear { vm.saveTitle(); onDisappear?() }
+        .onDisappear { vm.flushAllBursts(); vm.saveTitle(); onDisappear?() }
         .sheet(isPresented: $showingBlockPicker) {
             BlockPickerSheet { type in vm.addBlock(type: type, afterId: vm.activeBlockId) }
         }
