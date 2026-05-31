@@ -109,13 +109,10 @@ impl Extractor for CraftExtractor {
 
             let entry = doc_map.entry(doc_id).or_insert((None, vec![], 0));
 
-            // Title: first block with non-empty content — first line only.
-            // DocumentDataModel has no title column and rootBlockId is empty,
-            // so the document title is derived from the first meaningful block.
-            if entry.0.is_none() && !content.is_empty() {
-                let first_line = content.lines().next().unwrap_or("").trim().to_string();
-                if !first_line.is_empty() {
-                    entry.0 = Some(first_line);
+            // Title: first "text" block with non-empty content, first line only.
+            if entry.0.is_none() {
+                if let Some(t) = title_candidate(&content, block_type) {
+                    entry.0 = Some(t);
                     continue; // consumed as title, don't duplicate in content
                 }
             }
@@ -151,6 +148,16 @@ impl Extractor for CraftExtractor {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+// Returns the title candidate from a block: only "text" blocks qualify,
+// and only the first non-empty trimmed line is used.
+fn title_candidate(content: &str, block_type: &str) -> Option<String> {
+    if block_type != "text" {
+        return None;
+    }
+    let line = content.lines().next().unwrap_or("").trim();
+    if line.is_empty() { None } else { Some(line.to_string()) }
+}
 
 fn map_block(content: &str, block_type: &str) -> Option<BlockContent> {
     match block_type {
@@ -235,5 +242,35 @@ mod tests {
     #[test]
     fn map_block_url_skipped() {
         assert!(map_block("https://example.com", "url").is_none());
+    }
+
+    #[test]
+    fn title_candidate_text_returns_first_line() {
+        assert_eq!(title_candidate("Hello\nworld", "text").as_deref(), Some("Hello"));
+    }
+
+    #[test]
+    fn title_candidate_text_trims_whitespace() {
+        assert_eq!(title_candidate("  Hello  \nworld", "text").as_deref(), Some("Hello"));
+    }
+
+    #[test]
+    fn title_candidate_code_skipped() {
+        assert!(title_candidate("let x = 1;", "code").is_none());
+    }
+
+    #[test]
+    fn title_candidate_image_skipped() {
+        assert!(title_candidate("", "image").is_none());
+    }
+
+    #[test]
+    fn title_candidate_empty_text_skipped() {
+        assert!(title_candidate("", "text").is_none());
+    }
+
+    #[test]
+    fn title_candidate_whitespace_only_skipped() {
+        assert!(title_candidate("   \n  text", "text").is_none());
     }
 }
