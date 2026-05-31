@@ -1,12 +1,12 @@
 //! # realm-reader
 //!
-//! Read-only parser for [Realm](https://github.com/realm/realm-core) binary database
+//! Parser and writer for [Realm](https://github.com/realm/realm-core) binary database
 //! files (format version 9).
 //!
-//! Opens a `.realm` file and returns its tables, column schemas, and rows without
-//! requiring the Realm SDK. Useful for data migration, export, and offline analysis.
+//! - **Read** an existing `.realm` file with [`RealmFile::open`] — no Realm SDK required.
+//! - **Write** a new `.realm` file from scratch with [`RealmBuilder`].
 //!
-//! ## Quick start
+//! ## Reading
 //!
 //! ```no_run
 //! use realm_reader::{RealmFile, Value};
@@ -14,12 +14,26 @@
 //! let realm = RealmFile::open("/path/to/file.realm")?;
 //!
 //! if let Some(table) = realm.table("class_BlockDataModel") {
-//!     println!("{} rows", table.rows.len());
 //!     for row in &table.rows {
-//!         let content = table.get(row, "content").as_str();
-//!         println!("{content}");
+//!         println!("{}", table.get(row, "content").as_str());
 //!     }
 //! }
+//! # Ok::<(), realm_reader::RealmError>(())
+//! ```
+//!
+//! ## Writing
+//!
+//! ```no_run
+//! use realm_reader::{RealmBuilder, ColumnType, Value};
+//!
+//! let mut builder = RealmBuilder::new();
+//! builder
+//!     .table("class_Note")
+//!     .column("id",   ColumnType::String)
+//!     .column("body", ColumnType::String)
+//!     .row(vec![Value::String("1".into()), Value::String("Hello".into())]);
+//!
+//! builder.write("/path/to/out.realm")?;
 //! # Ok::<(), realm_reader::RealmError>(())
 //! ```
 
@@ -28,6 +42,9 @@
 
 pub(crate) mod format;
 mod reader;
+pub mod write;
+
+pub use write::{RealmBuilder, TableBuilder};
 
 use std::path::Path;
 
