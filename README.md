@@ -1,62 +1,62 @@
 # pinkha
 
-Application de notes personnelle combinant la fluidité de Craft et la structure de Notion — core en Rust pur.
+A personal notes app combining the fluency of Craft and the structure of Notion — pure Rust core.
 
 [![CI](https://github.com/gloiiire/pinkha/actions/workflows/ci.yml/badge.svg)](https://github.com/gloiiire/pinkha/actions/workflows/ci.yml)
 [![chaqaq on crates.io](https://img.shields.io/crates/v/chaqaq.svg)](https://crates.io/crates/chaqaq)
 
-> Statut : **backend Rust complet** (208 tests) · **UI SwiftUI fonctionnelle** (rich text, undo/redo, toolbar pill, drag & drop) · **XCFramework compilé** iOS + Mac · **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0 publié sur crates.io**
+> Status: **complete Rust backend** (208 tests) · **functional SwiftUI UI** (rich text, undo/redo, toolbar pill, drag & drop) · **compiled XCFramework** iOS + Mac · **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0 published on crates.io**
 
 ---
 
 ## Vision
 
-pinkha est une app de prise de notes avec deux ambitions :
+pinkha is a note-taking app with two ambitions:
 
-- **Beauté et fluidité** à la Craft : rendu natif, blocs riches, inline styles
-- **Structure et puissance** à la Notion : databases, vues, filtres, relations, rollups
+- **Beauty and fluency** à la Craft: native rendering, rich blocks, inline styles
+- **Structure and power** à la Notion: databases, views, filters, relations, rollups
 
-Le projet est entièrement écrit en Rust pour le core. Plateformes cibles : iPhone, iPad, Mac.
+The project is entirely written in Rust for the core. Target platforms: iPhone, iPad, Mac.
 
 ---
 
 ## Workspace
 
-Le repo est un **Cargo workspace** avec deux crates :
+The repo is a **Cargo workspace** with two crates:
 
 | Crate | Description |
 |---|---|
-| [`chaqaq`](https://crates.io/crates/chaqaq) | Core rich text editor — publié sur crates.io (MIT OR Apache-2.0) |
-| `pinkha` | Application complète — dépend de `chaqaq` |
+| [`chaqaq`](https://crates.io/crates/chaqaq) | Core rich text editor — published on crates.io (MIT OR Apache-2.0) |
+| `pinkha` | Full application — depends on `chaqaq` |
 
-### chaqaq — crate open source
+### chaqaq — open source crate
 
-`chaqaq` est le moteur d'édition inline extrait de pinkha, utilisable indépendamment dans n'importe quel projet Rust :
+`chaqaq` is the inline editing engine extracted from pinkha, usable independently in any Rust project:
 
 ```toml
 [dependencies]
 chaqaq = "0.1"
 ```
 
-Il fournit :
-- `InlineStyle` / `InlineText` — modèle de texte riche sérialisable
-- `RichText` + `Span` — représentation d'édition (indices chars Unicode, pas bytes)
-- `EditorState` — curseur, sélection, toggle de style
-- `History` + `Command` + `Insert` / `Delete` / `ApplyStyle` — undo/redo (1 000 niveaux)
-- `parse_inline()` — parser markdown inline : `**bold**`, `_italic_`, `__underline__`, `~~strike~~`, `{color:text}`, `[label](url)`
+It provides:
+- `InlineStyle` / `InlineText` — serializable rich text model
+- `RichText` + `Span` — editing representation (Unicode char indices, not bytes)
+- `EditorState` — cursor, selection, style toggle
+- `History` + `Command` + `Insert` / `Delete` / `ApplyStyle` — undo/redo (1,000 levels)
+- `parse_inline()` — inline markdown parser: `**bold**`, `_italic_`, `__underline__`, `~~strike~~`, `{color:text}`, `[label](url)`
 
 ---
 
 ## Architecture
 
-Clean Architecture stricte — la règle de dépendance va dans un seul sens :
+Strict Clean Architecture — the dependency rule goes in one direction:
 
 ```
 infrastructure → application → domain → chaqaq
 ```
 
 ```
-crates/chaqaq/     — crate autonome rich text editor (MIT OR Apache-2.0)
+crates/chaqaq/     — standalone rich text editor crate (MIT OR Apache-2.0)
   src/
     document.rs    — InlineStyle, InlineText
     rich_text.rs   — RichText + Span
@@ -66,107 +66,107 @@ crates/chaqaq/     — crate autonome rich text editor (MIT OR Apache-2.0)
 
 src/
   domain/
-    document.rs    — re-exporte InlineStyle/InlineText + Block, Document, DocumentMeta
-    parser.rs      — re-exporte parse_inline
-    rich_text.rs   — re-exporte RichText, Span
-    editor.rs      — re-exporte EditorState
-    commandes.rs   — re-exporte Command, Insert, Delete, ApplyStyle, History
-    database.rs    — moteur database type Notion
+    document.rs    — re-exports InlineStyle/InlineText + Block, Document, DocumentMeta
+    parser.rs      — re-exports parse_inline
+    rich_text.rs   — re-exports RichText, Span
+    editor.rs      — re-exports EditorState
+    commandes.rs   — re-exports Command, Insert, Delete, ApplyStyle, History
+    database.rs    — Notion-like database engine
   application/
-    repository.rs          — trait DocumentRepository
-    use_cases.rs           — use cases documents et blocs
-    database_repository.rs — trait DatabaseRepository
-    database_use_cases.rs  — use cases database
+    repository.rs          — DocumentRepository trait
+    use_cases.rs           — document and block use cases
+    database_repository.rs — DatabaseRepository trait
+    database_use_cases.rs  — database use cases
     resilience.rs          — retry_with_backoff (SQLite transient errors)
     error.rs               — PinkhaError
   infrastructure/
-    migrations.rs            — migrations SQLite versionnées
-    sqlite_document_store.rs — SqliteDocumentStore (local-first, recommandé)
-    sqlite_database_store.rs — SqliteDatabaseStore (local-first, recommandé)
-    json_store.rs            — JsonStore (conservé pour les tests)
-  ffi.rs             — façade UniFFI : PinkhaApi exposée à Swift
-  pinkha.udl         — interface UDL (contrat Swift ↔ Rust)
-swift-bindings/      — bindings Swift générés (pinkha.swift, pinkhaFFI.h)
-pinkha.xcframework   — XCFramework compilé (iOS device + simulator + macOS)
-app/                 — application SwiftUI
+    migrations.rs            — versioned SQLite migrations
+    sqlite_document_store.rs — SqliteDocumentStore (local-first, recommended)
+    sqlite_database_store.rs — SqliteDatabaseStore (local-first, recommended)
+    json_store.rs            — JsonStore (kept for tests)
+  ffi.rs             — UniFFI facade: PinkhaApi exposed to Swift
+  pinkha.udl         — UDL interface (Swift ↔ Rust contract)
+swift-bindings/      — generated Swift bindings (pinkha.swift, pinkhaFFI.h)
+pinkha.xcframework   — compiled XCFramework (iOS device + simulator + macOS)
+app/                 — SwiftUI application
   Sources/
     PinkhaApp.swift      — @main
-    ContentView.swift    — écran d'accueil + PinkhaStore
-    DocumentView.swift   — éditeur de document + DocumentViewModel + undo burst
-    Models.swift         — miroirs Swift Codable des types Rust
-    RichTextEditor.swift — UIViewRepresentable + toolbar pill de formatage
-    Resilience.swift     — gestion d'erreurs côté UI
+    ContentView.swift    — home screen + PinkhaStore
+    DocumentView.swift   — document editor + DocumentViewModel + undo burst
+    Models.swift         — Codable Swift mirrors of Rust types
+    RichTextEditor.swift — UIViewRepresentable + formatting toolbar pill
+    Resilience.swift     — UI-side error handling
 ```
 
 ---
 
-## Fonctionnalités
+## Features
 
-### Backend Rust
+### Rust Backend
 
-- **Parser inline** : `**gras**`, `_italique_`, `__souligné__`, `{couleur:texte}`, `[texte](url)` + combinaisons
-- **Blocs récursifs** : Text, Heading, Quote, Todo, Divider, Breadcrumb, Database — avec enfants imbriqués
-- **CRUD complet** : créer, modifier, supprimer, réordonner, déplacer entre parents
-- **Métadonnées légères** (`DocumentMeta`) — listing rapide sans charger les blocs, avec `updated_at`
-- **Rich text editor in-memory** : `RichText` + `EditorState` (curseur, sélection, toggle de style)
-- **Undo/redo** : pattern Command, capacité 1000 (`History`)
-- **Database type Notion** : propriétés (Title, Text, Number, Selection, Date, Checkbox, URL, Relation, Rollup), vues (Table, Kanban, Calendar, Gallery), filtres, tris, groupes, rollups calculés à la lecture
-- **Recherche** : titre, full-text dans les blocs (récursif), valeurs textuelles des entrées de database
-- **Stockage local-first SQLite** : document-as-JSON + colonnes indexées pour le listing, soft delete, `updated_at`, migrations versionnées, WAL pour la concurrence, retry exponential backoff sur erreurs transitoires
-- **Erreurs typées** (`PinkhaError`) : `NotFound`, `InvalidOperation`, `Io`, `Json`, `Db` — jamais de `unwrap()` en production
+- **Inline parser**: `**bold**`, `_italic_`, `__underline__`, `{color:text}`, `[text](url)` + combinations
+- **Recursive blocks**: Text, Heading, Quote, Todo, Divider, Breadcrumb, Database — with nested children
+- **Full CRUD**: create, update, delete, reorder, move between parents
+- **Lightweight metadata** (`DocumentMeta`) — fast listing without loading blocks, with `updated_at`
+- **In-memory rich text editor**: `RichText` + `EditorState` (cursor, selection, style toggle)
+- **Undo/redo**: Command pattern, 1,000 levels (`History`)
+- **Notion-like database engine**: properties (Title, Text, Number, Selection, Date, Checkbox, URL, Relation, Rollup), views (Table, Kanban, Calendar, Gallery), filters, sorts, groups, rollups computed at read time
+- **Search**: title, full-text in blocks (recursive), text values of database entries
+- **Local-first SQLite storage**: document-as-JSON + indexed columns for listing, soft delete, `updated_at`, versioned migrations, WAL for concurrency, exponential backoff retry on transient errors
+- **Typed errors** (`PinkhaError`): `NotFound`, `InvalidOperation`, `Io`, `Json`, `Db` — no `unwrap()` in production
 
-### UI SwiftUI (iOS 26)
+### SwiftUI UI (iOS 26)
 
-- **Écran d'accueil** : liste, FAB, salutation dynamique, date relative
-- **Éditeur** : blocs Text / Heading×3 / Quote / Callout / Todo / Divider
-- **Texte riche** : gras, italique, souligné, barré, palette de couleurs
-- **Toolbar pill clavier** style Notes.app — Coller / Aa (B/I/U/S) / Highlighter / Undo / Redo / Return / Dismiss
-- **Hide-on-menu** : la pill s'efface élégamment quand un menu déroulant s'ouvre (style Notes)
-- **Undo/redo unifié** :
-  - Pill glass en bas-gauche (visible clavier fermé)
-  - Boutons dans la toolbar clavier (visible clavier ouvert)
-  - Capacité 1000 niveaux, alignée sur le back Rust
-  - **Burst undo** style Notes : une rafale de frappe = 1 étape (pause 300 ms = flush)
-  - Couvre toutes les ops : add/delete/move/rename block, toggle todo, icon callout, conversion markdown, frappe, undo des suppressions ramène le focus
-- **Raccourcis markdown** : `# ` → H1, `## ` → H2, `### ` → H3, `> ` → Quote, `!! ` → Callout, `[ ] ` → Todo, `---` → Divider
-- **Interactions** : Enter → nouveau bloc, Return toolbar → saut de ligne, Shift+Enter (hardware) → saut de ligne, swipe-to-delete, drag & drop natif, dismiss clavier par swipe
-- **Performance** : persist SQLite différé au flush burst (1 write/burst max), cache des spans déjà sync (skip rendu des blocs non-modifiés), cache d'état des boutons undo/redo
+- **Home screen**: list, FAB, dynamic greeting, relative date
+- **Editor**: Text / Heading×3 / Quote / Callout / Todo / Divider blocks
+- **Rich text**: bold, italic, underline, strikethrough, color palette
+- **Keyboard toolbar pill** Notes.app style — Paste / Aa (B/I/U/S) / Highlighter / Undo / Redo / Return / Dismiss
+- **Hide-on-menu**: pill elegantly hides when a dropdown menu opens (Notes style)
+- **Unified undo/redo**:
+  - Glass pill bottom-left (visible when keyboard is closed)
+  - Buttons in the keyboard toolbar (visible when keyboard is open)
+  - 1,000-level capacity, aligned with Rust backend
+  - **Burst undo** Notes style: a burst of keystrokes = 1 step (300ms pause = flush)
+  - Covers all ops: add/delete/move/rename block, toggle todo, callout icon, markdown conversion, typing, undo of deletions restores focus
+- **Markdown shortcuts**: `# ` → H1, `## ` → H2, `### ` → H3, `> ` → Quote, `!! ` → Callout, `[ ] ` → Todo, `---` → Divider
+- **Interactions**: Enter → new block, Return toolbar → line break, Shift+Enter (hardware) → line break, swipe-to-delete, native drag & drop, swipe to dismiss keyboard
+- **Performance**: SQLite persist deferred to burst flush (1 write/burst max), span cache per block (skip re-rendering unchanged blocks), undo/redo button state cache
 
 ---
 
-## Lancer le projet
+## Getting Started
 
 ```bash
-# Backend Rust
-cargo run     # point d'entrée démo
-cargo test    # tous les tests Rust (unitaires + intégration + E2E)
-cargo test -p chaqaq   # tests du crate chaqaq uniquement
+# Rust backend
+cargo run     # demo entry point
+cargo test    # all Rust tests (unit + integration + E2E)
+cargo test -p chaqaq   # chaqaq crate tests only
 
-# Régénérer les bindings Swift après modification de ffi.rs ou pinkha.udl
+# Regenerate Swift bindings after modifying ffi.rs or pinkha.udl
 cargo build
 cargo run --bin uniffi-bindgen -- generate \
     --library target/debug/libpinkha.dylib \
     --language swift --out-dir swift-bindings/
 
-# Recompiler le XCFramework (après modification du code Rust)
-./build-xcframework.sh         # release par défaut
+# Recompile the XCFramework (after modifying Rust code)
+./build-xcframework.sh         # release by default
 
-# App iOS (ouvrir dans Xcode)
+# iOS app (open in Xcode)
 open app/Pinkha.xcodeproj
 
-# Tests Swift complets (nécessite simulateur booté)
+# Full Swift tests (requires a booted simulator)
 xcodebuild test -project app/Pinkha.xcodeproj -scheme Pinkha \
     -destination 'id=<UDID>' \
     -only-testing:PinkhaTests -only-testing:PinkhaIntegrationTests
 
-# Publier une nouvelle version de chaqaq
-# (bumper la version dans crates/chaqaq/Cargo.toml d'abord)
+# Publish a new version of chaqaq
+# (bump the version in crates/chaqaq/Cargo.toml first)
 cd crates/chaqaq && cargo publish
 ```
 
 ---
 
-## Workflow git
+## Git Workflow
 
 ```
 feature/** ─┐
@@ -177,69 +177,69 @@ refactor/** │
 perf/**    ─┘
 ```
 
-3 branches permanentes : `master` (prod), `staging` (QA), `dev` (intégration). Les branches éphémères sont créées depuis `dev` et supprimées après merge.
+3 permanent branches: `master` (prod), `staging` (QA), `dev` (integration). Ephemeral branches are created from `dev` and deleted after merge.
 
-Cf. la section "Git workflow" de [CLAUDE.md](CLAUDE.md) pour le détail des règles.
+See the "Git workflow" section of [CLAUDE.md](CLAUDE.md) for detailed rules.
 
 ---
 
-## CI / Sécurité
+## CI / Security
 
-- **GitHub Actions** : `cargo test` sur push/PR vers master/staging/dev (~25 s). Le job Swift est suspendu en attendant Xcode 26 sur les runners.
-- **Branch protection** : master/staging/dev → PR obligatoire, force-push bloqué, suppression bloquée, CI Rust requise avant merge
-- **Secret Scanning + Push Protection** : un secret pushé par erreur est détecté avant qu'il atteigne le repo
-- **Dependabot Alerts + Security Updates** : CVE détectées + auto-PR de fix
-- **Dependabot updates mensuels** (Cargo + GitHub Actions) groupés pour éviter le bruit
+- **GitHub Actions**: `cargo test` on push/PR to master/staging/dev (~25s). The Swift job is suspended until Xcode 26 is available on runners.
+- **Branch protection**: master/staging/dev → PR required, force-push blocked, deletion blocked, Rust CI required before merge
+- **Secret Scanning + Push Protection**: a secret pushed by mistake is detected before reaching the repo
+- **Dependabot Alerts + Security Updates**: CVE detection + auto-fix PRs
+- **Monthly Dependabot updates** (Cargo + GitHub Actions) grouped to reduce noise
 
 ---
 
 ## Roadmap
 
-### Fait
-- [x] Parser inline complet (bold, italic, underline, color, link, combinaisons)
-- [x] Types de blocs, documents, blocs récursifs avec enfants
+### Done
+- [x] Complete inline parser (bold, italic, underline, color, link, combinations)
+- [x] Block types, documents, recursive blocks with children
 - [x] Rich text editor (`RichText`, `EditorState`, undo/redo)
-- [x] Moteur database type Notion
-- [x] CRUD complet documents, blocs, databases
-- [x] Recherche (titres, contenu, entrées database)
-- [x] Erreurs custom (`PinkhaError`)
-- [x] Stockage SQLite local-first (soft delete, `updated_at`, migrations, bundled, WAL, retry)
-- [x] Couche FFI UniFFI — `PinkhaApi` exposée à Swift
-- [x] Bindings Swift + XCFramework + projet Xcode
-- [x] Écran d'accueil SwiftUI + éditeur de document
-- [x] Texte riche, toolbar pill, raccourcis markdown
-- [x] Undo/redo complet UI (1000 niveaux, burst typing, toolbar + pill bas)
-- [x] Performance : persist différé, cache spans, cache boutons undo
-- [x] CI Rust, branch protection, Dependabot, Secret Scanning
-- [x] Refactor identifiants Rust → anglais (prérequis open source)
-- [x] **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0** — core rich text editor publié sur crates.io (MIT OR Apache-2.0)
+- [x] Notion-like database engine
+- [x] Full CRUD for documents, blocks, databases
+- [x] Search (titles, content, database entries)
+- [x] Custom errors (`PinkhaError`)
+- [x] Local-first SQLite storage (soft delete, `updated_at`, migrations, bundled, WAL, retry)
+- [x] UniFFI layer — `PinkhaApi` exposed to Swift
+- [x] Swift bindings + XCFramework + Xcode project
+- [x] SwiftUI home screen + document editor
+- [x] Rich text, toolbar pill, markdown shortcuts
+- [x] Full UI undo/redo (1,000 levels, burst typing, toolbar + bottom pill)
+- [x] Performance: deferred persist, span cache, undo button cache
+- [x] Rust CI, branch protection, Dependabot, Secret Scanning
+- [x] Refactor Rust identifiers → English (open source prerequisite)
+- [x] **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0** — core rich text editor published on crates.io (MIT OR Apache-2.0)
 
-### Reste à construire
-- [ ] UI Databases (vue Tableau, Kanban — backend complet)
-- [ ] Barre de recherche (full-text — backend complet)
-- [ ] Vue iPad / Mac (NavigationSplitView)
-- [ ] Sync entre appareils (CRDT, s'inspirer de y-octo)
-- [ ] Réactiver Swift CI (quand Xcode 26 dispo sur runners GitHub)
+### Still to build
+- [ ] Databases UI (Table view, Kanban — backend complete)
+- [ ] Search bar (full-text — backend complete)
+- [ ] iPad / Mac view (NavigationSplitView)
+- [ ] Cross-device sync (CRDT, inspired by y-octo)
+- [ ] Re-enable Swift CI (when Xcode 26 available on GitHub runners)
 
 ---
 
 ## Stack
 
-| Crate / outil | Rôle |
+| Crate / tool | Role |
 |---|---|
-| [`chaqaq`](https://crates.io/crates/chaqaq) | Rich text editor core (workspace local) |
-| `serde` + `serde_json` | Sérialisation / persistance JSON |
-| `uuid` | Identifiants uniques |
-| `chrono` | Timestamps ISO 8601 |
-| `rusqlite` (bundled) | SQLite embarqué — stockage local-first |
-| `rusqlite_migration` | Migrations de schéma versionnées |
-| `uniffi` | Bridge Rust ↔ Swift (bindings générés automatiquement) |
-| `xcodegen` | Génération du `.xcodeproj` depuis `project.yml` |
-| Swift Testing + XCUITest | Tests Swift unit / integration / E2E |
+| [`chaqaq`](https://crates.io/crates/chaqaq) | Rich text editor core (local workspace) |
+| `serde` + `serde_json` | JSON serialization / persistence |
+| `uuid` | Unique identifiers |
+| `chrono` | ISO 8601 timestamps |
+| `rusqlite` (bundled) | Embedded SQLite — local-first storage |
+| `rusqlite_migration` | Versioned schema migrations |
+| `uniffi` | Rust ↔ Swift bridge (auto-generated bindings) |
+| `xcodegen` | `.xcodeproj` generation from `project.yml` |
+| Swift Testing + XCUITest | Swift unit / integration / E2E tests |
 
 ---
 
-## Licence
+## License
 
-- **pinkha** : à définir
-- **[chaqaq](https://crates.io/crates/chaqaq)** : MIT OR Apache-2.0
+- **pinkha**: TBD
+- **[chaqaq](https://crates.io/crates/chaqaq)**: MIT OR Apache-2.0
