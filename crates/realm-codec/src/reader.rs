@@ -197,6 +197,10 @@ fn read_table_new(
                     .into_iter()
                     .map(|v| Value::Timestamp(v as i64))
                     .collect(),
+                ColumnType::LinkList => collect_linklists_new(data, col_ref)
+                    .into_iter()
+                    .map(Value::LinkList)
+                    .collect(),
                 _ => vec![],
             }
         };
@@ -411,6 +415,54 @@ fn collect_ints_new(data: &[u8], col_ref: usize) -> Vec<u64> {
     } else {
         vec![]
     }
+}
+
+// ── New-format LinkList collection ───────────────────────────────────────────
+
+/// Collect LinkList values from a column's B+ tree (new format).
+///
+/// Each leaf element is either 0 (empty list) or a reference to a sub-array
+/// containing the ordered row indices.
+fn collect_linklists_new(data: &[u8], col_ref: usize) -> Vec<Vec<u32>> {
+    if col_ref == 0 || col_ref % 8 != 0 || col_ref + NODE_HEADER_SIZE > data.len() {
+        return vec![];
+    }
+    let hdr = NodeHeader::parse(data[col_ref..col_ref + 8].try_into().unwrap());
+
+    if hdr.is_inner {
+        let children = match read_array(data, col_ref) {
+            Ok(c) => c,
+            Err(_) => return vec![],
+        };
+        let mut result = vec![];
+        for (j, &child_u64) in children.iter().enumerate() {
+            if j == 0 {
+                continue; // offsets-tracking ref
+            }
+            let child_ref = child_u64 as usize;
+            if child_ref == 0 || child_ref % 8 != 0 || child_ref + NODE_HEADER_SIZE > data.len() {
+                continue;
+            }
+            result.extend(collect_linklists_new(data, child_ref));
+        }
+        return result;
+    }
+
+    // Leaf: each element is 0 (empty) or a pointer to a sub-array of row indices.
+    let elems = match read_array(data, col_ref) {
+        Ok(e) => e,
+        Err(_) => return vec![],
+    };
+    elems
+        .into_iter()
+        .map(|ptr_u64| {
+            let list_ref = ptr_u64 as usize;
+            if list_ref == 0 || list_ref % 8 != 0 || list_ref + NODE_HEADER_SIZE > data.len() {
+                return vec![];
+            }
+            collect_ints_new(data, list_ref).into_iter().map(|v| v as u32).collect()
+        })
+        .collect()
 }
 
 // ── Old-format: row count + cell reading ──────────────────────────────────────

@@ -85,6 +85,35 @@ fn craft_content_column_non_empty() {
 
 #[test]
 #[ignore = "requires local Craft installation"]
+fn craft_inspect_col_types() {
+    let db = realm_codec::RealmFile::open(CRAFT_REALM).expect("open realm file");
+    let table = db.table("class_BlockDataModel").expect("block table");
+
+    println!("BlockDataModel columns ({}):", table.columns.len());
+    for (i, (name, ct)) in table.columns.iter().enumerate() {
+        println!("  col[{i:02}] {name}: {ct:?}");
+    }
+
+    // Verify the blocks (col[11]) and lastSyncedBlockIds (col[12]) columns exist.
+    let blocks_col = table.columns.get(11);
+    let lsb_col = table.columns.get(12);
+    println!("\nblocks col_idx=11: {blocks_col:?}");
+    println!("lastSyncedBlockIds col_idx=12: {lsb_col:?}");
+
+    // Verify blocks column is a LinkList and is readable.
+    let blocks_idx = table.column_index("blocks").expect("blocks");
+    let non_empty = table.rows.iter()
+        .filter(|r| !r.get(blocks_idx).as_link_list().is_empty())
+        .count();
+    println!("\ntotal rows={}, non-empty blocks link lists: {non_empty}", table.rows.len());
+    assert!(
+        matches!(table.columns[11].1, realm_codec::ColumnType::LinkList),
+        "col[11] should be LinkList"
+    );
+}
+
+#[test]
+#[ignore = "requires local Craft installation"]
 fn craft_inspect_link_to_doc() {
     let db = realm_codec::RealmFile::open(CRAFT_REALM).expect("open realm file");
 
@@ -97,8 +126,8 @@ fn craft_inspect_link_to_doc() {
         .collect();
 
     let btable  = db.table("class_BlockDataModel").expect("block table");
-    let bid_col  = btable.column_index("id").expect("id");
-    let raw_col  = btable.column_index("rawProperties").expect("rawProperties");
+    let _bid_col = btable.column_index("id").expect("id");
+    let _raw_col = btable.column_index("rawProperties").expect("rawProperties");
     let lsb_col  = btable.column_index("lastSyncedBlockIds").expect("lastSyncedBlockIds");
 
     // Check if lastSyncedBlockIds values match doc IDs.
