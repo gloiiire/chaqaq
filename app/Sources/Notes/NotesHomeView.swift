@@ -71,7 +71,6 @@ struct NotesHomeView: View {
                     }
                 }
                 .listStyle(.insetGrouped)
-                .contentMargins(.top, 0, for: .scrollContent)
                 .scrollPosition($scrollPosition)
                 .toolbar(.hidden, for: .navigationBar)
 
