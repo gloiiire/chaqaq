@@ -19,7 +19,7 @@ extension DocumentViewModel {
             }
             let data  = try JSONEncoder().encode(content)
             let newId = try api.addBlock(docId: docId,
-                                         blockContentJson: String(data: data, encoding: .utf8)!)
+                                         blockContentJson: String(decoding: data, as: UTF8.self))
             let newBlock = EditableBlock(id: newId, content: content, spans: initialSpans, done: false)
 
             if let afterId, let idx = blocks.firstIndex(where: { $0.id == afterId }) {
@@ -62,7 +62,7 @@ extension DocumentViewModel {
             let content = block.content.withSpans(block.spans, done: block.done)
             let data = try JSONEncoder().encode(content)
             let newId = try api.addBlock(docId: docId,
-                                         blockContentJson: String(data: data, encoding: .utf8)!)
+                                         blockContentJson: String(decoding: data, as: UTF8.self))
             let recreated = EditableBlock(id: newId, content: content,
                                           spans: block.spans, done: block.done)
             let safeIndex = min(index, blocks.count)
