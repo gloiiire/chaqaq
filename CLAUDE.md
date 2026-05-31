@@ -381,7 +381,7 @@ Ces points sont **acceptables en l'état actuel** (projet solo, 208 tests Rust +
 
 ### Limitations connues à résoudre
 - **`typeText` flaky sur simulateur iOS 26** : bypass actuel via launch args `--ui-test-data`/`--ui-test-clean`. **Blocage** : impossible de tester E2E les flows demandant vraie saisie utilisateur (édition de titre dans la sheet de création, recherche). Pistes : `UIPasteboard` + long-press + Coller, `app.keys["X"].tap()` sur le clavier software, custom URL scheme pour pré-remplir.
-- **`xcframework` métadonnées trackées** (136K headers + plist) : `.a` binaires gitignored, mais headers + Info.plist en git. Acceptable car petit, mais idéalement reconstruit par CI sur chaque release.
+- ~~**`xcframework` métadonnées trackées**~~ ✅ résolu mai 2026 : tout `pinkha.xcframework/` est désormais gitignored, reconstruit via `./build-xcframework.sh`.
 
 ### Features prioritaires (par valeur perçue)
 1. **UI Databases** — backend full testé, manque juste les vues SwiftUI. Énorme impact, faisabilité élevée (réutiliser `BlockTextEditor`/`BlockCallbacks` patterns).
