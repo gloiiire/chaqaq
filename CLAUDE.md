@@ -31,11 +31,20 @@ cd crates/chaqaq && cargo publish
 
 ## Architecture (Clean Architecture)
 
-Le repo est un **Cargo workspace** avec deux crates :
+Le repo est un **Cargo workspace** avec trois crates :
 - `crates/chaqaq` — crate autonome open source publié sur crates.io (MIT OR Apache-2.0)
+- `crates/realm-codec` — parser/writer Realm v9 binary, publié sur crates.io (MIT OR Apache-2.0)
 - `.` (pinkha) — application complète, dépend de chaqaq via `{ path = "crates/chaqaq" }`
 
 ```
+crates/chaqaq/     — crate autonome rich text editor (crates.io: chaqaq v0.1.0)
+crates/realm-codec/ — parser/writer Realm v9 binary (crates.io: realm-codec v0.1.0)
+  src/
+    lib.rs     — RealmFile, RealmTable, Row, Value, ColumnType, RealmError
+    format.rs  — NodeHeader, decode_short_string, read_bits_elem (pub(crate))
+    reader.rs  — B-tree traversal, read_tables
+    write.rs   — RealmBuilder, TableBuilder (sérialisation bottom-up)
+
 crates/chaqaq/     — crate autonome rich text editor (crates.io: chaqaq v0.1.0)
   src/
     lib.rs         — API publique + doc crate
@@ -267,6 +276,7 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
 - Gestion complète des vues (ajout, modification filtres/tris, suppression)
 - **SQLite local-first** : `SqliteDocumentStore` + `SqliteDatabaseStore` avec soft delete, `updated_at`, migrations versionnées, WAL, retry exponentiel
 - **Crate `chaqaq` v0.1.0** : core rich text editor extrait en crate autonome, publié sur crates.io (MIT OR Apache-2.0). Cargo workspace.
+- **Crate `realm-codec` v0.1.0** : parser + writer Realm v9 binary (NodeHeader, Group, B-tree, `RealmBuilder`/`TableBuilder`), publié sur crates.io (MIT OR Apache-2.0). Base pour le futur extractor Craft.
 - **Couche FFI UniFFI** : `PinkhaApi` exposée à Swift en API anglaise idiomatique
 - **XCFramework** : `pinkha.xcframework` compilé (ios-arm64, ios-arm64-simulator, macos-arm64)
 - **Projet Xcode** : `app/Pinkha.xcodeproj` généré par xcodegen
@@ -296,7 +306,7 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
 Ce qui **reste** à construire :
 1. UI Databases — tab "Bases" est un placeholder, backend Notion complet existe
 2. Vue iPad / Mac (NavigationSplitView)
-3. Extractor Craft — API Craft en cours d'analyse (voir `src/extractors/craft/` quand implémenté)
+3. Extractor Craft — lira les fichiers `.realm` locaux de Craft via `realm-codec` (crate publiée)
 4. Sync entre appareils (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
 5. Réactiver Swift CI quand Xcode 26 sera dispo sur les runners GitHub Actions
 
