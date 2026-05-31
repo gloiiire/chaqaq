@@ -6,12 +6,14 @@ import SwiftUI
 struct DocumentTitleView: View {
     @Binding var title: String
     @Binding var focusDemande: Bool
+    @Binding var focusCursorOffset: Int?
     let onSave: () -> Void
     let onNewBlock: (String) -> Void
     @State private var focused = false
 
     var body: some View {
         TitleEditor(text: $title, isFocused: $focused,
+                    cursorOffset: $focusCursorOffset,
                     onSave: onSave, onNewBlock: onNewBlock)
             .onChange(of: focusDemande) { _, requested in
                 if requested {
@@ -27,6 +29,7 @@ struct DocumentTitleView: View {
 private struct TitleEditor: UIViewRepresentable {
     @Binding var text: String
     @Binding var isFocused: Bool
+    @Binding var cursorOffset: Int?
     @Environment(\.isEnabled) private var isEnabled
     let onSave: () -> Void
     let onNewBlock: (String) -> Void
@@ -66,9 +69,16 @@ private struct TitleEditor: UIViewRepresentable {
                 : NSAttributedString(string: text, attributes: [.font: police, .foregroundColor: UIColor.label])
         }
         if isFocused && !tv.isFirstResponder {
+            let targetOffset = cursorOffset
             DispatchQueue.main.async {
                 _ = tv.becomeFirstResponder()
-                tv.selectedRange = NSRange(location: tv.text.count, length: 0)
+                if let offset = targetOffset {
+                    let loc = min(offset, tv.text.utf16.count)
+                    tv.selectedRange = NSRange(location: loc, length: 0)
+                    self.cursorOffset = nil
+                } else {
+                    tv.selectedRange = NSRange(location: tv.text.utf16.count, length: 0)
+                }
             }
         } else if !isFocused && tv.isFirstResponder {
             tv.resignFirstResponder()
