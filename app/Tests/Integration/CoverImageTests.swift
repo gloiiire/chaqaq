@@ -3,7 +3,7 @@ import Foundation
 @testable import Pinkha
 
 @MainActor
-@Suite("Cover image — sauvegarde et persistance via VM")
+@Suite("Cover image — save and persistence via VM")
 struct CoverImageTests {
 
     private func makeVM() throws -> (DocumentViewModel, URL) {
@@ -43,7 +43,7 @@ struct CoverImageTests {
     @Test func saveCoverImageWritesFileAndUpdatesCover() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
-        // Petit PNG de test (1×1 transparent)
+        // Minimal test PNG (1×1 transparent pixel)
         let png = Data([
             0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
             0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
@@ -63,7 +63,7 @@ struct CoverImageTests {
     @Test func saveCoverImageWithDefaultJpgExtension() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
-        let data = Data([0xFF, 0xD8, 0xFF, 0xE0]) // entête JPEG, suffit pour le test
+        let data = Data([0xFF, 0xD8, 0xFF, 0xE0]) // JPEG header, sufficient for the test
         vm.saveCoverImage(data: data)
         #expect(vm.cover?.hasSuffix(".jpg") == true)
     }

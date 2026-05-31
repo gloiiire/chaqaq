@@ -4,11 +4,18 @@ use crate::domain::document::{Document, DocumentMeta};
 use std::path::PathBuf;
 use uuid::Uuid;
 
+/// File-system document store that persists each document as a pretty-printed
+/// JSON file named `<uuid>.json` inside a directory.
+///
+/// Kept alongside the SQLite store for tests and prototyping. Production code
+/// should prefer [`SqliteDocumentStore`].
 pub struct JsonStore {
     dir: PathBuf,
 }
 
 impl JsonStore {
+    /// Creates a new store rooted at `dir`. The directory is created on the
+    /// first [`save`] call if it does not exist yet.
     pub fn new(dir: PathBuf) -> Self {
         Self { dir }
     }
@@ -18,8 +25,8 @@ impl DocumentRepository for JsonStore {
     fn save(&self, doc: &Document) -> Result<(), PinkhaError> {
         std::fs::create_dir_all(&self.dir)?;
         let path = self.dir.join(format!("{}.json", doc.id));
-        // Écriture atomique : .tmp puis rename — évite la corruption
-        // si le process meurt en cours d'écriture (le fichier final reste l'ancien).
+        // Atomic write: write to a .tmp file then rename — the final file
+        // remains the previous version if the process dies mid-write.
         let tmp = self.dir.join(format!(".{}.json.tmp", doc.id));
         std::fs::write(&tmp, serde_json::to_string_pretty(doc)?)?;
         std::fs::rename(&tmp, &path)?;
@@ -39,9 +46,9 @@ impl DocumentRepository for JsonStore {
     }
 
     fn list(&self) -> Result<Vec<DocumentMeta>, PinkhaError> {
-        // On filtre sur l'extension `.json` (les .tmp d'écritures interrompues sont ignorés)
-        // et on ignore silencieusement les fichiers corrompus pour ne pas casser
-        // tout le listing à cause d'un seul fichier endommagé.
+        // Filter on the `.json` extension (in-progress `.tmp` writes are ignored),
+        // and silently skip corrupted files so a single bad file does not break
+        // the entire listing.
         let mut metas = Vec::new();
         for entry in std::fs::read_dir(&self.dir)? {
             let path = entry?.path();
@@ -116,7 +123,7 @@ mod tests {
     fn test_list_ignore_les_fichiers_corrompus() {
         let store = store_temp();
         store.save(&doc("Sain")).unwrap();
-        // Fichier corrompu : un .json non-déserialisable
+        // Corrupted file: a .json file that cannot be deserialized
         let corrupt = store.dir.join(format!("{}.json", Uuid::new_v4()));
         std::fs::write(&corrupt, "{ pas du JSON valide").unwrap();
         let metas = store.list().unwrap();
@@ -127,7 +134,7 @@ mod tests {
     fn test_list_ignore_les_fichiers_non_json() {
         let store = store_temp();
         store.save(&doc("Sain")).unwrap();
-        // Fichiers parasites : .tmp d'écriture interrompue, fichier sans extension
+        // Stray files: interrupted .tmp write, file without extension
         std::fs::write(store.dir.join(".abc.json.tmp"), "incomplet").unwrap();
         std::fs::write(store.dir.join("notes.txt"), "rien à voir").unwrap();
         let metas = store.list().unwrap();
@@ -139,7 +146,7 @@ mod tests {
         let store = store_temp();
         let d = doc("Atomique");
         store.save(&d).unwrap();
-        // Aucun .tmp ne doit traîner après un save réussi
+        // No .tmp file should linger after a successful save
         let tmps: Vec<_> = std::fs::read_dir(&store.dir)
             .unwrap()
             .filter_map(|e| e.ok())

@@ -2,10 +2,10 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-// Tests d'intégration : Swift ↔ FFI Rust avec une vraie PinkhaApi
-// (DB SQLite temporaire détruite à la fin de chaque test).
+// Integration tests: Swift ↔ Rust FFI with a real PinkhaApi
+// (temporary SQLite DB destroyed at the end of each test).
 
-@Suite("PinkhaApi — cycle de vie d'un document")
+@Suite("PinkhaApi — document lifecycle")
 struct DocumentLifecycleTests {
 
     private func makeApi() throws -> (PinkhaApi, URL) {
@@ -23,7 +23,7 @@ struct DocumentLifecycleTests {
     @Test func createDocumentReturnsUuid() throws {
         let (api, url) = try makeApi(); defer { cleanup(url) }
         let id = try api.createDocument(title: "Bonjour")
-        #expect(UUID(uuidString: id) != nil, "doit retourner un UUID valide")
+        #expect(UUID(uuidString: id) != nil, "must return a valid UUID")
     }
 
     @Test func listDocumentsAfterCreate() throws {

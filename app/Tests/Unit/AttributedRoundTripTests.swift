@@ -2,8 +2,8 @@ import Testing
 import UIKit
 @testable import Pinkha
 
-// Le round-trip spans ↔ NSAttributedString est le cœur du rich text :
-// si un seul style se perd, l'utilisateur perd ses formatages.
+// The spans ↔ NSAttributedString round-trip is the heart of rich text:
+// if even one style is lost, the user loses their formatting.
 
 @Suite("Spans ↔ NSAttributedString — round-trip")
 struct AttributedRoundTripTests {
@@ -54,7 +54,7 @@ struct AttributedRoundTripTests {
         if case .color(let name) = back.first?.styles.first {
             #expect(name == "rouge")
         } else {
-            Issue.record("la couleur 'rouge' aurait dû survivre au round-trip")
+            Issue.record("color 'rouge' should have survived the round-trip")
         }
     }
 
@@ -64,7 +64,7 @@ struct AttributedRoundTripTests {
         if case .link(let url) = back.first?.styles.first {
             #expect(url == "https://pinkha.app")
         } else {
-            Issue.record("le lien aurait dû survivre")
+            Issue.record("link should have survived the round-trip")
         }
     }
 
@@ -77,8 +77,8 @@ struct AttributedRoundTripTests {
     }
 }
 
-/// Réduit `InlineStyleFfi` à un identifiant Hashable simple pour les tests
-/// (la version réelle n'est pas Hashable à cause des cases associées).
+/// Reduces `InlineStyleFfi` to a simple Hashable identifier for tests
+/// (the real type is not Hashable because of its associated-value cases).
 private enum StyleKey: Hashable {
     case bold, italic, underline, strikethrough, color(String), link(String)
     static func from(_ s: InlineStyleFfi) -> StyleKey {

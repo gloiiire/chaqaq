@@ -2,9 +2,9 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-// Tests d'intégration : opérations sur les blocs via la vraie PinkhaApi.
+// Integration tests: block operations via the real PinkhaApi.
 
-@Suite("Blocs — cycle de vie via FFI")
+@Suite("Blocks — lifecycle via FFI")
 struct BlockOpsTests {
 
     private func makeApi() throws -> (PinkhaApi, URL, String) {

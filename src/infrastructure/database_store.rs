@@ -5,16 +5,23 @@ use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
 
+/// File-system database store that persists each [`Database`] as a
+/// pretty-printed JSON file named `<uuid>.json` inside a directory.
+///
+/// Kept alongside the SQLite store for tests and prototyping. Production code
+/// should prefer [`SqliteDatabaseStore`].
 pub struct DatabaseStore {
     dir: PathBuf,
 }
 
 impl DatabaseStore {
+    /// Creates a new store rooted at `dir`, creating the directory if needed.
     pub fn new(dir: PathBuf) -> Result<Self, PinkhaError> {
         fs::create_dir_all(&dir)?;
         Ok(Self { dir })
     }
 
+    /// Returns the expected file path for a database identified by `id`.
     fn path(&self, id: Uuid) -> PathBuf {
         self.dir.join(format!("{id}.json"))
     }
@@ -23,8 +30,8 @@ impl DatabaseStore {
 impl DatabaseRepository for DatabaseStore {
     fn save(&self, db: &Database) -> Result<(), PinkhaError> {
         let json = serde_json::to_string_pretty(db)?;
-        // Écriture atomique : .tmp puis rename — la base reste cohérente
-        // si le process meurt en cours d'écriture.
+        // Atomic write: write to a .tmp file then rename — the store remains
+        // consistent if the process dies mid-write.
         let target = self.path(db.id);
         let tmp = self.dir.join(format!(".{}.json.tmp", db.id));
         fs::write(&tmp, json)?;
@@ -46,8 +53,7 @@ impl DatabaseRepository for DatabaseStore {
     }
 
     fn list_meta(&self) -> Result<Vec<DatabaseMeta>, PinkhaError> {
-        // Tolérance aux fichiers corrompus : on les ignore plutôt que de
-        // faire échouer tout le listing.
+        // Tolerate corrupted files: skip them rather than failing the whole listing.
         let mut metas = Vec::new();
         for entry in fs::read_dir(&self.dir)? {
             let p = entry?.path();

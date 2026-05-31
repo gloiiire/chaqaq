@@ -2,11 +2,11 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-// Tests d'intégration du view model document : VM réel + PinkhaApi réelle
-// avec une DB SQLite temporaire détruite à chaque test.
+// Integration tests for the document view model: real VM + real PinkhaApi
+// with a temporary SQLite DB destroyed after each test.
 
 @MainActor
-@Suite("DocumentViewModel — opérations principales")
+@Suite("DocumentViewModel — main operations")
 struct DocumentViewModelTests {
 
     private func makeVM() throws -> (DocumentViewModel, URL) {
@@ -86,7 +86,7 @@ struct DocumentViewModelTests {
         vm.load()
         vm.title = "Renommé"
         vm.saveTitle()
-        // Recharge pour confirmer la persistance.
+        // Reload to confirm persistence.
         vm.load()
         #expect(vm.title == "Renommé")
     }
@@ -107,7 +107,7 @@ struct DocumentViewModelTests {
         vm.addBlock(type: .text)
         vm.addBlock(type: .text)
         let originalOrder = vm.blocks.map(\.id)
-        // Déplace le 1er en 3e position (offset 3 dans la sémantique SwiftUI .onMove)
+        // Move the 1st to the 3rd position (offset 3 in SwiftUI .onMove semantics)
         vm.moveBlock(from: IndexSet(integer: 0), to: 3)
         let after = vm.blocks.map(\.id)
         #expect(after[0] == originalOrder[1])

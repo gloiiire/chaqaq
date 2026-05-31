@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-// Couverture FFI database avancée : views, queries, aggregates, grouped queries.
+// Advanced database FFI coverage: views, queries, aggregates, grouped queries.
 
 @Suite("Database queries — views, aggregates, grouping")
 struct DatabaseQueriesTests {
@@ -26,13 +26,13 @@ struct DatabaseQueriesTests {
         _ = try api.addEntry(dbId: dbId, valuesJson: "{}")
         _ = try api.addEntry(dbId: dbId, valuesJson: "{}")
 
-        // Récupère l'id de la vue par défaut.
+        // Retrieve the default view id.
         let dbJson = try api.getDatabaseJson(id: dbId)
         guard let viewId = extractFirstViewId(dbJson) else {
-            Issue.record("vue par défaut introuvable"); return
+            Issue.record("default view not found"); return
         }
         let resultJson = try api.queryDatabaseJson(dbId: dbId, viewId: viewId)
-        // Le JSON doit être un tableau de 2 entrées.
+        // The JSON must be an array of 2 entries.
         let array = try JSONSerialization.jsonObject(with: resultJson.data(using: .utf8)!) as? [Any]
         #expect(array?.count == 2)
     }
@@ -50,9 +50,9 @@ struct DatabaseQueriesTests {
         let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
         let dbJson = try api.getDatabaseJson(id: dbId)
         guard let viewId = extractFirstViewId(dbJson) else {
-            Issue.record("vue par défaut introuvable"); return
+            Issue.record("default view not found"); return
         }
-        // La règle métier : on ne peut pas supprimer la dernière vue.
+        // Business rule: the last view cannot be deleted.
         #expect(throws: PinkhaError.self) {
             try api.deleteView(dbId: dbId, viewId: viewId)
         }
@@ -62,17 +62,17 @@ struct DatabaseQueriesTests {
         let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
         let dbJson = try api.getDatabaseJson(id: dbId)
         guard let viewId = extractFirstViewId(dbJson) else {
-            Issue.record("vue par défaut introuvable"); return
+            Issue.record("default view not found"); return
         }
         try api.updateView(dbId: dbId, viewId: viewId, filtersJson: "[]", sortsJson: "[]")
-        // Pas d'erreur = OK
+        // No error = OK
     }
 
     @Test func queryWithRollupsWorksOnEmptyDatabase() throws {
         let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
         let dbJson = try api.getDatabaseJson(id: dbId)
         guard let viewId = extractFirstViewId(dbJson) else {
-            Issue.record("vue par défaut introuvable"); return
+            Issue.record("default view not found"); return
         }
         let result = try api.queryDatabaseWithRollupsJson(dbId: dbId, viewId: viewId)
         #expect(result == "[]")
@@ -84,16 +84,16 @@ struct DatabaseQueriesTests {
         let propJson = "{\"id\":\"\(propId)\",\"name\":\"Score\",\"type_\":\"Number\"}"
         try api.addProperty(dbId: dbId, propertyJson: propJson)
 
-        // Entrée avec une valeur Number.
+        // Entry with a Number value.
         let entryJson = "{\"\(propId)\":{\"Number\":42.0}}"
         _ = try api.addEntry(dbId: dbId, valuesJson: entryJson)
 
-        // Agrégat Compter (alias Count après le rename).
+        // Count aggregate (alias Count after the rename).
         let aggregateJson = "\"Count\""
         let result = try api.columnAggregateDatabaseJson(
             dbId: dbId, propertyId: propId, aggregateJson: aggregateJson
         )
-        // Doit contenir "1" (1 entrée).
+        // Must contain "1" (1 entry).
         #expect(result.contains("1"))
     }
 
@@ -110,8 +110,8 @@ struct DatabaseQueriesTests {
         #expect(results.contains("Bonjour le monde"))
     }
 
-    // Extrait le premier `id` de la première vue du JSON database.
-    // Recherche naïve : "views":[{"id":"<uuid>", ...
+    // Extracts the first `id` from the first view in the database JSON.
+    // Naive search: "views":[{"id":"<uuid>", ...
     private func extractFirstViewId(_ dbJson: String) -> String? {
         guard let viewsRange = dbJson.range(of: "\"views\":[") else { return nil }
         let after = dbJson[viewsRange.upperBound...]

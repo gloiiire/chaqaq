@@ -2,9 +2,9 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-// Tests d'intégration : validation aux frontières FFI (limites payload/UUID).
+// Integration tests: validation at the FFI boundary (payload/UUID limits).
 
-@Suite("FFI — validation aux frontières")
+@Suite("FFI — boundary validation")
 struct FFIBoundaryTests {
 
     private func makeApi() throws -> (PinkhaApi, URL) {
@@ -26,7 +26,7 @@ struct FFIBoundaryTests {
         let (api, url) = try makeApi()
         defer { try? FileManager.default.removeItem(at: url) }
 
-        // 128 Ko > MAX_STRING_BYTES (64 Ko)
+        // 128 KB > MAX_STRING_BYTES (64 KB)
         let huge = String(repeating: "a", count: 128 * 1024)
         #expect(throws: PinkhaError.self) {
             _ = try api.createDocument(title: huge)
@@ -38,7 +38,7 @@ struct FFIBoundaryTests {
         defer { try? FileManager.default.removeItem(at: url) }
 
         let docId = try api.createDocument(title: "Test")
-        // 6 Mo > MAX_JSON_BYTES (5 Mo)
+        // 6 MB > MAX_JSON_BYTES (5 MB)
         let huge = String(repeating: "x", count: 6 * 1024 * 1024)
         #expect(throws: PinkhaError.self) {
             _ = try api.addBlock(docId: docId, blockContentJson: huge)

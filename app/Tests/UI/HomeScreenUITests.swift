@@ -1,7 +1,7 @@
 import XCTest
 
-// Tests E2E (XCUITest) : pilote l'app comme un utilisateur réel.
-// XCUITest reste sur XCTest classique (Swift Testing ne couvre pas la UI).
+// End-to-end tests (XCUITest): drives the app as a real user would.
+// XCUITest stays on classic XCTest (Swift Testing does not cover UI).
 
 final class HomeScreenUITests: XCTestCase {
 
@@ -12,7 +12,7 @@ final class HomeScreenUITests: XCTestCase {
     func testAppLaunchesAndShowsGreeting() {
         let app = XCUIApplication()
         app.launch()
-        // L'une des trois salutations selon l'heure doit apparaître.
+        // One of the three time-dependent greetings must appear.
         let greetings = ["Bonjour.", "Bon après-midi.", "Bonsoir."]
         let predicate = NSPredicate(format: "label IN %@", greetings)
         let header = app.staticTexts.element(matching: predicate)
@@ -22,12 +22,12 @@ final class HomeScreenUITests: XCTestCase {
     func testFloatingButtonOpensCreateSheet() {
         let app = XCUIApplication()
         app.launch()
-        // Le FAB d'accueil utilise l'icône "square.and.pencil" — son accessibilityLabel
-        // par défaut suffit à le retrouver, ou on cible le bouton avec icône.
+        // The home FAB uses the "square.and.pencil" icon — its default accessibilityLabel
+        // is sufficient to locate it, or target the button by icon.
         let fab = app.buttons["createDocumentFAB"]
         XCTAssertTrue(fab.waitForExistence(timeout: 3))
         fab.tap()
-        // La sheet de création doit afficher "Nouveau document".
+        // The creation sheet must display "Nouveau document".
         XCTAssertTrue(app.staticTexts["Nouveau document"].waitForExistence(timeout: 3))
     }
 

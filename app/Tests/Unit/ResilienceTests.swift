@@ -2,7 +2,7 @@ import Testing
 import SwiftUI
 @testable import Pinkha
 
-@Suite("PinkhaError — messages utilisateur et récupérabilité")
+@Suite("PinkhaError — user messages and recoverability")
 struct PinkhaErrorUXTests {
 
     @Test func notFoundProducesFriendlyMessage() {
@@ -27,7 +27,7 @@ struct PinkhaErrorUXTests {
     }
 }
 
-@Suite("ActionRepeater — timer de répétition")
+@Suite("ActionRepeater — repeat timer")
 struct ActionRepeaterTests {
 
     @Test func notActiveWhenJustCreated() {
@@ -53,7 +53,7 @@ struct ActionRepeaterTests {
     @Test func startWhileActiveIsNoOp() {
         let r = ActionRepeater()
         r.start(interval: 1.0) { /* noop */ }
-        r.start(interval: 1.0) { /* second appel ignoré */ }
+        r.start(interval: 1.0) { /* second call ignored */ }
         #expect(r.active)
         r.stop()
     }
@@ -63,10 +63,10 @@ struct ActionRepeaterTests {
         let counter = Counter()
         let r = ActionRepeater()
         r.start(interval: 0.05) { counter.increment() }
-        // Laisse passer ~ 4 ticks (200ms à 50ms d'intervalle)
+        // Allow ~4 ticks (200ms at 50ms interval)
         try await Task.sleep(nanoseconds: 220_000_000)
         r.stop()
-        #expect(counter.value >= 3, "au moins 3 ticks attendus, observé \(counter.value)")
+        #expect(counter.value >= 3, "expected at least 3 ticks, observed \(counter.value)")
     }
 
     @MainActor
@@ -78,18 +78,18 @@ struct ActionRepeaterTests {
         r.stop()
         let snapshot = counter.value
         try await Task.sleep(nanoseconds: 150_000_000)
-        #expect(counter.value == snapshot, "le timer doit s'arrêter après stop()")
+        #expect(counter.value == snapshot, "the timer must stop firing after stop()")
     }
 }
 
-/// Compteur minimal pour les tests async (évite l'usage d'`actor` qui complique
-/// les closures non-isolées passées au `Timer`).
+/// Minimal counter for async tests (avoids `actor` which complicates
+/// non-isolated closures passed to `Timer`).
 private final class Counter {
     private(set) var value: Int = 0
     func increment() { value += 1 }
 }
 
-@Suite("tryCatch — capture des erreurs sans propagation")
+@Suite("tryCatch — error capture without propagation")
 struct TryCatchTests {
 
     @Test func returnsValueOnSuccess() {

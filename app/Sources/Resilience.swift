@@ -1,11 +1,11 @@
 import Foundation
 import SwiftUI
 
-// MARK: - Erreurs utilisateur
+// MARK: - User-facing error messages
 
-/// Conversion des `PinkhaError` FFI en messages français adaptés à l'utilisateur.
-/// Les erreurs techniques (UUID invalide, payload trop grand) sont condensées,
-/// les erreurs métier (NotFound, Storage) ont un libellé propre.
+/// Maps `PinkhaError` FFI values to French user-readable messages.
+/// Technical errors (invalid UUID, oversized payload) are condensed;
+/// domain errors (NotFound, Storage) have their own distinct wording.
 extension PinkhaError {
     var userMessage: String {
         switch self {
@@ -18,18 +18,18 @@ extension PinkhaError {
         }
     }
 
-    /// Vrai si une nouvelle tentative a une chance d'aboutir (storage transitoire).
+    /// `true` if a retry has a reasonable chance of succeeding (transient storage error).
     var isRecoverable: Bool {
         if case .Storage = self { return true }
         return false
     }
 }
 
-// MARK: - Exécution sécurisée
+// MARK: - Safe execution helper
 
-/// Capture l'erreur sans la propager, retourne `nil` en cas d'échec et écrit
-/// le message utilisateur dans `errorMessage`. Pattern idiomatique pour les
-/// view models qui exposent un `@Published errorMessage`.
+/// Executes `work`, returns its value on success, or writes a user-readable error
+/// message into `errorMessage` and returns `nil` on failure.
+/// Idiomatic pattern for view models that expose a `@Published errorMessage`.
 @discardableResult
 func tryCatch<T>(into errorMessage: inout String?, _ work: () throws -> T) -> T? {
     do {
@@ -42,10 +42,10 @@ func tryCatch<T>(into errorMessage: inout String?, _ work: () throws -> T) -> T?
     return nil
 }
 
-// MARK: - Alerte avec retry
+// MARK: - Alert with retry
 
-/// Modificateur SwiftUI : présente un alert depuis un `errorMessage: String?`
-/// avec un bouton « Réessayer » optionnel.
+/// SwiftUI view modifier: presents an alert driven by an `errorMessage: String?` binding,
+/// with an optional "Retry" button.
 extension View {
     func errorAlert(
         message: Binding<String?>,

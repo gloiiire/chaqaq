@@ -3,7 +3,7 @@ import Foundation
 @testable import Pinkha
 
 @MainActor
-@Suite("DocumentViewModel — gestion d'erreurs")
+@Suite("DocumentViewModel — error handling")
 struct VMErrorHandlingTests {
 
     private func makeApi() throws -> (PinkhaApi, URL) {
@@ -41,12 +41,12 @@ struct VMErrorHandlingTests {
         try api.deleteDocument(id: docId)
 
         let vm = DocumentViewModel(docId: docId, api: api)
-        // load échoue → errorMessage non nil
+        // load fails → errorMessage non nil
         vm.load()
         let firstError = vm.errorMessage
         #expect(firstError != nil)
 
-        // tentative de save d'un bloc fantôme → autre erreur
+        // attempt to save a phantom block → another error
         vm.errorMessage = nil
         let phantom = EditableBlock(id: UUID().uuidString, content: .text([]),
                                      spans: [], done: false)
@@ -55,7 +55,7 @@ struct VMErrorHandlingTests {
     }
 }
 
-@Suite("PinkhaError — chemins LocalizedError")
+@Suite("PinkhaError — LocalizedError paths")
 struct PinkhaErrorLocalizedTests {
 
     @Test func notFoundHasErrorDescription() {

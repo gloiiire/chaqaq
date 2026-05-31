@@ -1,6 +1,6 @@
 import XCTest
 
-// Vérifie l'état vide (aucun document) — utilise --ui-test-clean pour DB vide.
+// Verifies the empty state (no documents) — uses --ui-test-clean for an empty DB.
 
 final class EmptyStateUITests: XCTestCase {
 
@@ -29,7 +29,7 @@ final class EmptyStateUITests: XCTestCase {
 
     func testEmptyStateHasHelpText() {
         let app = launchClean()
-        // Le texte d'aide commence par "Appuie sur le bouton…"
+        // The help text starts with "Appuie sur le bouton…"
         let predicate = NSPredicate(format: "label CONTAINS %@", "Appuie sur")
         let helpText = app.staticTexts.element(matching: predicate)
         XCTAssertTrue(helpText.waitForExistence(timeout: 5))

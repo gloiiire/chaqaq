@@ -1,17 +1,19 @@
 use crate::application::error::PinkhaError;
 use std::time::Duration;
 
-/// Nombre maximal de tentatives (1 essai initial + 2 retries).
+/// Maximum number of attempts (1 initial try + 2 retries).
 pub const MAX_ATTEMPTS: u32 = 3;
 
-/// Délai initial avant le premier retry (doublé à chaque tentative, plafonné).
+/// Initial delay before the first retry (doubled on each attempt, capped at `MAX_DELAY_MS`).
 pub const INITIAL_DELAY_MS: u64 = 50;
 
-/// Plafond du backoff exponentiel.
+/// Upper bound for the exponential back-off delay.
 pub const MAX_DELAY_MS: u64 = 500;
 
-/// Exécute `op` avec retry exponentiel sur les erreurs transitoires.
-/// Les erreurs métier (NotFound, InvalidOperation) ne sont **jamais** retentées.
+/// Executes `op` with exponential back-off retry on transient errors.
+///
+/// Business errors (`NotFound`, `InvalidOperation`) are **never** retried —
+/// only lock/I/O errors that may resolve on their own.
 pub fn retry_with_backoff<T, F>(mut op: F) -> Result<T, PinkhaError>
 where
     F: FnMut() -> Result<T, PinkhaError>,
@@ -31,8 +33,9 @@ where
     }
 }
 
-/// Identifie les erreurs qui méritent un retry : verrous SQLite, I/O bloquante,
-/// jamais les erreurs métier (NotFound, InvalidOperation).
+/// Returns `true` for errors that are worth retrying: SQLite locks, blocking I/O.
+///
+/// Business errors (`NotFound`, `InvalidOperation`) always return `false`.
 pub fn is_transient(err: &PinkhaError) -> bool {
     match err {
         PinkhaError::Db(msg) => {
