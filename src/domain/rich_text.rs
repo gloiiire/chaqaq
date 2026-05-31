@@ -19,7 +19,7 @@ pub struct RichText {
 }
 
 impl RichText {
-    pub fn vide() -> Self {
+    pub fn empty() -> Self {
         Self {
             chars: vec![],
             spans: vec![],
@@ -30,7 +30,7 @@ impl RichText {
         self.chars.iter().collect()
     }
 
-    pub fn longueur(&self) -> usize {
+    pub fn length(&self) -> usize {
         self.chars.len()
     }
 
@@ -38,7 +38,7 @@ impl RichText {
         &self.spans
     }
 
-    pub fn inserer_char(&mut self, pos: usize, ch: char) {
+    pub fn insert_char(&mut self, pos: usize, ch: char) {
         self.chars.insert(pos, ch);
         for span in &mut self.spans {
             if span.range.start >= pos {
@@ -50,7 +50,7 @@ impl RichText {
         }
     }
 
-    pub fn supprimer_char(&mut self, pos: usize) {
+    pub fn delete_char(&mut self, pos: usize) {
         if pos >= self.chars.len() {
             return;
         }
@@ -68,22 +68,22 @@ impl RichText {
 
     /// Bascule le style sur la plage : ajoute si au moins un char ne l'a pas,
     /// retire si tous l'ont déjà.
-    pub fn toggler_style(&mut self, range: Range<usize>, style: InlineStyle) {
+    pub fn toggle_style(&mut self, range: Range<usize>, style: InlineStyle) {
         if range.is_empty() {
             return;
         }
-        if self.tous_ont_style(range.clone(), &style) {
-            self.retirer_style(range, &style);
+        if self.all_have_style(range.clone(), &style) {
+            self.remove_style(range, &style);
         } else {
-            self.ajouter_style(range, style);
+            self.add_style(range, style);
         }
     }
 
-    pub fn restaurer_spans(&mut self, spans: Vec<Span>) {
+    pub fn restore_spans(&mut self, spans: Vec<Span>) {
         self.spans = spans;
     }
 
-    fn tous_ont_style(&self, range: Range<usize>, style: &InlineStyle) -> bool {
+    fn all_have_style(&self, range: Range<usize>, style: &InlineStyle) -> bool {
         range.into_iter().all(|i| {
             self.spans
                 .iter()
@@ -91,27 +91,27 @@ impl RichText {
         })
     }
 
-    fn ajouter_style(&mut self, range: Range<usize>, style: InlineStyle) {
-        let mut par_char = self.styles_par_char();
+    fn add_style(&mut self, range: Range<usize>, style: InlineStyle) {
+        let mut by_char = self.styles_by_char();
         for i in range {
-            if i < par_char.len() && !par_char[i].contains(&style) {
-                par_char[i].push(style.clone());
+            if i < by_char.len() && !by_char[i].contains(&style) {
+                by_char[i].push(style.clone());
             }
         }
-        self.spans = Self::construire_spans(par_char);
+        self.spans = Self::build_spans(by_char);
     }
 
-    fn retirer_style(&mut self, range: Range<usize>, style: &InlineStyle) {
-        let mut par_char = self.styles_par_char();
+    fn remove_style(&mut self, range: Range<usize>, style: &InlineStyle) {
+        let mut by_char = self.styles_by_char();
         for i in range {
-            if i < par_char.len() {
-                par_char[i].retain(|s| s != style);
+            if i < by_char.len() {
+                by_char[i].retain(|s| s != style);
             }
         }
-        self.spans = Self::construire_spans(par_char);
+        self.spans = Self::build_spans(by_char);
     }
 
-    fn styles_par_char(&self) -> Vec<Vec<InlineStyle>> {
+    fn styles_by_char(&self) -> Vec<Vec<InlineStyle>> {
         let mut result = vec![vec![]; self.chars.len()];
         for span in &self.spans {
             for i in span.range.clone() {
@@ -121,17 +121,17 @@ impl RichText {
         result
     }
 
-    fn construire_spans(par_char: Vec<Vec<InlineStyle>>) -> Vec<Span> {
+    fn build_spans(by_char: Vec<Vec<InlineStyle>>) -> Vec<Span> {
         let mut spans = Vec::new();
         let mut i = 0;
-        while i < par_char.len() {
-            if par_char[i].is_empty() {
+        while i < by_char.len() {
+            if by_char[i].is_empty() {
                 i += 1;
                 continue;
             }
-            let styles = par_char[i].clone();
+            let styles = by_char[i].clone();
             let start = i;
-            while i < par_char.len() && par_char[i] == styles {
+            while i < by_char.len() && by_char[i] == styles {
                 i += 1;
             }
             spans.push(Span {
@@ -173,14 +173,14 @@ impl From<&RichText> for Vec<InlineText> {
             return vec![];
         }
 
-        let par_char = rt.styles_par_char();
+        let by_char = rt.styles_by_char();
         let mut result = Vec::new();
         let mut i = 0;
 
         while i < rt.chars.len() {
-            let styles = par_char[i].clone();
+            let styles = by_char[i].clone();
             let mut content = String::new();
-            while i < rt.chars.len() && par_char[i] == styles {
+            while i < rt.chars.len() && by_char[i] == styles {
                 content.push(rt.chars[i]);
                 i += 1;
             }
@@ -196,13 +196,13 @@ mod tests {
     use super::*;
     use crate::domain::document::{InlineStyle, InlineText};
 
-    fn gras(content: &str) -> InlineText {
+    fn bold(content: &str) -> InlineText {
         InlineText {
             content: content.to_string(),
             styles: vec![InlineStyle::Bold],
         }
     }
-    fn texte(content: &str) -> InlineText {
+    fn text(content: &str) -> InlineText {
         InlineText {
             content: content.to_string(),
             styles: vec![],
@@ -211,7 +211,7 @@ mod tests {
 
     #[test]
     fn test_conversion_depuis_inlines() {
-        let inlines = vec![texte("avant "), gras("gras"), texte(" après")];
+        let inlines = vec![text("avant "), bold("gras"), text(" après")];
         let rt = RichText::from(&inlines);
         assert_eq!(rt.content(), "avant gras après");
         assert_eq!(rt.spans().len(), 1);
@@ -221,7 +221,7 @@ mod tests {
 
     #[test]
     fn test_conversion_vers_inlines() {
-        let inlines = vec![texte("avant "), gras("gras"), texte(" après")];
+        let inlines = vec![text("avant "), bold("gras"), text(" après")];
         let rt = RichText::from(&inlines);
         let retour: Vec<InlineText> = Vec::from(&rt);
         assert_eq!(retour, inlines);
@@ -229,73 +229,71 @@ mod tests {
 
     #[test]
     fn test_aller_retour_texte_simple() {
-        let inlines = vec![texte("bonjour")];
+        let inlines = vec![text("bonjour")];
         let retour: Vec<InlineText> = Vec::from(&RichText::from(&inlines));
         assert_eq!(retour, inlines);
     }
 
     #[test]
     fn test_inserer_char_decale_spans() {
-        let inlines = vec![texte("avant "), gras("gras"), texte(" après")];
+        let inlines = vec![text("avant "), bold("gras"), text(" après")];
         let mut rt = RichText::from(&inlines);
-        // insertion à la position 0
-        rt.inserer_char(0, 'X');
+        rt.insert_char(0, 'X');
         assert_eq!(rt.content(), "Xavant gras après");
         assert_eq!(rt.spans()[0].range, 7..11); // décalé de 1
     }
 
     #[test]
     fn test_inserer_char_dans_span() {
-        let inlines = vec![texte("avant "), gras("gras"), texte(" après")];
+        let inlines = vec![text("avant "), bold("gras"), text(" après")];
         let mut rt = RichText::from(&inlines);
-        // insertion au milieu du span "gras" (pos 8 = entre 'r' et 'a' de "gras")
-        rt.inserer_char(8, 'X');
+        rt.insert_char(8, 'X');
         assert_eq!(rt.content(), "avant grXas après");
         assert_eq!(rt.spans()[0].range, 6..11); // étendu de 1
     }
 
     #[test]
     fn test_supprimer_char_ajuste_spans() {
-        let inlines = vec![texte("avant "), gras("gras"), texte(" après")];
+        let inlines = vec![text("avant "), bold("gras"), text(" après")];
         let mut rt = RichText::from(&inlines);
-        rt.supprimer_char(0); // supprime 'a' de "avant"
+        rt.delete_char(0); // supprime 'a' de "avant"
         assert_eq!(rt.content(), "vant gras après");
         assert_eq!(rt.spans()[0].range, 5..9);
     }
 
     #[test]
     fn test_supprimer_char_supprime_span_vide() {
-        let inlines = vec![texte("a"), gras("b"), texte("c")];
+        let inlines = vec![text("a"), bold("b"), text("c")];
         let mut rt = RichText::from(&inlines);
-        rt.supprimer_char(1); // supprime le 'b' en gras
+        rt.delete_char(1); // supprime le 'b' en gras
         assert_eq!(rt.content(), "ac");
         assert!(rt.spans().is_empty());
     }
 
     #[test]
     fn test_toggler_style_ajoute() {
-        let inlines = vec![texte("hello")];
+        let inlines = vec![text("hello")];
         let mut rt = RichText::from(&inlines);
-        rt.toggler_style(1..3, InlineStyle::Bold);
+        rt.toggle_style(1..3, InlineStyle::Bold);
         let retour: Vec<InlineText> = Vec::from(&rt);
-        assert_eq!(retour, vec![texte("h"), gras("el"), texte("lo")]);
+        assert_eq!(retour, vec![text("h"), bold("el"), text("lo")]);
     }
 
     #[test]
     fn test_toggler_style_retire_si_tous_ont_le_style() {
-        let inlines = vec![texte("a"), gras("bcd"), texte("e")];
+        let inlines = vec![text("a"), bold("bcd"), text("e")];
         let mut rt = RichText::from(&inlines);
-        rt.toggler_style(1..4, InlineStyle::Bold); // tous ont Bold → retire
+        rt.toggle_style(1..4, InlineStyle::Bold); // tous ont Bold → retire
         let retour: Vec<InlineText> = Vec::from(&rt);
-        assert_eq!(retour, vec![texte("abcde")]);
+        assert_eq!(retour, vec![text("abcde")]);
     }
 
     #[test]
     fn test_unicode_accents() {
-        let inlines = vec![texte("éàü")];
+        let inlines = vec![text("éàü")];
         let mut rt = RichText::from(&inlines);
-        assert_eq!(rt.longueur(), 3); // 3 chars, pas 6 bytes
-        rt.inserer_char(1, 'X');
+        assert_eq!(rt.length(), 3); // 3 chars, pas 6 bytes
+        rt.insert_char(1, 'X');
         assert_eq!(rt.content(), "éXàü");
     }
 }

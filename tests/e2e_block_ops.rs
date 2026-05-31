@@ -60,7 +60,7 @@ fn test_flux_edition_complete() {
 
     // Édite le heading via EditorState
     let rt = RichText::from(&inlines("Introduction révisée"));
-    save_edited_block(&store, doc.id, id_heading, &EditorState::nouveau(rt)).unwrap();
+    save_edited_block(&store, doc.id, id_heading, &EditorState::new(rt)).unwrap();
 
     // Édite le paragraphe avec un style gras
     let inlines_gras = vec![InlineText {
@@ -68,7 +68,7 @@ fn test_flux_edition_complete() {
         styles: vec![InlineStyle::Bold],
     }];
     let rt = RichText::from(&inlines_gras);
-    save_edited_block(&store, doc.id, id_para, &EditorState::nouveau(rt)).unwrap();
+    save_edited_block(&store, doc.id, id_para, &EditorState::new(rt)).unwrap();
 
     // Toggle la todo
     update_block(
@@ -152,7 +152,7 @@ fn test_styles_preserves_apres_sauvegarde_bloc() {
 
     // Sauvegarde via EditorState (round-trip RichText → Vec<InlineText>)
     let rt = RichText::from(&inlines_styled);
-    save_edited_block(&store, doc.id, block_id, &EditorState::nouveau(rt)).unwrap();
+    save_edited_block(&store, doc.id, block_id, &EditorState::new(rt)).unwrap();
 
     let recharge = get_document(&store, doc.id).unwrap();
     if let BlockContent::Text(t) = &recharge.blocks[0].content {

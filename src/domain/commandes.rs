@@ -4,144 +4,144 @@ use crate::domain::editor::EditorState;
 use crate::domain::rich_text::Span;
 use std::ops::Range;
 
-pub trait Commande {
-    fn executer(&self, etat: &mut EditorState);
-    fn annuler(&self, etat: &mut EditorState);
+pub trait Command {
+    fn execute(&self, state: &mut EditorState);
+    fn undo(&self, state: &mut EditorState);
 }
 
 // ── Commandes concrètes ──────────────────────────────────────────────────────
 
-pub struct Inserer {
+pub struct Insert {
     pos: usize,
     ch: char,
 }
 
-impl Inserer {
-    pub fn nouveau(pos: usize, ch: char) -> Self {
+impl Insert {
+    pub fn new(pos: usize, ch: char) -> Self {
         Self { pos, ch }
     }
 }
 
-impl Commande for Inserer {
-    fn executer(&self, etat: &mut EditorState) {
-        etat.texte.inserer_char(self.pos, self.ch);
-        etat.curseur = self.pos + 1;
+impl Command for Insert {
+    fn execute(&self, state: &mut EditorState) {
+        state.text.insert_char(self.pos, self.ch);
+        state.cursor = self.pos + 1;
     }
-    fn annuler(&self, etat: &mut EditorState) {
-        etat.texte.supprimer_char(self.pos);
-        etat.curseur = self.pos;
+    fn undo(&self, state: &mut EditorState) {
+        state.text.delete_char(self.pos);
+        state.cursor = self.pos;
     }
 }
 
-pub struct Supprimer {
+pub struct Delete {
     pos: usize,
     ch: char, // stocké à la création pour pouvoir réinsérer lors de l'undo
 }
 
-impl Supprimer {
-    pub fn nouveau(etat: &EditorState, pos: usize) -> Option<Self> {
-        let ch = etat.texte.content().chars().nth(pos)?;
+impl Delete {
+    pub fn new(state: &EditorState, pos: usize) -> Option<Self> {
+        let ch = state.text.content().chars().nth(pos)?;
         Some(Self { pos, ch })
     }
 }
 
-impl Commande for Supprimer {
-    fn executer(&self, etat: &mut EditorState) {
-        etat.texte.supprimer_char(self.pos);
-        etat.curseur = self.pos;
+impl Command for Delete {
+    fn execute(&self, state: &mut EditorState) {
+        state.text.delete_char(self.pos);
+        state.cursor = self.pos;
     }
-    fn annuler(&self, etat: &mut EditorState) {
-        etat.texte.inserer_char(self.pos, self.ch);
-        etat.curseur = self.pos + 1;
+    fn undo(&self, state: &mut EditorState) {
+        state.text.insert_char(self.pos, self.ch);
+        state.cursor = self.pos + 1;
     }
 }
 
-pub struct AppliquerStyle {
+pub struct ApplyStyle {
     range: Range<usize>,
     style: InlineStyle,
-    avant_spans: Vec<Span>, // snapshot pour l'undo exact
+    before_spans: Vec<Span>, // snapshot pour l'undo exact
 }
 
-impl AppliquerStyle {
-    pub fn nouveau(etat: &EditorState, range: Range<usize>, style: InlineStyle) -> Self {
+impl ApplyStyle {
+    pub fn new(state: &EditorState, range: Range<usize>, style: InlineStyle) -> Self {
         Self {
-            avant_spans: etat.texte.spans().to_vec(),
+            before_spans: state.text.spans().to_vec(),
             range,
             style,
         }
     }
 }
 
-impl Commande for AppliquerStyle {
-    fn executer(&self, etat: &mut EditorState) {
-        etat.texte
-            .toggler_style(self.range.clone(), self.style.clone());
+impl Command for ApplyStyle {
+    fn execute(&self, state: &mut EditorState) {
+        state.text
+            .toggle_style(self.range.clone(), self.style.clone());
     }
-    fn annuler(&self, etat: &mut EditorState) {
-        etat.texte.restaurer_spans(self.avant_spans.clone());
+    fn undo(&self, state: &mut EditorState) {
+        state.text.restore_spans(self.before_spans.clone());
     }
 }
 
-// ── Historique ───────────────────────────────────────────────────────────────
+// ── History ──────────────────────────────────────────────────────────────────
 
-const CAPACITE_PAR_DEFAUT: usize = 1000;
+const DEFAULT_CAPACITY: usize = 1000;
 
-pub struct Historique {
-    fait: Vec<Box<dyn Commande>>,
-    annule: Vec<Box<dyn Commande>>,
-    capacite: usize,
+pub struct History {
+    done: Vec<Box<dyn Command>>,
+    undone: Vec<Box<dyn Command>>,
+    capacity: usize,
 }
 
-impl Default for Historique {
+impl Default for History {
     fn default() -> Self {
-        Self::nouveau(CAPACITE_PAR_DEFAUT)
+        Self::new(DEFAULT_CAPACITY)
     }
 }
 
-impl Historique {
-    pub fn nouveau(capacite: usize) -> Self {
+impl History {
+    pub fn new(capacity: usize) -> Self {
         Self {
-            fait: Vec::new(),
-            annule: Vec::new(),
-            capacite,
+            done: Vec::new(),
+            undone: Vec::new(),
+            capacity,
         }
     }
 
-    pub fn appliquer(&mut self, cmd: Box<dyn Commande>, etat: &mut EditorState) {
-        cmd.executer(etat);
-        self.fait.push(cmd);
-        self.annule.clear(); // une new action efface le redo
+    pub fn apply(&mut self, cmd: Box<dyn Command>, state: &mut EditorState) {
+        cmd.execute(state);
+        self.done.push(cmd);
+        self.undone.clear(); // une new action efface le redo
         // supprime l'entrée la plus ancienne si la capacité est dépassée
-        if self.fait.len() > self.capacite {
-            self.fait.remove(0);
+        if self.done.len() > self.capacity {
+            self.done.remove(0);
         }
     }
 
-    pub fn annuler(&mut self, etat: &mut EditorState) {
-        if let Some(cmd) = self.fait.pop() {
-            cmd.annuler(etat);
-            self.annule.push(cmd);
+    pub fn undo(&mut self, state: &mut EditorState) {
+        if let Some(cmd) = self.done.pop() {
+            cmd.undo(state);
+            self.undone.push(cmd);
         }
     }
 
-    pub fn refaire(&mut self, etat: &mut EditorState) {
-        if let Some(cmd) = self.annule.pop() {
-            cmd.executer(etat);
-            self.fait.push(cmd);
+    pub fn redo(&mut self, state: &mut EditorState) {
+        if let Some(cmd) = self.undone.pop() {
+            cmd.execute(state);
+            self.done.push(cmd);
         }
     }
 
-    pub fn peut_annuler(&self) -> bool {
-        !self.fait.is_empty()
+    pub fn can_undo(&self) -> bool {
+        !self.done.is_empty()
     }
-    pub fn peut_refaire(&self) -> bool {
-        !self.annule.is_empty()
+    pub fn can_redo(&self) -> bool {
+        !self.undone.is_empty()
     }
-    pub fn capacite(&self) -> usize {
-        self.capacite
+    pub fn capacity(&self) -> usize {
+        self.capacity
     }
-    pub fn taille(&self) -> usize {
-        self.fait.len()
+    pub fn size(&self) -> usize {
+        self.done.len()
     }
 }
 
@@ -151,120 +151,120 @@ mod tests {
     use crate::domain::document::{InlineStyle, InlineText};
     use crate::domain::rich_text::RichText;
 
-    fn etat_depuis(s: &str) -> EditorState {
+    fn state_from(s: &str) -> EditorState {
         let inlines = vec![InlineText {
             content: s.to_string(),
             styles: vec![],
         }];
-        EditorState::nouveau(RichText::from(&inlines))
+        EditorState::new(RichText::from(&inlines))
     }
 
     #[test]
     fn test_inserer_puis_annuler() {
-        let mut etat = etat_depuis("ac");
-        let mut hist = Historique::default();
-        etat.curseur = 1;
+        let mut state = state_from("ac");
+        let mut hist = History::default();
+        state.cursor = 1;
 
-        hist.appliquer(Box::new(Inserer::nouveau(1, 'b')), &mut etat);
-        assert_eq!(etat.texte.content(), "abc");
-        assert_eq!(etat.curseur, 2);
+        hist.apply(Box::new(Insert::new(1, 'b')), &mut state);
+        assert_eq!(state.text.content(), "abc");
+        assert_eq!(state.cursor, 2);
 
-        hist.annuler(&mut etat);
-        assert_eq!(etat.texte.content(), "ac");
-        assert_eq!(etat.curseur, 1);
+        hist.undo(&mut state);
+        assert_eq!(state.text.content(), "ac");
+        assert_eq!(state.cursor, 1);
     }
 
     #[test]
     fn test_supprimer_puis_annuler() {
-        let mut etat = etat_depuis("abc");
-        let mut hist = Historique::default();
+        let mut state = state_from("abc");
+        let mut hist = History::default();
 
-        let cmd = Supprimer::nouveau(&etat, 1).unwrap();
-        hist.appliquer(Box::new(cmd), &mut etat);
-        assert_eq!(etat.texte.content(), "ac");
+        let cmd = Delete::new(&state, 1).unwrap();
+        hist.apply(Box::new(cmd), &mut state);
+        assert_eq!(state.text.content(), "ac");
 
-        hist.annuler(&mut etat);
-        assert_eq!(etat.texte.content(), "abc");
-        assert_eq!(etat.curseur, 2);
+        hist.undo(&mut state);
+        assert_eq!(state.text.content(), "abc");
+        assert_eq!(state.cursor, 2);
     }
 
     #[test]
     fn test_style_puis_annuler() {
-        let mut etat = etat_depuis("hello");
-        let mut hist = Historique::default();
+        let mut state = state_from("hello");
+        let mut hist = History::default();
 
-        let cmd = AppliquerStyle::nouveau(&etat, 1..4, InlineStyle::Bold);
-        hist.appliquer(Box::new(cmd), &mut etat);
-        let retour: Vec<InlineText> = Vec::from(&etat.texte);
+        let cmd = ApplyStyle::new(&state, 1..4, InlineStyle::Bold);
+        hist.apply(Box::new(cmd), &mut state);
+        let retour: Vec<InlineText> = Vec::from(&state.text);
         assert_eq!(retour[1].styles, vec![InlineStyle::Bold]);
 
-        hist.annuler(&mut etat);
-        let retour: Vec<InlineText> = Vec::from(&etat.texte);
+        hist.undo(&mut state);
+        let retour: Vec<InlineText> = Vec::from(&state.text);
         assert!(retour[0].styles.is_empty()); // retour à l'état initial
     }
 
     #[test]
     fn test_undo_redo() {
-        let mut etat = etat_depuis("");
-        let mut hist = Historique::default();
+        let mut state = state_from("");
+        let mut hist = History::default();
 
-        hist.appliquer(Box::new(Inserer::nouveau(0, 'a')), &mut etat);
-        hist.appliquer(Box::new(Inserer::nouveau(1, 'b')), &mut etat);
-        assert_eq!(etat.texte.content(), "ab");
+        hist.apply(Box::new(Insert::new(0, 'a')), &mut state);
+        hist.apply(Box::new(Insert::new(1, 'b')), &mut state);
+        assert_eq!(state.text.content(), "ab");
 
-        hist.annuler(&mut etat);
-        assert_eq!(etat.texte.content(), "a");
-        assert!(hist.peut_refaire());
+        hist.undo(&mut state);
+        assert_eq!(state.text.content(), "a");
+        assert!(hist.can_redo());
 
-        hist.refaire(&mut etat);
-        assert_eq!(etat.texte.content(), "ab");
-        assert!(!hist.peut_refaire());
+        hist.redo(&mut state);
+        assert_eq!(state.text.content(), "ab");
+        assert!(!hist.can_redo());
     }
 
     #[test]
     fn test_new_action_efface_redo() {
-        let mut etat = etat_depuis("");
-        let mut hist = Historique::default();
+        let mut state = state_from("");
+        let mut hist = History::default();
 
-        hist.appliquer(Box::new(Inserer::nouveau(0, 'a')), &mut etat);
-        hist.appliquer(Box::new(Inserer::nouveau(1, 'b')), &mut etat);
-        hist.annuler(&mut etat); // peut refaire 'b'
+        hist.apply(Box::new(Insert::new(0, 'a')), &mut state);
+        hist.apply(Box::new(Insert::new(1, 'b')), &mut state);
+        hist.undo(&mut state); // peut refaire 'b'
 
-        hist.appliquer(Box::new(Inserer::nouveau(1, 'c')), &mut etat); // new action
-        assert!(!hist.peut_refaire()); // redo effacé
-        assert_eq!(etat.texte.content(), "ac");
+        hist.apply(Box::new(Insert::new(1, 'c')), &mut state); // new action
+        assert!(!hist.can_redo()); // redo effacé
+        assert_eq!(state.text.content(), "ac");
     }
 
     #[test]
     fn test_limite_undo_respectee() {
-        let mut etat = etat_depuis("");
-        let mut hist = Historique::nouveau(3);
+        let mut state = state_from("");
+        let mut hist = History::new(3);
 
         // insère 5 caractères : seuls les 3 derniers doivent rester dans l'historique
         for (i, ch) in ['a', 'b', 'c', 'd', 'e'].iter().enumerate() {
-            hist.appliquer(Box::new(Inserer::nouveau(i, *ch)), &mut etat);
+            hist.apply(Box::new(Insert::new(i, *ch)), &mut state);
         }
-        assert_eq!(hist.taille(), 3);
-        assert_eq!(hist.capacite(), 3);
+        assert_eq!(hist.size(), 3);
+        assert_eq!(hist.capacity(), 3);
     }
 
     #[test]
     fn test_undo_apres_limite() {
-        let mut etat = etat_depuis("");
-        let mut hist = Historique::nouveau(3);
+        let mut state = state_from("");
+        let mut hist = History::new(3);
 
         for (i, ch) in ['a', 'b', 'c', 'd', 'e'].iter().enumerate() {
-            hist.appliquer(Box::new(Inserer::nouveau(i, *ch)), &mut etat);
+            hist.apply(Box::new(Insert::new(i, *ch)), &mut state);
         }
-        assert_eq!(etat.texte.content(), "abcde");
+        assert_eq!(state.text.content(), "abcde");
 
         // annule les 3 entrées conservées
-        hist.annuler(&mut etat);
-        hist.annuler(&mut etat);
-        hist.annuler(&mut etat);
-        assert!(!hist.peut_annuler());
+        hist.undo(&mut state);
+        hist.undo(&mut state);
+        hist.undo(&mut state);
+        assert!(!hist.can_undo());
 
         // les 2 premières (a, b) sont irrécupérables — le texte restant est "ab"
-        assert_eq!(etat.texte.content(), "ab");
+        assert_eq!(state.text.content(), "ab");
     }
 }

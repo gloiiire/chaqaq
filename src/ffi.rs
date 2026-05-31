@@ -69,7 +69,7 @@ pub struct DatabaseMetaFfi {
     pub created_at: String,
 }
 
-fn doc_meta_vers_ffi(m: DocumentMeta) -> DocumentMetaFfi {
+fn doc_meta_to_ffi(m: DocumentMeta) -> DocumentMetaFfi {
     let title_plain = m
         .title
         .iter()
@@ -87,7 +87,7 @@ fn doc_meta_vers_ffi(m: DocumentMeta) -> DocumentMetaFfi {
     }
 }
 
-fn db_meta_vers_ffi(m: DatabaseMeta) -> DatabaseMetaFfi {
+fn db_meta_to_ffi(m: DatabaseMeta) -> DatabaseMetaFfi {
     let title_plain = m
         .title
         .iter()
@@ -122,7 +122,7 @@ fn parse_uuids(ids: Vec<String>) -> Result<Vec<Uuid>, PinkhaError> {
 }
 
 /// Refuse les chaînes trop longues à la frontière FFI (protection ressources).
-fn check_string(s: &str, field: &str) -> Result<(), PinkhaError> {
+fn validate_string(s: &str, field: &str) -> Result<(), PinkhaError> {
     if s.len() > MAX_STRING_BYTES {
         return Err(PinkhaError::InvalidOperation {
             detail: format!(
@@ -154,8 +154,8 @@ fn to_json<T: serde::Serialize>(value: &T) -> Result<String, PinkhaError> {
     })
 }
 
-fn block_id(bloc: Block) -> String {
-    bloc.id.to_string()
+fn get_block_id(block: Block) -> String {
+    block.id.to_string()
 }
 
 // ── Façade principale ─────────────────────────────────────────────────────────
@@ -167,15 +167,15 @@ pub struct PinkhaApi {
 
 impl PinkhaApi {
     pub fn new(db_path: String) -> Result<Self, PinkhaError> {
-        let docs = SqliteDocumentStore::nouveau(&db_path).map_err(PinkhaError::from)?;
-        let dbs = SqliteDatabaseStore::nouveau(&db_path).map_err(PinkhaError::from)?;
+        let docs = SqliteDocumentStore::new(&db_path).map_err(PinkhaError::from)?;
+        let dbs = SqliteDatabaseStore::new(&db_path).map_err(PinkhaError::from)?;
         Ok(Self { docs, dbs })
     }
 
     // ── Documents ─────────────────────────────────────────────
 
     pub fn create_document(&self, title: String) -> Result<String, PinkhaError> {
-        check_string(&title, "title")?;
+        validate_string(&title, "title")?;
         let doc = use_cases::create_document(&self.docs, &title).map_err(PinkhaError::from)?;
         Ok(doc.id.to_string())
     }
@@ -190,7 +190,7 @@ impl PinkhaApi {
 
     pub fn list_documents(&self) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
         let metas = use_cases::list_documents(&self.docs).map_err(PinkhaError::from)?;
-        Ok(metas.into_iter().map(doc_meta_vers_ffi).collect())
+        Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
     }
 
     pub fn delete_document(&self, id: String) -> Result<(), PinkhaError> {
@@ -203,7 +203,7 @@ impl PinkhaApi {
         id: String,
         new_title: String,
     ) -> Result<(), PinkhaError> {
-        check_string(&new_title, "new_title")?;
+        validate_string(&new_title, "new_title")?;
         let uuid = parse_uuid(&id)?;
         use_cases::update_document_title(&self.docs, uuid, &new_title)
             .map_err(PinkhaError::from)
@@ -242,16 +242,16 @@ impl PinkhaApi {
         content_json: String,
     ) -> Result<(), PinkhaError> {
         let doc_uuid = parse_uuid(&doc_id)?;
-        let bloc_uuid = parse_uuid(&block_id)?;
+        let block_uuid = parse_uuid(&block_id)?;
         let content: BlockContent = parse_json(&content_json)?;
-        use_cases::update_block(&self.docs, doc_uuid, bloc_uuid, content)
+        use_cases::update_block(&self.docs, doc_uuid, block_uuid, content)
             .map_err(PinkhaError::from)
     }
 
     pub fn delete_block(&self, doc_id: String, block_id: String) -> Result<(), PinkhaError> {
         let doc_uuid = parse_uuid(&doc_id)?;
-        let bloc_uuid = parse_uuid(&block_id)?;
-        use_cases::delete_block(&self.docs, doc_uuid, bloc_uuid).map_err(PinkhaError::from)
+        let block_uuid = parse_uuid(&block_id)?;
+        use_cases::delete_block(&self.docs, doc_uuid, block_uuid).map_err(PinkhaError::from)
     }
 
     pub fn reorder_blocks(&self, doc_id: String, order: Vec<String>) -> Result<(), PinkhaError> {
@@ -270,7 +270,7 @@ impl PinkhaApi {
         let parent_uuid = parse_uuid(&parent_id)?;
         let content: BlockContent = parse_json(&block_content_json)?;
         use_cases::add_child_block(&self.docs, doc_uuid, parent_uuid, content)
-            .map(block_id)
+            .map(get_block_id)
             .map_err(PinkhaError::from)
     }
 
@@ -294,27 +294,27 @@ impl PinkhaApi {
         new_parent_id: Option<String>,
     ) -> Result<(), PinkhaError> {
         let doc_uuid = parse_uuid(&doc_id)?;
-        let bloc_uuid = parse_uuid(&block_id)?;
+        let block_uuid = parse_uuid(&block_id)?;
         let parent_uuid = new_parent_id.as_deref().map(parse_uuid).transpose()?;
-        use_cases::move_block(&self.docs, doc_uuid, bloc_uuid, parent_uuid)
+        use_cases::move_block(&self.docs, doc_uuid, block_uuid, parent_uuid)
             .map_err(PinkhaError::from)
     }
 
     pub fn search_documents(&self, query: String) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
-        check_string(&query, "query")?;
+        validate_string(&query, "query")?;
         let metas =
             use_cases::search_documents(&self.docs, &query).map_err(PinkhaError::from)?;
-        Ok(metas.into_iter().map(doc_meta_vers_ffi).collect())
+        Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
     }
 
     pub fn search_in_blocks(
         &self,
         query: String,
     ) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
-        check_string(&query, "query")?;
+        validate_string(&query, "query")?;
         let metas =
             use_cases::search_in_blocks(&self.docs, &query).map_err(PinkhaError::from)?;
-        Ok(metas.into_iter().map(doc_meta_vers_ffi).collect())
+        Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
     }
 }
 
@@ -322,7 +322,7 @@ impl PinkhaApi {
 
 impl PinkhaApi {
     pub fn create_database(&self, title: String) -> Result<String, PinkhaError> {
-        check_string(&title, "title")?;
+        validate_string(&title, "title")?;
         let db = database_use_cases::create_database(&self.dbs, parse_inline(&title), vec![])
             .map_err(PinkhaError::from)?;
         Ok(db.id.to_string())
@@ -339,7 +339,7 @@ impl PinkhaApi {
 
     pub fn list_databases(&self) -> Result<Vec<DatabaseMetaFfi>, PinkhaError> {
         let metas = database_use_cases::list_databases(&self.dbs).map_err(PinkhaError::from)?;
-        Ok(metas.into_iter().map(db_meta_vers_ffi).collect())
+        Ok(metas.into_iter().map(db_meta_to_ffi).collect())
     }
 
     pub fn delete_database(&self, id: String) -> Result<(), PinkhaError> {
@@ -385,8 +385,8 @@ impl PinkhaApi {
         property_json: String,
     ) -> Result<(), PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
-        let propriete: Property = parse_json(&property_json)?;
-        database_use_cases::add_property(&self.dbs, db_uuid, propriete)
+        let property: Property = parse_json(&property_json)?;
+        database_use_cases::add_property(&self.dbs, db_uuid, property)
             .map_err(PinkhaError::from)
     }
 
@@ -396,7 +396,7 @@ impl PinkhaApi {
         property_id: String,
         new_name: String,
     ) -> Result<(), PinkhaError> {
-        check_string(&new_name, "new_name")?;
+        validate_string(&new_name, "new_name")?;
         let db_uuid = parse_uuid(&db_id)?;
         let prop_uuid = parse_uuid(&property_id)?;
         database_use_cases::rename_property(&self.dbs, db_uuid, prop_uuid, &new_name)
@@ -416,10 +416,10 @@ impl PinkhaApi {
 
     pub fn add_view(&self, db_id: String, view_json: String) -> Result<String, PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
-        let vue: View = parse_json(&view_json)?;
-        let vue =
-            database_use_cases::add_view(&self.dbs, db_uuid, vue).map_err(PinkhaError::from)?;
-        Ok(vue.id.to_string())
+        let view: View = parse_json(&view_json)?;
+        let view =
+            database_use_cases::add_view(&self.dbs, db_uuid, view).map_err(PinkhaError::from)?;
+        Ok(view.id.to_string())
     }
 
     pub fn update_view(
@@ -430,17 +430,17 @@ impl PinkhaApi {
         sorts_json: String,
     ) -> Result<(), PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
-        let vue_uuid = parse_uuid(&view_id)?;
+        let view_uuid = parse_uuid(&view_id)?;
         let filters: Vec<Filter> = parse_json(&filters_json)?;
         let sorts: Vec<Sort> = parse_json(&sorts_json)?;
-        database_use_cases::update_view(&self.dbs, db_uuid, vue_uuid, filters, sorts)
+        database_use_cases::update_view(&self.dbs, db_uuid, view_uuid, filters, sorts)
             .map_err(PinkhaError::from)
     }
 
     pub fn delete_view(&self, db_id: String, view_id: String) -> Result<(), PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
-        let vue_uuid = parse_uuid(&view_id)?;
-        database_use_cases::delete_view(&self.dbs, db_uuid, vue_uuid).map_err(PinkhaError::from)
+        let view_uuid = parse_uuid(&view_id)?;
+        database_use_cases::delete_view(&self.dbs, db_uuid, view_uuid).map_err(PinkhaError::from)
     }
 
     pub fn query_database_json(
@@ -449,9 +449,9 @@ impl PinkhaApi {
         view_id: String,
     ) -> Result<String, PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
-        let vue_uuid = parse_uuid(&view_id)?;
+        let view_uuid = parse_uuid(&view_id)?;
         let entries: Vec<Entry> =
-            database_use_cases::requete(&self.dbs, db_uuid, vue_uuid).map_err(PinkhaError::from)?;
+            database_use_cases::query(&self.dbs, db_uuid, view_uuid).map_err(PinkhaError::from)?;
         to_json(&entries)
     }
 
@@ -461,9 +461,9 @@ impl PinkhaApi {
         view_id: String,
     ) -> Result<String, PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
-        let vue_uuid = parse_uuid(&view_id)?;
+        let view_uuid = parse_uuid(&view_id)?;
         let entries: Vec<Entry> =
-            database_use_cases::query_with_rollups(&self.dbs, db_uuid, vue_uuid)
+            database_use_cases::query_with_rollups(&self.dbs, db_uuid, view_uuid)
                 .map_err(PinkhaError::from)?;
         to_json(&entries)
     }
@@ -475,9 +475,9 @@ impl PinkhaApi {
         group_by: String,
     ) -> Result<String, PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
-        let vue_uuid = parse_uuid(&view_id)?;
+        let view_uuid = parse_uuid(&view_id)?;
         let prop_uuid = parse_uuid(&group_by)?;
-        let groups = database_use_cases::grouped_query(&self.dbs, db_uuid, vue_uuid, prop_uuid)
+        let groups = database_use_cases::grouped_query(&self.dbs, db_uuid, view_uuid, prop_uuid)
             .map_err(PinkhaError::from)?;
         to_json(&groups)
     }
@@ -491,9 +491,9 @@ impl PinkhaApi {
         let db_uuid = parse_uuid(&db_id)?;
         let prop_uuid = parse_uuid(&property_id)?;
         let aggregate: Aggregate = parse_json(&aggregate_json)?;
-        let valeur = database_use_cases::column_aggregate(&self.dbs, db_uuid, prop_uuid, aggregate)
+        let value = database_use_cases::column_aggregate(&self.dbs, db_uuid, prop_uuid, aggregate)
             .map_err(PinkhaError::from)?;
-        to_json(&valeur)
+        to_json(&value)
     }
 
     pub fn search_database_entries_json(
@@ -501,7 +501,7 @@ impl PinkhaApi {
         db_id: String,
         query: String,
     ) -> Result<String, PinkhaError> {
-        check_string(&query, "query")?;
+        validate_string(&query, "query")?;
         let db_uuid = parse_uuid(&db_id)?;
         let entries = database_use_cases::search_entries(&self.dbs, db_uuid, &query)
             .map_err(PinkhaError::from)?;
