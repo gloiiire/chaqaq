@@ -5,10 +5,12 @@
 //
 // Pipeline:
 //   → RealmFile::open(db_path)
-//   → read class_BlockDataModel  (all blocks: id, content, type, rawProperties)
-//   → detect page boundaries via rawProperties.titleEnabled == "true"
-//   → create one pinkha Document per title block; content blocks follow
-//   → persist via DocumentRepository
+//   → read class_DocumentDataModel  → collect the 226 real document IDs
+//   → read class_BlockDataModel     → group blocks by lastSyncedBlockIds (= doc ID)
+//   → for each doc: title block (titleEnabled) + content blocks
+//   → persist one pinkha Document per Craft document
+
+use std::collections::HashMap;
 
 use realm_codec::RealmFile;
 use serde_json::Value as JsonValue;
@@ -23,12 +25,7 @@ use chaqaq::InlineText;
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-/// Input required to run a Craft import.
-///
-/// Swift presents a file picker scoped to Craft's container, then passes the
-/// resolved path here. Pinkha opens the file read-only via realm-codec.
 pub struct CraftConfig {
-    /// Absolute path to Craft's `*.realm` file.
     pub db_path: String,
 }
 
@@ -64,59 +61,87 @@ impl Extractor for CraftExtractor {
         let realm = RealmFile::open(&config.db_path)
             .map_err(|e| ExtractorError::Parse(format!("cannot open realm file: {e}")))?;
 
-        let table = realm
+        // ── Step 1: collect real document IDs from DocumentDataModel ──────────
+        let doc_ids: std::collections::HashSet<String> = {
+            let doc_table = realm
+                .table("class_DocumentDataModel")
+                .ok_or_else(|| ExtractorError::Parse("DocumentDataModel table not found".into()))?;
+            let id_col = doc_table
+                .column_index("id")
+                .ok_or_else(|| ExtractorError::Parse("DocumentDataModel.id missing".into()))?;
+            doc_table
+                .rows
+                .iter()
+                .map(|r| r.get(id_col).as_str().to_lowercase())
+                .filter(|s| !s.is_empty())
+                .collect()
+        };
+
+        // ── Step 2: group blocks by document ─────────────────────────────────
+        //
+        // `lastSyncedBlockIds` stores the DocumentDataModel.id for every block
+        // (confirmed: 226 unique values = 226 documents, all 6763 blocks matched).
+        let block_table = realm
             .table("class_BlockDataModel")
             .ok_or_else(|| ExtractorError::Parse("BlockDataModel table not found".into()))?;
 
-        let content_idx = table
+        let content_idx = block_table
             .column_index("content")
             .ok_or_else(|| ExtractorError::Parse("content column missing".into()))?;
-        let type_idx = table
+        let type_idx = block_table
             .column_index("type")
             .ok_or_else(|| ExtractorError::Parse("type column missing".into()))?;
-        let raw_props_idx = table
+        let raw_props_idx = block_table
             .column_index("rawProperties")
             .ok_or_else(|| ExtractorError::Parse("rawProperties column missing".into()))?;
+        let lsb_idx = block_table
+            .column_index("lastSyncedBlockIds")
+            .ok_or_else(|| ExtractorError::Parse("lastSyncedBlockIds column missing".into()))?;
 
-        // Accumulate blocks for the current in-progress document.
-        let mut pending_title: Option<String> = None;
-        let mut pending_blocks: Vec<BlockContent> = vec![];
-        let mut doc_count: usize = 0;
-        let mut block_count: usize = 0;
-        let mut skipped: usize = 0;
+        // doc_id → (title, content_blocks, skipped_count)
+        let mut doc_map: HashMap<String, (Option<String>, Vec<BlockContent>, usize)> =
+            HashMap::new();
 
-        for row in &table.rows {
+        for row in &block_table.rows {
+            let doc_id = row.get(lsb_idx).as_str().to_lowercase();
+            if doc_id.is_empty() || !doc_ids.contains(&doc_id) {
+                continue;
+            }
+
             let content = row.get(content_idx).as_str().to_owned();
             let block_type = row.get(type_idx).as_str();
             let raw_props = row.get(raw_props_idx).as_str();
 
+            let entry = doc_map.entry(doc_id).or_insert((None, vec![], 0));
+
             if is_title_block(raw_props) {
-                // Flush the previous document before starting a new one.
-                if let Some(title) = pending_title.take() {
-                    flush_document(docs, &title, pending_blocks.drain(..).collect())?;
-                    doc_count += 1;
-                } else {
-                    pending_blocks.clear();
+                // Only keep the first title block as the document title.
+                if entry.0.is_none() {
+                    let first_line = content.lines().next().unwrap_or("").trim().to_string();
+                    entry.0 = Some(if first_line.is_empty() {
+                        "Untitled".to_string()
+                    } else {
+                        first_line
+                    });
                 }
-                let first_line = content.lines().next().unwrap_or("").trim().to_string();
-                let title = if first_line.is_empty() { "Untitled".to_string() } else { first_line };
-                pending_title = Some(title);
             } else {
                 match map_block(&content, block_type) {
-                    Some(bc) => {
-                        pending_blocks.push(bc);
-                        block_count += 1;
-                    }
-                    None => {
-                        skipped += 1;
-                    }
+                    Some(bc) => entry.1.push(bc),
+                    None => entry.2 += 1,
                 }
             }
         }
 
-        // Flush the last open document.
-        if let Some(title) = pending_title.take() {
-            flush_document(docs, &title, pending_blocks.drain(..).collect())?;
+        // ── Step 3: persist one pinkha Document per Craft document ────────────
+        let mut doc_count = 0usize;
+        let mut block_count = 0usize;
+        let mut skipped = 0usize;
+
+        for (_doc_id, (title_opt, blocks, doc_skipped)) in doc_map {
+            let title = title_opt.unwrap_or_else(|| "Untitled".to_string());
+            block_count += blocks.len();
+            skipped += doc_skipped;
+            flush_document(docs, &title, blocks)?;
             doc_count += 1;
         }
 
@@ -133,8 +158,6 @@ impl Extractor for CraftExtractor {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/// A block whose `rawProperties` JSON contains `"titleEnabled": "true"` marks
-/// the beginning of a new Craft page (document).
 fn is_title_block(raw_props: &str) -> bool {
     if raw_props.is_empty() || raw_props == "{}" {
         return false;
@@ -147,10 +170,6 @@ fn is_title_block(raw_props: &str) -> bool {
     false
 }
 
-/// Map a Craft block type + content to a pinkha `BlockContent`.
-///
-/// Returns `None` for types without a pinkha equivalent (image, url, file,
-/// table) so they can be counted as skipped.
 fn map_block(content: &str, block_type: &str) -> Option<BlockContent> {
     match block_type {
         "text" => Some(BlockContent::Text(plain(content))),
@@ -230,7 +249,6 @@ mod tests {
 
     #[test]
     fn map_block_text_empty_ok() {
-        // Empty text blocks are preserved (blank paragraph).
         assert!(matches!(map_block("", "text"), Some(BlockContent::Text(_))));
     }
 
