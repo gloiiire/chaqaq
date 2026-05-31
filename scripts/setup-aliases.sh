@@ -28,8 +28,10 @@ git config --local alias.promote-master \
     '!git checkout master && git pull && git merge staging && git push origin master && git checkout -'
 
 # Supprime les branches locales déjà mergées dans dev (sauf master/staging/dev).
+# `-E` active la regex étendue : `|` = alternation, `^[[:space:]]*` matche
+# l'indentation devant un nom de branche non-active.
 git config --local alias.cleanup-merged \
-    '!git branch --merged dev | grep -v "^\*\| dev$\| master$\| staging$" | xargs -n 1 git branch -d 2>/dev/null; echo "Done."'
+    '!git branch --merged dev | grep -vE "^\*|^[[:space:]]*(dev|master|staging)$" | xargs -n 1 git branch -d 2>/dev/null; echo "Done."'
 
 echo "Alias git configurés (locaux au repo) :"
 git config --local --get-regexp '^alias\.' | sed 's/^alias\./  /'
