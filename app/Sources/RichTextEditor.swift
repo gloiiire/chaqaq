@@ -331,15 +331,13 @@ struct RichTextEditor: UIViewRepresentable {
         } else if tv.attributedText.string != editingText.string {
             // Pendant l'édition, on rafraîchit quand même si le texte diffère :
             // cas undo/redo qui modifient les spans côté VM sans passer par la
-            // frappe utilisateur. On préserve la position du curseur (clamp si
-            // le nouveau texte est plus court) et on garde le typingAttributes
-            // courant (couleur/gras de l'utilisateur).
+            // frappe utilisateur. Curseur en fin de texte restauré (comportement
+            // standard : redo "je suis un loup" → curseur après "loup", pas
+            // devant). On garde le typingAttributes courant.
             let savedTyping = tv.typingAttributes
-            let savedRange = tv.selectedRange
             tv.attributedText = editingText
             tv.typingAttributes = savedTyping
-            let safeLoc = min(savedRange.location, editingText.length)
-            tv.selectedRange = NSRange(location: safeLoc, length: 0)
+            tv.selectedRange = NSRange(location: editingText.length, length: 0)
         }
 
         if isFocused && !tv.isFirstResponder {
