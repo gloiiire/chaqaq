@@ -1,9 +1,12 @@
 import SwiftUI
 
-// ── Database view ─────────────────────────────────────────────────────────────
+// ── Database table view ───────────────────────────────────────────────────────
+//
+// Notion-inspired layout:
+//   • First column is always "Name" (Title type) — the row name + doc link.
+//   • Clicking the ↗ icon inside the Name cell opens DocumentView.
+//   • Subsequent columns are user-defined metadata properties.
 
-/// Full table view for a Pinkha database — properties as columns, entries as rows.
-/// Each row is a linked document: tapping the page icon opens DocumentView.
 struct DatabaseView: View {
     @StateObject private var vm: DatabaseViewModel
     let api: PinkhaApi
@@ -18,11 +21,9 @@ struct DatabaseView: View {
 
     // ── Column widths ─────────────────────────────────────────────────────────
 
-    private let pageColumnWidth: CGFloat = 44
-
     private func columnWidth(for type: PropertyTypeFfi) -> CGFloat {
         switch type {
-        case .title:    return 220
+        case .title:    return 240   // Name column — wider + space for open-doc icon
         case .text:     return 160
         case .number:   return 100
         case .checkbox: return 64
@@ -33,36 +34,18 @@ struct DatabaseView: View {
     }
 
     private var tableWidth: CGFloat {
-        let cols = vm.properties.reduce(0) { $0 + columnWidth(for: $1.propertyType) }
-        return pageColumnWidth + cols + 48 // page col + property cols + add-column button
+        vm.properties.reduce(0) { $0 + columnWidth(for: $1.propertyType) } + 48
     }
 
     // ── Body ──────────────────────────────────────────────────────────────────
 
     var body: some View {
-        ScrollView([.horizontal, .vertical], showsIndicators: true) {
-            VStack(alignment: .leading, spacing: 0) {
-                headerRow
-                Divider()
-                ForEach($vm.entries) { $entry in
-                    EntryRowView(
-                        entry: $entry,
-                        properties: vm.properties,
-                        pageDocId: vm.documentId(forEntryId: entry.id),
-                        api: api,
-                        pageColumnWidth: pageColumnWidth,
-                        columnWidth: columnWidth,
-                        onUpdate: { propId, value in
-                            vm.updateCell(entryId: entry.id, propertyId: propId, value: value)
-                        },
-                        onDelete: { vm.deleteEntry(id: entry.id) },
-                        onDisappear: vm.load
-                    )
-                    Divider().padding(.leading, 8)
-                }
-                addRowButton
+        Group {
+            if vm.properties.isEmpty && vm.entries.isEmpty {
+                emptyState
+            } else {
+                table
             }
-            .frame(minWidth: tableWidth, alignment: .leading)
         }
         .navigationTitle(vm.titlePlain.isEmpty ? "Database" : vm.titlePlain)
         .navigationBarTitleDisplayMode(.large)
@@ -80,26 +63,49 @@ struct DatabaseView: View {
         .errorAlert(message: $vm.errorMessage, onRetry: vm.load)
     }
 
+    // ── Table ─────────────────────────────────────────────────────────────────
+
+    private var table: some View {
+        ScrollView([.horizontal, .vertical], showsIndicators: true) {
+            VStack(alignment: .leading, spacing: 0) {
+                headerRow
+                Divider()
+                ForEach($vm.entries) { $entry in
+                    EntryRowView(
+                        entry: $entry,
+                        properties: vm.properties,
+                        pageDocId: vm.documentId(forEntryId: entry.id),
+                        api: api,
+                        columnWidth: columnWidth,
+                        onUpdate: { propId, value in
+                            vm.updateCell(entryId: entry.id, propertyId: propId, value: value)
+                        },
+                        onDelete: { vm.deleteEntry(id: entry.id) },
+                        onDisappear: vm.load
+                    )
+                    Divider().padding(.leading, 8)
+                }
+                addRowButton
+            }
+            .frame(minWidth: tableWidth, alignment: .leading)
+        }
+    }
+
     // ── Header row ────────────────────────────────────────────────────────────
 
     private var headerRow: some View {
         HStack(spacing: 0) {
-            // Page-link column header (empty — icon communicates purpose)
-            Color.clear
-                .frame(width: pageColumnWidth, height: 40)
-                .overlay(alignment: .trailing) {
-                    Rectangle().frame(width: 0.5).foregroundStyle(.separator)
-                }
-
             ForEach(vm.properties) { prop in
-                PropertyHeaderCell(name: prop.name, icon: prop.propertyType.icon,
-                                   width: columnWidth(for: prop.propertyType))
-                .contextMenu {
-                    Button(role: .destructive) { vm.deleteProperty(id: prop.id) } label: {
-                        Label("Delete column", systemImage: "trash")
-                    }
+                PropertyHeaderCell(
+                    name: prop.name,
+                    icon: prop.propertyType.icon,
+                    width: columnWidth(for: prop.propertyType),
+                    isDeletable: !(prop.propertyType == .title)
+                ) {
+                    vm.deleteProperty(id: prop.id)
                 }
             }
+            // Add-column button
             Button { showAddColumn = true } label: {
                 Image(systemName: "plus")
                     .font(.caption.weight(.semibold))
@@ -127,6 +133,34 @@ struct DatabaseView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
         }
+    }
+
+    // ── Empty state ───────────────────────────────────────────────────────────
+
+    private var emptyState: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "tablecells")
+                .font(.system(size: 52))
+                .foregroundStyle(.tertiary)
+            VStack(spacing: 6) {
+                Text("Empty database")
+                    .font(.headline)
+                Text("Add a row to create your first page.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            Button {
+                vm.addEntry()
+            } label: {
+                Label("New row", systemImage: "plus")
+                    .font(.body.weight(.medium))
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.accentColor)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
     }
 
     // ── Add-column sheet ──────────────────────────────────────────────────────
@@ -166,12 +200,14 @@ struct DatabaseView: View {
     }
 }
 
-// ── Property column header ────────────────────────────────────────────────────
+// ── Column header ─────────────────────────────────────────────────────────────
 
 private struct PropertyHeaderCell: View {
     let name: String
     let icon: String
     let width: CGFloat
+    let isDeletable: Bool
+    let onDelete: () -> Void
 
     var body: some View {
         HStack(spacing: 4) {
@@ -189,6 +225,13 @@ private struct PropertyHeaderCell: View {
         .overlay(alignment: .trailing) {
             Rectangle().frame(width: 0.5).foregroundStyle(.separator)
         }
+        .contextMenu {
+            if isDeletable {
+                Button(role: .destructive, action: onDelete) {
+                    Label("Delete column", systemImage: "trash")
+                }
+            }
+        }
     }
 }
 
@@ -199,7 +242,6 @@ private struct EntryRowView: View {
     let properties: [PropertyFfi]
     let pageDocId: String?
     let api: PinkhaApi
-    let pageColumnWidth: CGFloat
     let columnWidth: (PropertyTypeFfi) -> CGFloat
     let onUpdate: (String, PropertyValueFfi) -> Void
     let onDelete: () -> Void
@@ -207,26 +249,30 @@ private struct EntryRowView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            // Page-open button
-            pageButton
-                .frame(width: pageColumnWidth)
-                .overlay(alignment: .trailing) {
-                    Rectangle().frame(width: 0.5).foregroundStyle(.separator)
-                }
-
-            // Property cells
             ForEach(properties) { prop in
-                CellView(
-                    value: Binding(
-                        get: { entry.values[prop.id] ?? .empty },
-                        set: { newVal in
-                            entry.values[prop.id] = newVal
-                            onUpdate(prop.id, newVal)
-                        }
-                    ),
-                    propertyType: prop.propertyType,
-                    width: columnWidth(prop.propertyType)
+                let binding = Binding<PropertyValueFfi>(
+                    get: { entry.values[prop.id] ?? .empty },
+                    set: { newVal in
+                        entry.values[prop.id] = newVal
+                        onUpdate(prop.id, newVal)
+                    }
                 )
+                if case .title = prop.propertyType {
+                    // Name/Title cell: editable name + open-doc navigation
+                    TitleCell(
+                        value: binding,
+                        docId: pageDocId,
+                        api: api,
+                        width: columnWidth(.title),
+                        onDisappear: onDisappear
+                    )
+                } else {
+                    CellView(
+                        value: binding,
+                        propertyType: prop.propertyType,
+                        width: columnWidth(prop.propertyType)
+                    )
+                }
             }
         }
         .frame(minHeight: 44)
@@ -237,32 +283,62 @@ private struct EntryRowView: View {
             }
         }
     }
+}
 
-    @ViewBuilder
-    private var pageButton: some View {
-        if let docId = pageDocId {
-            NavigationLink(destination: DocumentView(
-                docId: docId,
-                api: api,
-                onDisappear: onDisappear
-            )) {
-                Image(systemName: "doc.text")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .frame(width: pageColumnWidth, height: 44)
-                    .contentShape(Rectangle())
+// ── Title cell (Name column) ──────────────────────────────────────────────────
+// Editable row name on the left + ↗ arrow to open the linked document.
+
+private struct TitleCell: View {
+    @Binding var value: PropertyValueFfi
+    let docId: String?
+    let api: PinkhaApi
+    let width: CGFloat
+    let onDisappear: () -> Void
+
+    @State private var draft = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 0) {
+            TextField("Untitled", text: $draft)
+                .font(.body.weight(.medium))
+                .focused($focused)
+                .padding(.leading, 10)
+                .padding(.trailing, 4)
+                .frame(minHeight: 44)
+                .onAppear { draft = value.displayText }
+                .onChange(of: value) { _, v in if !focused { draft = v.displayText } }
+                .onChange(of: focused) { _, isFocused in
+                    guard !isFocused else { return }
+                    let spans = draft.isEmpty ? [] : [InlineTextFfi(content: draft, styles: [])]
+                    let newVal = PropertyValueFfi.title(spans)
+                    if newVal != value { value = newVal }
+                }
+
+            if let docId {
+                NavigationLink(destination: DocumentView(
+                    docId: docId,
+                    api: api,
+                    onDisappear: onDisappear
+                )) {
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 36, height: 44)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Spacer().frame(width: 36)
             }
-            .buttonStyle(.plain)
-        } else {
-            Image(systemName: "doc.text")
-                .font(.body)
-                .foregroundStyle(.tertiary)
-                .frame(width: pageColumnWidth, height: 44)
+        }
+        .frame(width: width)
+        .overlay(alignment: .trailing) {
+            Rectangle().frame(width: 0.5).foregroundStyle(.separator)
         }
     }
 }
 
-// ── Cell view ─────────────────────────────────────────────────────────────────
+// ── Generic cell ──────────────────────────────────────────────────────────────
 
 private struct CellView: View {
     @Binding var value: PropertyValueFfi
@@ -274,8 +350,8 @@ private struct CellView: View {
             switch propertyType {
             case .checkbox:
                 CheckboxCell(value: $value).frame(width: width)
-            case .title, .text:
-                TextCell(value: $value, isTitle: propertyType == .title).frame(width: width)
+            case .text:
+                TextCell(value: $value).frame(width: width)
             case .number:
                 NumberCell(value: $value).frame(width: width)
             default:
@@ -292,90 +368,63 @@ private struct CellView: View {
 
 private struct CheckboxCell: View {
     @Binding var value: PropertyValueFfi
-
-    var isOn: Bool {
-        if case .checkbox(let b) = value { return b }
-        return false
-    }
+    var isOn: Bool { if case .checkbox(let b) = value { return b }; return false }
 
     var body: some View {
-        Toggle("", isOn: Binding(
-            get: { isOn },
-            set: { value = .checkbox($0) }
-        ))
-        .labelsHidden()
-        .padding(.horizontal, 10)
-        .frame(minHeight: 44)
+        Toggle("", isOn: Binding(get: { isOn }, set: { value = .checkbox($0) }))
+            .labelsHidden()
+            .padding(.horizontal, 10)
+            .frame(minHeight: 44)
     }
 }
 
 private struct TextCell: View {
     @Binding var value: PropertyValueFfi
-    let isTitle: Bool
-
-    @State private var draft: String = ""
+    @State private var draft = ""
     @FocusState private var focused: Bool
 
     var body: some View {
         TextField("", text: $draft)
-            .font(isTitle ? .body.weight(.medium) : .body)
             .focused($focused)
             .padding(.horizontal, 10)
             .frame(minHeight: 44, alignment: .leading)
             .onAppear { draft = value.displayText }
-            .onChange(of: value) { _, newVal in
-                if !focused { draft = newVal.displayText }
-            }
-            .onChange(of: focused) { _, isFocused in
-                guard !isFocused else { return }
-                let newValue: PropertyValueFfi = isTitle
-                    ? .title([InlineTextFfi(content: draft, styles: [])])
-                    : .text(draft)
-                if newValue != value { value = newValue }
+            .onChange(of: value) { _, v in if !focused { draft = v.displayText } }
+            .onChange(of: focused) { _, f in
+                guard !f else { return }
+                let newVal = PropertyValueFfi.text(draft)
+                if newVal != value { value = newVal }
             }
     }
 }
 
 private struct NumberCell: View {
     @Binding var value: PropertyValueFfi
-
-    @State private var draft: String = ""
+    @State private var draft = ""
     @FocusState private var focused: Bool
-
-    private var currentNumber: Double? {
-        if case .number(let n) = value { return n }
-        return nil
-    }
+    private var num: Double? { if case .number(let n) = value { return n }; return nil }
 
     var body: some View {
         TextField("", text: $draft)
             .keyboardType(.decimalPad)
+            .multilineTextAlignment(.trailing)
             .focused($focused)
             .padding(.horizontal, 10)
             .frame(minHeight: 44, alignment: .leading)
-            .multilineTextAlignment(.trailing)
-            .onAppear { draft = currentNumber.map { $0.formatted() } ?? "" }
-            .onChange(of: value) { _, _ in
-                if !focused { draft = currentNumber.map { $0.formatted() } ?? "" }
-            }
-            .onChange(of: focused) { _, isFocused in
-                guard !isFocused else { return }
-                if draft.isEmpty {
-                    if value != .empty { value = .empty }
-                } else if let n = Double(draft) {
-                    let newVal = PropertyValueFfi.number(n)
-                    if newVal != value { value = newVal }
-                }
+            .onAppear { draft = num.map { $0.formatted() } ?? "" }
+            .onChange(of: value) { _, _ in if !focused { draft = num.map { $0.formatted() } ?? "" } }
+            .onChange(of: focused) { _, f in
+                guard !f else { return }
+                if draft.isEmpty { if value != .empty { value = .empty } }
+                else if let n = Double(draft) { let v = PropertyValueFfi.number(n); if v != value { value = v } }
             }
     }
 }
 
 private struct ReadOnlyCell: View {
     let text: String
-
     var body: some View {
         Text(text.isEmpty ? "—" : text)
-            .font(.body)
             .foregroundStyle(text.isEmpty ? .tertiary : .primary)
             .lineLimit(1)
             .padding(.horizontal, 10)

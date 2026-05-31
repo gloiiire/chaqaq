@@ -8,61 +8,67 @@ final class DatabaseViewModel: ObservableObject {
     let api: PinkhaApi
 
     @Published var titlePlain: String = ""
-    @Published var properties: [PropertyFfi] = []  // user-visible columns only
+    /// User-visible columns. Title-type property is always first.
+    @Published var properties: [PropertyFfi] = []
     @Published var entries: [EntryFfi] = []
     @Published var errorMessage: String?
 
-    // ID of the hidden system property that stores each entry's linked document ID.
-    // Created automatically on first load if absent.
+    /// ID of the hidden system property storing each entry's linked document ID.
     private(set) var pagePropertyId: String? = nil
 
-    // Reserved name for the hidden page-link property — never shown as a column.
     private let pagePropName = "__pinkha_page__"
+    private let namePropName = "Name"
 
     init(dbId: String, api: PinkhaApi) {
         self.dbId = dbId
         self.api = api
     }
 
+    // ── Load ──────────────────────────────────────────────────────────────────
+
     func load() {
-        guard let json = tryCatch(into: &errorMessage, { try api.getDatabaseJson(id: dbId) }),
-              let data = json.data(using: .utf8),
-              let db   = try? JSONDecoder().decode(DatabaseFfi.self, from: data)
-        else { return }
+        guard let db = fetchDB() else { return }
 
-        titlePlain = db.title.map(\.content).joined()
+        var needsReload = false
 
-        // Locate or create the hidden page-link property.
+        // Ensure hidden page-link property exists.
         if let pp = db.properties.first(where: { $0.name == pagePropName }) {
             pagePropertyId = pp.id
         } else {
-            let newId = UUID().uuidString.lowercased()
-            let prop  = PropertyFfi(id: newId, name: pagePropName, propertyType: .text)
-            if let propData = try? JSONEncoder().encode(prop),
-               let propJson = String(data: propData, encoding: .utf8) {
-                tryCatch(into: &errorMessage) { try api.addProperty(dbId: dbId, propertyJson: propJson) }
-                pagePropertyId = newId
-            }
+            let id = UUID().uuidString.lowercased()
+            createSystemProp(PropertyFfi(id: id, name: pagePropName, propertyType: .text))
+            pagePropertyId = id
+            needsReload = true
         }
 
-        // Expose only user-visible properties (hide the page-link column).
-        properties = db.properties.filter { $0.name != pagePropName }
-        entries    = db.entries
+        // Ensure a visible Name (Title) column exists.
+        let visible = db.properties.filter { $0.name != pagePropName }
+        let hasTitle = visible.contains { if case .title = $0.propertyType { return true }; return false }
+        if !hasTitle {
+            let id = UUID().uuidString.lowercased()
+            createSystemProp(PropertyFfi(id: id, name: namePropName, propertyType: .title))
+            needsReload = true
+        }
+
+        applyDB(needsReload ? (fetchDB() ?? db) : db)
     }
 
-    /// Creates a blank document, then creates a linked database entry.
+    // ── CRUD ──────────────────────────────────────────────────────────────────
+
+    /// Creates a blank document and a linked entry. Title is empty on creation.
     func addEntry() {
         guard let docId  = tryCatch(into: &errorMessage, { try api.createDocument(title: "") }),
               let pageId = pagePropertyId
         else { return }
 
         var initial: [String: PropertyValueFfi] = [pageId: .text(docId)]
-        guard let valData    = try? JSONEncoder().encode(initial),
-              let valuesJson = String(data: valData, encoding: .utf8),
-              let entryId    = tryCatch(into: &errorMessage, { try api.addEntry(dbId: dbId, valuesJson: valuesJson) })
+        if let nameId = namePropertyId { initial[nameId] = .title([]) }
+
+        guard let vJson = encode(initial),
+              let entryId = tryCatch(into: &errorMessage, { try api.addEntry(dbId: dbId, valuesJson: vJson) })
         else { return }
 
-        entries.append(EntryFfi(id: entryId, createdAt: "", values: [pageId: .text(docId)]))
+        entries.append(EntryFfi(id: entryId, createdAt: "", values: initial))
     }
 
     /// Deletes the entry and its linked document.
@@ -80,22 +86,24 @@ final class DatabaseViewModel: ObservableObject {
         persist(entryIndex: idx)
     }
 
+    /// Adds a user-visible property column.
     func addProperty(name: String, type: PropertyTypeFfi) {
-        // Lowercase to match Rust's Uuid::to_string() serialization.
         let prop = PropertyFfi(id: UUID().uuidString.lowercased(), name: name, propertyType: type)
-        guard let data = try? JSONEncoder().encode(prop),
-              let json = String(data: data, encoding: .utf8) else { return }
-        tryCatch(into: &errorMessage) { try api.addProperty(dbId: dbId, propertyJson: json) }
+        createSystemProp(prop)
         properties.append(prop)
     }
 
+    /// Deletes a user-visible property. Title columns cannot be deleted.
     func deleteProperty(id: String) {
+        guard let prop = properties.first(where: { $0.id == id }),
+              !(prop.propertyType == .title)
+        else { return }
         tryCatch(into: &errorMessage) { try api.deleteProperty(dbId: dbId, propertyId: id) }
         properties.removeAll { $0.id == id }
         for i in entries.indices { entries[i].values.removeValue(forKey: id) }
     }
 
-    /// Returns the linked document ID for an entry, or `nil` if the entry has no page.
+    /// Returns the linked document ID for an entry, or `nil` if not yet set.
     func documentId(forEntryId entryId: String) -> String? {
         guard let pageId = pagePropertyId,
               let entry  = entries.first(where: { $0.id == entryId }),
@@ -106,12 +114,49 @@ final class DatabaseViewModel: ObservableObject {
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
+    private var namePropertyId: String? {
+        properties.first { if case .title = $0.propertyType { return true }; return false }?.id
+    }
+
+    private func fetchDB() -> DatabaseFfi? {
+        guard let json = tryCatch(into: &errorMessage, { try api.getDatabaseJson(id: dbId) }),
+              let data = json.data(using: .utf8),
+              let db   = try? JSONDecoder().decode(DatabaseFfi.self, from: data)
+        else { return nil }
+        return db
+    }
+
+    private func applyDB(_ db: DatabaseFfi) {
+        titlePlain    = db.title.map(\.content).joined()
+        pagePropertyId = db.properties.first(where: { $0.name == pagePropName })?.id
+
+        var visible = db.properties.filter { $0.name != pagePropName }
+        // Title property always first.
+        visible.sort {
+            if case .title = $0.propertyType { return true }
+            if case .title = $1.propertyType { return false }
+            return false
+        }
+        properties = visible
+        entries    = db.entries
+    }
+
+    private func createSystemProp(_ prop: PropertyFfi) {
+        guard let json = encode(prop) else { return }
+        tryCatch(into: &errorMessage) { try api.addProperty(dbId: dbId, propertyJson: json) }
+    }
+
     private func persist(entryIndex idx: Int) {
         let entry = entries[idx]
-        guard let data = try? JSONEncoder().encode(entry.values),
-              let json = String(data: data, encoding: .utf8) else { return }
+        guard let json = encode(entry.values) else { return }
         tryCatch(into: &errorMessage) {
             try api.updateEntry(dbId: dbId, entryId: entry.id, valuesJson: json)
         }
     }
+
+    private func encode<T: Encodable>(_ value: T) -> String? {
+        guard let data = try? JSONEncoder().encode(value) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
 }
+
