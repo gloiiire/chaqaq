@@ -2,13 +2,41 @@ import SwiftUI
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 
-/// Observable store that owns the `PinkhaApi` connection and the document list.
+/// A unified workspace item — either a note or a database.
+enum WorkspaceItem: Identifiable {
+    case note(DocumentMetaFfi)
+    case database(DatabaseMetaFfi)
+
+    var id: String {
+        switch self { case .note(let d): return d.id; case .database(let db): return db.id }
+    }
+    var titlePlain: String {
+        switch self { case .note(let d): return d.titlePlain; case .database(let db): return db.titlePlain }
+    }
+    var updatedAt: String {
+        switch self { case .note(let d): return d.updatedAt; case .database(let db): return db.updatedAt }
+    }
+    var isDatabase: Bool { if case .database = self { return true }; return false }
+}
+
+/// Observable store that owns the `PinkhaApi` connection and the full workspace (notes + databases).
 @MainActor
 final class PinkhaStore: ObservableObject {
     @Published var documents: [DocumentMetaFfi] = []
+    @Published var databases: [DatabaseMetaFfi] = []
     @Published var errorMessage: String?
 
     private(set) var api: PinkhaApi?
+
+    /// All workspace items merged and sorted by most recently updated.
+    var items: [WorkspaceItem] {
+        let notes = documents.map { WorkspaceItem.note($0) }
+        let dbs   = databases.map { WorkspaceItem.database($0) }
+        return (notes + dbs).sorted { $0.updatedAt > $1.updatedAt }
+    }
+
+    /// The 5 most recently updated items for the recent strip.
+    var recentItems: [WorkspaceItem] { Array(items.prefix(5)) }
 
     /// Opens the SQLite database and seeds it when running under UI-test launch arguments.
     func connect() {
@@ -30,28 +58,45 @@ final class PinkhaStore: ObservableObject {
         if api != nil { load() }
     }
 
-    /// Refreshes the document list from the database.
+    /// Refreshes documents and databases from the SQLite store.
     func load() {
         if let docs = tryCatch(into: &errorMessage, { try api?.listDocuments() ?? [] }) {
             documents = docs
         }
+        if let dbs = tryCatch(into: &errorMessage, { try api?.listDatabases() ?? [] }) {
+            databases = dbs
+        }
     }
 
-    /// Creates a new document and reloads the list.
+    /// Creates a new note and reloads.
     func create(title: String) {
         if tryCatch(into: &errorMessage, { try api?.createDocument(title: title) }) != nil {
             load()
         }
     }
 
-    /// Soft-deletes a document by id and reloads the list.
+    /// Creates a new database and reloads.
+    func createDatabase(title: String) {
+        if tryCatch(into: &errorMessage, { try api?.createDatabase(title: title) }) != nil {
+            load()
+        }
+    }
+
+    /// Soft-deletes a note by id and reloads.
     func delete(id: String) {
         if tryCatch(into: &errorMessage, { try api?.deleteDocument(id: id) }) != nil {
             load()
         }
     }
 
-    /// Returns documents whose title matches `query` (case-insensitive).
+    /// Soft-deletes a database by id and reloads.
+    func deleteDatabase(id: String) {
+        if tryCatch(into: &errorMessage, { try api?.deleteDatabase(id: id) }) != nil {
+            load()
+        }
+    }
+
+    /// Returns notes whose title matches `query` (case-insensitive).
     func search(query: String) -> [DocumentMetaFfi] {
         guard !query.isEmpty, let api else { return [] }
         return (try? api.searchDocuments(query: query)) ?? []

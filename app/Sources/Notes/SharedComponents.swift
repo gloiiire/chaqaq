@@ -94,54 +94,11 @@ private struct FloatingButtonStyle: ButtonStyle {
     }
 }
 
-/// A row in the document list: icon, title, and relative date.
-struct DocumentRow: View {
-    let doc: DocumentMetaFfi
 
-    var body: some View {
-        HStack(spacing: 12) {
-            documentIcon
-            VStack(alignment: .leading, spacing: 4) {
-                Text(doc.titlePlain.isEmpty ? "Untitled" : doc.titlePlain)
-                    .font(.body.weight(.medium))
-                if let date = formattedDate(doc.updatedAt) {
-                    Text(date).font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.vertical, 2)
-    }
-
-    /// Displays the document icon: custom emoji from UserDefaults, or a generic system image.
-    @ViewBuilder
-    private var documentIcon: some View {
-        if let icon = UserDefaults.standard.string(forKey: Self.iconKey(docId: doc.id)), !icon.isEmpty {
-            Text(icon).font(.title2).frame(width: 34, height: 34)
-        } else {
-            Image(systemName: "doc.text")
-                .font(.body.weight(.medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 34, height: 34)
-                .background(.secondary.opacity(0.12),
-                             in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        }
-    }
-
-    private static func iconKey(docId: String) -> String { "document.icon.\(docId)" }
-
-    private func formattedDate(_ iso: String) -> String? {
-        guard !iso.isEmpty else { return nil }
-        let parser = ISO8601DateFormatter()
-        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = parser.date(from: iso) else { return nil }
-        return date.formatted(.relative(presentation: .named, unitsStyle: .wide))
-    }
-}
-
-/// Sheet for creating a new document. Accepts a title and calls `onCreate` or `onCancel`.
+/// Sheet for creating a new note or database. Accepts a title and calls `onCreate` or `onCancel`.
 struct CreateDocumentSheet: View {
     @Binding var title: String
+    var prompt: String = "Document title"
     let onCreate: () -> Void
     let onCancel: () -> Void
     @FocusState private var focused: Bool
@@ -150,7 +107,7 @@ struct CreateDocumentSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Document title", text: $title)
+                    TextField(prompt, text: $title)
                         .focused($focused)
                         .submitLabel(.done)
                         .onSubmit {
@@ -159,7 +116,7 @@ struct CreateDocumentSheet: View {
                         }
                 }
             }
-            .navigationTitle("New document")
+            .navigationTitle("New")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
