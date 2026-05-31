@@ -23,7 +23,7 @@ struct DatabaseViewModelTests {
         try? FileManager.default.removeItem(at: url.appendingPathExtension("shm"))
     }
 
-    // ── Tests ─────────────────────────────────────────────────────────────────
+    // ── Load and title ────────────────────────────────────────────────────────
 
     @Test func loadPopulatesTitleAndEmptyState() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
@@ -33,75 +33,102 @@ struct DatabaseViewModelTests {
         #expect(vm.entries.isEmpty)
     }
 
-    @Test func addEntryAppendsToLocalList() throws {
+    @Test func loadCreatesHiddenPageProperty() throws {
+        let (vm, url) = try makeVM(); defer { cleanup(url) }
+        vm.load()
+        #expect(vm.pagePropertyId != nil)
+        // The page property must NOT appear in the visible properties list.
+        #expect(vm.properties.isEmpty)
+    }
+
+    @Test func secondLoadReusesExistingPageProperty() throws {
+        let (vm, url) = try makeVM(); defer { cleanup(url) }
+        vm.load()
+        let firstId = vm.pagePropertyId
+        vm.load()
+        #expect(vm.pagePropertyId == firstId)
+    }
+
+    // ── Entry + document linking ──────────────────────────────────────────────
+
+    @Test func addEntryCreatesLinkedDocument() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
         vm.addEntry()
         #expect(vm.entries.count == 1)
-        #expect(!vm.entries[0].id.isEmpty)
+        let docId = vm.documentId(forEntryId: vm.entries[0].id)
+        #expect(docId != nil)
+        #expect(!docId!.isEmpty)
     }
 
-    @Test func addEntryPersistsAcrossLoad() throws {
+    @Test func linkedDocumentExistsInApi() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
         vm.addEntry()
+        let docId = vm.documentId(forEntryId: vm.entries[0].id)!
+        // The document must be loadable from the API.
+        #expect(throws: Never.self) { _ = try vm.api.getDocumentJson(id: docId) }
+    }
+
+    @Test func addEntryPersistsLinkAcrossLoad() throws {
+        let (vm, url) = try makeVM(); defer { cleanup(url) }
+        vm.load()
+        vm.addEntry()
+        let entryId = vm.entries[0].id
+        let docId   = vm.documentId(forEntryId: entryId)
         vm.load()
         #expect(vm.entries.count == 1)
+        #expect(vm.documentId(forEntryId: entryId) == docId)
     }
 
-    @Test func deleteEntryRemovesFromLocalList() throws {
+    @Test func deleteEntryAlsoDeletesDocument() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
         vm.addEntry()
         let entryId = vm.entries[0].id
-        vm.deleteEntry(id: entryId)
-        #expect(vm.entries.isEmpty)
-    }
-
-    @Test func deleteEntryPersistsAcrossLoad() throws {
-        let (vm, url) = try makeVM(); defer { cleanup(url) }
-        vm.load()
-        vm.addEntry()
-        let entryId = vm.entries[0].id
+        let docId   = vm.documentId(forEntryId: entryId)!
         vm.deleteEntry(id: entryId)
         vm.load()
         #expect(vm.entries.isEmpty)
+        // The linked document should be soft-deleted — API returns NotFound.
+        #expect(throws: PinkhaError.self) { _ = try vm.api.getDocumentJson(id: docId) }
     }
 
-    @Test func addPropertyAppendsColumnLocally() throws {
+    // ── Properties and cells ──────────────────────────────────────────────────
+
+    @Test func addPropertyAppendsVisibleColumn() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
-        vm.addProperty(name: "Notes", type: .text)
+        vm.addProperty(name: "Status", type: .text)
         #expect(vm.properties.count == 1)
-        #expect(vm.properties[0].name == "Notes")
-        #expect(vm.properties[0].propertyType == .text)
+        #expect(vm.properties[0].name == "Status")
     }
 
     @Test func addPropertyPersistsAcrossLoad() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
-        vm.addProperty(name: "Status", type: .text)
+        vm.addProperty(name: "Priority", type: .text)
         vm.load()
         #expect(vm.properties.count == 1)
-        #expect(vm.properties[0].name == "Status")
+        #expect(vm.properties[0].name == "Priority")
     }
 
     @Test func updateCellPersistsTextValue() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
-        vm.addProperty(name: "Name", type: .text)
+        vm.addProperty(name: "Notes", type: .text)
         vm.addEntry()
-        let entryId  = vm.entries[0].id
-        let propId   = vm.properties[0].id
-        vm.updateCell(entryId: entryId, propertyId: propId, value: .text("Hello"))
+        let entryId = vm.entries[0].id
+        let propId  = vm.properties[0].id
+        vm.updateCell(entryId: entryId, propertyId: propId, value: .text("Done"))
         vm.load()
-        #expect(vm.entries[0].values[propId] == .text("Hello"))
+        #expect(vm.entries[0].values[propId] == .text("Done"))
     }
 
     @Test func updateCellPersistsCheckboxValue() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
-        vm.addProperty(name: "Done", type: .checkbox)
+        vm.addProperty(name: "Checked", type: .checkbox)
         vm.addEntry()
         let entryId = vm.entries[0].id
         let propId  = vm.properties[0].id
@@ -110,7 +137,7 @@ struct DatabaseViewModelTests {
         #expect(vm.entries[0].values[propId] == .checkbox(true))
     }
 
-    @Test func deletePropertyRemovesFromLocalList() throws {
+    @Test func deletePropertyRemovesVisibleColumn() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
         vm.addProperty(name: "Col", type: .text)

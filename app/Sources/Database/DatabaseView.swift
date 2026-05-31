@@ -3,16 +3,22 @@ import SwiftUI
 // ── Database view ─────────────────────────────────────────────────────────────
 
 /// Full table view for a Pinkha database — properties as columns, entries as rows.
+/// Each row is a linked document: tapping the page icon opens DocumentView.
 struct DatabaseView: View {
     @StateObject private var vm: DatabaseViewModel
+    let api: PinkhaApi
+
     @State private var showAddColumn = false
     @State private var newColumnName = ""
 
     init(dbId: String, api: PinkhaApi) {
-        _vm = StateObject(wrappedValue: DatabaseViewModel(dbId: dbId, api: api))
+        _vm  = StateObject(wrappedValue: DatabaseViewModel(dbId: dbId, api: api))
+        self.api = api
     }
 
     // ── Column widths ─────────────────────────────────────────────────────────
+
+    private let pageColumnWidth: CGFloat = 44
 
     private func columnWidth(for type: PropertyTypeFfi) -> CGFloat {
         switch type {
@@ -28,7 +34,7 @@ struct DatabaseView: View {
 
     private var tableWidth: CGFloat {
         let cols = vm.properties.reduce(0) { $0 + columnWidth(for: $1.propertyType) }
-        return cols + 48 // room for the "+" add-column button
+        return pageColumnWidth + cols + 48 // page col + property cols + add-column button
     }
 
     // ── Body ──────────────────────────────────────────────────────────────────
@@ -42,11 +48,15 @@ struct DatabaseView: View {
                     EntryRowView(
                         entry: $entry,
                         properties: vm.properties,
+                        pageDocId: vm.documentId(forEntryId: entry.id),
+                        api: api,
+                        pageColumnWidth: pageColumnWidth,
                         columnWidth: columnWidth,
                         onUpdate: { propId, value in
                             vm.updateCell(entryId: entry.id, propertyId: propId, value: value)
                         },
-                        onDelete: { vm.deleteEntry(id: entry.id) }
+                        onDelete: { vm.deleteEntry(id: entry.id) },
+                        onDisappear: vm.load
                     )
                     Divider().padding(.leading, 8)
                 }
@@ -74,13 +84,18 @@ struct DatabaseView: View {
 
     private var headerRow: some View {
         HStack(spacing: 0) {
+            // Page-link column header (empty — icon communicates purpose)
+            Color.clear
+                .frame(width: pageColumnWidth, height: 40)
+                .overlay(alignment: .trailing) {
+                    Rectangle().frame(width: 0.5).foregroundStyle(.separator)
+                }
+
             ForEach(vm.properties) { prop in
                 PropertyHeaderCell(name: prop.name, icon: prop.propertyType.icon,
                                    width: columnWidth(for: prop.propertyType))
                 .contextMenu {
-                    Button(role: .destructive) {
-                        vm.deleteProperty(id: prop.id)
-                    } label: {
+                    Button(role: .destructive) { vm.deleteProperty(id: prop.id) } label: {
                         Label("Delete column", systemImage: "trash")
                     }
                 }
@@ -182,12 +197,24 @@ private struct PropertyHeaderCell: View {
 private struct EntryRowView: View {
     @Binding var entry: EntryFfi
     let properties: [PropertyFfi]
+    let pageDocId: String?
+    let api: PinkhaApi
+    let pageColumnWidth: CGFloat
     let columnWidth: (PropertyTypeFfi) -> CGFloat
     let onUpdate: (String, PropertyValueFfi) -> Void
     let onDelete: () -> Void
+    let onDisappear: () -> Void
 
     var body: some View {
         HStack(spacing: 0) {
+            // Page-open button
+            pageButton
+                .frame(width: pageColumnWidth)
+                .overlay(alignment: .trailing) {
+                    Rectangle().frame(width: 0.5).foregroundStyle(.separator)
+                }
+
+            // Property cells
             ForEach(properties) { prop in
                 CellView(
                     value: Binding(
@@ -210,6 +237,29 @@ private struct EntryRowView: View {
             }
         }
     }
+
+    @ViewBuilder
+    private var pageButton: some View {
+        if let docId = pageDocId {
+            NavigationLink(destination: DocumentView(
+                docId: docId,
+                api: api,
+                onDisappear: onDisappear
+            )) {
+                Image(systemName: "doc.text")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .frame(width: pageColumnWidth, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else {
+            Image(systemName: "doc.text")
+                .font(.body)
+                .foregroundStyle(.tertiary)
+                .frame(width: pageColumnWidth, height: 44)
+        }
+    }
 }
 
 // ── Cell view ─────────────────────────────────────────────────────────────────
@@ -223,20 +273,13 @@ private struct CellView: View {
         Group {
             switch propertyType {
             case .checkbox:
-                CheckboxCell(value: $value)
-                    .frame(width: width)
-
+                CheckboxCell(value: $value).frame(width: width)
             case .title, .text:
-                TextCell(value: $value, isTitle: propertyType == .title)
-                    .frame(width: width)
-
+                TextCell(value: $value, isTitle: propertyType == .title).frame(width: width)
             case .number:
-                NumberCell(value: $value)
-                    .frame(width: width)
-
+                NumberCell(value: $value).frame(width: width)
             default:
-                ReadOnlyCell(text: value.displayText)
-                    .frame(width: width)
+                ReadOnlyCell(text: value.displayText).frame(width: width)
             }
         }
         .overlay(alignment: .trailing) {
@@ -281,7 +324,6 @@ private struct TextCell: View {
             .frame(minHeight: 44, alignment: .leading)
             .onAppear { draft = value.displayText }
             .onChange(of: value) { _, newVal in
-                // Sync draft if external change (e.g. load) updates the binding
                 if !focused { draft = newVal.displayText }
             }
             .onChange(of: focused) { _, isFocused in
