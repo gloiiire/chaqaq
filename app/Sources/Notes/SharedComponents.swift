@@ -25,6 +25,7 @@ struct WelcomeHeader: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
