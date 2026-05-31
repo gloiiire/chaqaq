@@ -8,6 +8,7 @@ struct NotesHomeView: View {
     @State private var showingCreate = false
     @State private var showingImport = false
     @State private var showingBearImport = false
+    @State private var showingCraftImport = false
     @State private var newTitle = ""
     @State private var createMode: CreateMode = .note
 
@@ -94,6 +95,11 @@ struct NotesHomeView: View {
                     } label: {
                         Label("Import from Bear", systemImage: "pencil.and.list.clipboard")
                     }
+                    Button {
+                        showingCraftImport = true
+                    } label: {
+                        Label("Import from Craft", systemImage: "books.vertical")
+                    }
                 } label: {
                     FloatingButton(icon: "square.and.pencil") {}
                 }
@@ -108,6 +114,11 @@ struct NotesHomeView: View {
             }
             .sheet(isPresented: $showingBearImport) {
                 BearImportView(api: store.api) {
+                    store.load()
+                }
+            }
+            .sheet(isPresented: $showingCraftImport) {
+                CraftImportView(api: store.api) {
                     store.load()
                 }
             }

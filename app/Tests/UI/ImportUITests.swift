@@ -158,4 +158,57 @@ final class ImportUITests: XCTestCase {
             XCTAssertFalse(importBtn.isEnabled, "Import button should be disabled when no file is selected")
         }
     }
+
+    // MARK: - Craft import sheet
+
+    func test_craft_import_sheet_opens() {
+        let app = launchSeeded()
+        openFABAndTapItem(app: app, itemLabel: "Import from Craft")
+
+        XCTAssertTrue(
+            app.navigationBars["Import from Craft"].waitForExistence(timeout: 3),
+            "Import from Craft sheet should open with the correct navigation title"
+        )
+    }
+
+    func test_craft_import_sheet_shows_choose_database_button() {
+        let app = launchSeeded()
+        openFABAndTapItem(app: app, itemLabel: "Import from Craft")
+
+        XCTAssertTrue(app.navigationBars["Import from Craft"].waitForExistence(timeout: 3))
+
+        XCTAssertTrue(
+            app.buttons["Choose Craft database…"].waitForExistence(timeout: 2) ||
+            app.staticTexts["Choose Craft database…"].waitForExistence(timeout: 1),
+            "Craft import form should show the file picker button"
+        )
+    }
+
+    func test_craft_import_sheet_dismisses() {
+        let app = launchSeeded()
+        openFABAndTapItem(app: app, itemLabel: "Import from Craft")
+
+        XCTAssertTrue(app.navigationBars["Import from Craft"].waitForExistence(timeout: 3))
+
+        let cancel = app.buttons["Cancel"].firstMatch
+        XCTAssertTrue(cancel.waitForExistence(timeout: 2), "Cancel button must exist in the Craft import sheet")
+        cancel.tap()
+
+        XCTAssertFalse(
+            app.navigationBars["Import from Craft"].waitForExistence(timeout: 2),
+            "Import from Craft sheet should be dismissed after tapping Cancel"
+        )
+    }
+
+    func test_craft_import_button_disabled_when_no_file_selected() {
+        let app = launchSeeded()
+        openFABAndTapItem(app: app, itemLabel: "Import from Craft")
+
+        XCTAssertTrue(app.navigationBars["Import from Craft"].waitForExistence(timeout: 3))
+
+        let importBtn = app.buttons["Import"].firstMatch
+        if importBtn.waitForExistence(timeout: 2) {
+            XCTAssertFalse(importBtn.isEnabled, "Import button should be disabled when no file is selected")
+        }
+    }
 }

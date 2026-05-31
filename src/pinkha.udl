@@ -187,4 +187,9 @@ interface PinkhaApi {
     /// `db_path` est le chemin absolu vers `database.sqlite` de Bear.
     [Async, Throws=PinkhaError]
     ImportResultFfi import_from_bear(string db_path);
+
+    /// Importe les pages Craft depuis le fichier `.realm` local de Craft.
+    /// `db_path` est le chemin absolu vers le fichier `.realm` de Craft.
+    [Async, Throws=PinkhaError]
+    ImportResultFfi import_from_craft(string db_path);
 };

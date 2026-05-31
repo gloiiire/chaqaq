@@ -13,6 +13,7 @@ crate-type = ["staticlib", "cdylib", "lib"]
 
 [dependencies]
 chaqaq = { path = "crates/chaqaq" }
+realm-codec = { path = "crates/realm-codec" }
 chrono = { version = "0.4", features = ["serde"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
