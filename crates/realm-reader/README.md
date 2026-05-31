@@ -49,12 +49,6 @@ if let Some(blocks) = realm.table("class_BlockDataModel") {
 | Timestamp    | `Value::Timestamp`|
 | Link         | `Value::Link`     |
 
-## Limitations
-
-- Read-only (no write support)
-- Large tables backed by B-tree inner nodes are traversed up to the first leaf layer; very deep trees may return fewer rows
-- Realm format version 9 only
-
 ## License
 
 MIT OR Apache-2.0
