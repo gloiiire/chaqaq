@@ -2,7 +2,7 @@ import UIKit
 
 // ── Conversion Span ↔ NSAttributedString ─────────────────────────────────────
 
-/// Convertit un tableau de spans `InlineTextFfi` en `NSAttributedString` en utilisant `police` comme base.
+/// Converts an array of `InlineTextFfi` spans into an `NSAttributedString` using `police` as the base font.
 func spansToAttributed(_ spans: [InlineTextFfi], police: UIFont) -> NSAttributedString {
     guard !spans.isEmpty else { return NSAttributedString() }
     let result = NSMutableAttributedString()
@@ -31,9 +31,9 @@ func spansToAttributed(_ spans: [InlineTextFfi], police: UIFont) -> NSAttributed
     return result
 }
 
-/// Convertit un `NSAttributedString` en tableau de spans `InlineTextFfi`.
-/// Détecte le gras/italique via les clés personnalisées (`.pinkhaBold`/`.pinkhaItalic`) et
-/// via les traits symboliques de la police (relatif à `police` pour ne pas confondre un titre déjà gras).
+/// Converts an `NSAttributedString` into an array of `InlineTextFfi` spans.
+/// Detects bold/italic via custom keys (`.pinkhaBold`/`.pinkhaItalic`) and
+/// via font symbolic traits (relative to `police` to avoid confusing a heading already bold by design).
 func attributedToSpans(_ attrStr: NSAttributedString, police: UIFont) -> [InlineTextFfi] {
     guard !attrStr.string.isEmpty else { return [] }
     var spans: [InlineTextFfi] = []

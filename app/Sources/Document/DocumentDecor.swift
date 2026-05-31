@@ -2,7 +2,7 @@ import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
 
-/// Affiche la couverture et l'icône emoji du document, avec les menus d'action associés.
+/// Displays the document cover and emoji icon, with associated action menus.
 struct DocumentDecorView: View {
     let cover: String?
     let icone: String?
@@ -17,11 +17,11 @@ struct DocumentDecorView: View {
     @State private var fichierOuvert = false
     @State private var emojiPickerOuvert = false
 
-    // UIMenu ne défile pas : le menu inline n'affiche que les récents.
-    // "Tous les emojis" ouvre la sheet complète.
+    // UIMenu does not scroll: the inline menu only shows recents.
+    // "All emojis" opens the full sheet.
     private let covers: [(String, String)] = [
-        ("cover.nebula", "Nébuleuse"), ("cover.aurora", "Aurore"),
-        ("cover.forest", "Forêt"), ("cover.sunset", "Crépuscule"), ("cover.ocean", "Océan")
+        ("cover.nebula", "Nebula"), ("cover.aurora", "Aurora"),
+        ("cover.forest", "Forest"), ("cover.sunset", "Sunset"), ("cover.ocean", "Ocean")
     ]
 
     var body: some View {
@@ -97,7 +97,7 @@ struct DocumentDecorView: View {
         Menu {
             coverMenuContenu
         } label: {
-            Label(cover == nil ? "Ajouter une couverture" : "Changer la couverture", systemImage: "photo")
+            Label(cover == nil ? "Add cover" : "Change cover", systemImage: "photo")
         }
     }
 
@@ -105,7 +105,7 @@ struct DocumentDecorView: View {
         Menu {
             iconMenuContenu
         } label: {
-            Label(icone == nil ? "Ajouter une icône" : "Changer l'icône", systemImage: "face.smiling")
+            Label(icone == nil ? "Add icon" : "Change icon", systemImage: "face.smiling")
         }
     }
 
@@ -114,12 +114,12 @@ struct DocumentDecorView: View {
         Button {
             photosPickerOuvert = true
         } label: {
-            Label("Choisir dans Photos", systemImage: "photo.on.rectangle")
+            Label("Choose from Photos", systemImage: "photo.on.rectangle")
         }
         Button {
             fichierOuvert = true
         } label: {
-            Label("Choisir un fichier", systemImage: "folder")
+            Label("Choose a file", systemImage: "folder")
         }
         Divider()
         ForEach(covers, id: \.0) { id, nom in
@@ -128,7 +128,7 @@ struct DocumentDecorView: View {
         if cover != nil {
             Divider()
             Button(role: .destructive) { onCouverture(nil) } label: {
-                Label("Retirer la couverture", systemImage: "trash")
+                Label("Remove cover", systemImage: "trash")
             }
         }
     }
@@ -138,7 +138,7 @@ struct DocumentDecorView: View {
         Button {
             emojiPickerOuvert = true
         } label: {
-            Label("Tous les emojis", systemImage: "face.smiling")
+            Label("All emojis", systemImage: "face.smiling")
         }
         if !recentEmojis.isEmpty {
             Divider()
@@ -149,7 +149,7 @@ struct DocumentDecorView: View {
         if icone != nil {
             Divider()
             Button(role: .destructive) { onIcone(nil) } label: {
-                Label("Retirer l'icône", systemImage: "trash")
+                Label("Remove icon", systemImage: "trash")
             }
         }
     }
@@ -187,7 +187,7 @@ struct DocumentDecorView: View {
         }
     }
 
-    /// Charge une couverture depuis le répertoire covers (nom de fichier) ou depuis une URL fichier.
+    /// Loads a cover from the covers directory (file name) or from a file URL.
     private func coverImage(_ id: String) -> UIImage? {
         if !id.hasPrefix("file://") && !id.hasPrefix("cover.") {
             guard let directory = try? DocumentViewModel.coversDirectory() else { return nil }

@@ -20,7 +20,7 @@ struct VMErrorHandlingTests {
 
     @Test func loadOfDeletedDocumentCapturesError() throws {
         let (api, url) = try makeApi(); defer { cleanup(url) }
-        let docId = try api.createDocument(title: "À supprimer")
+        let docId = try api.createDocument(title: "To delete")
         try api.deleteDocument(id: docId)
 
         let vm = DocumentViewModel(docId: docId, api: api)
@@ -51,7 +51,7 @@ struct VMErrorHandlingTests {
         let phantom = EditableBlock(id: UUID().uuidString, content: .text([]),
                                      spans: [], done: false)
         vm.saveBlock(phantom)
-        vm.flushAllBursts() // le persist est différé — flush pour déclencher l'erreur synchronement
+        vm.flushAllBursts() // persist is deferred — flush to trigger the error synchronously
         #expect(vm.errorMessage != nil)
     }
 }

@@ -106,8 +106,8 @@ extension RichTextEditorCoordinator {
         rememberSelection(range, length: m.length)
         save(attributedToSpans(tv.attributedText, police: parent.baseFont))
         updateToolbar()
-        // Le menu couleur (showsMenuAsPrimaryAction) resign le first responder ;
-        // le restaurer pour garder le clavier et la sélection visibles.
+        // The color menu (showsMenuAsPrimaryAction) resigns first responder;
+        // restore it to keep the keyboard and selection visible.
         _ = tv.becomeFirstResponder()
     }
 
@@ -139,8 +139,8 @@ extension RichTextEditorCoordinator {
             if attrs[.strikethroughStyle] != nil { attrs.removeValue(forKey: .strikethroughStyle) }
             else { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
         case .color(let nom):
-            // Source de vérité : pendingColor (typingAttributes est réinitialisé par
-            // textViewDidBeginEditing après la fermeture du menu).
+            // Source of truth: pendingColor (typingAttributes is reset by
+            // textViewDidBeginEditing after the menu closes).
             let currentColor = pendingColor ?? (attrs[.pinkhaColor] as? String)
             if currentColor == nom {
                 attrs.removeValue(forKey: .pinkhaColor)

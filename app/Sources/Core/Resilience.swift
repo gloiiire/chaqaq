@@ -3,18 +3,18 @@ import SwiftUI
 
 // MARK: - User-facing error messages
 
-/// Maps `PinkhaError` FFI values to French user-readable messages.
+/// Maps `PinkhaError` FFI values to user-readable messages.
 /// Technical errors (invalid UUID, oversized payload) are condensed;
 /// domain errors (NotFound, Storage) have their own distinct wording.
 extension PinkhaError {
     var userMessage: String {
         switch self {
         case .NotFound:
-            return "Cet élément est introuvable. Il a peut-être été supprimé."
+            return "This item could not be found. It may have been deleted."
         case .InvalidOperation(let detail):
-            return "Opération invalide : \(detail)"
+            return "Invalid operation: \(detail)"
         case .Storage:
-            return "Une erreur de stockage est survenue. Réessaie dans un instant."
+            return "A storage error occurred. Please try again in a moment."
         }
     }
 
@@ -52,14 +52,14 @@ extension View {
         onRetry: (() -> Void)? = nil
     ) -> some View {
         alert(
-            "Erreur",
+            "Error",
             isPresented: Binding(
                 get: { message.wrappedValue != nil },
                 set: { if !$0 { message.wrappedValue = nil } }
             )
         ) {
             if let onRetry {
-                Button("Réessayer") {
+                Button("Retry") {
                     message.wrappedValue = nil
                     onRetry()
                 }

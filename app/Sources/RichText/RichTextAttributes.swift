@@ -1,27 +1,27 @@
 import UIKit
 
-/// Teinte de sélection globale (fallback vers systemOrange si l'asset est absent).
+/// Global selection tint (falls back to systemOrange if the asset is missing).
 let pinkhaSelectionTint = UIColor(named: "SelectionTint") ?? .systemOrange
 
-// ── Clés d'attributs personnalisées ──────────────────────────────────────────
+// ── Custom attribute keys ─────────────────────────────────────────────────────
 
 extension NSAttributedString.Key {
-    /// Stocke le nom de couleur en parallèle de `.foregroundColor` pour un round-trip fiable
-    /// entre `NSAttributedString` et `[InlineTextFfi]`.
+    /// Stores the color name alongside `.foregroundColor` for a reliable round-trip
+    /// between `NSAttributedString` and `[InlineTextFfi]`.
     static let pinkhaColor  = NSAttributedString.Key("com.pinkha.color")
-    /// Marque un segment comme explicitement gras (survit aux réinitialisations de `typingAttributes` par UIKit).
+    /// Marks a segment as explicitly bold (survives `typingAttributes` resets by UIKit).
     static let pinkhaBold   = NSAttributedString.Key("com.pinkha.bold")
-    /// Marque un segment comme explicitement italique.
+    /// Marks a segment as explicitly italic.
     static let pinkhaItalic = NSAttributedString.Key("com.pinkha.italic")
-    /// Valeur d'obliquité stockée avec l'italique pour les polices où `withSymbolicTraits` échoue.
+    /// Obliqueness value stored alongside italic for fonts where `withSymbolicTraits` fails.
     static let pinkhaObliqueness = NSAttributedString.Key("NSObliqueness")
 }
 
-// ── Utilitaires de police ─────────────────────────────────────────────────────
+// ── Font utilities ────────────────────────────────────────────────────────────
 
-/// Retourne une police dérivée de `base` avec les traits gras/italique demandés.
-/// Utilise `boldSystemFont`/`italicSystemFont` en fallback quand `withSymbolicTraits` retourne `nil`
-/// (SF Pro ne propage pas toujours les traits dans certains contextes iOS).
+/// Returns a font derived from `base` with the requested bold/italic traits.
+/// Falls back to `boldSystemFont`/`italicSystemFont` when `withSymbolicTraits` returns `nil`
+/// (SF Pro does not always propagate traits in certain iOS contexts).
 func fontWithTraits(_ base: UIFont, bold: Bool, italic: Bool) -> UIFont {
     let size = base.pointSize
     let traitsBase = base.fontDescriptor.symbolicTraits
@@ -38,9 +38,9 @@ func fontWithTraits(_ base: UIFont, bold: Bool, italic: Bool) -> UIFont {
     }
 }
 
-/// Retourne une police italique à la taille et graisse données.
-/// `.italicSystemFont` est toujours regular, donc ce helper applique le trait italic
-/// à un descripteur de police pondéré quand c'est possible.
+/// Returns an italic font at the given size and weight.
+/// `.italicSystemFont` is always regular, so this helper applies the italic trait
+/// to a weighted font descriptor when possible.
 func italicFontWithWeight(_ size: CGFloat, weight: UIFont.Weight) -> UIFont {
     let base = UIFont.systemFont(ofSize: size, weight: weight)
     if let d = base.fontDescriptor.withSymbolicTraits(.traitItalic) {
@@ -49,8 +49,8 @@ func italicFontWithWeight(_ size: CGFloat, weight: UIFont.Weight) -> UIFont {
     return .italicSystemFont(ofSize: size)
 }
 
-/// Convertit un nom de couleur (français ou anglais) en `UIColor`.
-/// Les noms inconnus retombent sur `.label` pour que le texte reste lisible.
+/// Converts a color name (French or English) to a `UIColor`.
+/// Unknown names fall back to `.label` so the text remains readable.
 func uiColorFromName(_ nom: String) -> UIColor {
     switch nom.lowercased() {
     case "rouge", "red":             return .systemRed

@@ -1,8 +1,8 @@
 import SwiftUI
 
-// ── Composants partagés ────────────────────────────────────────────────────────
+// ── Shared components ─────────────────────────────────────────────────────────
 
-/// Entête de section en majuscules avec style caption semi-gras.
+/// Section header in uppercase with semi-bold caption style.
 struct SectionHeader: View {
     let title: String
 
@@ -14,7 +14,7 @@ struct SectionHeader: View {
     }
 }
 
-/// Salutation affichée en haut de l'onglet Notes.
+/// Greeting displayed at the top of the Notes tab.
 struct GreetingHeader: View {
     let text: String
 
@@ -26,7 +26,7 @@ struct GreetingHeader: View {
     }
 }
 
-/// Placeholder affiché quand il n'y a encore aucun document.
+/// Placeholder shown when there are no documents yet.
 struct NotesEmptyState: View {
     var body: some View {
         VStack(spacing: 16) {
@@ -34,8 +34,8 @@ struct NotesEmptyState: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.tertiary)
             VStack(spacing: 6) {
-                Text("Aucun document").font(.headline)
-                Text("Appuie sur le bouton en bas à droite\npour créer ta première note.")
+                Text("No notes").font(.headline)
+                Text("Tap the button at the bottom right\nto create your first note.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -44,8 +44,8 @@ struct NotesEmptyState: View {
     }
 }
 
-/// Bouton flottant partagé entre l'accueil (square.and.pencil) et l'éditeur (pencil.and.outline).
-/// Effet glass + animation pulse + haptic feedback.
+/// Floating button shared between the home screen (square.and.pencil) and the editor (pencil.and.outline).
+/// Glass effect + pulse animation + haptic feedback.
 struct FloatingButton: View {
     let icon: String
     let action: () -> Void
@@ -80,7 +80,7 @@ struct FloatingButton: View {
     }
 }
 
-/// `ButtonStyle` personnalisé pour `FloatingButton` : effet glass, zoom à l'appui, ombre colorée.
+/// Custom `ButtonStyle` for `FloatingButton`: glass effect, press zoom, colored shadow.
 private struct FloatingButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -94,7 +94,7 @@ private struct FloatingButtonStyle: ButtonStyle {
     }
 }
 
-/// Une ligne dans la liste de documents : icône, titre et date relative.
+/// A row in the document list: icon, title, and relative date.
 struct DocumentRow: View {
     let doc: DocumentMetaFfi
 
@@ -102,7 +102,7 @@ struct DocumentRow: View {
         HStack(spacing: 12) {
             documentIcon
             VStack(alignment: .leading, spacing: 4) {
-                Text(doc.titlePlain.isEmpty ? "Sans titre" : doc.titlePlain)
+                Text(doc.titlePlain.isEmpty ? "Untitled" : doc.titlePlain)
                     .font(.body.weight(.medium))
                 if let date = formattedDate(doc.updatedAt) {
                     Text(date).font(.caption).foregroundStyle(.secondary)
@@ -113,7 +113,7 @@ struct DocumentRow: View {
         .padding(.vertical, 2)
     }
 
-    /// Affiche l'icône du document : emoji personnalisé depuis UserDefaults, ou image système générique.
+    /// Displays the document icon: custom emoji from UserDefaults, or a generic system image.
     @ViewBuilder
     private var documentIcon: some View {
         if let icon = UserDefaults.standard.string(forKey: Self.iconKey(docId: doc.id)), !icon.isEmpty {
@@ -139,7 +139,7 @@ struct DocumentRow: View {
     }
 }
 
-/// Sheet de création d'un nouveau document. Accepte un titre et appelle `onCreate` ou `onCancel`.
+/// Sheet for creating a new document. Accepts a title and calls `onCreate` or `onCancel`.
 struct CreateDocumentSheet: View {
     @Binding var title: String
     let onCreate: () -> Void
@@ -150,7 +150,7 @@ struct CreateDocumentSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Titre du document", text: $title)
+                    TextField("Document title", text: $title)
                         .focused($focused)
                         .submitLabel(.done)
                         .onSubmit {
@@ -159,16 +159,16 @@ struct CreateDocumentSheet: View {
                         }
                 }
             }
-            .navigationTitle("Nouveau document")
+            .navigationTitle("New document")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(action: onCancel) { Image(systemName: "xmark") }
-                        .accessibilityLabel("Annuler")
+                        .accessibilityLabel("Cancel")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button { onCreate() } label: { Image(systemName: "checkmark") }
-                        .accessibilityLabel("Créer")
+                        .accessibilityLabel("Create")
                         .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
