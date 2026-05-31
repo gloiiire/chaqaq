@@ -1,26 +1,24 @@
 import SwiftUI
 
-// ── Tab 1: Notes ──────────────────────────────────────────────────────────────
+// ── Tab 1: Notes (unified workspace) ──────────────────────────────────────────
 
-/// Notes tab home screen: greeting, recent strip, full list, FAB.
+/// Home screen for the Notes tab — shows notes and databases in a unified list.
 struct NotesHomeView: View {
     @ObservedObject var store: PinkhaStore
     @State private var showingCreate = false
     @State private var newTitle = ""
+    @State private var createMode: CreateMode = .note
 
-    /// The 5 most recently modified documents for the "Recent" strip.
-    private var recentDocs: [DocumentMetaFfi] {
-        Array(store.documents.prefix(5))
-    }
+    enum CreateMode { case note, database }
 
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
                 List {
-                    // ── Recent strip (only when documents exist) ─────────
-                    if !store.documents.isEmpty {
+                    // ── Recent strip (only when items exist) ──────────────
+                    if !store.items.isEmpty {
                         Section {
-                            RecentStrip(docs: recentDocs, api: store.api) {
+                            RecentStrip(items: store.recentItems, api: store.api) {
                                 store.load()
                             }
                             .listRowBackground(Color.clear)
@@ -31,8 +29,8 @@ struct NotesHomeView: View {
                         }
                     }
 
-                    // ── Full list ────────────────────────────────────────
-                    if store.documents.isEmpty {
+                    // ── All items ─────────────────────────────────────────
+                    if store.items.isEmpty {
                         Section {
                             NotesEmptyState()
                                 .frame(maxWidth: .infinity)
@@ -43,22 +41,23 @@ struct NotesHomeView: View {
                     } else {
                         Section {
                             if let api = store.api {
-                                ForEach(store.documents, id: \.id) { doc in
-                                    NavigationLink(
-                                        destination: DocumentView(docId: doc.id, api: api,
-                                                                  onDisappear: store.load)
-                                    ) {
-                                        DocumentRow(doc: doc)
-                                    }
+                                ForEach(store.items) { item in
+                                    itemRow(item, api: api)
                                 }
                                 .onDelete { indexSet in
-                                    for i in indexSet { store.delete(id: store.documents[i].id) }
+                                    for i in indexSet {
+                                        let item = store.items[i]
+                                        switch item {
+                                        case .note(let d):      store.delete(id: d.id)
+                                        case .database(let db): store.deleteDatabase(id: db.id)
+                                        }
+                                    }
                                 }
                             } else {
                                 ProgressView()
                             }
                         } header: {
-                            SectionHeader(title: "All notes")
+                            SectionHeader(title: "All")
                         }
                     }
                 }
@@ -66,16 +65,38 @@ struct NotesHomeView: View {
                 .navigationTitle(greeting)
                 .navigationBarTitleDisplayMode(.large)
 
-                FloatingButton(icon: "square.and.pencil") {
-                    showingCreate = true
+                // ── FAB ───────────────────────────────────────────────────
+                Menu {
+                    Button {
+                        createMode = .note
+                        newTitle = ""
+                        showingCreate = true
+                    } label: {
+                        Label("New note", systemImage: "doc.text")
+                    }
+                    Button {
+                        createMode = .database
+                        newTitle = ""
+                        showingCreate = true
+                    } label: {
+                        Label("New database", systemImage: "tablecells")
+                    }
+                } label: {
+                    FloatingButton(icon: "square.and.pencil") {}
                 }
-                .accessibilityIdentifier("createDocumentFAB")
+                .accessibilityIdentifier("createFAB")
                 .padding(.trailing, 24)
                 .padding(.bottom, 32)
             }
             .sheet(isPresented: $showingCreate) {
-                CreateDocumentSheet(title: $newTitle) {
-                    store.create(title: newTitle)
+                CreateDocumentSheet(
+                    title: $newTitle,
+                    prompt: createMode == .note ? "Note title" : "Database title"
+                ) {
+                    switch createMode {
+                    case .note:     store.create(title: newTitle)
+                    case .database: store.createDatabase(title: newTitle)
+                    }
                     newTitle = ""
                     showingCreate = false
                 } onCancel: {
@@ -86,7 +107,24 @@ struct NotesHomeView: View {
         }
     }
 
-    /// Returns a greeting message adapted to the time of day.
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    @ViewBuilder
+    private func itemRow(_ item: WorkspaceItem, api: PinkhaApi) -> some View {
+        switch item {
+        case .note(let doc):
+            NavigationLink(destination: DocumentView(docId: doc.id, api: api,
+                                                     onDisappear: store.load)) {
+                WorkspaceRow(item: item)
+            }
+        case .database(let db):
+            NavigationLink(destination: DatabasePlaceholderView(title: db.titlePlain)) {
+                WorkspaceRow(item: item)
+            }
+        }
+    }
+
+    /// Returns a greeting adapted to the time of day.
     private var greeting: String {
         let h = Calendar.current.component(.hour, from: .now)
         switch h {
@@ -99,22 +137,30 @@ struct NotesHomeView: View {
 
 // ── Recent strip ──────────────────────────────────────────────────────────────
 
-/// Horizontal scroll strip displaying the most recent documents as cards.
+/// Horizontal scroll strip displaying the most recently updated workspace items.
 struct RecentStrip: View {
-    let docs: [DocumentMetaFfi]
+    let items: [WorkspaceItem]
     let api: PinkhaApi?
     let onDisappear: () -> Void
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(alignment: .top, spacing: 12) {
-                ForEach(docs, id: \.id) { doc in
+                ForEach(items) { item in
                     if let api {
-                        NavigationLink(destination: DocumentView(docId: doc.id, api: api,
-                                                                 onDisappear: onDisappear)) {
-                            RecentCard(doc: doc)
+                        switch item {
+                        case .note(let doc):
+                            NavigationLink(destination: DocumentView(docId: doc.id, api: api,
+                                                                     onDisappear: onDisappear)) {
+                                RecentCard(item: item)
+                            }
+                            .buttonStyle(.plain)
+                        case .database(let db):
+                            NavigationLink(destination: DatabasePlaceholderView(title: db.titlePlain)) {
+                                RecentCard(item: item)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -126,26 +172,17 @@ struct RecentStrip: View {
 
 /// A card in the recent strip — displays icon, title, and relative date.
 struct RecentCard: View {
-    let doc: DocumentMetaFfi
+    let item: WorkspaceItem
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Group {
-                if let icon = storedIcon, !icon.isEmpty {
-                    Text(icon).font(.title)
-                } else {
-                    Image(systemName: "doc.text").font(.title2).foregroundStyle(.secondary)
-                }
-            }
-            .frame(width: 36, height: 36)
-
+            itemIcon.frame(width: 36, height: 36)
             Spacer()
-
             VStack(alignment: .leading, spacing: 3) {
-                Text(doc.titlePlain.isEmpty ? "Untitled" : doc.titlePlain)
+                Text(item.titlePlain.isEmpty ? "Untitled" : item.titlePlain)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(2)
-                if let date = formattedDate(doc.updatedAt) {
+                if let date = formattedDate(item.updatedAt) {
                     Text(date).font(.caption2).foregroundStyle(.tertiary)
                 }
             }
@@ -160,8 +197,18 @@ struct RecentCard: View {
         .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
     }
 
-    private var storedIcon: String? {
-        UserDefaults.standard.string(forKey: "document.icon.\(doc.id)")
+    @ViewBuilder
+    private var itemIcon: some View {
+        switch item {
+        case .note(let doc):
+            if let icon = UserDefaults.standard.string(forKey: "document.icon.\(doc.id)"), !icon.isEmpty {
+                Text(icon).font(.title)
+            } else {
+                Image(systemName: "doc.text").font(.title2).foregroundStyle(.secondary)
+            }
+        case .database:
+            Image(systemName: "tablecells").font(.title2).foregroundStyle(.secondary)
+        }
     }
 
     private func formattedDate(_ iso: String) -> String? {
@@ -170,5 +217,57 @@ struct RecentCard: View {
         parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         guard let date = parser.date(from: iso) else { return nil }
         return date.formatted(.relative(presentation: .named, unitsStyle: .abbreviated))
+    }
+}
+
+/// A row in the unified workspace list.
+struct WorkspaceRow: View {
+    let item: WorkspaceItem
+
+    var body: some View {
+        HStack(spacing: 12) {
+            itemIcon
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.titlePlain.isEmpty ? "Untitled" : item.titlePlain)
+                    .font(.body.weight(.medium))
+                if let date = formattedDate(item.updatedAt) {
+                    Text(date).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 2)
+    }
+
+    @ViewBuilder
+    private var itemIcon: some View {
+        switch item {
+        case .note(let doc):
+            if let icon = UserDefaults.standard.string(forKey: "document.icon.\(doc.id)"), !icon.isEmpty {
+                Text(icon).font(.title2).frame(width: 34, height: 34)
+            } else {
+                Image(systemName: "doc.text")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 34, height: 34)
+                    .background(.secondary.opacity(0.12),
+                                 in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+        case .database:
+            Image(systemName: "tablecells")
+                .font(.body.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 34, height: 34)
+                .background(.secondary.opacity(0.12),
+                             in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+    }
+
+    private func formattedDate(_ iso: String) -> String? {
+        guard !iso.isEmpty else { return nil }
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = parser.date(from: iso) else { return nil }
+        return date.formatted(.relative(presentation: .named, unitsStyle: .wide))
     }
 }

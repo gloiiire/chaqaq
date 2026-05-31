@@ -11,9 +11,6 @@ struct ContentView: View {
             Tab("Notes", systemImage: "note.text") {
                 NotesHomeView(store: store)
             }
-            Tab("Databases", systemImage: "tablecells") {
-                DatabasesHomeView()
-            }
             Tab(role: .search) {
                 SearchView(store: store)
             }
@@ -23,31 +20,7 @@ struct ContentView: View {
     }
 }
 
-// ── Tab 2: Databases ──────────────────────────────────────────────────────────
-
-/// Placeholder for the Databases tab (backend complete, UI coming soon).
-private struct DatabasesHomeView: View {
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 20) {
-                Image(systemName: "tablecells")
-                    .font(.system(size: 52))
-                    .foregroundStyle(.tertiary)
-                VStack(spacing: 6) {
-                    Text("Databases").font(.headline)
-                    Text("Coming soon.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .navigationTitle("Databases")
-            .navigationBarTitleDisplayMode(.large)
-        }
-    }
-}
-
-// ── Tab 3: Search ─────────────────────────────────────────────────────────────
+// ── Tab 2: Search ─────────────────────────────────────────────────────────────
 
 /// Search tab — owns its own .searchable so it does not bleed into other tabs.
 private struct SearchView: View {
@@ -82,7 +55,7 @@ private struct SearchView: View {
                                 destination: DocumentView(docId: doc.id, api: api,
                                                           onDisappear: store.load)
                             ) {
-                                DocumentRow(doc: doc)
+                                WorkspaceRow(item: .note(doc))
                             }
                         }
                     }
