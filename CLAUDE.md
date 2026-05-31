@@ -78,7 +78,7 @@ app/               — application SwiftUI (projet Xcode généré par xcodegen)
   Pinkha.xcodeproj/
   Sources/
     PinkhaApp.swift      — point d'entrée @main
-    ContentView.swift    — écran d'accueil + PinkhaStore
+    ContentView.swift    — TabView 3 onglets (Notes/Bases/Recherche) + PinkhaStore
     DocumentView.swift   — éditeur de document + DocumentViewModel
     Models.swift         — miroirs Swift des types Rust (Codable)
     RichTextEditor.swift — UIViewRepresentable + toolbar de formatage
@@ -204,12 +204,13 @@ let json = try api.obtenirDocumentJson(id: id)  // → Codable
 - `toolbarLineBreak()` : insère un `\n` via `tv.insertText` + reset défensif `shiftEnterTyped = false` après (insertText programmé peut bypass `shouldChangeTextIn`)
 - `textViewDidChange` appelle `save()` à chaque frappe → capture du burst undo côté VM. Le persist SQLite est différé au flush du burst (1 write par burst, pas par caractère)
 
-**`ContentView.swift`** — écran d'accueil :
-- `PinkhaStore : ObservableObject` — connecte `PinkhaApi`, liste les documents, CRUD
-- Salutation dynamique (Bonjour/Bon après-midi/Bonsoir)
-- `NavigationLink` → `DocumentView`
-- FAB `square.and.pencil`, état vide illustré, date relative formatée
-- `.toolbar(.hidden, for: .navigationBar)` — pas de titre "pinkha" en haut de l'accueil
+**`ContentView.swift`** — racine 3 onglets + store :
+- `PinkhaStore : ObservableObject` — `PinkhaApi`, CRUD documents, `search(query:)` → `api.searchDocuments`
+- `ContentView` = `TabView { Tab("Notes") Tab("Bases") Tab("Recherche") }` iOS 26
+- `NotesHomeView` : salutation, strip horizontale `RecentStrip` (5 derniers docs, `RecentCard` 150×140 pt), `List` sections avec swipe-to-delete, FAB `square.and.pencil`
+- `DatabasesHomeView` : placeholder (backend complet, UI à venir)
+- `SearchView` : `.searchable` SwiftUI + résultats temps réel via `store.search(query:)`
+- `SectionHeader` : label uppercase `.caption.weight(.semibold)` avec kerning
 
 **`DocumentView.swift`** — éditeur de document :
 - `EditableBlock : Identifiable, Equatable` — modèle en mémoire : `id`, `content: BlockContentFfi`, `spans: [InlineTextFfi]`, `done: Bool`
@@ -257,7 +258,10 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
 - **XCFramework** : `pinkha.xcframework` compilé (ios-arm64, ios-arm64-simulator, macos-arm64)
 - **Projet Xcode** : `app/Pinkha.xcodeproj` généré par xcodegen
 - **UI SwiftUI** :
-  - Écran d'accueil : liste de documents, salutation dynamique, FAB, nav bar masquée
+  - **Tab bar 3 onglets** (iOS 26 `TabView` + `Tab`) : Notes | Bases | Recherche
+  - **Notes** : salutation dynamique, strip horizontale "Récents" (5 derniers docs, cards Apple Music style), liste complète avec swipe-to-delete, FAB `square.and.pencil`
+  - **Bases** : placeholder (backend Notion complet côté Rust, UI à venir)
+  - **Recherche** : `searchable` SwiftUI + `api.searchDocuments(query:)` FFI, résultats en temps réel
   - Éditeur de document : blocs Text, Heading (×3), Quote, Callout (Quote + emoji), Todo, Divider
   - Texte riche : gras, italique, souligné, barré, 9 couleurs (rouge, rose, orange, jaune, vert, cyan, bleu, violet, marron)
   - Toolbar pill (style Notes.app) glass effect : Coller / Aa (B/I/U/S) / Highlighter / Undo / Redo / Return / Dismiss — hide-on-menu façon Notes
@@ -270,9 +274,8 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
 - **Sécurité repo** : branches protégées (PR obligatoire, force-push bloqué, suppression bloquée, Rust CI requise), Secret Scanning + Push Protection, Dependabot Alerts + Security Updates, Dependabot config mensuelle pour Cargo + Actions
 
 Ce qui **reste** à construire :
-1. UI Databases (backend Notion complet existe, aucune vue SwiftUI)
-2. Barre de recherche (backend full-text existe, pas d'UI)
-3. Vue iPad / Mac (NavigationSplitView)
+1. UI Databases — tab "Bases" est un placeholder, backend Notion complet existe
+2. Vue iPad / Mac (NavigationSplitView)
 4. Sync entre appareils (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
 5. Réactiver Swift CI quand Xcode 26 sera dispo sur les runners GitHub Actions
 

@@ -1,0 +1,71 @@
+import SwiftUI
+
+// ── Toolbar et boutons overlay ────────────────────────────────────────────────
+
+extension DocumentView {
+
+    @ToolbarContentBuilder
+    var documentToolbar: some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            Text(vm.title.isEmpty ? "Sans titre" : vm.title)
+                .font(.headline)
+                .opacity(titleInNavBar ? 1 : 0)
+                .offset(y: titleInNavBar ? 0 : 8)
+                .animation(.easeOut(duration: 0.2), value: titleInNavBar)
+        }
+        if editMode == .active && !selectedBlocks.isEmpty && !documentLocked {
+            ToolbarItem(placement: .primaryAction) {
+                Button(role: .destructive) { deleteSelectedBlocks() } label: {
+                    Image(systemName: "trash")
+                }
+                .accessibilityLabel("Supprimer les blocs sélectionnés")
+            }
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                let newLocked = !documentLocked
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    documentLocked = newLocked
+                    if documentLocked {
+                        editMode = .inactive; selectedBlocks.removeAll()
+                        focusTitle = false; showingBlockPicker = false
+                        vm.stopNavigationRepeat()
+                    }
+                }
+                UserDefaults.standard.set(newLocked, forKey: lockKey)
+            } label: {
+                Image(systemName: documentLocked ? "lock.fill" : "lock.open.fill")
+            }
+            .accessibilityLabel(documentLocked ? "Déverrouiller le document" : "Verrouiller le document")
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                withAnimation {
+                    editMode = editMode == .active ? .inactive : .active
+                    if editMode != .active { selectedBlocks.removeAll() }
+                }
+            } label: {
+                Image(systemName: editMode == .active ? "checkmark" : "arrow.up.arrow.down")
+            }
+            .disabled(documentLocked)
+        }
+    }
+
+    @ViewBuilder
+    var overlayButtons: some View {
+        if !documentLocked && editMode == .inactive && !keyboardVisible {
+            FloatingButton(icon: "pencil.and.outline") { showingBlockPicker = true }
+                .padding(.trailing, 24)
+                .padding(.bottom, 32)
+                .transition(.scale.combined(with: .opacity))
+        }
+        if !documentLocked && editMode == .inactive && !keyboardVisible {
+            UndoRedoPill(canUndo: vm.canUndo, canRedo: vm.canRedo,
+                         onUndo: { vm.undo() }, onRedo: { vm.redo() })
+                .padding(.leading, 24)
+                .padding(.bottom, 32)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .transition(.scale.combined(with: .opacity))
+        }
+    }
+}

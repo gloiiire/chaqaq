@@ -1,0 +1,107 @@
+import SwiftUI
+
+// ── Construction des callbacks et ligne de bloc ───────────────────────────────
+
+extension DocumentView {
+
+    /// Construit la ligne complète pour un bloc dans la List : HStack sélection + contenu + gestes.
+    @ViewBuilder
+    func blockListRow(_ block: Binding<EditableBlock>) -> some View {
+        let b = block.wrappedValue
+        HStack(alignment: .center, spacing: 10) {
+            if editMode == .active { selectionButton(b.id) }
+            BlockRowView(
+                block: block,
+                autoFocusId: $vm.autoFocusId,
+                autoFocusOffset: $vm.autoFocusOffset,
+                cb: blockCallbacks(for: b)
+            )
+            .disabled(documentLocked || editMode == .active)
+            .allowsHitTesting(!documentLocked && editMode != .active)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if editMode == .active {
+                withAnimation(.easeInOut(duration: 0.15)) { toggleSelection(b.id) }
+            }
+        }
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.35).onEnded { _ in selectFromLongPress(b.id) }
+        )
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+        .swipeActions(edge: .trailing) {
+            if !documentLocked && editMode != .active {
+                Button(role: .destructive) { vm.deleteBlock(id: b.id) } label: {
+                    Label("Supprimer", systemImage: "trash")
+                }
+            }
+        }
+    }
+
+    /// Construit le bundle de callbacks `BlockCallbacks` pour un bloc donné.
+    /// Centralise la logique de routage des événements bloc → VM.
+    func blockCallbacks(for block: EditableBlock) -> BlockCallbacks {
+        BlockCallbacks(
+            onSave: {
+                guard let idx = vm.blocks.firstIndex(where: { $0.id == block.id }) else { return }
+                vm.saveBlock(vm.blocks[idx])
+            },
+            onSaveSpans: { spans in vm.saveBlock(id: block.id, spans: spans) },
+            onDelete: {
+                if let idx = vm.blocks.firstIndex(where: { $0.id == block.id }) {
+                    if idx > 0 {
+                        let prevId = vm.blocks[idx - 1].id
+                        vm.deleteBlock(id: block.id)
+                        vm.autoFocusId = prevId
+                    } else {
+                        vm.deleteBlock(id: block.id)
+                        focusTitle = true
+                    }
+                }
+            },
+            onNewBlock: { afterSpans in
+                vm.addBlock(type: .text, initialSpans: afterSpans, afterId: block.id)
+            },
+            onMerge: vm.blocks.first?.id == block.id ? nil : { spansToMerge in
+                guard let idx = vm.blocks.firstIndex(where: { $0.id == block.id }), idx > 0 else { return }
+                let prevIdx = idx - 1
+                let prevId = vm.blocks[prevIdx].id
+                let mergeOffset = vm.blocks[prevIdx].spans.map(\.content).joined().count
+                vm.blocks[prevIdx].spans += spansToMerge
+                vm.saveBlock(vm.blocks[prevIdx])
+                vm.deleteBlock(id: block.id)
+                vm.autoFocusOffset = mergeOffset
+                vm.autoFocusId = prevId
+            },
+            onNavigatePrevious: {
+                guard !vm.isNavigating else { return }
+                guard let idx = vm.blocks.firstIndex(where: { $0.id == block.id }) else { return }
+                if idx > 0 {
+                    let nid = vm.blocks[idx - 1].id
+                    vm.autoFocusOffset = nil; vm.autoFocusId = nid
+                    vm.startNavigationRepeat(from: nid, next: false)
+                } else { focusTitle = true }
+            },
+            onNavigateNext: {
+                guard !vm.isNavigating else { return }
+                guard let idx = vm.blocks.firstIndex(where: { $0.id == block.id }),
+                      idx < vm.blocks.count - 1 else { return }
+                let nid = vm.blocks[idx + 1].id
+                vm.autoFocusOffset = 0; vm.autoFocusId = nid
+                vm.startNavigationRepeat(from: nid, next: true)
+            },
+            onStopNavigationRepeat: { vm.stopNavigationRepeat() },
+            onLongPressSelection: { selectFromLongPress(block.id) },
+            onFocus: { vm.activeBlockId = block.id },
+            onToggleDone: { vm.toggleBlockDone(id: block.id) },
+            onChangeIcon: { icon in vm.updateBlockIcon(id: block.id, icon: icon) },
+            onConvertContent: { content in vm.convertBlockContent(id: block.id, to: content) },
+            onUndo: { vm.undo() },
+            onRedo: { vm.redo() },
+            canUndoProvider: { vm.canUndo },
+            canRedoProvider: { vm.canRedo }
+        )
+    }
+}
