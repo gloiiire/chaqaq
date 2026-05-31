@@ -7,7 +7,6 @@ struct NotesHomeView: View {
     @ObservedObject var store: PinkhaStore
     @State private var showingCreate = false
     @State private var newTitle = ""
-    @State private var scrollPosition = ScrollPosition(idType: String.self)
 
     /// Les 5 documents les plus récemment modifiés pour la strip "Récents".
     private var recentDocs: [DocumentMetaFfi] {
@@ -71,7 +70,6 @@ struct NotesHomeView: View {
                     }
                 }
                 .listStyle(.insetGrouped)
-                .scrollPosition($scrollPosition)
                 .toolbar(.hidden, for: .navigationBar)
 
                 FloatingButton(icon: "square.and.pencil") {
