@@ -16,23 +16,43 @@ cargo build   # alias: cb
 cargo check   # alias: cc
 cargo test
 
+# Tester uniquement le crate chaqaq
+cargo test -p chaqaq
+
 # Régénérer les bindings Swift après modification du .udl ou de ffi.rs
 cargo build
 cargo run --bin uniffi-bindgen -- generate --library target/debug/libpinkha.dylib \
     --language swift --out-dir swift-bindings/
+
+# Publier une nouvelle version de chaqaq sur crates.io
+# (bumper la version dans crates/chaqaq/Cargo.toml d'abord)
+cd crates/chaqaq && cargo publish
 ```
 
 ## Architecture (Clean Architecture)
 
+Le repo est un **Cargo workspace** avec deux crates :
+- `crates/chaqaq` — crate autonome open source publié sur crates.io (MIT OR Apache-2.0)
+- `.` (pinkha) — application complète, dépend de chaqaq via `{ path = "crates/chaqaq" }`
+
 ```
-src/
-  domain/          — types purs + parser (aucune dépendance externe)
-    document.rs    — types de base (InlineStyle, InlineText, Block, Document, DocumentMeta)
-    parser.rs      — state machine inline (bold, italic, underline, color, link)
-    rich_text.rs   — RichText (string plate + spans) pour l'édition en mémoire
+crates/chaqaq/     — crate autonome rich text editor (crates.io: chaqaq v0.1.0)
+  src/
+    lib.rs         — API publique + doc crate (en anglais)
+    document.rs    — InlineStyle, InlineText
+    rich_text.rs   — RichText + Span (indices chars Unicode)
     editor.rs      — EditorState (curseur, sélection, toggle style)
-    commandes.rs   — pattern Command : Inserer, Supprimer, AppliquerStyle + Historique (undo/redo)
-    database.rs    — types Database/Notion (Propriete, Entree, Vue, Filtre, Tri, Groupe…)
+    commands.rs    — Command trait + Insert, Delete, ApplyStyle, History
+    parser.rs      — parse_inline() (state machine markdown)
+
+src/
+  domain/          — re-exports depuis chaqaq + types pinkha-spécifiques
+    document.rs    — re-exporte InlineStyle/InlineText + Block, Document, DocumentMeta
+    parser.rs      — re-exporte parse_inline
+    rich_text.rs   — re-exporte RichText, Span
+    editor.rs      — re-exporte EditorState
+    commandes.rs   — re-exporte Command, Insert, Delete, ApplyStyle, History
+    database.rs    — types Database/Notion (Property, Entry, View, Filter, Sort…)
   application/     — traits + use cases
     repository.rs  — trait DocumentRepository (save, load, list, delete)
     use_cases.rs   — use cases documents et blocs
@@ -66,81 +86,73 @@ app/               — application SwiftUI (projet Xcode généré par xcodegen)
 
 Règle de dépendance : `infrastructure` → `application` → `domain`. Le domaine ne sait rien du stockage.
 
+### `crates/chaqaq` — crate autonome (publié sur crates.io)
+
+Toute la logique d'édition inline vit ici. Seule dépendance : `serde`.
+
+- **`InlineStyle`** : Bold, Italic, Underline, Strikethrough, Color(String), Link(String)
+- **`InlineText { content, styles }`** — fragment sérialisable de texte riche
+- **`RichText`** : string plate de chars + `Vec<Span>`. Indices char Unicode (pas bytes). `insert_char` / `delete_char` / `toggle_style` / `restore_spans`. Conversion `From<&Vec<InlineText>>` ↔ `From<&RichText> for Vec<InlineText>` sans perte.
+- **`EditorState { text, cursor, selection }`** : `insert`, `delete_before/after`, `move_left/right`, `go_to_start/end`, `select(range)`, `toggle_style(style)`
+- **`Command` trait** + `Insert`, `Delete`, `ApplyStyle` — chacun implémente `execute` / `undo`
+- **`History`** : pile undo/redo, capacité configurable (défaut 1 000), `apply` / `undo` / `redo` / `can_undo` / `can_redo`
+- **`parse_inline(input)`** : state machine sur `chars().peekable()`. `**bold**`, `_italic_`, `__underline__`, `~~strike~~`, `{color:text}`, `[label](url)`, combinaisons.
+
+> **Note langue** : les doc comments dans `crates/chaqaq` sont en **anglais** (crate open source, audience internationale) — exception à la règle "commentaires en français" qui s'applique à pinkha uniquement.
+
+> **Publication** : bumper la version dans `crates/chaqaq/Cargo.toml` (semver), puis `cd crates/chaqaq && cargo publish`. Une version publiée est immuable. pinkha référence chaqaq via `{ path = "crates/chaqaq" }` donc compile toujours en local sans publier.
+
 ### `domain/document.rs`
-- `InlineStyle` : Bold, Italic, Underline, Color(String), Link(String)
-- `InlineText { content: String, styles: Vec<InlineStyle> }` — feuille de tout texte riche
+Re-exporte `InlineStyle` et `InlineText` depuis chaqaq. Définit les types pinkha-spécifiques :
 - `BlockContent` : Text, Heading { level, text }, Quote { icon, text }, Todo { done, text }, Divider, Breadcrumb, Database { id }
 - `Block { id: Uuid, content: BlockContent, children: Vec<Block> }` — nœud récursif
 - `Document { id, cover, title: Vec<InlineText>, blocks: Vec<Block> }`
 - `DocumentMeta { id, cover, title, updated_at }` — vue légère sans blocks pour `list()`. `updated_at` peuplé par SQLite, vide sinon (`#[serde(default)]`)
 
-### `domain/parser.rs`
-State machine sur `chars().peekable()`. `flush()` vide `current_text` dans le résultat avec les styles actifs.
-- `**gras**` → Bold
-- `_italique_` → Italic
-- `__souligné__` → Underline
-- `{rouge:texte}` → Color("rouge")
-- `[texte](url)` → Link(url)
-- Combinaisons : `**_gras+italique_**` ✓
-
-### `domain/rich_text.rs`
-`RichText` : représentation d'édition (string plate de chars + `Vec<Span>`). Indices char Unicode, pas bytes.
-- `inserer_char` / `supprimer_char` — décale les spans automatiquement
-- `toggler_style(range, style)` — ajoute si absent sur au moins un char, retire si tous l'ont
-- Conversion `From<&Vec<InlineText>>` et `From<&RichText> for Vec<InlineText>` (aller-retour persistance)
-
-### `domain/editor.rs`
-`EditorState { texte: RichText, curseur: usize, selection: Option<Range<usize>> }`
-- `inserer`, `supprimer_avant`, `supprimer_apres`
-- `deplacer_gauche/droite`, `aller_au_debut/fin`
-- `selectionner(range)`, `toggler_style(style)`
-
-### `domain/commandes.rs`
-Pattern Command pour undo/redo :
-- `Inserer`, `Supprimer`, `AppliquerStyle` — chacun implémente `Commande { executer, annuler }`
-- `Historique { fait, annule, capacite }` — `appliquer`, `annuler`, `refaire`, limite configurable
+### `domain/parser.rs` / `rich_text.rs` / `editor.rs` / `commandes.rs`
+Simples re-exports depuis `chaqaq` — aucune logique propre.
 
 ### `domain/database.rs`
-Moteur type Notion :
-- `ProprieteType` : Titre, Texte, Nombre, Selection, SelectionMultiple, Date, Case, Url, Relation, Rollup
-- `ValeurPropriete` : valeurs correspondantes + `Vide`
-- `Entree { id, cree_le: String (ISO 8601), valeurs: HashMap<Uuid, ValeurPropriete> }`
-- `TypeVue` : Tableau, Kanban { grouper_par }, Calendrier { propriete_id }, Galerie
-- `Filtre { propriete_id, condition: ConditionFiltre }`, `Tri { propriete_id, ordre, source: SourceTri }`
-- `SourceTri` : Propriete | Creation | ManuellePuisCreation (pour journaux mixtes)
-- `Database { id, titre, proprietes, entrees, vues }`, `DatabaseMeta { id, titre, updated_at }`
+Moteur type Notion (défini dans pinkha, pas dans chaqaq) :
+- `PropertyType` : Title, Text, Number, Selection, SelectionMultiple, Date, Checkbox, Url, Relation, Rollup
+- `PropertyValue` : valeurs correspondantes + `Empty`
+- `Entry { id, created_at: String (ISO 8601), values: HashMap<Uuid, PropertyValue> }`
+- `ViewType` : Table, Kanban { group_by }, Calendar { property_id }, Gallery
+- `Filter { property_id, condition: FilterCondition }`, `Sort { property_id, order, source: SortSource }`
+- `SortSource` : Property | Creation | ManualThenCreation (pour journaux mixtes)
+- `Database { id, title, properties, entries, views }`, `DatabaseMeta { id, title, updated_at }`
 
 ### `application/error.rs`
-`PinkhaError` : `NonTrouve(Uuid)`, `OperationInvalide(String)`, `Io(std::io::Error)`, `Json(serde_json::Error)`, `Db(String)`
+`PinkhaError` : `NotFound(Uuid)`, `InvalidOperation(String)`, `Io(std::io::Error)`, `Json(serde_json::Error)`, `Db(String)`
 — `Db(String)` convertit les erreurs rusqlite en string pour ne pas coupler l'application à SQLite.
 — implémente `std::error::Error` + `From<io::Error>` + `From<serde_json::Error>`
 
 ### `application/use_cases.rs`
-- `creer_document`, `obtenir_document`, `lister_documents`, `supprimer_document`
-- `modifier_titre_document`, `modifier_couverture_document`
-- `ajouter_bloc`, `modifier_bloc`, `supprimer_bloc`
-- `reordonner_blocs(doc_id, ordre)` — réordonne les blocs racine
-- `reordonner_blocs_enfants(doc_id, parent_id, ordre)` — réordonne les enfants d'un bloc
-- `ajouter_bloc_enfant(doc_id, parent_id, contenu)` — imbrique un bloc
-- `deplacer_bloc(doc_id, block_id, nouveau_parent_id: Option<Uuid>)` — déplace vers un parent (None = racine)
-- `sauvegarder_bloc_edite(doc_id, block_id, &EditorState)` — bridge éditeur → persistance
-- `rechercher_documents(query)` — insensible à la casse dans les titres
-- `rechercher_dans_blocs(query)` — plein texte dans le contenu des blocs (récursif)
+- `create_document`, `get_document`, `list_documents`, `delete_document`
+- `update_document_title`, `update_document_cover`
+- `add_block`, `update_block`, `delete_block`
+- `reorder_blocks(doc_id, order)` — réordonne les blocs racine
+- `reorder_child_blocks(doc_id, parent_id, order)` — réordonne les enfants d'un bloc
+- `add_child_block(doc_id, parent_id, content)` — imbrique un bloc
+- `move_block(doc_id, block_id, new_parent_id: Option<Uuid>)` — déplace vers un parent (None = racine)
+- `save_edited_block(doc_id, block_id, &EditorState)` — bridge éditeur → persistance
+- `search_documents(query)` — insensible à la casse dans les titres
+- `search_in_blocks(query)` — plein texte dans le contenu des blocs (récursif)
 
 ### `application/database_use_cases.rs`
-- `creer_database`, `obtenir_database`, `lister_databases`, `supprimer_database`
-- `ajouter_entree`, `modifier_entree`, `supprimer_entree`
-- `ajouter_propriete`, `renommer_propriete`, `supprimer_propriete` (nettoie les valeurs dans les entrées)
-- `ajouter_vue`, `modifier_vue(vue_id, filtres, tris)`, `supprimer_vue` (bloque sur la dernière)
-- `requete(db_id, vue_id)` — filtres + tris
-- `requete_avec_rollups` — requête + rollups calculés à la lecture
-- `agregat_colonne(db_id, prop_id, agregat)`
-- `requete_groupee(db_id, vue_id, grouper_par)`
-- `rechercher_entrees(db_id, query)` — insensible à la casse dans toutes les valeurs textuelles
-- `evaluer_rollups(db, entrees)` — calcul des colonnes Rollup (non persisté)
+- `create_database`, `get_database`, `list_databases`, `delete_database`
+- `add_entry`, `update_entry`, `delete_entry`
+- `add_property`, `rename_property`, `delete_property` (nettoie les valeurs dans les entrées)
+- `add_view`, `update_view(view_id, filters, sorts)`, `delete_view` (bloque sur la dernière)
+- `query(db_id, view_id)` — filtres + tris
+- `query_with_rollups` — requête + rollups calculés à la lecture
+- `column_aggregate(db_id, prop_id, aggregate)`
+- `grouped_query(db_id, view_id, group_by)`
+- `search_entries(db_id, query)` — insensible à la casse dans toutes les valeurs textuelles
+- `evaluate_rollups(db, entries)` — calcul des colonnes Rollup (non persisté)
 
 ### `infrastructure/migrations.rs`
-Migrations versionnées via `rusqlite_migration`. Deux fonctions : `appliquer_migrations_documents` et `appliquer_migrations_databases`. Chaque évolution de schéma = un `M::up()` de plus.
+Migrations versionnées via `rusqlite_migration`. Deux fonctions : `apply_document_migrations` et `apply_database_migrations`. Chaque évolution de schéma = un `M::up()` de plus.
 
 ### `infrastructure/sqlite_document_store.rs` + `sqlite_database_store.rs`
 Stockage SQLite local-first. Schéma : document-as-JSON dans une colonne `data`, avec colonnes indexées (`title_text`, `title_json`, `cover`) pour `list()` rapide sans désérialiser les blocs.
@@ -148,7 +160,7 @@ Stockage SQLite local-first. Schéma : document-as-JSON dans une colonne `data`,
 - Soft delete : `delete()` pose `deleted_at` au lieu de supprimer — données récupérables pour CRDT
 - SQLite bundlé (`features = ["bundled"]`) — pas de dépendance système, fonctionne sur iOS/Android/macOS
 - `PRAGMA journal_mode=WAL` activé pour de meilleures performances concurrentes
-- Constructeur `en_memoire()` pour les tests
+- Constructeur `in_memory()` pour les tests
 
 ### `infrastructure/json_store.rs`
 `JsonStore { dir: PathBuf }` — conservé pour compatibilité et tests existants.
@@ -240,6 +252,7 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
 - Gestion complète des propriétés (ajout, renommage, suppression)
 - Gestion complète des vues (ajout, modification filtres/tris, suppression)
 - **SQLite local-first** : `SqliteDocumentStore` + `SqliteDatabaseStore` avec soft delete, `updated_at`, migrations versionnées, WAL, retry exponentiel
+- **Crate `chaqaq` v0.1.0** : core rich text editor extrait en crate autonome, publié sur crates.io (MIT OR Apache-2.0). Cargo workspace.
 - **Couche FFI UniFFI** : `PinkhaApi` exposée à Swift en API anglaise idiomatique
 - **XCFramework** : `pinkha.xcframework` compilé (ios-arm64, ios-arm64-simulator, macos-arm64)
 - **Projet Xcode** : `app/Pinkha.xcodeproj` généré par xcodegen
@@ -295,7 +308,7 @@ Ce qui **reste** à construire :
 
 ### Langue
 - **Code en anglais** : tous les identifiants (types, fonctions, variables, champs, paramètres, méthodes FFI) en anglais idiomatique. Pas d'identifiants français (pas de `creer`, `titre`, `bloc`…).
-- **Commentaires en français** : tout commentaire, doc-comment et explication inline est en français.
+- **Commentaires en français** : tout commentaire, doc-comment et explication inline dans `pinkha` est en français. **Exception** : `crates/chaqaq` est une crate open source — ses `///` et `//!` sont en anglais (audience internationale).
 - **Chaînes utilisateur en français** : `Text("Bonjour")`, `placeholder("Titre du document")`, `accessibilityLabel("Annuler")` — restent en français car visibles par l'utilisateur final francophone.
 
 ### Conventions

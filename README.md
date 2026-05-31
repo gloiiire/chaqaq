@@ -3,8 +3,9 @@
 Application de notes personnelle combinant la fluidité de Craft et la structure de Notion — core en Rust pur.
 
 [![CI](https://github.com/gloiiire/pinkha/actions/workflows/ci.yml/badge.svg)](https://github.com/gloiiire/pinkha/actions/workflows/ci.yml)
+[![chaqaq on crates.io](https://img.shields.io/crates/v/chaqaq.svg)](https://crates.io/crates/chaqaq)
 
-> Statut : **backend Rust complet** (208 tests) · **UI SwiftUI fonctionnelle** (rich text, undo/redo, toolbar pill, drag & drop) · **XCFramework compilé** iOS + Mac
+> Statut : **backend Rust complet** (208 tests) · **UI SwiftUI fonctionnelle** (rich text, undo/redo, toolbar pill, drag & drop) · **XCFramework compilé** iOS + Mac · **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0 publié sur crates.io**
 
 ---
 
@@ -15,9 +16,34 @@ pinkha est une app de prise de notes avec deux ambitions :
 - **Beauté et fluidité** à la Craft : rendu natif, blocs riches, inline styles
 - **Structure et puissance** à la Notion : databases, vues, filtres, relations, rollups
 
-Le projet est entièrement écrit en Rust pour le core. L'objectif à terme est une publication open source — un rich text editor en Rust complet n'existe pas encore dans l'écosystème.
+Le projet est entièrement écrit en Rust pour le core. Plateformes cibles : iPhone, iPad, Mac.
 
-Plateformes cibles : iPhone, iPad, Mac.
+---
+
+## Workspace
+
+Le repo est un **Cargo workspace** avec deux crates :
+
+| Crate | Description |
+|---|---|
+| [`chaqaq`](https://crates.io/crates/chaqaq) | Core rich text editor — publié sur crates.io (MIT OR Apache-2.0) |
+| `pinkha` | Application complète — dépend de `chaqaq` |
+
+### chaqaq — crate open source
+
+`chaqaq` est le moteur d'édition inline extrait de pinkha, utilisable indépendamment dans n'importe quel projet Rust :
+
+```toml
+[dependencies]
+chaqaq = "0.1"
+```
+
+Il fournit :
+- `InlineStyle` / `InlineText` — modèle de texte riche sérialisable
+- `RichText` + `Span` — représentation d'édition (indices chars Unicode, pas bytes)
+- `EditorState` — curseur, sélection, toggle de style
+- `History` + `Command` + `Insert` / `Delete` / `ApplyStyle` — undo/redo (1 000 niveaux)
+- `parse_inline()` — parser markdown inline : `**bold**`, `_italic_`, `__underline__`, `~~strike~~`, `{color:text}`, `[label](url)`
 
 ---
 
@@ -26,18 +52,26 @@ Plateformes cibles : iPhone, iPad, Mac.
 Clean Architecture stricte — la règle de dépendance va dans un seul sens :
 
 ```
-infrastructure → application → domain
+infrastructure → application → domain → chaqaq
 ```
 
 ```
+crates/chaqaq/     — crate autonome rich text editor (MIT OR Apache-2.0)
+  src/
+    document.rs    — InlineStyle, InlineText
+    rich_text.rs   — RichText + Span
+    editor.rs      — EditorState
+    commands.rs    — Command, Insert, Delete, ApplyStyle, History
+    parser.rs      — parse_inline()
+
 src/
   domain/
-    document.rs       — types de base (InlineStyle, Block, Document, DocumentMeta)
-    parser.rs         — parser inline markdown-like
-    rich_text.rs      — RichText : string plate + spans pour l'édition
-    editor.rs         — EditorState : curseur, sélection, toggle style
-    commandes.rs      — Command pattern : undo/redo (capacité 1000)
-    database.rs       — moteur database type Notion
+    document.rs    — re-exporte InlineStyle/InlineText + Block, Document, DocumentMeta
+    parser.rs      — re-exporte parse_inline
+    rich_text.rs   — re-exporte RichText, Span
+    editor.rs      — re-exporte EditorState
+    commandes.rs   — re-exporte Command, Insert, Delete, ApplyStyle, History
+    database.rs    — moteur database type Notion
   application/
     repository.rs          — trait DocumentRepository
     use_cases.rs           — use cases documents et blocs
@@ -75,8 +109,8 @@ app/                 — application SwiftUI
 - **CRUD complet** : créer, modifier, supprimer, réordonner, déplacer entre parents
 - **Métadonnées légères** (`DocumentMeta`) — listing rapide sans charger les blocs, avec `updated_at`
 - **Rich text editor in-memory** : `RichText` + `EditorState` (curseur, sélection, toggle de style)
-- **Undo/redo** : pattern Command, capacité 1000 (`Historique`)
-- **Database type Notion** : propriétés (Titre, Texte, Nombre, Sélection, Date, Case, URL, Relation, Rollup), vues (Tableau, Kanban, Calendrier, Galerie), filtres, tris, groupes, rollups calculés à la lecture
+- **Undo/redo** : pattern Command, capacité 1000 (`History`)
+- **Database type Notion** : propriétés (Title, Text, Number, Selection, Date, Checkbox, URL, Relation, Rollup), vues (Table, Kanban, Calendar, Gallery), filtres, tris, groupes, rollups calculés à la lecture
 - **Recherche** : titre, full-text dans les blocs (récursif), valeurs textuelles des entrées de database
 - **Stockage local-first SQLite** : document-as-JSON + colonnes indexées pour le listing, soft delete, `updated_at`, migrations versionnées, WAL pour la concurrence, retry exponential backoff sur erreurs transitoires
 - **Erreurs typées** (`PinkhaError`) : `NotFound`, `InvalidOperation`, `Io`, `Json`, `Db` — jamais de `unwrap()` en production
@@ -105,8 +139,8 @@ app/                 — application SwiftUI
 ```bash
 # Backend Rust
 cargo run     # point d'entrée démo
-cargo test    # 208 tests Rust (unitaires + intégration + E2E)
-cargo check   # vérification rapide
+cargo test    # tous les tests Rust (unitaires + intégration + E2E)
+cargo test -p chaqaq   # tests du crate chaqaq uniquement
 
 # Régénérer les bindings Swift après modification de ffi.rs ou pinkha.udl
 cargo build
@@ -116,16 +150,18 @@ cargo run --bin uniffi-bindgen -- generate \
 
 # Recompiler le XCFramework (après modification du code Rust)
 ./build-xcframework.sh         # release par défaut
-./build-xcframework.sh debug   # build plus rapide pour itérer
 
 # App iOS (ouvrir dans Xcode)
-cd app && xcodegen generate    # régénère le .xcodeproj si besoin
 open app/Pinkha.xcodeproj
 
 # Tests Swift complets (nécessite simulateur booté)
 xcodebuild test -project app/Pinkha.xcodeproj -scheme Pinkha \
     -destination 'id=<UDID>' \
     -only-testing:PinkhaTests -only-testing:PinkhaIntegrationTests
+
+# Publier une nouvelle version de chaqaq
+# (bumper la version dans crates/chaqaq/Cargo.toml d'abord)
+cd crates/chaqaq && cargo publish
 ```
 
 ---
@@ -142,14 +178,6 @@ perf/**    ─┘
 ```
 
 3 branches permanentes : `master` (prod), `staging` (QA), `dev` (intégration). Les branches éphémères sont créées depuis `dev` et supprimées après merge.
-
-Setup des alias git :
-
-```bash
-./scripts/setup-aliases.sh
-```
-
-Ajoute : `git new-feature <nom>`, `git new-fix <nom>`, `git promote-staging`, `git promote-master`, `git cleanup-merged`.
 
 Cf. la section "Git workflow" de [CLAUDE.md](CLAUDE.md) pour le détail des règles.
 
@@ -183,6 +211,8 @@ Cf. la section "Git workflow" de [CLAUDE.md](CLAUDE.md) pour le détail des règ
 - [x] Undo/redo complet UI (1000 niveaux, burst typing, toolbar + pill bas)
 - [x] Performance : persist différé, cache spans, cache boutons undo
 - [x] CI Rust, branch protection, Dependabot, Secret Scanning
+- [x] Refactor identifiants Rust → anglais (prérequis open source)
+- [x] **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0** — core rich text editor publié sur crates.io (MIT OR Apache-2.0)
 
 ### Reste à construire
 - [ ] UI Databases (vue Tableau, Kanban — backend complet)
@@ -197,6 +227,7 @@ Cf. la section "Git workflow" de [CLAUDE.md](CLAUDE.md) pour le détail des règ
 
 | Crate / outil | Rôle |
 |---|---|
+| [`chaqaq`](https://crates.io/crates/chaqaq) | Rich text editor core (workspace local) |
 | `serde` + `serde_json` | Sérialisation / persistance JSON |
 | `uuid` | Identifiants uniques |
 | `chrono` | Timestamps ISO 8601 |
@@ -210,4 +241,5 @@ Cf. la section "Git workflow" de [CLAUDE.md](CLAUDE.md) pour le détail des règ
 
 ## Licence
 
-À définir (probablement MIT ou Apache 2.0 pour l'ouverture open source).
+- **pinkha** : à définir
+- **[chaqaq](https://crates.io/crates/chaqaq)** : MIT OR Apache-2.0
