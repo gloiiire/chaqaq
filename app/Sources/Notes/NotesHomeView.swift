@@ -22,7 +22,7 @@ struct NotesHomeView: View {
                         WelcomeHeader(greeting: greeting)
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets())
+                            .listRowInsets(EdgeInsets(top: 11, leading: 0, bottom: 11, trailing: 0))
                     }
 
                     // ── Strip récents (uniquement quand des documents existent) ──
