@@ -7,7 +7,7 @@ struct DocumentTitleView: View {
     @Binding var title: String
     @Binding var focusDemande: Bool
     let onSave: () -> Void
-    let onNewBlock: () -> Void
+    let onNewBlock: (String) -> Void
     @State private var focused = false
 
     var body: some View {
@@ -29,7 +29,7 @@ private struct TitleEditor: UIViewRepresentable {
     @Binding var isFocused: Bool
     @Environment(\.isEnabled) private var isEnabled
     let onSave: () -> Void
-    let onNewBlock: () -> Void
+    let onNewBlock: (String) -> Void
 
     private let police = UIFont.systemFont(ofSize: 32, weight: .bold)
 
@@ -110,12 +110,15 @@ private struct TitleEditor: UIViewRepresentable {
 
         func textViewDidChange(_ tv: UITextView) {
             guard let text = tv.text else { return }
-            // Enter in the title: remove the newline and create the first block.
+            // Enter in the title: keep text before the newline as title,
+            // move text after the newline into a new block below.
             if let idx = text.firstIndex(of: "\n") {
-                tv.text = String(text[text.startIndex..<idx])
-                parent.text = tv.text
+                let before = String(text[text.startIndex..<idx])
+                let after  = String(text[text.index(after: idx)...])
+                tv.text = before
+                parent.text = before
                 parent.onSave()
-                parent.onNewBlock()
+                parent.onNewBlock(after)
                 return
             }
             parent.text = text
