@@ -240,6 +240,34 @@ Ce qui **reste** à construire :
 3. Vue iPad / Mac (NavigationSplitView)
 4. Sync entre appareils (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
 
+## Git workflow
+
+### Branches permanentes
+- `master` — production. Tout ce qui est ici doit être stable, testé, releasable.
+- `staging` — pré-prod / QA. Promu depuis `dev` quand un lot de features est prêt à tester.
+- `dev` — intégration. Toutes les features/fixes y sont mergées avant promotion.
+
+### Branches éphémères (à créer puis supprimer après merge)
+- `feature/<nom-court>` — nouvelle feature
+- `fix/<nom-court>` — bug fix
+- `refactor/<nom-court>` — refactoring sans changement de comportement
+- `docs/<nom-court>` — modifications de documentation uniquement
+- `chore/<nom-court>` — maintenance (deps, CI, tooling…)
+- `perf/<nom-court>` — optimisation de performance ciblée
+
+### Flow
+1. `git checkout dev && git pull` puis `git checkout -b feature/ma-feature`
+2. Commits sur la branche, PR vers `dev`
+3. Merge dans `dev` → la branche éphémère est supprimée (remote + local)
+4. Quand `dev` est stable : merge `dev` → `staging` pour QA
+5. Quand `staging` est validée : merge `staging` → `master` (= release)
+
+### Règles
+- **Ne jamais commit directement sur master, staging, ou dev** — toujours via PR depuis une branche éphémère.
+- **Nommage en kebab-case** : `feature/undo-redo-toolbar`, pas `feature/UndoRedo` ni `feature/undo_redo`.
+- **Une branche = une intention** : ne pas mélanger feature + fix + refactor dans la même branche.
+- **Supprimer les branches mergées** (remote ET local) — éviter l'accumulation.
+
 ## Code style
 
 ### Langue
