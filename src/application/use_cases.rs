@@ -1,25 +1,25 @@
-use crate::application::error::ChaqaqError;
+use crate::application::error::PinkhaError;
 use crate::application::repository::DocumentRepository;
 use crate::domain::document::{Block, BlockContent, Document, DocumentMeta, InlineText};
 use crate::domain::editor::EditorState;
 use crate::domain::parser::parse_inline;
 use uuid::Uuid;
 
-pub fn create_document(repo: &dyn DocumentRepository, title: &str) -> Result<Document, ChaqaqError> {
+pub fn create_document(repo: &dyn DocumentRepository, title: &str) -> Result<Document, PinkhaError> {
     let doc = Document::new(parse_inline(title));
     repo.save(&doc)?;
     Ok(doc)
 }
 
-pub fn get_document(repo: &dyn DocumentRepository, id: Uuid) -> Result<Document, ChaqaqError> {
+pub fn get_document(repo: &dyn DocumentRepository, id: Uuid) -> Result<Document, PinkhaError> {
     repo.load(id)
 }
 
-pub fn list_documents(repo: &dyn DocumentRepository) -> Result<Vec<DocumentMeta>, ChaqaqError> {
+pub fn list_documents(repo: &dyn DocumentRepository) -> Result<Vec<DocumentMeta>, PinkhaError> {
     repo.list()
 }
 
-pub fn delete_document(repo: &dyn DocumentRepository, doc_id: Uuid) -> Result<(), ChaqaqError> {
+pub fn delete_document(repo: &dyn DocumentRepository, doc_id: Uuid) -> Result<(), PinkhaError> {
     repo.delete(doc_id)
 }
 
@@ -27,7 +27,7 @@ pub fn add_block(
     repo: &dyn DocumentRepository,
     id: Uuid,
     content: BlockContent,
-) -> Result<Document, ChaqaqError> {
+) -> Result<Document, PinkhaError> {
     let mut doc = repo.load(id)?;
     doc.add_block(content);
     repo.save(&doc)?;
@@ -40,7 +40,7 @@ pub fn update_document_title(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
     new_title: &str,
-) -> Result<(), ChaqaqError> {
+) -> Result<(), PinkhaError> {
     let mut doc = repo.load(doc_id)?;
     doc.title = parse_inline(new_title);
     repo.save(&doc)
@@ -50,7 +50,7 @@ pub fn update_document_cover(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
     cover: Option<String>,
-) -> Result<(), ChaqaqError> {
+) -> Result<(), PinkhaError> {
     let mut doc = repo.load(doc_id)?;
     doc.cover = cover;
     repo.save(&doc)
@@ -65,11 +65,11 @@ pub fn save_edited_block(
     doc_id: Uuid,
     block_id: Uuid,
     etat: &EditorState,
-) -> Result<(), ChaqaqError> {
+) -> Result<(), PinkhaError> {
     let mut doc = repo.load(doc_id)?;
     let inlines: Vec<InlineText> = Vec::from(&etat.texte);
     let bloc =
-        find_block_mut(&mut doc.blocks, block_id).ok_or(ChaqaqError::NotFound(block_id))?;
+        find_block_mut(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
 
     bloc.content = match &bloc.content {
         BlockContent::Text(_) => BlockContent::Text(inlines),
@@ -86,7 +86,7 @@ pub fn save_edited_block(
             done: *done,
         },
         _ => {
-            return Err(ChaqaqError::InvalidOperation(format!(
+            return Err(PinkhaError::InvalidOperation(format!(
                 "le bloc {block_id} ne contient pas de texte éditable"
             )));
         }
@@ -102,10 +102,10 @@ pub fn update_block(
     doc_id: Uuid,
     block_id: Uuid,
     new_content: BlockContent,
-) -> Result<(), ChaqaqError> {
+) -> Result<(), PinkhaError> {
     let mut doc = repo.load(doc_id)?;
     let bloc =
-        find_block_mut(&mut doc.blocks, block_id).ok_or(ChaqaqError::NotFound(block_id))?;
+        find_block_mut(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
     bloc.content = new_content;
     repo.save(&doc)
 }
@@ -115,10 +115,10 @@ pub fn delete_block(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
     block_id: Uuid,
-) -> Result<(), ChaqaqError> {
+) -> Result<(), PinkhaError> {
     let mut doc = repo.load(doc_id)?;
     if !delete_from_tree(&mut doc.blocks, block_id) {
-        return Err(ChaqaqError::NotFound(block_id));
+        return Err(PinkhaError::NotFound(block_id));
     }
     repo.save(&doc)
 }
@@ -129,7 +129,7 @@ pub fn reorder_blocks(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
     order: Vec<Uuid>,
-) -> Result<(), ChaqaqError> {
+) -> Result<(), PinkhaError> {
     let mut doc = repo.load(doc_id)?;
     let mut reordonnés: Vec<Block> = Vec::with_capacity(doc.blocks.len());
     for id in &order {
@@ -148,10 +148,10 @@ pub fn add_child_block(
     doc_id: Uuid,
     parent_id: Uuid,
     content: BlockContent,
-) -> Result<Block, ChaqaqError> {
+) -> Result<Block, PinkhaError> {
     let mut doc = repo.load(doc_id)?;
     let parent =
-        find_block_mut(&mut doc.blocks, parent_id).ok_or(ChaqaqError::NotFound(parent_id))?;
+        find_block_mut(&mut doc.blocks, parent_id).ok_or(PinkhaError::NotFound(parent_id))?;
     let enfant = Block::new(content);
     parent.children.push(enfant.clone());
     repo.save(&doc)?;
@@ -164,7 +164,7 @@ pub fn add_child_block(
 pub fn search_documents(
     repo: &dyn DocumentRepository,
     query: &str,
-) -> Result<Vec<DocumentMeta>, ChaqaqError> {
+) -> Result<Vec<DocumentMeta>, PinkhaError> {
     let q = query.to_lowercase();
     Ok(repo
         .list()?
@@ -242,10 +242,10 @@ pub fn reorder_child_blocks(
     doc_id: Uuid,
     parent_id: Uuid,
     order: Vec<Uuid>,
-) -> Result<(), ChaqaqError> {
+) -> Result<(), PinkhaError> {
     let mut doc = repo.load(doc_id)?;
     let parent =
-        find_block_mut(&mut doc.blocks, parent_id).ok_or(ChaqaqError::NotFound(parent_id))?;
+        find_block_mut(&mut doc.blocks, parent_id).ok_or(PinkhaError::NotFound(parent_id))?;
     let mut reordonnes: Vec<Block> = Vec::with_capacity(parent.children.len());
     for id in &order {
         if let Some(pos) = parent.children.iter().position(|b| b.id == *id) {
@@ -264,19 +264,19 @@ pub fn move_block(
     doc_id: Uuid,
     block_id: Uuid,
     new_parent_id: Option<Uuid>,
-) -> Result<(), ChaqaqError> {
+) -> Result<(), PinkhaError> {
     if new_parent_id == Some(block_id) {
-        return Err(ChaqaqError::InvalidOperation(
+        return Err(PinkhaError::InvalidOperation(
             "impossible de déplacer un bloc dans lui-même".to_string(),
         ));
     }
     let mut doc = repo.load(doc_id)?;
-    let bloc = extract_block(&mut doc.blocks, block_id).ok_or(ChaqaqError::NotFound(block_id))?;
+    let bloc = extract_block(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
     match new_parent_id {
         None => doc.blocks.push(bloc),
         Some(parent_id) => {
             let parent = find_block_mut(&mut doc.blocks, parent_id)
-                .ok_or(ChaqaqError::NotFound(parent_id))?;
+                .ok_or(PinkhaError::NotFound(parent_id))?;
             parent.children.push(bloc);
         }
     }
@@ -290,7 +290,7 @@ pub fn move_block(
 pub fn search_in_blocks(
     repo: &dyn DocumentRepository,
     query: &str,
-) -> Result<Vec<DocumentMeta>, ChaqaqError> {
+) -> Result<Vec<DocumentMeta>, PinkhaError> {
     let q = query.to_lowercase();
     let metas = repo.list()?;
     let mut resultats = Vec::new();
@@ -323,18 +323,18 @@ mod tests {
     }
 
     impl DocumentRepository for MockRepo {
-        fn save(&self, doc: &Document) -> Result<(), ChaqaqError> {
+        fn save(&self, doc: &Document) -> Result<(), PinkhaError> {
             self.docs.borrow_mut().insert(doc.id, doc.clone());
             Ok(())
         }
-        fn load(&self, id: Uuid) -> Result<Document, ChaqaqError> {
+        fn load(&self, id: Uuid) -> Result<Document, PinkhaError> {
             self.docs
                 .borrow()
                 .get(&id)
                 .cloned()
-                .ok_or(ChaqaqError::NotFound(id))
+                .ok_or(PinkhaError::NotFound(id))
         }
-        fn list(&self) -> Result<Vec<DocumentMeta>, ChaqaqError> {
+        fn list(&self) -> Result<Vec<DocumentMeta>, PinkhaError> {
             Ok(self
                 .docs
                 .borrow()
@@ -342,12 +342,12 @@ mod tests {
                 .map(DocumentMeta::from)
                 .collect())
         }
-        fn delete(&self, id: Uuid) -> Result<(), ChaqaqError> {
+        fn delete(&self, id: Uuid) -> Result<(), PinkhaError> {
             self.docs
                 .borrow_mut()
                 .remove(&id)
                 .map(|_| ())
-                .ok_or(ChaqaqError::NotFound(id))
+                .ok_or(PinkhaError::NotFound(id))
         }
     }
 
@@ -448,7 +448,7 @@ mod tests {
         repo.save(&doc).unwrap();
 
         let res = move_block(&repo, doc.id, block_id, Some(block_id));
-        assert!(matches!(res, Err(ChaqaqError::InvalidOperation(_))));
+        assert!(matches!(res, Err(PinkhaError::InvalidOperation(_))));
     }
 
     #[test]

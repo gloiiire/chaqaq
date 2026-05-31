@@ -1,5 +1,5 @@
 import Testing
-@testable import Chaqaq
+@testable import Pinkha
 
 @Suite("markdownShortcut — conversion raccourcis Notion")
 struct MarkdownShortcutTests {

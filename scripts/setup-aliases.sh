@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Configure les alias git locaux du repo chaqaq.
+# Configure les alias git locaux du repo pinkha.
 # Usage : ./scripts/setup-aliases.sh
 # Idempotent : peut être ré-exécuté pour mettre à jour les alias.
 
@@ -7,7 +7,7 @@ set -e
 
 # Vérifie qu'on est bien dans un repo git.
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
-    echo "Erreur : à exécuter depuis la racine du repo git chaqaq."
+    echo "Erreur : à exécuter depuis la racine du repo git pinkha."
     exit 1
 fi
 

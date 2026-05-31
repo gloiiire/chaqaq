@@ -1,6 +1,6 @@
 import Testing
 import UIKit
-@testable import Chaqaq
+@testable import Pinkha
 
 @Suite("uiColorFromName — mapping nom de couleur → UIColor")
 struct UIColorFromNameTests {
@@ -75,13 +75,13 @@ struct FontWithTraitsTests {
     }
 }
 
-@Suite("Attribut custom chaqaqColor")
-struct ChaqaqColorAttributeTests {
+@Suite("Attribut custom pinkhaColor")
+struct PinkhaColorAttributeTests {
 
     @Test func keyIsConsistentAcrossUses() {
-        let key1 = NSAttributedString.Key.chaqaqColor
-        let key2 = NSAttributedString.Key.chaqaqColor
+        let key1 = NSAttributedString.Key.pinkhaColor
+        let key2 = NSAttributedString.Key.pinkhaColor
         #expect(key1 == key2)
-        #expect(key1.rawValue == "com.chaqaq.color")
+        #expect(key1.rawValue == "com.pinkha.color")
     }
 }

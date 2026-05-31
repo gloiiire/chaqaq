@@ -1,16 +1,16 @@
 import Testing
 import Foundation
-@testable import Chaqaq
+@testable import Pinkha
 
-// Tests d'intégration : opérations sur les blocs via la vraie ChaqaqApi.
+// Tests d'intégration : opérations sur les blocs via la vraie PinkhaApi.
 
 @Suite("Blocs — cycle de vie via FFI")
 struct BlockOpsTests {
 
-    private func makeApi() throws -> (ChaqaqApi, URL, String) {
+    private func makeApi() throws -> (PinkhaApi, URL, String) {
         let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chaqaq_blocks_\(UUID().uuidString).db")
-        let api = try ChaqaqApi(dbPath: tmp.path)
+            .appendingPathComponent("pinkha_blocks_\(UUID().uuidString).db")
+        let api = try PinkhaApi(dbPath: tmp.path)
         let docId = try api.createDocument(title: "Test")
         return (api, tmp, docId)
     }

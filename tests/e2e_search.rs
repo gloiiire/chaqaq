@@ -1,16 +1,16 @@
-use chaqaq::application::database_use_cases::{add_entry, create_database, search_entries};
-use chaqaq::application::use_cases::{create_document, search_documents};
-use chaqaq::domain::database::{Property, PropertyType, PropertyValue};
-use chaqaq::domain::document::InlineText;
-use chaqaq::infrastructure::database_store::DatabaseStore;
-use chaqaq::infrastructure::json_store::JsonStore;
+use pinkha::application::database_use_cases::{add_entry, create_database, search_entries};
+use pinkha::application::use_cases::{create_document, search_documents};
+use pinkha::domain::database::{Property, PropertyType, PropertyValue};
+use pinkha::domain::document::InlineText;
+use pinkha::infrastructure::database_store::DatabaseStore;
+use pinkha::infrastructure::json_store::JsonStore;
 use std::collections::HashMap;
 use uuid::Uuid;
 
 fn stores_temp() -> (JsonStore, DatabaseStore) {
     let id = Uuid::new_v4();
-    let doc_dir = std::env::temp_dir().join(format!("chaqaq_e2e_search_doc_{id}"));
-    let db_dir = std::env::temp_dir().join(format!("chaqaq_e2e_search_db_{id}"));
+    let doc_dir = std::env::temp_dir().join(format!("pinkha_e2e_search_doc_{id}"));
+    let db_dir = std::env::temp_dir().join(format!("pinkha_e2e_search_db_{id}"));
     std::fs::create_dir_all(&doc_dir).unwrap();
     (
         JsonStore::new(doc_dir),

@@ -11,7 +11,7 @@ TARGETS=(
     "aarch64-apple-darwin"
 )
 
-echo "=== chaqaq XCFramework ($PROFILE) ==="
+echo "=== pinkha XCFramework ($PROFILE) ==="
 
 # 1. Installer les targets Rust manquantes
 echo ""
@@ -31,21 +31,21 @@ done
 HDR="target/xcframework-headers"
 rm -rf "$HDR"
 mkdir -p "$HDR"
-cp swift-bindings/chaqaqFFI.h "$HDR/"
-cp swift-bindings/chaqaqFFI.modulemap "$HDR/module.modulemap"
+cp swift-bindings/pinkhaFFI.h "$HDR/"
+cp swift-bindings/pinkhaFFI.modulemap "$HDR/module.modulemap"
 
 # 4. Assembler le XCFramework
-OUTPUT="chaqaq.xcframework"
+OUTPUT="pinkha.xcframework"
 rm -rf "$OUTPUT"
 
 echo ""
 echo "→ Assemblage du XCFramework..."
 xcodebuild -create-xcframework \
-    -library "target/aarch64-apple-ios/$PROFILE/libchaqaq.a" \
+    -library "target/aarch64-apple-ios/$PROFILE/libpinkha.a" \
     -headers "$HDR" \
-    -library "target/aarch64-apple-ios-sim/$PROFILE/libchaqaq.a" \
+    -library "target/aarch64-apple-ios-sim/$PROFILE/libpinkha.a" \
     -headers "$HDR" \
-    -library "target/aarch64-apple-darwin/$PROFILE/libchaqaq.a" \
+    -library "target/aarch64-apple-darwin/$PROFILE/libpinkha.a" \
     -headers "$HDR" \
     -output "$OUTPUT"
 

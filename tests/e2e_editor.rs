@@ -1,17 +1,17 @@
 /// Flux complet : création d'un document → édition du title avec l'éditeur
 /// → sauvegarde → rechargement → vérification.
-use chaqaq::application::repository::DocumentRepository;
-use chaqaq::application::use_cases::{create_document, get_document};
-use chaqaq::domain::commandes::{AppliquerStyle, Historique, Inserer};
-use chaqaq::domain::document::InlineStyle;
-use chaqaq::domain::editor::EditorState;
-use chaqaq::domain::rich_text::RichText;
-use chaqaq::infrastructure::json_store::JsonStore;
+use pinkha::application::repository::DocumentRepository;
+use pinkha::application::use_cases::{create_document, get_document};
+use pinkha::domain::commandes::{AppliquerStyle, Historique, Inserer};
+use pinkha::domain::document::InlineStyle;
+use pinkha::domain::editor::EditorState;
+use pinkha::domain::rich_text::RichText;
+use pinkha::infrastructure::json_store::JsonStore;
 use std::path::PathBuf;
 use uuid::Uuid;
 
 fn store_temp() -> (JsonStore, PathBuf) {
-    let dir = std::env::temp_dir().join(format!("chaqaq_e2e_editor_{}", Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("pinkha_e2e_editor_{}", Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
     (JsonStore::new(dir.clone()), dir)
 }

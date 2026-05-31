@@ -1,25 +1,25 @@
-use chaqaq::application::database_use_cases::{
+use pinkha::application::database_use_cases::{
     add_entry, create_database, list_databases, get_database, delete_database,
 };
-use chaqaq::application::error::ChaqaqError;
-use chaqaq::application::use_cases::{
+use pinkha::application::error::PinkhaError;
+use pinkha::application::use_cases::{
     add_block, create_document, list_documents, get_document, delete_document,
 };
-use chaqaq::domain::database::{Property, PropertyType, PropertyValue};
-use chaqaq::domain::document::{BlockContent, InlineText};
-use chaqaq::infrastructure::database_store::DatabaseStore;
-use chaqaq::infrastructure::json_store::JsonStore;
+use pinkha::domain::database::{Property, PropertyType, PropertyValue};
+use pinkha::domain::document::{BlockContent, InlineText};
+use pinkha::infrastructure::database_store::DatabaseStore;
+use pinkha::infrastructure::json_store::JsonStore;
 use std::collections::HashMap;
 use uuid::Uuid;
 
 fn doc_store_temp() -> JsonStore {
-    let dir = std::env::temp_dir().join(format!("chaqaq_e2e_del_doc_{}", Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("pinkha_e2e_del_doc_{}", Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
     JsonStore::new(dir)
 }
 
 fn db_store_temp() -> DatabaseStore {
-    let dir = std::env::temp_dir().join(format!("chaqaq_e2e_del_db_{}", Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("pinkha_e2e_del_db_{}", Uuid::new_v4()));
     DatabaseStore::nouveau(dir).unwrap()
 }
 
@@ -52,7 +52,7 @@ fn test_flux_suppression_document() {
     // B est inaccessible
     assert!(matches!(
         get_document(&store, doc_b.id),
-        Err(ChaqaqError::NotFound(_))
+        Err(PinkhaError::NotFound(_))
     ));
 
     // A et C sont intacts
@@ -87,7 +87,7 @@ fn test_flux_suppression_database() {
     // Archive est inaccessible
     assert!(matches!(
         get_database(&store, db_a.id),
-        Err(ChaqaqError::NotFound(_))
+        Err(PinkhaError::NotFound(_))
     ));
 
     // Active reste intacte
@@ -107,5 +107,5 @@ fn test_double_suppression_retourne_erreur() {
 
     delete_document(&store, doc.id).unwrap();
     let result = delete_document(&store, doc.id);
-    assert!(matches!(result, Err(ChaqaqError::NotFound(_))));
+    assert!(matches!(result, Err(PinkhaError::NotFound(_))));
 }

@@ -1,16 +1,16 @@
 import Testing
 import Foundation
-@testable import Chaqaq
+@testable import Pinkha
 
 // Tests FFI databases : même si l'UI n'existe pas encore, l'API doit fonctionner.
 
-@Suite("ChaqaqApi — databases (FFI exposée, UI à venir)")
+@Suite("PinkhaApi — databases (FFI exposée, UI à venir)")
 struct DatabaseApiTests {
 
-    private func makeApi() throws -> (ChaqaqApi, URL) {
+    private func makeApi() throws -> (PinkhaApi, URL) {
         let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chaqaq_db_\(UUID().uuidString).db")
-        return (try ChaqaqApi(dbPath: tmp.path), tmp)
+            .appendingPathComponent("pinkha_db_\(UUID().uuidString).db")
+        return (try PinkhaApi(dbPath: tmp.path), tmp)
     }
 
     @Test func createDatabaseReturnsUuid() throws {

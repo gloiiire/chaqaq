@@ -1,5 +1,5 @@
-module chaqaqFFI {
-    header "chaqaqFFI.h"
+module pinkhaFFI {
+    header "pinkhaFFI.h"
     export *
     use "Darwin"
     use "_Builtin_stdbool"

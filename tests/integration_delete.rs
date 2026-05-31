@@ -1,22 +1,22 @@
-use chaqaq::application::database_use_cases::{
+use pinkha::application::database_use_cases::{
     create_database, get_database, delete_database,
 };
-use chaqaq::application::error::ChaqaqError;
-use chaqaq::application::use_cases::{create_document, get_document, delete_document};
-use chaqaq::domain::database::{Property, PropertyType};
-use chaqaq::domain::document::InlineText;
-use chaqaq::infrastructure::database_store::DatabaseStore;
-use chaqaq::infrastructure::json_store::JsonStore;
+use pinkha::application::error::PinkhaError;
+use pinkha::application::use_cases::{create_document, get_document, delete_document};
+use pinkha::domain::database::{Property, PropertyType};
+use pinkha::domain::document::InlineText;
+use pinkha::infrastructure::database_store::DatabaseStore;
+use pinkha::infrastructure::json_store::JsonStore;
 use uuid::Uuid;
 
 fn doc_store_temp() -> JsonStore {
-    let dir = std::env::temp_dir().join(format!("chaqaq_del_doc_{}", Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("pinkha_del_doc_{}", Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
     JsonStore::new(dir)
 }
 
 fn db_store_temp() -> DatabaseStore {
-    let dir = std::env::temp_dir().join(format!("chaqaq_del_db_{}", Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("pinkha_del_db_{}", Uuid::new_v4()));
     DatabaseStore::nouveau(dir).unwrap()
 }
 
@@ -39,7 +39,7 @@ fn test_delete_document_existant() {
 
     assert!(matches!(
         get_document(&store, id),
-        Err(ChaqaqError::NotFound(_))
+        Err(PinkhaError::NotFound(_))
     ));
 }
 
@@ -49,7 +49,7 @@ fn test_delete_document_inexistant_retourne_non_trouve() {
     let faux_id = Uuid::new_v4();
 
     let result = delete_document(&store, faux_id);
-    assert!(matches!(result, Err(ChaqaqError::NotFound(_))));
+    assert!(matches!(result, Err(PinkhaError::NotFound(_))));
 }
 
 #[test]
@@ -62,7 +62,7 @@ fn test_delete_document_ne_supprime_pas_les_autres() {
 
     assert!(matches!(
         get_document(&store, doc_a.id),
-        Err(ChaqaqError::NotFound(_))
+        Err(PinkhaError::NotFound(_))
     ));
     assert!(get_document(&store, doc_b.id).is_ok());
 }
@@ -80,7 +80,7 @@ fn test_delete_database_existante() {
 
     assert!(matches!(
         get_database(&store, id),
-        Err(ChaqaqError::NotFound(_))
+        Err(PinkhaError::NotFound(_))
     ));
 }
 
@@ -90,7 +90,7 @@ fn test_delete_database_inexistante_retourne_non_trouve() {
     let faux_id = Uuid::new_v4();
 
     let result = delete_database(&store, faux_id);
-    assert!(matches!(result, Err(ChaqaqError::NotFound(_))));
+    assert!(matches!(result, Err(PinkhaError::NotFound(_))));
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn test_delete_database_ne_supprime_pas_les_autres() {
 
     assert!(matches!(
         get_database(&store, db_a.id),
-        Err(ChaqaqError::NotFound(_))
+        Err(PinkhaError::NotFound(_))
     ));
     assert!(get_database(&store, db_b.id).is_ok());
 }
