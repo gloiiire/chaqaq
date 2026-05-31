@@ -30,7 +30,7 @@ private extension View {
 
 // ── Modèle éditable ───────────────────────────────────────────────────────────
 
-struct EditableBlock: Identifiable {
+struct EditableBlock: Identifiable, Equatable {
     let id: String
     var content: BlockContentFfi
     var spans: [InlineTextFfi]
@@ -169,7 +169,9 @@ final class DocumentViewModel: ObservableObject {
         blockSnapshots[block.id] = snapshotOf(block)
     }
 
-    /// Flush le burst d'un bloc : enregistre l'undo avec l'anchor capturé.
+    /// Flush le burst d'un bloc : persiste le résultat et enregistre l'undo
+    /// avec l'anchor capturé. Appelé par le timer du burst, sur switch de
+    /// bloc, ou via `persistBlock` (mutation structurelle).
     private func flushBurst(blockId: String) {
         guard let anchor = blockBurstAnchor[blockId] else { return }
         let current = blockSnapshots[blockId]
@@ -180,6 +182,9 @@ final class DocumentViewModel: ObservableObject {
             burstFlushWork = nil
         }
         guard let current, anchor != current else { return }
+        if let idx = blocks.firstIndex(where: { $0.id == blockId }) {
+            persistBlockRaw(blocks[idx])
+        }
         undoMgr.registerUndo(withTarget: self) { vm in
             vm.applyBlockSnapshot(blockId: blockId, snapshot: anchor)
         }
@@ -285,11 +290,12 @@ final class DocumentViewModel: ObservableObject {
     }
 
     /// Save appelé à chaque frappe (RichTextEditor → save() → onSaveSpans).
-    /// Gère le burst undo : une rafale continue de saveBlock sur le même bloc
-    /// = 1 seule étape undo, finalisée après `burstInterval` d'inactivité.
+    /// Gère uniquement la state in-memory et le tracking du burst undo : la
+    /// persistance SQLite est repoussée à `flushBurst` (1 write max par burst)
+    /// pour éviter de saturer l'I/O à chaque caractère.
     func saveBlock(_ block: EditableBlock) {
         let id = block.id
-        // Si on tape dans un autre bloc, on flush l'ancien burst d'abord.
+        // Si on tape dans un autre bloc, on flush l'ancien burst (qui persiste).
         if let prevId = burstFlushBlockId, prevId != id {
             flushBurst(blockId: prevId)
         }
@@ -297,11 +303,10 @@ final class DocumentViewModel: ObservableObject {
         if blockBurstAnchor[id] == nil, let baseline = blockSnapshots[id] {
             blockBurstAnchor[id] = baseline
         }
-        persistBlockRaw(block)
         // Le snapshot stable suit la state actuelle (post-changement).
         blockSnapshots[id] = snapshotOf(block)
         burstFlushBlockId = id
-        // Debounce : pas de saveBlock pendant burstInterval → flush.
+        // Debounce : pas de saveBlock pendant burstInterval → flush + persist.
         burstFlushWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
             self?.flushBurst(blockId: id)
@@ -370,6 +375,8 @@ final class DocumentViewModel: ObservableObject {
     /// Recrée un bloc supprimé : passe par l'API (nouveau UUID) puis réordonne
     /// pour le placer à sa position d'origine. Le UUID change entre undo cycles
     /// mais le contenu est préservé — comportement standard d'undo iOS.
+    /// Focus auto sur le bloc restauré (curseur en fin de texte) — UX standard
+    /// quand l'utilisateur undo une suppression.
     private func reinsertBlock(_ block: EditableBlock, at index: Int) {
         do {
             let content = block.content.withSpans(block.spans, done: block.done)
@@ -382,6 +389,8 @@ final class DocumentViewModel: ObservableObject {
             blocks.insert(recreated, at: safeIndex)
             try api.reorderBlocks(docId: docId, order: blocks.map(\.id))
             blockSnapshots[newId] = snapshotOf(recreated)
+            autoFocusOffset = nil
+            autoFocusId = newId
             // Redo : re-supprimer ce bloc.
             undoMgr.registerUndo(withTarget: self) { vm in vm.deleteBlock(id: newId) }
         } catch { errorMessage = error.localizedDescription }

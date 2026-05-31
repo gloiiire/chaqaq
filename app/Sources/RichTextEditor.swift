@@ -288,6 +288,7 @@ struct RichTextEditor: UIViewRepresentable {
         tv.onShiftEnter = { [weak coord] in
             coord?.shiftEnterTyped = true
             coord?.tv?.insertText("\n")
+            coord?.shiftEnterTyped = false
         }
         tv.onToggleBold      = { [weak coord] in coord?.toggleBold() }
         tv.onToggleItalic    = { [weak coord] in coord?.toggleItalic() }
@@ -317,27 +318,28 @@ struct RichTextEditor: UIViewRepresentable {
             DispatchQueue.main.async { isFocused = false }
         }
 
-        // Ne pas réassigner tv.font pendant l'édition : UITextView.font ré-applique
-        // la fonte à TOUT le texte et écraserait le gras/italique par caractère.
-        // L'underline (attribut .underlineStyle) survivrait, mais pas .font.
-        let editingText: NSAttributedString = spans.isEmpty
-            ? NSAttributedString(string: "",
-                                  attributes: [.font: baseFont, .foregroundColor: UIColor.label])
-            : withExtras(spansToAttributed(spans, police: baseFont))
-        let displayText = spans.isEmpty ? coord.placeholder() : editingText
-        if !coord.isEditing {
-            tv.font = baseFont
-            tv.attributedText = displayText
-        } else if tv.attributedText.string != editingText.string {
-            // Pendant l'édition, on rafraîchit quand même si le texte diffère :
-            // cas undo/redo qui modifient les spans côté VM sans passer par la
-            // frappe utilisateur. Curseur en fin de texte restauré (comportement
-            // standard : redo "je suis un loup" → curseur après "loup", pas
-            // devant). On garde le typingAttributes courant.
-            let savedTyping = tv.typingAttributes
-            tv.attributedText = editingText
-            tv.typingAttributes = savedTyping
-            tv.selectedRange = NSRange(location: editingText.length, length: 0)
+        // Skip toute la recomputation quand les spans n'ont pas bougé : SwiftUI
+        // re-render le ForEach entier à chaque keystroke (en général sur 1 seul
+        // bloc), inutile de reconstruire NSAttributedString pour les N-1 autres.
+        if coord.lastSyncedSpans != spans {
+            // Ne pas réassigner tv.font pendant l'édition : UITextView.font ré-applique
+            // la fonte à TOUT le texte et écraserait le gras/italique par caractère.
+            let editingText: NSAttributedString = spans.isEmpty
+                ? NSAttributedString(string: "",
+                                      attributes: [.font: baseFont, .foregroundColor: UIColor.label])
+                : withExtras(spansToAttributed(spans, police: baseFont))
+            if !coord.isEditing {
+                tv.font = baseFont
+                tv.attributedText = spans.isEmpty ? coord.placeholder() : editingText
+            } else if tv.attributedText.string != editingText.string {
+                // Cas undo/redo pendant l'édition : la VM change les spans sans
+                // passer par la frappe. Curseur en fin du texte restauré.
+                let savedTyping = tv.typingAttributes
+                tv.attributedText = editingText
+                tv.typingAttributes = savedTyping
+                tv.selectedRange = NSRange(location: editingText.length, length: 0)
+            }
+            coord.lastSyncedSpans = spans
         }
 
         if isFocused && !tv.isFirstResponder {
@@ -382,6 +384,12 @@ struct RichTextEditor: UIViewRepresentable {
         private weak var btnPaste: UIButton?
         private weak var btnUndo: UIButton?
         private weak var btnRedo: UIButton?
+        private var lastCanUndo: Bool?
+        private var lastCanRedo: Bool?
+        /// Cache des spans déjà sync vers le textView — permet de skip toute la
+        /// recomputation de spansToAttributed pendant les re-renders SwiftUI où
+        /// ce bloc n'a pas changé (cas typique : un AUTRE bloc reçoit la frappe).
+        fileprivate var lastSyncedSpans: [InlineTextFfi]?
         // Pill de la toolbar — on l'anime à alpha 0 quand un menu déroulant
         // s'ouvre (style Notes.app : la toolbar laisse la place au menu).
         private weak var toolbarPill: UIView?
@@ -674,6 +682,11 @@ struct RichTextEditor: UIViewRepresentable {
             toolbarActionInProgress = false
             shiftEnterTyped = true
             tv?.insertText("\n")
+            // Defensive : `insertText` peut ne pas passer par `shouldChangeTextIn`
+            // pour les inserts programmés, le flag ne serait alors pas consommé
+            // et la prochaine touche Enter du clavier serait interprétée comme
+            // un saut de ligne au lieu de couper le bloc.
+            shiftEnterTyped = false
         }
         @objc func paste() {
             toolbarActionInProgress = false
@@ -695,8 +708,16 @@ struct RichTextEditor: UIViewRepresentable {
         fileprivate func updateUndoRedoButtons() {
             let cU = parent.canUndoProvider?() ?? false
             let cR = parent.canRedoProvider?() ?? false
-            applyEnabled(btnUndo, enabled: cU, symbol: "arrow.uturn.backward")
-            applyEnabled(btnRedo, enabled: cR, symbol: "arrow.uturn.forward")
+            // Cache : éviter la création de UIImage à chaque frappe quand l'état
+            // n'a pas changé (la closure est appelée à chaque keystroke).
+            if cU != lastCanUndo {
+                applyEnabled(btnUndo, enabled: cU, symbol: "arrow.uturn.backward")
+                lastCanUndo = cU
+            }
+            if cR != lastCanRedo {
+                applyEnabled(btnRedo, enabled: cR, symbol: "arrow.uturn.forward")
+                lastCanRedo = cR
+            }
         }
 
         private func applyEnabled(_ btn: UIButton?, enabled: Bool, symbol: String) {
