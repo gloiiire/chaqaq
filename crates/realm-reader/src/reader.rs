@@ -2,16 +2,14 @@
 
 use crate::format::{
     decode_short_string, multiply_elem_bytes, parse_file_header, read_bits_elem,
-    NodeHeader, NODE_HEADER_SIZE, WTYPE_BITS, WTYPE_IGNORE, WTYPE_MULTIPLY,
+    NodeHeader, NODE_HEADER_SIZE, WTYPE_BITS, WTYPE_MULTIPLY,
 };
 use crate::{ColumnType, RealmError, RealmTable, Result, Row, Value};
 
-/// Reads the raw file bytes and returns a list of `RealmTable`.
-pub fn read_tables(data: &[u8]) -> Result<Vec<RealmTable>> {
+pub(crate) fn read_tables(data: &[u8]) -> Result<Vec<RealmTable>> {
     let (top_ref, _version) = parse_file_header(data)?;
     let group = read_array(data, top_ref)?;
 
-    // Group children: [0]=names_ref, [1]=tables_ref (both are refs)
     if group.len() < 2 {
         return Err(RealmError::InvalidFormat("group array too small".into()));
     }
@@ -19,42 +17,35 @@ pub fn read_tables(data: &[u8]) -> Result<Vec<RealmTable>> {
     let names_ref = group[0] as usize;
     let tables_ref = group[1] as usize;
 
-    let table_refs = read_array(data, tables_ref)?;
-
-    // names array: WTYPE_MULTIPLY, width=64 bytes per slot
     let names = read_string_array_multiply(data, names_ref, 64)?;
-    // table_refs array: WTYPE_BITS width=64 (each element is an 8-byte ref)
-    // We already have them in table_refs vec as u64 values
+    let table_refs = read_array(data, tables_ref)?;
 
     let count = names.len().min(table_refs.len());
     let mut tables = Vec::with_capacity(count);
 
     for i in 0..count {
-        let name = names[i].clone();
         let tref = table_refs[i] as usize;
         if tref == 0 {
             continue;
         }
-        match read_table(data, &name, tref) {
-            Ok(t) => tables.push(t),
-            Err(_) => {} // skip malformed tables
+        if let Ok(t) = read_table(data, &names[i], tref) {
+            tables.push(t);
         }
     }
 
     Ok(tables)
 }
 
-/// Parse the array at `offset` and return its elements as Vec<u64>.
-/// For WTYPE_MULTIPLY the value is the byte offset of each slot (raw ref or data).
+// ── Array primitives ──────────────────────────────────────────────────────────
+
+/// Parse the array at `offset` and return its elements as `Vec<u64>`.
 fn read_array(data: &[u8], offset: usize) -> Result<Vec<u64>> {
     if offset + NODE_HEADER_SIZE > data.len() {
         return Err(RealmError::InvalidFormat(format!(
-            "array offset {:#x} out of bounds",
-            offset
+            "array offset {offset:#x} out of bounds"
         )));
     }
-    let h: [u8; 8] = data[offset..offset + 8].try_into().unwrap();
-    let hdr = NodeHeader::parse(&h);
+    let hdr = NodeHeader::parse(data[offset..offset + 8].try_into().unwrap());
     let payload = &data[offset + NODE_HEADER_SIZE..];
 
     let mut elems = Vec::with_capacity(hdr.size);
@@ -65,7 +56,6 @@ fn read_array(data: &[u8], offset: usize) -> Result<Vec<u64>> {
             }
         }
         WTYPE_MULTIPLY => {
-            // Each element is `width` bytes; treat as a little-endian integer ref
             for i in 0..hdr.size {
                 let slot = multiply_elem_bytes(payload, i, hdr.width);
                 let val = match hdr.width {
@@ -78,22 +68,18 @@ fn read_array(data: &[u8], offset: usize) -> Result<Vec<u64>> {
                 elems.push(val);
             }
         }
-        WTYPE_IGNORE => {}
         _ => {}
     }
     Ok(elems)
 }
 
-/// Read a multiply-encoded string array (slot_width bytes per string slot).
 fn read_string_array_multiply(data: &[u8], offset: usize, slot_width: u8) -> Result<Vec<String>> {
     if offset + NODE_HEADER_SIZE > data.len() {
         return Err(RealmError::InvalidFormat(format!(
-            "string array offset {:#x} out of bounds",
-            offset
+            "string array offset {offset:#x} out of bounds"
         )));
     }
-    let h: [u8; 8] = data[offset..offset + 8].try_into().unwrap();
-    let hdr = NodeHeader::parse(&h);
+    let hdr = NodeHeader::parse(data[offset..offset + 8].try_into().unwrap());
     let payload = &data[offset + NODE_HEADER_SIZE..];
     let mut result = Vec::with_capacity(hdr.size);
     for i in 0..hdr.size {
@@ -103,95 +89,97 @@ fn read_string_array_multiply(data: &[u8], offset: usize, slot_width: u8) -> Res
     Ok(result)
 }
 
-/// Read a Realm table at the given top ref offset.
+// ── Table ─────────────────────────────────────────────────────────────────────
+
 fn read_table(data: &[u8], name: &str, table_ref: usize) -> Result<RealmTable> {
-    // Table array: [0]=spec_ref, [1..]=column_refs
+    // Table array layout: [spec_ref, col_ref_0, col_ref_1, ...]
     let table_arr = read_array(data, table_ref)?;
     if table_arr.is_empty() {
         return Err(RealmError::InvalidFormat(format!(
-            "table '{}' array empty",
-            name
+            "table '{name}' array empty"
         )));
     }
 
     let spec_ref = table_arr[0] as usize;
-    // spec array: [0]=types_ref (4-bit per col), [1]=names_ref (32-byte multiply)
+    // Spec array: [types_ref (4-bit/col), names_ref (32-byte multiply slots)]
     let spec_arr = read_array(data, spec_ref)?;
     if spec_arr.len() < 2 {
         return Err(RealmError::InvalidFormat(format!(
-            "table '{}' spec too small",
-            name
+            "table '{name}' spec too small"
         )));
     }
 
-    let types_ref = spec_arr[0] as usize;
-    let names_ref = spec_arr[1] as usize;
+    let col_names = read_string_array_multiply(data, spec_arr[1] as usize, 32)?;
+    let col_type_ints = read_array(data, spec_arr[0] as usize)?;
 
-    let col_names = read_string_array_multiply(data, names_ref, 32)?;
-    let col_type_ints = read_array(data, types_ref)?;
+    let columns: Vec<(String, ColumnType)> = col_names
+        .iter()
+        .enumerate()
+        .map(|(i, n)| {
+            let t = col_type_ints.get(i).copied().unwrap_or(0) as u8;
+            (n.clone(), ColumnType::from_u8(t))
+        })
+        .collect();
 
-    let mut columns = Vec::with_capacity(col_names.len());
-    for (i, col_name) in col_names.iter().enumerate() {
-        let type_int = col_type_ints.get(i).copied().unwrap_or(0) as u8;
-        columns.push((col_name.clone(), ColumnType::from_u8(type_int)));
-    }
-
-    // Read rows: column data refs start at table_arr[1..]
-    // Each column_ref is an array of row values
-    let num_cols = columns.len();
     let col_refs: Vec<usize> = table_arr[1..].iter().map(|&r| r as usize).collect();
 
-    let row_count = if col_refs.is_empty() {
-        0
-    } else {
-        estimate_row_count(data, col_refs[0]).unwrap_or(0)
-    };
+    // Determine row count from the first non-empty column reference.
+    let row_count = col_refs
+        .iter()
+        .find(|&&r| r != 0)
+        .map(|&r| count_node_rows(data, r))
+        .unwrap_or(0);
 
     let mut rows = Vec::with_capacity(row_count);
     for row_idx in 0..row_count {
-        let mut row_vals = Vec::with_capacity(num_cols);
-        for (col_idx, &col_ref) in col_refs.iter().enumerate() {
-            if col_idx >= num_cols {
-                break;
-            }
-            let col_type = columns[col_idx].1;
-            let val = read_cell(data, col_ref, row_idx, col_type).unwrap_or(Value::Null);
-            row_vals.push(val);
-        }
-        rows.push(Row { values: row_vals });
+        let values = col_refs
+            .iter()
+            .enumerate()
+            .take(columns.len())
+            .map(|(ci, &col_ref)| {
+                let col_type = columns[ci].1;
+                read_cell(data, col_ref, row_idx, col_type).unwrap_or(Value::Null)
+            })
+            .collect();
+        rows.push(Row { values });
     }
 
-    Ok(RealmTable {
-        name: name.to_string(),
-        columns,
-        rows,
-    })
+    Ok(RealmTable { name: name.to_string(), columns, rows })
 }
 
-/// Estimate row count from the first column's array (simple leaf only).
-fn estimate_row_count(data: &[u8], col_ref: usize) -> Result<usize> {
-    if col_ref + NODE_HEADER_SIZE > data.len() {
-        return Ok(0);
+// ── Row count ─────────────────────────────────────────────────────────────────
+
+/// Count rows in a column node, traversing B-tree inner nodes if needed.
+fn count_node_rows(data: &[u8], node_ref: usize) -> usize {
+    if node_ref + NODE_HEADER_SIZE > data.len() {
+        return 0;
     }
-    let h: [u8; 8] = data[col_ref..col_ref + 8].try_into().unwrap();
-    let hdr = NodeHeader::parse(&h);
-    // If inner node, we can't trivially count rows without full B-tree traversal
-    if hdr.is_inner {
-        return Ok(0); // B-tree — skip for now
+    let hdr = NodeHeader::parse(data[node_ref..node_ref + 8].try_into().unwrap());
+    if !hdr.is_inner {
+        return hdr.size;
     }
-    Ok(hdr.size)
+    if hdr.size == 0 {
+        return 0;
+    }
+    // Inner node: last element is a ref to the cumulative-sizes array.
+    // The last value in that array equals the total row count.
+    let payload = &data[node_ref + NODE_HEADER_SIZE..];
+    let sizes_ref = read_bits_elem(payload, hdr.size - 1, 64) as usize;
+    read_array(data, sizes_ref)
+        .ok()
+        .and_then(|s| s.last().copied())
+        .unwrap_or(0) as usize
 }
 
-/// Read a single cell value from a column array at the given row index.
+// ── Cell reading ──────────────────────────────────────────────────────────────
+
 fn read_cell(data: &[u8], col_ref: usize, row_idx: usize, col_type: ColumnType) -> Result<Value> {
     if col_ref + NODE_HEADER_SIZE > data.len() {
         return Ok(Value::Null);
     }
-    let h: [u8; 8] = data[col_ref..col_ref + 8].try_into().unwrap();
-    let hdr = NodeHeader::parse(&h);
+    let hdr = NodeHeader::parse(data[col_ref..col_ref + 8].try_into().unwrap());
 
     if hdr.is_inner {
-        // B-tree inner node — traverse to find the right leaf
         return read_cell_btree(data, col_ref, row_idx, col_type);
     }
 
@@ -202,64 +190,48 @@ fn read_cell(data: &[u8], col_ref: usize, row_idx: usize, col_type: ColumnType) 
     let payload = &data[col_ref + NODE_HEADER_SIZE..];
 
     match col_type {
-        ColumnType::Bool => {
-            let v = read_bits_elem(payload, row_idx, hdr.width);
-            Ok(Value::Bool(v != 0))
+        ColumnType::Bool => Ok(Value::Bool(read_bits_elem(payload, row_idx, hdr.width) != 0)),
+        ColumnType::Int => Ok(Value::Int(read_bits_elem(payload, row_idx, hdr.width) as i64)),
+        ColumnType::Timestamp => {
+            Ok(Value::Timestamp(read_bits_elem(payload, row_idx, hdr.width) as i64))
         }
-        ColumnType::Int => {
-            let v = read_bits_elem(payload, row_idx, hdr.width);
-            Ok(Value::Int(v as i64))
+        ColumnType::Link | ColumnType::LinkList | ColumnType::BackLink => {
+            Ok(Value::Link(read_bits_elem(payload, row_idx, hdr.width) as usize))
+        }
+        ColumnType::Float if hdr.width == 32 => {
+            let off = row_idx * 4;
+            let f = f32::from_le_bytes(payload[off..off + 4].try_into().unwrap_or([0; 4]));
+            Ok(Value::Float(f as f64))
+        }
+        ColumnType::Double if hdr.width == 64 => {
+            let off = row_idx * 8;
+            let f = f64::from_le_bytes(payload[off..off + 8].try_into().unwrap_or([0; 8]));
+            Ok(Value::Float(f))
         }
         ColumnType::String | ColumnType::Data => {
-            // String columns: WTYPE_MULTIPLY, each slot width bytes
             if hdr.wtype == WTYPE_MULTIPLY && hdr.width > 0 {
+                // Short string: each slot is `width` bytes
                 let slot = multiply_elem_bytes(payload, row_idx, hdr.width);
                 Ok(Value::String(decode_short_string(slot)))
             } else if hdr.wtype == WTYPE_BITS && hdr.width == 64 {
-                // String column stored as refs to separate string leaf arrays
+                // Long string: element is a ref to a string-leaf node
                 let str_ref = read_bits_elem(payload, row_idx, 64) as usize;
                 if str_ref == 0 {
                     return Ok(Value::String(String::new()));
                 }
-                let s = read_leaf_string(data, str_ref)?;
-                Ok(Value::String(s))
+                Ok(Value::String(read_leaf_string(data, str_ref)?))
             } else {
                 Ok(Value::Null)
             }
         }
-        ColumnType::Float => {
-            // 32-bit IEEE float stored as 4-byte multiply or 32-bit bits
-            if hdr.width == 32 {
-                let off = row_idx * 4;
-                let f = f32::from_le_bytes(payload[off..off + 4].try_into().unwrap_or([0; 4]));
-                Ok(Value::Float(f as f64))
-            } else {
-                Ok(Value::Null)
-            }
-        }
-        ColumnType::Double => {
-            if hdr.width == 64 {
-                let off = row_idx * 8;
-                let f = f64::from_le_bytes(payload[off..off + 8].try_into().unwrap_or([0; 8]));
-                Ok(Value::Float(f))
-            } else {
-                Ok(Value::Null)
-            }
-        }
-        ColumnType::Timestamp => {
-            // Timestamps stored as int (seconds since Unix epoch)
-            let v = read_bits_elem(payload, row_idx, hdr.width);
-            Ok(Value::Timestamp(v as i64))
-        }
-        ColumnType::Link | ColumnType::LinkList | ColumnType::BackLink => {
-            let v = read_bits_elem(payload, row_idx, hdr.width);
-            Ok(Value::Link(v as usize))
-        }
-        ColumnType::Unknown(_) => Ok(Value::Null),
+        _ => Ok(Value::Null),
     }
 }
 
-/// Traverse a B-tree to find the leaf cell at `row_idx`.
+/// Traverse a B-tree inner node to locate the leaf cell at `row_idx`.
+///
+/// Inner-node layout: `[child_ref_0, ..., child_ref_n, cumulative_sizes_ref]`
+/// `cumulative_sizes[i]` = total rows in subtrees 0..=i.
 fn read_cell_btree(
     data: &[u8],
     node_ref: usize,
@@ -269,57 +241,50 @@ fn read_cell_btree(
     if node_ref + NODE_HEADER_SIZE > data.len() {
         return Ok(Value::Null);
     }
-    let h: [u8; 8] = data[node_ref..node_ref + 8].try_into().unwrap();
-    let hdr = NodeHeader::parse(&h);
+    let hdr = NodeHeader::parse(data[node_ref..node_ref + 8].try_into().unwrap());
 
     if !hdr.is_inner {
-        // Reached a leaf
         return read_cell(data, node_ref, row_idx, col_type);
     }
 
+    if hdr.size == 0 {
+        return Ok(Value::Null);
+    }
+
     let payload = &data[node_ref + NODE_HEADER_SIZE..];
-
-    // Inner node: each element is a child ref (width=64 bits).
-    // Last element is a size-accumulator array (offsets), also as a ref.
-    // Layout: [child_ref_0, child_ref_1, ..., child_ref_n, sizes_ref]
-    let n_children = if hdr.size > 0 { hdr.size - 1 } else { return Ok(Value::Null) };
+    let n_children = hdr.size - 1;
     let sizes_ref = read_bits_elem(payload, hdr.size - 1, 64) as usize;
-
-    // sizes array: cumulative row counts
     let sizes = read_array(data, sizes_ref)?;
 
-    let mut remaining = row_idx;
+    // Scan cumulative sizes to find the child subtree containing row_idx.
+    let mut prev_cum = 0usize;
     for ci in 0..n_children {
         let cum = sizes.get(ci).copied().unwrap_or(0) as usize;
-        let child_ref = read_bits_elem(payload, ci, 64) as usize;
-        // cum = cumulative count including this subtree
-        if remaining < cum {
-            return read_cell_btree(data, child_ref, remaining, col_type);
+        if row_idx < cum {
+            let child_ref = read_bits_elem(payload, ci, 64) as usize;
+            // Local row index within this subtree = row_idx - previous cumulative count
+            return read_cell_btree(data, child_ref, row_idx - prev_cum, col_type);
         }
-        remaining -= cum;
+        prev_cum = cum;
     }
 
     Ok(Value::Null)
 }
 
-/// Read a raw leaf string node (the string data itself, not an array of strings).
 fn read_leaf_string(data: &[u8], str_ref: usize) -> Result<String> {
     if str_ref + NODE_HEADER_SIZE > data.len() {
         return Ok(String::new());
     }
-    let h: [u8; 8] = data[str_ref..str_ref + 8].try_into().unwrap();
-    let hdr = NodeHeader::parse(&h);
+    let hdr = NodeHeader::parse(data[str_ref..str_ref + 8].try_into().unwrap());
     let payload = &data[str_ref + NODE_HEADER_SIZE..];
 
-    if hdr.wtype == WTYPE_MULTIPLY {
-        // Short string leaf — slot 0 is the string
+    if hdr.wtype == WTYPE_MULTIPLY && hdr.width > 0 {
         let slot = multiply_elem_bytes(payload, 0, hdr.width);
         return Ok(decode_short_string(slot));
     }
 
-    // Fallback: raw bytes up to first null
+    // Fallback: raw bytes up to first null byte
     let len = payload.len().min(hdr.size);
     let end = payload[..len].iter().position(|&b| b == 0).unwrap_or(len);
     Ok(String::from_utf8_lossy(&payload[..end]).into_owned())
 }
-
