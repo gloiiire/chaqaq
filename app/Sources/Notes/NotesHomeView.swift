@@ -118,7 +118,7 @@ struct NotesHomeView: View {
                 WorkspaceRow(item: item)
             }
         case .database(let db):
-            NavigationLink(destination: DatabasePlaceholderView(title: db.titlePlain)) {
+            NavigationLink(destination: DatabaseView(dbId: db.id, api: api)) {
                 WorkspaceRow(item: item)
             }
         }
@@ -156,7 +156,7 @@ struct RecentStrip: View {
                             }
                             .buttonStyle(.plain)
                         case .database(let db):
-                            NavigationLink(destination: DatabasePlaceholderView(title: db.titlePlain)) {
+                            NavigationLink(destination: DatabaseView(dbId: db.id, api: api)) {
                                 RecentCard(item: item)
                             }
                             .buttonStyle(.plain)
