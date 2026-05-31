@@ -263,19 +263,59 @@ fn craft_inspect_document_model() {
         }
     }
 
-    // Show a few rootBlockId blocks for verification.
-    println!("\nFirst 3 blocks matched by rootBlockId:");
-    let mut shown = 0;
+    // Investigate documentId column — does it point to embedded sub-pages?
+    let doc_id_col  = btable.column_index("documentId").expect("documentId");
+    let content_col = btable.column_index("content").unwrap();
+    let type_col    = btable.column_index("type").unwrap();
+
+    let mut blocks_with_document_id = 0usize;
+    let mut document_id_in_doc_ids  = 0usize;
+    let mut shown_samples = 0;
+    println!("\ndocumentId column investigation:");
     for row in &btable.rows {
-        let bid = row.get(bid_col).as_str().to_lowercase();
-        if root_block_ids.contains(&bid) {
-            let content_col = btable.column_index("content").unwrap();
-            let type_col    = btable.column_index("type").unwrap();
-            println!("  id={bid} type={:?} content={:?}",
+        let did = row.get(doc_id_col).as_str().to_lowercase();
+        if did.is_empty() { continue; }
+        blocks_with_document_id += 1;
+        if doc_ids.contains(&did) { document_id_in_doc_ids += 1; }
+        if shown_samples < 5 {
+            let raw  = row.get(raw_col).as_str();
+            let te   = raw.contains("\"titleEnabled\":\"true\"") || raw.contains("\"titleEnabled\":true");
+            let lsb  = row.get(lsb_col).as_str().to_lowercase();
+            let ct   = row.get(content_col).as_str();
+            let same = &lsb == &did;
+            println!("  documentId={did:?} lsb={lsb:?} same={same} titleEnabled={te} type={:?} content={:?}",
                 row.get(type_col).as_str(),
-                &row.get(content_col).as_str()[..row.get(content_col).as_str().len().min(60)]);
-            shown += 1;
-            if shown >= 3 { break; }
+                &ct[..ct.len().min(60)]);
+            shown_samples += 1;
+        }
+    }
+    println!("blocks with non-empty documentId: {blocks_with_document_id}");
+    println!("of which documentId ∈ doc_ids: {document_id_in_doc_ids}");
+
+    // How many unique documentId values appear that differ from lastSyncedBlockIds?
+    let cross_refs: std::collections::HashSet<String> = btable.rows.iter()
+        .filter_map(|r| {
+            let did = r.get(doc_id_col).as_str().to_lowercase();
+            let lsb = r.get(lsb_col).as_str().to_lowercase();
+            if !did.is_empty() && did != lsb { Some(did) } else { None }
+        })
+        .collect();
+    println!("unique documentId values ≠ lastSyncedBlockIds: {}", cross_refs.len());
+
+    // Print full rawProperties of first 10 titleEnabled blocks to look for pageId / sub-page links.
+    println!("\nrawProperties of first 10 titleEnabled blocks:");
+    let mut shown2 = 0;
+    for row in &btable.rows {
+        let raw = row.get(raw_col).as_str();
+        let te = raw.contains("\"titleEnabled\":\"true\"") || raw.contains("\"titleEnabled\":true");
+        if te && shown2 < 10 {
+            let lsb = row.get(lsb_col).as_str();
+            let ct  = row.get(content_col).as_str();
+            println!("  lsb={:?}", &lsb[..lsb.len().min(36)]);
+            println!("  content={:?}", &ct[..ct.len().min(60)]);
+            println!("  rawProps={:?}", &raw[..raw.len().min(300)]);
+            println!("  ---");
+            shown2 += 1;
         }
     }
 }
