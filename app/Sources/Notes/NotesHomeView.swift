@@ -6,6 +6,8 @@ import SwiftUI
 struct NotesHomeView: View {
     @ObservedObject var store: PinkhaStore
     @State private var showingCreate = false
+    @State private var showingImport = false
+    @State private var showingBearImport = false
     @State private var newTitle = ""
     @State private var createMode: CreateMode = .note
 
@@ -81,12 +83,33 @@ struct NotesHomeView: View {
                     } label: {
                         Label("New database", systemImage: "tablecells")
                     }
+                    Divider()
+                    Button {
+                        showingImport = true
+                    } label: {
+                        Label("Import from Notion", systemImage: "arrow.down.doc")
+                    }
+                    Button {
+                        showingBearImport = true
+                    } label: {
+                        Label("Import from Bear", systemImage: "pencil.and.list.clipboard")
+                    }
                 } label: {
                     FloatingButton(icon: "square.and.pencil") {}
                 }
                 .accessibilityIdentifier("createFAB")
                 .padding(.trailing, 24)
                 .padding(.bottom, 32)
+            }
+            .sheet(isPresented: $showingImport) {
+                NotionImportView(api: store.api) {
+                    store.load()
+                }
+            }
+            .sheet(isPresented: $showingBearImport) {
+                BearImportView(api: store.api) {
+                    store.load()
+                }
             }
             .sheet(isPresented: $showingCreate) {
                 CreateDocumentSheet(
@@ -118,7 +141,7 @@ struct NotesHomeView: View {
                 WorkspaceRow(item: item)
             }
         case .database(let db):
-            NavigationLink(destination: DatabasePlaceholderView(title: db.titlePlain)) {
+            NavigationLink(destination: DatabaseView(dbId: db.id, api: api)) {
                 WorkspaceRow(item: item)
             }
         }
@@ -156,7 +179,7 @@ struct RecentStrip: View {
                             }
                             .buttonStyle(.plain)
                         case .database(let db):
-                            NavigationLink(destination: DatabasePlaceholderView(title: db.titlePlain)) {
+                            NavigationLink(destination: DatabaseView(dbId: db.id, api: api)) {
                                 RecentCard(item: item)
                             }
                             .buttonStyle(.plain)

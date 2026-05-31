@@ -5,7 +5,7 @@ A personal note-taking app combining the fluidity of Craft with the structure of
 [![CI](https://github.com/gloiiire/pinkha/actions/workflows/ci.yml/badge.svg)](https://github.com/gloiiire/pinkha/actions/workflows/ci.yml)
 [![chaqaq on crates.io](https://img.shields.io/crates/v/chaqaq.svg)](https://crates.io/crates/chaqaq)
 
-> Status: **complete Rust backend** (208 tests) · **functional SwiftUI UI** (rich text, undo/redo, toolbar pill, drag & drop) · **compiled XCFramework** iOS + Mac · **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0 published on crates.io**
+> Status: **complete Rust backend** (208+ tests) · **functional SwiftUI UI** (rich text, undo/redo, toolbar pill, drag & drop) · **import pipelines Notion + Bear** · **compiled XCFramework** iOS + Mac · **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0 published on crates.io**
 
 ---
 
@@ -84,18 +84,27 @@ src/
     sqlite_document_store.rs — SqliteDocumentStore (local-first, recommended)
     sqlite_database_store.rs — SqliteDatabaseStore (local-first, recommended)
     json_store.rs            — JsonStore (kept for tests)
+  extractors/
+    traits.rs          — Extractor trait (async run, associated Config)
+    mod.rs             — ExtractorError, ImportResult
+    notion/            — Notion API v1 client + mapper + pipeline
+    bear/              — Bear SQLite reader + Markdown parser
   ffi.rs             — UniFFI facade: PinkhaApi exposed to Swift
   pinkha.udl         — UDL interface (Swift ↔ Rust contract)
 swift-bindings/      — generated Swift bindings (pinkha.swift, pinkhaFFI.h)
 pinkha.xcframework   — compiled XCFramework (iOS device + simulator + macOS)
 app/                 — SwiftUI application
   Sources/
-    PinkhaApp.swift      — @main
-    ContentView.swift    — home screen + PinkhaStore
-    DocumentView.swift   — document editor + DocumentViewModel + undo burst
-    Models.swift         — Swift Codable mirrors of Rust types
-    RichTextEditor.swift — UIViewRepresentable + formatting toolbar pill
-    Resilience.swift     — UI-side error handling
+    PinkhaApp.swift          — @main
+    ContentView.swift        — home screen + PinkhaStore
+    DocumentView.swift       — document editor + DocumentViewModel + undo burst
+    Models.swift             — Swift Codable mirrors of Rust types
+    RichTextEditor.swift     — UIViewRepresentable + formatting toolbar pill
+    Resilience.swift         — UI-side error handling
+    Notion/
+      NotionImportView.swift — thin sheet → api.importFromNotion() async
+      NotionOAuth2.swift     — ASWebAuthenticationSession OAuth2 flow
+      BearImportView.swift   — fileImporter → api.importFromBear() async
 ```
 
 ---
@@ -105,7 +114,7 @@ app/                 — SwiftUI application
 ### Rust backend
 
 - **Inline parser**: `**bold**`, `_italic_`, `__underline__`, `{color:text}`, `[text](url)` + combinations
-- **Recursive blocks**: Text, Heading, Quote, Todo, Divider, Breadcrumb, Database — with nested children
+- **Recursive blocks**: Text, Heading, Quote, Todo, Divider, Breadcrumb, Database, BulletedListItem, NumberedListItem, Code — with nested children
 - **Full CRUD**: create, update, delete, reorder, move between parents
 - **Lightweight metadata** (`DocumentMeta`) — fast listing without loading blocks, with `updated_at`
 - **In-memory rich text editor**: `RichText` + `EditorState` (cursor, selection, style toggle)
@@ -114,11 +123,15 @@ app/                 — SwiftUI application
 - **Search**: title, full-text in blocks (recursive), text values of database entries
 - **Local-first SQLite storage**: document-as-JSON + indexed columns for listing, soft delete, `updated_at`, versioned migrations, WAL for concurrency, exponential backoff retry on transient errors
 - **Typed errors** (`PinkhaError`): `NotFound`, `InvalidOperation`, `Io`, `Json`, `Db` — never `unwrap()` in production
+- **Import pipelines** (`src/extractors/`):
+  - **Notion** — `reqwest` + `rustls-tls`, API v1 paginée (schema → properties → pages → blocks récursifs), mapping complet types/valeurs/blocs, `[Async]` UniFFI
+  - **Bear** — `rusqlite` read-only, Core Data timestamps, parseur Markdown Bear ligne par ligne
 
 ### SwiftUI UI (iOS 26)
 
 - **Home screen**: list, FAB, dynamic greeting, relative date
-- **Editor**: Text / Heading×3 / Quote / Callout / Todo / Divider blocks
+- **Import**: FAB menu → "Import from Notion" (integration token + DB URL/ID) + "Import from Bear" (file picker) — both delegate to the Rust extractor
+- **Editor**: Text / Heading×3 / Quote / Callout / Todo / Divider / BulletedListItem / NumberedListItem / Code blocks
 - **Rich text**: bold, italic, underline, strikethrough, color palette
 - **Keyboard toolbar pill** Notes.app style — Paste / Aa (B/I/U/S) / Highlighter / Undo / Redo / Return / Dismiss
 - **Hide-on-menu**: the pill gracefully fades when a dropdown menu opens (Notes style)

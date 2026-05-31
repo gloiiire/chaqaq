@@ -37,6 +37,18 @@ pub enum BlockContent {
         /// ID of the referenced `Database`.
         id: Uuid,
     },
+    /// Bulleted list item (rendered with a bullet point •).
+    BulletedListItem(Vec<InlineText>),
+    /// Numbered list item (rendered with an auto-incremented index 1., 2., …).
+    NumberedListItem(Vec<InlineText>),
+    /// Code block with optional syntax-highlighting language identifier.
+    Code {
+        /// Programming language hint for syntax highlighting (e.g. `"swift"`, `"rust"`).
+        /// Empty string means no language specified.
+        language: String,
+        /// Raw source code — no inline styles, whitespace preserved.
+        text: String,
+    },
 }
 
 /// A node in a document's block tree — may contain nested child blocks.
