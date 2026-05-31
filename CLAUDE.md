@@ -31,11 +31,20 @@ cd crates/chaqaq && cargo publish
 
 ## Architecture (Clean Architecture)
 
-Le repo est un **Cargo workspace** avec deux crates :
+Le repo est un **Cargo workspace** avec trois crates :
 - `crates/chaqaq` — crate autonome open source publié sur crates.io (MIT OR Apache-2.0)
+- `crates/realm-codec` — parser/writer Realm v9 binary, publié sur crates.io (MIT OR Apache-2.0)
 - `.` (pinkha) — application complète, dépend de chaqaq via `{ path = "crates/chaqaq" }`
 
 ```
+crates/chaqaq/     — crate autonome rich text editor (crates.io: chaqaq v0.1.0)
+crates/realm-codec/ — parser/writer Realm v9 binary (crates.io: realm-codec v0.1.0)
+  src/
+    lib.rs     — RealmFile, RealmTable, Row, Value, ColumnType, RealmError
+    format.rs  — NodeHeader, decode_short_string, read_bits_elem (pub(crate))
+    reader.rs  — B-tree traversal, read_tables
+    write.rs   — RealmBuilder, TableBuilder (sérialisation bottom-up)
+
 crates/chaqaq/     — crate autonome rich text editor (crates.io: chaqaq v0.1.0)
   src/
     lib.rs         — API publique + doc crate
@@ -65,6 +74,19 @@ src/
     sqlite_database_store.rs — SqliteDatabaseStore : stockage local-first recommandé
     json_store.rs            — JsonStore : conservé pour les tests et le proto
     database_store.rs        — DatabaseStore JSON : conservé pour les tests
+  extractors/      — pipelines d'import, un par source (Notion, Bear, …)
+    mod.rs         — ExtractorError, ImportResult
+    traits.rs      — trait Extractor (async run, Config associé)
+    notion/        — client reqwest + serde types + mapper + pipeline paginé
+      client.rs    — HTTP client (reqwest, rustls-tls, iOS-compatible)
+      schema.rs    — types serde pour API Notion v1 (database, pages, blocs)
+      mapper.rs    — Notion → domaine Pinkha (propriétés, valeurs, blocs)
+      mod.rs       — pipeline complet : schéma → DB → pages → blocs récursifs
+    bear/          — lecteur SQLite + parseur Markdown Bear
+      reader.rs    — rusqlite read-only, conversion timestamps Core Data
+      schema.rs    — BearNote row type
+      mapper.rs    — parseur Markdown Bear ligne par ligne
+      mod.rs       — importe toutes les notes non supprimées
   ffi.rs           — façade UniFFI : PinkhaApi, PinkhaError FFI, types dictionnaire
   pinkha.udl       — interface UDL déclarant l'API publique Swift/Kotlin
   bin/
@@ -254,6 +276,7 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
 - Gestion complète des vues (ajout, modification filtres/tris, suppression)
 - **SQLite local-first** : `SqliteDocumentStore` + `SqliteDatabaseStore` avec soft delete, `updated_at`, migrations versionnées, WAL, retry exponentiel
 - **Crate `chaqaq` v0.1.0** : core rich text editor extrait en crate autonome, publié sur crates.io (MIT OR Apache-2.0). Cargo workspace.
+- **Crate `realm-codec` v0.1.0** : parser + writer Realm v9 binary (NodeHeader, Group, B-tree, `RealmBuilder`/`TableBuilder`), publié sur crates.io (MIT OR Apache-2.0). Base pour le futur extractor Craft.
 - **Couche FFI UniFFI** : `PinkhaApi` exposée à Swift en API anglaise idiomatique
 - **XCFramework** : `pinkha.xcframework` compilé (ios-arm64, ios-arm64-simulator, macos-arm64)
 - **Projet Xcode** : `app/Pinkha.xcodeproj` généré par xcodegen
@@ -272,10 +295,18 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
   - Perf : persist SQLite différé au flush burst, cache spans par bloc, cache état boutons undo
 - **CI** : GitHub Actions `cargo test` sur push/PR vers master/staging/dev (`macos-15`). Swift job suspendu en attendant Xcode 26 sur les runners
 - **Sécurité repo** : branches protégées (PR obligatoire, force-push bloqué, suppression bloquée, Rust CI requise), Secret Scanning + Push Protection, Dependabot Alerts + Security Updates, Dependabot config mensuelle pour Cargo + Actions
+- **Pipelines d'extraction** (`src/extractors/`) :
+  - Architecture `Extractor` trait (async, `Config` associé, `ImportResult`)
+  - **Notion** : client reqwest rustls-tls, API v1 paginée (database schema → pages → blocs récursifs), mapping complet propriétés/valeurs/blocs, `ImportResultFfi` exposé via UniFFI async
+  - **Bear** : lecteur SQLite read-only, conversion timestamps Core Data, parseur Markdown Bear ligne par ligne
+  - Trois nouveaux variants `BlockContent` : `BulletedListItem`, `NumberedListItem`, `Code` — full-fidelity import, rendu read-only + édition dans l'éditeur
+  - `NotionImportView.swift` (thin FFI wrapper) + `BearImportView.swift` (fileImporter) + `NotionOAuth2.swift` (ASWebAuthenticationSession)
+  - FAB menu : "Import from Notion" + "Import from Bear"
 
 Ce qui **reste** à construire :
 1. UI Databases — tab "Bases" est un placeholder, backend Notion complet existe
 2. Vue iPad / Mac (NavigationSplitView)
+3. Extractor Craft — lira les fichiers `.realm` locaux de Craft via `realm-codec` (crate publiée)
 4. Sync entre appareils (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
 5. Réactiver Swift CI quand Xcode 26 sera dispo sur les runners GitHub Actions
 

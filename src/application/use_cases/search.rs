@@ -49,9 +49,12 @@ fn block_contains(block: &Block, query: &str) -> bool {
         BlockContent::Text(inlines)
         | BlockContent::Heading { text: inlines, .. }
         | BlockContent::Quote { text: inlines, .. }
-        | BlockContent::Todo { text: inlines, .. } => inlines
+        | BlockContent::Todo { text: inlines, .. }
+        | BlockContent::BulletedListItem(inlines)
+        | BlockContent::NumberedListItem(inlines) => inlines
             .iter()
             .any(|i| i.content.to_lowercase().contains(query)),
+        BlockContent::Code { text, .. } => text.to_lowercase().contains(query),
         _ => false,
     };
     matches_text || blocks_contain(&block.children, query)

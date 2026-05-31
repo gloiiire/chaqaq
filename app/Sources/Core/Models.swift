@@ -68,14 +68,20 @@ enum BlockContentFfi: Codable, Equatable {
     case heading(level: Int, text: [InlineTextFfi])
     case quote(icon: String, text: [InlineTextFfi])
     case todo(done: Bool, text: [InlineTextFfi])
+    case bulletedListItem([InlineTextFfi])
+    case numberedListItem([InlineTextFfi])
+    case code(language: String, text: String)
     case divider
     case breadcrumb
     case database(id: String)
 
-    private enum K: String, CodingKey { case Text, Heading, Quote, Todo, Divider, Breadcrumb, Database }
+    private enum K: String, CodingKey {
+        case Text, Heading, Quote, Todo, BulletedListItem, NumberedListItem, Code, Divider, Breadcrumb, Database
+    }
     private struct PayloadHeading: Codable { let level: Int; let text: [InlineTextFfi] }
     private struct PayloadQuote:   Codable { let icon: String; let text: [InlineTextFfi] }
     private struct PayloadTodo:    Codable { let done: Bool; let text: [InlineTextFfi] }
+    private struct PayloadCode:    Codable { let language: String; let text: String }
     private struct PayloadDb:      Codable { let id: String }
 
     init(from decoder: Decoder) throws {
@@ -85,11 +91,14 @@ enum BlockContentFfi: Codable, Equatable {
             if s == "Breadcrumb" { self = .breadcrumb; return }
         }
         let c = try decoder.container(keyedBy: K.self)
-        if let v = try? c.decode([InlineTextFfi].self, forKey: .Text)    { self = .text(v); return }
-        if let v = try? c.decode(PayloadHeading.self,  forKey: .Heading) { self = .heading(level: v.level, text: v.text); return }
-        if let v = try? c.decode(PayloadQuote.self,    forKey: .Quote)   { self = .quote(icon: v.icon, text: v.text); return }
-        if let v = try? c.decode(PayloadTodo.self,     forKey: .Todo)    { self = .todo(done: v.done, text: v.text); return }
-        if let v = try? c.decode(PayloadDb.self,       forKey: .Database){ self = .database(id: v.id); return }
+        if let v = try? c.decode([InlineTextFfi].self, forKey: .Text)             { self = .text(v); return }
+        if let v = try? c.decode(PayloadHeading.self,  forKey: .Heading)          { self = .heading(level: v.level, text: v.text); return }
+        if let v = try? c.decode(PayloadQuote.self,    forKey: .Quote)            { self = .quote(icon: v.icon, text: v.text); return }
+        if let v = try? c.decode(PayloadTodo.self,     forKey: .Todo)             { self = .todo(done: v.done, text: v.text); return }
+        if let v = try? c.decode([InlineTextFfi].self, forKey: .BulletedListItem) { self = .bulletedListItem(v); return }
+        if let v = try? c.decode([InlineTextFfi].self, forKey: .NumberedListItem) { self = .numberedListItem(v); return }
+        if let v = try? c.decode(PayloadCode.self,     forKey: .Code)             { self = .code(language: v.language, text: v.text); return }
+        if let v = try? c.decode(PayloadDb.self,       forKey: .Database)         { self = .database(id: v.id); return }
         throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown BlockContent"))
     }
 
@@ -110,6 +119,13 @@ enum BlockContentFfi: Codable, Equatable {
         case .todo(let done, let text):
             var c = encoder.container(keyedBy: K.self)
             try c.encode(PayloadTodo(done: done, text: text), forKey: .Todo)
+        case .bulletedListItem(let v):
+            var c = encoder.container(keyedBy: K.self); try c.encode(v, forKey: .BulletedListItem)
+        case .numberedListItem(let v):
+            var c = encoder.container(keyedBy: K.self); try c.encode(v, forKey: .NumberedListItem)
+        case .code(let language, let text):
+            var c = encoder.container(keyedBy: K.self)
+            try c.encode(PayloadCode(language: language, text: text), forKey: .Code)
         case .database(let id):
             var c = encoder.container(keyedBy: K.self)
             try c.encode(PayloadDb(id: id), forKey: .Database)
@@ -119,22 +135,27 @@ enum BlockContentFfi: Codable, Equatable {
     /// Concatenates the raw text of all inline spans, ignoring styles.
     var plainText: String {
         switch self {
-        case .text(let s):         return s.map(\.content).joined()
-        case .heading(_, let s):   return s.map(\.content).joined()
-        case .quote(_, let s):     return s.map(\.content).joined()
-        case .todo(_, let s):      return s.map(\.content).joined()
-        default:                   return ""
+        case .text(let s):              return s.map(\.content).joined()
+        case .heading(_, let s):        return s.map(\.content).joined()
+        case .quote(_, let s):          return s.map(\.content).joined()
+        case .todo(_, let s):           return s.map(\.content).joined()
+        case .bulletedListItem(let s):  return s.map(\.content).joined()
+        case .numberedListItem(let s):  return s.map(\.content).joined()
+        case .code(_, let t):           return t
+        default:                        return ""
         }
     }
 
     /// Returns the inline spans of the block, or an empty array for structural blocks (Divider, etc.).
     var spansOrEmpty: [InlineTextFfi] {
         switch self {
-        case .text(let s):       return s
-        case .heading(_, let s): return s
-        case .quote(_, let s):   return s
-        case .todo(_, let s):    return s
-        default:                 return []
+        case .text(let s):              return s
+        case .heading(_, let s):        return s
+        case .quote(_, let s):          return s
+        case .todo(_, let s):           return s
+        case .bulletedListItem(let s):  return s
+        case .numberedListItem(let s):  return s
+        default:                        return []
         }
     }
 
@@ -147,22 +168,211 @@ enum BlockContentFfi: Codable, Equatable {
     func withText(_ newText: String, done: Bool = false) -> BlockContentFfi {
         let spans = newText.isEmpty ? [] : [InlineTextFfi(content: newText, styles: [])]
         switch self {
-        case .text:              return .text(spans)
-        case .heading(let l, _): return .heading(level: l, text: spans)
-        case .quote(let i, _):   return .quote(icon: i, text: spans)
-        case .todo(_, _):        return .todo(done: done, text: spans)
-        default:                 return self
+        case .text:                     return .text(spans)
+        case .heading(let l, _):        return .heading(level: l, text: spans)
+        case .quote(let i, _):          return .quote(icon: i, text: spans)
+        case .todo(_, _):               return .todo(done: done, text: spans)
+        case .bulletedListItem:         return .bulletedListItem(spans)
+        case .numberedListItem:         return .numberedListItem(spans)
+        default:                        return self
         }
     }
 
     /// Returns a copy of the block with its spans replaced by `spans`, preserving structure (level, icon, done).
     func withSpans(_ spans: [InlineTextFfi], done: Bool = false) -> BlockContentFfi {
         switch self {
-        case .text:              return .text(spans)
-        case .heading(let l, _): return .heading(level: l, text: spans)
-        case .quote(let i, _):   return .quote(icon: i, text: spans)
-        case .todo(_, _):        return .todo(done: done, text: spans)
-        default:                 return self
+        case .text:                     return .text(spans)
+        case .heading(let l, _):        return .heading(level: l, text: spans)
+        case .quote(let i, _):          return .quote(icon: i, text: spans)
+        case .todo(_, _):               return .todo(done: done, text: spans)
+        case .bulletedListItem:         return .bulletedListItem(spans)
+        case .numberedListItem:         return .numberedListItem(spans)
+        default:                        return self
         }
     }
+}
+
+// ── Database models ───────────────────────────────────────────────────────────
+
+/// Aggregation function for Rollup columns.
+enum AggregateFfi: String, Codable, Equatable {
+    case count = "Count", sum = "Sum", average = "Average", min = "Min", max = "Max"
+}
+
+/// Matches serde's externally-tagged representation of `PropertyType`.
+enum PropertyTypeFfi: Codable, Equatable {
+    case title, text, number, date, checkbox, url
+    case selection([String])
+    case selectionMultiple([String])
+    case relation(dbId: String)
+    case rollup(relationPropId: String, targetPropId: String, aggregate: AggregateFfi)
+
+    private enum K: String, CodingKey {
+        case Title, Text, Number, Date, Checkbox, Url
+        case Selection, SelectionMultiple, Relation, Rollup
+    }
+    private struct RelationPayload: Codable { let db_id: String }
+    private struct RollupPayload: Codable {
+        let relation_prop_id: String; let target_prop_id: String; let aggregate: AggregateFfi
+    }
+
+    init(from decoder: Decoder) throws {
+        if let sv = try? decoder.singleValueContainer(), let s = try? sv.decode(String.self) {
+            switch s {
+            case "Title":    self = .title;    return
+            case "Text":     self = .text;     return
+            case "Number":   self = .number;   return
+            case "Date":     self = .date;     return
+            case "Checkbox": self = .checkbox; return
+            case "Url":      self = .url;      return
+            default: break
+            }
+        }
+        let c = try decoder.container(keyedBy: K.self)
+        if let v = try? c.decode([String].self,        forKey: .Selection)         { self = .selection(v); return }
+        if let v = try? c.decode([String].self,        forKey: .SelectionMultiple) { self = .selectionMultiple(v); return }
+        if let v = try? c.decode(RelationPayload.self, forKey: .Relation)          { self = .relation(dbId: v.db_id); return }
+        if let v = try? c.decode(RollupPayload.self,   forKey: .Rollup)            {
+            self = .rollup(relationPropId: v.relation_prop_id, targetPropId: v.target_prop_id, aggregate: v.aggregate); return
+        }
+        throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown PropertyType"))
+    }
+
+    func encode(to encoder: Encoder) throws {
+        switch self {
+        case .title:    var c = encoder.singleValueContainer(); try c.encode("Title")
+        case .text:     var c = encoder.singleValueContainer(); try c.encode("Text")
+        case .number:   var c = encoder.singleValueContainer(); try c.encode("Number")
+        case .date:     var c = encoder.singleValueContainer(); try c.encode("Date")
+        case .checkbox: var c = encoder.singleValueContainer(); try c.encode("Checkbox")
+        case .url:      var c = encoder.singleValueContainer(); try c.encode("Url")
+        case .selection(let opts):
+            var c = encoder.container(keyedBy: K.self); try c.encode(opts, forKey: .Selection)
+        case .selectionMultiple(let opts):
+            var c = encoder.container(keyedBy: K.self); try c.encode(opts, forKey: .SelectionMultiple)
+        case .relation(let dbId):
+            var c = encoder.container(keyedBy: K.self)
+            try c.encode(RelationPayload(db_id: dbId), forKey: .Relation)
+        case .rollup(let relId, let tgtId, let agg):
+            var c = encoder.container(keyedBy: K.self)
+            try c.encode(RollupPayload(relation_prop_id: relId, target_prop_id: tgtId, aggregate: agg), forKey: .Rollup)
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .title:             return "textformat"
+        case .text:              return "text.alignleft"
+        case .number:            return "number"
+        case .checkbox:          return "checkmark.square"
+        case .date:              return "calendar"
+        case .url:               return "link"
+        case .selection:         return "list.bullet"
+        case .selectionMultiple: return "list.bullet.indent"
+        case .relation:          return "arrow.triangle.2.circlepath"
+        case .rollup:            return "function"
+        }
+    }
+}
+
+/// A column definition in a database. Mirrors Rust `Property`.
+struct PropertyFfi: Codable, Identifiable, Equatable {
+    let id: String
+    let name: String
+    let propertyType: PropertyTypeFfi
+
+    enum CodingKeys: String, CodingKey { case id, name, propertyType = "type_" }
+}
+
+/// Matches serde's externally-tagged representation of `PropertyValue`.
+enum PropertyValueFfi: Codable, Equatable {
+    case title([InlineTextFfi])
+    case text(String)
+    case number(Double)
+    case selection(String?)
+    case selectionMultiple([String])
+    case date(String)
+    case checkbox(Bool)
+    case url(String)
+    case relation([String])
+    case empty
+
+    private enum K: String, CodingKey {
+        case Title, Text, Number, Selection, SelectionMultiple, Date, Checkbox, Url, Relation
+    }
+
+    init(from decoder: Decoder) throws {
+        if let sv = try? decoder.singleValueContainer(), let s = try? sv.decode(String.self) {
+            if s == "Empty" { self = .empty; return }
+        }
+        let c = try decoder.container(keyedBy: K.self)
+        if let v = try? c.decode([InlineTextFfi].self, forKey: .Title)             { self = .title(v); return }
+        if let v = try? c.decode(String.self,          forKey: .Text)              { self = .text(v); return }
+        if let v = try? c.decode(Double.self,          forKey: .Number)            { self = .number(v); return }
+        if c.contains(.Selection)                                                  { self = .selection(try? c.decode(String.self, forKey: .Selection)); return }
+        if let v = try? c.decode([String].self,        forKey: .SelectionMultiple) { self = .selectionMultiple(v); return }
+        if let v = try? c.decode(String.self,          forKey: .Date)              { self = .date(v); return }
+        if let v = try? c.decode(Bool.self,            forKey: .Checkbox)          { self = .checkbox(v); return }
+        if let v = try? c.decode(String.self,          forKey: .Url)              { self = .url(v); return }
+        if let v = try? c.decode([String].self,        forKey: .Relation)          { self = .relation(v); return }
+        throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown PropertyValue"))
+    }
+
+    func encode(to encoder: Encoder) throws {
+        switch self {
+        case .empty:
+            var c = encoder.singleValueContainer(); try c.encode("Empty")
+        case .title(let v):
+            var c = encoder.container(keyedBy: K.self); try c.encode(v, forKey: .Title)
+        case .text(let v):
+            var c = encoder.container(keyedBy: K.self); try c.encode(v, forKey: .Text)
+        case .number(let v):
+            var c = encoder.container(keyedBy: K.self); try c.encode(v, forKey: .Number)
+        case .selection(let v):
+            var c = encoder.container(keyedBy: K.self); try c.encode(v, forKey: .Selection)
+        case .selectionMultiple(let v):
+            var c = encoder.container(keyedBy: K.self); try c.encode(v, forKey: .SelectionMultiple)
+        case .date(let v):
+            var c = encoder.container(keyedBy: K.self); try c.encode(v, forKey: .Date)
+        case .checkbox(let v):
+            var c = encoder.container(keyedBy: K.self); try c.encode(v, forKey: .Checkbox)
+        case .url(let v):
+            var c = encoder.container(keyedBy: K.self); try c.encode(v, forKey: .Url)
+        case .relation(let v):
+            var c = encoder.container(keyedBy: K.self); try c.encode(v, forKey: .Relation)
+        }
+    }
+
+    /// Plain-text representation of the value (for read-only cells).
+    var displayText: String {
+        switch self {
+        case .title(let s):             return s.map(\.content).joined()
+        case .text(let s):              return s
+        case .number(let n):            return n.formatted()
+        case .selection(let s):         return s ?? ""
+        case .selectionMultiple(let s): return s.joined(separator: ", ")
+        case .date(let s):              return s
+        case .checkbox:                 return ""
+        case .url(let s):               return s
+        case .relation:                 return "→"
+        case .empty:                    return ""
+        }
+    }
+}
+
+/// A database row. Mirrors Rust `Entry`.
+struct EntryFfi: Codable, Identifiable {
+    let id: String
+    let createdAt: String
+    var values: [String: PropertyValueFfi]
+
+    enum CodingKeys: String, CodingKey { case id, createdAt = "created_at", values }
+}
+
+/// Full database payload returned by `getDatabaseJson`. Mirrors Rust `Database`.
+struct DatabaseFfi: Codable {
+    let id: String
+    let title: [InlineTextFfi]
+    let properties: [PropertyFfi]
+    var entries: [EntryFfi]
 }

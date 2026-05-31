@@ -343,6 +343,16 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_get_document_json(uint64_t ptr, Rus
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_grouped_query_database_json(uint64_t ptr, RustBuffer db_id, RustBuffer view_id, RustBuffer group_by, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_IMPORT_FROM_BEAR
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_IMPORT_FROM_BEAR
+uint64_t uniffi_pinkha_fn_method_pinkhaapi_import_from_bear(uint64_t ptr, RustBuffer db_path
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_IMPORT_FROM_NOTION
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_IMPORT_FROM_NOTION
+uint64_t uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(uint64_t ptr, RustBuffer token, RustBuffer database_id
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DATABASES
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DATABASES
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_databases(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -782,6 +792,18 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_get_document_json(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_GROUPED_QUERY_DATABASE_JSON
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_GROUPED_QUERY_DATABASE_JSON
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_grouped_query_database_json(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_IMPORT_FROM_BEAR
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_IMPORT_FROM_BEAR
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_import_from_bear(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_IMPORT_FROM_NOTION
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_IMPORT_FROM_NOTION
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion(void
     
 );
 #endif

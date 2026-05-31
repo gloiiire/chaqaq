@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "crates/chaqaq"]
+members = [".", "crates/chaqaq", "crates/realm-codec"]
 resolver = "2"
 
 [package]
@@ -14,10 +14,12 @@ crate-type = ["staticlib", "cdylib", "lib"]
 [dependencies]
 chaqaq = { path = "crates/chaqaq" }
 chrono = { version = "0.4", features = ["serde"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
 rusqlite_migration = "1.2"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
+tokio = { version = "1", default-features = false, features = ["rt", "rt-multi-thread", "macros"] }
 uniffi = { version = "0.31", features = ["cli"] }
 uuid = { version = "1.23.2", features = ["serde", "v4"] }
 
