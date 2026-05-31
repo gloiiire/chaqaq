@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import Chaqaq
+@testable import Pinkha
 
 @Suite("InlineTextFfi — round-trip JSON")
 struct InlineTextFfiTests {

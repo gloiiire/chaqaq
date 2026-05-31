@@ -1,19 +1,19 @@
 // Test d'intégration : le retry SQLite absorbe les contentions concurrentes
 // dans un scénario réaliste (multi-threads, écritures simultanées).
 
-use chaqaq::application::repository::DocumentRepository;
-use chaqaq::application::resilience::{is_transient, retry_with_backoff};
-use chaqaq::application::error::ChaqaqError;
-use chaqaq::domain::document::Document;
-use chaqaq::domain::parser::parse_inline;
-use chaqaq::infrastructure::sqlite_document_store::SqliteDocumentStore;
+use pinkha::application::repository::DocumentRepository;
+use pinkha::application::resilience::{is_transient, retry_with_backoff};
+use pinkha::application::error::PinkhaError;
+use pinkha::domain::document::Document;
+use pinkha::domain::parser::parse_inline;
+use pinkha::infrastructure::sqlite_document_store::SqliteDocumentStore;
 use std::sync::Arc;
 use std::thread;
 use uuid::Uuid;
 
 fn db_path() -> String {
     std::env::temp_dir()
-        .join(format!("chaqaq_retry_{}.db", Uuid::new_v4()))
+        .join(format!("pinkha_retry_{}.db", Uuid::new_v4()))
         .to_string_lossy()
         .into_owned()
 }
@@ -91,7 +91,7 @@ fn retry_n_intervient_pas_sur_not_found() {
     // Pas de retry attendu sur NotFound — l'erreur remonte immédiatement.
     let inconnu = Uuid::new_v4();
     let result = store.load(inconnu);
-    assert!(matches!(result, Err(ChaqaqError::NotFound(_))));
+    assert!(matches!(result, Err(PinkhaError::NotFound(_))));
 
     // Vérifie via is_transient que NotFound n'est pas transitoire.
     if let Err(e) = store.load(inconnu) {
@@ -104,11 +104,11 @@ fn retry_n_intervient_pas_sur_not_found() {
 #[test]
 fn retry_helper_remonte_apres_max_tentatives_sur_erreur_persistante() {
     let mut appels = 0u32;
-    let result: Result<i32, ChaqaqError> = retry_with_backoff(|| {
+    let result: Result<i32, PinkhaError> = retry_with_backoff(|| {
         appels += 1;
-        Err(ChaqaqError::Db("database is locked".to_string()))
+        Err(PinkhaError::Db("database is locked".to_string()))
     });
 
-    assert!(matches!(result, Err(ChaqaqError::Db(_))));
+    assert!(matches!(result, Err(PinkhaError::Db(_))));
     assert_eq!(appels, 3, "exactly MAX_ATTEMPTS=3 essais avant de renoncer");
 }

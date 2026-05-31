@@ -1,4 +1,4 @@
-use crate::application::error::ChaqaqError;
+use crate::application::error::PinkhaError;
 use crate::application::repository::DocumentRepository;
 use crate::domain::document::{Document, DocumentMeta};
 use std::path::PathBuf;
@@ -15,7 +15,7 @@ impl JsonStore {
 }
 
 impl DocumentRepository for JsonStore {
-    fn save(&self, doc: &Document) -> Result<(), ChaqaqError> {
+    fn save(&self, doc: &Document) -> Result<(), PinkhaError> {
         std::fs::create_dir_all(&self.dir)?;
         let path = self.dir.join(format!("{}.json", doc.id));
         // Écriture atomique : .tmp puis rename — évite la corruption
@@ -26,19 +26,19 @@ impl DocumentRepository for JsonStore {
         Ok(())
     }
 
-    fn load(&self, id: Uuid) -> Result<Document, ChaqaqError> {
+    fn load(&self, id: Uuid) -> Result<Document, PinkhaError> {
         let path = self.dir.join(format!("{}.json", id));
         let json = std::fs::read_to_string(&path).map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                ChaqaqError::NotFound(id)
+                PinkhaError::NotFound(id)
             } else {
-                ChaqaqError::Io(e)
+                PinkhaError::Io(e)
             }
         })?;
         Ok(serde_json::from_str(&json)?)
     }
 
-    fn list(&self) -> Result<Vec<DocumentMeta>, ChaqaqError> {
+    fn list(&self) -> Result<Vec<DocumentMeta>, PinkhaError> {
         // On filtre sur l'extension `.json` (les .tmp d'écritures interrompues sont ignorés)
         // et on ignore silencieusement les fichiers corrompus pour ne pas casser
         // tout le listing à cause d'un seul fichier endommagé.
@@ -57,13 +57,13 @@ impl DocumentRepository for JsonStore {
         Ok(metas)
     }
 
-    fn delete(&self, id: Uuid) -> Result<(), ChaqaqError> {
+    fn delete(&self, id: Uuid) -> Result<(), PinkhaError> {
         let path = self.dir.join(format!("{}.json", id));
         std::fs::remove_file(&path).map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                ChaqaqError::NotFound(id)
+                PinkhaError::NotFound(id)
             } else {
-                ChaqaqError::Io(e)
+                PinkhaError::Io(e)
             }
         })
     }
@@ -72,12 +72,12 @@ impl DocumentRepository for JsonStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::application::error::ChaqaqError;
+    use crate::application::error::PinkhaError;
     use crate::domain::document::{Document, InlineText};
     use uuid::Uuid;
 
     fn store_temp() -> JsonStore {
-        let dir = std::env::temp_dir().join(format!("chaqaq_json_{}", Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("pinkha_json_{}", Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         JsonStore::new(dir)
     }
@@ -91,9 +91,9 @@ mod tests {
 
     #[test]
     fn test_load_retourne_non_trouve() {
-        let store = JsonStore::new(PathBuf::from("/tmp/chaqaq_inexistant"));
+        let store = JsonStore::new(PathBuf::from("/tmp/pinkha_inexistant"));
         let id = Uuid::new_v4();
-        assert!(matches!(store.load(id), Err(ChaqaqError::NotFound(_))));
+        assert!(matches!(store.load(id), Err(PinkhaError::NotFound(_))));
     }
 
     #[test]
@@ -102,14 +102,14 @@ mod tests {
         let d = doc("Test");
         store.save(&d).unwrap();
         store.delete(d.id).unwrap();
-        assert!(matches!(store.load(d.id), Err(ChaqaqError::NotFound(_))));
+        assert!(matches!(store.load(d.id), Err(PinkhaError::NotFound(_))));
     }
 
     #[test]
     fn test_delete_inexistant_retourne_non_trouve() {
         let store = store_temp();
         let id = Uuid::new_v4();
-        assert!(matches!(store.delete(id), Err(ChaqaqError::NotFound(_))));
+        assert!(matches!(store.delete(id), Err(PinkhaError::NotFound(_))));
     }
 
     #[test]

@@ -1,5 +1,5 @@
 use crate::application::database_repository::DatabaseRepository;
-use crate::application::error::ChaqaqError;
+use crate::application::error::PinkhaError;
 use crate::domain::database::{
     Aggregate, FilterCondition, Database, DatabaseMeta, Entry, Filter, Group, Order, Property,
     PropertyType, SortSource, Sort, PropertyValue, View,
@@ -13,21 +13,21 @@ pub fn create_database(
     repo: &dyn DatabaseRepository,
     title: Vec<InlineText>,
     properties: Vec<Property>,
-) -> Result<Database, ChaqaqError> {
+) -> Result<Database, PinkhaError> {
     let db = Database::new(title, properties);
     repo.save(&db)?;
     Ok(db)
 }
 
-pub fn get_database(repo: &dyn DatabaseRepository, id: Uuid) -> Result<Database, ChaqaqError> {
+pub fn get_database(repo: &dyn DatabaseRepository, id: Uuid) -> Result<Database, PinkhaError> {
     repo.load(id)
 }
 
-pub fn list_databases(repo: &dyn DatabaseRepository) -> Result<Vec<DatabaseMeta>, ChaqaqError> {
+pub fn list_databases(repo: &dyn DatabaseRepository) -> Result<Vec<DatabaseMeta>, PinkhaError> {
     repo.list_meta()
 }
 
-pub fn delete_database(repo: &dyn DatabaseRepository, db_id: Uuid) -> Result<(), ChaqaqError> {
+pub fn delete_database(repo: &dyn DatabaseRepository, db_id: Uuid) -> Result<(), PinkhaError> {
     repo.delete(db_id)
 }
 
@@ -35,7 +35,7 @@ pub fn add_entry(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     values: HashMap<Uuid, PropertyValue>,
-) -> Result<Entry, ChaqaqError> {
+) -> Result<Entry, PinkhaError> {
     let mut db = repo.load(db_id)?;
     let entry = Entry::new(values);
     db.entries.push(entry.clone());
@@ -48,13 +48,13 @@ pub fn update_entry(
     db_id: Uuid,
     entry_id: Uuid,
     values: HashMap<Uuid, PropertyValue>,
-) -> Result<(), ChaqaqError> {
+) -> Result<(), PinkhaError> {
     let mut db = repo.load(db_id)?;
     let entry = db
         .entries
         .iter_mut()
         .find(|e| e.id == entry_id)
-        .ok_or(ChaqaqError::NotFound(entry_id))?;
+        .ok_or(PinkhaError::NotFound(entry_id))?;
     entry.values = values;
     repo.save(&db)
 }
@@ -63,12 +63,12 @@ pub fn delete_entry(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     entry_id: Uuid,
-) -> Result<(), ChaqaqError> {
+) -> Result<(), PinkhaError> {
     let mut db = repo.load(db_id)?;
     let avant = db.entries.len();
     db.entries.retain(|e| e.id != entry_id);
     if db.entries.len() == avant {
-        return Err(ChaqaqError::NotFound(entry_id));
+        return Err(PinkhaError::NotFound(entry_id));
     }
     repo.save(&db)
 }
@@ -77,7 +77,7 @@ pub fn add_property(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     propriete: Property,
-) -> Result<(), ChaqaqError> {
+) -> Result<(), PinkhaError> {
     let mut db = repo.load(db_id)?;
     db.properties.push(propriete);
     repo.save(&db)
@@ -87,7 +87,7 @@ pub fn add_view(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     vue: View,
-) -> Result<View, ChaqaqError> {
+) -> Result<View, PinkhaError> {
     let mut db = repo.load(db_id)?;
     db.views.push(vue.clone());
     repo.save(&db)?;
@@ -98,13 +98,13 @@ pub fn requete(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     view_id: Uuid,
-) -> Result<Vec<Entry>, ChaqaqError> {
+) -> Result<Vec<Entry>, PinkhaError> {
     let db = repo.load(db_id)?;
     let vue = db
         .views
         .iter()
         .find(|v| v.id == view_id)
-        .ok_or(ChaqaqError::NotFound(view_id))?;
+        .ok_or(PinkhaError::NotFound(view_id))?;
 
     let mut entries: Vec<Entry> = db
         .entries
@@ -158,13 +158,13 @@ pub fn rename_property(
     db_id: Uuid,
     prop_id: Uuid,
     new_name: &str,
-) -> Result<(), ChaqaqError> {
+) -> Result<(), PinkhaError> {
     let mut db = repo.load(db_id)?;
     let prop = db
         .properties
         .iter_mut()
         .find(|p| p.id == prop_id)
-        .ok_or(ChaqaqError::NotFound(prop_id))?;
+        .ok_or(PinkhaError::NotFound(prop_id))?;
     prop.name = new_name.to_string();
     repo.save(&db)
 }
@@ -174,12 +174,12 @@ pub fn delete_property(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     prop_id: Uuid,
-) -> Result<(), ChaqaqError> {
+) -> Result<(), PinkhaError> {
     let mut db = repo.load(db_id)?;
     let avant = db.properties.len();
     db.properties.retain(|p| p.id != prop_id);
     if db.properties.len() == avant {
-        return Err(ChaqaqError::NotFound(prop_id));
+        return Err(PinkhaError::NotFound(prop_id));
     }
     for entry in &mut db.entries {
         entry.values.remove(&prop_id);
@@ -196,13 +196,13 @@ pub fn update_view(
     view_id: Uuid,
     filters: Vec<Filter>,
     sorts: Vec<Sort>,
-) -> Result<(), ChaqaqError> {
+) -> Result<(), PinkhaError> {
     let mut db = repo.load(db_id)?;
     let vue = db
         .views
         .iter_mut()
         .find(|v| v.id == view_id)
-        .ok_or(ChaqaqError::NotFound(view_id))?;
+        .ok_or(PinkhaError::NotFound(view_id))?;
     vue.filters = filters;
     vue.sorts = sorts;
     repo.save(&db)
@@ -213,17 +213,17 @@ pub fn delete_view(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     view_id: Uuid,
-) -> Result<(), ChaqaqError> {
+) -> Result<(), PinkhaError> {
     let mut db = repo.load(db_id)?;
     if db.views.len() <= 1 {
-        return Err(ChaqaqError::InvalidOperation(
+        return Err(PinkhaError::InvalidOperation(
             "impossible de supprimer la dernière vue".to_string(),
         ));
     }
     let avant = db.views.len();
     db.views.retain(|v| v.id != view_id);
     if db.views.len() == avant {
-        return Err(ChaqaqError::NotFound(view_id));
+        return Err(PinkhaError::NotFound(view_id));
     }
     repo.save(&db)
 }
@@ -235,7 +235,7 @@ pub fn search_entries(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     query: &str,
-) -> Result<Vec<Entry>, ChaqaqError> {
+) -> Result<Vec<Entry>, PinkhaError> {
     let db = repo.load(db_id)?;
     let q = query.to_lowercase();
     Ok(db
@@ -272,7 +272,7 @@ pub fn evaluate_rollups(
     repo: &dyn DatabaseRepository,
     db: &Database,
     mut entries: Vec<Entry>,
-) -> Result<Vec<Entry>, ChaqaqError> {
+) -> Result<Vec<Entry>, PinkhaError> {
     let rollups: Vec<(Uuid, Uuid, Uuid, Aggregate)> = db
         .properties
         .iter()
@@ -299,7 +299,7 @@ pub fn evaluate_rollups(
                 PropertyType::Relation { db_id } => Some(*db_id),
                 _ => None,
             })
-            .ok_or(ChaqaqError::NotFound(relation_prop_id))?;
+            .ok_or(PinkhaError::NotFound(relation_prop_id))?;
 
         let db_liee = repo.load(db_liee_id)?;
 
@@ -327,7 +327,7 @@ pub fn query_with_rollups(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     view_id: Uuid,
-) -> Result<Vec<Entry>, ChaqaqError> {
+) -> Result<Vec<Entry>, PinkhaError> {
     let db = repo.load(db_id)?;
     let entries = requete(repo, db_id, view_id)?;
     evaluate_rollups(repo, &db, entries)
@@ -339,7 +339,7 @@ pub fn column_aggregate(
     db_id: Uuid,
     prop_id: Uuid,
     aggregate: Aggregate,
-) -> Result<PropertyValue, ChaqaqError> {
+) -> Result<PropertyValue, PinkhaError> {
     let db = repo.load(db_id)?;
     let refs: Vec<&Entry> = db.entries.iter().collect();
     Ok(calculer_aggregate(&refs, prop_id, &aggregate))
@@ -351,7 +351,7 @@ pub fn grouped_query(
     db_id: Uuid,
     view_id: Uuid,
     group_by: Uuid,
-) -> Result<Vec<Group>, ChaqaqError> {
+) -> Result<Vec<Group>, PinkhaError> {
     let entries = requete(repo, db_id, view_id)?;
     let mut map: HashMap<String, Group> = HashMap::new();
 
@@ -481,26 +481,26 @@ mod tests {
     }
 
     impl DatabaseRepository for MockDbRepo {
-        fn save(&self, db: &Database) -> Result<(), ChaqaqError> {
+        fn save(&self, db: &Database) -> Result<(), PinkhaError> {
             self.dbs.borrow_mut().insert(db.id, db.clone());
             Ok(())
         }
-        fn load(&self, id: Uuid) -> Result<Database, ChaqaqError> {
+        fn load(&self, id: Uuid) -> Result<Database, PinkhaError> {
             self.dbs
                 .borrow()
                 .get(&id)
                 .cloned()
-                .ok_or(ChaqaqError::NotFound(id))
+                .ok_or(PinkhaError::NotFound(id))
         }
-        fn list_meta(&self) -> Result<Vec<crate::domain::database::DatabaseMeta>, ChaqaqError> {
+        fn list_meta(&self) -> Result<Vec<crate::domain::database::DatabaseMeta>, PinkhaError> {
             Ok(self.dbs.borrow().values().map(|db| db.meta()).collect())
         }
-        fn delete(&self, id: Uuid) -> Result<(), ChaqaqError> {
+        fn delete(&self, id: Uuid) -> Result<(), PinkhaError> {
             self.dbs
                 .borrow_mut()
                 .remove(&id)
                 .map(|_| ())
-                .ok_or(ChaqaqError::NotFound(id))
+                .ok_or(PinkhaError::NotFound(id))
         }
     }
 
@@ -532,7 +532,7 @@ mod tests {
         repo.save(&db).unwrap();
 
         let res = rename_property(&repo, db.id, Uuid::new_v4(), "X");
-        assert!(matches!(res, Err(ChaqaqError::NotFound(_))));
+        assert!(matches!(res, Err(PinkhaError::NotFound(_))));
     }
 
     #[test]
@@ -560,7 +560,7 @@ mod tests {
         repo.save(&db).unwrap();
 
         let res = delete_property(&repo, db.id, Uuid::new_v4());
-        assert!(matches!(res, Err(ChaqaqError::NotFound(_))));
+        assert!(matches!(res, Err(PinkhaError::NotFound(_))));
     }
 
     #[test]
@@ -608,7 +608,7 @@ mod tests {
         repo.save(&db).unwrap();
 
         let res = delete_view(&repo, db.id, view_id);
-        assert!(matches!(res, Err(ChaqaqError::InvalidOperation(_))));
+        assert!(matches!(res, Err(PinkhaError::InvalidOperation(_))));
     }
 
     #[test]
@@ -619,7 +619,7 @@ mod tests {
         repo.save(&db).unwrap();
 
         let res = delete_view(&repo, db.id, Uuid::new_v4());
-        assert!(matches!(res, Err(ChaqaqError::NotFound(_))));
+        assert!(matches!(res, Err(PinkhaError::NotFound(_))));
     }
 
     fn entry_avec_nombre(prop_id: Uuid, n: f64) -> Entry {

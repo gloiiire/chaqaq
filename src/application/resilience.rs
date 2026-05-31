@@ -1,4 +1,4 @@
-use crate::application::error::ChaqaqError;
+use crate::application::error::PinkhaError;
 use std::time::Duration;
 
 /// Nombre maximal de tentatives (1 essai initial + 2 retries).
@@ -12,9 +12,9 @@ pub const MAX_DELAY_MS: u64 = 500;
 
 /// Exécute `op` avec retry exponentiel sur les erreurs transitoires.
 /// Les erreurs métier (NotFound, InvalidOperation) ne sont **jamais** retentées.
-pub fn retry_with_backoff<T, F>(mut op: F) -> Result<T, ChaqaqError>
+pub fn retry_with_backoff<T, F>(mut op: F) -> Result<T, PinkhaError>
 where
-    F: FnMut() -> Result<T, ChaqaqError>,
+    F: FnMut() -> Result<T, PinkhaError>,
 {
     let mut attempts: u32 = 0;
     let mut delay_ms: u64 = INITIAL_DELAY_MS;
@@ -33,19 +33,19 @@ where
 
 /// Identifie les erreurs qui méritent un retry : verrous SQLite, I/O bloquante,
 /// jamais les erreurs métier (NotFound, InvalidOperation).
-pub fn is_transient(err: &ChaqaqError) -> bool {
+pub fn is_transient(err: &PinkhaError) -> bool {
     match err {
-        ChaqaqError::Db(msg) => {
+        PinkhaError::Db(msg) => {
             let lower = msg.to_lowercase();
             lower.contains("busy") || lower.contains("locked") || lower.contains("database is locked")
         }
-        ChaqaqError::Io(io_err) => matches!(
+        PinkhaError::Io(io_err) => matches!(
             io_err.kind(),
             std::io::ErrorKind::WouldBlock
                 | std::io::ErrorKind::Interrupted
                 | std::io::ErrorKind::TimedOut
         ),
-        ChaqaqError::NotFound(_) | ChaqaqError::InvalidOperation(_) | ChaqaqError::Json(_) => false,
+        PinkhaError::NotFound(_) | PinkhaError::InvalidOperation(_) | PinkhaError::Json(_) => false,
     }
 }
 
@@ -60,7 +60,7 @@ mod tests {
         let appels = Cell::new(0u32);
         let result = retry_with_backoff(|| {
             appels.set(appels.get() + 1);
-            Ok::<_, ChaqaqError>(42)
+            Ok::<_, PinkhaError>(42)
         });
         assert_eq!(result.unwrap(), 42);
         assert_eq!(appels.get(), 1);
@@ -72,7 +72,7 @@ mod tests {
         let result = retry_with_backoff(|| {
             appels.set(appels.get() + 1);
             if appels.get() < 2 {
-                Err(ChaqaqError::Db("database is locked".into()))
+                Err(PinkhaError::Db("database is locked".into()))
             } else {
                 Ok(7)
             }
@@ -87,9 +87,9 @@ mod tests {
         let id = Uuid::new_v4();
         let result: Result<i32, _> = retry_with_backoff(|| {
             appels.set(appels.get() + 1);
-            Err(ChaqaqError::NotFound(id))
+            Err(PinkhaError::NotFound(id))
         });
-        assert!(matches!(result, Err(ChaqaqError::NotFound(_))));
+        assert!(matches!(result, Err(PinkhaError::NotFound(_))));
         assert_eq!(appels.get(), 1);
     }
 
@@ -98,9 +98,9 @@ mod tests {
         let appels = Cell::new(0u32);
         let result: Result<i32, _> = retry_with_backoff(|| {
             appels.set(appels.get() + 1);
-            Err(ChaqaqError::InvalidOperation("bad".into()))
+            Err(PinkhaError::InvalidOperation("bad".into()))
         });
-        assert!(matches!(result, Err(ChaqaqError::InvalidOperation(_))));
+        assert!(matches!(result, Err(PinkhaError::InvalidOperation(_))));
         assert_eq!(appels.get(), 1);
     }
 
@@ -109,7 +109,7 @@ mod tests {
         let appels = Cell::new(0u32);
         let result: Result<i32, _> = retry_with_backoff(|| {
             appels.set(appels.get() + 1);
-            Err(ChaqaqError::Db("busy".into()))
+            Err(PinkhaError::Db("busy".into()))
         });
         assert!(result.is_err());
         assert_eq!(appels.get(), MAX_ATTEMPTS);
@@ -117,10 +117,10 @@ mod tests {
 
     #[test]
     fn is_transient_couvre_les_cas_attendus() {
-        assert!(is_transient(&ChaqaqError::Db("database is locked".into())));
-        assert!(is_transient(&ChaqaqError::Db("BUSY (5)".into())));
-        assert!(is_transient(&ChaqaqError::Io(std::io::Error::from(std::io::ErrorKind::WouldBlock))));
-        assert!(!is_transient(&ChaqaqError::NotFound(Uuid::new_v4())));
-        assert!(!is_transient(&ChaqaqError::InvalidOperation("x".into())));
+        assert!(is_transient(&PinkhaError::Db("database is locked".into())));
+        assert!(is_transient(&PinkhaError::Db("BUSY (5)".into())));
+        assert!(is_transient(&PinkhaError::Io(std::io::Error::from(std::io::ErrorKind::WouldBlock))));
+        assert!(!is_transient(&PinkhaError::NotFound(Uuid::new_v4())));
+        assert!(!is_transient(&PinkhaError::InvalidOperation("x".into())));
     }
 }

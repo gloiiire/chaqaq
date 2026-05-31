@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [master, staging, dev]
+  pull_request:
+    branches: [master, staging, dev]
+
+# Annule les runs en cours quand un nouveau commit arrive sur la même branche.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: Rust tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+      - name: cargo test
+        run: cargo test --verbose
+
+  # Job Swift désactivé temporairement : le code utilise `UIGlassEffect` /
+  # `.glassEffect()` (iOS 26) et un deployment target iOS 26.0, alors que les
+  # runners GitHub Actions (`macos-15`) n'ont actuellement que Xcode 16.4 avec
+  # iOS 18.5 SDK. À réactiver quand Xcode 26 stable arrivera sur les runners
+  # (post-WWDC 2026), ou si on backporte avec `if #available(iOS 26.0, *)` et
+  # un fallback UIBlurEffect.
+  # Voir CLAUDE.md → "Dette technique → Infrastructure".
+  swift-placeholder:
+    name: Swift tests (désactivé — Xcode 26 indispo sur runners)
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Swift CI suspendu — voir .github/workflows/ci.yml"

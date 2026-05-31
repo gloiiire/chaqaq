@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import Chaqaq
+@testable import Pinkha
 
 // FFI databases avancée : properties, entries, views.
 // Pas d'UI mais l'API doit être correcte (préparation Notion-like).
@@ -8,10 +8,10 @@ import Foundation
 @Suite("Database — properties, entries, views via FFI")
 struct DatabaseEntitiesTests {
 
-    private func makeApi() throws -> (ChaqaqApi, URL, String) {
+    private func makeApi() throws -> (PinkhaApi, URL, String) {
         let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chaqaq_dbent_\(UUID().uuidString).db")
-        let api = try ChaqaqApi(dbPath: tmp.path)
+            .appendingPathComponent("pinkha_dbent_\(UUID().uuidString).db")
+        let api = try PinkhaApi(dbPath: tmp.path)
         let dbId = try api.createDatabase(title: "Test DB")
         return (api, tmp, dbId)
     }

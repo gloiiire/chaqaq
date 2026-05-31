@@ -1,16 +1,16 @@
 import Testing
 import Foundation
-@testable import Chaqaq
+@testable import Pinkha
 
 // Couverture FFI database avancée : views, queries, aggregates, grouped queries.
 
 @Suite("Database queries — views, aggregates, grouping")
 struct DatabaseQueriesTests {
 
-    private func makeApi() throws -> (ChaqaqApi, URL, String) {
+    private func makeApi() throws -> (PinkhaApi, URL, String) {
         let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chaqaq_dbq_\(UUID().uuidString).db")
-        let api = try ChaqaqApi(dbPath: tmp.path)
+            .appendingPathComponent("pinkha_dbq_\(UUID().uuidString).db")
+        let api = try PinkhaApi(dbPath: tmp.path)
         let dbId = try api.createDatabase(title: "Q")
         return (api, tmp, dbId)
     }
@@ -53,7 +53,7 @@ struct DatabaseQueriesTests {
             Issue.record("vue par défaut introuvable"); return
         }
         // La règle métier : on ne peut pas supprimer la dernière vue.
-        #expect(throws: ChaqaqError.self) {
+        #expect(throws: PinkhaError.self) {
             try api.deleteView(dbId: dbId, viewId: viewId)
         }
     }

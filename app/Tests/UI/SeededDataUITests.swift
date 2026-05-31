@@ -39,7 +39,7 @@ final class SeededDataUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Nouveau bloc"].waitForExistence(timeout: 5))
         // Bouton back natif de NavigationStack
         app.navigationBars.buttons.firstMatch.tap()
-        XCTAssertTrue(app.staticTexts["chaqaq"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["pinkha"].waitForExistence(timeout: 3))
     }
 
     func testFabRemainsVisibleOnHome() {

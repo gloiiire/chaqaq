@@ -1,6 +1,6 @@
 import Testing
 import UIKit
-@testable import Chaqaq
+@testable import Pinkha
 
 @Suite("italicFontWithWeight — italique avec poids contrôlé")
 struct ItalicFontWithWeightTests {

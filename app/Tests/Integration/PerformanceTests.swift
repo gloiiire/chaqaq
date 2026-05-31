@@ -1,14 +1,14 @@
 import Testing
 import Foundation
-@testable import Chaqaq
+@testable import Pinkha
 
 @Suite("Performance — charges réalistes (smoke tests)")
 struct PerformanceTests {
 
-    private func makeApi() throws -> (ChaqaqApi, URL) {
+    private func makeApi() throws -> (PinkhaApi, URL) {
         let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chaqaq_perf_\(UUID().uuidString).db")
-        return (try ChaqaqApi(dbPath: tmp.path), tmp)
+            .appendingPathComponent("pinkha_perf_\(UUID().uuidString).db")
+        return (try PinkhaApi(dbPath: tmp.path), tmp)
     }
 
     @Test func canHandleThousandBlocks() throws {

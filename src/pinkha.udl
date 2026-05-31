@@ -1,9 +1,9 @@
-namespace chaqaq {};
+namespace pinkha {};
 
 // ── Erreurs ───────────────────────────────────────────────────────────────────
 
 [Error]
-interface ChaqaqError {
+interface PinkhaError {
     NotFound(string id);
     InvalidOperation(string detail);
     Storage(string detail);
@@ -32,136 +32,136 @@ dictionary DatabaseMetaFfi {
 
 // ── Façade principale ─────────────────────────────────────────────────────────
 
-interface ChaqaqApi {
+interface PinkhaApi {
     /// Ouvre (ou crée) la base SQLite au chemin donné.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     constructor(string db_path);
 
     // ── Documents ─────────────────────────────────────────────
 
     /// Crée un nouveau document et retourne son UUID.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     string create_document(string title);
 
     /// Retourne le document complet sérialisé en JSON (avec blocs).
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     string get_document_json(string id);
 
     /// Liste les métadonnées de tous les documents actifs.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     sequence<DocumentMetaFfi> list_documents();
 
     /// Soft-delete du document.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     void delete_document(string id);
 
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     void update_document_title(string id, string new_title);
 
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     void update_document_cover(string id, string? cover);
 
     /// Ajoute un bloc ; le contenu est passé en JSON (BlockContent sérialisé).
     /// Retourne le document mis à jour en JSON.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     string add_block(string doc_id, string block_content_json);
 
     /// Remplace le contenu d'un bloc existant (JSON de BlockContent).
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     void update_block(string doc_id, string block_id, string content_json);
 
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     void delete_block(string doc_id, string block_id);
 
     /// Réordonne les blocs racine selon la liste d'UUIDs fournie.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     void reorder_blocks(string doc_id, sequence<string> order);
 
     /// Ajoute un bloc enfant ; le contenu est passé en JSON (BlockContent sérialisé).
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     string add_child_block(string doc_id, string parent_id, string block_content_json);
 
     /// Réordonne les enfants directs d'un bloc parent.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     void reorder_child_blocks(string doc_id, string parent_id, sequence<string> order);
 
     /// Déplace un bloc vers un parent ou vers la racine si `new_parent_id` est nul.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     void move_block(string doc_id, string block_id, string? new_parent_id);
 
     /// Recherche insensible à la casse dans les titles.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     sequence<DocumentMetaFfi> search_documents(string query);
 
     /// Recherche plein texte dans les blocs.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     sequence<DocumentMetaFfi> search_in_blocks(string query);
 
     // ── Databases ─────────────────────────────────────────────
 
     /// Crée une nouvelle database et retourne son UUID.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     string create_database(string title);
 
     /// Retourne la database complète sérialisée en JSON (avec entrées et vues).
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     string get_database_json(string id);
 
     /// Liste les métadonnées de toutes les databases actives.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     sequence<DatabaseMetaFfi> list_databases();
 
     /// Soft-delete de la database.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     void delete_database(string id);
 
     /// Ajoute une entrée ; `values_json` est une map UUID -> ValeurPropriete sérialisée.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     string add_entry(string db_id, string values_json);
 
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     void update_entry(string db_id, string entry_id, string values_json);
 
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     void delete_entry(string db_id, string entry_id);
 
     /// Ajoute une propriété sérialisée en JSON.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     void add_property(string db_id, string property_json);
 
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     void rename_property(string db_id, string property_id, string new_name);
 
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     void delete_property(string db_id, string property_id);
 
     /// Ajoute une vue sérialisée en JSON.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     string add_view(string db_id, string view_json);
 
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     void update_view(string db_id, string view_id, string filters_json, string sorts_json);
 
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     void delete_view(string db_id, string view_id);
 
     /// Retourne les entrées filtrées/triées en JSON.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     string query_database_json(string db_id, string view_id);
 
     /// Retourne les entrées filtrées/triées avec rollups calculés en JSON.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     string query_database_with_rollups_json(string db_id, string view_id);
 
     /// Retourne les groupes d'entrées en JSON.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     string grouped_query_database_json(string db_id, string view_id, string group_by);
 
     /// Retourne l'agrégat d'une colonne en JSON.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     string column_aggregate_database_json(string db_id, string property_id, string aggregate_json);
 
     /// Retourne les entrées correspondant à la recherche en JSON.
-    [Throws=ChaqaqError]
+    [Throws=PinkhaError]
     string search_database_entries_json(string db_id, string query);
 };

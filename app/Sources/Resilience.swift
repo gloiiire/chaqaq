@@ -3,10 +3,10 @@ import SwiftUI
 
 // MARK: - Erreurs utilisateur
 
-/// Conversion des `ChaqaqError` FFI en messages français adaptés à l'utilisateur.
+/// Conversion des `PinkhaError` FFI en messages français adaptés à l'utilisateur.
 /// Les erreurs techniques (UUID invalide, payload trop grand) sont condensées,
 /// les erreurs métier (NotFound, Storage) ont un libellé propre.
-extension ChaqaqError {
+extension PinkhaError {
     var userMessage: String {
         switch self {
         case .NotFound:
@@ -34,7 +34,7 @@ extension ChaqaqError {
 func tryCatch<T>(into errorMessage: inout String?, _ work: () throws -> T) -> T? {
     do {
         return try work()
-    } catch let err as ChaqaqError {
+    } catch let err as PinkhaError {
         errorMessage = err.userMessage
     } catch {
         errorMessage = error.localizedDescription

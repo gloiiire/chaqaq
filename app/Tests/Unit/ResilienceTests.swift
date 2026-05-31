@@ -1,29 +1,29 @@
 import Testing
 import SwiftUI
-@testable import Chaqaq
+@testable import Pinkha
 
-@Suite("ChaqaqError — messages utilisateur et récupérabilité")
-struct ChaqaqErrorUXTests {
+@Suite("PinkhaError — messages utilisateur et récupérabilité")
+struct PinkhaErrorUXTests {
 
     @Test func notFoundProducesFriendlyMessage() {
-        let msg = ChaqaqError.NotFound(id: "abc").userMessage
+        let msg = PinkhaError.NotFound(id: "abc").userMessage
         #expect(msg.contains("introuvable"))
     }
 
     @Test func invalidOperationIncludesDetail() {
-        let msg = ChaqaqError.InvalidOperation(detail: "UUID invalide").userMessage
+        let msg = PinkhaError.InvalidOperation(detail: "UUID invalide").userMessage
         #expect(msg.contains("UUID invalide"))
     }
 
     @Test func storageMessageSuggestsRetry() {
-        let msg = ChaqaqError.Storage(detail: "lock").userMessage
+        let msg = PinkhaError.Storage(detail: "lock").userMessage
         #expect(msg.contains("Réessaie") || msg.contains("réessaie"))
     }
 
     @Test func onlyStorageIsRecoverable() {
-        #expect(ChaqaqError.Storage(detail: "x").isRecoverable)
-        #expect(!ChaqaqError.NotFound(id: "x").isRecoverable)
-        #expect(!ChaqaqError.InvalidOperation(detail: "x").isRecoverable)
+        #expect(PinkhaError.Storage(detail: "x").isRecoverable)
+        #expect(!PinkhaError.NotFound(id: "x").isRecoverable)
+        #expect(!PinkhaError.InvalidOperation(detail: "x").isRecoverable)
     }
 }
 
@@ -99,10 +99,10 @@ struct TryCatchTests {
         #expect(msg == nil)
     }
 
-    @Test func capturesChaqaqErrorAsUserMessage() {
+    @Test func capturesPinkhaErrorAsUserMessage() {
         var msg: String? = nil
         let result: Int? = tryCatch(into: &msg) {
-            throw ChaqaqError.NotFound(id: "abc")
+            throw PinkhaError.NotFound(id: "abc")
         }
         #expect(result == nil)
         #expect(msg?.contains("introuvable") == true)

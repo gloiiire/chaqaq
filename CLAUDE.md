@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Vision
 
-**chaqaq** — app de notes personnelle, mélange Craft (beauté, fluidité, rendu natif) + Notion (databases, structure). Full Rust pour le core. Objectif : publication open source, car un rich text editor en Rust n'existe pas encore dans l'écosystème.
+**pinkha** — app de notes personnelle, mélange Craft (beauté, fluidité, rendu natif) + Notion (databases, structure). Full Rust pour le core. Objectif : publication open source, car un rich text editor en Rust n'existe pas encore dans l'écosystème.
 
 Plateformes cibles : iPhone, iPad, Mac. Décision UI : **SwiftUI + UniFFI** — rendu 100 % natif (iOS 26, scroll physics natif, tab bar native), Rust pour le core.
 
@@ -18,7 +18,7 @@ cargo test
 
 # Régénérer les bindings Swift après modification du .udl ou de ffi.rs
 cargo build
-cargo run --bin uniffi-bindgen -- generate --library target/debug/libchaqaq.dylib \
+cargo run --bin uniffi-bindgen -- generate --library target/debug/libpinkha.dylib \
     --language swift --out-dir swift-bindings/
 ```
 
@@ -38,27 +38,27 @@ src/
     use_cases.rs   — use cases documents et blocs
     database_repository.rs — trait DatabaseRepository
     database_use_cases.rs  — use cases database
-    error.rs       — ChaqaqError (NonTrouve, OperationInvalide, Io, Json, Db)
+    error.rs       — PinkhaError (NonTrouve, OperationInvalide, Io, Json, Db)
   infrastructure/
     migrations.rs            — migrations SQLite versionnées (rusqlite_migration)
     sqlite_document_store.rs — SqliteDocumentStore : stockage local-first recommandé
     sqlite_database_store.rs — SqliteDatabaseStore : stockage local-first recommandé
     json_store.rs            — JsonStore : conservé pour les tests et le proto
     database_store.rs        — DatabaseStore JSON : conservé pour les tests
-  ffi.rs           — façade UniFFI : ChaqaqApi, ChaqaqError FFI, types dictionnaire
-  chaqaq.udl       — interface UDL déclarant l'API publique Swift/Kotlin
+  ffi.rs           — façade UniFFI : PinkhaApi, PinkhaError FFI, types dictionnaire
+  pinkha.udl       — interface UDL déclarant l'API publique Swift/Kotlin
   bin/
     uniffi-bindgen.rs — binaire local pour générer les bindings
   main.rs          — point d'entrée démo
-swift-bindings/    — bindings Swift générés (chaqaq.swift, chaqaqFFI.h, .modulemap)
-chaqaq.xcframework — XCFramework compilé (ios-arm64, ios-arm64-simulator, macos-arm64)
+swift-bindings/    — bindings Swift générés (pinkha.swift, pinkhaFFI.h, .modulemap)
+pinkha.xcframework — XCFramework compilé (ios-arm64, ios-arm64-simulator, macos-arm64)
 build-xcframework.sh — script de compilation du XCFramework
 app/               — application SwiftUI (projet Xcode généré par xcodegen)
   project.yml      — config xcodegen
-  Chaqaq.xcodeproj/
+  Pinkha.xcodeproj/
   Sources/
-    ChaqaqApp.swift      — point d'entrée @main
-    ContentView.swift    — écran d'accueil + ChaqaqStore
+    PinkhaApp.swift      — point d'entrée @main
+    ContentView.swift    — écran d'accueil + PinkhaStore
     DocumentView.swift   — éditeur de document + DocumentViewModel
     Models.swift         — miroirs Swift des types Rust (Codable)
     RichTextEditor.swift — UIViewRepresentable + toolbar de formatage
@@ -111,7 +111,7 @@ Moteur type Notion :
 - `Database { id, titre, proprietes, entrees, vues }`, `DatabaseMeta { id, titre, updated_at }`
 
 ### `application/error.rs`
-`ChaqaqError` : `NonTrouve(Uuid)`, `OperationInvalide(String)`, `Io(std::io::Error)`, `Json(serde_json::Error)`, `Db(String)`
+`PinkhaError` : `NonTrouve(Uuid)`, `OperationInvalide(String)`, `Io(std::io::Error)`, `Json(serde_json::Error)`, `Db(String)`
 — `Db(String)` convertit les erreurs rusqlite en string pour ne pas coupler l'application à SQLite.
 — implémente `std::error::Error` + `From<io::Error>` + `From<serde_json::Error>`
 
@@ -154,18 +154,18 @@ Stockage SQLite local-first. Schéma : document-as-JSON dans une colonne `data`,
 `JsonStore { dir: PathBuf }` — conservé pour compatibilité et tests existants.
 `#[serde(alias = "style")]` sur `styles` pour la compat avec les anciens fichiers.
 
-### `ffi.rs` + `chaqaq.udl` — Couche UniFFI
+### `ffi.rs` + `pinkha.udl` — Couche UniFFI
 Façade publique exposée à Swift via UniFFI 0.31.
-- `ChaqaqError` FFI : enum `NonTrouve { id }`, `OperationInvalide { detail }`, `Stockage { detail }` — devient un `enum` Swift natif
+- `PinkhaError` FFI : enum `NonTrouve { id }`, `OperationInvalide { detail }`, `Stockage { detail }` — devient un `enum` Swift natif
 - `DocumentMetaFfi` / `DatabaseMetaFfi` : structs dictionnaire (id, title_plain, title_json, cover, updated_at, created_at)
-- `ChaqaqApi` : ouvre les deux stores SQLite au même chemin, expose toutes les opérations documents et databases
+- `PinkhaApi` : ouvre les deux stores SQLite au même chemin, expose toutes les opérations documents et databases
 - Les blocs et databases complètes transitent en JSON (String) pour éviter le type récursif `Block` dans l'UDL — Swift décode via `Codable`
 - `ajouter_bloc` retourne l'UUID du bloc créé (pas le document entier)
 - Shift+Enter géré côté éditeur : `EditorState.inserer('\n')` + `sauvegarder_bloc_edite` — aucun variant `LineBreak` nécessaire dans le modèle
 
 Usage Swift :
 ```swift
-let api = try ChaqaqApi(cheminDb: path)
+let api = try PinkhaApi(cheminDb: path)
 let id  = try api.creerDocument(titre: "Ma note")
 let json = try api.obtenirDocumentJson(id: id)  // → Codable
 ```
@@ -178,30 +178,51 @@ let json = try api.obtenirDocumentJson(id: id)  // → Codable
 - Helpers sur `BlockContentFfi` : `texteSimple`, `spansOuVide`, `estTodo`, `doneTodo`, `avecTexte`, `avecSpans`, `toAttributedString`
 
 **`RichTextEditor.swift`** — éditeur de texte riche :
-- `ExpandingTextView : UITextView` — hauteur automatique via `intrinsicContentSize`
-- `RichTextEditor : UIViewRepresentable` — bindings `spans`, `isFocused`, callbacks `onSave`, `onNewBlock`, `onConvert`
-- `spansVersNSAttributed` / `nsAttributedVersSpans` — conversion aller-retour avec `.chaqaqColor` custom key pour le nom de couleur
-- `NSAttributedString.Key.chaqaqColor` — attribut custom pour stocker le nom de couleur (round-trip fiable)
-- Toolbar pill (style Notes.app) : `UIView` custom avec fond adaptatif, `UIScrollView` horizontal, boutons B/I/U + cercles couleur + dismiss clavier
-- `fontAvecTraits(_:bold:italic:)` — gras/italique robuste avec fallback `boldSystemFont`/`italicSystemFont` (SF Pro ne supporte pas toujours `withSymbolicTraits`)
-- Raccourcis markdown dans `textViewDidChange` : `# ` → H1, `## ` → H2, `### ` → H3, `> ` → Quote, `[ ] ` → Todo, `---` → Divider
+- `ExpandingTextView : UITextView` — hauteur automatique via `intrinsicContentSize`, hooks pour Shift+Enter et toggles bold/italic/underline (clavier hardware)
+- `RichTextEditor : UIViewRepresentable` — bindings `spans` / `isFocused`, callbacks `onSave`, `onSaveSpans`, `onNewBlock`, `onDeleteBloc`, `onMergeAvecPrecedent`, `onConvert`, `onUndo`/`onRedo` + closures live `canUndoProvider`/`canRedoProvider`
+- `spansToAttributed` / `attributedToSpans` — conversion aller-retour avec `.pinkhaColor` custom key pour préserver le nom de couleur
+- `NSAttributedString.Key.pinkhaColor` — attribut custom pour stocker le nom de couleur (round-trip fiable)
+- `MenuButton : UIButton` — surcharge `contextMenuInteraction(_:willEndFor:)` pour détecter la fermeture des menus déroulants (hide-on-menu façon Notes.app)
+- Toolbar pill (style Notes.app) — `UIView` custom avec `UIVisualEffectView(UIGlassEffect())`, `UIScrollView` horizontal, ordre : Coller / Aa (B/I/U/S via menu déroulant) / Highlighter (palette via menu) / Undo / Redo / Return / Dismiss clavier
+- Hide-on-menu : ouverture d'un menu déroulant via `UIDeferredMenuElement.uncached` qui cache la pill ; `MenuButton.onMenuWillEnd` la restaure à la fermeture (couvre dismiss par tap dehors)
+- `fontWithTraits(_:bold:italic:)` — gras/italique avec fallback `boldSystemFont`/`italicSystemFont` (SF Pro ne propage pas toujours `withSymbolicTraits`)
+- `markdownShortcut(for:)` (free function, testable) : `# ` → H1, `## ` → H2, `### ` → H3, `> ` → Quote, `!! ` → Callout, `[ ] ` → Todo, `---` → Divider
+- Optim : `lastSyncedSpans` par Coordinator — skip la recomputation de `spansToAttributed` quand un autre bloc reçoit la frappe (SwiftUI re-render global mais ce bloc n'a pas changé)
+- Optim : `lastCanUndo`/`lastCanRedo` — évite la recréation d'`UIImage` à chaque keystroke pour les boutons undo/redo de la toolbar
+- `toolbarLineBreak()` : insère un `\n` via `tv.insertText` + reset défensif `shiftEnterTyped = false` après (insertText programmé peut bypass `shouldChangeTextIn`)
+- `textViewDidChange` appelle `save()` à chaque frappe → capture du burst undo côté VM. Le persist SQLite est différé au flush du burst (1 write par burst, pas par caractère)
 
 **`ContentView.swift`** — écran d'accueil :
-- `ChaqaqStore : ObservableObject` — connecte `ChaqaqApi`, liste les documents, CRUD
+- `PinkhaStore : ObservableObject` — connecte `PinkhaApi`, liste les documents, CRUD
 - Salutation dynamique (Bonjour/Bon après-midi/Bonsoir)
 - `NavigationLink` → `DocumentView`
 - FAB `square.and.pencil`, état vide illustré, date relative formatée
+- `.toolbar(.hidden, for: .navigationBar)` — pas de titre "pinkha" en haut de l'accueil
 
 **`DocumentView.swift`** — éditeur de document :
-- `EditableBlock` — modèle en mémoire : `id`, `content: BlockContentFfi`, `spans: [InlineTextFfi]`, `done: Bool`
-- `DocumentViewModel : ObservableObject` — `charger`, `sauvegarderBloc`, `ajouterBloc`, `supprimerBloc`, `deplacerBloc` + `reordonnerBlocs`
+- `EditableBlock : Identifiable, Equatable` — modèle en mémoire : `id`, `content: BlockContentFfi`, `spans: [InlineTextFfi]`, `done: Bool`
+- `DocumentViewModel : ObservableObject, @MainActor` — `load`, `saveBlock` / `saveBlock(id:spans:)` (burst), `persistBlock` (mutations structurelles), `addBlock`, `deleteBlock` / `deleteBlocks(ids:)`, `moveBlock`, `applyBlockOrder`, `toggleBlockDone`, `updateBlockIcon`, `convertBlockContent`, `saveTitle`, `saveCover`
 - Mutations en mémoire directe (pas de rechargement depuis SQLite après insert/delete — évite l'effacement du contenu en cours d'édition)
-- Blocs supportés : Text, Heading (1/2/3), Quote, Todo, Divider
-- `ForEach($vm.blocs) { $bloc in }` — two-way binding pour l'édition en place
+- Blocs supportés : Text, Heading (1/2/3), Quote, Callout (Quote avec icône emoji), Todo, Divider
+- `ForEach($vm.blocks) { $block in }` — two-way binding pour l'édition en place
 - Drag & drop natif via `.onMove` + `EditMode`
 - Swipe-to-delete + menu contextuel
 - `.scrollDismissesKeyboard(.interactively)` — dismiss clavier par swipe natif
-- `autoFocusId` — focus automatique sur le bloc nouvellement créé
+- `autoFocusId` — focus automatique sur le bloc nouvellement créé OU réinséré (undo d'une suppression)
+
+**Undo / redo (Swift) :**
+- `UndoManager` natif, `levelsOfUndo = 1000` (aligné sur `CAPACITE_PAR_DEFAUT` du back Rust)
+- 2 UI synchronisées : pill glass en bas-gauche (clavier fermé) + boutons dans la toolbar clavier (clavier ouvert)
+- `canUndoProvider`/`canRedoProvider` = closures live qui lisent `vm.canUndo`/`vm.canRedo` → toujours frais à chaque updateUIView / textViewDidChange / didChangeSelection
+- `vm.canUndo = undoMgr.canUndo || !blockBurstAnchor.isEmpty` — le bouton s'allume aussi quand un burst de typing est pending (l'undo flush d'abord puis annule)
+- Toutes les ops VM enregistrent leur inverse : add/delete/move block, toggle todo, change icon, convert content, save title, save cover, frappe
+- **Burst undo pour la frappe** (style Notes) : une rafale continue de `saveBlock` sur le même bloc = 1 seule étape undo. `burstInterval = 300 ms` d'inactivité → flush + persist SQLite + register undo. Switch de bloc flush l'ancien immédiatement.
+- `BlockSnapshot { content, spans, done }` (Equatable) — état capturé pré-burst (`blockBurstAnchor`) ou stable (`blockSnapshots`)
+- `applyBlockSnapshot(blockId:snapshot:)` remplace l'élément entier dans `blocks` (déclenche `@Published` fiablement) + persiste + re-register la reverse
+- Observer `NSUndoManagerCheckpoint` async-dispatché pour `objectWillChange.send()` — évite le warning « Publishing changes from within view updates »
+
+**`Resilience.swift`** — UX erreur :
+- `PinkhaError.userMessage` (FR), `isRecoverable`, `tryCatch(into: &errorMessage)`, `.errorAlert(message:onRetry:)`
 
 ## Roadmap
 
@@ -209,36 +230,38 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
 - Parser inline complet (bold, italic, underline, color, link, combinaisons)
 - Types de blocs et documents avec blocs imbriqués récursifs
 - `DocumentMeta` pour `list()` sans charger tout le contenu
-- Erreurs custom `ChaqaqError` (plus de `Box<dyn Error>`)
+- Erreurs custom `PinkhaError` (plus de `Box<dyn Error>`)
 - `RichText` + `EditorState` : édition en mémoire (curseur, sélection, toggle style)
-- Undo/redo via pattern Command (`Historique` avec capacité configurable)
+- Undo/redo via pattern Command côté Rust (`Historique` avec capacité configurable)
 - Moteur database type Notion (propriétés, entrées, vues, filtres, tris, rollup, relation)
 - CRUD complet blocs : ajouter, modifier, supprimer, réordonner (racine et enfants), imbriquer, déplacer
-- Bridge éditeur → persistance (`sauvegarder_bloc_edite`)
 - Recherche documents par titre + plein texte dans les blocs
 - Recherche dans les entrées de database
 - Gestion complète des propriétés (ajout, renommage, suppression)
 - Gestion complète des vues (ajout, modification filtres/tris, suppression)
-- **SQLite local-first** : `SqliteDocumentStore` + `SqliteDatabaseStore` avec soft delete, `updated_at`, migrations versionnées
-- `JsonStore` + `DatabaseStore` JSON (conservés pour les tests)
-- **Couche FFI UniFFI** : `ChaqaqApi` exposée à Swift, bindings `swift-bindings/` générés
-- **XCFramework** : `chaqaq.xcframework` compilé (ios-arm64, ios-arm64-simulator, macos-arm64)
-- **Projet Xcode** : `app/Chaqaq.xcodeproj` généré par xcodegen, lié au XCFramework
-- **UI SwiftUI complète** :
-  - Écran d'accueil avec liste de documents, salutation dynamique, FAB, création via sheet
-  - Éditeur de document : blocs Text, Heading (×3), Quote, Todo, Divider
-  - Texte riche : gras, italique, souligné, couleurs (rouge, bleu, orange, violet)
-  - Toolbar de formatage pill (style Notes.app) avec scroll horizontal
-  - Raccourcis markdown : `# `, `## `, `### `, `> `, `[ ] `, `---`
-  - Enter → nouveau bloc, drag & drop natif, swipe-to-delete
-  - Dismiss clavier par swipe vers le bas (`.scrollDismissesKeyboard(.interactively)`)
-  - Focus automatique sur le bloc créé
+- **SQLite local-first** : `SqliteDocumentStore` + `SqliteDatabaseStore` avec soft delete, `updated_at`, migrations versionnées, WAL, retry exponentiel
+- **Couche FFI UniFFI** : `PinkhaApi` exposée à Swift en API anglaise idiomatique
+- **XCFramework** : `pinkha.xcframework` compilé (ios-arm64, ios-arm64-simulator, macos-arm64)
+- **Projet Xcode** : `app/Pinkha.xcodeproj` généré par xcodegen
+- **UI SwiftUI** :
+  - Écran d'accueil : liste de documents, salutation dynamique, FAB, nav bar masquée
+  - Éditeur de document : blocs Text, Heading (×3), Quote, Callout (Quote + emoji), Todo, Divider
+  - Texte riche : gras, italique, souligné, barré, 9 couleurs (rouge, rose, orange, jaune, vert, cyan, bleu, violet, marron)
+  - Toolbar pill (style Notes.app) glass effect : Coller / Aa (B/I/U/S) / Highlighter / Undo / Redo / Return / Dismiss — hide-on-menu façon Notes
+  - Raccourcis markdown : `# `, `## `, `### `, `> `, `!! ` (callout), `[ ] `, `---`
+  - Enter → nouveau bloc, Shift+Enter / Return toolbar → saut de ligne dans le bloc, drag & drop, swipe-to-delete, dismiss clavier par swipe
+  - Focus automatique sur le bloc créé OU réinséré via undo
+  - Undo/redo unifié (1000 niveaux) : pill bas-gauche + boutons toolbar, burst typing 300 ms style Notes, focus auto sur block réinséré
+  - Perf : persist SQLite différé au flush burst, cache spans par bloc, cache état boutons undo
+- **CI** : GitHub Actions `cargo test` sur push/PR vers master/staging/dev (`macos-15`). Swift job suspendu en attendant Xcode 26 sur les runners
+- **Sécurité repo** : branches protégées (PR obligatoire, force-push bloqué, suppression bloquée, Rust CI requise), Secret Scanning + Push Protection, Dependabot Alerts + Security Updates, Dependabot config mensuelle pour Cargo + Actions
 
 Ce qui **reste** à construire :
 1. UI Databases (backend Notion complet existe, aucune vue SwiftUI)
 2. Barre de recherche (backend full-text existe, pas d'UI)
 3. Vue iPad / Mac (NavigationSplitView)
 4. Sync entre appareils (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
+5. Réactiver Swift CI quand Xcode 26 sera dispo sur les runners GitHub Actions
 
 ## Git workflow
 
@@ -288,9 +311,9 @@ Ce qui **reste** à construire :
 - **Dependency Inversion** : les use cases dépendent d'abstractions (`&dyn DocumentRepository`), jamais de stores concrets. Seul `ffi.rs` (composition root) connaît les implémentations concrètes (`SqliteDocumentStore`).
 
 ### Résilience (back + front)
-- **Erreurs typées, pas de panic** : `Result<T, ChaqaqError>` côté Rust, throws/Result côté Swift. Jamais de `unwrap()`/`!` en production.
-- **Conversion d'erreurs aux frontières** : `From<E>` Rust (cf. `From<CoreError> for ChaqaqError` FFI) ; mapping en `ChaqaqError` côté Swift via `do/catch` qui remonte un `errorMessage: String?` au store.
-- **Pas de couplage à l'impl** : `ChaqaqError::Db(String)` convertit les erreurs `rusqlite` en string pour ne pas coupler l'application à SQLite.
+- **Erreurs typées, pas de panic** : `Result<T, PinkhaError>` côté Rust, throws/Result côté Swift. Jamais de `unwrap()`/`!` en production.
+- **Conversion d'erreurs aux frontières** : `From<E>` Rust (cf. `From<CoreError> for PinkhaError` FFI) ; mapping en `PinkhaError` côté Swift via `do/catch` qui remonte un `errorMessage: String?` au store.
+- **Pas de couplage à l'impl** : `PinkhaError::Db(String)` convertit les erreurs `rusqlite` en string pour ne pas coupler l'application à SQLite.
 - **Retry avec backoff exponentiel** : `application/resilience.rs::retry_with_backoff` (3 essais, 50ms→500ms doublés) wrappe les opérations SQLite write/read. `is_transient()` ne retente que les erreurs verrou/I/O bloquante, jamais les erreurs métier (`NotFound`, `InvalidOperation`).
 - **Validation aux frontières FFI** (`ffi.rs`) :
   - `parse_uuid` rejette les UUID malformés en `InvalidOperation`
@@ -300,12 +323,12 @@ Ce qui **reste** à construire :
 - **Mutations UI optimistes** : mémoire d'abord (les blocs en mémoire), persistance ensuite — évite l'effacement du contenu en cours de frappe lors d'un rechargement SQLite. La désync mémoire/disque est détectée au rechargement.
 - **Concurrence** : SQLite en `WAL` pour la lecture concurrente. `@MainActor` côté Swift pour les view models. Pas d'accès direct au store hors façade.
 - **UX erreur Swift** (`Resilience.swift`) :
-  - `ChaqaqError.userMessage` → message français lisible par utilisateur (au lieu de l'erreur brute)
-  - `ChaqaqError.isRecoverable` → true pour `Storage` (retry possible)
+  - `PinkhaError.userMessage` → message français lisible par utilisateur (au lieu de l'erreur brute)
+  - `PinkhaError.isRecoverable` → true pour `Storage` (retry possible)
   - `tryCatch(into: &errorMessage)` capture l'erreur sans propager, remonte le message au view model
   - `.errorAlert(message:onRetry:)` modificateur SwiftUI qui présente l'alert avec bouton « Réessayer » optionnel
 - **Tests à 3 niveaux côté Rust** : unitaires (`#[cfg(test)] mod tests` dans chaque module — y compris `resilience.rs` avec 6 tests), intégration (`tests/integration_*`), E2E (`tests/e2e_*`). 204+ tests.
-- **Tests à 3 niveaux côté Swift** : `app/Tests/Unit/` (Swift Testing — `@Suite`/`@Test`/`#expect`, code pur), `app/Tests/Integration/` (Swift ↔ FFI réelle avec DB SQLite temporaire), `app/Tests/UI/` (XCUITest — pilote l'app comme utilisateur). Cibles xcodegen : `ChaqaqTests`, `ChaqaqIntegrationTests`, `ChaqaqUITests`. **186+ tests Swift.**
+- **Tests à 3 niveaux côté Swift** : `app/Tests/Unit/` (Swift Testing — `@Suite`/`@Test`/`#expect`, code pur), `app/Tests/Integration/` (Swift ↔ FFI réelle avec DB SQLite temporaire), `app/Tests/UI/` (XCUITest — pilote l'app comme utilisateur). Cibles xcodegen : `PinkhaTests`, `PinkhaIntegrationTests`, `PinkhaUITests`. **186+ tests Swift.**
 
 **Commandes de test** :
 ```bash
@@ -313,15 +336,15 @@ Ce qui **reste** à construire :
 cargo test
 
 # Swift complet (tous niveaux, nécessite simulateur booté) :
-xcodebuild test -project app/Chaqaq.xcodeproj -scheme Chaqaq -destination 'id=<UDID>'
+xcodebuild test -project app/Pinkha.xcodeproj -scheme Pinkha -destination 'id=<UDID>'
 
 # Swift unit + integration seulement (rapide, pas de XCUITest) :
-xcodebuild test -project app/Chaqaq.xcodeproj -scheme Chaqaq -destination 'id=<UDID>' \
-    -only-testing:ChaqaqTests -only-testing:ChaqaqIntegrationTests
+xcodebuild test -project app/Pinkha.xcodeproj -scheme Pinkha -destination 'id=<UDID>' \
+    -only-testing:PinkhaTests -only-testing:PinkhaIntegrationTests
 
 # Swift UI seulement :
-xcodebuild test -project app/Chaqaq.xcodeproj -scheme Chaqaq -destination 'id=<UDID>' \
-    -only-testing:ChaqaqUITests
+xcodebuild test -project app/Pinkha.xcodeproj -scheme Pinkha -destination 'id=<UDID>' \
+    -only-testing:PinkhaUITests
 ```
 
 **Launch arguments pour UI tests** (évitent `typeText`, flaky sur simulateur iOS 26) :
@@ -334,16 +357,19 @@ xcodebuild test -project app/Chaqaq.xcodeproj -scheme Chaqaq -destination 'id=<U
 - `#[serde(alias = "style")]` sur `InlineText.styles` pour charger les anciens JSON.
 - Les mutations de blocs en Swift se font en mémoire d'abord (pas de rechargement SQLite après insert/delete) pour éviter l'effacement du contenu en cours de frappe.
 - `fontWithTraits(_:bold:italic:)` utilise `boldSystemFont`/`italicSystemFont` en fallback car `withSymbolicTraits` retourne `nil` sur SF Pro dans certains contextes iOS.
-- `NSAttributedString.Key.chaqaqColor` stocke le nom de couleur (String) en parallèle de `.foregroundColor` pour un round-trip `NSAttributedString ↔ [InlineTextFfi]` fiable.
+- `NSAttributedString.Key.pinkhaColor` stocke le nom de couleur (String) en parallèle de `.foregroundColor` pour un round-trip `NSAttributedString ↔ [InlineTextFfi]` fiable.
 
 ## Dette technique — à reprendre avant scaling / mise en prod sérieuse
 
-Ces points sont **acceptables en l'état actuel** (projet solo, 401 tests locaux) mais devront être traités avant d'ouvrir aux contributeurs / déployer en App Store. Ordre de priorité :
+Ces points sont **acceptables en l'état actuel** (projet solo, 208 tests Rust + 179 tests Swift unit/integration) mais devront être traités avant d'ouvrir aux contributeurs / déployer en App Store. Ordre de priorité :
 
 ### Infrastructure (haute priorité dès qu'on collabore)
-- **CI GitHub Actions** : workflow qui lance `cargo test` + `xcodebuild test` sur chaque push/PR. Sans ça, la suite de 401 tests est purement locale et "chez moi ça marche" devient le mode opératoire.
+- **CI GitHub Actions** :
+  - ✅ Rust : `cargo test` sur push/PR vers master/staging/dev (`macos-15` runner).
+  - ⏸ Swift `xcodebuild test` désactivé temporairement — les runners ont Xcode 16.4 / iOS 18.5 SDK, alors que le projet target iOS 26.0 et utilise `UIGlassEffect` / `.glassEffect()`. À réactiver soit (a) quand Xcode 26 stable arrive sur les runners post-WWDC 2026, soit (b) en backportant avec `if #available(iOS 26.0, *)` + fallback `UIBlurEffect`. Voir `.github/workflows/ci.yml` (job `swift-placeholder`).
+- **Branch protection** : `master`, `staging`, `dev` protégées — PR obligatoire, pas de force-push, pas de suppression. Status checks (CI requise pour merge) à ajouter quand la CI Swift sera réactivée.
 - **Code coverage** : `xcodebuild -enableCodeCoverage YES` (Swift) + `cargo-llvm-cov` (Rust). On compte les tests mais on ne connaît pas leur couverture réelle (peut être 30% ou 90%).
-- **Workflow contributeur** : feature branches + PRs reviewables au lieu de gros sessions tout-en-un.
+- **Workflow contributeur** : ✅ branches `feature/**`, `fix/**`, `refactor/**`, `docs/**`, `chore/**`, `perf/**` depuis `dev` ; promotion `dev` → `staging` → `master`. Cf. section "Git workflow" plus haut.
 
 ### Tests à renforcer
 - **Coordinator class** (`RichTextEditor.Coordinator`) : selection memory (`rememberSelection`/`selectionForToolbar`), toolbar state updates (`updateToolbar`), color application chain — tout n'est testé qu'**en bout-en-bout** via le VM. Un bug subtil dans cette logique passerait. Extraire en helpers libres ou exposer pour tests.

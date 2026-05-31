@@ -7,8 +7,8 @@ import Foundation
 // Depending on the consumer's build setup, the low-level FFI code
 // might be in a separate module, or it might be compiled inline into
 // this module. This is a bit of light hackery to work with both.
-#if canImport(chaqaqFFI)
-import chaqaqFFI
+#if canImport(pinkhaFFI)
+import pinkhaFFI
 #endif
 
 fileprivate extension RustBuffer {
@@ -25,13 +25,13 @@ fileprivate extension RustBuffer {
     }
 
     static func from(_ ptr: UnsafeBufferPointer<UInt8>) -> RustBuffer {
-        try! rustCall { ffi_chaqaq_rustbuffer_from_bytes(ForeignBytes(bufferPointer: ptr), $0) }
+        try! rustCall { ffi_pinkha_rustbuffer_from_bytes(ForeignBytes(bufferPointer: ptr), $0) }
     }
 
     // Frees the buffer in place.
     // The buffer must not be used after this is called.
     func deallocate() {
-        try! rustCall { ffi_chaqaq_rustbuffer_free(self, $0) }
+        try! rustCall { ffi_pinkha_rustbuffer_free(self, $0) }
     }
 }
 
@@ -281,7 +281,7 @@ private func makeRustCall<T, E: Swift.Error>(
     _ callback: (UnsafeMutablePointer<RustCallStatus>) -> T,
     errorHandler: ((RustBuffer) throws -> E)?
 ) throws -> T {
-    uniffiEnsureChaqaqInitialized()
+    uniffiEnsurePinkhaInitialized()
     var callStatus = RustCallStatus.init()
     let returnedVal = callback(&callStatus)
     try uniffiCheckCallStatus(callStatus: callStatus, errorHandler: errorHandler)
@@ -460,16 +460,16 @@ fileprivate struct FfiConverterString: FfiConverter {
 
 
 
-public protocol ChaqaqApiProtocol: AnyObject, Sendable {
+public protocol PinkhaApiProtocol: AnyObject, Sendable {
     
     /**
-     * Ajoute un bloc ; le content est passé en JSON (BlockContent sérialisé).
+     * Ajoute un bloc ; le contenu est passé en JSON (BlockContent sérialisé).
      * Retourne le document mis à jour en JSON.
      */
     func addBlock(docId: String, blockContentJson: String) throws  -> String
     
     /**
-     * Ajoute un bloc enfant ; le content est passé en JSON (BlockContent sérialisé).
+     * Ajoute un bloc enfant ; le contenu est passé en JSON (BlockContent sérialisé).
      */
     func addChildBlock(docId: String, parentId: String, blockContentJson: String) throws  -> String
     
@@ -589,7 +589,7 @@ public protocol ChaqaqApiProtocol: AnyObject, Sendable {
     func searchInBlocks(query: String) throws  -> [DocumentMetaFfi]
     
     /**
-     * Remplace le content d'un bloc existant (JSON de BlockContent).
+     * Remplace le contenu d'un bloc existant (JSON de BlockContent).
      */
     func updateBlock(docId: String, blockId: String, contentJson: String) throws 
     
@@ -602,7 +602,7 @@ public protocol ChaqaqApiProtocol: AnyObject, Sendable {
     func updateView(dbId: String, viewId: String, filtersJson: String, sortsJson: String) throws 
     
 }
-open class ChaqaqApi: ChaqaqApiProtocol, @unchecked Sendable {
+open class PinkhaApi: PinkhaApiProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
 
     /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
@@ -639,15 +639,15 @@ open class ChaqaqApi: ChaqaqApiProtocol, @unchecked Sendable {
     @_documentation(visibility: private)
 #endif
     public func uniffiCloneHandle() -> UInt64 {
-        return try! rustCall { uniffi_chaqaq_fn_clone_chaqaqapi(self.handle, $0) }
+        return try! rustCall { uniffi_pinkha_fn_clone_pinkhaapi(self.handle, $0) }
     }
     /**
      * Ouvre (ou crée) la base SQLite au chemin donné.
      */
 public convenience init(dbPath: String)throws  {
     let handle =
-        try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_constructor_chaqaqapi_new(
+        try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_constructor_pinkhaapi_new(
         FfiConverterString.lower(dbPath),$0
     )
 }
@@ -660,19 +660,19 @@ public convenience init(dbPath: String)throws  {
             return
         }
 
-        try! rustCall { uniffi_chaqaq_fn_free_chaqaqapi(handle, $0) }
+        try! rustCall { uniffi_pinkha_fn_free_pinkhaapi(handle, $0) }
     }
 
     
 
     
     /**
-     * Ajoute un bloc ; le content est passé en JSON (BlockContent sérialisé).
+     * Ajoute un bloc ; le contenu est passé en JSON (BlockContent sérialisé).
      * Retourne le document mis à jour en JSON.
      */
 open func addBlock(docId: String, blockContentJson: String)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_add_block(
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_add_block(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(docId),
         FfiConverterString.lower(blockContentJson),$0
@@ -681,11 +681,11 @@ open func addBlock(docId: String, blockContentJson: String)throws  -> String  {
 }
     
     /**
-     * Ajoute un bloc enfant ; le content est passé en JSON (BlockContent sérialisé).
+     * Ajoute un bloc enfant ; le contenu est passé en JSON (BlockContent sérialisé).
      */
 open func addChildBlock(docId: String, parentId: String, blockContentJson: String)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_add_child_block(
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_add_child_block(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(docId),
         FfiConverterString.lower(parentId),
@@ -698,8 +698,8 @@ open func addChildBlock(docId: String, parentId: String, blockContentJson: Strin
      * Ajoute une entrée ; `values_json` est une map UUID -> ValeurPropriete sérialisée.
      */
 open func addEntry(dbId: String, valuesJson: String)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_add_entry(
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_add_entry(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(valuesJson),$0
@@ -710,8 +710,8 @@ open func addEntry(dbId: String, valuesJson: String)throws  -> String  {
     /**
      * Ajoute une propriété sérialisée en JSON.
      */
-open func addProperty(dbId: String, propertyJson: String)throws   {try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_add_property(
+open func addProperty(dbId: String, propertyJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_add_property(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(propertyJson),$0
@@ -723,8 +723,8 @@ open func addProperty(dbId: String, propertyJson: String)throws   {try rustCallW
      * Ajoute une vue sérialisée en JSON.
      */
 open func addView(dbId: String, viewJson: String)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_add_view(
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_add_view(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(viewJson),$0
@@ -736,8 +736,8 @@ open func addView(dbId: String, viewJson: String)throws  -> String  {
      * Retourne l'agrégat d'une colonne en JSON.
      */
 open func columnAggregateDatabaseJson(dbId: String, propertyId: String, aggregateJson: String)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_column_aggregate_database_json(
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_column_aggregate_database_json(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(propertyId),
@@ -750,8 +750,8 @@ open func columnAggregateDatabaseJson(dbId: String, propertyId: String, aggregat
      * Crée une nouvelle database et retourne son UUID.
      */
 open func createDatabase(title: String)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_create_database(
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_create_database(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(title),$0
     )
@@ -762,16 +762,16 @@ open func createDatabase(title: String)throws  -> String  {
      * Crée un nouveau document et retourne son UUID.
      */
 open func createDocument(title: String)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_create_document(
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_create_document(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(title),$0
     )
 })
 }
     
-open func deleteBlock(docId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_delete_block(
+open func deleteBlock(docId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_block(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(docId),
         FfiConverterString.lower(blockId),$0
@@ -782,8 +782,8 @@ open func deleteBlock(docId: String, blockId: String)throws   {try rustCallWithE
     /**
      * Soft-delete de la database.
      */
-open func deleteDatabase(id: String)throws   {try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_delete_database(
+open func deleteDatabase(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_database(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
@@ -793,16 +793,16 @@ open func deleteDatabase(id: String)throws   {try rustCallWithError(FfiConverter
     /**
      * Soft-delete du document.
      */
-open func deleteDocument(id: String)throws   {try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_delete_document(
+open func deleteDocument(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_document(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
 }
 }
     
-open func deleteEntry(dbId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_delete_entry(
+open func deleteEntry(dbId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_entry(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(entryId),$0
@@ -810,8 +810,8 @@ open func deleteEntry(dbId: String, entryId: String)throws   {try rustCallWithEr
 }
 }
     
-open func deleteProperty(dbId: String, propertyId: String)throws   {try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_delete_property(
+open func deleteProperty(dbId: String, propertyId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_property(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(propertyId),$0
@@ -819,8 +819,8 @@ open func deleteProperty(dbId: String, propertyId: String)throws   {try rustCall
 }
 }
     
-open func deleteView(dbId: String, viewId: String)throws   {try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_delete_view(
+open func deleteView(dbId: String, viewId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_view(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(viewId),$0
@@ -832,8 +832,8 @@ open func deleteView(dbId: String, viewId: String)throws   {try rustCallWithErro
      * Retourne la database complète sérialisée en JSON (avec entrées et vues).
      */
 open func getDatabaseJson(id: String)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_get_database_json(
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_get_database_json(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
@@ -844,8 +844,8 @@ open func getDatabaseJson(id: String)throws  -> String  {
      * Retourne le document complet sérialisé en JSON (avec blocs).
      */
 open func getDocumentJson(id: String)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_get_document_json(
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_get_document_json(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
@@ -856,8 +856,8 @@ open func getDocumentJson(id: String)throws  -> String  {
      * Retourne les groupes d'entrées en JSON.
      */
 open func groupedQueryDatabaseJson(dbId: String, viewId: String, groupBy: String)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_grouped_query_database_json(
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_grouped_query_database_json(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(viewId),
@@ -870,8 +870,8 @@ open func groupedQueryDatabaseJson(dbId: String, viewId: String, groupBy: String
      * Liste les métadonnées de toutes les databases actives.
      */
 open func listDatabases()throws  -> [DatabaseMetaFfi]  {
-    return try  FfiConverterSequenceTypeDatabaseMetaFfi.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_list_databases(
+    return try  FfiConverterSequenceTypeDatabaseMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_databases(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -881,8 +881,8 @@ open func listDatabases()throws  -> [DatabaseMetaFfi]  {
      * Liste les métadonnées de tous les documents actifs.
      */
 open func listDocuments()throws  -> [DocumentMetaFfi]  {
-    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_list_documents(
+    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_documents(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -891,8 +891,8 @@ open func listDocuments()throws  -> [DocumentMetaFfi]  {
     /**
      * Déplace un bloc vers un parent ou vers la racine si `new_parent_id` est nul.
      */
-open func moveBlock(docId: String, blockId: String, newParentId: String?)throws   {try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_move_block(
+open func moveBlock(docId: String, blockId: String, newParentId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_move_block(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(docId),
         FfiConverterString.lower(blockId),
@@ -905,8 +905,8 @@ open func moveBlock(docId: String, blockId: String, newParentId: String?)throws 
      * Retourne les entrées filtrées/triées en JSON.
      */
 open func queryDatabaseJson(dbId: String, viewId: String)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_query_database_json(
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_query_database_json(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(viewId),$0
@@ -918,8 +918,8 @@ open func queryDatabaseJson(dbId: String, viewId: String)throws  -> String  {
      * Retourne les entrées filtrées/triées avec rollups calculés en JSON.
      */
 open func queryDatabaseWithRollupsJson(dbId: String, viewId: String)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_query_database_with_rollups_json(
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_query_database_with_rollups_json(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(viewId),$0
@@ -927,8 +927,8 @@ open func queryDatabaseWithRollupsJson(dbId: String, viewId: String)throws  -> S
 })
 }
     
-open func renameProperty(dbId: String, propertyId: String, newName: String)throws   {try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_rename_property(
+open func renameProperty(dbId: String, propertyId: String, newName: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_rename_property(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(propertyId),
@@ -940,8 +940,8 @@ open func renameProperty(dbId: String, propertyId: String, newName: String)throw
     /**
      * Réordonne les blocs racine selon la liste d'UUIDs fournie.
      */
-open func reorderBlocks(docId: String, order: [String])throws   {try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_reorder_blocks(
+open func reorderBlocks(docId: String, order: [String])throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_reorder_blocks(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(docId),
         FfiConverterSequenceString.lower(order),$0
@@ -952,8 +952,8 @@ open func reorderBlocks(docId: String, order: [String])throws   {try rustCallWit
     /**
      * Réordonne les enfants directs d'un bloc parent.
      */
-open func reorderChildBlocks(docId: String, parentId: String, order: [String])throws   {try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_reorder_child_blocks(
+open func reorderChildBlocks(docId: String, parentId: String, order: [String])throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_reorder_child_blocks(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(docId),
         FfiConverterString.lower(parentId),
@@ -966,8 +966,8 @@ open func reorderChildBlocks(docId: String, parentId: String, order: [String])th
      * Retourne les entrées correspondant à la recherche en JSON.
      */
 open func searchDatabaseEntriesJson(dbId: String, query: String)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_search_database_entries_json(
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_search_database_entries_json(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(query),$0
@@ -979,8 +979,8 @@ open func searchDatabaseEntriesJson(dbId: String, query: String)throws  -> Strin
      * Recherche insensible à la casse dans les titles.
      */
 open func searchDocuments(query: String)throws  -> [DocumentMetaFfi]  {
-    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_search_documents(
+    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_search_documents(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(query),$0
     )
@@ -991,8 +991,8 @@ open func searchDocuments(query: String)throws  -> [DocumentMetaFfi]  {
      * Recherche plein texte dans les blocs.
      */
 open func searchInBlocks(query: String)throws  -> [DocumentMetaFfi]  {
-    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_search_in_blocks(
+    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_search_in_blocks(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(query),$0
     )
@@ -1000,10 +1000,10 @@ open func searchInBlocks(query: String)throws  -> [DocumentMetaFfi]  {
 }
     
     /**
-     * Remplace le content d'un bloc existant (JSON de BlockContent).
+     * Remplace le contenu d'un bloc existant (JSON de BlockContent).
      */
-open func updateBlock(docId: String, blockId: String, contentJson: String)throws   {try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_update_block(
+open func updateBlock(docId: String, blockId: String, contentJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_block(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(docId),
         FfiConverterString.lower(blockId),
@@ -1012,8 +1012,8 @@ open func updateBlock(docId: String, blockId: String, contentJson: String)throws
 }
 }
     
-open func updateDocumentCover(id: String, cover: String?)throws   {try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_update_document_cover(
+open func updateDocumentCover(id: String, cover: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_document_cover(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
         FfiConverterOptionString.lower(cover),$0
@@ -1021,8 +1021,8 @@ open func updateDocumentCover(id: String, cover: String?)throws   {try rustCallW
 }
 }
     
-open func updateDocumentTitle(id: String, newTitle: String)throws   {try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_update_document_title(
+open func updateDocumentTitle(id: String, newTitle: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_document_title(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
         FfiConverterString.lower(newTitle),$0
@@ -1030,8 +1030,8 @@ open func updateDocumentTitle(id: String, newTitle: String)throws   {try rustCal
 }
 }
     
-open func updateEntry(dbId: String, entryId: String, valuesJson: String)throws   {try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_update_entry(
+open func updateEntry(dbId: String, entryId: String, valuesJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_entry(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(entryId),
@@ -1040,8 +1040,8 @@ open func updateEntry(dbId: String, entryId: String, valuesJson: String)throws  
 }
 }
     
-open func updateView(dbId: String, viewId: String, filtersJson: String, sortsJson: String)throws   {try rustCallWithError(FfiConverterTypeChaqaqError_lift) {
-    uniffi_chaqaq_fn_method_chaqaqapi_update_view(
+open func updateView(dbId: String, viewId: String, filtersJson: String, sortsJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_view(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(viewId),
@@ -1059,24 +1059,24 @@ open func updateView(dbId: String, viewId: String, filtersJson: String, sortsJso
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeChaqaqApi: FfiConverter {
+public struct FfiConverterTypePinkhaApi: FfiConverter {
     typealias FfiType = UInt64
-    typealias SwiftType = ChaqaqApi
+    typealias SwiftType = PinkhaApi
 
-    public static func lift(_ handle: UInt64) throws -> ChaqaqApi {
-        return ChaqaqApi(unsafeFromHandle: handle)
+    public static func lift(_ handle: UInt64) throws -> PinkhaApi {
+        return PinkhaApi(unsafeFromHandle: handle)
     }
 
-    public static func lower(_ value: ChaqaqApi) -> UInt64 {
+    public static func lower(_ value: PinkhaApi) -> UInt64 {
         return value.uniffiCloneHandle()
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChaqaqApi {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PinkhaApi {
         let handle: UInt64 = try readInt(&buf)
         return try lift(handle)
     }
 
-    public static func write(_ value: ChaqaqApi, into buf: inout [UInt8]) {
+    public static func write(_ value: PinkhaApi, into buf: inout [UInt8]) {
         writeInt(&buf, lower(value))
     }
 }
@@ -1085,15 +1085,15 @@ public struct FfiConverterTypeChaqaqApi: FfiConverter {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeChaqaqApi_lift(_ handle: UInt64) throws -> ChaqaqApi {
-    return try FfiConverterTypeChaqaqApi.lift(handle)
+public func FfiConverterTypePinkhaApi_lift(_ handle: UInt64) throws -> PinkhaApi {
+    return try FfiConverterTypePinkhaApi.lift(handle)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeChaqaqApi_lower(_ value: ChaqaqApi) -> UInt64 {
-    return FfiConverterTypeChaqaqApi.lower(value)
+public func FfiConverterTypePinkhaApi_lower(_ value: PinkhaApi) -> UInt64 {
+    return FfiConverterTypePinkhaApi.lower(value)
 }
 
 
@@ -1241,7 +1241,7 @@ public func FfiConverterTypeDocumentMetaFfi_lower(_ value: DocumentMetaFfi) -> R
 }
 
 
-public enum ChaqaqError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+public enum PinkhaError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
     
@@ -1264,16 +1264,16 @@ public enum ChaqaqError: Swift.Error, Equatable, Hashable, Foundation.LocalizedE
 }
 
 #if compiler(>=6)
-extension ChaqaqError: Sendable {}
+extension PinkhaError: Sendable {}
 #endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeChaqaqError: FfiConverterRustBuffer {
-    typealias SwiftType = ChaqaqError
+public struct FfiConverterTypePinkhaError: FfiConverterRustBuffer {
+    typealias SwiftType = PinkhaError
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChaqaqError {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PinkhaError {
         let variant: Int32 = try readInt(&buf)
         switch variant {
 
@@ -1294,7 +1294,7 @@ public struct FfiConverterTypeChaqaqError: FfiConverterRustBuffer {
         }
     }
 
-    public static func write(_ value: ChaqaqError, into buf: inout [UInt8]) {
+    public static func write(_ value: PinkhaError, into buf: inout [UInt8]) {
         switch value {
 
         
@@ -1323,15 +1323,15 @@ public struct FfiConverterTypeChaqaqError: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeChaqaqError_lift(_ buf: RustBuffer) throws -> ChaqaqError {
-    return try FfiConverterTypeChaqaqError.lift(buf)
+public func FfiConverterTypePinkhaError_lift(_ buf: RustBuffer) throws -> PinkhaError {
+    return try FfiConverterTypePinkhaError.lift(buf)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeChaqaqError_lower(_ value: ChaqaqError) -> RustBuffer {
-    return FfiConverterTypeChaqaqError.lower(value)
+public func FfiConverterTypePinkhaError_lower(_ value: PinkhaError) -> RustBuffer {
+    return FfiConverterTypePinkhaError.lower(value)
 }
 
 #if swift(>=5.8)
@@ -1444,110 +1444,110 @@ private let initializationResult: InitializationResult = {
     // Get the bindings contract version from our ComponentInterface
     let bindings_contract_version = 30
     // Get the scaffolding contract version by calling the into the dylib
-    let scaffolding_contract_version = ffi_chaqaq_uniffi_contract_version()
+    let scaffolding_contract_version = ffi_pinkha_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_add_block() != 11480) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_add_block() != 50968) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_add_child_block() != 54746) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_add_child_block() != 20377) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_add_entry() != 48434) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_add_entry() != 43529) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_add_property() != 22555) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_add_property() != 52071) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_add_view() != 34352) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_add_view() != 30183) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_column_aggregate_database_json() != 703) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_column_aggregate_database_json() != 24533) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_create_database() != 26496) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_create_database() != 62218) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_create_document() != 21937) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_create_document() != 6653) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_delete_block() != 42705) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_block() != 14109) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_delete_database() != 27793) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_database() != 12776) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_delete_document() != 55969) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_document() != 39039) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_delete_entry() != 25194) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_entry() != 44863) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_delete_property() != 10168) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_property() != 45324) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_delete_view() != 54294) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_view() != 42172) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_get_database_json() != 11324) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_get_database_json() != 53195) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_get_document_json() != 50681) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_get_document_json() != 23306) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_grouped_query_database_json() != 28346) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_grouped_query_database_json() != 2473) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_list_databases() != 19175) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_databases() != 58802) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_list_documents() != 51004) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_documents() != 62408) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_move_block() != 12534) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_move_block() != 56333) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_query_database_json() != 5025) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_query_database_json() != 4012) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_query_database_with_rollups_json() != 43424) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_query_database_with_rollups_json() != 38250) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_rename_property() != 27549) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_rename_property() != 36506) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_reorder_blocks() != 57125) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_reorder_blocks() != 14489) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_reorder_child_blocks() != 18485) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_reorder_child_blocks() != 60852) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_search_database_entries_json() != 22342) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_database_entries_json() != 53101) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_search_documents() != 18469) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_documents() != 4353) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_search_in_blocks() != 41453) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks() != 65038) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_update_block() != 42949) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_block() != 49420) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_update_document_cover() != 7335) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_cover() != 31520) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_update_document_title() != 29885) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_title() != 35631) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_update_entry() != 45320) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_entry() != 34034) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_method_chaqaqapi_update_view() != 62557) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_view() != 6165) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_chaqaq_checksum_constructor_chaqaqapi_new() != 47648) {
+    if (uniffi_pinkha_checksum_constructor_pinkhaapi_new() != 22429) {
         return InitializationResult.apiChecksumMismatch
     }
 
@@ -1556,7 +1556,7 @@ private let initializationResult: InitializationResult = {
 
 // Make the ensure init function public so that other modules which have external type references to
 // our types can call it.
-public func uniffiEnsureChaqaqInitialized() {
+public func uniffiEnsurePinkhaInitialized() {
     switch initializationResult {
     case .ok:
         break

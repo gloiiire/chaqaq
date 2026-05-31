@@ -3,6 +3,6 @@ pub mod domain;
 pub mod ffi;
 pub mod infrastructure;
 
-pub use ffi::{ChaqaqApi, ChaqaqError, DatabaseMetaFfi, DocumentMetaFfi};
+pub use ffi::{PinkhaApi, PinkhaError, DatabaseMetaFfi, DocumentMetaFfi};
 
-uniffi::include_scaffolding!("chaqaq");
+uniffi::include_scaffolding!("pinkha");
