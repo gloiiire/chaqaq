@@ -989,7 +989,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "realm-reader"
+name = "realm-rs"
 version = "0.1.0"
 
 [[package]]
