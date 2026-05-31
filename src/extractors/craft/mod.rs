@@ -98,7 +98,8 @@ impl Extractor for CraftExtractor {
                 } else {
                     pending_blocks.clear();
                 }
-                let title = if content.is_empty() { "Untitled".to_string() } else { content };
+                let first_line = content.lines().next().unwrap_or("").trim().to_string();
+                let title = if first_line.is_empty() { "Untitled".to_string() } else { first_line };
                 pending_title = Some(title);
             } else {
                 match map_block(&content, block_type) {
