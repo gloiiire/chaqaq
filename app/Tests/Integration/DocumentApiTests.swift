@@ -22,7 +22,7 @@ struct DocumentLifecycleTests {
 
     @Test func createDocumentReturnsUuid() throws {
         let (api, url) = try makeApi(); defer { cleanup(url) }
-        let id = try api.createDocument(title: "Bonjour")
+        let id = try api.createDocument(title: "Hello")
         #expect(UUID(uuidString: id) != nil, "must return a valid UUID")
     }
 
@@ -38,7 +38,7 @@ struct DocumentLifecycleTests {
 
     @Test func deleteDocumentHidesItFromList() throws {
         let (api, url) = try makeApi(); defer { cleanup(url) }
-        let id = try api.createDocument(title: "À supprimer")
+        let id = try api.createDocument(title: "To delete")
         try api.deleteDocument(id: id)
         #expect(try api.listDocuments().isEmpty)
     }
@@ -53,10 +53,10 @@ struct DocumentLifecycleTests {
 
     @Test func updateDocumentTitlePersists() throws {
         let (api, url) = try makeApi(); defer { cleanup(url) }
-        let id = try api.createDocument(title: "Ancien")
-        try api.updateDocumentTitle(id: id, newTitle: "Nouveau")
+        let id = try api.createDocument(title: "Old title")
+        try api.updateDocumentTitle(id: id, newTitle: "New title")
         let metas = try api.listDocuments()
-        #expect(metas.first?.titlePlain == "Nouveau")
+        #expect(metas.first?.titlePlain == "New title")
     }
 
     @Test func getDocumentJsonDecodesCleanly() throws {

@@ -1,8 +1,8 @@
 import SwiftUI
 
-// ── Vue document ──────────────────────────────────────────────────────────────
+// ── Document view ─────────────────────────────────────────────────────────────
 
-/// Éditeur de document plein écran : couverture + icône, titre, liste de blocs, FAB, pill undo/redo.
+/// Full-screen document editor: cover + icon, title, block list, FAB, undo/redo pill.
 struct DocumentView: View {
     @StateObject var vm: DocumentViewModel
     @State var showingBlockPicker = false
@@ -38,7 +38,7 @@ struct DocumentView: View {
         }
     }
 
-    // ── Liste principale ──────────────────────────────────────────────────────
+    // ── Main list ────────────────────────────────────────────────────────────
 
     var documentList: some View {
         List {
@@ -111,7 +111,7 @@ struct DocumentView: View {
         .sheet(isPresented: $showingBlockPicker) {
             BlockPickerSheet { type in vm.addBlock(type: type, afterId: vm.activeBlockId) }
         }
-        .alert("Erreur", isPresented: Binding(
+        .alert("Error", isPresented: Binding(
             get: { vm.errorMessage != nil },
             set: { if !$0 { vm.errorMessage = nil } }
         )) {
@@ -119,7 +119,7 @@ struct DocumentView: View {
         } message: { Text(vm.errorMessage ?? "") }
     }
 
-    // ── Sélection / helpers ───────────────────────────────────────────────────
+    // ── Selection / helpers ───────────────────────────────────────────────────
 
     func selectionButton(_ id: String) -> some View {
         Button {

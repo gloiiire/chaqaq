@@ -13,7 +13,7 @@ final class HomeScreenUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         // One of the three time-dependent greetings must appear.
-        let greetings = ["Bonjour.", "Bon après-midi.", "Bonsoir."]
+        let greetings = ["Good morning.", "Good afternoon.", "Good evening."]
         let predicate = NSPredicate(format: "label IN %@", greetings)
         let header = app.staticTexts.element(matching: predicate)
         XCTAssertTrue(header.waitForExistence(timeout: 5))
@@ -27,8 +27,8 @@ final class HomeScreenUITests: XCTestCase {
         let fab = app.buttons["createDocumentFAB"]
         XCTAssertTrue(fab.waitForExistence(timeout: 3))
         fab.tap()
-        // The creation sheet must display "Nouveau document".
-        XCTAssertTrue(app.staticTexts["Nouveau document"].waitForExistence(timeout: 3))
+        // The creation sheet must display "New document".
+        XCTAssertTrue(app.staticTexts["New document"].waitForExistence(timeout: 3))
     }
 
     func testCancelCreateSheetClosesIt() {
@@ -37,10 +37,10 @@ final class HomeScreenUITests: XCTestCase {
         let fab = app.buttons["createDocumentFAB"]
         XCTAssertTrue(fab.waitForExistence(timeout: 3))
         fab.tap()
-        let cancel = app.buttons["Annuler"]
+        let cancel = app.buttons["Cancel"]
         XCTAssertTrue(cancel.waitForExistence(timeout: 1))
         cancel.tap()
-        XCTAssertFalse(app.staticTexts["Nouveau document"].waitForExistence(timeout: 1))
+        XCTAssertFalse(app.staticTexts["New document"].waitForExistence(timeout: 1))
     }
 }
 

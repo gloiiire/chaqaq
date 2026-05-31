@@ -1,14 +1,14 @@
 import SwiftUI
 
-// ── Onglet 1 : Notes ──────────────────────────────────────────────────────────
+// ── Tab 1: Notes ──────────────────────────────────────────────────────────────
 
-/// Écran d'accueil de l'onglet Notes : salutation, strip récents, liste complète, FAB.
+/// Notes tab home screen: greeting, recent strip, full list, FAB.
 struct NotesHomeView: View {
     @ObservedObject var store: PinkhaStore
     @State private var showingCreate = false
     @State private var newTitle = ""
 
-    /// Les 5 documents les plus récemment modifiés pour la strip "Récents".
+    /// The 5 most recently modified documents for the "Recent" strip.
     private var recentDocs: [DocumentMetaFfi] {
         Array(store.documents.prefix(5))
     }
@@ -17,7 +17,7 @@ struct NotesHomeView: View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
                 List {
-                    // ── Salutation ────────────────────────────────────────
+                    // ── Greeting ─────────────────────────────────────────
                     Section {
                         GreetingHeader(text: greeting)
                             .listRowBackground(Color.clear)
@@ -25,7 +25,7 @@ struct NotesHomeView: View {
                             .listRowInsets(EdgeInsets())
                     }
 
-                    // ── Strip récents (uniquement quand des documents existent) ──
+                    // ── Recent strip (only when documents exist) ─────────
                     if !store.documents.isEmpty {
                         Section {
                             RecentStrip(docs: recentDocs, api: store.api) {
@@ -35,11 +35,11 @@ struct NotesHomeView: View {
                             .listRowSeparator(.hidden)
                             .listRowInsets(EdgeInsets())
                         } header: {
-                            SectionHeader(title: "Récents")
+                            SectionHeader(title: "Recent")
                         }
                     }
 
-                    // ── Liste complète ────────────────────────────────────
+                    // ── Full list ────────────────────────────────────────
                     if store.documents.isEmpty {
                         Section {
                             NotesEmptyState()
@@ -66,7 +66,7 @@ struct NotesHomeView: View {
                                 ProgressView()
                             }
                         } header: {
-                            SectionHeader(title: "Toutes les notes")
+                            SectionHeader(title: "All notes")
                         }
                     }
                 }
@@ -94,20 +94,20 @@ struct NotesHomeView: View {
         }
     }
 
-    /// Retourne un message de salutation adapté à l'heure de la journée.
+    /// Returns a greeting message adapted to the time of day.
     private var greeting: String {
         let h = Calendar.current.component(.hour, from: .now)
         switch h {
-        case 5..<12: return "Bonjour."
-        case 12..<18: return "Bon après-midi."
-        default:      return "Bonsoir."
+        case 5..<12: return "Good morning."
+        case 12..<18: return "Good afternoon."
+        default:      return "Good evening."
         }
     }
 }
 
-// ── Strip récents ──────────────────────────────────────────────────────────────
+// ── Recent strip ──────────────────────────────────────────────────────────────
 
-/// Bande de défilement horizontal affichant les documents les plus récents sous forme de cartes.
+/// Horizontal scroll strip displaying the most recent documents as cards.
 struct RecentStrip: View {
     let docs: [DocumentMetaFfi]
     let api: PinkhaApi?
@@ -132,7 +132,7 @@ struct RecentStrip: View {
     }
 }
 
-/// Une carte de la strip récents — affiche icône, titre et date relative.
+/// A card in the recent strip — displays icon, title, and relative date.
 struct RecentCard: View {
     let doc: DocumentMetaFfi
 
@@ -150,7 +150,7 @@ struct RecentCard: View {
             Spacer()
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(doc.titlePlain.isEmpty ? "Sans titre" : doc.titlePlain)
+                Text(doc.titlePlain.isEmpty ? "Untitled" : doc.titlePlain)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(2)
                 if let date = formattedDate(doc.updatedAt) {

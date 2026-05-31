@@ -27,8 +27,8 @@ final class SeededDataUITests: XCTestCase {
         let row = app.staticTexts["Seeded Note 1"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
-        // Once in the editor, "Nouveau bloc" (AddBlockButton label) must appear.
-        XCTAssertTrue(app.staticTexts["Nouveau bloc"].waitForExistence(timeout: 5))
+        // Once in the editor, "New block" (AddBlockButton label) must appear.
+        XCTAssertTrue(app.staticTexts["New block"].waitForExistence(timeout: 5))
     }
 
     func testNavigationBackReturnsToList() {
@@ -36,11 +36,11 @@ final class SeededDataUITests: XCTestCase {
         let row = app.staticTexts["Seeded Note 1"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
-        XCTAssertTrue(app.staticTexts["Nouveau bloc"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["New block"].waitForExistence(timeout: 5))
         // Native back button of NavigationStack inside the Notes tab.
         app.navigationBars.buttons.firstMatch.tap()
         // After returning to the Notes tab the greeting is visible.
-        let greetings = ["Bonjour.", "Bon après-midi.", "Bonsoir."]
+        let greetings = ["Good morning.", "Good afternoon.", "Good evening."]
         let predicate = NSPredicate(format: "label IN %@", greetings)
         XCTAssertTrue(app.staticTexts.element(matching: predicate).waitForExistence(timeout: 3))
     }

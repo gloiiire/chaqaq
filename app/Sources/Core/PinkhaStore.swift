@@ -2,7 +2,7 @@ import SwiftUI
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 
-/// Observable store qui possède la connexion `PinkhaApi` et la liste de documents.
+/// Observable store that owns the `PinkhaApi` connection and the document list.
 @MainActor
 final class PinkhaStore: ObservableObject {
     @Published var documents: [DocumentMetaFfi] = []
@@ -10,12 +10,12 @@ final class PinkhaStore: ObservableObject {
 
     private(set) var api: PinkhaApi?
 
-    /// Ouvre la base SQLite et la seede lors de l'exécution sous arguments de lancement UI-test.
+    /// Opens the SQLite database and seeds it when running under UI-test launch arguments.
     func connect() {
         guard api == nil else { return }
         tryCatch(into: &errorMessage) {
             let dir  = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            // Modes UI-test : DB éphémère pour la reproductibilité.
+            // UI-test modes: ephemeral DB for reproducibility.
             let args = ProcessInfo.processInfo.arguments
             let isUITest = args.contains("--ui-test-data") || args.contains("--ui-test-clean")
             let dbName = isUITest ? "pinkha_uitest_\(UUID().uuidString).db" : "pinkha.db"
@@ -25,33 +25,33 @@ final class PinkhaStore: ObservableObject {
                 _ = try api?.createDocument(title: "Seeded Note 1")
                 _ = try api?.createDocument(title: "Seeded Note 2")
             }
-            // --ui-test-clean : DB éphémère vide, idéal pour tester l'état vide.
+            // --ui-test-clean: empty ephemeral DB, ideal for testing the empty state.
         }
         if api != nil { load() }
     }
 
-    /// Rafraîchit la liste de documents depuis la base de données.
+    /// Refreshes the document list from the database.
     func load() {
         if let docs = tryCatch(into: &errorMessage, { try api?.listDocuments() ?? [] }) {
             documents = docs
         }
     }
 
-    /// Crée un nouveau document et recharge la liste.
+    /// Creates a new document and reloads the list.
     func create(title: String) {
         if tryCatch(into: &errorMessage, { try api?.createDocument(title: title) }) != nil {
             load()
         }
     }
 
-    /// Soft-delete un document par id et recharge la liste.
+    /// Soft-deletes a document by id and reloads the list.
     func delete(id: String) {
         if tryCatch(into: &errorMessage, { try api?.deleteDocument(id: id) }) != nil {
             load()
         }
     }
 
-    /// Retourne les documents dont le titre correspond à `query` (insensible à la casse).
+    /// Returns documents whose title matches `query` (case-insensitive).
     func search(query: String) -> [DocumentMetaFfi] {
         guard !query.isEmpty, let api else { return [] }
         return (try? api.searchDocuments(query: query)) ?? []

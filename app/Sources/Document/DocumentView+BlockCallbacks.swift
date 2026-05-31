@@ -1,10 +1,10 @@
 import SwiftUI
 
-// ── Construction des callbacks et ligne de bloc ───────────────────────────────
+// ── Building callbacks and block rows ────────────────────────────────────────
 
 extension DocumentView {
 
-    /// Construit la ligne complète pour un bloc dans la List : HStack sélection + contenu + gestes.
+    /// Builds the full row for a block in the List: selection HStack + content + gestures.
     @ViewBuilder
     func blockListRow(_ block: Binding<EditableBlock>) -> some View {
         let b = block.wrappedValue
@@ -34,14 +34,14 @@ extension DocumentView {
         .swipeActions(edge: .trailing) {
             if !documentLocked && editMode != .active {
                 Button(role: .destructive) { vm.deleteBlock(id: b.id) } label: {
-                    Label("Supprimer", systemImage: "trash")
+                    Label("Delete", systemImage: "trash")
                 }
             }
         }
     }
 
-    /// Construit le bundle de callbacks `BlockCallbacks` pour un bloc donné.
-    /// Centralise la logique de routage des événements bloc → VM.
+    /// Builds the `BlockCallbacks` bundle for a given block.
+    /// Centralises block event routing logic to the VM.
     func blockCallbacks(for block: EditableBlock) -> BlockCallbacks {
         BlockCallbacks(
             onSave: {

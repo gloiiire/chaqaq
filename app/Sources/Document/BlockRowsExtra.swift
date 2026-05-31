@@ -1,6 +1,6 @@
 import SwiftUI
 
-// ── Citation ──────────────────────────────────────────────────────────────────
+// ── Quote ─────────────────────────────────────────────────────────────────────
 
 struct QuoteRowView: View {
     @Binding var block: EditableBlock
@@ -16,7 +16,7 @@ struct QuoteRowView: View {
                 .padding(.vertical, 6)
             BlockTextEditor(
                 block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                placeholder: "Citation…",
+                placeholder: "Quote…",
                 baseFont: .italicSystemFont(ofSize: UIFont.preferredFont(forTextStyle: .body).pointSize),
                 cb: cb)
             .padding(.leading, 14)
@@ -66,7 +66,7 @@ struct CalloutRowView: View {
         .sheet(isPresented: $emojiPickerOpen) {
             EmojiPickerSheet(selection: icon, recents: recentEmojis) { emoji in
                 recentEmojis = saveRecentEmoji(emoji)
-                // Route via le VM pour que le changement soit enregistré sur la pile undo.
+                // Route via the VM so the change is registered on the undo stack.
                 cb.onChangeIcon?(emoji)
             }
         }
@@ -81,7 +81,7 @@ struct TodoRowView: View {
     @Binding var autoFocusOffset: Int?
     let cb: BlockCallbacks
 
-    /// Attributs de texte supplémentaires appliqués quand l'item est coché (barré + couleur secondaire).
+    /// Extra text attributes applied when the item is checked (strikethrough + secondary color).
     private var checkedAttrs: [NSAttributedString.Key: Any]? {
         block.done ? [
             .strikethroughStyle: NSUnderlineStyle.single.rawValue,
@@ -102,7 +102,7 @@ struct TodoRowView: View {
             .padding(.top, 8)
 
             BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                           placeholder: "À faire…", baseFont: .preferredFont(forTextStyle: .body),
+                           placeholder: "To do…", baseFont: .preferredFont(forTextStyle: .body),
                            extraAttrs: checkedAttrs, convertible: false, cb: cb)
         }
         .padding(.vertical, 2)
