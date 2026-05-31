@@ -1,16 +1,38 @@
 use crate::{InlineStyle, InlineText};
 use std::ops::Range;
 
-/// Plage de texte stylisée. Les indices sont des positions de chars Unicode,
-/// pas des offsets bytes — évite les bugs avec les caractères multi-octets.
+/// A contiguous styled region within a [`RichText`].
+///
+/// `range` uses **char indices** (not byte offsets) so multi-byte Unicode
+/// characters are always handled correctly.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Span {
+    /// Char-index range `start..end` covered by this span.
     pub range: Range<usize>,
+    /// Styles applied to every character in `range`.
     pub styles: Vec<InlineStyle>,
 }
 
-/// Représentation d'édition du texte riche : string plate + annotations de style.
-/// Conversion depuis/vers `Vec<InlineText>` pour la persistance.
+/// In-memory rich text representation: a flat char buffer plus style [`Span`]s.
+///
+/// All indices are **char positions**, not byte offsets — safe for any Unicode input.
+///
+/// # Conversion
+///
+/// `RichText` implements `From<&Vec<InlineText>>` and `Vec<InlineText>` implements
+/// `From<&RichText>`, so you can round-trip with the serializable form losslessly.
+///
+/// ```rust
+/// use chaqaq::{RichText, InlineText, InlineStyle};
+///
+/// let inlines = vec![
+///     InlineText { content: "hello ".to_string(), styles: vec![] },
+///     InlineText { content: "world".to_string(), styles: vec![InlineStyle::Bold] },
+/// ];
+/// let rt = RichText::from(&inlines);
+/// let back: Vec<InlineText> = Vec::from(&rt);
+/// assert_eq!(back, inlines);
+/// ```
 #[derive(Debug, Clone)]
 pub struct RichText {
     chars: Vec<char>,
@@ -18,6 +40,7 @@ pub struct RichText {
 }
 
 impl RichText {
+    /// Creates an empty `RichText`.
     pub fn empty() -> Self {
         Self {
             chars: vec![],
@@ -25,18 +48,22 @@ impl RichText {
         }
     }
 
+    /// Returns the plain text content (all chars joined, no style info).
     pub fn content(&self) -> String {
         self.chars.iter().collect()
     }
 
+    /// Number of Unicode characters (not bytes).
     pub fn length(&self) -> usize {
         self.chars.len()
     }
 
+    /// Active style spans.
     pub fn spans(&self) -> &[Span] {
         &self.spans
     }
 
+    /// Inserts `ch` at char position `pos`, shifting all spans right.
     pub fn insert_char(&mut self, pos: usize, ch: char) {
         self.chars.insert(pos, ch);
         for span in &mut self.spans {
@@ -49,6 +76,8 @@ impl RichText {
         }
     }
 
+    /// Removes the character at char position `pos`, adjusting spans.
+    /// Does nothing if `pos` is out of bounds.
     pub fn delete_char(&mut self, pos: usize) {
         if pos >= self.chars.len() {
             return;
@@ -65,8 +94,8 @@ impl RichText {
         });
     }
 
-    /// Bascule le style sur la plage : ajoute si au moins un char ne l'a pas,
-    /// retire si tous l'ont déjà.
+    /// Toggles `style` over `range`: adds it if any character lacks it,
+    /// removes it if every character already has it.
     pub fn toggle_style(&mut self, range: Range<usize>, style: InlineStyle) {
         if range.is_empty() {
             return;
@@ -78,6 +107,7 @@ impl RichText {
         }
     }
 
+    /// Replaces the span list verbatim — used by [`commands::ApplyStyle`](crate::commands::ApplyStyle) for exact undo.
     pub fn restore_spans(&mut self, spans: Vec<Span>) {
         self.spans = spans;
     }

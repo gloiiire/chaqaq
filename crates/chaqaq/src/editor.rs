@@ -1,15 +1,36 @@
 use crate::{InlineStyle, RichText};
 use std::ops::Range;
 
-/// État de l'éditeur : texte riche, position du curseur, sélection optionnelle.
-/// Tous les indices sont des positions de chars Unicode (pas des offsets bytes).
+/// Editor state: rich text buffer, cursor position, and optional selection.
+///
+/// All indices are **char positions** (not byte offsets).
+///
+/// # Example
+///
+/// ```rust
+/// use chaqaq::{EditorState, RichText, InlineStyle, InlineText};
+///
+/// let inlines = vec![InlineText { content: "hello".to_string(), styles: vec![] }];
+/// let mut editor = EditorState::new(RichText::from(&inlines));
+///
+/// editor.go_to_start();
+/// editor.insert('H');
+/// assert_eq!(editor.text.content(), "Hhello");
+///
+/// editor.select(0..1);
+/// editor.toggle_style(InlineStyle::Bold);
+/// ```
 pub struct EditorState {
+    /// The rich text buffer.
     pub text: RichText,
+    /// Current cursor position (char index).
     pub cursor: usize,
+    /// Active selection range, if any.
     pub selection: Option<Range<usize>>,
 }
 
 impl EditorState {
+    /// Creates a new `EditorState` with the cursor placed at the end of `text`.
     pub fn new(text: RichText) -> Self {
         let cursor = text.length();
         Self {
@@ -19,14 +40,16 @@ impl EditorState {
         }
     }
 
-    /// Insère un caractère à la position du curseur et avance le curseur.
+    /// Inserts `ch` at the cursor position and advances the cursor by one.
+    /// Clears the selection.
     pub fn insert(&mut self, ch: char) {
         self.text.insert_char(self.cursor, ch);
         self.cursor += 1;
         self.selection = None;
     }
 
-    /// Supprime le char avant le curseur (Backspace).
+    /// Removes the character before the cursor (Backspace).
+    /// Does nothing when the cursor is at position 0.
     pub fn delete_before(&mut self) {
         if self.cursor == 0 {
             return;
@@ -36,12 +59,13 @@ impl EditorState {
         self.selection = None;
     }
 
-    /// Supprime le char après le curseur (Delete).
+    /// Removes the character after the cursor (Delete / Forward-delete).
     pub fn delete_after(&mut self) {
         self.text.delete_char(self.cursor);
         self.selection = None;
     }
 
+    /// Moves the cursor one character to the left. Clamps at 0.
     pub fn move_left(&mut self) {
         if self.cursor > 0 {
             self.cursor -= 1;
@@ -49,6 +73,7 @@ impl EditorState {
         self.selection = None;
     }
 
+    /// Moves the cursor one character to the right. Clamps at `text.length()`.
     pub fn move_right(&mut self) {
         if self.cursor < self.text.length() {
             self.cursor += 1;
@@ -56,21 +81,25 @@ impl EditorState {
         self.selection = None;
     }
 
+    /// Moves the cursor to the beginning of the text.
     pub fn go_to_start(&mut self) {
         self.cursor = 0;
         self.selection = None;
     }
 
+    /// Moves the cursor to the end of the text.
     pub fn go_to_end(&mut self) {
         self.cursor = self.text.length();
         self.selection = None;
     }
 
+    /// Sets the active selection to `range`.
     pub fn select(&mut self, range: Range<usize>) {
         self.selection = Some(range);
     }
 
-    /// Bascule le style sur la sélection courante.
+    /// Toggles `style` over the current selection.
+    /// Does nothing if there is no active selection.
     pub fn toggle_style(&mut self, style: InlineStyle) {
         if let Some(range) = self.selection.clone() {
             self.text.toggle_style(range, style);

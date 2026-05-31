@@ -1,21 +1,27 @@
 use crate::{EditorState, InlineStyle, Span};
 use std::ops::Range;
 
-/// Interface du pattern Command : chaque opération d'édition est réversible.
+/// A reversible editing operation on an [`EditorState`].
+///
+/// Implement this trait to add custom undo-able commands.
+/// Built-in implementations: [`Insert`], [`Delete`], [`ApplyStyle`].
 pub trait Command {
+    /// Applies the command to `state`.
     fn execute(&self, state: &mut EditorState);
+    /// Reverses the effect of [`execute`](Command::execute).
     fn undo(&self, state: &mut EditorState);
 }
 
-// ── Commandes concrètes ──────────────────────────────────────────────────────
+// ── Concrete commands ────────────────────────────────────────────────────────
 
-/// Insère un caractère à une position donnée.
+/// Inserts a single character at a given position.
 pub struct Insert {
     pos: usize,
     ch: char,
 }
 
 impl Insert {
+    /// Creates an `Insert` command that will place `ch` at char position `pos`.
     pub fn new(pos: usize, ch: char) -> Self {
         Self { pos, ch }
     }
@@ -32,14 +38,17 @@ impl Command for Insert {
     }
 }
 
-/// Supprime le caractère à une position donnée.
-/// Retourne `None` si la position est hors limites.
+/// Deletes the character at a given position.
+///
+/// Returns `None` if `pos` is out of bounds.
 pub struct Delete {
     pos: usize,
-    ch: char, // stocké à la création pour pouvoir réinsérer lors de l'undo
+    ch: char,
 }
 
 impl Delete {
+    /// Captures the character at `pos` from `state` so it can be reinserted on undo.
+    /// Returns `None` if `pos` is out of bounds.
     pub fn new(state: &EditorState, pos: usize) -> Option<Self> {
         let ch = state.text.content().chars().nth(pos)?;
         Some(Self { pos, ch })
@@ -57,8 +66,10 @@ impl Command for Delete {
     }
 }
 
-/// Bascule un style sur une plage. Capture un snapshot des spans avant
-/// l'exécution pour un undo exact (pas de re-calcul).
+/// Toggles an [`InlineStyle`] over a char range.
+///
+/// Captures a snapshot of all spans before execution so that `undo` can
+/// restore the exact previous state without recomputation.
 pub struct ApplyStyle {
     range: Range<usize>,
     style: InlineStyle,
@@ -66,6 +77,7 @@ pub struct ApplyStyle {
 }
 
 impl ApplyStyle {
+    /// Creates an `ApplyStyle` command. Captures the current span state from `state`.
     pub fn new(state: &EditorState, range: Range<usize>, style: InlineStyle) -> Self {
         Self {
             before_spans: state.text.spans().to_vec(),
@@ -88,8 +100,30 @@ impl Command for ApplyStyle {
 
 const DEFAULT_CAPACITY: usize = 1000;
 
-/// Pile d'historique undo/redo avec capacité configurable.
-/// Au-delà de la capacité, les entrées les plus anciennes sont silencieusement supprimées.
+/// Undo/redo stack with a configurable capacity.
+///
+/// Once the capacity is reached, the oldest entries are silently dropped.
+///
+/// # Example
+///
+/// ```rust
+/// use chaqaq::{EditorState, RichText, InlineText};
+/// use chaqaq::commands::{History, Insert};
+///
+/// let inlines = vec![InlineText { content: "ac".to_string(), styles: vec![] }];
+/// let mut editor = EditorState::new(RichText::from(&inlines));
+/// let mut hist = History::default();
+///
+/// editor.cursor = 1;
+/// hist.apply(Box::new(Insert::new(1, 'b')), &mut editor);
+/// assert_eq!(editor.text.content(), "abc");
+///
+/// hist.undo(&mut editor);
+/// assert_eq!(editor.text.content(), "ac");
+///
+/// hist.redo(&mut editor);
+/// assert_eq!(editor.text.content(), "abc");
+/// ```
 pub struct History {
     done: Vec<Box<dyn Command>>,
     undone: Vec<Box<dyn Command>>,
@@ -97,12 +131,14 @@ pub struct History {
 }
 
 impl Default for History {
+    /// Creates a `History` with the default capacity of 1 000 levels.
     fn default() -> Self {
         Self::new(DEFAULT_CAPACITY)
     }
 }
 
 impl History {
+    /// Creates a `History` with a custom `capacity`.
     pub fn new(capacity: usize) -> Self {
         Self {
             done: Vec::new(),
@@ -111,8 +147,8 @@ impl History {
         }
     }
 
-    /// Exécute la commande et l'enregistre dans l'historique.
-    /// Efface le redo stack.
+    /// Executes `cmd` and pushes it onto the undo stack.
+    /// Clears the redo stack — a new action always discards future redo entries.
     pub fn apply(&mut self, cmd: Box<dyn Command>, state: &mut EditorState) {
         cmd.execute(state);
         self.done.push(cmd);
@@ -122,6 +158,8 @@ impl History {
         }
     }
 
+    /// Undoes the most recent command and pushes it onto the redo stack.
+    /// Does nothing if the undo stack is empty.
     pub fn undo(&mut self, state: &mut EditorState) {
         if let Some(cmd) = self.done.pop() {
             cmd.undo(state);
@@ -129,6 +167,8 @@ impl History {
         }
     }
 
+    /// Re-applies the most recently undone command.
+    /// Does nothing if the redo stack is empty.
     pub fn redo(&mut self, state: &mut EditorState) {
         if let Some(cmd) = self.undone.pop() {
             cmd.execute(state);
@@ -136,15 +176,22 @@ impl History {
         }
     }
 
+    /// Returns `true` if there is at least one command that can be undone.
     pub fn can_undo(&self) -> bool {
         !self.done.is_empty()
     }
+
+    /// Returns `true` if there is at least one command that can be redone.
     pub fn can_redo(&self) -> bool {
         !self.undone.is_empty()
     }
+
+    /// The configured maximum number of undo levels.
     pub fn capacity(&self) -> usize {
         self.capacity
     }
+
+    /// Current number of commands in the undo stack.
     pub fn size(&self) -> usize {
         self.done.len()
     }
