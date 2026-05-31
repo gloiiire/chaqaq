@@ -10,6 +10,7 @@ pub(crate) const NODE_HEADER_SIZE: usize = 8;
 // wtype values (bits 4-3 of NodeHeader byte 4)
 pub(crate) const WTYPE_BITS: u8 = 0;
 pub(crate) const WTYPE_MULTIPLY: u8 = 1;
+pub(crate) const WTYPE_IGNORE: u8 = 2; // raw bytes; `size` field = byte count
 
 /// Parsed 8-byte Realm NodeHeader (internal representation).
 #[derive(Debug, Clone)]
@@ -44,7 +45,9 @@ pub(crate) fn parse_file_header(data: &[u8]) -> crate::Result<(usize, u32)> {
             format!("bad magic: {:?}", &data[16..20]),
         ));
     }
-    let version = u32::from_le_bytes(data[20..24].try_into().unwrap());
+    // Byte 20 is the file-format version (u8). Bytes 21-23 are history-type and
+    // history-schema-version fields that vary by Realm feature set — ignore them.
+    let version = data[20] as u32;
     if version != SUPPORTED_VERSION {
         return Err(crate::RealmError::UnsupportedVersion(version));
     }

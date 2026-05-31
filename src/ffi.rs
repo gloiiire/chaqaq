@@ -680,14 +680,45 @@ impl PinkhaApi {
                 blocks: r.blocks as u32,
                 skipped: r.skipped as u32,
             })
-            .map_err(|e| match e {
-                crate::extractors::ExtractorError::Http { status, message } =>
-                    PinkhaError::Storage { detail: format!("Bear HTTP {status}: {message}") },
-                crate::extractors::ExtractorError::Auth(msg) =>
-                    PinkhaError::InvalidOperation { detail: msg },
-                crate::extractors::ExtractorError::Parse(msg) =>
-                    PinkhaError::Storage { detail: msg },
-                crate::extractors::ExtractorError::Storage(e) => e.into(),
+            .map_err(extractor_err_to_ffi)
+    }
+
+    /// Imports pages from Craft's local `.realm` file into Pinkha documents.
+    ///
+    /// `db_path` — absolute path to a `*.realm` file inside Craft's container,
+    /// obtained via a Swift file picker.  Pinkha reads it in read-only mode.
+    pub async fn import_from_craft(
+        &self,
+        db_path: String,
+    ) -> Result<ImportResultFfi, PinkhaError> {
+        use crate::extractors::craft::{CraftExtractor, CraftConfig};
+        use crate::extractors::traits::Extractor;
+        validate_string(&db_path, "db_path")?;
+        let extractor = CraftExtractor::new();
+        let config = CraftConfig { db_path };
+        extractor
+            .run(config, &self.docs, &self.dbs)
+            .await
+            .map(|r| ImportResultFfi {
+                app: r.app.to_string(),
+                database_id: r.database_id.map(|id| id.to_string()).unwrap_or_default(),
+                documents: r.documents as u32,
+                entries: r.entries as u32,
+                blocks: r.blocks as u32,
+                skipped: r.skipped as u32,
             })
+            .map_err(extractor_err_to_ffi)
+    }
+}
+
+fn extractor_err_to_ffi(e: crate::extractors::ExtractorError) -> PinkhaError {
+    match e {
+        crate::extractors::ExtractorError::Http { status, message } =>
+            PinkhaError::Storage { detail: format!("HTTP {status}: {message}") },
+        crate::extractors::ExtractorError::Auth(msg) =>
+            PinkhaError::InvalidOperation { detail: msg },
+        crate::extractors::ExtractorError::Parse(msg) =>
+            PinkhaError::Storage { detail: msg },
+        crate::extractors::ExtractorError::Storage(e) => e.into(),
     }
 }
