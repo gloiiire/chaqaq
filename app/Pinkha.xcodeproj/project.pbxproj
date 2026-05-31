@@ -62,6 +62,7 @@
 		BEA49A960162E98F792D98C6 /* BlockPickerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C31BC0B000B9D4E7321876 /* BlockPickerUITests.swift */; };
 		BFCC98038C229872A833776B /* RichTextEditorCoordinator+Style.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FF3FD226E223F8377466121 /* RichTextEditorCoordinator+Style.swift */; };
 		C756E395291058C30197E60E /* BlockRowsExtra.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55A3A6BDAAD0E7359EC1CB74 /* BlockRowsExtra.swift */; };
+		D0A66F5FFCF2D5D98A063F25 /* DatabasePlaceholderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6178DA6DC4408D48F1DBC9BD /* DatabasePlaceholderView.swift */; };
 		D30ECD6EF037636E91D118D3 /* RichTextConversion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6157A2F89654A80442CA7 /* RichTextConversion.swift */; };
 		D94EA417E488B890F0BC3AAA /* VMErrorHandlingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AF590FDF89EC393658B2029 /* VMErrorHandlingTests.swift */; };
 		E368FE7BD750360550B347BD /* CoverImageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C90F098980AEF72F3CE8978 /* CoverImageTests.swift */; };
@@ -126,6 +127,7 @@
 		5FF3FD226E223F8377466121 /* RichTextEditorCoordinator+Style.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RichTextEditorCoordinator+Style.swift"; sourceTree = "<group>"; };
 		6084E410F0DAFDE23346475E /* RichTextEditorCoordinator+Toolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RichTextEditorCoordinator+Toolbar.swift"; sourceTree = "<group>"; };
 		6093527A0945328E7EC8D4F6 /* EmptyStateUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateUITests.swift; sourceTree = "<group>"; };
+		6178DA6DC4408D48F1DBC9BD /* DatabasePlaceholderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabasePlaceholderView.swift; sourceTree = "<group>"; };
 		7211340993B3A5D766850FDE /* NotesHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesHomeView.swift; sourceTree = "<group>"; };
 		738ECE1D72957495F50518E6 /* BlockOpsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockOpsTests.swift; sourceTree = "<group>"; };
 		74758505CF9C5437D290A702 /* DatabaseQueriesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseQueriesTests.swift; sourceTree = "<group>"; };
@@ -289,6 +291,14 @@
 			path = Integration;
 			sourceTree = "<group>";
 		};
+		651EA0FB42E391E774BAC629 /* Database */ = {
+			isa = PBXGroup;
+			children = (
+				6178DA6DC4408D48F1DBC9BD /* DatabasePlaceholderView.swift */,
+			);
+			path = Database;
+			sourceTree = "<group>";
+		};
 		7459E38DDB42FA0567FB08BE /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -316,6 +326,7 @@
 				F0C5E1D7104E176374A94957 /* Assets.xcassets */,
 				8D498BD6A504E837D38568BA /* Info.plist */,
 				392DE59F50ABA7F2A42D7E9A /* Core */,
+				651EA0FB42E391E774BAC629 /* Database */,
 				990E3BE54B5E7DA3FFC7AE48 /* Document */,
 				30C4E3F3EB6B011D64BD914E /* Notes */,
 				517C8F4A0D5F295AD6BCE96A /* RichText */,
@@ -449,8 +460,18 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					1682225E1FF720CA9A508B0E = {
+						DevelopmentTeam = N49VNC2G57;
+					};
 					8C1010FA95FFCFEEE4AF60B9 = {
+						DevelopmentTeam = N49VNC2G57;
 						TestTargetID = EAA7C7AD90A3193951A64D87;
+					};
+					D17CDC21C3448F05002B7131 = {
+						DevelopmentTeam = N49VNC2G57;
+					};
+					EAA7C7AD90A3193951A64D87 = {
+						DevelopmentTeam = N49VNC2G57;
 					};
 				};
 			};
@@ -495,6 +516,7 @@
 				19181B7A8D26043528ED2B5F /* BlockRows.swift in Sources */,
 				C756E395291058C30197E60E /* BlockRowsExtra.swift in Sources */,
 				BCD05B9F8601BC3AE8946EBD /* ContentView.swift in Sources */,
+				D0A66F5FFCF2D5D98A063F25 /* DatabasePlaceholderView.swift in Sources */,
 				06A8C248F91DAAA3D81987DD /* DocumentDecor.swift in Sources */,
 				79E231927586B307A44F8F0F /* DocumentTitle.swift in Sources */,
 				40C21A3A5FFA779EAEDC92BC /* DocumentView+BlockCallbacks.swift in Sources */,
@@ -605,6 +627,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -628,6 +651,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -648,6 +672,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -671,6 +696,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -690,6 +716,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -709,6 +736,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -784,6 +812,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -803,6 +832,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
