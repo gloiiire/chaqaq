@@ -338,4 +338,136 @@ mod tests {
         let val = NotionPagePropValue::Unknown;
         assert!(map_property_value(&val).is_none());
     }
+
+    // ── Block mapping tests ───────────────────────────────────────────────────
+
+    /// Builds a `RichTextBlock` with a single plain-text run.
+    fn rt_block(text: &str) -> super::super::schema::RichTextBlock {
+        use super::super::schema::RichTextBlock;
+        RichTextBlock {
+            rich_text: vec![NotionRichText {
+                plain_text: text.to_string(),
+                annotations: NotionAnnotations::default(),
+                href: None,
+            }],
+        }
+    }
+
+    /// Helper: build a minimal `NotionBlock` for a given type with one rich-text run.
+    fn make_rt_block(type_: &str) -> NotionBlock {
+        NotionBlock {
+            id: "fake-id".to_string(),
+            type_: type_.to_string(),
+            has_children: false,
+            paragraph: if type_ == "paragraph" { Some(rt_block("hello")) } else { None },
+            heading_1: if type_ == "heading_1" { Some(rt_block("hello")) } else { None },
+            heading_2: if type_ == "heading_2" { Some(rt_block("hello")) } else { None },
+            heading_3: if type_ == "heading_3" { Some(rt_block("hello")) } else { None },
+            callout: None,
+            quote: if type_ == "quote" { Some(rt_block("hello")) } else { None },
+            to_do: None,
+            bulleted_list_item: if type_ == "bulleted_list_item" { Some(rt_block("hello")) } else { None },
+            numbered_list_item: if type_ == "numbered_list_item" { Some(rt_block("hello")) } else { None },
+            code: None,
+        }
+    }
+
+    #[test]
+    fn test_map_block_paragraph() {
+        let block = make_rt_block("paragraph");
+        let result = map_block(&block);
+        assert!(matches!(result, Some(crate::domain::document::BlockContent::Text(_))));
+    }
+
+    #[test]
+    fn test_map_block_heading1() {
+        let block = make_rt_block("heading_1");
+        let result = map_block(&block);
+        assert!(matches!(
+            result,
+            Some(crate::domain::document::BlockContent::Heading { level: 1, .. })
+        ));
+    }
+
+    #[test]
+    fn test_map_block_bulleted() {
+        let block = make_rt_block("bulleted_list_item");
+        let result = map_block(&block);
+        assert!(matches!(
+            result,
+            Some(crate::domain::document::BlockContent::BulletedListItem(_))
+        ));
+    }
+
+    #[test]
+    fn test_map_block_code() {
+        use super::super::schema::CodeBlock;
+        let rt = NotionRichText {
+            plain_text: "fn main() {}".to_string(),
+            annotations: NotionAnnotations::default(),
+            href: None,
+        };
+        let block = NotionBlock {
+            id: "fake-id".to_string(),
+            type_: "code".to_string(),
+            has_children: false,
+            paragraph: None,
+            heading_1: None,
+            heading_2: None,
+            heading_3: None,
+            callout: None,
+            quote: None,
+            to_do: None,
+            bulleted_list_item: None,
+            numbered_list_item: None,
+            code: Some(CodeBlock {
+                rich_text: vec![rt],
+                language: "rust".to_string(),
+            }),
+        };
+        let result = map_block(&block);
+        match result {
+            Some(crate::domain::document::BlockContent::Code { language, text }) => {
+                assert_eq!(language, "rust");
+                assert_eq!(text, "fn main() {}");
+            }
+            _ => panic!("expected Code block"),
+        }
+    }
+
+    #[test]
+    fn test_map_block_unknown() {
+        let block = NotionBlock {
+            id: "fake-id".to_string(),
+            type_: "image".to_string(),
+            has_children: false,
+            paragraph: None,
+            heading_1: None,
+            heading_2: None,
+            heading_3: None,
+            callout: None,
+            quote: None,
+            to_do: None,
+            bulleted_list_item: None,
+            numbered_list_item: None,
+            code: None,
+        };
+        assert!(map_block(&block).is_none());
+    }
+
+    // ── Property type mapping tests ───────────────────────────────────────────
+
+    #[test]
+    fn test_map_property_type_number() {
+        use crate::domain::database::PropertyType;
+        use super::super::schema::NotionPropertyDef;
+        let def = NotionPropertyDef {
+            id: "abc".to_string(),
+            name: "Score".to_string(),
+            type_: "number".to_string(),
+            select: None,
+            multi_select: None,
+        };
+        assert_eq!(map_property_type(&def), PropertyType::Number);
+    }
 }

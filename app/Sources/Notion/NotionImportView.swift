@@ -2,7 +2,9 @@ import SwiftUI
 
 // ── Import from Notion sheet ───────────────────────────────────────────────────
 //
-// Flow:
+// Flow (OAuth2):
+//   1. User taps "Connect with Notion" → ASWebAuthenticationSession → token pre-filled
+// Flow (integration token, manual):
 //   1. User enters their Notion integration token (secret_xxx)
 //   2. User pastes the database URL or ID
 //   3. Tap "Import" → Rust extractor fetches schema + pages + blocks
@@ -15,6 +17,7 @@ struct NotionImportView: View {
     @State private var token = ""
     @State private var notionUrl = ""
     @State private var state: ImportState = .idle
+    @StateObject private var oauth = NotionOAuth2()
     @Environment(\.dismiss) private var dismiss
 
     enum ImportState {
@@ -41,6 +44,10 @@ struct NotionImportView: View {
                         }
                     }
                 }
+                // When OAuth2 delivers a token, pre-fill the manual field.
+                .onChange(of: oauth.token) { _, newToken in
+                    if let newToken { token = newToken }
+                }
         }
         .presentationDetents([.large])
     }
@@ -56,6 +63,33 @@ struct NotionImportView: View {
 
     private var formView: some View {
         Form {
+            // OAuth2 sign-in (only shown when a public integration client ID is configured).
+            if !NotionOAuth2.clientId.isEmpty {
+                Section {
+                    Button {
+                        Task { await oauth.authorize() }
+                    } label: {
+                        HStack {
+                            if oauth.isLoading {
+                                ProgressView().scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                            }
+                            Text("Connect with Notion")
+                                .fontWeight(.medium)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .disabled(oauth.isLoading)
+                } footer: {
+                    if let err = oauth.error {
+                        Text(err).foregroundStyle(.red)
+                    } else {
+                        Text("Sign in with your Notion account to import a database you have access to.")
+                    }
+                }
+            }
+
             Section {
                 SecureField("secret_xxx…", text: $token)
                     .autocorrectionDisabled()

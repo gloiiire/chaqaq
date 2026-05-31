@@ -273,4 +273,59 @@ mod tests {
         assert!(strip_numbered_list("not a list").is_none());
         assert!(strip_numbered_list("- bullet").is_none());
     }
+
+    // ── Additional tests required by spec ─────────────────────────────────────
+
+    #[test]
+    fn test_parse_heading1() {
+        let blocks = parse_note_blocks("# Title");
+        // The leading `# Title` line is skipped as the document title.
+        // A standalone `# Title` with no preceding title is consumed by the
+        // title-skip logic, so the result is empty.
+        assert_eq!(blocks.len(), 0);
+    }
+
+    #[test]
+    fn test_parse_heading2() {
+        let blocks = parse_note_blocks("## H2");
+        assert_eq!(blocks.len(), 1);
+        assert!(matches!(&blocks[0], BlockContent::Heading { level: 2, .. }));
+    }
+
+    #[test]
+    fn test_parse_todo_unchecked() {
+        let blocks = parse_note_blocks("- [ ] tâche");
+        assert_eq!(blocks.len(), 1);
+        assert!(matches!(&blocks[0], BlockContent::Todo { done: false, .. }));
+    }
+
+    #[test]
+    fn test_parse_todo_checked() {
+        let blocks = parse_note_blocks("- [x] tâche");
+        assert_eq!(blocks.len(), 1);
+        assert!(matches!(&blocks[0], BlockContent::Todo { done: true, .. }));
+    }
+
+    #[test]
+    fn test_parse_bullet() {
+        let blocks = parse_note_blocks("- item");
+        assert_eq!(blocks.len(), 1);
+        assert!(matches!(&blocks[0], BlockContent::BulletedListItem(_)));
+    }
+
+    #[test]
+    fn test_parse_plain_text() {
+        let blocks = parse_note_blocks("just a plain paragraph");
+        assert_eq!(blocks.len(), 1);
+        assert!(matches!(&blocks[0], BlockContent::Text(_)));
+    }
+
+    #[test]
+    fn test_skips_title_line() {
+        // First `# Title` line is treated as the document title and skipped.
+        // The second line becomes a Text block.
+        let blocks = parse_note_blocks("# Title\nparagraphe");
+        assert_eq!(blocks.len(), 1);
+        assert!(matches!(&blocks[0], BlockContent::Text(_)));
+    }
 }

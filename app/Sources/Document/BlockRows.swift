@@ -130,12 +130,12 @@ struct BlockRowView: View {
                 TodoRowView(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
             case .divider:
                 Divider().padding(.vertical, 12)
-            case .bulletedListItem(let spans):
-                BulletedListItemView(spans: spans)
-            case .numberedListItem(let spans):
-                NumberedListItemView(spans: spans)
+            case .bulletedListItem:
+                BulletedListItemRowView(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
+            case .numberedListItem:
+                NumberedListItemRowView(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
             case .code(let language, let text):
-                CodeBlockView(language: language, text: text)
+                CodeBlockEditorView(block: $block, language: language, text: text, cb: cb)
             default:
                 EmptyView()
             }
@@ -189,54 +189,99 @@ private struct HeadingRowView: View {
 
 // QuoteRowView, CalloutRowView and TodoRowView are in BlockRowsExtra.swift.
 
-// ── Read-only import variants ─────────────────────────────────────────────────
-// These block types are produced by extractors (Notion, Bear) but are not yet
-// fully editable. They render as plain read-only text so imported content is
-// visible immediately.
+// ── Bulleted list item ─────────────────────────────────────────────────────────
 
-private struct BulletedListItemView: View {
-    let spans: [InlineTextFfi]
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("•").foregroundStyle(.secondary)
-            Text(spans.map(\.content).joined())
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.vertical, 2)
-    }
-}
+private struct BulletedListItemRowView: View {
+    @Binding var block: EditableBlock
+    @Binding var autoFocusId: String?
+    @Binding var autoFocusOffset: Int?
+    let cb: BlockCallbacks
 
-private struct NumberedListItemView: View {
-    let spans: [InlineTextFfi]
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Image(systemName: "circle.fill")
-                .font(.system(size: 4))
+        HStack(alignment: .top, spacing: 10) {
+            Text("•")
+                .font(.body)
                 .foregroundStyle(.secondary)
-                .padding(.top, 7)
-            Text(spans.map(\.content).joined())
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 8)
+            BlockTextEditor(
+                block: $block,
+                autoFocusId: $autoFocusId,
+                autoFocusOffset: $autoFocusOffset,
+                placeholder: "List item…",
+                baseFont: .preferredFont(forTextStyle: .body),
+                cb: cb)
         }
         .padding(.vertical, 2)
     }
 }
 
-private struct CodeBlockView: View {
+// ── Numbered list item ─────────────────────────────────────────────────────────
+
+private struct NumberedListItemRowView: View {
+    @Binding var block: EditableBlock
+    @Binding var autoFocusId: String?
+    @Binding var autoFocusOffset: Int?
+    let cb: BlockCallbacks
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text("1.")
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .padding(.top, 8)
+            BlockTextEditor(
+                block: $block,
+                autoFocusId: $autoFocusId,
+                autoFocusOffset: $autoFocusOffset,
+                placeholder: "List item…",
+                baseFont: .preferredFont(forTextStyle: .body),
+                cb: cb)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+// ── Code block ────────────────────────────────────────────────────────────────
+
+private struct CodeBlockEditorView: View {
+    @Binding var block: EditableBlock
     let language: String
     let text: String
+    let cb: BlockCallbacks
+
+    @State private var editedText: String
+
+    init(block: Binding<EditableBlock>, language: String, text: String, cb: BlockCallbacks) {
+        self._block = block
+        self.language = language
+        self.text = text
+        self.cb = cb
+        self._editedText = State(initialValue: text)
+    }
+
+    private func save() {
+        block.content = .code(language: language, text: editedText)
+        cb.onSave()
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             if !language.isEmpty {
                 Text(language)
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
             }
-            Text(text)
+            TextEditor(text: $editedText)
                 .font(.system(.footnote, design: .monospaced))
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .scrollContentBackground(.hidden)
+                .frame(minHeight: 60)
                 .padding(10)
-                .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.secondary.opacity(0.08))
+                )
+                .onChange(of: editedText) { _, _ in save() }
         }
         .padding(.vertical, 4)
     }

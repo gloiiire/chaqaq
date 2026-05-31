@@ -161,6 +161,9 @@ pub struct NotionBlock {
     pub id: String,
     #[serde(rename = "type")]
     pub type_: String,
+    /// Whether this block has nested child blocks that must be fetched separately.
+    #[serde(default)]
+    pub has_children: bool,
     pub paragraph: Option<RichTextBlock>,
     pub heading_1: Option<RichTextBlock>,
     pub heading_2: Option<RichTextBlock>,

@@ -235,25 +235,70 @@ async fn import_page(
     Ok((block_count, skipped_count))
 }
 
-/// Paginates through a page's block children, appends them to the document in
-/// memory, and saves once.
+/// Paginates through a page's block children, fetches nested children
+/// recursively, and saves once.
+///
+/// Returns `(total_block_count, total_skipped_count)` where the counts are
+/// recursive (all levels included).
 async fn fetch_and_add_blocks(
     client: &NotionClient,
     page_id: &str,
     doc_id: Uuid,
     docs: &(dyn DocumentRepository + Send + Sync),
 ) -> Result<(usize, usize), ExtractorError> {
-    let mut all_block_contents = Vec::new();
-    let mut skipped: usize = 0;
+    let (root_blocks, skipped) = fetch_blocks_recursive(client, page_id).await?;
+
+    let count = count_blocks_recursive(&root_blocks);
+
+    // Bulk in-memory update: load → extend root blocks → save once.
+    let mut doc = docs.load(doc_id)?;
+    doc.blocks.extend(root_blocks);
+    docs.save(&doc)?;
+
+    Ok((count, skipped))
+}
+
+/// Recursively fetches all blocks for a given parent ID (page or block).
+///
+/// Returns the fully-built `Block` tree rooted at that parent and the total
+/// number of skipped (unmappable) Notion blocks across all levels.
+async fn fetch_blocks_recursive(
+    client: &NotionClient,
+    parent_id: &str,
+) -> Result<(Vec<crate::domain::document::Block>, usize), ExtractorError> {
+    use crate::domain::document::Block;
+
+    let mut root_blocks: Vec<Block> = Vec::new();
+    let mut total_skipped: usize = 0;
     let mut cursor: Option<String> = None;
 
     loop {
-        let response = client.get_page_blocks(page_id, cursor.as_deref()).await?;
+        let response = client.get_page_blocks(parent_id, cursor.as_deref()).await?;
 
-        for block in &response.results {
-            match map_block(block) {
-                Some(content) => all_block_contents.push(content),
-                None => skipped += 1,
+        for notion_block in &response.results {
+            match map_block(notion_block) {
+                Some(content) => {
+                    let children = if notion_block.has_children {
+                        // Recurse into this block's children.
+                        let (child_blocks, child_skipped) =
+                            Box::pin(fetch_blocks_recursive(client, &notion_block.id)).await?;
+                        total_skipped += child_skipped;
+                        child_blocks
+                    } else {
+                        Vec::new()
+                    };
+
+                    root_blocks.push(Block {
+                        id: uuid::Uuid::new_v4(),
+                        content,
+                        children,
+                    });
+                }
+                None => {
+                    total_skipped += 1;
+                    // Even if the parent block itself is unmappable, its children
+                    // are lost — consistent with skipping the whole subtree.
+                }
             }
         }
 
@@ -263,14 +308,13 @@ async fn fetch_and_add_blocks(
         cursor = response.next_cursor;
     }
 
-    let count = all_block_contents.len();
+    Ok((root_blocks, total_skipped))
+}
 
-    // Bulk in-memory update: load → push all blocks → save once.
-    let mut doc = docs.load(doc_id)?;
-    for content in all_block_contents {
-        doc.add_block(content);
-    }
-    docs.save(&doc)?;
-
-    Ok((count, skipped))
+/// Counts blocks at all levels of the tree (recursive).
+fn count_blocks_recursive(blocks: &[crate::domain::document::Block]) -> usize {
+    blocks
+        .iter()
+        .map(|b| 1 + count_blocks_recursive(&b.children))
+        .sum()
 }
