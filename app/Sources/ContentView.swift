@@ -50,26 +50,76 @@ final class PinkhaStore: ObservableObject {
             load()
         }
     }
+
+    /// Returns documents whose title matches `query` (case-insensitive).
+    func search(query: String) -> [DocumentMetaFfi] {
+        guard !query.isEmpty, let api else { return [] }
+        return (try? api.searchDocuments(query: query)) ?? []
+    }
 }
 
-// ── Main view ─────────────────────────────────────────────────────────────────
+// ── Root: 3-tab layout ────────────────────────────────────────────────────────
 
-/// Root screen: document list with a greeting header, empty state, and FAB.
+/// Root view — three tabs: Notes, Databases, Search.
 struct ContentView: View {
     @StateObject private var store = PinkhaStore()
+
+    var body: some View {
+        TabView {
+            Tab("Notes", systemImage: "note.text") {
+                NotesHomeView(store: store)
+            }
+            Tab("Bases", systemImage: "tablecells") {
+                DatabasesHomeView()
+            }
+            Tab("Recherche", systemImage: "magnifyingglass") {
+                SearchView(store: store)
+            }
+        }
+        .onAppear { store.connect() }
+        .errorAlert(message: $store.errorMessage, onRetry: store.load)
+    }
+}
+
+// ── Tab 1 : Notes ─────────────────────────────────────────────────────────────
+
+/// Home screen for the Notes tab: greeting, recent cards strip, full document list, FAB.
+private struct NotesHomeView: View {
+    @ObservedObject var store: PinkhaStore
     @State private var showingCreate = false
     @State private var newTitle = ""
+
+    /// Up to 5 most recently modified documents for the "Récents" strip.
+    private var recentDocs: [DocumentMetaFfi] {
+        Array(store.documents.prefix(5))
+    }
 
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
                 List {
+                    // ── Greeting ─────────────────────────────────────────
                     Section {
                         WelcomeHeader(greeting: greeting)
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                     }
 
+                    // ── Recent strip (only when documents exist) ──────────
+                    if !store.documents.isEmpty {
+                        Section {
+                            RecentStrip(docs: recentDocs, api: store.api) {
+                                store.load()
+                            }
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets())
+                        } header: {
+                            SectionHeader(title: "Récents")
+                        }
+                    }
+
+                    // ── All notes list ────────────────────────────────────
                     if store.documents.isEmpty {
                         Section {
                             EmptyState()
@@ -79,7 +129,7 @@ struct ContentView: View {
                                 .listRowSeparator(.hidden)
                         }
                     } else {
-                        Section("Documents") {
+                        Section {
                             if let api = store.api {
                                 ForEach(store.documents, id: \.id) { doc in
                                     NavigationLink(destination: DocumentView(docId: doc.id, api: api, onDisappear: store.load)) {
@@ -94,6 +144,8 @@ struct ContentView: View {
                             } else {
                                 ProgressView()
                             }
+                        } header: {
+                            SectionHeader(title: "Toutes les notes")
                         }
                     }
                 }
@@ -117,9 +169,7 @@ struct ContentView: View {
                     showingCreate = false
                 }
             }
-            .errorAlert(message: $store.errorMessage, onRetry: store.load)
         }
-        .onAppear { store.connect() }
     }
 
     /// Returns a time-appropriate greeting string (morning / afternoon / evening).
@@ -133,21 +183,187 @@ struct ContentView: View {
     }
 }
 
-// ── Components ────────────────────────────────────────────────────────────────
+// ── Recent strip ──────────────────────────────────────────────────────────────
 
-/// Large-title greeting shown at the top of the document list.
+/// Horizontal scroll strip showing the most recently modified documents as cards.
+private struct RecentStrip: View {
+    let docs: [DocumentMetaFfi]
+    let api: PinkhaApi?
+    let onDisappear: () -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .top, spacing: 12) {
+                ForEach(docs, id: \.id) { doc in
+                    if let api {
+                        NavigationLink(destination: DocumentView(docId: doc.id, api: api, onDisappear: onDisappear)) {
+                            RecentCard(doc: doc)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 4)
+        }
+    }
+}
+
+/// A card in the recent strip — shows icon, title, and relative date.
+private struct RecentCard: View {
+    let doc: DocumentMetaFfi
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // Icon
+            Group {
+                if let icon = storedIcon, !icon.isEmpty {
+                    Text(icon)
+                        .font(.title)
+                } else {
+                    Image(systemName: "doc.text")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 36, height: 36)
+
+            Spacer()
+
+            // Title + date
+            VStack(alignment: .leading, spacing: 3) {
+                Text(doc.titlePlain.isEmpty ? "Sans titre" : doc.titlePlain)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(2)
+
+                if let date = formattedDate(doc.updatedAt) {
+                    Text(date)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .padding(14)
+        .frame(width: 150, height: 140)
+        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(.separator.opacity(0.5), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
+    }
+
+    private var storedIcon: String? {
+        UserDefaults.standard.string(forKey: "document.icon.\(doc.id)")
+    }
+
+    private func formattedDate(_ iso: String) -> String? {
+        guard !iso.isEmpty else { return nil }
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = parser.date(from: iso) else { return nil }
+        return date.formatted(.relative(presentation: .named, unitsStyle: .abbreviated))
+    }
+}
+
+// ── Tab 2 : Databases ─────────────────────────────────────────────────────────
+
+/// Placeholder for the Databases tab (backend complete, UI pending).
+private struct DatabasesHomeView: View {
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Image(systemName: "tablecells")
+                    .font(.system(size: 52))
+                    .foregroundStyle(.tertiary)
+                VStack(spacing: 6) {
+                    Text("Bases de données")
+                        .font(.headline)
+                    Text("Bientôt disponible.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .navigationTitle("Bases")
+            .navigationBarTitleDisplayMode(.large)
+        }
+    }
+}
+
+// ── Tab 3 : Search ────────────────────────────────────────────────────────────
+
+/// Search tab: real-time search across document titles.
+private struct SearchView: View {
+    @ObservedObject var store: PinkhaStore
+    @State private var query = ""
+
+    private var results: [DocumentMetaFfi] {
+        query.isEmpty ? [] : store.search(query: query)
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if query.isEmpty {
+                    // Idle state — show a hint.
+                    Label("Tape pour chercher", systemImage: "text.magnifyingglass")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .padding(.top, 32)
+                } else if results.isEmpty {
+                    Text("Aucun résultat pour « \(query) »")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .padding(.top, 32)
+                } else {
+                    if let api = store.api {
+                        ForEach(results, id: \.id) { doc in
+                            NavigationLink(destination: DocumentView(docId: doc.id, api: api, onDisappear: store.load)) {
+                                DocumentRow(doc: doc)
+                            }
+                        }
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("Recherche")
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Titres des notes…")
+            .autocorrectionDisabled()
+        }
+    }
+}
+
+// ── Shared components ─────────────────────────────────────────────────────────
+
+/// Bold section label with a subtle uppercase style.
+private struct SectionHeader: View {
+    let title: String
+
+    var body: some View {
+        Text(title.uppercased())
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .kerning(0.5)
+    }
+}
+
+/// Large-title greeting shown at the top of the Notes tab.
 private struct WelcomeHeader: View {
     let greeting: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(greeting)
                 .font(.largeTitle.bold())
             Text("Tes notes, à toi.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
