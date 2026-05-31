@@ -63,7 +63,10 @@ struct DocumentView: View {
 
             DocumentTitleView(title: $vm.title, focusDemande: $focusTitle,
                               onSave: vm.saveTitle,
-                              onNewBlock: { vm.addBlock(type: .text) })
+                              onNewBlock: { tail in
+                                  let spans = tail.isEmpty ? [] : [InlineTextFfi(content: tail, styles: [])]
+                                  vm.addBlock(type: .text, initialSpans: spans)
+                              })
                 .disabled(documentLocked)
                 .listRowBackground(Color.clear).listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 8, trailing: 20))
