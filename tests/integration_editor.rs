@@ -1,4 +1,4 @@
-/// Teste les opérations d'édition en séquence sur un texte riche.
+/// Integration tests for rich-text editing operations performed in sequence.
 use pinkha::domain::commandes::{ApplyStyle, History, Insert, Delete};
 use pinkha::domain::document::{InlineStyle, InlineText};
 use pinkha::domain::editor::EditorState;
@@ -50,15 +50,15 @@ fn test_style_et_edition_combinees() {
     let mut state = state_from("hello world");
     let mut hist = History::default();
 
-    // mettre "hello" en gras
+    // apply Bold to "hello"
     let cmd_style = ApplyStyle::new(&state, 0..5, InlineStyle::Bold);
     hist.apply(Box::new(cmd_style), &mut state);
 
-    // insérer un caractère dans la zone en gras
+    // insert a character inside the bold range
     hist.apply(Box::new(Insert::new(2, '!')), &mut state);
     assert_eq!(state.text.content(), "he!llo world");
 
-    // le span gras doit s'être étendu
+    // the bold span must have expanded to cover the inserted character
     let retour: Vec<InlineText> = Vec::from(&state.text);
     assert_eq!(retour[0].styles, vec![InlineStyle::Bold]);
     assert_eq!(retour[0].content, "he!llo");
@@ -79,7 +79,7 @@ fn test_supprimer_dans_texte_style() {
     let mut state = EditorState::new(RichText::from(&inlines));
     let mut hist = History::default();
 
-    // supprime le 'g' de "gras" (position 6)
+    // delete the 'g' of "gras" (position 6)
     let cmd = Delete::new(&state, 6).unwrap();
     hist.apply(Box::new(cmd), &mut state);
     assert_eq!(state.text.content(), "avant ras");

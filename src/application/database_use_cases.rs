@@ -9,6 +9,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use uuid::Uuid;
 
+/// Creates a new database with the given title and properties, then persists it.
 pub fn create_database(
     repo: &dyn DatabaseRepository,
     title: Vec<InlineText>,
@@ -19,18 +20,22 @@ pub fn create_database(
     Ok(db)
 }
 
+/// Loads a full database by ID.
 pub fn get_database(repo: &dyn DatabaseRepository, id: Uuid) -> Result<Database, PinkhaError> {
     repo.load(id)
 }
 
+/// Returns lightweight metadata for all databases (no entries loaded).
 pub fn list_databases(repo: &dyn DatabaseRepository) -> Result<Vec<DatabaseMeta>, PinkhaError> {
     repo.list_meta()
 }
 
+/// Deletes a database by ID.
 pub fn delete_database(repo: &dyn DatabaseRepository, db_id: Uuid) -> Result<(), PinkhaError> {
     repo.delete(db_id)
 }
 
+/// Adds a new row to the database and persists.
 pub fn add_entry(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
@@ -43,6 +48,7 @@ pub fn add_entry(
     Ok(entry)
 }
 
+/// Replaces all cell values for an existing entry and persists.
 pub fn update_entry(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
@@ -59,6 +65,7 @@ pub fn update_entry(
     repo.save(&db)
 }
 
+/// Removes an entry from the database and persists.
 pub fn delete_entry(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
@@ -73,6 +80,7 @@ pub fn delete_entry(
     repo.save(&db)
 }
 
+/// Adds a new column definition to the database and persists.
 pub fn add_property(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
@@ -83,6 +91,7 @@ pub fn add_property(
     repo.save(&db)
 }
 
+/// Adds a new view to the database and persists.
 pub fn add_view(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
@@ -94,6 +103,7 @@ pub fn add_view(
     Ok(view)
 }
 
+/// Returns the entries visible in a view after applying its filters and sorts.
 pub fn query(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
@@ -151,8 +161,9 @@ pub fn query(
     Ok(entries)
 }
 
-// ── Propriétés ───────────────────────────────────────────────────────────────
+// ── Properties ────────────────────────────────────────────────────────────────
 
+/// Renames an existing property and persists.
 pub fn rename_property(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
@@ -169,7 +180,7 @@ pub fn rename_property(
     repo.save(&db)
 }
 
-/// Supprime une propriété et nettoie ses values dans toutes les entrées.
+/// Removes a property column and clears its values from all existing entries, then persists.
 pub fn delete_property(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
@@ -189,7 +200,7 @@ pub fn delete_property(
 
 // ── Views ─────────────────────────────────────────────────────────────────────
 
-/// Met à jour les filters et sorts d'une vue existante.
+/// Replaces the filters and sorts of an existing view and persists.
 pub fn update_view(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
@@ -208,7 +219,9 @@ pub fn update_view(
     repo.save(&db)
 }
 
-/// Supprime une vue. Retourne InvalidOperation si c'est la dernière.
+/// Removes a view and persists.
+///
+/// Returns `InvalidOperation` when attempting to delete the last remaining view.
 pub fn delete_view(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
@@ -217,7 +230,7 @@ pub fn delete_view(
     let mut db = repo.load(db_id)?;
     if db.views.len() <= 1 {
         return Err(PinkhaError::InvalidOperation(
-            "impossible de supprimer la dernière vue".to_string(),
+            "cannot delete the last view".to_string(),
         ));
     }
     let before = db.views.len();
@@ -228,9 +241,9 @@ pub fn delete_view(
     repo.save(&db)
 }
 
-// ── Recherche ────────────────────────────────────────────────────────────────
+// ── Search ────────────────────────────────────────────────────────────────────
 
-/// Recherche insensible à la casse dans toutes les values textuelles des entrées.
+/// Case-insensitive search across all text-bearing property values of a database's entries.
 pub fn search_entries(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
@@ -264,10 +277,11 @@ fn value_contains(v: &PropertyValue, query: &str) -> bool {
     }
 }
 
-// ── Relations, Rollups, Agrégats, Groupment ─────────────────────────────────
+// ── Relations, Rollups, Aggregates, Grouping ──────────────────────────────────
 
-/// Enrichit les entrées avec les values calculées des colonnes Rollup.
-/// Les values rollup ne sont pas persistées — calculées à la lecture.
+/// Enriches entries with computed values for all Rollup columns.
+///
+/// Rollup values are not persisted — they are recalculated at read time.
 pub fn evaluate_rollups(
     repo: &dyn DatabaseRepository,
     db: &Database,
@@ -322,7 +336,7 @@ pub fn evaluate_rollups(
     Ok(entries)
 }
 
-/// Requête filtrée + triée + rollups calculés.
+/// Runs `query` then enriches the result with computed Rollup values.
 pub fn query_with_rollups(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
@@ -333,7 +347,7 @@ pub fn query_with_rollups(
     evaluate_rollups(repo, &db, entries)
 }
 
-/// Agrège toutes les values d'une colonne numérique sur l'ensemble des entrées.
+/// Aggregates all values of a numeric column across every entry in the database.
 pub fn column_aggregate(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
@@ -345,7 +359,7 @@ pub fn column_aggregate(
     Ok(calculate_aggregate(&refs, prop_id, &aggregate))
 }
 
-/// Regroupe les entrées d'une vue par valeur d'une propriété.
+/// Groups the entries of a view by the value of a given property.
 pub fn grouped_query(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
@@ -376,9 +390,9 @@ pub fn grouped_query(
     Ok(groups)
 }
 
-// ── Helpers internes ─────────────────────────────────────────────────────────
+// ── Internal helpers ──────────────────────────────────────────────────────────
 
-/// Retourne la date effective : valeur manuelle si renseignée, sinon `created_at`.
+/// Returns the effective date: manual property value when set, otherwise `created_at`.
 fn effective_date<'a>(v: &'a PropertyValue, created_at: &'a str) -> &'a str {
     match v {
         PropertyValue::Date(d) if !d.is_empty() => d.as_str(),

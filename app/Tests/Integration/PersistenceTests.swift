@@ -2,10 +2,10 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-// Persistance : le contenu doit survivre à la fermeture/réouverture de l'app
-// (vérifie que SQLite + WAL flushent correctement).
+// Persistence: content must survive app close and reopen
+// (verifies that SQLite + WAL flush correctly).
 
-@Suite("Persistance — survit à la réouverture")
+@Suite("Persistence — survives reopen")
 struct PersistenceTests {
 
     @Test func documentSurvivesReopen() throws {
@@ -23,7 +23,7 @@ struct PersistenceTests {
             docId = try api.createDocument(title: "Persistant")
             try api.updateDocumentTitle(id: docId, newTitle: "Modifié")
         }
-        // Nouvelle instance d'API sur le même fichier.
+        // New API instance on the same file.
         let api2 = try PinkhaApi(dbPath: tmp.path)
         let metas = try api2.listDocuments()
         #expect(metas.contains(where: { $0.id == docId && $0.titlePlain == "Modifié" }))
@@ -69,6 +69,6 @@ struct PersistenceTests {
         }
         let api2 = try PinkhaApi(dbPath: tmp.path)
         #expect(try api2.listDocuments().isEmpty,
-                "le document soft-deleted ne doit pas réapparaître à la réouverture")
+                "the soft-deleted document must not reappear after reopening")
     }
 }

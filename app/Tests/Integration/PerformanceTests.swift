@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-@Suite("Performance — charges réalistes (smoke tests)")
+@Suite("Performance — realistic loads (smoke tests)")
 struct PerformanceTests {
 
     private func makeApi() throws -> (PinkhaApi, URL) {
@@ -23,8 +23,8 @@ struct PerformanceTests {
             _ = try api.addBlock(docId: docId, blockContentJson: json)
         }
         let elapsed = Date().timeIntervalSince(start)
-        // Smoke : pas une vraie mesure perf, mais on doit rester sous 30s.
-        #expect(elapsed < 30, "1000 add_block doivent passer en < 30s, observé : \(elapsed)s")
+        // Smoke: not a real perf measurement, but must stay under 30s.
+        #expect(elapsed < 30, "1000 add_block must complete in < 30s, observed: \(elapsed)s")
 
         let doc = try JSONDecoder().decode(
             DocumentFfi.self,
@@ -54,7 +54,7 @@ struct PerformanceTests {
         let start = Date()
         let docJson = try api.getDocumentJson(id: docId)
         let elapsed = Date().timeIntervalSince(start)
-        #expect(elapsed < 1.0, "load doit rester < 1s même avec 500 blocs, observé : \(elapsed)s")
+        #expect(elapsed < 1.0, "load must stay < 1s even with 500 blocks, observed: \(elapsed)s")
         #expect(!docJson.isEmpty)
     }
 }

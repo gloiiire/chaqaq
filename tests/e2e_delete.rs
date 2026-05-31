@@ -30,7 +30,7 @@ fn inlines(s: &str) -> Vec<InlineText> {
     }]
 }
 
-/// Crée plusieurs documents, en supprime un, vérifie la liste et l'inaccessibilité.
+/// Creates several documents, deletes one, verifies the list and inaccessibility.
 #[test]
 fn test_flux_suppression_document() {
     let store = doc_store_temp();
@@ -39,7 +39,7 @@ fn test_flux_suppression_document() {
     let doc_b = create_document(&store, "Projet Beta").unwrap();
     let doc_c = create_document(&store, "Projet Gamma").unwrap();
 
-    // Ajoute des blocs à A pour s'assurer que supprimer A ne touche pas B/C
+    // Add blocks to A to ensure deleting A does not affect B/C
     add_block(
         &store,
         doc_a.id,
@@ -49,24 +49,24 @@ fn test_flux_suppression_document() {
 
     delete_document(&store, doc_b.id).unwrap();
 
-    // B est inaccessible
+    // B is inaccessible
     assert!(matches!(
         get_document(&store, doc_b.id),
         Err(PinkhaError::NotFound(_))
     ));
 
-    // A et C sont intacts
+    // A and C are intact
     let a = get_document(&store, doc_a.id).unwrap();
     assert_eq!(a.blocks.len(), 1);
     assert!(get_document(&store, doc_c.id).is_ok());
 
-    // La liste ne contient plus B
+    // The listing no longer contains B
     let liste = list_documents(&store).unwrap();
     assert_eq!(liste.len(), 2);
     assert!(!liste.iter().any(|m| m.id == doc_b.id));
 }
 
-/// Crée une database avec des entrées, la supprime, vérifie l'inaccessibilité.
+/// Creates a database with entries, deletes it, verifies inaccessibility.
 #[test]
 fn test_flux_suppression_database() {
     let store = db_store_temp();
@@ -77,29 +77,29 @@ fn test_flux_suppression_database() {
     let db_a = create_database(&store, inlines("Archive"), vec![prop]).unwrap();
     let db_b = create_database(&store, inlines("Active"), vec![]).unwrap();
 
-    // Ajoute une entrée à Archive
+    // Add an entry to Archive
     let mut v = HashMap::new();
     v.insert(prop_id, PropertyValue::Text("Ancienne note".to_string()));
     add_entry(&store, db_a.id, v).unwrap();
 
     delete_database(&store, db_a.id).unwrap();
 
-    // Archive est inaccessible
+    // Archive is inaccessible
     assert!(matches!(
         get_database(&store, db_a.id),
         Err(PinkhaError::NotFound(_))
     ));
 
-    // Active reste intacte
+    // Active remains intact
     assert!(get_database(&store, db_b.id).is_ok());
 
-    // La liste ne contient plus Archive
+    // The listing no longer contains Archive
     let liste = list_databases(&store).unwrap();
     assert_eq!(liste.len(), 1);
     assert_eq!(liste[0].id, db_b.id);
 }
 
-/// Double suppression retourne NotFound la deuxième fois.
+/// A double deletion returns NotFound on the second attempt.
 #[test]
 fn test_double_suppression_retourne_erreur() {
     let store = doc_store_temp();

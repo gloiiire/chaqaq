@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-@Suite("Search — recherche documents et blocs")
+@Suite("Search — document and block search")
 struct SearchTests {
 
     private func makeApi() throws -> (PinkhaApi, URL) {
@@ -33,7 +33,7 @@ struct SearchTests {
         defer { try? FileManager.default.removeItem(at: url) }
         _ = try api.createDocument(title: "A")
         _ = try api.createDocument(title: "B")
-        // Une chaîne vide est contenue dans tout titre — comportement standard de `contains`.
+        // An empty string is contained in every title — standard `contains` behaviour.
         #expect(try api.searchDocuments(query: "").count == 2)
     }
 

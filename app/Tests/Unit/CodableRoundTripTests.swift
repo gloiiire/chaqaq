@@ -30,7 +30,7 @@ struct InlineTextFfiTests {
     }
 }
 
-@Suite("DocumentFfi — round-trip JSON complet")
+@Suite("DocumentFfi — full JSON round-trip")
 struct DocumentFfiTests {
 
     @Test func emptyDocumentRoundTrips() throws {
@@ -78,7 +78,7 @@ struct DocumentFfiTests {
     }
 }
 
-@Suite("BlockContentFfi — toutes les variantes payload")
+@Suite("BlockContentFfi — all payload variants")
 struct BlockContentPayloadTests {
 
     @Test func todoPayloadEncodesDoneAndText() throws {

@@ -2,8 +2,8 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-// FFI databases avancée : properties, entries, views.
-// Pas d'UI mais l'API doit être correcte (préparation Notion-like).
+// Advanced database FFI: properties, entries, views.
+// No UI yet, but the API must be correct (Notion-like preparation).
 
 @Suite("Database — properties, entries, views via FFI")
 struct DatabaseEntitiesTests {
@@ -22,7 +22,7 @@ struct DatabaseEntitiesTests {
         try? FileManager.default.removeItem(at: url.appendingPathExtension("shm"))
     }
 
-    // Format JSON Rust externally-tagged : Title (unit variant) → "Title".
+    // Rust externally-tagged JSON format: Title (unit variant) → "Title".
     private func propertyJson(name: String, type: String = "Title") -> String {
         return "{\"id\":\"\(UUID().uuidString)\",\"name\":\"\(name)\",\"type_\":\"\(type)\"}"
     }

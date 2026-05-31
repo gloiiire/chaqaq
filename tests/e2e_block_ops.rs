@@ -22,12 +22,12 @@ fn inlines(s: &str) -> Vec<InlineText> {
     }]
 }
 
-/// Flux complet : créer, éditer, toggle, supprimer, recharger.
+/// Full flow: create, edit, toggle, delete, reload.
 #[test]
 fn test_flux_edition_complete() {
     let store = store_temp();
 
-    // Crée un document avec plusieurs types de blocs
+    // Create a document with several block types
     let doc = create_document(&store, "Ma page").unwrap();
     let doc = add_block(
         &store,
@@ -58,11 +58,11 @@ fn test_flux_edition_complete() {
     let id_para = doc.blocks[1].id;
     let id_todo = doc.blocks[2].id;
 
-    // Édite le heading via EditorState
+    // Edit the heading via EditorState
     let rt = RichText::from(&inlines("Introduction révisée"));
     save_edited_block(&store, doc.id, id_heading, &EditorState::new(rt)).unwrap();
 
-    // Édite le paragraphe avec un style gras
+    // Edit the paragraph with bold style
     let inlines_gras = vec![InlineText {
         content: "Texte en gras".to_string(),
         styles: vec![InlineStyle::Bold],
@@ -70,7 +70,7 @@ fn test_flux_edition_complete() {
     let rt = RichText::from(&inlines_gras);
     save_edited_block(&store, doc.id, id_para, &EditorState::new(rt)).unwrap();
 
-    // Toggle la todo
+    // Toggle the todo
     update_block(
         &store,
         doc.id,
@@ -82,7 +82,7 @@ fn test_flux_edition_complete() {
     )
     .unwrap();
 
-    // Recharge et vérifie tout
+    // Reload and verify everything
     let recharge = get_document(&store, doc.id).unwrap();
     assert_eq!(recharge.blocks.len(), 3);
 
@@ -100,7 +100,7 @@ fn test_flux_edition_complete() {
     ));
 }
 
-/// Créer, réordonner, supprimer — vérifier la persistance à chaque étape.
+/// Create, reorder, delete — verify persistence at each step.
 #[test]
 fn test_flux_reordonnement_et_suppression() {
     let store = store_temp();
@@ -116,14 +116,14 @@ fn test_flux_reordonnement_et_suppression() {
     let id_gamma = doc.blocks[2].id;
     let id_div = doc.blocks[3].id;
 
-    // Réordonne : Divider, Gamma, Alpha, Beta
+    // Reorder: Divider, Gamma, Alpha, Beta
     reorder_blocks(&store, doc.id, vec![id_div, id_gamma, id_alpha, id_beta]).unwrap();
 
     let apres_reorder = get_document(&store, doc.id).unwrap();
     assert_eq!(apres_reorder.blocks[0].id, id_div);
     assert_eq!(apres_reorder.blocks[1].id, id_gamma);
 
-    // Supprime Divider
+    // Delete Divider
     delete_block(&store, doc.id, id_div).unwrap();
 
     let final_doc = get_document(&store, doc.id).unwrap();
@@ -131,7 +131,7 @@ fn test_flux_reordonnement_et_suppression() {
     assert_eq!(final_doc.blocks[0].id, id_gamma);
 }
 
-/// Vérifie que EditorState préserve les styles lors d'une sauvegarde.
+/// Verify that EditorState preserves styles during a block save.
 #[test]
 fn test_styles_preserves_apres_sauvegarde_bloc() {
     let store = store_temp();
@@ -150,7 +150,7 @@ fn test_styles_preserves_apres_sauvegarde_bloc() {
     let doc = add_block(&store, doc.id, BlockContent::Text(inlines_styled.clone())).unwrap();
     let block_id = doc.blocks[0].id;
 
-    // Sauvegarde via EditorState (round-trip RichText → Vec<InlineText>)
+    // Save via EditorState (round-trip RichText → Vec<InlineText>)
     let rt = RichText::from(&inlines_styled);
     save_edited_block(&store, doc.id, block_id, &EditorState::new(rt)).unwrap();
 
@@ -163,18 +163,18 @@ fn test_styles_preserves_apres_sauvegarde_bloc() {
     }
 }
 
-/// Page avec title modifiable, cover, et blocs imbriqués — scénario page Notion.
+/// Page with editable title, cover, and nested blocks — Notion page scenario.
 #[test]
 fn test_flux_page_complete() {
     let store = store_temp();
 
     let doc = create_document(&store, "Brouillon").unwrap();
 
-    // Renomme et ajoute une cover
+    // Rename and add a cover
     update_document_title(&store, doc.id, "Mon projet 2025").unwrap();
     update_document_cover(&store, doc.id, Some("🚀".to_string())).unwrap();
 
-    // Structure : Heading → paragraphes imbriqués
+    // Structure: Heading with nested paragraphs
     let doc = add_block(
         &store,
         doc.id,
@@ -207,7 +207,7 @@ fn test_flux_page_complete() {
     )
     .unwrap();
 
-    // Recharge et vérifie tout
+    // Reload and verify everything
     let page = get_document(&store, doc.id).unwrap();
     assert_eq!(page.title[0].content, "Mon projet 2025");
     assert_eq!(page.cover, Some("🚀".to_string()));
