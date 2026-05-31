@@ -98,7 +98,7 @@ Toute la logique d'édition inline vit ici. Seule dépendance : `serde`.
 - **`History`** : pile undo/redo, capacité configurable (défaut 1 000), `apply` / `undo` / `redo` / `can_undo` / `can_redo`
 - **`parse_inline(input)`** : state machine sur `chars().peekable()`. `**bold**`, `_italic_`, `__underline__`, `~~strike~~`, `{color:text}`, `[label](url)`, combinaisons.
 
-> **Note langue** : tous les commentaires et doc-comments sont en **anglais** — y compris dans `crates/chaqaq` et dans `pinkha`.
+> **Language note**: all comments and doc-comments are in **English** — in both `crates/chaqaq` and `pinkha`.
 
 > **Publication** : bumper la version dans `crates/chaqaq/Cargo.toml` (semver), puis `cd crates/chaqaq && cargo publish`. Une version publiée est immuable. pinkha référence chaqaq via `{ path = "crates/chaqaq" }` donc compile toujours en local sans publier.
 
@@ -310,9 +310,7 @@ Ce qui **reste** à construire :
 ## Code style
 
 ### Langue
-- **Code in English**: all identifiers (types, functions, variables, fields, parameters, FFI methods) in idiomatic English.
-- **Comments in English**: all comments, doc-comments, and inline explanations — in both `pinkha` and `crates/chaqaq`.
-- **User-facing strings in French**: `Text("Bonjour")`, `placeholder("Titre du document")`, `accessibilityLabel("Annuler")` — kept in French as they are visible to the French-speaking end user.
+Everything in the repo is in **English**: identifiers, comments, doc-comments, user-facing strings, placeholders, accessibility labels. No exceptions.
 
 ### Conventions
 - Pas de `unwrap()` — toujours `?` et `Result` côté Rust
