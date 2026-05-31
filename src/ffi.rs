@@ -79,6 +79,23 @@ pub struct DocumentMetaFfi {
     pub created_at: String,
 }
 
+/// Summary of a completed import operation, returned to Swift.
+pub struct ImportResultFfi {
+    /// Human-readable name of the source application (e.g. `"Notion"`, `"Bear"`).
+    pub app: String,
+    /// UUID string of the Pinkha database created by this import, or empty if
+    /// the source had no database structure (plain notes only).
+    pub database_id: String,
+    /// Number of Pinkha documents created.
+    pub documents: u32,
+    /// Number of database entries created.
+    pub entries: u32,
+    /// Number of blocks added across all documents.
+    pub blocks: u32,
+    /// Number of source items skipped (unsupported block type, etc.).
+    pub skipped: u32,
+}
+
 /// Lightweight database metadata passed across the FFI boundary.
 pub struct DatabaseMetaFfi {
     /// UUID string of the database.
@@ -591,5 +608,86 @@ impl PinkhaApi {
         let entries = database_use_cases::search_entries(&self.dbs, db_uuid, &query)
             .map_err(PinkhaError::from)?;
         to_json(&entries)
+    }
+
+    // ── Extractors ────────────────────────────────────────────────────────────
+    //
+    // Async import methods — one per source application.
+    // Each method creates the appropriate extractor and delegates to its `run`.
+    //
+    // UDL: mark with [Async][Throws=PinkhaError] when wiring up each extractor.
+    // OAuth2 token exchange happens in Swift before calling these methods;
+    // Rust only receives the final bearer token.
+
+    /// Imports a Notion database into Pinkha.
+    ///
+    /// `token`       — Notion bearer token (OAuth2 or private integration token).
+    /// `database_id` — 32-char hex ID or full Notion URL of the database.
+    pub async fn import_from_notion(
+        &self,
+        token: String,
+        database_id: String,
+    ) -> Result<ImportResultFfi, PinkhaError> {
+        use crate::extractors::notion::{NotionExtractor, NotionConfig};
+        use crate::extractors::traits::Extractor;
+        validate_string(&token, "token")?;
+        validate_string(&database_id, "database_id")?;
+        let extractor = NotionExtractor::new();
+        let config = NotionConfig { token, database_id };
+        extractor
+            .run(config, &self.docs as &(dyn crate::application::repository::DocumentRepository + Send + Sync), &self.dbs as &(dyn crate::application::database_repository::DatabaseRepository + Send + Sync))
+            .await
+            .map(|r| ImportResultFfi {
+                app: r.app.to_string(),
+                database_id: r.database_id.map(|id| id.to_string()).unwrap_or_default(),
+                documents: r.documents as u32,
+                entries: r.entries as u32,
+                blocks: r.blocks as u32,
+                skipped: r.skipped as u32,
+            })
+            .map_err(|e| match e {
+                crate::extractors::ExtractorError::Http { status, message } =>
+                    PinkhaError::Storage { detail: format!("Notion HTTP {status}: {message}") },
+                crate::extractors::ExtractorError::Auth(msg) =>
+                    PinkhaError::InvalidOperation { detail: msg },
+                crate::extractors::ExtractorError::Parse(msg) =>
+                    PinkhaError::Storage { detail: msg },
+                crate::extractors::ExtractorError::Storage(e) => e.into(),
+            })
+    }
+
+    /// Imports notes from Bear's local SQLite database into Pinkha documents.
+    ///
+    /// `db_path` — absolute path to Bear's `database.sqlite`, obtained via a
+    /// Swift file picker scoped to Bear's group container.
+    pub async fn import_from_bear(
+        &self,
+        db_path: String,
+    ) -> Result<ImportResultFfi, PinkhaError> {
+        use crate::extractors::bear::{BearExtractor, BearConfig};
+        use crate::extractors::traits::Extractor;
+        validate_string(&db_path, "db_path")?;
+        let extractor = BearExtractor::new();
+        let config = BearConfig { db_path };
+        extractor
+            .run(config, &self.docs, &self.dbs)
+            .await
+            .map(|r| ImportResultFfi {
+                app: r.app.to_string(),
+                database_id: r.database_id.map(|id| id.to_string()).unwrap_or_default(),
+                documents: r.documents as u32,
+                entries: r.entries as u32,
+                blocks: r.blocks as u32,
+                skipped: r.skipped as u32,
+            })
+            .map_err(|e| match e {
+                crate::extractors::ExtractorError::Http { status, message } =>
+                    PinkhaError::Storage { detail: format!("Bear HTTP {status}: {message}") },
+                crate::extractors::ExtractorError::Auth(msg) =>
+                    PinkhaError::InvalidOperation { detail: msg },
+                crate::extractors::ExtractorError::Parse(msg) =>
+                    PinkhaError::Storage { detail: msg },
+                crate::extractors::ExtractorError::Storage(e) => e.into(),
+            })
     }
 }
