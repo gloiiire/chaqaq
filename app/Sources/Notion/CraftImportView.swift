@@ -3,21 +3,16 @@ import UniformTypeIdentifiers
 
 // ── Import from Craft sheet ────────────────────────────────────────────────────
 //
-// Craft stores notes in a Realm binary database inside its app container:
-//   ~/Library/Containers/com.lukilabs.lukiapp/Data/Library/Application Support/
-//   com.lukilabs.lukiapp/LukiMain_*.realm
-//
-// Flow:
-//   1. User taps "Choose Craft database" → file picker opens (filters .realm)
-//   2. User selects Craft's .realm file
-//   3. Tap "Import" → Rust extractor reads the Realm file and creates Pinkha documents
-//   4. Success screen shows note count; "Done" refreshes the list.
+// On macOS (Catalyst) the sheet auto-detects Craft's .realm file at its known
+// container path — the user just taps "Import".
+// On iOS the user must select the file manually via the file picker.
 
 struct CraftImportView: View {
     let api: PinkhaApi?
     let onDone: () -> Void
 
     @State private var selectedPath: String?
+    @State private var autoDetected = false
     @State private var showingFilePicker = false
     @State private var importState: ImportState = .idle
     @Environment(\.dismiss) private var dismiss
@@ -52,13 +47,12 @@ struct CraftImportView: View {
                     allowsMultipleSelection: false
                 ) { result in
                     if case .success(let urls) = result, let url = urls.first {
-                        if url.startAccessingSecurityScopedResource() {
-                            selectedPath = url.path
-                        } else {
-                            selectedPath = url.path
-                        }
+                        _ = url.startAccessingSecurityScopedResource()
+                        selectedPath = url.path
+                        autoDetected = false
                     }
                 }
+                .task { detectCraftDatabase() }
         }
         .presentationDetents([.large])
     }
@@ -81,17 +75,24 @@ struct CraftImportView: View {
                     HStack {
                         Image(systemName: "folder")
                             .foregroundStyle(.tint)
-                        if let path = selectedPath {
-                            Text(URL(fileURLWithPath: path).lastPathComponent)
-                                .foregroundStyle(.primary)
-                        } else {
-                            Text("Choose Craft database…")
-                                .foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            if let path = selectedPath {
+                                Text(URL(fileURLWithPath: path).lastPathComponent)
+                                    .foregroundStyle(.primary)
+                                if autoDetected {
+                                    Text("Auto-detected · tap to change")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                            } else {
+                                Text("Choose Craft database…")
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         Spacer()
                         if selectedPath != nil {
-                            Image(systemName: "checkmark")
-                                .foregroundStyle(.green)
+                            Image(systemName: autoDetected ? "sparkles" : "checkmark")
+                                .foregroundStyle(autoDetected ? Color.accentColor : Color.green)
                                 .font(.footnote.weight(.semibold))
                         }
                     }
@@ -100,8 +101,13 @@ struct CraftImportView: View {
             } header: {
                 Text("Craft Database")
             } footer: {
-                Text("Craft's database is at:\n~/Library/Containers/com.lukilabs.lukiapp/Data/Library/Application Support/com.lukilabs.lukiapp/LukiMain_*.realm")
-                    .font(.caption2)
+                if autoDetected {
+                    Text("Craft database detected automatically.")
+                        .font(.caption2)
+                } else {
+                    Text("Craft's database is at:\n~/Library/Containers/com.lukilabs.lukiapp/Data/Library/Application Support/com.lukilabs.lukiapp/LukiMain_*.realm")
+                        .font(.caption2)
+                }
             }
 
             if case .running = importState {
@@ -157,6 +163,38 @@ struct CraftImportView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // ── Auto-detect ───────────────────────────────────────────────────────────
+
+    private func detectCraftDatabase() {
+        guard selectedPath == nil else { return }
+        #if targetEnvironment(macCatalyst)
+        let fm = FileManager.default
+        let home = fm.homeDirectoryForCurrentUser
+        let container = home
+            .appendingPathComponent("Library/Containers/com.lukilabs.lukiapp")
+            .appendingPathComponent("Data/Library/Application Support/com.lukilabs.lukiapp")
+
+        guard let entries = try? fm.contentsOfDirectory(
+            at: container,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: .skipsHiddenFiles
+        ) else { return }
+
+        let latest = entries
+            .filter { $0.pathExtension == "realm" }
+            .max {
+                let a = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+                let b = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+                return a < b
+            }
+
+        if let url = latest {
+            selectedPath = url.path
+            autoDetected = true
+        }
+        #endif
     }
 
     // ── Import ────────────────────────────────────────────────────────────────
