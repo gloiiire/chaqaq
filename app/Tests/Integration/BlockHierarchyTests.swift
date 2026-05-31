@@ -1,14 +1,14 @@
 import Testing
 import Foundation
-@testable import Chaqaq
+@testable import Pinkha
 
 @Suite("Blocs imbriqués — addChildBlock, reorderChildBlocks, moveBlock")
 struct BlockHierarchyTests {
 
-    private func makeApi() throws -> (ChaqaqApi, URL, String) {
+    private func makeApi() throws -> (PinkhaApi, URL, String) {
         let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chaqaq_hier_\(UUID().uuidString).db")
-        let api = try ChaqaqApi(dbPath: tmp.path)
+            .appendingPathComponent("pinkha_hier_\(UUID().uuidString).db")
+        let api = try PinkhaApi(dbPath: tmp.path)
         let docId = try api.createDocument(title: "Hierarchy")
         return (api, tmp, docId)
     }
@@ -99,7 +99,7 @@ struct BlockHierarchyTests {
     @Test func moveBlockIntoItselfFails() throws {
         let (api, url, docId) = try makeApi(); defer { cleanup(url) }
         let block = try api.addBlock(docId: docId, blockContentJson: try textJson("b"))
-        #expect(throws: ChaqaqError.self) {
+        #expect(throws: PinkhaError.self) {
             try api.moveBlock(docId: docId, blockId: block, newParentId: block)
         }
     }

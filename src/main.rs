@@ -1,4 +1,4 @@
-use chaqaq::domain::parser::parse_inline;
+use pinkha::domain::parser::parse_inline;
 
 fn main() {
     let input = "Input : \"Bonjour [lien](url) suite\"";

@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import Chaqaq
+@testable import Pinkha
 
 @MainActor
 @Suite("Cover image — sauvegarde et persistance via VM")
@@ -8,8 +8,8 @@ struct CoverImageTests {
 
     private func makeVM() throws -> (DocumentViewModel, URL) {
         let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chaqaq_cover_\(UUID().uuidString).db")
-        let api = try ChaqaqApi(dbPath: tmp.path)
+            .appendingPathComponent("pinkha_cover_\(UUID().uuidString).db")
+        let api = try PinkhaApi(dbPath: tmp.path)
         let docId = try api.createDocument(title: "Cover")
         return (DocumentViewModel(docId: docId, api: api), tmp)
     }

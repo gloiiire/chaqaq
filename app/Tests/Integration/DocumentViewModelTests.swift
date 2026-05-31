@@ -1,8 +1,8 @@
 import Testing
 import Foundation
-@testable import Chaqaq
+@testable import Pinkha
 
-// Tests d'intégration du view model document : VM réel + ChaqaqApi réelle
+// Tests d'intégration du view model document : VM réel + PinkhaApi réelle
 // avec une DB SQLite temporaire détruite à chaque test.
 
 @MainActor
@@ -11,8 +11,8 @@ struct DocumentViewModelTests {
 
     private func makeVM() throws -> (DocumentViewModel, URL) {
         let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chaqaq_vm_\(UUID().uuidString).db")
-        let api = try ChaqaqApi(dbPath: tmp.path)
+            .appendingPathComponent("pinkha_vm_\(UUID().uuidString).db")
+        let api = try PinkhaApi(dbPath: tmp.path)
         let docId = try api.createDocument(title: "Test")
         return (DocumentViewModel(docId: docId, api: api), tmp)
     }

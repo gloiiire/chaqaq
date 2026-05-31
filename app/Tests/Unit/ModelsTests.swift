@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import Chaqaq
+@testable import Pinkha
 
 // Vérifie le round-trip Codable des miroirs Swift des types Rust.
 // Le format JSON doit matcher exactement celui produit par serde côté Rust
@@ -32,8 +32,8 @@ struct InlineStyleFfiTests {
     }
 
     @Test func linkSerializesAsKeyedString() throws {
-        let json = try encode(InlineStyleFfi.link("https://chaqaq.app"))
-        #expect(json == "{\"Link\":\"https:\\/\\/chaqaq.app\"}")
+        let json = try encode(InlineStyleFfi.link("https://pinkha.app"))
+        #expect(json == "{\"Link\":\"https:\\/\\/pinkha.app\"}")
     }
 
     @Test func roundTripsAllVariants() throws {

@@ -1,17 +1,17 @@
 import Testing
 import Foundation
-@testable import Chaqaq
+@testable import Pinkha
 
-// Tests d'intégration : Swift ↔ FFI Rust avec une vraie ChaqaqApi
+// Tests d'intégration : Swift ↔ FFI Rust avec une vraie PinkhaApi
 // (DB SQLite temporaire détruite à la fin de chaque test).
 
-@Suite("ChaqaqApi — cycle de vie d'un document")
+@Suite("PinkhaApi — cycle de vie d'un document")
 struct DocumentLifecycleTests {
 
-    private func makeApi() throws -> (ChaqaqApi, URL) {
+    private func makeApi() throws -> (PinkhaApi, URL) {
         let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chaqaq_test_\(UUID().uuidString).db")
-        return (try ChaqaqApi(dbPath: tmp.path), tmp)
+            .appendingPathComponent("pinkha_test_\(UUID().uuidString).db")
+        return (try PinkhaApi(dbPath: tmp.path), tmp)
     }
 
     private func cleanup(_ url: URL) {
@@ -46,7 +46,7 @@ struct DocumentLifecycleTests {
     @Test func deleteNonexistentThrowsNotFound() throws {
         let (api, url) = try makeApi(); defer { cleanup(url) }
         let fake = UUID().uuidString
-        #expect(throws: ChaqaqError.self) {
+        #expect(throws: PinkhaError.self) {
             try api.deleteDocument(id: fake)
         }
     }

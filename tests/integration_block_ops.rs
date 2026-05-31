@@ -1,17 +1,17 @@
-use chaqaq::application::error::ChaqaqError;
-use chaqaq::application::use_cases::{
+use pinkha::application::error::PinkhaError;
+use pinkha::application::use_cases::{
     add_block, add_child_block, create_document, update_block, update_document_cover,
     update_document_title, get_document, reorder_blocks, save_edited_block,
     delete_block,
 };
-use chaqaq::domain::document::{BlockContent, InlineText};
-use chaqaq::domain::editor::EditorState;
-use chaqaq::domain::rich_text::RichText;
-use chaqaq::infrastructure::json_store::JsonStore;
+use pinkha::domain::document::{BlockContent, InlineText};
+use pinkha::domain::editor::EditorState;
+use pinkha::domain::rich_text::RichText;
+use pinkha::infrastructure::json_store::JsonStore;
 use uuid::Uuid;
 
 fn store_temp() -> JsonStore {
-    let dir = std::env::temp_dir().join(format!("chaqaq_blocs_{}", Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("pinkha_blocs_{}", Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
     JsonStore::new(dir)
 }
@@ -77,7 +77,7 @@ fn test_sauvegarder_bloc_non_textuel_retourne_erreur() {
     let block_id = doc.blocks[0].id;
 
     let result = save_edited_block(&store, doc.id, block_id, &etat_depuis("x"));
-    assert!(matches!(result, Err(ChaqaqError::InvalidOperation(_))));
+    assert!(matches!(result, Err(PinkhaError::InvalidOperation(_))));
 }
 
 // ── Gestion des blocs ─────────────────────────────────────────────────────────
@@ -122,7 +122,7 @@ fn test_update_block_inexistant_retourne_non_trouve() {
     let faux_id = Uuid::new_v4();
 
     let result = update_block(&store, doc.id, faux_id, BlockContent::Divider);
-    assert!(matches!(result, Err(ChaqaqError::NotFound(_))));
+    assert!(matches!(result, Err(PinkhaError::NotFound(_))));
 }
 
 #[test]
@@ -145,7 +145,7 @@ fn test_delete_block_inexistant_retourne_non_trouve() {
     let store = store_temp();
     let doc = create_document(&store, "Doc").unwrap();
     let result = delete_block(&store, doc.id, Uuid::new_v4());
-    assert!(matches!(result, Err(ChaqaqError::NotFound(_))));
+    assert!(matches!(result, Err(PinkhaError::NotFound(_))));
 }
 
 #[test]
@@ -273,7 +273,7 @@ fn test_add_child_block_parent_inexistant() {
         Uuid::new_v4(),
         BlockContent::Text(inlines("orphelin")),
     );
-    assert!(matches!(result, Err(ChaqaqError::NotFound(_))));
+    assert!(matches!(result, Err(PinkhaError::NotFound(_))));
 }
 
 #[test]

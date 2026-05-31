@@ -3,11 +3,11 @@ import SwiftUI
 // ── Store ─────────────────────────────────────────────────────────────────────
 
 @MainActor
-final class ChaqaqStore: ObservableObject {
+final class PinkhaStore: ObservableObject {
     @Published var documents: [DocumentMetaFfi] = []
     @Published var errorMessage: String?
 
-    private(set) var api: ChaqaqApi?
+    private(set) var api: PinkhaApi?
 
     func connect() {
         guard api == nil else { return }
@@ -16,9 +16,9 @@ final class ChaqaqStore: ObservableObject {
             // Modes UI-test : DB éphémère pour reproductibilité.
             let args = ProcessInfo.processInfo.arguments
             let isUITest = args.contains("--ui-test-data") || args.contains("--ui-test-clean")
-            let dbName = isUITest ? "chaqaq_uitest_\(UUID().uuidString).db" : "chaqaq.db"
+            let dbName = isUITest ? "pinkha_uitest_\(UUID().uuidString).db" : "pinkha.db"
             let path = dir.appendingPathComponent(dbName).path
-            api = try ChaqaqApi(dbPath: path)
+            api = try PinkhaApi(dbPath: path)
             if args.contains("--ui-test-data") {
                 _ = try api?.createDocument(title: "Seeded Note 1")
                 _ = try api?.createDocument(title: "Seeded Note 2")
@@ -50,7 +50,7 @@ final class ChaqaqStore: ObservableObject {
 // ── Vue principale ────────────────────────────────────────────────────────────
 
 struct ContentView: View {
-    @StateObject private var store = ChaqaqStore()
+    @StateObject private var store = PinkhaStore()
     @State private var showingCreate = false
     @State private var newTitle = ""
 

@@ -1,14 +1,14 @@
 import Testing
 import Foundation
-@testable import Chaqaq
+@testable import Pinkha
 
 @Suite("Search — recherche documents et blocs")
 struct SearchTests {
 
-    private func makeApi() throws -> (ChaqaqApi, URL) {
+    private func makeApi() throws -> (PinkhaApi, URL) {
         let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chaqaq_search_\(UUID().uuidString).db")
-        return (try ChaqaqApi(dbPath: tmp.path), tmp)
+            .appendingPathComponent("pinkha_search_\(UUID().uuidString).db")
+        return (try PinkhaApi(dbPath: tmp.path), tmp)
     }
 
     private func textBlock(_ s: String) throws -> String {

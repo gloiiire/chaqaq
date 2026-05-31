@@ -1,8 +1,8 @@
-# chaqaq
+# pinkha
 
 Application de notes personnelle combinant la fluidité de Craft et la structure de Notion — core en Rust pur.
 
-[![CI](https://github.com/gloiiire/chaqaq/actions/workflows/ci.yml/badge.svg)](https://github.com/gloiiire/chaqaq/actions/workflows/ci.yml)
+[![CI](https://github.com/gloiiire/pinkha/actions/workflows/ci.yml/badge.svg)](https://github.com/gloiiire/pinkha/actions/workflows/ci.yml)
 
 > Statut : **backend Rust complet** (208 tests) · **UI SwiftUI fonctionnelle** (rich text, undo/redo, toolbar pill, drag & drop) · **XCFramework compilé** iOS + Mac
 
@@ -10,7 +10,7 @@ Application de notes personnelle combinant la fluidité de Craft et la structure
 
 ## Vision
 
-chaqaq est une app de prise de notes avec deux ambitions :
+pinkha est une app de prise de notes avec deux ambitions :
 
 - **Beauté et fluidité** à la Craft : rendu natif, blocs riches, inline styles
 - **Structure et puissance** à la Notion : databases, vues, filtres, relations, rollups
@@ -44,20 +44,20 @@ src/
     database_repository.rs — trait DatabaseRepository
     database_use_cases.rs  — use cases database
     resilience.rs          — retry_with_backoff (SQLite transient errors)
-    error.rs               — ChaqaqError
+    error.rs               — PinkhaError
   infrastructure/
     migrations.rs            — migrations SQLite versionnées
     sqlite_document_store.rs — SqliteDocumentStore (local-first, recommandé)
     sqlite_database_store.rs — SqliteDatabaseStore (local-first, recommandé)
     json_store.rs            — JsonStore (conservé pour les tests)
-  ffi.rs             — façade UniFFI : ChaqaqApi exposée à Swift
-  chaqaq.udl         — interface UDL (contrat Swift ↔ Rust)
-swift-bindings/      — bindings Swift générés (chaqaq.swift, chaqaqFFI.h)
-chaqaq.xcframework   — XCFramework compilé (iOS device + simulator + macOS)
+  ffi.rs             — façade UniFFI : PinkhaApi exposée à Swift
+  pinkha.udl         — interface UDL (contrat Swift ↔ Rust)
+swift-bindings/      — bindings Swift générés (pinkha.swift, pinkhaFFI.h)
+pinkha.xcframework   — XCFramework compilé (iOS device + simulator + macOS)
 app/                 — application SwiftUI
   Sources/
-    ChaqaqApp.swift      — @main
-    ContentView.swift    — écran d'accueil + ChaqaqStore
+    PinkhaApp.swift      — @main
+    ContentView.swift    — écran d'accueil + PinkhaStore
     DocumentView.swift   — éditeur de document + DocumentViewModel + undo burst
     Models.swift         — miroirs Swift Codable des types Rust
     RichTextEditor.swift — UIViewRepresentable + toolbar pill de formatage
@@ -79,7 +79,7 @@ app/                 — application SwiftUI
 - **Database type Notion** : propriétés (Titre, Texte, Nombre, Sélection, Date, Case, URL, Relation, Rollup), vues (Tableau, Kanban, Calendrier, Galerie), filtres, tris, groupes, rollups calculés à la lecture
 - **Recherche** : titre, full-text dans les blocs (récursif), valeurs textuelles des entrées de database
 - **Stockage local-first SQLite** : document-as-JSON + colonnes indexées pour le listing, soft delete, `updated_at`, migrations versionnées, WAL pour la concurrence, retry exponential backoff sur erreurs transitoires
-- **Erreurs typées** (`ChaqaqError`) : `NotFound`, `InvalidOperation`, `Io`, `Json`, `Db` — jamais de `unwrap()` en production
+- **Erreurs typées** (`PinkhaError`) : `NotFound`, `InvalidOperation`, `Io`, `Json`, `Db` — jamais de `unwrap()` en production
 
 ### UI SwiftUI (iOS 26)
 
@@ -108,10 +108,10 @@ cargo run     # point d'entrée démo
 cargo test    # 208 tests Rust (unitaires + intégration + E2E)
 cargo check   # vérification rapide
 
-# Régénérer les bindings Swift après modification de ffi.rs ou chaqaq.udl
+# Régénérer les bindings Swift après modification de ffi.rs ou pinkha.udl
 cargo build
 cargo run --bin uniffi-bindgen -- generate \
-    --library target/debug/libchaqaq.dylib \
+    --library target/debug/libpinkha.dylib \
     --language swift --out-dir swift-bindings/
 
 # Recompiler le XCFramework (après modification du code Rust)
@@ -120,12 +120,12 @@ cargo run --bin uniffi-bindgen -- generate \
 
 # App iOS (ouvrir dans Xcode)
 cd app && xcodegen generate    # régénère le .xcodeproj si besoin
-open app/Chaqaq.xcodeproj
+open app/Pinkha.xcodeproj
 
 # Tests Swift complets (nécessite simulateur booté)
-xcodebuild test -project app/Chaqaq.xcodeproj -scheme Chaqaq \
+xcodebuild test -project app/Pinkha.xcodeproj -scheme Pinkha \
     -destination 'id=<UDID>' \
-    -only-testing:ChaqaqTests -only-testing:ChaqaqIntegrationTests
+    -only-testing:PinkhaTests -only-testing:PinkhaIntegrationTests
 ```
 
 ---
@@ -174,9 +174,9 @@ Cf. la section "Git workflow" de [CLAUDE.md](CLAUDE.md) pour le détail des règ
 - [x] Moteur database type Notion
 - [x] CRUD complet documents, blocs, databases
 - [x] Recherche (titres, contenu, entrées database)
-- [x] Erreurs custom (`ChaqaqError`)
+- [x] Erreurs custom (`PinkhaError`)
 - [x] Stockage SQLite local-first (soft delete, `updated_at`, migrations, bundled, WAL, retry)
-- [x] Couche FFI UniFFI — `ChaqaqApi` exposée à Swift
+- [x] Couche FFI UniFFI — `PinkhaApi` exposée à Swift
 - [x] Bindings Swift + XCFramework + projet Xcode
 - [x] Écran d'accueil SwiftUI + éditeur de document
 - [x] Texte riche, toolbar pill, raccourcis markdown

@@ -1,4 +1,4 @@
-name: Chaqaq
+name: Pinkha
 options:
   bundleIdPrefix: com.gloiiire
   deploymentTarget:
@@ -6,47 +6,47 @@ options:
   createIntermediateGroups: true
 
 schemes:
-  Chaqaq:
+  Pinkha:
     build:
       targets:
-        Chaqaq: all
-        ChaqaqTests: test
-        ChaqaqIntegrationTests: test
-        ChaqaqUITests: test
+        Pinkha: all
+        PinkhaTests: test
+        PinkhaIntegrationTests: test
+        PinkhaUITests: test
     run:
       config: Debug
     test:
       config: Debug
       targets:
-        - ChaqaqTests
-        - ChaqaqIntegrationTests
-        - ChaqaqUITests
+        - PinkhaTests
+        - PinkhaIntegrationTests
+        - PinkhaUITests
     archive:
       config: Release
 
 targets:
-  Chaqaq:
+  Pinkha:
     type: application
     platform: iOS
     deploymentTarget: "26.0"
     sources:
       - path: Sources
-      - path: ../swift-bindings/chaqaq.swift
+      - path: ../swift-bindings/pinkha.swift
     resources:
       - path: Sources/Assets.xcassets
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.chaqaq
+        PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.pinkha
         INFOPLIST_FILE: Sources/Info.plist
         SWIFT_VERSION: "5.0"
         EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
         OTHER_LDFLAGS: "$(inherited) -lc++"
     dependencies:
-      - framework: ../chaqaq.xcframework
+      - framework: ../pinkha.xcframework
         embed: false
 
   # Tests unitaires : code Swift pur (modèles Codable, helpers, extensions).
-  ChaqaqTests:
+  PinkhaTests:
     type: bundle.unit-test
     platform: iOS
     deploymentTarget: "26.0"
@@ -54,14 +54,14 @@ targets:
       - path: Tests/Unit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.chaqaq.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.pinkha.tests
         SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
-      - target: Chaqaq
+      - target: Pinkha
 
   # Tests d'intégration : Swift ↔ FFI Rust (création doc, round-trip JSON, erreurs).
-  ChaqaqIntegrationTests:
+  PinkhaIntegrationTests:
     type: bundle.unit-test
     platform: iOS
     deploymentTarget: "26.0"
@@ -69,14 +69,14 @@ targets:
       - path: Tests/Integration
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.chaqaq.integration
+        PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.pinkha.integration
         SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
-      - target: Chaqaq
+      - target: Pinkha
 
   # Tests E2E (UI XCUITest) : pilote l'app comme un utilisateur (tap, swipe…).
-  ChaqaqUITests:
+  PinkhaUITests:
     type: bundle.ui-testing
     platform: iOS
     deploymentTarget: "26.0"
@@ -84,8 +84,8 @@ targets:
       - path: Tests/UI
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.chaqaq.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.pinkha.uitests
         SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
-      - target: Chaqaq
+      - target: Pinkha

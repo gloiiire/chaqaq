@@ -1,15 +1,15 @@
 import SwiftUI
 import UIKit
 
-let chaqaqSelectionTint = UIColor(named: "SelectionTint") ?? .systemOrange
+let pinkhaSelectionTint = UIColor(named: "SelectionTint") ?? .systemOrange
 
 // ── Clés d'attributs custom ───────────────────────────────────────────────────
 
 extension NSAttributedString.Key {
-    static let chaqaqColor  = NSAttributedString.Key("com.chaqaq.color")
-    static let chaqaqBold   = NSAttributedString.Key("com.chaqaq.bold")
-    static let chaqaqItalic = NSAttributedString.Key("com.chaqaq.italic")
-    static let chaqaqObliqueness = NSAttributedString.Key("NSObliqueness")
+    static let pinkhaColor  = NSAttributedString.Key("com.pinkha.color")
+    static let pinkhaBold   = NSAttributedString.Key("com.pinkha.bold")
+    static let pinkhaItalic = NSAttributedString.Key("com.pinkha.italic")
+    static let pinkhaObliqueness = NSAttributedString.Key("NSObliqueness")
 }
 
 // ── Utilitaire font (libre pour usage dans spansToAttributed) ─────────────
@@ -73,15 +73,15 @@ func spansToAttributed(_ spans: [InlineTextFfi], police: UIFont) -> NSAttributed
             case .italic:            isItalic = true
             case .underline:         attrs[.underlineStyle]      = NSUnderlineStyle.single.rawValue
             case .strikethrough:     attrs[.strikethroughStyle]  = NSUnderlineStyle.single.rawValue
-            case .color(let nom):    attrs[.foregroundColor] = uiColorFromName(nom); attrs[.chaqaqColor] = nom
+            case .color(let nom):    attrs[.foregroundColor] = uiColorFromName(nom); attrs[.pinkhaColor] = nom
             case .link(let url):     if let u = URL(string: url) { attrs[.link] = u }
             }
         }
         attrs[.font] = fontWithTraits(police, bold: isBold, italic: isItalic)
-        if isBold   { attrs[.chaqaqBold]   = true }
+        if isBold   { attrs[.pinkhaBold]   = true }
         if isItalic {
-            attrs[.chaqaqItalic] = true
-            attrs[.chaqaqObliqueness] = 0.2
+            attrs[.pinkhaItalic] = true
+            attrs[.pinkhaObliqueness] = 0.2
         }
         result.append(NSAttributedString(string: span.content, attributes: attrs))
     }
@@ -99,17 +99,17 @@ func attributedToSpans(_ attrStr: NSAttributedString, police: UIFont) -> [Inline
         guard !text.isEmpty else { return }
         var styles: [InlineStyleFfi] = []
         let fontTraits = (attrs[.font] as? UIFont)?.fontDescriptor.symbolicTraits ?? []
-        let boldCustom = (attrs[.chaqaqBold] as? Bool) == true
-        let italicCustom = (attrs[.chaqaqItalic] as? Bool) == true
+        let boldCustom = (attrs[.pinkhaBold] as? Bool) == true
+        let italicCustom = (attrs[.pinkhaItalic] as? Bool) == true
         let boldParFonte = fontTraits.contains(.traitBold) && !baseEstBold
         let italicParFonte = fontTraits.contains(.traitItalic) && !baseEstItalic
-        let italicParObliqueness = attrs[.chaqaqObliqueness] != nil && !baseEstItalic
+        let italicParObliqueness = attrs[.pinkhaObliqueness] != nil && !baseEstItalic
 
         if boldCustom || boldParFonte { styles.append(.bold) }
         if italicCustom || italicParFonte || italicParObliqueness { styles.append(.italic) }
         if (attrs[.underlineStyle]     as? Int) != nil { styles.append(.underline) }
         if (attrs[.strikethroughStyle] as? Int) != nil { styles.append(.strikethrough) }
-        if let nom = attrs[.chaqaqColor] as? String    { styles.append(.color(nom)) }
+        if let nom = attrs[.pinkhaColor] as? String    { styles.append(.color(nom)) }
         if let url = attrs[.link]        as? URL       { styles.append(.link(url.absoluteString)) }
         spans.append(InlineTextFfi(content: text, styles: styles))
     }
@@ -274,7 +274,7 @@ struct RichTextEditor: UIViewRepresentable {
         tv.backgroundColor = .clear
         tv.font = baseFont
         tv.textColor = .label
-        tv.tintColor = chaqaqSelectionTint
+        tv.tintColor = pinkhaSelectionTint
         tv.isEditable = isEnabled
         tv.isSelectable = isEnabled
         tv.typingAttributes = [.font: baseFont, .foregroundColor: UIColor.label]
@@ -310,7 +310,7 @@ struct RichTextEditor: UIViewRepresentable {
         let coord = context.coordinator
         coord.parent = self
         coord.updateUndoRedoButtons()
-        tv.tintColor = chaqaqSelectionTint
+        tv.tintColor = pinkhaSelectionTint
         tv.isEditable = isEnabled
         tv.isSelectable = isEnabled
         if !isEnabled && tv.isFirstResponder {
@@ -512,7 +512,7 @@ struct RichTextEditor: UIViewRepresentable {
             // caractère, on la ré-injecte juste avant l'insertion.
             if !text.isEmpty, text != "\n", let nom = pendingColor {
                 tv.typingAttributes[.foregroundColor] = uiColorFromName(nom)
-                tv.typingAttributes[.chaqaqColor]     = nom
+                tv.typingAttributes[.pinkhaColor]     = nom
             }
             return true
         }
@@ -742,7 +742,7 @@ struct RichTextEditor: UIViewRepresentable {
             let range = selectionForToolbar(selectionActuelle: tv.selectedRange, longueur: attr.length)
             guard range.length > 0 else {
                 var attrs = tv.typingAttributes
-                attrs.removeValue(forKey: .chaqaqColor)
+                attrs.removeValue(forKey: .pinkhaColor)
                 attrs[.foregroundColor] = UIColor.label
                 tv.typingAttributes = attrs
                 pendingColor = nil
@@ -752,7 +752,7 @@ struct RichTextEditor: UIViewRepresentable {
                 return
             }
             let m = NSMutableAttributedString(attributedString: attr)
-            m.removeAttribute(.chaqaqColor, range: range)
+            m.removeAttribute(.pinkhaColor, range: range)
             m.addAttribute(.foregroundColor, value: UIColor.label, range: range)
             tv.textStorage.beginEditing()
             tv.textStorage.setAttributedString(m)
@@ -781,11 +781,11 @@ struct RichTextEditor: UIViewRepresentable {
                 attr.enumerateAttribute(.font, in: range) { _, r, _ in
                     let italic = attrsContainItalic(attributsA: attr, position: r.location)
                     m.addAttribute(.font, value: fontWithTraits(parent.baseFont, bold: !toutBold, italic: italic), range: r)
-                    if italic { m.addAttribute(.chaqaqObliqueness, value: 0.2, range: r) }
-                    else       { m.removeAttribute(.chaqaqObliqueness, range: r) }
+                    if italic { m.addAttribute(.pinkhaObliqueness, value: 0.2, range: r) }
+                    else       { m.removeAttribute(.pinkhaObliqueness, range: r) }
                 }
-                if !toutBold { m.addAttribute(.chaqaqBold,    value: true, range: range) }
-                else         { m.removeAttribute(.chaqaqBold,              range: range) }
+                if !toutBold { m.addAttribute(.pinkhaBold,    value: true, range: range) }
+                else         { m.removeAttribute(.pinkhaBold,              range: range) }
 
             case .italic:
                 let toutItalic = touteLaPlage(dans: attr, range: range, verifie: attrsContainItalic)
@@ -794,11 +794,11 @@ struct RichTextEditor: UIViewRepresentable {
                     m.addAttribute(.font, value: fontWithTraits(parent.baseFont, bold: bold, italic: !toutItalic), range: r)
                 }
                 if !toutItalic {
-                    m.addAttribute(.chaqaqItalic, value: true, range: range)
-                    m.addAttribute(.chaqaqObliqueness, value: 0.2, range: range)
+                    m.addAttribute(.pinkhaItalic, value: true, range: range)
+                    m.addAttribute(.pinkhaObliqueness, value: 0.2, range: range)
                 } else {
-                    m.removeAttribute(.chaqaqItalic, range: range)
-                    m.removeAttribute(.chaqaqObliqueness, range: range)
+                    m.removeAttribute(.pinkhaItalic, range: range)
+                    m.removeAttribute(.pinkhaObliqueness, range: range)
                 }
 
             case .underline:
@@ -812,14 +812,14 @@ struct RichTextEditor: UIViewRepresentable {
                 else    { m.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: range) }
 
             case .color(let nom):
-                let actuelle = attr.attribute(.chaqaqColor, at: range.location, effectiveRange: nil) as? String
+                let actuelle = attr.attribute(.pinkhaColor, at: range.location, effectiveRange: nil) as? String
                 if actuelle == nom {
                     m.removeAttribute(.foregroundColor, range: range)
-                    m.removeAttribute(.chaqaqColor,     range: range)
+                    m.removeAttribute(.pinkhaColor,     range: range)
                     m.addAttribute(.foregroundColor, value: UIColor.label, range: range)
                 } else {
                     m.addAttribute(.foregroundColor, value: uiColorFromName(nom), range: range)
-                    m.addAttribute(.chaqaqColor,     value: nom,                     range: range)
+                    m.addAttribute(.pinkhaColor,     value: nom,                     range: range)
                 }
             default: break
             }
@@ -843,19 +843,19 @@ struct RichTextEditor: UIViewRepresentable {
                 let bold   = attrsContainBold(attrs)
                 let italic = attrsContainItalic(attrs)
                 attrs[.font] = fontWithTraits(parent.baseFont, bold: !bold, italic: italic)
-                if !bold { attrs[.chaqaqBold] = true } else { attrs.removeValue(forKey: .chaqaqBold) }
-                if italic { attrs[.chaqaqObliqueness] = 0.2 }
-                else      { attrs.removeValue(forKey: .chaqaqObliqueness) }
+                if !bold { attrs[.pinkhaBold] = true } else { attrs.removeValue(forKey: .pinkhaBold) }
+                if italic { attrs[.pinkhaObliqueness] = 0.2 }
+                else      { attrs.removeValue(forKey: .pinkhaObliqueness) }
             case .italic:
                 let bold   = attrsContainBold(attrs)
                 let italic = attrsContainItalic(attrs)
                 attrs[.font] = fontWithTraits(parent.baseFont, bold: bold, italic: !italic)
                 if !italic {
-                    attrs[.chaqaqItalic] = true
-                    attrs[.chaqaqObliqueness] = 0.2
+                    attrs[.pinkhaItalic] = true
+                    attrs[.pinkhaObliqueness] = 0.2
                 } else {
-                    attrs.removeValue(forKey: .chaqaqItalic)
-                    attrs.removeValue(forKey: .chaqaqObliqueness)
+                    attrs.removeValue(forKey: .pinkhaItalic)
+                    attrs.removeValue(forKey: .pinkhaObliqueness)
                 }
             case .underline:
                 if attrs[.underlineStyle] != nil { attrs.removeValue(forKey: .underlineStyle) }
@@ -866,14 +866,14 @@ struct RichTextEditor: UIViewRepresentable {
             case .color(let nom):
                 // Source de vérité : pendingColor (typingAttributes est réinitialisé
                 // par textViewDidBeginEditing après l'ouverture du menu).
-                let currentColor = pendingColor ?? (attrs[.chaqaqColor] as? String)
+                let currentColor = pendingColor ?? (attrs[.pinkhaColor] as? String)
                 if currentColor == nom {
-                    attrs.removeValue(forKey: .chaqaqColor)
+                    attrs.removeValue(forKey: .pinkhaColor)
                     attrs[.foregroundColor] = UIColor.label
                     pendingColor = nil
                 } else {
                     attrs[.foregroundColor] = uiColorFromName(nom)
-                    attrs[.chaqaqColor]     = nom
+                    attrs[.pinkhaColor]     = nom
                     pendingColor = nom
                 }
             default: break
@@ -913,7 +913,7 @@ struct RichTextEditor: UIViewRepresentable {
                 italic   = touteLaPlage(dans: attr, range: range, verifie: attrsContainItalic)
                 underline = attr.attribute(.underlineStyle,     at: loc, effectiveRange: nil) != nil
                 strike   = attr.attribute(.strikethroughStyle, at: loc, effectiveRange: nil) != nil
-                couleur  = attr.attribute(.chaqaqColor,        at: loc, effectiveRange: nil) as? String
+                couleur  = attr.attribute(.pinkhaColor,        at: loc, effectiveRange: nil) as? String
             } else {
                 let attrs = tv.typingAttributes
                 bold     = attrsContainBold(attrs)
@@ -922,7 +922,7 @@ struct RichTextEditor: UIViewRepresentable {
                 strike   = attrs[.strikethroughStyle]  != nil
                 // pendingColor prime : typingAttributes est réinitialisé par
                 // textViewDidBeginEditing après le menu, mais le mode frappe reste actif.
-                couleur  = pendingColor ?? (attrs[.chaqaqColor] as? String)
+                couleur  = pendingColor ?? (attrs[.pinkhaColor] as? String)
             }
 
             updateTextStyleButton(bold: bold, italic: italic, underline: underline, strike: strike)
@@ -1105,7 +1105,7 @@ struct RichTextEditor: UIViewRepresentable {
         }
 
         private func attrsContainBold(_ attrs: [NSAttributedString.Key: Any]) -> Bool {
-            if (attrs[.chaqaqBold] as? Bool) == true { return true }
+            if (attrs[.pinkhaBold] as? Bool) == true { return true }
             // Repli sur la fonte : UIKit supprime les attributs custom de typingAttributes
             // après insertion, mais la fonte (grasse) reste fiable. Comparaison au baseFont
             // pour ne pas marquer un title (déjà gras) comme gras appliqué par l'utilisateur.
@@ -1115,7 +1115,7 @@ struct RichTextEditor: UIViewRepresentable {
         }
 
         private func attrsContainItalic(_ attrs: [NSAttributedString.Key: Any]) -> Bool {
-            if (attrs[.chaqaqItalic] as? Bool) == true { return true }
+            if (attrs[.pinkhaItalic] as? Bool) == true { return true }
             guard let f = attrs[.font] as? UIFont else { return false }
             return f.fontDescriptor.symbolicTraits.contains(.traitItalic)
                 && !parent.baseFont.fontDescriptor.symbolicTraits.contains(.traitItalic)

@@ -1,14 +1,14 @@
 import Testing
 import Foundation
-@testable import Chaqaq
+@testable import Pinkha
 
 @Suite("Opérations document — cas limites")
 struct EdgeOpsTests {
 
-    private func makeApi() throws -> (ChaqaqApi, URL, String) {
+    private func makeApi() throws -> (PinkhaApi, URL, String) {
         let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chaqaq_edgeops_\(UUID().uuidString).db")
-        let api = try ChaqaqApi(dbPath: tmp.path)
+            .appendingPathComponent("pinkha_edgeops_\(UUID().uuidString).db")
+        let api = try PinkhaApi(dbPath: tmp.path)
         let docId = try api.createDocument(title: "Edge")
         return (api, tmp, docId)
     }
@@ -74,7 +74,7 @@ struct EdgeOpsTests {
         let (api, url, docId) = try makeApi(); defer { cleanup(url) }
         let id = try api.addBlock(docId: docId, blockContentJson: try textJson("x"))
         try api.deleteBlock(docId: docId, blockId: id)
-        #expect(throws: ChaqaqError.self) {
+        #expect(throws: PinkhaError.self) {
             try api.deleteBlock(docId: docId, blockId: id)
         }
     }

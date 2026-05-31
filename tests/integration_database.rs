@@ -1,19 +1,19 @@
-use chaqaq::application::database_use_cases::{
+use pinkha::application::database_use_cases::{
     column_aggregate, add_entry, add_view, create_database, evaluate_rollups,
     list_databases, update_entry, get_database, requete, grouped_query,
     delete_entry,
 };
-use chaqaq::domain::database::{
+use pinkha::domain::database::{
     Aggregate, FilterCondition, Filter, Order, Property, PropertyType, Sort, ViewType,
     PropertyValue, View,
 };
-use chaqaq::domain::document::InlineText;
-use chaqaq::infrastructure::database_store::DatabaseStore;
+use pinkha::domain::document::InlineText;
+use pinkha::infrastructure::database_store::DatabaseStore;
 use std::collections::HashMap;
 use uuid::Uuid;
 
 fn store_temp() -> DatabaseStore {
-    let dir = std::env::temp_dir().join(format!("chaqaq_db_integ_{}", Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("pinkha_db_integ_{}", Uuid::new_v4()));
     DatabaseStore::nouveau(dir).unwrap()
 }
 
@@ -278,15 +278,15 @@ fn test_tri_by_creation_auto() {
     let store = store_temp();
     let db = create_database(&store, title("Journal"), vec![]).unwrap();
     // 3 entrées créées avec des created_at manuellement espacés pour le test
-    let mut e1 = chaqaq::domain::database::Entry::new(HashMap::new());
+    let mut e1 = pinkha::domain::database::Entry::new(HashMap::new());
     e1.created_at = "2023-01-01T00:00:00+00:00".to_string();
-    let mut e2 = chaqaq::domain::database::Entry::new(HashMap::new());
+    let mut e2 = pinkha::domain::database::Entry::new(HashMap::new());
     e2.created_at = "2023-06-15T00:00:00+00:00".to_string();
-    let mut e3 = chaqaq::domain::database::Entry::new(HashMap::new());
+    let mut e3 = pinkha::domain::database::Entry::new(HashMap::new());
     e3.created_at = "2022-12-01T00:00:00+00:00".to_string();
 
     // Persiste via save direct
-    use chaqaq::application::database_repository::DatabaseRepository;
+    use pinkha::application::database_repository::DatabaseRepository;
     let mut db = get_database(&store, db.id).unwrap();
     db.entries = vec![e1.clone(), e2.clone(), e3.clone()];
     store.save(&db).unwrap();
@@ -311,14 +311,14 @@ fn test_tri_manual_then_creation_cas_journal() {
     // Note ancienne : date manuelle renseignée, created_at récent (import)
     let mut v_ancienne = HashMap::new();
     v_ancienne.insert(date_id, PropertyValue::Date("2020-05-10".to_string()));
-    let mut e_ancienne = chaqaq::domain::database::Entry::new(v_ancienne);
+    let mut e_ancienne = pinkha::domain::database::Entry::new(v_ancienne);
     e_ancienne.created_at = "2024-01-01T00:00:00+00:00".to_string(); // importée récemment
 
     // Note new : pas de date manuelle, created_at = date réelle d'écriture
-    let mut e_new = chaqaq::domain::database::Entry::new(HashMap::new());
+    let mut e_new = pinkha::domain::database::Entry::new(HashMap::new());
     e_new.created_at = "2024-06-01T00:00:00+00:00".to_string();
 
-    use chaqaq::application::database_repository::DatabaseRepository;
+    use pinkha::application::database_repository::DatabaseRepository;
     let mut db = get_database(&store, db.id).unwrap();
     db.entries = vec![e_new.clone(), e_ancienne.clone()]; // order inversé intentionnel
     store.save(&db).unwrap();

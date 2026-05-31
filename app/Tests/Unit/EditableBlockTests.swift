@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import Chaqaq
+@testable import Pinkha
 
 @Suite("EditableBlock — modèle d'édition en mémoire")
 struct EditableBlockTests {

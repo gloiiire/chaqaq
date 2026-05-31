@@ -102,9 +102,9 @@ final class DocumentViewModel: ObservableObject {
     private var burstFlushBlockId: String?
     private let burstInterval: TimeInterval = 0.3
 
-    private let api: ChaqaqApi
+    private let api: PinkhaApi
 
-    init(docId: String, api: ChaqaqApi) {
+    init(docId: String, api: PinkhaApi) {
         self.docId = docId
         self.api   = api
         undoMgr.levelsOfUndo = 1000
@@ -279,7 +279,7 @@ final class DocumentViewModel: ObservableObject {
             appropriateFor: nil,
             create: true
         )
-        let directory = base.appendingPathComponent("Chaqaq/Covers", isDirectory: true)
+        let directory = base.appendingPathComponent("Pinkha/Covers", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }
@@ -559,7 +559,7 @@ struct DocumentView: View {
 
     var onDisappear: (() -> Void)? = nil
 
-    init(docId: String, api: ChaqaqApi, onDisappear: (() -> Void)? = nil) {
+    init(docId: String, api: PinkhaApi, onDisappear: (() -> Void)? = nil) {
         let lockKey = Self.lockKeyFor(docId: docId)
         let iconKey = Self.iconKeyFor(docId: docId)
         _vm = StateObject(wrappedValue: DocumentViewModel(docId: docId, api: api))
@@ -1236,7 +1236,7 @@ private struct TitleEditor: UIViewRepresentable {
         tv.delegate = context.coordinator
         tv.backgroundColor = .clear
         tv.font = police
-        tv.tintColor = chaqaqSelectionTint
+        tv.tintColor = pinkhaSelectionTint
         tv.isEditable = isEnabled
         tv.isSelectable = isEnabled
         tv.isScrollEnabled = false
@@ -1251,7 +1251,7 @@ private struct TitleEditor: UIViewRepresentable {
 
     func updateUIView(_ tv: ExpandingTextView, context: Context) {
         context.coordinator.parent = self
-        tv.tintColor = chaqaqSelectionTint
+        tv.tintColor = pinkhaSelectionTint
         tv.isEditable = isEnabled
         tv.isSelectable = isEnabled
         if !isEnabled && tv.isFirstResponder {

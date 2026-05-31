@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import Chaqaq
+@testable import Pinkha
 
 // Vérifie que les styles inline (couleur, gras, etc.) survivent au round-trip
 // VM → API → JSON → reload → VM. Régression-clé du rich text.
@@ -11,8 +11,8 @@ struct ColorPersistenceTests {
 
     private func makeVM() throws -> (DocumentViewModel, URL) {
         let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chaqaq_color_\(UUID().uuidString).db")
-        let api = try ChaqaqApi(dbPath: tmp.path)
+            .appendingPathComponent("pinkha_color_\(UUID().uuidString).db")
+        let api = try PinkhaApi(dbPath: tmp.path)
         let docId = try api.createDocument(title: "Color")
         return (DocumentViewModel(docId: docId, api: api), tmp)
     }
@@ -77,14 +77,14 @@ struct ColorPersistenceTests {
         vm.load()
         vm.addBlock(type: .text)
 
-        let spans = [InlineTextFfi(content: "chaqaq", styles: [.link("https://chaqaq.app")])]
+        let spans = [InlineTextFfi(content: "pinkha", styles: [.link("https://pinkha.app")])]
         vm.saveBlock(id: vm.blocks[0].id, spans: spans)
 
         vm.load()
         guard case .link(let url2) = vm.blocks[0].spans.first?.styles.first else {
             Issue.record("le lien doit survivre"); return
         }
-        #expect(url2 == "https://chaqaq.app")
+        #expect(url2 == "https://pinkha.app")
     }
 
     @Test func todoDoneSurvivesReload() throws {

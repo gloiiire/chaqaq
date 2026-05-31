@@ -1,15 +1,15 @@
 import Testing
 import Foundation
-@testable import Chaqaq
+@testable import Pinkha
 
 @MainActor
 @Suite("DocumentViewModel — gestion d'erreurs")
 struct VMErrorHandlingTests {
 
-    private func makeApi() throws -> (ChaqaqApi, URL) {
+    private func makeApi() throws -> (PinkhaApi, URL) {
         let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chaqaq_vm_err_\(UUID().uuidString).db")
-        return (try ChaqaqApi(dbPath: tmp.path), tmp)
+            .appendingPathComponent("pinkha_vm_err_\(UUID().uuidString).db")
+        return (try PinkhaApi(dbPath: tmp.path), tmp)
     }
 
     private func cleanup(_ url: URL) {
@@ -55,21 +55,21 @@ struct VMErrorHandlingTests {
     }
 }
 
-@Suite("ChaqaqError — chemins LocalizedError")
-struct ChaqaqErrorLocalizedTests {
+@Suite("PinkhaError — chemins LocalizedError")
+struct PinkhaErrorLocalizedTests {
 
     @Test func notFoundHasErrorDescription() {
-        let err = ChaqaqError.NotFound(id: "abc")
+        let err = PinkhaError.NotFound(id: "abc")
         #expect(err.errorDescription != nil)
     }
 
     @Test func invalidOperationHasErrorDescription() {
-        let err = ChaqaqError.InvalidOperation(detail: "x")
+        let err = PinkhaError.InvalidOperation(detail: "x")
         #expect(err.errorDescription != nil)
     }
 
     @Test func storageHasErrorDescription() {
-        let err = ChaqaqError.Storage(detail: "io")
+        let err = PinkhaError.Storage(detail: "io")
         #expect(err.errorDescription != nil)
     }
 }

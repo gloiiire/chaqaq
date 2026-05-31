@@ -1,16 +1,16 @@
-use chaqaq::application::database_use_cases::{
+use pinkha::application::database_use_cases::{
     column_aggregate, add_entry, add_property, add_view, create_database,
     evaluate_rollups, get_database, requete, grouped_query,
 };
-use chaqaq::application::repository::DocumentRepository;
-use chaqaq::application::use_cases::create_document;
-use chaqaq::domain::database::{
+use pinkha::application::repository::DocumentRepository;
+use pinkha::application::use_cases::create_document;
+use pinkha::domain::database::{
     Aggregate, FilterCondition, Filter, Order, Property, PropertyType, Sort, ViewType,
     PropertyValue, View,
 };
-use chaqaq::domain::document::{BlockContent, InlineText};
-use chaqaq::infrastructure::database_store::DatabaseStore;
-use chaqaq::infrastructure::json_store::JsonStore;
+use pinkha::domain::document::{BlockContent, InlineText};
+use pinkha::infrastructure::database_store::DatabaseStore;
+use pinkha::infrastructure::json_store::JsonStore;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -23,8 +23,8 @@ fn title(s: &str) -> Vec<InlineText> {
 
 fn store_temp() -> (JsonStore, DatabaseStore) {
     let id = Uuid::new_v4();
-    let doc_dir = std::env::temp_dir().join(format!("chaqaq_e2e_docs_{id}"));
-    let db_dir = std::env::temp_dir().join(format!("chaqaq_e2e_dbs_{id}"));
+    let doc_dir = std::env::temp_dir().join(format!("pinkha_e2e_docs_{id}"));
+    let db_dir = std::env::temp_dir().join(format!("pinkha_e2e_dbs_{id}"));
     std::fs::create_dir_all(&doc_dir).unwrap();
     (
         JsonStore::new(doc_dir),

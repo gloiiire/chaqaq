@@ -1,8 +1,8 @@
 /// Teste les opérations d'édition en séquence sur un texte riche.
-use chaqaq::domain::commandes::{AppliquerStyle, Historique, Inserer, Supprimer};
-use chaqaq::domain::document::{InlineStyle, InlineText};
-use chaqaq::domain::editor::EditorState;
-use chaqaq::domain::rich_text::RichText;
+use pinkha::domain::commandes::{AppliquerStyle, Historique, Inserer, Supprimer};
+use pinkha::domain::document::{InlineStyle, InlineText};
+use pinkha::domain::editor::EditorState;
+use pinkha::domain::rich_text::RichText;
 
 fn etat_depuis(s: &str) -> EditorState {
     let inlines = vec![InlineText {
