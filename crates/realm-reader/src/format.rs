@@ -8,7 +8,7 @@ pub const MAGIC: &[u8; 4] = b"T-DB";
 /// Supported Realm file format version.
 pub const SUPPORTED_VERSION: u32 = 9;
 
-/// File header is 24 bytes: top_ref[0] (8B LE), top_ref[1] (8B LE), magic (4B), version (4B).
+/// File header is 24 bytes: top\_ref\[0\] (8B LE), top\_ref\[1\] (8B LE), magic (4B), version (4B).
 pub const FILE_HEADER_SIZE: usize = 24;
 
 // wtype constants (bits 4-3 of header byte 4)
