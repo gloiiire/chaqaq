@@ -76,7 +76,10 @@ final class DocumentViewModel: ObservableObject {
     // ── Undo / redo ─────────────────────────────────────────────────────
     // Capacité alignée sur CAPACITE_PAR_DEFAUT du back Rust (1000).
     let undoMgr = UndoManager()
-    var canUndo: Bool { undoMgr.canUndo }
+    /// `canUndo` doit aussi refléter les bursts en cours : si l'utilisateur
+    /// tape et tape immédiatement le bouton undo (avant les 400 ms de flush),
+    /// l'undo doit fonctionner — `vm.undo()` flush d'abord puis annule.
+    var canUndo: Bool { undoMgr.canUndo || !blockBurstAnchor.isEmpty }
     var canRedo: Bool { undoMgr.canRedo }
     /// Snapshot du dernier titre persisté pour calculer l'inverse à enregistrer.
     private var lastPersistedTitle: String = ""
@@ -97,7 +100,7 @@ final class DocumentViewModel: ObservableObject {
     private var blockBurstAnchor: [String: BlockSnapshot] = [:]
     private var burstFlushWork: DispatchWorkItem?
     private var burstFlushBlockId: String?
-    private let burstInterval: TimeInterval = 0.4
+    private let burstInterval: TimeInterval = 0.3
 
     private let api: ChaqaqApi
 
@@ -135,9 +138,13 @@ final class DocumentViewModel: ObservableObject {
     func applyBlockSnapshot(blockId: String, snapshot snap: BlockSnapshot) {
         guard let idx = blocks.firstIndex(where: { $0.id == blockId }) else { return }
         let previous = snapshotOf(blocks[idx])
-        blocks[idx].content = snap.content
-        blocks[idx].spans = snap.spans
-        blocks[idx].done = snap.done
+        // Remplacement de l'élément entier pour garantir le déclenchement de
+        // `@Published var blocks` (les mutations field-by-field via _modify
+        // peuvent parfois ne pas propager pendant que le textView est focus).
+        blocks[idx] = EditableBlock(id: blockId,
+                                      content: snap.content,
+                                      spans: snap.spans,
+                                      done: snap.done)
         persistBlockRaw(blocks[idx])
         blockSnapshots[blockId] = snap
         undoMgr.registerUndo(withTarget: self) { vm in
@@ -673,7 +680,11 @@ struct DocumentView: View {
                             onFocus: { vm.activeBlockId = block.id },
                             onToggleDone: { vm.toggleBlockDone(id: block.id) },
                             onChangeIcon: { icon in vm.updateBlockIcon(id: block.id, icon: icon) },
-                            onConvertContent: { content in vm.convertBlockContent(id: block.id, to: content) }
+                            onConvertContent: { content in vm.convertBlockContent(id: block.id, to: content) },
+                            onUndo: { vm.undo() },
+                            onRedo: { vm.redo() },
+                            canUndoProvider: { vm.canUndo },
+                            canRedoProvider: { vm.canRedo }
                         )
                     )
                     .disabled(documentLocked || editMode == .active)
@@ -1339,6 +1350,13 @@ struct BlockCallbacks {
     var onToggleDone: (() -> Void)? = nil
     var onChangeIcon: ((String) -> Void)? = nil
     var onConvertContent: ((BlockContentFfi) -> Void)? = nil
+    // Undo/redo exposés dans la pill clavier. Closures live → le Coordinator
+    // les rappelle dans textViewDidChange/textViewDidChangeSelection + updateUIView,
+    // ce qui couvre les cas frappe, undo, redo, sélection.
+    var onUndo: (() -> Void)? = nil
+    var onRedo: (() -> Void)? = nil
+    var canUndoProvider: (() -> Bool)? = nil
+    var canRedoProvider: (() -> Bool)? = nil
 }
 
 // ── Éditeur de texte commun à tous les blocks ──────────────────────────────────
@@ -1374,7 +1392,11 @@ private struct BlockTextEditor: View {
             onLongPressSelection: cb.onLongPressSelection,
             onNavigatePrevious: cb.onNavigatePrevious,
             onNavigateNext: cb.onNavigateNext,
-            onStopNavigationRepeat: cb.onStopNavigationRepeat)
+            onStopNavigationRepeat: cb.onStopNavigationRepeat,
+            onUndo: cb.onUndo,
+            onRedo: cb.onRedo,
+            canUndoProvider: cb.canUndoProvider,
+            canRedoProvider: cb.canRedoProvider)
         .autoFocusIfNeeded(blockId: block.id, autoFocusId: $autoFocusId,
                               autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
         .onChange(of: focused) { _, f in if f { cb.onFocus?() } }

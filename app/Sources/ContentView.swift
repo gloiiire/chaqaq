@@ -92,8 +92,7 @@ struct ContentView: View {
                     }
                 }
                 .listStyle(.insetGrouped)
-                .navigationTitle("chaqaq")
-                .navigationBarTitleDisplayMode(.inline)
+                .toolbar(.hidden, for: .navigationBar)
 
                 FloatingButton(icon: "square.and.pencil") {
                     showingCreate = true

@@ -258,6 +258,15 @@ struct RichTextEditor: UIViewRepresentable {
     var onNavigatePrevious: (() -> Void)? = nil
     var onNavigateNext: (() -> Void)? = nil
     var onStopNavigationRepeat: (() -> Void)? = nil
+    // Undo/redo branchés sur le UndoManager du VM, exposés dans la pill.
+    // `*Provider` = closures live qui lisent l'état courant du VM (et pas
+    // un snapshot capturé au body). Appelées par le Coordinator dans
+    // updateUIView, textViewDidChange et textViewDidChangeSelection — couvre
+    // les cas typing, undo/redo, et changements de sélection.
+    var onUndo: (() -> Void)? = nil
+    var onRedo: (() -> Void)? = nil
+    var canUndoProvider: (() -> Bool)? = nil
+    var canRedoProvider: (() -> Bool)? = nil
 
     func makeUIView(context: Context) -> ExpandingTextView {
         let tv = ExpandingTextView()
@@ -299,6 +308,7 @@ struct RichTextEditor: UIViewRepresentable {
     func updateUIView(_ tv: ExpandingTextView, context: Context) {
         let coord = context.coordinator
         coord.parent = self
+        coord.updateUndoRedoButtons()
         tv.tintColor = chaqaqSelectionTint
         tv.isEditable = isEnabled
         tv.isSelectable = isEnabled
@@ -310,12 +320,26 @@ struct RichTextEditor: UIViewRepresentable {
         // Ne pas réassigner tv.font pendant l'édition : UITextView.font ré-applique
         // la fonte à TOUT le texte et écraserait le gras/italique par caractère.
         // L'underline (attribut .underlineStyle) survivrait, mais pas .font.
+        let editingText: NSAttributedString = spans.isEmpty
+            ? NSAttributedString(string: "",
+                                  attributes: [.font: baseFont, .foregroundColor: UIColor.label])
+            : withExtras(spansToAttributed(spans, police: baseFont))
+        let displayText = spans.isEmpty ? coord.placeholder() : editingText
         if !coord.isEditing {
             tv.font = baseFont
-            let new = spans.isEmpty
-                ? coord.placeholder()
-                : withExtras(spansToAttributed(spans, police: baseFont))
-            tv.attributedText = new
+            tv.attributedText = displayText
+        } else if tv.attributedText.string != editingText.string {
+            // Pendant l'édition, on rafraîchit quand même si le texte diffère :
+            // cas undo/redo qui modifient les spans côté VM sans passer par la
+            // frappe utilisateur. On préserve la position du curseur (clamp si
+            // le nouveau texte est plus court) et on garde le typingAttributes
+            // courant (couleur/gras de l'utilisateur).
+            let savedTyping = tv.typingAttributes
+            let savedRange = tv.selectedRange
+            tv.attributedText = editingText
+            tv.typingAttributes = savedTyping
+            let safeLoc = min(savedRange.location, editingText.length)
+            tv.selectedRange = NSRange(location: safeLoc, length: 0)
         }
 
         if isFocused && !tv.isFirstResponder {
@@ -358,6 +382,8 @@ struct RichTextEditor: UIViewRepresentable {
         private weak var btnTextStyle: UIButton?
         private weak var btnColor: UIButton?
         private weak var btnPaste: UIButton?
+        private weak var btnUndo: UIButton?
+        private weak var btnRedo: UIButton?
         // Pill de la toolbar — on l'anime à alpha 0 quand un menu déroulant
         // s'ouvre (style Notes.app : la toolbar laisse la place au menu).
         private weak var toolbarPill: UIView?
@@ -426,6 +452,7 @@ struct RichTextEditor: UIViewRepresentable {
                 cleanRememberedIfStillEmpty(tv)
             }
             updateToolbar()
+            updateUndoRedoButtons()
             // Si l'utilisateur a dismissé un menu (tap dans le texte → selection
             // change), on restaure la pill au cas où elle est encore cachée. On
             // ignore pendant la fenêtre de garde post-ouverture du menu pour ne
@@ -500,9 +527,14 @@ struct RichTextEditor: UIViewRepresentable {
                 return
             }
 
-            parent.spans = attributedToSpans(tv.attributedText, police: parent.baseFont)
+            // save() = parent.spans + onSaveSpans → vm.saveBlock → capture du burst
+            // anchor pour l'undo. On le déclenche à chaque frappe pour que canUndo
+            // devienne true dès le 1er caractère (au lieu d'attendre la fermeture
+            // du clavier dans textViewDidEndEditing). SQLite WAL absorbe le write.
+            save(attributedToSpans(tv.attributedText, police: parent.baseFont))
             if tv.selectedRange.length == 0 { clearRememberedSelection() }
             tv.invalidateIntrinsicContentSize()
+            updateUndoRedoButtons()
         }
 
         // ── Toolbar ───────────────────────────────────────────────────────────
@@ -605,6 +637,13 @@ struct RichTextEditor: UIViewRepresentable {
             ajouter(bCouleur); btnColor = bCouleur
 
             separateur()
+            let bUndo = symbolButton("arrow.uturn.backward", action: #selector(toolbarUndo))
+            ajouter(bUndo); btnUndo = bUndo
+            let bRedo = symbolButton("arrow.uturn.forward", action: #selector(toolbarRedo))
+            ajouter(bRedo); btnRedo = bRedo
+            updateUndoRedoButtons()
+
+            separateur()
             ajouter(symbolButton("return", action: #selector(toolbarLineBreak)))
             separateur()
             ajouter(symbolButton("keyboard.chevron.compact.down", action: #selector(dismissKeyboard)))
@@ -650,6 +689,35 @@ struct RichTextEditor: UIViewRepresentable {
         @objc func paste() {
             toolbarActionInProgress = false
             tv?.paste(nil)
+        }
+        @objc func toolbarUndo() {
+            toolbarActionInProgress = false
+            parent.onUndo?()
+        }
+        @objc func toolbarRedo() {
+            toolbarActionInProgress = false
+            parent.onRedo?()
+        }
+
+        /// Met à jour la couleur (Accent/secondary) et l'opacité des boutons undo/redo
+        /// selon l'état live via `canUndoProvider`/`canRedoProvider`. Appelé via
+        /// l'abonnement Combine au VM (pas via le cycle SwiftUI qui est paresseux
+        /// quand le textView a le first responder).
+        fileprivate func updateUndoRedoButtons() {
+            let cU = parent.canUndoProvider?() ?? false
+            let cR = parent.canRedoProvider?() ?? false
+            applyEnabled(btnUndo, enabled: cU, symbol: "arrow.uturn.backward")
+            applyEnabled(btnRedo, enabled: cR, symbol: "arrow.uturn.forward")
+        }
+
+        private func applyEnabled(_ btn: UIButton?, enabled: Bool, symbol: String) {
+            guard let btn else { return }
+            let cfg = UIImage.SymbolConfiguration(pointSize: 22, weight: .medium)
+            let color: UIColor = enabled ? .secondaryLabel : .tertiaryLabel
+            btn.setImage(UIImage(systemName: symbol, withConfiguration: cfg)?
+                .withTintColor(color, renderingMode: .alwaysOriginal), for: .normal)
+            btn.isEnabled = enabled
+            btn.alpha = enabled ? 1.0 : 0.5
         }
 
         @objc func toggleBold()       { applyStyle(.bold) }
