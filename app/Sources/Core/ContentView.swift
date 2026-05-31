@@ -69,7 +69,7 @@ private struct SearchView: View {
                         .listRowSeparator(.hidden)
                         .padding(.top, 32)
                 } else if results.isEmpty {
-                    Text("No results for "\(query)"")
+                    Text("No results for \"\(query)\"")
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .listRowBackground(Color.clear)

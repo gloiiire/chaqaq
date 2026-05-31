@@ -17,14 +17,6 @@ struct NotesHomeView: View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
                 List {
-                    // ── Greeting ─────────────────────────────────────────
-                    Section {
-                        GreetingHeader(text: greeting)
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets())
-                    }
-
                     // ── Recent strip (only when documents exist) ─────────
                     if !store.documents.isEmpty {
                         Section {
@@ -72,7 +64,7 @@ struct NotesHomeView: View {
                 }
                 .listStyle(.insetGrouped)
                 .navigationTitle(greeting)
-                .toolbar(.hidden, for: .navigationBar)
+                .navigationBarTitleDisplayMode(.large)
 
                 FloatingButton(icon: "square.and.pencil") {
                     showingCreate = true
