@@ -341,9 +341,12 @@ xcodebuild test -project app/Chaqaq.xcodeproj -scheme Chaqaq -destination 'id=<U
 Ces points sont **acceptables en l'état actuel** (projet solo, 401 tests locaux) mais devront être traités avant d'ouvrir aux contributeurs / déployer en App Store. Ordre de priorité :
 
 ### Infrastructure (haute priorité dès qu'on collabore)
-- **CI GitHub Actions** : workflow qui lance `cargo test` + `xcodebuild test` sur chaque push/PR. Sans ça, la suite de 401 tests est purement locale et "chez moi ça marche" devient le mode opératoire.
+- **CI GitHub Actions** :
+  - ✅ Rust : `cargo test` sur push/PR vers master/staging/dev (`macos-15` runner).
+  - ⏸ Swift `xcodebuild test` désactivé temporairement — les runners ont Xcode 16.4 / iOS 18.5 SDK, alors que le projet target iOS 26.0 et utilise `UIGlassEffect` / `.glassEffect()`. À réactiver soit (a) quand Xcode 26 stable arrive sur les runners post-WWDC 2026, soit (b) en backportant avec `if #available(iOS 26.0, *)` + fallback `UIBlurEffect`. Voir `.github/workflows/ci.yml` (job `swift-placeholder`).
+- **Branch protection** : `master`, `staging`, `dev` protégées — PR obligatoire, pas de force-push, pas de suppression. Status checks (CI requise pour merge) à ajouter quand la CI Swift sera réactivée.
 - **Code coverage** : `xcodebuild -enableCodeCoverage YES` (Swift) + `cargo-llvm-cov` (Rust). On compte les tests mais on ne connaît pas leur couverture réelle (peut être 30% ou 90%).
-- **Workflow contributeur** : feature branches + PRs reviewables au lieu de gros sessions tout-en-un.
+- **Workflow contributeur** : ✅ branches `feature/**`, `fix/**`, `refactor/**`, `docs/**`, `chore/**`, `perf/**` depuis `dev` ; promotion `dev` → `staging` → `master`. Cf. section "Git workflow" plus haut.
 
 ### Tests à renforcer
 - **Coordinator class** (`RichTextEditor.Coordinator`) : selection memory (`rememberSelection`/`selectionForToolbar`), toolbar state updates (`updateToolbar`), color application chain — tout n'est testé qu'**en bout-en-bout** via le VM. Un bug subtil dans cette logique passerait. Extraire en helpers libres ou exposer pour tests.
