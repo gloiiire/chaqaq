@@ -419,6 +419,22 @@ fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
+    typealias FfiType = UInt32
+    typealias SwiftType = UInt32
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt32 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
@@ -535,6 +551,19 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Retourne les groupes d'entrées en JSON.
      */
     func groupedQueryDatabaseJson(dbId: String, viewId: String, groupBy: String) throws  -> String
+    
+    /**
+     * Importe les notes Bear depuis la SQLite locale de Bear.
+     * `db_path` est le chemin absolu vers `database.sqlite` de Bear.
+     */
+    func importFromBear(dbPath: String) async throws  -> ImportResultFfi
+    
+    /**
+     * Importe une database Notion complète (schéma + pages + blocs).
+     * `token` est un bearer token OAuth2 ou private integration token.
+     * `database_id` est un UUID 32-char hex ou l'URL complète Notion.
+     */
+    func importFromNotion(token: String, databaseId: String) async throws  -> ImportResultFfi
     
     /**
      * Liste les métadonnées de toutes les databases actives.
@@ -864,6 +893,49 @@ open func groupedQueryDatabaseJson(dbId: String, viewId: String, groupBy: String
         FfiConverterString.lower(groupBy),$0
     )
 })
+}
+    
+    /**
+     * Importe les notes Bear depuis la SQLite locale de Bear.
+     * `db_path` est le chemin absolu vers `database.sqlite` de Bear.
+     */
+open func importFromBear(dbPath: String)async throws  -> ImportResultFfi  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_pinkha_fn_method_pinkhaapi_import_from_bear(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(dbPath)
+                )
+            },
+            pollFunc: ffi_pinkha_rust_future_poll_rust_buffer,
+            completeFunc: ffi_pinkha_rust_future_complete_rust_buffer,
+            freeFunc: ffi_pinkha_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeImportResultFfi_lift,
+            errorHandler: FfiConverterTypePinkhaError_lift
+        )
+}
+    
+    /**
+     * Importe une database Notion complète (schéma + pages + blocs).
+     * `token` est un bearer token OAuth2 ou private integration token.
+     * `database_id` est un UUID 32-char hex ou l'URL complète Notion.
+     */
+open func importFromNotion(token: String, databaseId: String)async throws  -> ImportResultFfi  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(token),FfiConverterString.lower(databaseId)
+                )
+            },
+            pollFunc: ffi_pinkha_rust_future_poll_rust_buffer,
+            completeFunc: ffi_pinkha_rust_future_complete_rust_buffer,
+            freeFunc: ffi_pinkha_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeImportResultFfi_lift,
+            errorHandler: FfiConverterTypePinkhaError_lift
+        )
 }
     
     /**
@@ -1241,6 +1313,79 @@ public func FfiConverterTypeDocumentMetaFfi_lower(_ value: DocumentMetaFfi) -> R
 }
 
 
+/**
+ * Résumé d'une opération d'import retourné à Swift.
+ */
+public struct ImportResultFfi: Equatable, Hashable {
+    public var app: String
+    public var databaseId: String
+    public var documents: UInt32
+    public var entries: UInt32
+    public var blocks: UInt32
+    public var skipped: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(app: String, databaseId: String, documents: UInt32, entries: UInt32, blocks: UInt32, skipped: UInt32) {
+        self.app = app
+        self.databaseId = databaseId
+        self.documents = documents
+        self.entries = entries
+        self.blocks = blocks
+        self.skipped = skipped
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ImportResultFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeImportResultFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ImportResultFfi {
+        return
+            try ImportResultFfi(
+                app: FfiConverterString.read(from: &buf), 
+                databaseId: FfiConverterString.read(from: &buf), 
+                documents: FfiConverterUInt32.read(from: &buf), 
+                entries: FfiConverterUInt32.read(from: &buf), 
+                blocks: FfiConverterUInt32.read(from: &buf), 
+                skipped: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ImportResultFfi, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.app, into: &buf)
+        FfiConverterString.write(value.databaseId, into: &buf)
+        FfiConverterUInt32.write(value.documents, into: &buf)
+        FfiConverterUInt32.write(value.entries, into: &buf)
+        FfiConverterUInt32.write(value.blocks, into: &buf)
+        FfiConverterUInt32.write(value.skipped, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImportResultFfi_lift(_ buf: RustBuffer) throws -> ImportResultFfi {
+    return try FfiConverterTypeImportResultFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImportResultFfi_lower(_ value: ImportResultFfi) -> RustBuffer {
+    return FfiConverterTypeImportResultFfi.lower(value)
+}
+
+
 public enum PinkhaError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
@@ -1432,6 +1577,54 @@ fileprivate struct FfiConverterSequenceTypeDocumentMetaFfi: FfiConverterRustBuff
         return seq
     }
 }
+private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
+private let UNIFFI_RUST_FUTURE_POLL_WAKE: Int8 = 1
+
+fileprivate let uniffiContinuationHandleMap = UniffiHandleMap<UnsafeContinuation<Int8, Never>>()
+
+fileprivate func uniffiRustCallAsync<F, T>(
+    rustFutureFunc: () -> UInt64,
+    pollFunc: (UInt64, @escaping UniffiRustFutureContinuationCallback, UInt64) -> (),
+    completeFunc: (UInt64, UnsafeMutablePointer<RustCallStatus>) -> F,
+    freeFunc: (UInt64) -> (),
+    liftFunc: (F) throws -> T,
+    errorHandler: ((RustBuffer) throws -> Swift.Error)?
+) async throws -> T {
+    // Make sure to call the ensure init function since future creation doesn't have a
+    // RustCallStatus param, so doesn't use makeRustCall()
+    uniffiEnsurePinkhaInitialized()
+    let rustFuture = rustFutureFunc()
+    defer {
+        freeFunc(rustFuture)
+    }
+    var pollResult: Int8;
+    repeat {
+        pollResult = await withUnsafeContinuation {
+            pollFunc(
+                rustFuture,
+                { handle, pollResult in
+                    uniffiFutureContinuationCallback(handle: handle, pollResult: pollResult)
+                },
+                uniffiContinuationHandleMap.insert(obj: $0)
+            )
+        }
+    } while pollResult != UNIFFI_RUST_FUTURE_POLL_READY
+
+    return try liftFunc(makeRustCall(
+        { completeFunc(rustFuture, $0) },
+        errorHandler: errorHandler
+    ))
+}
+
+// Callback handlers for an async calls.  These are invoked by Rust when the future is ready.  They
+// lift the return value or error and resume the suspended function.
+fileprivate func uniffiFutureContinuationCallback(handle: UInt64, pollResult: Int8) {
+    if let continuation = try? uniffiContinuationHandleMap.remove(handle: handle) {
+        continuation.resume(returning: pollResult)
+    } else {
+        print("uniffiFutureContinuationCallback invalid handle")
+    }
+}
 
 private enum InitializationResult {
     case ok
@@ -1497,6 +1690,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_grouped_query_database_json() != 2473) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_bear() != 65442) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion() != 39297) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_databases() != 58802) {

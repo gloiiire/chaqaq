@@ -30,6 +30,16 @@ dictionary DatabaseMetaFfi {
     string created_at;
 };
 
+/// Résumé d'une opération d'import retourné à Swift.
+dictionary ImportResultFfi {
+    string app;
+    string database_id;
+    u32 documents;
+    u32 entries;
+    u32 blocks;
+    u32 skipped;
+};
+
 // ── Façade principale ─────────────────────────────────────────────────────────
 
 interface PinkhaApi {
@@ -164,4 +174,17 @@ interface PinkhaApi {
     /// Retourne les entrées correspondant à la recherche en JSON.
     [Throws=PinkhaError]
     string search_database_entries_json(string db_id, string query);
+
+    // ── Imports ───────────────────────────────────────────────
+
+    /// Importe une database Notion complète (schéma + pages + blocs).
+    /// `token` est un bearer token OAuth2 ou private integration token.
+    /// `database_id` est un UUID 32-char hex ou l'URL complète Notion.
+    [Async, Throws=PinkhaError]
+    ImportResultFfi import_from_notion(string token, string database_id);
+
+    /// Importe les notes Bear depuis la SQLite locale de Bear.
+    /// `db_path` est le chemin absolu vers `database.sqlite` de Bear.
+    [Async, Throws=PinkhaError]
+    ImportResultFfi import_from_bear(string db_path);
 };
