@@ -41,6 +41,7 @@ targets:
         SWIFT_VERSION: "5.0"
         EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
         OTHER_LDFLAGS: "$(inherited) -lc++"
+        DEVELOPMENT_TEAM: N49VNC2G57
     dependencies:
       - framework: ../pinkha.xcframework
         embed: false
@@ -57,6 +58,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.pinkha.tests
         SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: YES
+        DEVELOPMENT_TEAM: N49VNC2G57
     dependencies:
       - target: Pinkha
 
@@ -72,6 +74,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.pinkha.integration
         SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: YES
+        DEVELOPMENT_TEAM: N49VNC2G57
     dependencies:
       - target: Pinkha
 
@@ -87,5 +90,6 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.pinkha.uitests
         SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: YES
+        DEVELOPMENT_TEAM: N49VNC2G57
     dependencies:
       - target: Pinkha
