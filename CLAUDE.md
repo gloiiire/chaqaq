@@ -178,30 +178,51 @@ let json = try api.obtenirDocumentJson(id: id)  // → Codable
 - Helpers sur `BlockContentFfi` : `texteSimple`, `spansOuVide`, `estTodo`, `doneTodo`, `avecTexte`, `avecSpans`, `toAttributedString`
 
 **`RichTextEditor.swift`** — éditeur de texte riche :
-- `ExpandingTextView : UITextView` — hauteur automatique via `intrinsicContentSize`
-- `RichTextEditor : UIViewRepresentable` — bindings `spans`, `isFocused`, callbacks `onSave`, `onNewBlock`, `onConvert`
-- `spansVersNSAttributed` / `nsAttributedVersSpans` — conversion aller-retour avec `.chaqaqColor` custom key pour le nom de couleur
+- `ExpandingTextView : UITextView` — hauteur automatique via `intrinsicContentSize`, hooks pour Shift+Enter et toggles bold/italic/underline (clavier hardware)
+- `RichTextEditor : UIViewRepresentable` — bindings `spans` / `isFocused`, callbacks `onSave`, `onSaveSpans`, `onNewBlock`, `onDeleteBloc`, `onMergeAvecPrecedent`, `onConvert`, `onUndo`/`onRedo` + closures live `canUndoProvider`/`canRedoProvider`
+- `spansToAttributed` / `attributedToSpans` — conversion aller-retour avec `.chaqaqColor` custom key pour préserver le nom de couleur
 - `NSAttributedString.Key.chaqaqColor` — attribut custom pour stocker le nom de couleur (round-trip fiable)
-- Toolbar pill (style Notes.app) : `UIView` custom avec fond adaptatif, `UIScrollView` horizontal, boutons B/I/U + cercles couleur + dismiss clavier
-- `fontAvecTraits(_:bold:italic:)` — gras/italique robuste avec fallback `boldSystemFont`/`italicSystemFont` (SF Pro ne supporte pas toujours `withSymbolicTraits`)
-- Raccourcis markdown dans `textViewDidChange` : `# ` → H1, `## ` → H2, `### ` → H3, `> ` → Quote, `[ ] ` → Todo, `---` → Divider
+- `MenuButton : UIButton` — surcharge `contextMenuInteraction(_:willEndFor:)` pour détecter la fermeture des menus déroulants (hide-on-menu façon Notes.app)
+- Toolbar pill (style Notes.app) — `UIView` custom avec `UIVisualEffectView(UIGlassEffect())`, `UIScrollView` horizontal, ordre : Coller / Aa (B/I/U/S via menu déroulant) / Highlighter (palette via menu) / Undo / Redo / Return / Dismiss clavier
+- Hide-on-menu : ouverture d'un menu déroulant via `UIDeferredMenuElement.uncached` qui cache la pill ; `MenuButton.onMenuWillEnd` la restaure à la fermeture (couvre dismiss par tap dehors)
+- `fontWithTraits(_:bold:italic:)` — gras/italique avec fallback `boldSystemFont`/`italicSystemFont` (SF Pro ne propage pas toujours `withSymbolicTraits`)
+- `markdownShortcut(for:)` (free function, testable) : `# ` → H1, `## ` → H2, `### ` → H3, `> ` → Quote, `!! ` → Callout, `[ ] ` → Todo, `---` → Divider
+- Optim : `lastSyncedSpans` par Coordinator — skip la recomputation de `spansToAttributed` quand un autre bloc reçoit la frappe (SwiftUI re-render global mais ce bloc n'a pas changé)
+- Optim : `lastCanUndo`/`lastCanRedo` — évite la recréation d'`UIImage` à chaque keystroke pour les boutons undo/redo de la toolbar
+- `toolbarLineBreak()` : insère un `\n` via `tv.insertText` + reset défensif `shiftEnterTyped = false` après (insertText programmé peut bypass `shouldChangeTextIn`)
+- `textViewDidChange` appelle `save()` à chaque frappe → capture du burst undo côté VM. Le persist SQLite est différé au flush du burst (1 write par burst, pas par caractère)
 
 **`ContentView.swift`** — écran d'accueil :
 - `ChaqaqStore : ObservableObject` — connecte `ChaqaqApi`, liste les documents, CRUD
 - Salutation dynamique (Bonjour/Bon après-midi/Bonsoir)
 - `NavigationLink` → `DocumentView`
 - FAB `square.and.pencil`, état vide illustré, date relative formatée
+- `.toolbar(.hidden, for: .navigationBar)` — pas de titre "chaqaq" en haut de l'accueil
 
 **`DocumentView.swift`** — éditeur de document :
-- `EditableBlock` — modèle en mémoire : `id`, `content: BlockContentFfi`, `spans: [InlineTextFfi]`, `done: Bool`
-- `DocumentViewModel : ObservableObject` — `charger`, `sauvegarderBloc`, `ajouterBloc`, `supprimerBloc`, `deplacerBloc` + `reordonnerBlocs`
+- `EditableBlock : Identifiable, Equatable` — modèle en mémoire : `id`, `content: BlockContentFfi`, `spans: [InlineTextFfi]`, `done: Bool`
+- `DocumentViewModel : ObservableObject, @MainActor` — `load`, `saveBlock` / `saveBlock(id:spans:)` (burst), `persistBlock` (mutations structurelles), `addBlock`, `deleteBlock` / `deleteBlocks(ids:)`, `moveBlock`, `applyBlockOrder`, `toggleBlockDone`, `updateBlockIcon`, `convertBlockContent`, `saveTitle`, `saveCover`
 - Mutations en mémoire directe (pas de rechargement depuis SQLite après insert/delete — évite l'effacement du contenu en cours d'édition)
-- Blocs supportés : Text, Heading (1/2/3), Quote, Todo, Divider
-- `ForEach($vm.blocs) { $bloc in }` — two-way binding pour l'édition en place
+- Blocs supportés : Text, Heading (1/2/3), Quote, Callout (Quote avec icône emoji), Todo, Divider
+- `ForEach($vm.blocks) { $block in }` — two-way binding pour l'édition en place
 - Drag & drop natif via `.onMove` + `EditMode`
 - Swipe-to-delete + menu contextuel
 - `.scrollDismissesKeyboard(.interactively)` — dismiss clavier par swipe natif
-- `autoFocusId` — focus automatique sur le bloc nouvellement créé
+- `autoFocusId` — focus automatique sur le bloc nouvellement créé OU réinséré (undo d'une suppression)
+
+**Undo / redo (Swift) :**
+- `UndoManager` natif, `levelsOfUndo = 1000` (aligné sur `CAPACITE_PAR_DEFAUT` du back Rust)
+- 2 UI synchronisées : pill glass en bas-gauche (clavier fermé) + boutons dans la toolbar clavier (clavier ouvert)
+- `canUndoProvider`/`canRedoProvider` = closures live qui lisent `vm.canUndo`/`vm.canRedo` → toujours frais à chaque updateUIView / textViewDidChange / didChangeSelection
+- `vm.canUndo = undoMgr.canUndo || !blockBurstAnchor.isEmpty` — le bouton s'allume aussi quand un burst de typing est pending (l'undo flush d'abord puis annule)
+- Toutes les ops VM enregistrent leur inverse : add/delete/move block, toggle todo, change icon, convert content, save title, save cover, frappe
+- **Burst undo pour la frappe** (style Notes) : une rafale continue de `saveBlock` sur le même bloc = 1 seule étape undo. `burstInterval = 300 ms` d'inactivité → flush + persist SQLite + register undo. Switch de bloc flush l'ancien immédiatement.
+- `BlockSnapshot { content, spans, done }` (Equatable) — état capturé pré-burst (`blockBurstAnchor`) ou stable (`blockSnapshots`)
+- `applyBlockSnapshot(blockId:snapshot:)` remplace l'élément entier dans `blocks` (déclenche `@Published` fiablement) + persiste + re-register la reverse
+- Observer `NSUndoManagerCheckpoint` async-dispatché pour `objectWillChange.send()` — évite le warning « Publishing changes from within view updates »
+
+**`Resilience.swift`** — UX erreur :
+- `ChaqaqError.userMessage` (FR), `isRecoverable`, `tryCatch(into: &errorMessage)`, `.errorAlert(message:onRetry:)`
 
 ## Roadmap
 
@@ -211,34 +232,36 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
 - `DocumentMeta` pour `list()` sans charger tout le contenu
 - Erreurs custom `ChaqaqError` (plus de `Box<dyn Error>`)
 - `RichText` + `EditorState` : édition en mémoire (curseur, sélection, toggle style)
-- Undo/redo via pattern Command (`Historique` avec capacité configurable)
+- Undo/redo via pattern Command côté Rust (`Historique` avec capacité configurable)
 - Moteur database type Notion (propriétés, entrées, vues, filtres, tris, rollup, relation)
 - CRUD complet blocs : ajouter, modifier, supprimer, réordonner (racine et enfants), imbriquer, déplacer
-- Bridge éditeur → persistance (`sauvegarder_bloc_edite`)
 - Recherche documents par titre + plein texte dans les blocs
 - Recherche dans les entrées de database
 - Gestion complète des propriétés (ajout, renommage, suppression)
 - Gestion complète des vues (ajout, modification filtres/tris, suppression)
-- **SQLite local-first** : `SqliteDocumentStore` + `SqliteDatabaseStore` avec soft delete, `updated_at`, migrations versionnées
-- `JsonStore` + `DatabaseStore` JSON (conservés pour les tests)
-- **Couche FFI UniFFI** : `ChaqaqApi` exposée à Swift, bindings `swift-bindings/` générés
+- **SQLite local-first** : `SqliteDocumentStore` + `SqliteDatabaseStore` avec soft delete, `updated_at`, migrations versionnées, WAL, retry exponentiel
+- **Couche FFI UniFFI** : `ChaqaqApi` exposée à Swift en API anglaise idiomatique
 - **XCFramework** : `chaqaq.xcframework` compilé (ios-arm64, ios-arm64-simulator, macos-arm64)
-- **Projet Xcode** : `app/Chaqaq.xcodeproj` généré par xcodegen, lié au XCFramework
-- **UI SwiftUI complète** :
-  - Écran d'accueil avec liste de documents, salutation dynamique, FAB, création via sheet
-  - Éditeur de document : blocs Text, Heading (×3), Quote, Todo, Divider
-  - Texte riche : gras, italique, souligné, couleurs (rouge, bleu, orange, violet)
-  - Toolbar de formatage pill (style Notes.app) avec scroll horizontal
-  - Raccourcis markdown : `# `, `## `, `### `, `> `, `[ ] `, `---`
-  - Enter → nouveau bloc, drag & drop natif, swipe-to-delete
-  - Dismiss clavier par swipe vers le bas (`.scrollDismissesKeyboard(.interactively)`)
-  - Focus automatique sur le bloc créé
+- **Projet Xcode** : `app/Chaqaq.xcodeproj` généré par xcodegen
+- **UI SwiftUI** :
+  - Écran d'accueil : liste de documents, salutation dynamique, FAB, nav bar masquée
+  - Éditeur de document : blocs Text, Heading (×3), Quote, Callout (Quote + emoji), Todo, Divider
+  - Texte riche : gras, italique, souligné, barré, 9 couleurs (rouge, rose, orange, jaune, vert, cyan, bleu, violet, marron)
+  - Toolbar pill (style Notes.app) glass effect : Coller / Aa (B/I/U/S) / Highlighter / Undo / Redo / Return / Dismiss — hide-on-menu façon Notes
+  - Raccourcis markdown : `# `, `## `, `### `, `> `, `!! ` (callout), `[ ] `, `---`
+  - Enter → nouveau bloc, Shift+Enter / Return toolbar → saut de ligne dans le bloc, drag & drop, swipe-to-delete, dismiss clavier par swipe
+  - Focus automatique sur le bloc créé OU réinséré via undo
+  - Undo/redo unifié (1000 niveaux) : pill bas-gauche + boutons toolbar, burst typing 300 ms style Notes, focus auto sur block réinséré
+  - Perf : persist SQLite différé au flush burst, cache spans par bloc, cache état boutons undo
+- **CI** : GitHub Actions `cargo test` sur push/PR vers master/staging/dev (`macos-15`). Swift job suspendu en attendant Xcode 26 sur les runners
+- **Sécurité repo** : branches protégées (PR obligatoire, force-push bloqué, suppression bloquée, Rust CI requise), Secret Scanning + Push Protection, Dependabot Alerts + Security Updates, Dependabot config mensuelle pour Cargo + Actions
 
 Ce qui **reste** à construire :
 1. UI Databases (backend Notion complet existe, aucune vue SwiftUI)
 2. Barre de recherche (backend full-text existe, pas d'UI)
 3. Vue iPad / Mac (NavigationSplitView)
 4. Sync entre appareils (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
+5. Réactiver Swift CI quand Xcode 26 sera dispo sur les runners GitHub Actions
 
 ## Git workflow
 
@@ -338,7 +361,7 @@ xcodebuild test -project app/Chaqaq.xcodeproj -scheme Chaqaq -destination 'id=<U
 
 ## Dette technique — à reprendre avant scaling / mise en prod sérieuse
 
-Ces points sont **acceptables en l'état actuel** (projet solo, 401 tests locaux) mais devront être traités avant d'ouvrir aux contributeurs / déployer en App Store. Ordre de priorité :
+Ces points sont **acceptables en l'état actuel** (projet solo, 208 tests Rust + 179 tests Swift unit/integration) mais devront être traités avant d'ouvrir aux contributeurs / déployer en App Store. Ordre de priorité :
 
 ### Infrastructure (haute priorité dès qu'on collabore)
 - **CI GitHub Actions** :
