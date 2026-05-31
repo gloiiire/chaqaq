@@ -1,6 +1,6 @@
 import Testing
 import UIKit
-@testable import Chaqaq
+@testable import Pinkha
 
 // Le round-trip spans ↔ NSAttributedString est le cœur du rich text :
 // si un seul style se perd, l'utilisateur perd ses formatages.
@@ -59,10 +59,10 @@ struct AttributedRoundTripTests {
     }
 
     @Test func linkSurvivesRoundTrip() {
-        let spans = [InlineTextFfi(content: "x", styles: [.link("https://chaqaq.app")])]
+        let spans = [InlineTextFfi(content: "x", styles: [.link("https://pinkha.app")])]
         let back = attributedToSpans(spansToAttributed(spans, police: font), police: font)
         if case .link(let url) = back.first?.styles.first {
-            #expect(url == "https://chaqaq.app")
+            #expect(url == "https://pinkha.app")
         } else {
             Issue.record("le lien aurait dû survivre")
         }

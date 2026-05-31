@@ -1,15 +1,15 @@
-use chaqaq::application::error::ChaqaqError;
-use chaqaq::application::use_cases::{
+use pinkha::application::error::PinkhaError;
+use pinkha::application::use_cases::{
     add_block, create_document, list_documents, get_document,
 };
-use chaqaq::domain::document::BlockContent;
-use chaqaq::domain::parser::parse_inline;
-use chaqaq::infrastructure::json_store::JsonStore;
+use pinkha::domain::document::BlockContent;
+use pinkha::domain::parser::parse_inline;
+use pinkha::infrastructure::json_store::JsonStore;
 use std::path::PathBuf;
 use uuid::Uuid;
 
 fn store_temp() -> (JsonStore, PathBuf) {
-    let dir = std::env::temp_dir().join(format!("chaqaq_e2e_{}", Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("pinkha_e2e_{}", Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
     (JsonStore::new(dir.clone()), dir)
 }
@@ -74,7 +74,7 @@ fn test_get_document_inexistant() {
     let (store, dir) = store_temp();
 
     let result = get_document(&store, Uuid::new_v4());
-    assert!(matches!(result, Err(ChaqaqError::NotFound(_))));
+    assert!(matches!(result, Err(PinkhaError::NotFound(_))));
 
     std::fs::remove_dir_all(dir).unwrap();
 }

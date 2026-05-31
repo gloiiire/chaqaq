@@ -1,4 +1,4 @@
-use crate::application::error::ChaqaqError;
+use crate::application::error::PinkhaError;
 use crate::application::repository::DocumentRepository;
 use crate::application::resilience::retry_with_backoff;
 use crate::domain::document::{Document, DocumentMeta, InlineText};
@@ -12,23 +12,23 @@ pub struct SqliteDocumentStore {
 }
 
 impl SqliteDocumentStore {
-    pub fn nouveau(chemin: &str) -> Result<Self, ChaqaqError> {
-        let mut conn = Connection::open(chemin).map_err(|e| ChaqaqError::Db(e.to_string()))?;
+    pub fn nouveau(chemin: &str) -> Result<Self, PinkhaError> {
+        let mut conn = Connection::open(chemin).map_err(|e| PinkhaError::Db(e.to_string()))?;
         conn.execute_batch("PRAGMA journal_mode=WAL;")
-            .map_err(|e| ChaqaqError::Db(e.to_string()))?;
+            .map_err(|e| PinkhaError::Db(e.to_string()))?;
         appliquer_migrations_documents(&mut conn)?;
         Ok(Self {
             conn: Mutex::new(conn),
         })
     }
 
-    pub fn en_memoire() -> Result<Self, ChaqaqError> {
+    pub fn en_memoire() -> Result<Self, PinkhaError> {
         Self::nouveau(":memory:")
     }
 }
 
 impl DocumentRepository for SqliteDocumentStore {
-    fn save(&self, doc: &Document) -> Result<(), ChaqaqError> {
+    fn save(&self, doc: &Document) -> Result<(), PinkhaError> {
         // Pré-calcul hors retry : pas de coût supplémentaire en cas de relance.
         let data = serde_json::to_string(doc)?;
         let title_text: String = doc
@@ -56,12 +56,12 @@ impl DocumentRepository for SqliteDocumentStore {
                     deleted_at = NULL",
                 params![id, title_text, title_json, cover, now, data],
             )
-            .map_err(|e| ChaqaqError::Db(e.to_string()))?;
+            .map_err(|e| PinkhaError::Db(e.to_string()))?;
             Ok(())
         })
     }
 
-    fn load(&self, id: Uuid) -> Result<Document, ChaqaqError> {
+    fn load(&self, id: Uuid) -> Result<Document, PinkhaError> {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let result = conn.query_row(
@@ -71,18 +71,18 @@ impl DocumentRepository for SqliteDocumentStore {
             );
             match result {
                 Ok(data) => Ok(serde_json::from_str(&data)?),
-                Err(rusqlite::Error::QueryReturnedNoRows) => Err(ChaqaqError::NotFound(id)),
-                Err(e) => Err(ChaqaqError::Db(e.to_string())),
+                Err(rusqlite::Error::QueryReturnedNoRows) => Err(PinkhaError::NotFound(id)),
+                Err(e) => Err(PinkhaError::Db(e.to_string())),
             }
         })
     }
 
-    fn list(&self) -> Result<Vec<DocumentMeta>, ChaqaqError> {
+    fn list(&self) -> Result<Vec<DocumentMeta>, PinkhaError> {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let mut stmt = conn
                 .prepare("SELECT id, title_json, cover, updated_at, created_at FROM documents WHERE deleted_at IS NULL")
-                .map_err(|e| ChaqaqError::Db(e.to_string()))?;
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let rows = stmt
                 .query_map([], |row| {
                     Ok((
@@ -93,13 +93,13 @@ impl DocumentRepository for SqliteDocumentStore {
                         row.get::<_, String>(4)?,
                     ))
                 })
-                .map_err(|e| ChaqaqError::Db(e.to_string()))?;
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let mut metas = Vec::new();
             for row in rows {
                 let (id_str, title_json, cover, updated_at, created_at) =
-                    row.map_err(|e| ChaqaqError::Db(e.to_string()))?;
+                    row.map_err(|e| PinkhaError::Db(e.to_string()))?;
                 let id = Uuid::parse_str(&id_str)
-                    .map_err(|_| ChaqaqError::InvalidOperation(format!("UUID invalide : {id_str}")))?;
+                    .map_err(|_| PinkhaError::InvalidOperation(format!("UUID invalide : {id_str}")))?;
                 let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
                 metas.push(DocumentMeta {
                     id,
@@ -113,7 +113,7 @@ impl DocumentRepository for SqliteDocumentStore {
         })
     }
 
-    fn delete(&self, id: Uuid) -> Result<(), ChaqaqError> {
+    fn delete(&self, id: Uuid) -> Result<(), PinkhaError> {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let modifies = conn
@@ -121,9 +121,9 @@ impl DocumentRepository for SqliteDocumentStore {
                     "UPDATE documents SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
                     params![chrono::Utc::now().to_rfc3339(), id.to_string()],
                 )
-                .map_err(|e| ChaqaqError::Db(e.to_string()))?;
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
             if modifies == 0 {
-                return Err(ChaqaqError::NotFound(id));
+                return Err(PinkhaError::NotFound(id));
             }
             Ok(())
         })
@@ -161,7 +161,7 @@ mod tests {
         let store = store();
         assert!(matches!(
             store.load(Uuid::new_v4()),
-            Err(ChaqaqError::NotFound(_))
+            Err(PinkhaError::NotFound(_))
         ));
     }
 
@@ -180,7 +180,7 @@ mod tests {
         store.save(&d).unwrap();
         store.delete(d.id).unwrap();
         assert!(store.list().unwrap().is_empty());
-        assert!(matches!(store.load(d.id), Err(ChaqaqError::NotFound(_))));
+        assert!(matches!(store.load(d.id), Err(PinkhaError::NotFound(_))));
     }
 
     #[test]
@@ -188,7 +188,7 @@ mod tests {
         let store = store();
         assert!(matches!(
             store.delete(Uuid::new_v4()),
-            Err(ChaqaqError::NotFound(_))
+            Err(PinkhaError::NotFound(_))
         ));
     }
 

@@ -6,4 +6,4 @@
 app/build/
 app/*.xcodeproj/xcuserdata/
 app/*.xcodeproj/project.xcworkspace/xcuserdata/
-chaqaq.xcframework/**/*.a
+pinkha.xcframework/**/*.a

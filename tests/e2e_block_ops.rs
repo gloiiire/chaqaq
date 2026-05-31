@@ -1,16 +1,16 @@
-use chaqaq::application::use_cases::{
+use pinkha::application::use_cases::{
     add_block, add_child_block, create_document, update_block, update_document_cover,
     update_document_title, get_document, reorder_blocks, save_edited_block,
     delete_block,
 };
-use chaqaq::domain::document::{BlockContent, InlineStyle, InlineText};
-use chaqaq::domain::editor::EditorState;
-use chaqaq::domain::rich_text::RichText;
-use chaqaq::infrastructure::json_store::JsonStore;
+use pinkha::domain::document::{BlockContent, InlineStyle, InlineText};
+use pinkha::domain::editor::EditorState;
+use pinkha::domain::rich_text::RichText;
+use pinkha::infrastructure::json_store::JsonStore;
 use uuid::Uuid;
 
 fn store_temp() -> JsonStore {
-    let dir = std::env::temp_dir().join(format!("chaqaq_e2e_blocs_{}", Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("pinkha_e2e_blocs_{}", Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
     JsonStore::new(dir)
 }

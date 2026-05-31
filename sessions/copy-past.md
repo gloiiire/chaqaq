@@ -16,7 +16,7 @@
 │                        ▘▘ ▝▝                       │ `/code-review -… │
 │  Sonnet 4.6 · Claude Pro · ybikouta@icloud.com's   │ Skills and slas… │
 │  Organization                                      │ Added `/reload-… │
-│   ~/…/~ Projectground — iCloud/Doneground/chaqaq   │ /release-notes … │
+│   ~/…/~ Projectground — iCloud/Doneground/pinkha   │ /release-notes … │
 ╰───────────────────────────────────────────────────────────────────────╯
 
   /remote-control is active · Continue here, on your phone, or at
@@ -52,7 +52,7 @@
   13
   14 ## Architecture
   15
-  16 **chaqaq** is a Rust document engine (Notion-like). The core mode
+  16 **pinkha** is a Rust document engine (Notion-like). The core mode
      l and main pipeline:
   17
   18 ```
@@ -133,7 +133,7 @@
 
   ---
 
-  **Projet : chaqaq** — app de notes en Rust pur (mélange Notion +
+  **Projet : pinkha** — app de notes en Rust pur (mélange Notion +
   Craft), full Rust, pas de framework UI pour l'instant.
 
   **Stack :**
@@ -400,9 +400,9 @@
       175 +}
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && cargo test 2>&1)
-  ⎿     Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~app
-     le~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq)
+      Projectground — iCloud/Doneground/pinkha" && cargo test 2>&1)
+  ⎿     Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~app
+     le~CloudDocs/~ Projectground — iCloud/Doneground/pinkha)
          Finished `test` profile [unoptimized + debuginfo] target(s) in 7.82s
      … +13 lines (ctrl+o to expand)
 
@@ -418,20 +418,20 @@
 ❯ commit this
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && git status && git diff)
+      Projectground — iCloud/Doneground/pinkha" && git status && git diff)
   ⎿  On branch master
      Your branch is up to date with 'origin/master'.
      … +48 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && git log --oneline -5)
+      Projectground — iCloud/Doneground/pinkha" && git log --oneline -5)
   ⎿  9e5a547 Add quotes to example input and display transform
      7abfe93 Flush text before parsing link
      6fb3fb3 Add inline link parsing support
      … +2 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && git add src/document.rs
+      Projectground — iCloud/Doneground/pinkha" && git add src/document.rs
       src/parser.rs src/main.…)
   ⎿  [master d1c8879] Add unit tests for inline parser
       4 files changed, 121 insertions(+), 5 deletions(-)
@@ -445,10 +445,10 @@
 ❯ push it
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && git push)
-  ⎿  To https://github.com/gloiiire/chaqaq.git
+      Projectground — iCloud/Doneground/pinkha" && git push)
+  ⎿  To https://github.com/gloiiire/pinkha.git
         9e5a547..d1c8879  master -> master
-      iCloud/Doneground/chaqaq" && git add src/document.rs src/parser.rs
+      iCloud/Doneground/pinkha" && git add src/document.rs src/parser.rs
       src/main.…)
   ⎿  [master d1c8879] Add unit tests for inline parser
       4 files changed, 121 insertions(+), 5 deletions(-)
@@ -463,13 +463,13 @@
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile
       Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git push)
-  ⎿  To https://github.com/gloiiire/chaqaq.git
-      iCloud/Doneground/chaqaq" && git push)
-  ⎿  To https://github.com/gloiiire/chaqaq.git
+      iCloud/Doneground/pinkha" && git push)
+  ⎿  To https://github.com/gloiiire/pinkha.git
+      iCloud/Doneground/pinkha" && git push)
+  ⎿  To https://github.com/gloiiire/pinkha.git
         9e5a547..d1c8879  master -> master
 
-⏺ Poussé sur github.com/gloiiire/chaqaq — master à jour.
+⏺ Poussé sur github.com/gloiiire/pinkha — master à jour.
 
 ✻ Baked for 6s
 
@@ -479,7 +479,7 @@
   gras+italique combinés.
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && cat >> /tmp/test_combo.rs << 'EOF'
+      Projectground — iCloud/Doneground/pinkha" && cat >> /tmp/test_combo.rs << 'EOF'
       // test rapi…)
   ⎿  (No output)
 
@@ -695,9 +695,9 @@
 ❯ utilise la clean architecture
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && cargo test 2>&1)
-  ⎿     Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~app
-     le~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq)
+      Projectground — iCloud/Doneground/pinkha" && cargo test 2>&1)
+  ⎿     Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~app
+     le~CloudDocs/~ Projectground — iCloud/Doneground/pinkha)
          Finished `test` profile [unoptimized + debuginfo] target(s) in 1.43s
      … +14 lines (ctrl+o to expand)
 
@@ -739,12 +739,12 @@
   Je commence.
 
 ⏺ Bash(mkdir -p "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq/src/domain"
+      Projectground — iCloud/Doneground/pinkha/src/domain"
       "/Users/gloiiire_/Library/Mobile…)
   ⎿  Done
 
 ⏺ Bash(cp "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq/src/document.rs"
+      Projectground — iCloud/Doneground/pinkha/src/document.rs"
       "/Users/gloiiire_/Library/Mobile D…)
   ⎿  Done
 
@@ -878,23 +878,23 @@
       14  }
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && cargo test 2>&1)
-  ⎿     Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~app
-     le~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq)
+      Projectground — iCloud/Doneground/pinkha" && cargo test 2>&1)
+  ⎿     Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~app
+     le~CloudDocs/~ Projectground — iCloud/Doneground/pinkha)
          Finished `test` profile [unoptimized + debuginfo] target(s) in 1.12s
      … +14 lines (ctrl+o to expand)
 
 ⏺ Tout est vert. Je supprime les anciens fichiers à la racine de src/.
 
 ⏺ Bash(rm "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq/src/document.rs"
+      Projectground — iCloud/Doneground/pinkha/src/document.rs"
       "/Users/gloiiire_/Library/Mobile D…)
   ⎿  Done
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && cargo test 2>&1)
+      Projectground — iCloud/Doneground/pinkha" && cargo test 2>&1)
   ⎿      Finished `test` profile [unoptimized + debuginfo] target(s) in 0.01s
-          Running unittests src/main.rs (target/debug/deps/chaqaq-b792e390ae82c3ee
+          Running unittests src/main.rs (target/debug/deps/pinkha-b792e390ae82c3ee
      )
      … +12 lines (ctrl+o to expand)
 
@@ -924,13 +924,13 @@
 ❯ commit and push
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && git status && git diff --stat)
+      Projectground — iCloud/Doneground/pinkha" && git status && git diff --stat)
   ⎿  On branch master
      Your branch is up to date with 'origin/master'.
      … +23 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && git add src/ && git commit -m "$(cat
+      Projectground — iCloud/Doneground/pinkha" && git add src/ && git commit -m "$(cat
        <<'EOF'
       Re…)
   ⎿  [master c330fdc] Restructure project with clean architecture
@@ -996,14 +996,14 @@
       2 +pub mod use_cases;
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && cargo test 2>&1)
-  ⎿     Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~app
-     le~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq)
+      Projectground — iCloud/Doneground/pinkha" && cargo test 2>&1)
+  ⎿     Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~app
+     le~CloudDocs/~ Projectground — iCloud/Doneground/pinkha)
          Finished `test` profile [unoptimized + debuginfo] target(s) in 1.08s
      … +14 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && git add src/ && git commit -m "$(cat
+      Projectground — iCloud/Doneground/pinkha" && git add src/ && git commit -m "$(cat
        <<'EOF'
       Ad…)
   ⎿  [master cd0d173] Add use cases layer and expose Document API
@@ -1041,7 +1041,7 @@
 
   ---
 
-  **Projet : chaqaq**
+  **Projet : pinkha**
 
   **Vision**
   App de notes personnelle — mélange entre Craft (beauté, fluidité, rendu natif) et
@@ -1126,7 +1126,7 @@
   ```
 
   `storage.rs` :
-  - `get_documents_app_dir()` — chemin vers `~/…/chaqaq/documents/`
+  - `get_documents_app_dir()` — chemin vers `~/…/pinkha/documents/`
   - `save_document(&doc)` — sauvegarde `{uuid}.json`
   - `load_document(id)` — charge depuis `{uuid}.json`
   - `get_documents()` — liste tous les documents du dossier
@@ -1187,7 +1187,7 @@
        4
        5 +## Vision
        6 +
-       7 +**chaqaq** — app de notes personnelle, mélange Craft (beauté, fluidité
+       7 +**pinkha** — app de notes personnelle, mélange Craft (beauté, fluidité
          +, rendu natif) + Notion (databases, structure). Full Rust pour le core
          +. Objectif : publication open source, car un rich text editor en Rust
          +n'existe pas encore dans l'écosystème.
@@ -1207,7 +1207,7 @@
       14 -## Architecture
       20 +## Architecture (Clean Architecture)
       21
-      16 -**chaqaq** is a Rust document engine (Notion-like). The core model and
+      16 -**pinkha** is a Rust document engine (Notion-like). The core model and
          - main pipeline:
       17 -
       22  ```
@@ -1752,11 +1752,11 @@
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile
       Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1)
-  ⎿     Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Doc
+      iCloud/Doneground/pinkha" && cargo test 2>&1)
+  ⎿     Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Doc
      uments/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/
-     chaqaq)
-     le~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq)
+     pinkha)
+     le~CloudDocs/~ Projectground — iCloud/Doneground/pinkha)
          Finished `test` profile [unoptimized + debuginfo] target(s) in 1.14s
      … +17 lines (ctrl+o to expand)
 
@@ -1783,12 +1783,12 @@
 ⏺ Je crée la branche, commit, push, puis je sauvegarde la convention en mémoire.
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && git checkout -b
+      Projectground — iCloud/Doneground/pinkha" && git checkout -b
       feature/underline-color-parser)
   ⎿  Switched to a new branch 'feature/underline-color-parser'
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && git add src/domain/parser.rs && git
+      Projectground — iCloud/Doneground/pinkha" && git add src/domain/parser.rs && git
       commit -m "…)
   ⎿  [feature/underline-color-parser ee57d36] Add Underline and Color inline style
      s to parser
@@ -1817,7 +1817,7 @@
   crée la branche et j'attaque.
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && git checkout master && git pull &&
+      Projectground — iCloud/Doneground/pinkha" && git checkout master && git pull &&
       git checkout…)
   ⎿  Switched to branch 'master'
      M  CLAUDE.md
@@ -1936,10 +1936,10 @@
       27
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && cargo test 2>&1)
+      Projectground — iCloud/Doneground/pinkha" && cargo test 2>&1)
   ⎿  Error: Exit code 101
-        Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile
-     Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq)
+        Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile
+     Documents/com~apple~CloudDocs/~ Projectground — iCloud/Doneground/pinkha)
      error[E0599]: the method `clone` exists for struct `Vec<InlineText>`, but its
      trait bounds were not satisfied
         --> src/domain/document.rs:68:30
@@ -1977,16 +1977,16 @@
       16      pub styles: Vec<InlineStyle>,
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && cargo test 2>&1)
-  ⎿     Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~app
-     le~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq)
+      Projectground — iCloud/Doneground/pinkha" && cargo test 2>&1)
+  ⎿     Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~app
+     le~CloudDocs/~ Projectground — iCloud/Doneground/pinkha)
          Finished `test` profile [unoptimized + debuginfo] target(s) in 0.43s
      … +14 lines (ctrl+o to expand)
 
 ⏺ Tout vert. Commit et push.
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && git add src/ && git commit -m "$(cat
+      Projectground — iCloud/Doneground/pinkha" && git add src/ && git commit -m "$(cat
        <<'EOF'
       Ad…)
   ⎿  [feature/document-metadata b09633b] Add DocumentMeta for lightweight document
@@ -2015,14 +2015,14 @@
 ❯ merge les feature branches et on continue sur les erreurs custom
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && git branch -a)
+      Projectground — iCloud/Doneground/pinkha" && git branch -a)
   ⎿  + claude/quizzical-thompson
      * feature/document-metadata
        feature/underline-color-parser
      … +5 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && git checkout master && git merge
+      Projectground — iCloud/Doneground/pinkha" && git checkout master && git merge
       feature/underl…)
   ⎿  Switched to branch 'master'
      M  CLAUDE.md
@@ -2033,7 +2033,7 @@
   différents donc pas de conflit attendu.
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && git merge feature/document-metadata
+      Projectground — iCloud/Doneground/pinkha" && git merge feature/document-metadata
       --no-ff -m…)
   ⎿  Merge made by the 'ort' strategy.
       src/application/repository.rs    |  4 ++--
@@ -2041,21 +2041,21 @@
      … +3 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && cargo test 2>&1 && git push origin
+      Projectground — iCloud/Doneground/pinkha" && cargo test 2>&1 && git push origin
       master)
-  ⎿     Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~app
-     le~CloudDocs/~ Projectground — iCloud/Doneground/chaqaq)
+  ⎿     Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~app
+     le~CloudDocs/~ Projectground — iCloud/Doneground/pinkha)
          Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
      … +17 lines (ctrl+o to expand)
 
 ⏺ Master propre, 11 tests. Je démarre la feature erreurs custom.
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~
-      Projectground — iCloud/Doneground/chaqaq" && git checkout -b
+      Projectground — iCloud/Doneground/pinkha" && git checkout -b
       feature/custom-errors)
   ⎿  Switched to a new branch 'feature/custom-errors'
 
-⏺ Maintenant les erreurs custom. La stratégie : ChaqaqError dans application/error.rs
+⏺ Maintenant les erreurs custom. La stratégie : PinkhaError dans application/error.rs
   (l'application définit le contrat d'erreur), l'infra implémente les From pour
   convertir les erreurs système.
 
@@ -2066,7 +2066,7 @@
       3
       3
       4 #[derive(Debug)]
-      5 pub enum ChaqaqError {
+      5 pub enum PinkhaError {
       6     NonTrouve(Uuid),
       7     Io(std::io::Error),
       8     Json(serde_json::Error),
@@ -2090,16 +2090,16 @@
   ⎿  Added 5 lines, removed 4 lines
       1 -use crate::domain::document::{Document, DocumentMeta};
       1  use uuid::Uuid;
-      2 +use crate::application::error::ChaqaqError;
+      2 +use crate::application::error::PinkhaError;
       3 +use crate::domain::document::{Document, DocumentMeta};
       4
       5  pub trait DocumentRepository {
       5 -    fn save(&self, doc: &Document) -> Result<(), Box<dyn std::error::Error>>;
       6 -    fn load(&self, id: Uuid) -> Result<Document, Box<dyn std::error::Error>>;
       7 -    fn list(&self) -> Result<Vec<DocumentMeta>, Box<dyn std::error::Error>>;
-      6 +    fn save(&self, doc: &Document) -> Result<(), ChaqaqError>;
-      7 +    fn load(&self, id: Uuid) -> Result<Document, ChaqaqError>;
-      8 +    fn list(&self) -> Result<Vec<DocumentMeta>, ChaqaqError>;
+      6 +    fn save(&self, doc: &Document) -> Result<(), PinkhaError>;
+      7 +    fn load(&self, id: Uuid) -> Result<Document, PinkhaError>;
+      8 +    fn list(&self) -> Result<Vec<DocumentMeta>, PinkhaError>;
       9  }
 
   Read 1 file (ctrl+o to expand)
@@ -2107,7 +2107,7 @@
 ⏺ Write(src/application/use_cases.rs)
   ⎿  Added 5 lines, removed 4 lines
       1  use uuid::Uuid;
-      2 +use crate::application::error::ChaqaqError;
+      2 +use crate::application::error::PinkhaError;
       3  use crate::application::repository::DocumentRepository;
       4  use crate::domain::document::{BlockContent, Document, DocumentMeta};
       5  use crate::domain::parser::parse_inline;
@@ -2116,7 +2116,7 @@
        8      repo: &dyn DocumentRepository,
        9      titre: &str,
        9 -) -> Result<Document, Box<dyn std::error::Error>> {
-      10 +) -> Result<Document, ChaqaqError> {
+      10 +) -> Result<Document, PinkhaError> {
       11      let doc = Document::new(parse_inline(titre));
       12      repo.save(&doc)?;
       13      Ok(doc)
@@ -2125,14 +2125,14 @@
       17      repo: &dyn DocumentRepository,
       18      id: Uuid,
       18 -) -> Result<Document, Box<dyn std::error::Error>> {
-      19 +) -> Result<Document, ChaqaqError> {
+      19 +) -> Result<Document, PinkhaError> {
       20      repo.load(id)
       21  }
       22
       23  pub fn lister_documents(
       24      repo: &dyn DocumentRepository,
       24 -) -> Result<Vec<DocumentMeta>, Box<dyn std::error::Error>> {
-      25 +) -> Result<Vec<DocumentMeta>, ChaqaqError> {
+      25 +) -> Result<Vec<DocumentMeta>, PinkhaError> {
       26      repo.list()
       27  }
       28
@@ -2141,7 +2141,7 @@
       31      id: Uuid,
       32      contenu: BlockContent,
       32 -) -> Result<Document, Box<dyn std::error::Error>> {
-      33 +) -> Result<Document, ChaqaqError> {
+      33 +) -> Result<Document, PinkhaError> {
       34      let mut doc = repo.load(id)?;
       35      doc.add_block(contenu);
       36      repo.save(&doc)?;
@@ -2154,7 +2154,7 @@
   ⎿  Added 13 lines, removed 5 lines
       1  use std::path::PathBuf;
       2  use uuid::Uuid;
-      3 +use crate::application::error::ChaqaqError;
+      3 +use crate::application::error::PinkhaError;
       4  use crate::application::repository::DocumentRepository;
       5  use crate::domain::document::{Document, DocumentMeta};
       6
@@ -2163,7 +2163,7 @@
       16
       17  impl DocumentRepository for JsonStore {
       17 -    fn save(&self, doc: &Document) -> Result<(), Box<dyn std::error::Error>> {
-      18 +    fn save(&self, doc: &Document) -> Result<(), ChaqaqError> {
+      18 +    fn save(&self, doc: &Document) -> Result<(), PinkhaError> {
       19          std::fs::create_dir_all(&self.dir)?;
       20          let path = self.dir.join(format!("{}.json", doc.id));
       21          std::fs::write(path, serde_json::to_string_pretty(doc)?)?;
@@ -2172,41 +2172,41 @@
       24
       24 -    fn load(&self, id: Uuid) -> Result<Document, Box<dyn std::error::Error>> {
       25 -        let json = std::fs::read_to_string(self.dir.join(format!("{}.json", id)))?;
-      25 +    fn load(&self, id: Uuid) -> Result<Document, ChaqaqError> {
+      25 +    fn load(&self, id: Uuid) -> Result<Document, PinkhaError> {
       26 +        let path = self.dir.join(format!("{}.json", id));
       27 +        let json = std::fs::read_to_string(&path).map_err(|e| {
       28 +            if e.kind() == std::io::ErrorKind::NotFound {
-      29 +                ChaqaqError::NonTrouve(id)
+      29 +                PinkhaError::NonTrouve(id)
       30 +            } else {
-      31 +                ChaqaqError::Io(e)
+      31 +                PinkhaError::Io(e)
       32 +            }
       33 +        })?;
       34          Ok(serde_json::from_str(&json)?)
       35      }
       36
       29 -    fn list(&self) -> Result<Vec<DocumentMeta>, Box<dyn std::error::Error>> {
-      37 +    fn list(&self) -> Result<Vec<DocumentMeta>, ChaqaqError> {
+      37 +    fn list(&self) -> Result<Vec<DocumentMeta>, PinkhaError> {
       38          std::fs::read_dir(&self.dir)?
       31 -            .map(|entry| -> Result<DocumentMeta, Box<dyn std::error::Error>> {
-      39 +            .map(|entry| -> Result<DocumentMeta, ChaqaqError> {
+      39 +            .map(|entry| -> Result<DocumentMeta, PinkhaError> {
       40                  let json = std::fs::read_to_string(entry?.path())?;
       41                  Ok(serde_json::from_str(&json)?)
       42              })
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1)
-  ⎿     Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectgro
-     und — iCloud/Doneground/chaqaq)
+      iCloud/Doneground/pinkha" && cargo test 2>&1)
+  ⎿     Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectgro
+     und — iCloud/Doneground/pinkha)
          Finished `test` profile [unoptimized + debuginfo] target(s) in 1.02s
      … +16 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git add src/ && git commit -m "$(cat <<'EOF'
+      iCloud/Doneground/pinkha" && git add src/ && git commit -m "$(cat <<'EOF'
       Ad…)
-  ⎿  [feature/custom-errors fdd88fc] Add ChaqaqError — replace Box<dyn Error> with typed errors
+  ⎿  [feature/custom-errors fdd88fc] Add PinkhaError — replace Box<dyn Error> with typed errors
 ⏺ feature/custom-errors poussée. Voilà les décisions de design :
 
-  ChaqaqError dans application/error.rs — l'application définit le contrat d'erreur, l'infrastructure s'y
+  PinkhaError dans application/error.rs — l'application définit le contrat d'erreur, l'infrastructure s'y
   conforme. Le domaine n'a pas d'erreurs (le parser est infaillible, les types sont purs).
 
   3 variants typés au lieu d'une boîte opaque :
@@ -2223,13 +2223,13 @@
 
 ❯ y a des tests ?
 
-⏺ Non — j'ajoute les tests pour ChaqaqError et pour le cas NonTrouve dans JsonStore.
+⏺ Non — j'ajoute les tests pour PinkhaError et pour le cas NonTrouve dans JsonStore.
 
   Read 1 file (ctrl+o to expand)
 
 ⏺ Update(src/application/error.rs)
   ⎿  Added 53 lines
-      35  impl From<serde_json::Error> for ChaqaqError {
+      35  impl From<serde_json::Error> for PinkhaError {
       36      fn from(e: serde_json::Error) -> Self { Self::Json(e) }
       37  }
       38 +
@@ -2242,46 +2242,46 @@
       45 +    #[test]
       46 +    fn test_display_non_trouve() {
       47 +        let id = Uuid::new_v4();
-      48 +        let msg = ChaqaqError::NonTrouve(id).to_string();
+      48 +        let msg = PinkhaError::NonTrouve(id).to_string();
       49 +        assert!(msg.contains("introuvable"));
       50 +        assert!(msg.contains(&id.to_string()));
       51 +    }
       52 +
       53 +    #[test]
       54 +    fn test_display_io() {
-      55 +        let err = ChaqaqError::Io(io::Error::new(io::ErrorKind::PermissionDenied, "refusé"));
+      55 +        let err = PinkhaError::Io(io::Error::new(io::ErrorKind::PermissionDenied, "refusé"));
       56 +        assert!(err.to_string().contains("I/O"));
       57 +    }
       58 +
       59 +    #[test]
       60 +    fn test_display_json() {
       61 +        let json_err = serde_json::from_str::<serde_json::Value>("invalide").unwrap_err();
-      62 +        let err = ChaqaqError::Json(json_err);
+      62 +        let err = PinkhaError::Json(json_err);
       63 +        assert!(err.to_string().contains("JSON"));
       64 +    }
       65 +
       66 +    #[test]
       67 +    fn test_from_io() {
-      68 +        let err: ChaqaqError = io::Error::new(io::ErrorKind::Other, "test").into();
-      69 +        assert!(matches!(err, ChaqaqError::Io(_)));
+      68 +        let err: PinkhaError = io::Error::new(io::ErrorKind::Other, "test").into();
+      69 +        assert!(matches!(err, PinkhaError::Io(_)));
       70 +    }
       71 +
       72 +    #[test]
       73 +    fn test_from_json() {
       74 +        let json_err = serde_json::from_str::<serde_json::Value>("invalide").unwrap_err();
-      75 +        let err: ChaqaqError = json_err.into();
-      76 +        assert!(matches!(err, ChaqaqError::Json(_)));
+      75 +        let err: PinkhaError = json_err.into();
+      76 +        assert!(matches!(err, PinkhaError::Json(_)));
       77 +    }
       78 +
       79 +    #[test]
       80 +    fn test_source_io_est_some() {
-      81 +        let err = ChaqaqError::Io(io::Error::new(io::ErrorKind::Other, "test"));
+      81 +        let err = PinkhaError::Io(io::Error::new(io::ErrorKind::Other, "test"));
       82 +        assert!(err.source().is_some());
       83 +    }
       84 +
       85 +    #[test]
       86 +    fn test_source_non_trouve_est_none() {
-      87 +        let err = ChaqaqError::NonTrouve(Uuid::new_v4());
+      87 +        let err = PinkhaError::NonTrouve(Uuid::new_v4());
       88 +        assert!(err.source().is_none());
       89 +    }
       90 +}
@@ -2297,32 +2297,32 @@
       47 +#[cfg(test)]
       48 +mod tests {
       49 +    use super::*;
-      50 +    use crate::application::error::ChaqaqError;
+      50 +    use crate::application::error::PinkhaError;
       51 +    use uuid::Uuid;
       52 +
       53 +    #[test]
       54 +    fn test_load_retourne_non_trouve() {
-      55 +        let store = JsonStore::new(PathBuf::from("/tmp/chaqaq_inexistant"));
+      55 +        let store = JsonStore::new(PathBuf::from("/tmp/pinkha_inexistant"));
       56 +        let id = Uuid::new_v4();
-      57 +        assert!(matches!(store.load(id), Err(ChaqaqError::NonTrouve(_))));
+      57 +        assert!(matches!(store.load(id), Err(PinkhaError::NonTrouve(_))));
       58 +    }
       59 +}
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1)
-  ⎿     Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectgro
-     und — iCloud/Doneground/chaqaq)
+      iCloud/Doneground/pinkha" && cargo test 2>&1)
+  ⎿     Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectgro
+     und — iCloud/Doneground/pinkha)
          Finished `test` profile [unoptimized + debuginfo] target(s) in 0.47s
      … +20 lines (ctrl+o to expand)
 
 ⏺ 19/19. Commit et push.
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git add src/ && git commit -m "$(cat <<'EOF'
+      iCloud/Doneground/pinkha" && git add src/ && git commit -m "$(cat <<'EOF'
       Ad…)
-  ⎿  [feature/custom-errors e8fc67f] Add tests for ChaqaqError and JsonStore error handling
+  ⎿  [feature/custom-errors e8fc67f] Add tests for PinkhaError and JsonStore error handling
       2 files changed, 67 insertions(+)
-     To https://github.com/gloiiire/chaqaq.git
+     To https://github.com/gloiiire/pinkha.git
         fdd88fc..e8fc67f  feature/custom-errors -> feature/custom-errors
 
 ⏺ 19 tests, répartis en 3 couches :
@@ -2346,49 +2346,49 @@
 
   Listing 1 directory… (ctrl+o to expand)
   ⎿  $ ls "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-     iCloud/Doneground/chaqaq/tests" 2>/dev/null || echo "absent"
+     iCloud/Doneground/pinkha/tests" 2>/dev/null || echo "absent"
 
 ⏺ Write(tests/integration_storage.rs)
   ⎿  Wrote 87 lines to tests/integration_storage.rs
-       1 use chaqaq::application::error::ChaqaqError;
-       2 use chaqaq::application::repository::DocumentRepository;
-       3 use chaqaq::domain::document::Document;
-       4 use chaqaq::domain::parser::parse_inline;
-       5 use chaqaq::infrastructure::json_store::JsonStore;
+       1 use pinkha::application::error::PinkhaError;
+       2 use pinkha::application::repository::DocumentRepository;
+       3 use pinkha::domain::document::Document;
+       4 use pinkha::domain::parser::parse_inline;
+       5 use pinkha::infrastructure::json_store::JsonStore;
        6 use std::path::PathBuf;
        7 use uuid::Uuid;
        8
        9 fn dossier_temp() -> PathBuf {
-      10     let dir = std::env::temp_dir().join(format!("chaqaq_integ_{}", Uuid::new_v4()));
+      10     let dir = std::env::temp_dir().join(format!("pinkha_integ_{}", Uuid::new_v4()));
      … +77 lines (ctrl+o to expand)
 
 ⏺ Write(tests/e2e_documents.rs)
   ⎿  Wrote 92 lines to tests/e2e_documents.rs
-       2 use chaqaq::application::use_cases::{ajouter_bloc, creer_document, lister_documents, obtenir_doc
+       2 use pinkha::application::use_cases::{ajouter_bloc, creer_document, lister_documents, obtenir_doc
          ument};
-       3 use chaqaq::domain::document::BlockContent;
-       4 use chaqaq::domain::parser::parse_inline;
-       5 use chaqaq::infrastructure::json_store::JsonStore;
+       3 use pinkha::domain::document::BlockContent;
+       4 use pinkha::domain::parser::parse_inline;
+       5 use pinkha::infrastructure::json_store::JsonStore;
        6 use std::path::PathBuf;
        7 use uuid::Uuid;
        8
        9 fn store_temp() -> (JsonStore, PathBuf) {
-      10     let dir = std::env::temp_dir().join(format!("chaqaq_e2e_{}", Uuid::new_v4()));
+      10     let dir = std::env::temp_dir().join(format!("pinkha_e2e_{}", Uuid::new_v4()));
      … +84 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1)
+      iCloud/Doneground/pinkha" && cargo test 2>&1)
   ⎿  Error: Exit code 101
          Blocking waiting for file lock on package cache
          Blocking waiting for file lock on package cache
          Blocking waiting for file lock on package cache
-        Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq)
-     error[E0433]: failed to resolve: use of undeclared crate or module `chaqaq`
+        Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
+      iCloud/Doneground/pinkha)
+     error[E0433]: failed to resolve: use of undeclared crate or module `pinkha`
       --> tests/integration_storage.rs:1:5
        |
-     1 | use chaqaq::application::error::ChaqaqError;
-       |     ^^^^^^ use of undeclared crate or module `chaqaq`
+     1 | use pinkha::application::error::PinkhaError;
+       |     ^^^^^^ use of undeclared crate or module `pinkha`
      … +59 lines (ctrl+o to expand)
 
 ⏺ Le projet est un binaire — les tests d'intégration dans tests/ ont besoin d'une lib.rs. Je sépare main.rs de
@@ -2405,7 +2405,7 @@
 ⏺ Write(src/main.rs)
   ⎿  Added 3 lines, removed 8 lines
        1 -#![allow(dead_code)]
-       1 +use chaqaq::domain::parser::parse_inline;
+       1 +use pinkha::domain::parser::parse_inline;
        2
        3 -pub mod application;
        4 -pub mod domain;
@@ -2423,10 +2423,10 @@
        9  }
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1)
+      iCloud/Doneground/pinkha" && cargo test 2>&1)
   ⎿  Error: Exit code 101
-        Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq)
+        Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
+      iCloud/Doneground/pinkha)
      warning: methods `get_block` and `get_mut_block` are never used
        --> src/domain/document.rs:91:8
         |
@@ -2444,14 +2444,14 @@
   ⎿  Added 1 line
        8
        9  fn store_temp() -> (JsonStore, PathBuf) {
-      10      let dir = std::env::temp_dir().join(format!("chaqaq_e2e_{}", Uuid::new_v4()));
+      10      let dir = std::env::temp_dir().join(format!("pinkha_e2e_{}", Uuid::new_v4()));
       11 +    std::fs::create_dir_all(&dir).unwrap();
       12      (JsonStore::new(dir.clone()), dir)
       13  }
       14
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1)
+      iCloud/Doneground/pinkha" && cargo test 2>&1)
   ⎿  warning: methods `get_block` and `get_mut_block` are never used
        --> src/domain/document.rs:91:8
         |
@@ -2460,7 +2460,7 @@
 ⏺ 29/29. Commit et push.
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git add src/lib.rs src/main.rs tests/ && git co…)
+      iCloud/Doneground/pinkha" && git add src/lib.rs src/main.rs tests/ && git co…)
   ⎿  [feature/custom-errors c2d1e6d] Add integration and E2E tests, extract lib.rs
       4 files changed, 186 insertions(+), 8 deletions(-)
       create mode 100644 src/lib.rs
@@ -2483,7 +2483,7 @@
   └─────────────┴──────────────────────────────────┴───────┴────────────────────────────────────────┘
 
   Le point structurel important : lib.rs est maintenant la porte d'entrée publique du crate — main.rs est juste
-  le binaire, et tests/ accède à tout via use chaqaq::....
+  le binaire, et tests/ accède à tout via use pinkha::....
 
 ✻ Cooked for 2m 32s
 
@@ -2543,7 +2543,7 @@
   complexité élevée.
 
   ---
-  Pour chaqaq à ce stade, Option B est le bon choix — c'est ce que font les éditeurs sérieux, ça simplifie
+  Pour pinkha à ce stade, Option B est le bon choix — c'est ce que font les éditeurs sérieux, ça simplifie
   toutes les opérations, et ça reste en Rust pur. On définirait :
 
   pub struct RichText {
@@ -2582,7 +2582,7 @@
   j'attaque.
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git checkout -b feature/rich-text-editor)
+      iCloud/Doneground/pinkha" && git checkout -b feature/rich-text-editor)
   ⎿  Switched to a new branch 'feature/rich-text-editor'
 
 ⏺ 1 — domain/rich_text.rs
@@ -2646,9 +2646,9 @@
       5 +pub mod rich_text;
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test --lib 2>&1)
-  ⎿     Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectgro
-     und — iCloud/Doneground/chaqaq)
+      iCloud/Doneground/pinkha" && cargo test --lib 2>&1)
+  ⎿     Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectgro
+     und — iCloud/Doneground/pinkha)
      warning: methods `get_block` and `get_mut_block` are never used
      … +32 lines (ctrl+o to expand)
 
@@ -2659,10 +2659,10 @@
 ⏺ Write(tests/integration_editor.rs)
   ⎿  Wrote 83 lines to tests/integration_editor.rs
        1 /// Teste les opérations d'édition en séquence sur un texte riche.
-       2 use chaqaq::domain::commandes::{AppliquerStyle, Historique, Inserer, Supprimer};
-       3 use chaqaq::domain::document::{InlineStyle, InlineText};
-       4 use chaqaq::domain::editor::EditorState;
-       5 use chaqaq::domain::rich_text::RichText;
+       2 use pinkha::domain::commandes::{AppliquerStyle, Historique, Inserer, Supprimer};
+       3 use pinkha::domain::document::{InlineStyle, InlineText};
+       4 use pinkha::domain::editor::EditorState;
+       5 use pinkha::domain::rich_text::RichText;
        6
        7 fn etat_depuis(s: &str) -> EditorState {
        8     let inlines = vec![InlineText { content: s.to_string(), styles: vec![] }];
@@ -2674,21 +2674,21 @@
   ⎿  Wrote 89 lines to tests/e2e_editor.rs
        1 /// Flux complet : création d'un document → édition du titre avec l'éditeur
        2 /// → sauvegarde → rechargement → vérification.
-       3 use chaqaq::application::use_cases::{creer_document, obtenir_document};
-       4 use chaqaq::domain::commandes::{AppliquerStyle, Historique, Inserer};
-       5 use chaqaq::domain::document::InlineStyle;
-       6 use chaqaq::domain::editor::EditorState;
-       7 use chaqaq::domain::rich_text::RichText;
-       8 use chaqaq::infrastructure::json_store::JsonStore;
+       3 use pinkha::application::use_cases::{creer_document, obtenir_document};
+       4 use pinkha::domain::commandes::{AppliquerStyle, Historique, Inserer};
+       5 use pinkha::domain::document::InlineStyle;
+       6 use pinkha::domain::editor::EditorState;
+       7 use pinkha::domain::rich_text::RichText;
+       8 use pinkha::infrastructure::json_store::JsonStore;
        9 use std::path::PathBuf;
       10 use uuid::Uuid;
      … +79 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1)
+      iCloud/Doneground/pinkha" && cargo test 2>&1)
   ⎿  Error: Exit code 101
-        Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq)
+        Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
+      iCloud/Doneground/pinkha)
      warning: methods `get_block` and `get_mut_block` are never used
        --> src/domain/document.rs:91:8
         |
@@ -2703,13 +2703,13 @@
   ⎿  Added 1 line
       1  /// Flux complet : création d'un document → édition du titre avec l'éditeur
       2  /// → sauvegarde → rechargement → vérification.
-      3 +use chaqaq::application::repository::DocumentRepository;
-      4  use chaqaq::application::use_cases::{creer_document, obtenir_document};
-      5  use chaqaq::domain::commandes::{AppliquerStyle, Historique, Inserer};
-      6  use chaqaq::domain::document::InlineStyle;
+      3 +use pinkha::application::repository::DocumentRepository;
+      4  use pinkha::application::use_cases::{creer_document, obtenir_document};
+      5  use pinkha::domain::commandes::{AppliquerStyle, Historique, Inserer};
+      6  use pinkha::domain::document::InlineStyle;
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1)
+      iCloud/Doneground/pinkha" && cargo test 2>&1)
   ⎿  warning: methods `get_block` and `get_mut_block` are never used
        --> src/domain/document.rs:91:8
         |
@@ -2718,7 +2718,7 @@
 ⏺ 59/59. Commit et push.
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git add src/ tests/ && git commit -m "$(cat <<'…)
+      iCloud/Doneground/pinkha" && git add src/ tests/ && git commit -m "$(cat <<'…)
   ⎿  [feature/rich-text-editor 3d61387] Add rich text editor — RichText, EditorState, Command pattern, undo
      /redo
       6 files changed, 807 insertions(+)
@@ -2750,7 +2750,7 @@
 │                        ▘▘ ▝▝                       │ `/code-review -… │
 │  Sonnet 4.6 · Claude Pro · ybikouta@icloud.com's   │ Skills and slas… │
 │  Organization                                      │ Added `/reload-… │
-│   ~/…/~ Projectground — iCloud/Doneground/chaqaq   │ /release-notes … │
+│   ~/…/~ Projectground — iCloud/Doneground/pinkha   │ /release-notes … │
 ╰───────────────────────────────────────────────────────────────────────╯
 
 ✻ Conversation compacted (ctrl+o for history)
@@ -2852,22 +2852,22 @@
       258  }
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1)
-  ⎿     Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectgro
-     und — iCloud/Doneground/chaqaq)
+      iCloud/Doneground/pinkha" && cargo test 2>&1)
+  ⎿     Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectgro
+     und — iCloud/Doneground/pinkha)
      warning: methods `get_block` and `get_mut_block` are never used
      … +52 lines (ctrl+o to expand)
 
 ⏺ 61 tests, tous verts. Commit et push :
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git add src/domain/commandes.rs && git commit -…)
+      iCloud/Doneground/pinkha" && git add src/domain/commandes.rs && git commit -…)
   ⎿  [feature/rich-text-editor 66a3f13] Ajoute une limite configurable à l'historique undo/redo
       1 file changed, 56 insertions(+), 1 deletion(-)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git push)
-  ⎿  To https://github.com/gloiiire/chaqaq.git
+      iCloud/Doneground/pinkha" && git push)
+  ⎿  To https://github.com/gloiiire/pinkha.git
         3d61387..66a3f13  feature/rich-text-editor -> feature/rich-text-editor
 
 ⏺ Historique::nouveau(capacite) + Default à 200. Quand fait.len() > capacite, l'entrée la plus ancienne est
@@ -2890,23 +2890,23 @@
       89      fait: Vec<Box<dyn Commande>>,
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | tail -5)
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | tail -5)
   ⎿  running 0 tests
 
      test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | grep -E "^test result")
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | grep -E "^test result")
   ⎿  test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      … +4 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git add src/domain/commandes.rs && git commit -…)
+      iCloud/Doneground/pinkha" && git add src/domain/commandes.rs && git commit -…)
   ⎿  [feature/rich-text-editor d2497ce] Passe la capacité undo par défaut à 1000
       1 file changed, 1 insertion(+), 1 deletion(-)
-     To https://github.com/gloiiire/chaqaq.git
+     To https://github.com/gloiiire/pinkha.git
         66a3f13..d2497ce  feature/rich-text-editor -> feature/rich-text-editor
 
 ⏺ CAPACITE_PAR_DEFAUT à 1000. Pushé.
@@ -2916,15 +2916,15 @@
 ❯ merge et on continue
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git checkout master && git merge feature/rich-t…)
+      iCloud/Doneground/pinkha" && git checkout master && git merge feature/rich-t…)
   ⎿  Switched to branch 'master'
      M  CLAUDE.md
      Your branch is up to date with 'origin/master'.
      … +13 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git push && git branch -d feature/rich-text-edi…)
-  ⎿  To https://github.com/gloiiire/chaqaq.git
+      iCloud/Doneground/pinkha" && git push && git branch -d feature/rich-text-edi…)
+  ⎿  To https://github.com/gloiiire/pinkha.git
         6d678b3..425b00f  master -> master
      Deleted branch feature/rich-text-editor (was d2497ce).
      … +2 lines (ctrl+o to expand)
@@ -2933,7 +2933,7 @@
 
   - ✅ Parser Underline + Color
   - ✅ list_documents() métadonnées légères
-  - ✅ Erreurs custom (ChaqaqError)
+  - ✅ Erreurs custom (PinkhaError)
   - ✅ Rich text editor (curseur, sélection, undo/redo, styles)
   - ⬜ Décision UI (Flutter/flutter_rust_bridge — pas encore de code)
   - ⬜ Sync CRDT
@@ -2954,7 +2954,7 @@
   central et sans conflits. Chaque appareil peut éditer offline, et quand ils se synchronisent, les changements
   fusionnent automatiquement de manière déterministe.
 
-  Exemple concret pour chaqaq :
+  Exemple concret pour pinkha :
   - Tu édites une note sur ton iPhone en avion (offline)
   - Quelqu'un (ou toi sur Mac) édite la même note pendant ce temps
   - À la reconnexion : les deux versions fusionnent automatiquement sans "conflit à résoudre manuellement"
@@ -2968,7 +2968,7 @@
   - y-octo est mentionné dans ta roadmap — c'est un port de Yjs (la référence en CRDT texte collaboratif)
   - Alternative : diamond-types (by the Atom/VSCode guy), considérée comme plus performante
 
-  Pour chaqaq concrètement :
+  Pour pinkha concrètement :
   Le CRDT remplacerait ou enroberait RichText — au lieu d'un Vec<char> simple, chaque char aurait un ID unique
   pour permettre la fusion entre appareils.
 
@@ -2981,7 +2981,7 @@
 
 ⏺ Database d'abord, pour deux raisons :
 
-  1. Valeur utilisateur immédiate — sans database, chaqaq est un éditeur de texte comme les autres. Le moteur de
+  1. Valeur utilisateur immédiate — sans database, pinkha est un éditeur de texte comme les autres. Le moteur de
    blocks type Notion, c'est ce qui rend l'app unique et utilisable. Le CRDT sans app complète, ça ne sert à
   rien.
   2. Complexité croissante — la database s'appuie sur ce qu'on a déjà (Block, Document, RichText). Le CRDT va
@@ -3004,7 +3004,7 @@
 ⏺ Laisse-moi d'abord lire l'état actuel du domaine pour voir ce qu'il y a déjà.
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && grep -n "Database\|database" src/domain/documen…)
+      iCloud/Doneground/pinkha" && grep -n "Database\|database" src/domain/documen…)
   ⎿  36:    Database,
 
   Read 1 file (ctrl+o to expand)
@@ -3013,7 +3013,7 @@
   concevoir le modèle complet.
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git checkout -b feature/database && cat src/app…)
+      iCloud/Doneground/pinkha" && git checkout -b feature/database && cat src/app…)
   ⎿  Switched to a new branch 'feature/database'
      pub mod error;
      pub mod repository;
@@ -3043,13 +3043,13 @@
 ⏺ Write(src/application/database_repository.rs)
   ⎿  Wrote 9 lines to src/application/database_repository.rs
       1 use uuid::Uuid;
-      2 use crate::application::error::ChaqaqError;
+      2 use crate::application::error::PinkhaError;
       3 use crate::domain::database::{Database, DatabaseMeta};
       4
       5 pub trait DatabaseRepository {
-      6     fn save(&self, db: &Database) -> Result<(), ChaqaqError>;
-      7     fn load(&self, id: Uuid) -> Result<Database, ChaqaqError>;
-      8     fn list_meta(&self) -> Result<Vec<DatabaseMeta>, ChaqaqError>;
+      6     fn save(&self, db: &Database) -> Result<(), PinkhaError>;
+      7     fn load(&self, id: Uuid) -> Result<Database, PinkhaError>;
+      8     fn list_meta(&self) -> Result<Vec<DatabaseMeta>, PinkhaError>;
       9 }
 
 ⏺ Write(src/application/database_use_cases.rs)
@@ -3058,7 +3058,7 @@
        2 use std::cmp::Ordering;
        3 use uuid::Uuid;
        4 use crate::application::database_repository::DatabaseRepository;
-       5 use crate::application::error::ChaqaqError;
+       5 use crate::application::error::PinkhaError;
        6 use crate::domain::database::{
        7     ConditionFiltre, Database, DatabaseMeta, Entree, Filtre, Ordre,
        8     Propriete, Tri, ValeurPropriete, Vue,
@@ -3072,7 +3072,7 @@
        2 use std::fs;
        3 use uuid::Uuid;
        4 use crate::application::database_repository::DatabaseRepository;
-       5 use crate::application::error::ChaqaqError;
+       5 use crate::application::error::PinkhaError;
        6 use crate::domain::database::{Database, DatabaseMeta};
        7
        8 pub struct DatabaseStore {
@@ -3086,16 +3086,16 @@
   ⎿  Wrote 133 lines to tests/integration_database.rs
        1 use std::collections::HashMap;
        2 use uuid::Uuid;
-       3 use chaqaq::application::database_repository::DatabaseRepository;
+       3 use pinkha::application::database_repository::DatabaseRepository;
   ⎿  Wrote 133 lines to tests/integration_database.rs
        2 use uuid::Uuid;tions::HashMap;
-       3 use chaqaq::application::database_repository::DatabaseRepository;
-       4 use chaqaq::application::database_use_cases::{
+       3 use pinkha::application::database_repository::DatabaseRepository;
+       4 use pinkha::application::database_use_cases::{
        5     ajouter_entree, ajouter_vue, creer_database, lister_databases, obtenir_database,
      requete,
        6     supprimer_entree, modifier_entree,
        7 };
-       8 use chaqaq::domain::database::{
+       8 use pinkha::domain::database::{
        9     ConditionFiltre, Database, Entree, Filtre, Ordre, ProprieteType, Propriete,
       10     Tri, TypeVue, ValeurPropriete, Vue,
      … +124 lines (ctrl+o to expand)
@@ -3104,14 +3104,14 @@
   ⎿  Wrote 141 lines to tests/e2e_database.rs
        1 use std::collections::HashMap;
        2 use uuid::Uuid;
-       3 use chaqaq::application::database_repository::DatabaseRepository;
-       4 use chaqaq::application::database_use_cases::{
+       3 use pinkha::application::database_repository::DatabaseRepository;
+       4 use pinkha::application::database_use_cases::{
        5     ajouter_entree, ajouter_propriete, ajouter_vue, creer_database,
        6     obtenir_database, requete,
        7 };
-       8 use chaqaq::application::repository::DocumentRepository;
-       9 use chaqaq::application::use_cases::creer_document;
-      10 use chaqaq::domain::database::{
+       8 use pinkha::application::repository::DocumentRepository;
+       9 use pinkha::application::use_cases::creer_document;
+      10 use pinkha::domain::database::{
      … +135 lines (ctrl+o to expand)
 
 ⏺ Maintenant les mises à jour des mod.rs et document.rs :
@@ -3164,10 +3164,10 @@
       39  #[derive(Debug, Serialize, Deserialize)]
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1)
+      iCloud/Doneground/pinkha" && cargo test 2>&1)
   ⎿  Error: Exit code 101
-        Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq)
+        Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
+      iCloud/Doneground/pinkha)
      warning: unused import: `Tri`
       --> src/application/database_use_cases.rs:8:16
        |
@@ -3186,8 +3186,8 @@
   ⎿  Removed 1 line
       1  use std::collections::HashMap;
       2  use uuid::Uuid;
-      3 -use chaqaq::application::database_repository::DatabaseRepository;
-      3  use chaqaq::application::database_use_cases::{
+      3 -use pinkha::application::database_repository::DatabaseRepository;
+      3  use pinkha::application::database_use_cases::{
       4      ajouter_entree, ajouter_propriete, ajouter_vue, creer_database,
       5      obtenir_database, requete,
 
@@ -3206,21 +3206,21 @@
   ⎿  Added 1 line, removed 2 lines
        1  use std::collections::HashMap;
        2  use uuid::Uuid;
-       3 -use chaqaq::application::database_repository::DatabaseRepository;
-       3  use chaqaq::application::database_use_cases::{
+       3 -use pinkha::application::database_repository::DatabaseRepository;
+       3  use pinkha::application::database_use_cases::{
        4      ajouter_entree, ajouter_vue, creer_database, lister_databases, obtenir_database, requete,
        5      supprimer_entree, modifier_entree,
        6  };
-       7  use chaqaq::domain::database::{
+       7  use pinkha::domain::database::{
        9 -    ConditionFiltre, Database, Entree, Filtre, Ordre, ProprieteType, Propriete,
        8 +    ConditionFiltre, Filtre, Ordre, ProprieteType, Propriete,
        9      Tri, TypeVue, ValeurPropriete, Vue,
       10  };
-      11  use chaqaq::domain::document::InlineText;
+      11  use pinkha::domain::document::InlineText;
 
 ⏺ Update(src/application/database_use_cases.rs)
   ⎿  Added 1 line, removed 1 line
-       5  use crate::application::error::ChaqaqError;
+       5  use crate::application::error::PinkhaError;
        6  use crate::domain::database::{
        7      ConditionFiltre, Database, DatabaseMeta, Entree, Filtre, Ordre,
        8 -    Propriete, Tri, ValeurPropriete, Vue,
@@ -3230,16 +3230,16 @@
       11
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1)
-  ⎿     Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectgro
-     und — iCloud/Doneground/chaqaq)
+      iCloud/Doneground/pinkha" && cargo test 2>&1)
+  ⎿     Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectgro
+     und — iCloud/Doneground/pinkha)
      warning: methods `get_block` and `get_mut_block` are never used
      … +72 lines (ctrl+o to expand)
 
 ⏺ 82 tests, tous verts. Commit et push :
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git add src/domain/database.rs src/domain/mod.r…)
+      iCloud/Doneground/pinkha" && git add src/domain/database.rs src/domain/mod.r…)
   ⎿  Error: Exit code 128
      [feature/database 475fa57] Implémente le moteur de database type Notion
       10 files changed, 834 insertions(+), 1 deletion(-)
@@ -3253,10 +3253,10 @@
      … +6 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git push --set-upstream origin feature/database)
+      iCloud/Doneground/pinkha" && git push --set-upstream origin feature/database)
   ⎿  remote:
      remote: Create a pull request for 'feature/database' on GitHub by visiting:
-     remote:      https://github.com/gloiiire/chaqaq/pull/new/feature/database
+     remote:      https://github.com/gloiiire/pinkha/pull/new/feature/database
      … +4 lines (ctrl+o to expand)
 
 ⏺ 82 tests verts. Voilà ce qui a été construit :
@@ -3282,7 +3282,7 @@
 ❯ merge et on continue
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git checkout master && git merge feature/databa…)
+      iCloud/Doneground/pinkha" && git checkout master && git merge feature/databa…)
   ⎿  Switched to branch 'master'
      M  CLAUDE.md
      Your branch is up to date with 'origin/master'.
@@ -3323,7 +3323,7 @@
 ⏺ Les 3 ensemble. Je lis d'abord les fichiers existants avant d'éditer.
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git checkout -b feature/database-advanced)
+      iCloud/Doneground/pinkha" && git checkout -b feature/database-advanced)
   ⎿  Switched to a new branch 'feature/database-advanced'
 
   Read 2 files (ctrl+o to expand)
@@ -3434,7 +3434,7 @@
 ⏺ Update(src/application/database_use_cases.rs)
   ⎿  Added 2 lines, removed 2 lines
        4  use crate::application::database_repository::DatabaseRepository;
-       5  use crate::application::error::ChaqaqError;
+       5  use crate::application::error::PinkhaError;
        6  use crate::domain::database::{
        7 -    ConditionFiltre, Database, DatabaseMeta, Entree, Filtre, Ordre,
        8 -    Propriete, ValeurPropriete, Vue,
@@ -3457,7 +3457,7 @@
       131 +    repo: &dyn DatabaseRepository,
       132 +    db: &Database,
       133 +    mut entrees: Vec<Entree>,
-      134 +) -> Result<Vec<Entree>, ChaqaqError> {
+      134 +) -> Result<Vec<Entree>, PinkhaError> {
       135 +    let rollups: Vec<(Uuid, Uuid, Uuid, Agregat)> = db.proprietes.iter()
       136 +        .filter_map(|p| match &p.type_ {
       137 +            ProprieteType::Rollup { relation_prop_id, cible_prop_id, agregat } =>
@@ -3477,7 +3477,7 @@
       151 +                ProprieteType::Relation { db_id } => Some(*db_id),
       152 +                _ => None,
       153 +            })
-      154 +            .ok_or(ChaqaqError::NonTrouve(relation_prop_id))?;
+      154 +            .ok_or(PinkhaError::NonTrouve(relation_prop_id))?;
       155 +
       156 +        let db_liee = repo.load(db_liee_id)?;
       157 +
@@ -3502,7 +3502,7 @@
       175 +    repo: &dyn DatabaseRepository,
       176 +    db_id: Uuid,
       177 +    vue_id: Uuid,
-      178 +) -> Result<Vec<Entree>, ChaqaqError> {
+      178 +) -> Result<Vec<Entree>, PinkhaError> {
       179 +    let db = repo.load(db_id)?;
       180 +    let entrees = requete(repo, db_id, vue_id)?;
       181 +    evaluer_rollups(repo, &db, entrees)
@@ -3514,7 +3514,7 @@
       187 +    db_id: Uuid,
       188 +    prop_id: Uuid,
       189 +    agregat: Agregat,
-      190 +) -> Result<ValeurPropriete, ChaqaqError> {
+      190 +) -> Result<ValeurPropriete, PinkhaError> {
       191 +    let db = repo.load(db_id)?;
       192 +    let refs: Vec<&Entree> = db.entrees.iter().collect();
       193 +    Ok(calculer_agregat(&refs, prop_id, &agregat))
@@ -3526,7 +3526,7 @@
       199 +    db_id: Uuid,
       200 +    vue_id: Uuid,
       201 +    grouper_par: Uuid,
-      202 +) -> Result<Vec<Groupe>, ChaqaqError> {
+      202 +) -> Result<Vec<Groupe>, PinkhaError> {
       203 +    let entrees = requete(repo, db_id, vue_id)?;
       204 +    let mut map: HashMap<String, Groupe> = HashMap::new();
       205 +
@@ -3644,19 +3644,19 @@
   ⎿  Added 4 lines, removed 3 lines
        1  use std::collections::HashMap;
        2  use uuid::Uuid;
-       3  use chaqaq::application::database_use_cases::{
+       3  use pinkha::application::database_use_cases::{
        4 -    ajouter_entree, ajouter_vue, creer_database, lister_databases, obtenir_database, requete,
        5 -    supprimer_entree, modifier_entree,
        4 +    agregat_colonne, ajouter_entree, ajouter_vue, creer_database,
        5 +    evaluer_rollups, lister_databases, obtenir_database, requete,
        6 +    requete_groupee, supprimer_entree, modifier_entree,
        7  };
-       8  use chaqaq::domain::database::{
+       8  use pinkha::domain::database::{
        8 -    ConditionFiltre, Filtre, Ordre, ProprieteType, Propriete,
        9 +    Agregat, ConditionFiltre, Filtre, Ordre, ProprieteType, Propriete,
       10      Tri, TypeVue, ValeurPropriete, Vue,
       11  };
-      12  use chaqaq::domain::document::InlineText;
+      12  use pinkha::domain::document::InlineText;
 
 ⏺ Reading 1 file… (ctrl+o to expand)
   ⎿  tests/integration_database.rs
@@ -3799,21 +3799,21 @@
   ⎿  Added 4 lines, removed 3 lines
        1  use std::collections::HashMap;
        2  use uuid::Uuid;
-       3  use chaqaq::application::database_use_cases::{
+       3  use pinkha::application::database_use_cases::{
        4 -    ajouter_entree, ajouter_propriete, ajouter_vue, creer_database,
        5 -    obtenir_database, requete,
        4 +    agregat_colonne, ajouter_entree, ajouter_propriete, ajouter_vue,
        5 +    creer_database, evaluer_rollups, obtenir_database, requete,
        6 +    requete_groupee,
        7  };
-       8  use chaqaq::application::repository::DocumentRepository;
-       9  use chaqaq::application::use_cases::creer_document;
-      10  use chaqaq::domain::database::{
+       8  use pinkha::application::repository::DocumentRepository;
+       9  use pinkha::application::use_cases::creer_document;
+      10  use pinkha::domain::database::{
       10 -    ConditionFiltre, Filtre, Ordre, ProprieteType, Propriete,
       11 +    Agregat, ConditionFiltre, Filtre, Ordre, ProprieteType, Propriete,
       12      Tri, TypeVue, ValeurPropriete, Vue,
       13  };
-      14  use chaqaq::domain::document::{BlockContent, InlineText};
+      14  use pinkha::domain::document::{BlockContent, InlineText};
 
 ⏺ Update(tests/e2e_database.rs)
   ⎿  Added 99 lines
@@ -3924,16 +3924,16 @@
       240 +}
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1)
-  ⎿     Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectgro
-     und — iCloud/Doneground/chaqaq)
+      iCloud/Doneground/pinkha" && cargo test 2>&1)
+  ⎿     Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectgro
+     und — iCloud/Doneground/pinkha)
      warning: methods `get_block` and `get_mut_block` are never used
      … +81 lines (ctrl+o to expand)
 
 ⏺ 103 tests, tous verts. Commit et push :
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git add -A && git commit -m "$(cat <<'EOF'
+      iCloud/Doneground/pinkha" && git add -A && git commit -m "$(cat <<'EOF'
       Ajou…)
   ⎿  warning: adding embedded git repository: .claude/worktrees/quizzical-thompson
      hint: You've added another git repository inside your current repository.
@@ -3943,7 +3943,7 @@
 ⏺ Le commit a accidentellement inclus .DS_Store et .claude/worktrees/. Je vais nettoyer ça :
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cat .gitignore 2>/dev/null || echo "(aucun .git…)
+      iCloud/Doneground/pinkha" && cat .gitignore 2>/dev/null || echo "(aucun .git…)
   ⎿  /target
 
 ⏺ Update(.gitignore)
@@ -3958,7 +3958,7 @@
       3 +.claude/
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git rm --cached .DS_Store 2>/dev/null; git rm -…)
+      iCloud/Doneground/pinkha" && git rm --cached .DS_Store 2>/dev/null; git rm -…)
   ⎿  rm '.DS_Store'
      rm '.claude/worktrees/quizzical-thompson'
      [feature/database-advanced d525d80] Exclut .DS_Store et .claude/ du dépôt
@@ -4129,7 +4129,7 @@
 
 ⏺ Update(src/application/database_use_cases.rs)
   ⎿  Added 1 line, removed 1 line
-       5  use crate::application::error::ChaqaqError;
+       5  use crate::application::error::PinkhaError;
        6  use crate::domain::database::{
        7      Agregat, ConditionFiltre, Database, DatabaseMeta, Entree, Filtre, Groupe,
        8 -    Ordre, Propriete, ProprieteType, ValeurPropriete, Vue,
@@ -4188,7 +4188,7 @@
 ⏺ Maintenant mettre à jour tous les Tri { ... } dans les tests pour utiliser les constructeurs :
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && grep -n "Tri {" tests/integration_database.rs t…)
+      iCloud/Doneground/pinkha" && grep -n "Tri {" tests/integration_database.rs t…)
   ⎿  tests/integration_database.rs:92:    vue.tris.push(Tri { propriete_id: prop_id, ordre: Ordre::Croissan
      t });
      tests/e2e_database.rs:64:    vue.tris.push(Tri { propriete_id: score_id, ordre: Ordre::Decroissant });
@@ -4232,24 +4232,24 @@
 ⏺ Update(tests/integration_database.rs)
   ⎿  Added 1 line, removed 1 line
        7  };
-       8  use chaqaq::domain::database::{
+       8  use pinkha::domain::database::{
        9      Agregat, ConditionFiltre, Filtre, Ordre, ProprieteType, Propriete,
       10 -    Tri, TypeVue, ValeurPropriete, Vue,
       10 +    SourceTri, Tri, TypeVue, ValeurPropriete, Vue,
       11  };
-      12  use chaqaq::domain::document::InlineText;
-      13  use chaqaq::infrastructure::database_store::DatabaseStore;
+      12  use pinkha::domain::document::InlineText;
+      13  use pinkha::infrastructure::database_store::DatabaseStore;
 
 ⏺ Update(tests/e2e_database.rs)
   ⎿  Added 1 line, removed 1 line
-       9  use chaqaq::application::use_cases::creer_document;
-      10  use chaqaq::domain::database::{
+       9  use pinkha::application::use_cases::creer_document;
+      10  use pinkha::domain::database::{
       11      Agregat, ConditionFiltre, Filtre, Ordre, ProprieteType, Propriete,
       12 -    Tri, TypeVue, ValeurPropriete, Vue,
       12 +    SourceTri, Tri, TypeVue, ValeurPropriete, Vue,
       13  };
-      14  use chaqaq::domain::document::{BlockContent, InlineText};
-      15  use chaqaq::infrastructure::database_store::DatabaseStore;
+      14  use pinkha::domain::document::{BlockContent, InlineText};
+      15  use pinkha::infrastructure::database_store::DatabaseStore;
 
 ⏺ Maintenant les tests pour les trois modes — les tests qui valident exactement ton cas journal :
 
@@ -4270,15 +4270,15 @@
       262 +    let vue_id = db.vues[0].id;
       263 +
       264 +    // 3 entrées créées avec des cree_le manuellement espacés pour le test
-      265 +    let mut e1 = chaqaq::domain::database::Entree::nouvelle(HashMap::new());
+      265 +    let mut e1 = pinkha::domain::database::Entree::nouvelle(HashMap::new());
       266 +    e1.cree_le = "2023-01-01T00:00:00+00:00".to_string();
-      267 +    let mut e2 = chaqaq::domain::database::Entree::nouvelle(HashMap::new());
+      267 +    let mut e2 = pinkha::domain::database::Entree::nouvelle(HashMap::new());
       268 +    e2.cree_le = "2023-06-15T00:00:00+00:00".to_string();
-      269 +    let mut e3 = chaqaq::domain::database::Entree::nouvelle(HashMap::new());
+      269 +    let mut e3 = pinkha::domain::database::Entree::nouvelle(HashMap::new());
       270 +    e3.cree_le = "2022-12-01T00:00:00+00:00".to_string();
       271 +
       272 +    // Persiste via save direct
-      273 +    use chaqaq::application::database_repository::DatabaseRepository;
+      273 +    use pinkha::application::database_repository::DatabaseRepository;
       274 +    let mut db = obtenir_database(&store, db.id).unwrap();
       275 +    db.entrees = vec![e1.clone(), e2.clone(), e3.clone()];
       276 +    store.save(&db).unwrap();
@@ -4305,14 +4305,14 @@
       297 +    // Note ancienne : date manuelle renseignée, cree_le récent (import)
       298 +    let mut v_ancienne = HashMap::new();
       299 +    v_ancienne.insert(date_id, ValeurPropriete::Date("2020-05-10".to_string()));
-      300 +    let mut e_ancienne = chaqaq::domain::database::Entree::nouvelle(v_ancienne);
+      300 +    let mut e_ancienne = pinkha::domain::database::Entree::nouvelle(v_ancienne);
       301 +    e_ancienne.cree_le = "2024-01-01T00:00:00+00:00".to_string(); // importée récemment
       302 +
       303 +    // Note nouvelle : pas de date manuelle, cree_le = date réelle d'écriture
-      304 +    let mut e_nouvelle = chaqaq::domain::database::Entree::nouvelle(HashMap::new());
+      304 +    let mut e_nouvelle = pinkha::domain::database::Entree::nouvelle(HashMap::new());
       305 +    e_nouvelle.cree_le = "2024-06-01T00:00:00+00:00".to_string();
       306 +
-      307 +    use chaqaq::application::database_repository::DatabaseRepository;
+      307 +    use pinkha::application::database_repository::DatabaseRepository;
       308 +    let mut db = obtenir_database(&store, db.id).unwrap();
       309 +    db.entrees = vec![e_nouvelle.clone(), e_ancienne.clone()]; // ordre inversé intentionnel
       310 +    store.save(&db).unwrap();
@@ -4400,14 +4400,14 @@
       300 +}
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1)
+      iCloud/Doneground/pinkha" && cargo test 2>&1)
   ⎿  Error: Exit code 101
         Compiling core-foundation-sys v0.8.7
         Compiling num-traits v0.2.19
         Compiling iana-time-zone v0.1.65
         Compiling chrono v0.4.44
-        Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq)
+        Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
+      iCloud/Doneground/pinkha)
      warning: methods `get_block` and `get_mut_block` are never used
        --> src/domain/document.rs:91:8
         |
@@ -4428,28 +4428,28 @@
 
 ⏺ Update(tests/e2e_database.rs)
   ⎿  Added 1 line, removed 1 line
-       9  use chaqaq::application::use_cases::creer_document;
-      10  use chaqaq::domain::database::{
+       9  use pinkha::application::use_cases::creer_document;
+      10  use pinkha::domain::database::{
       11      Agregat, ConditionFiltre, Filtre, Ordre, ProprieteType, Propriete,
       12 -    SourceTri, Tri, TypeVue, ValeurPropriete, Vue,
       12 +    Tri, TypeVue, ValeurPropriete, Vue,
       13  };
-      14  use chaqaq::domain::document::{BlockContent, InlineText};
-      15  use chaqaq::infrastructure::database_store::DatabaseStore;
+      14  use pinkha::domain::document::{BlockContent, InlineText};
+      15  use pinkha::infrastructure::database_store::DatabaseStore;
 
 ⏺ Update(tests/integration_database.rs)
   ⎿  Added 1 line, removed 1 line
        7  };
-       8  use chaqaq::domain::database::{
+       8  use pinkha::domain::database::{
        9      Agregat, ConditionFiltre, Filtre, Ordre, ProprieteType, Propriete,
       10 -    SourceTri, Tri, TypeVue, ValeurPropriete, Vue,
       10 +    Tri, TypeVue, ValeurPropriete, Vue,
       11  };
-      12  use chaqaq::domain::document::InlineText;
-      13  use chaqaq::infrastructure::database_store::DatabaseStore;
+      12  use pinkha::domain::document::InlineText;
+      13  use pinkha::infrastructure::database_store::DatabaseStore;
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | grep -E "^(test |error|warnin…)
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | grep -E "^(test |error|warnin…)
   ⎿  warning: unused variable: `vue_id`
      warning: unused variable: `vue_id`
      test application::database_use_cases::tests::test_comparer_nombres ... ok
@@ -4471,7 +4471,7 @@
       282      let resultats = requete(&store, db.id, vue.id).unwrap();
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | grep -E "^test result|FAILED|…)
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | grep -E "^test result|FAILED|…)
   ⎿  test result: ok. 71 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
@@ -4480,11 +4480,11 @@
 ⏺ 117 tests verts. Commit et push :
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git add -A && git commit -m "$(cat <<'EOF'
+      iCloud/Doneground/pinkha" && git add -A && git commit -m "$(cat <<'EOF'
       Ajou…)
   ⎿  [feature/database-advanced e666cd1] Ajoute cree_le auto et SourceTri pour le tri de dates flexible
       6 files changed, 364 insertions(+), 8 deletions(-)
-     To https://github.com/gloiiire/chaqaq.git
+     To https://github.com/gloiiire/pinkha.git
         d525d80..e666cd1  feature/database-advanced -> feature/database-advanced
 
 ⏺ 117 tests verts, pushé.
@@ -4509,7 +4509,7 @@
 ❯ merge et on continue
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git checkout master && git merge feature/databa…)
+      iCloud/Doneground/pinkha" && git checkout master && git merge feature/databa…)
   ⎿  Switched to branch 'master'
      Your branch is up to date with 'origin/master'.
      Merge made by the 'ort' strategy.
@@ -4569,7 +4569,7 @@
 ❯ règle les 3 points avant l'UI
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git checkout -b feature/block-ops-search)
+      iCloud/Doneground/pinkha" && git checkout -b feature/block-ops-search)
   ⎿  Switched to a new branch 'feature/block-ops-search'
 
 ⏺ Je lis les fichiers que je vais modifier.
@@ -4581,57 +4581,57 @@
 ⏺ Update(src/application/error.rs)
   ⎿  Added 9 lines, removed 6 lines
        4  #[derive(Debug)]
-       5  pub enum ChaqaqError {
+       5  pub enum PinkhaError {
        6      NonTrouve(Uuid),
        7 +    OperationInvalide(String),
        8      Io(std::io::Error),
        9      Json(serde_json::Error),
       10  }
      ...
-      12  impl fmt::Display for ChaqaqError {
+      12  impl fmt::Display for PinkhaError {
       13      fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
       14          match self {
-      14 -            ChaqaqError::NonTrouve(id) => write!(f, "document introuvable : {id}"),
-      15 -            ChaqaqError::Io(e)         => write!(f, "erreur I/O : {e}"),
-      16 -            ChaqaqError::Json(e)       => write!(f, "erreur JSON : {e}"),
-      15 +            ChaqaqError::NonTrouve(id)          => write!(f, "ressource introuvable : {id}"),
-      16 +            ChaqaqError::OperationInvalide(msg) => write!(f, "opération invalide : {msg}"),
-      17 +            ChaqaqError::Io(e)                  => write!(f, "erreur I/O : {e}"),
-      18 +            ChaqaqError::Json(e)                => write!(f, "erreur JSON : {e}"),
+      14 -            PinkhaError::NonTrouve(id) => write!(f, "document introuvable : {id}"),
+      15 -            PinkhaError::Io(e)         => write!(f, "erreur I/O : {e}"),
+      16 -            PinkhaError::Json(e)       => write!(f, "erreur JSON : {e}"),
+      15 +            PinkhaError::NonTrouve(id)          => write!(f, "ressource introuvable : {id}"),
+      16 +            PinkhaError::OperationInvalide(msg) => write!(f, "opération invalide : {msg}"),
+      17 +            PinkhaError::Io(e)                  => write!(f, "erreur I/O : {e}"),
+      18 +            PinkhaError::Json(e)                => write!(f, "erreur JSON : {e}"),
       19          }
       20      }
       21  }
      ...
-      23  impl std::error::Error for ChaqaqError {
+      23  impl std::error::Error for PinkhaError {
       24      fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
       25          match self {
-      24 -            ChaqaqError::Io(e)   => Some(e),
-      25 -            ChaqaqError::Json(e) => Some(e),
-      26 -            ChaqaqError::NonTrouve(_) => None,
-      26 +            ChaqaqError::Io(e)                  => Some(e),
-      27 +            ChaqaqError::Json(e)                => Some(e),
-      28 +            ChaqaqError::NonTrouve(_)           => None,
-      29 +            ChaqaqError::OperationInvalide(_)   => None,
+      24 -            PinkhaError::Io(e)   => Some(e),
+      25 -            PinkhaError::Json(e) => Some(e),
+      26 -            PinkhaError::NonTrouve(_) => None,
+      26 +            PinkhaError::Io(e)                  => Some(e),
+      27 +            PinkhaError::Json(e)                => Some(e),
+      28 +            PinkhaError::NonTrouve(_)           => None,
+      29 +            PinkhaError::OperationInvalide(_)   => None,
       30          }
       31      }
       32  }
 
 ⏺ Update(src/application/error.rs)
   ⎿  Added 13 lines
-       90          let err = ChaqaqError::NonTrouve(Uuid::new_v4());
+       90          let err = PinkhaError::NonTrouve(Uuid::new_v4());
        91          assert!(err.source().is_none());
        92      }
        93 +
        94 +    #[test]
        95 +    fn test_display_operation_invalide() {
-       96 +        let err = ChaqaqError::OperationInvalide("bloc non textuel".to_string());
+       96 +        let err = PinkhaError::OperationInvalide("bloc non textuel".to_string());
        97 +        assert!(err.to_string().contains("invalide"));
        98 +        assert!(err.to_string().contains("bloc non textuel"));
        99 +    }
       100 +
       101 +    #[test]
       102 +    fn test_source_operation_invalide_est_none() {
-      103 +        let err = ChaqaqError::OperationInvalide("x".to_string());
+      103 +        let err = PinkhaError::OperationInvalide("x".to_string());
       104 +        assert!(err.source().is_none());
       105 +    }
       106  }
@@ -4641,7 +4641,7 @@
 ⏺ Write(src/application/use_cases.rs)
   ⎿  Added 119 lines, removed 1 line
       1  use uuid::Uuid;
-      2  use crate::application::error::ChaqaqError;
+      2  use crate::application::error::PinkhaError;
       3  use crate::application::repository::DocumentRepository;
       4 -use crate::domain::document::{BlockContent, Document, DocumentMeta};
       4 +use crate::domain::document::{Block, BlockContent, Document, DocumentMeta, InlineText};
@@ -4663,11 +4663,11 @@
        47 +    doc_id: Uuid,
        48 +    block_id: Uuid,
        49 +    etat: &EditorState,
-       50 +) -> Result<(), ChaqaqError> {
+       50 +) -> Result<(), PinkhaError> {
        51 +    let mut doc = repo.load(doc_id)?;
        52 +    let inlines: Vec<InlineText> = Vec::from(&etat.texte);
        53 +    let bloc = trouver_bloc_mut(&mut doc.blocks, block_id)
-       54 +        .ok_or(ChaqaqError::NonTrouve(block_id))?;
+       54 +        .ok_or(PinkhaError::NonTrouve(block_id))?;
        55 +
        56 +    bloc.content = match &bloc.content {
        57 +        BlockContent::Text(_) =>
@@ -4678,7 +4678,7 @@
        62 +            BlockContent::Quote { icon: icon.clone(), text: inlines },
        63 +        BlockContent::Todo { done, .. } =>
        64 +            BlockContent::Todo { text: inlines, done: *done },
-       65 +        _ => return Err(ChaqaqError::OperationInvalide(
+       65 +        _ => return Err(PinkhaError::OperationInvalide(
        66 +            format!("le bloc {block_id} ne contient pas de texte éditable")
        67 +        )),
        68 +    };
@@ -4693,10 +4693,10 @@
        77 +    doc_id: Uuid,
        78 +    block_id: Uuid,
        79 +    nouveau_contenu: BlockContent,
-       80 +) -> Result<(), ChaqaqError> {
+       80 +) -> Result<(), PinkhaError> {
        81 +    let mut doc = repo.load(doc_id)?;
        82 +    let bloc = trouver_bloc_mut(&mut doc.blocks, block_id)
-       83 +        .ok_or(ChaqaqError::NonTrouve(block_id))?;
+       83 +        .ok_or(PinkhaError::NonTrouve(block_id))?;
        84 +    bloc.content = nouveau_contenu;
        85 +    repo.save(&doc)
        86 +}
@@ -4706,10 +4706,10 @@
        90 +    repo: &dyn DocumentRepository,
        91 +    doc_id: Uuid,
        92 +    block_id: Uuid,
-       93 +) -> Result<(), ChaqaqError> {
+       93 +) -> Result<(), PinkhaError> {
        94 +    let mut doc = repo.load(doc_id)?;
        95 +    if !supprimer_de_tree(&mut doc.blocks, block_id) {
-       96 +        return Err(ChaqaqError::NonTrouve(block_id));
+       96 +        return Err(PinkhaError::NonTrouve(block_id));
        97 +    }
        98 +    repo.save(&doc)
        99 +}
@@ -4720,7 +4720,7 @@
       104 +    repo: &dyn DocumentRepository,
       105 +    doc_id: Uuid,
       106 +    ordre: Vec<Uuid>,
-      107 +) -> Result<(), ChaqaqError> {
+      107 +) -> Result<(), PinkhaError> {
       108 +    let mut doc = repo.load(doc_id)?;
       109 +    let mut reordonnés: Vec<Block> = Vec::with_capacity(doc.blocks.len());
       110 +    for id in &ordre {
@@ -4739,7 +4739,7 @@
       123 +pub fn rechercher_documents(
       124 +    repo: &dyn DocumentRepository,
       125 +    query: &str,
-      126 +) -> Result<Vec<DocumentMeta>, ChaqaqError> {
+      126 +) -> Result<Vec<DocumentMeta>, PinkhaError> {
       127 +    let q = query.to_lowercase();
       128 +    Ok(repo.list()?.into_iter()
       129 +        .filter(|m| m.title.iter().any(|t| t.content.to_lowercase().contains(&q)))
@@ -4785,7 +4785,7 @@
       140 +    repo: &dyn DatabaseRepository,
       141 +    db_id: Uuid,
       142 +    query: &str,
-      143 +) -> Result<Vec<Entree>, ChaqaqError> {
+      143 +) -> Result<Vec<Entree>, PinkhaError> {
       144 +    let db = repo.load(db_id)?;
       145 +    let q = query.to_lowercase();
       146 +    Ok(db.entrees.into_iter()
@@ -4835,7 +4835,7 @@
       140 +    repo: &dyn DatabaseRepository,
       141 +    db_id: Uuid,
       142 +    query: &str,
-      143 +) -> Result<Vec<Entree>, ChaqaqError> {
+      143 +) -> Result<Vec<Entree>, PinkhaError> {
       144 +    let db = repo.load(db_id)?;
       145 +    let q = query.to_lowercase();
       146 +    Ok(db.entrees.into_iter()
@@ -4902,27 +4902,27 @@
 ⏺ Write(tests/integration_block_ops.rs)
   ⎿  Wrote 156 lines to tests/integration_block_ops.rs
        1 use uuid::Uuid;
-       2 use chaqaq::application::error::ChaqaqError;
-       3 use chaqaq::application::use_cases::{
+       2 use pinkha::application::error::PinkhaError;
+       3 use pinkha::application::use_cases::{
        4     ajouter_bloc, creer_document, modifier_bloc, obtenir_document,
        5     reordonner_blocs, sauvegarder_bloc_edite, supprimer_bloc,
        6 };
-       7 use chaqaq::domain::document::{BlockContent, InlineText};
-       8 use chaqaq::domain::editor::EditorState;
-       9 use chaqaq::domain::rich_text::RichText;
-      10 use chaqaq::infrastructure::json_store::JsonStore;
+       7 use pinkha::domain::document::{BlockContent, InlineText};
+       8 use pinkha::domain::editor::EditorState;
+       9 use pinkha::domain::rich_text::RichText;
+      10 use pinkha::infrastructure::json_store::JsonStore;
      … +147 lines (ctrl+o to expand)
 
 ⏺ Write(tests/integration_search.rs)
   ⎿  Wrote 143 lines to tests/integration_search.rs
        2 use uuid::Uuid;tions::HashMap;
-       3 use chaqaq::application::database_use_cases::{ajouter_entree, creer_database, rechercher_entrees
+       3 use pinkha::application::database_use_cases::{ajouter_entree, creer_database, rechercher_entrees
          };
-       4 use chaqaq::application::use_cases::{ajouter_bloc, creer_document, rechercher_documents};
-       5 use chaqaq::domain::database::{ProprieteType, Propriete, ValeurPropriete};
-       6 use chaqaq::domain::document::{BlockContent, InlineText};
-       7 use chaqaq::infrastructure::database_store::DatabaseStore;
-       8 use chaqaq::infrastructure::json_store::JsonStore;
+       4 use pinkha::application::use_cases::{ajouter_bloc, creer_document, rechercher_documents};
+       5 use pinkha::domain::database::{ProprieteType, Propriete, ValeurPropriete};
+       6 use pinkha::domain::document::{BlockContent, InlineText};
+       7 use pinkha::infrastructure::database_store::DatabaseStore;
+       8 use pinkha::infrastructure::json_store::JsonStore;
        9
       10 fn doc_store_temp() -> JsonStore {
      … +134 lines (ctrl+o to expand)
@@ -4930,32 +4930,32 @@
 ⏺ Write(tests/e2e_block_ops.rs)
   ⎿  Wrote 128 lines to tests/e2e_block_ops.rs
       1 use uuid::Uuid;
-      2 use chaqaq::application::use_cases::{
+      2 use pinkha::application::use_cases::{
       3     ajouter_bloc, creer_document, modifier_bloc, obtenir_document,
       4     reordonner_blocs, sauvegarder_bloc_edite, supprimer_bloc,
       5 };
-      6 use chaqaq::domain::document::{BlockContent, InlineStyle, InlineText};
-      7 use chaqaq::domain::editor::EditorState;
-      8 use chaqaq::domain::rich_text::RichText;
-      9 use chaqaq::infrastructure::json_store::JsonStore;
+      6 use pinkha::domain::document::{BlockContent, InlineStyle, InlineText};
+      7 use pinkha::domain::editor::EditorState;
+      8 use pinkha::domain::rich_text::RichText;
+      9 use pinkha::infrastructure::json_store::JsonStore;
      … +118 lines (ctrl+o to expand)
 
 ⏺ Write(tests/e2e_search.rs)
   ⎿  Wrote 111 lines to tests/e2e_search.rs
        2 use uuid::Uuid;tions::HashMap;
-       3 use chaqaq::application::database_use_cases::{ajouter_entree, creer_database, rechercher_entrees
+       3 use pinkha::application::database_use_cases::{ajouter_entree, creer_database, rechercher_entrees
          };
-       4 use chaqaq::application::use_cases::{ajouter_bloc, creer_document, rechercher_documents};
-       5 use chaqaq::domain::database::{ProprieteType, Propriete, ValeurPropriete};
-       6 use chaqaq::domain::document::{BlockContent, InlineText};
-       7 use chaqaq::infrastructure::database_store::DatabaseStore;
-       8 use chaqaq::infrastructure::json_store::JsonStore;
+       4 use pinkha::application::use_cases::{ajouter_bloc, creer_document, rechercher_documents};
+       5 use pinkha::domain::database::{ProprieteType, Propriete, ValeurPropriete};
+       6 use pinkha::domain::document::{BlockContent, InlineText};
+       7 use pinkha::infrastructure::database_store::DatabaseStore;
+       8 use pinkha::infrastructure::json_store::JsonStore;
        9
       10 fn stores_temp() -> (JsonStore, DatabaseStore) {
      … +101 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | grep -E "^test result|FAILED|…)
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | grep -E "^test result|FAILED|…)
   ⎿  test result: ok. 76 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
@@ -4964,7 +4964,7 @@
 ⏺ 146 tests verts. Commit, push, merge :
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git add -A && git commit -m "$(cat <<'EOF'
+      iCloud/Doneground/pinkha" && git add -A && git commit -m "$(cat <<'EOF'
       Comb…)
   ⎿  [feature/block-ops-search 3e1b240] Comble les 3 lacunes avant l'UI : bridge éditeur, gestion blocs, re
      cherche
@@ -4972,7 +4972,7 @@
      … +11 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git checkout master && git merge feature/block-…)
+      iCloud/Doneground/pinkha" && git checkout master && git merge feature/block-…)
   ⎿  Switched to branch 'master'
      Your branch is up to date with 'origin/master'.
      Merge made by the 'ort' strategy.
@@ -4991,7 +4991,7 @@
   Recherche — rechercher_documents(query) sur les titres, rechercher_entrees(db_id, query) sur tous les champs
   textuels. Insensible à la casse dans les deux cas.
 
-  Erreur — ChaqaqError::OperationInvalide(String) pour les opérations sémantiquement incorrectes.
+  Erreur — PinkhaError::OperationInvalide(String) pour les opérations sémantiquement incorrectes.
 
   Le core Rust est prêt. On attaque Flutter ?
 
@@ -5012,7 +5012,7 @@
   Bloquant pour Flutter :
 
   3. Pas de couche FFI — flutter_rust_bridge ne peut pas générer de bindings Dart pour &dyn DocumentRepository.
-  Les trait objects ne passent pas la frontière FFI. Il faudra un struct ChaqaqApp concret qui :
+  Les trait objects ne passent pas la frontière FFI. Il faudra un struct PinkhaApp concret qui :
     - tient les JsonStore et DatabaseStore instanciés
     - expose tous les use cases comme méthodes concrètes
     - utilise des types simples (String pour les UUIDs, pas de trait objects)
@@ -5020,7 +5020,7 @@
   C'est techniquement la première chose à construire côté Flutter, mais autant le savoir maintenant.
 
   ---
-  Tu veux qu'on règle les 2 lacunes métier maintenant, puis on passe à Flutter + le ChaqaqApp en même temps ? Ou
+  Tu veux qu'on règle les 2 lacunes métier maintenant, puis on passe à Flutter + le PinkhaApp en même temps ? Ou
    tu préfères attaquer Flutter directement ?
 
 ✻ Worked for 38s
@@ -5030,7 +5030,7 @@
 ⏺ Petit feature, je vais vite.
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git checkout -b feature/doc-block-completions &…)
+      iCloud/Doneground/pinkha" && git checkout -b feature/doc-block-completions &…)
   ⎿  Switched to a new branch 'feature/doc-block-completions'
      47:    fn new(content: BlockContent) -> Self {
      82:    pub fn new(title: Vec<InlineText>) -> Self {
@@ -5053,7 +5053,7 @@
 ⏺ Update(src/application/use_cases.rs)
   ⎿  Added 1 line, removed 1 line
       1  use uuid::Uuid;
-      2  use crate::application::error::ChaqaqError;
+      2  use crate::application::error::PinkhaError;
       3  use crate::application::repository::DocumentRepository;
       4 -use crate::domain::document::{Block, BlockContent, Document, DocumentMeta, InlineText};
       4 +use crate::domain::document::{Block, BlockContent, Document, DocumentMeta, InlineText, InlineSty
@@ -5067,7 +5067,7 @@
 ⏺ Update(src/application/use_cases.rs)
   ⎿  Added 1 line, removed 1 line
       1  use uuid::Uuid;
-      2  use crate::application::error::ChaqaqError;
+      2  use crate::application::error::PinkhaError;
       3  use crate::application::repository::DocumentRepository;
       4 -use crate::domain::document::{Block, BlockContent, Document, DocumentMeta, InlineText, InlineSty
         -le};
@@ -5087,7 +5087,7 @@
       44 +    repo: &dyn DocumentRepository,
       45 +    doc_id: Uuid,
       46 +    nouveau_titre: &str,
-      47 +) -> Result<(), ChaqaqError> {
+      47 +) -> Result<(), PinkhaError> {
       48 +    let mut doc = repo.load(doc_id)?;
       49 +    doc.title = parse_inline(nouveau_titre);
       50 +    repo.save(&doc)
@@ -5097,7 +5097,7 @@
       54 +    repo: &dyn DocumentRepository,
       55 +    doc_id: Uuid,
       56 +    couverture: Option<String>,
-      57 +) -> Result<(), ChaqaqError> {
+      57 +) -> Result<(), PinkhaError> {
       58 +    let mut doc = repo.load(doc_id)?;
       59 +    doc.cover = couverture;
       60 +    repo.save(&doc)
@@ -5118,10 +5118,10 @@
       145 +    doc_id: Uuid,
       146 +    parent_id: Uuid,
       147 +    contenu: BlockContent,
-      148 +) -> Result<Block, ChaqaqError> {
+      148 +) -> Result<Block, PinkhaError> {
       149 +    let mut doc = repo.load(doc_id)?;
       150 +    let parent = trouver_bloc_mut(&mut doc.blocks, parent_id)
-      151 +        .ok_or(ChaqaqError::NonTrouve(parent_id))?;
+      151 +        .ok_or(PinkhaError::NonTrouve(parent_id))?;
       152 +    let enfant = Block::new(contenu);
       153 +    parent.children.push(enfant.clone());
       154 +    repo.save(&doc)?;
@@ -5139,14 +5139,14 @@
 ⏺ Update(tests/integration_block_ops.rs)
   ⎿  Added 2 lines, removed 1 line
       1  use uuid::Uuid;
-      2  use chaqaq::application::error::ChaqaqError;
-      3  use chaqaq::application::use_cases::{
+      2  use pinkha::application::error::PinkhaError;
+      3  use pinkha::application::use_cases::{
       4 -    ajouter_bloc, creer_document, modifier_bloc, obtenir_document,
       4 +    ajouter_bloc, ajouter_bloc_enfant, creer_document, modifier_bloc,
       5 +    modifier_couverture_document, modifier_titre_document, obtenir_document,
       6      reordonner_blocs, sauvegarder_bloc_edite, supprimer_bloc,
       7  };
-      8  use chaqaq::domain::document::{BlockContent, InlineText};
+      8  use pinkha::domain::document::{BlockContent, InlineText};
 
 ⏺ Update(tests/integration_block_ops.rs)
   ⎿  Added 85 lines
@@ -5222,7 +5222,7 @@
       222 +
       223 +    let result = ajouter_bloc_enfant(&store, doc.id, Uuid::new_v4(),
       224 +        BlockContent::Text(inlines("orphelin")));
-      225 +    assert!(matches!(result, Err(ChaqaqError::NonTrouve(_))));
+      225 +    assert!(matches!(result, Err(PinkhaError::NonTrouve(_))));
       226 +}
       227 +
       228 +#[test]
@@ -5248,13 +5248,13 @@
 ⏺ Update(tests/e2e_block_ops.rs)
   ⎿  Added 2 lines, removed 1 line
       1  use uuid::Uuid;
-      2  use chaqaq::application::use_cases::{
+      2  use pinkha::application::use_cases::{
       3 -    ajouter_bloc, creer_document, modifier_bloc, obtenir_document,
       3 +    ajouter_bloc, ajouter_bloc_enfant, creer_document, modifier_bloc,
       4 +    modifier_couverture_document, modifier_titre_document, obtenir_document,
       5      reordonner_blocs, sauvegarder_bloc_edite, supprimer_bloc,
       6  };
-      7  use chaqaq::domain::document::{BlockContent, InlineStyle, InlineText};
+      7  use pinkha::domain::document::{BlockContent, InlineStyle, InlineText};
 
 ⏺ Update(tests/e2e_block_ops.rs)
   ⎿  Added 36 lines
@@ -5299,11 +5299,11 @@
       165 +}
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | grep -E "^test result|FAILED|…)
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | grep -E "^test result|FAILED|…)
   ⎿  error[E0599]: no method named `clone` found for struct `Block` in the current scope
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | grep "error\[" -A5 | head -20)
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | grep "error\[" -A5 | head -20)
   ⎿  error[E0599]: no method named `clone` found for struct `Block` in the current scope
         --> src/application/use_cases.rs:153:33
          |
@@ -5336,17 +5336,17 @@
       22      Heading {
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | grep -E "^test result|FAILED|…)
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | grep -E "^test result|FAILED|…)
   ⎿  No matches found
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | grep -E "^test result|FAILED|…)
-  ⎿  No matches found
-
-⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | grep "test result")
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | grep -E "^test result|FAILED|…)
   ⎿  No matches found
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | tail -30)
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | grep "test result")
+  ⎿  No matches found
+
+⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | tail -30)
   ⎿    = note: `#[warn(unused_imports)]` on by default
 
      warning: unused import: `BlockContent`
@@ -5357,11 +5357,11 @@
   Listed 1 directory (ctrl+o to expand)
 
 ⏺ Bash(rm "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq/tests/e2e_block_ops 2.rs" "/Users/gloiiire_/Library…)
+      iCloud/Doneground/pinkha/tests/e2e_block_ops 2.rs" "/Users/gloiiire_/Library…)
   ⎿  Done
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | grep "test result")
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | grep "test result")
   ⎿  test result: ok. 76 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
@@ -5370,7 +5370,7 @@
 ⏺ 157 tests verts. Commit, push, merge :
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git add -A && git commit -m "$(cat <<'EOF'
+      iCloud/Doneground/pinkha" && git add -A && git commit -m "$(cat <<'EOF'
       Comb…)
   ⎿  [feature/doc-block-completions 014677e] Comble les 2 lacunes restantes : métadonnées doc et blocs imbr
      iqués
@@ -5378,7 +5378,7 @@
      … +7 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git checkout master && git merge feature/doc-bl…)
+      iCloud/Doneground/pinkha" && git checkout master && git merge feature/doc-bl…)
   ⎿  Switched to branch 'master'
      Your branch is up to date with 'origin/master'.
      Merge made by the 'ort' strategy.
@@ -5405,7 +5405,7 @@
   ├───────────┼──────────────────────────────────────────────────────────────────────────────────┤
   │ Recherche │ documents par titre, entrées par texte                                           │
   ├───────────┼──────────────────────────────────────────────────────────────────────────────────┤
-  │ Erreurs   │ ChaqaqError (NonTrouve, OperationInvalide, Io, Json)                             │
+  │ Erreurs   │ PinkhaError (NonTrouve, OperationInvalide, Io, Json)                             │
   └───────────┴──────────────────────────────────────────────────────────────────────────────────┘
 
   On attaque Flutter ?
@@ -5426,7 +5426,7 @@
 │                        ▘▘ ▝▝                       │ `/code-review -… │
 │  Sonnet 4.6 · Claude Pro · ybikouta@icloud.com's   │ Skills and slas… │
 │  Organization                                      │ Added `/reload-… │
-│   ~/…/~ Projectground — iCloud/Doneground/chaqaq   │ /release-notes … │
+│   ~/…/~ Projectground — iCloud/Doneground/pinkha   │ /release-notes … │
 ╰───────────────────────────────────────────────────────────────────────╯
 
 ✻ Conversation compacted (ctrl+o for history)
@@ -5439,7 +5439,7 @@
   ⎿  Skills restored (init)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git checkout -b feature/backend-final 2>&1)
+      iCloud/Doneground/pinkha" && git checkout -b feature/backend-final 2>&1)
   ⎿  Switched to a new branch 'feature/backend-final'
 
   Read 5 files (ctrl+o to expand)
@@ -5458,18 +5458,18 @@
 
 ⏺ Update(src/application/repository.rs)
   ⎿  Added 1 line
-       6      fn save(&self, doc: &Document) -> Result<(), ChaqaqError>;
-       7      fn load(&self, id: Uuid) -> Result<Document, ChaqaqError>;
-       8      fn list(&self) -> Result<Vec<DocumentMeta>, ChaqaqError>;
-       9 +    fn delete(&self, id: Uuid) -> Result<(), ChaqaqError>;
+       6      fn save(&self, doc: &Document) -> Result<(), PinkhaError>;
+       7      fn load(&self, id: Uuid) -> Result<Document, PinkhaError>;
+       8      fn list(&self) -> Result<Vec<DocumentMeta>, PinkhaError>;
+       9 +    fn delete(&self, id: Uuid) -> Result<(), PinkhaError>;
       10  }
 
 ⏺ Update(src/application/database_repository.rs)
   ⎿  Added 1 line
-       6      fn save(&self, db: &Database) -> Result<(), ChaqaqError>;
-       7      fn load(&self, id: Uuid) -> Result<Database, ChaqaqError>;
-       8      fn list_meta(&self) -> Result<Vec<DatabaseMeta>, ChaqaqError>;
-       9 +    fn delete(&self, id: Uuid) -> Result<(), ChaqaqError>;
+       6      fn save(&self, db: &Database) -> Result<(), PinkhaError>;
+       7      fn load(&self, id: Uuid) -> Result<Database, PinkhaError>;
+       8      fn list_meta(&self) -> Result<Vec<DatabaseMeta>, PinkhaError>;
+       9 +    fn delete(&self, id: Uuid) -> Result<(), PinkhaError>;
       10  }
 
 ⏺ Now implement delete in both infrastructure stores:
@@ -5480,13 +5480,13 @@
       43              .collect()
       44      }
       45 +
-      46 +    fn delete(&self, id: Uuid) -> Result<(), ChaqaqError> {
+      46 +    fn delete(&self, id: Uuid) -> Result<(), PinkhaError> {
       47 +        let path = self.dir.join(format!("{}.json", id));
       48 +        std::fs::remove_file(&path).map_err(|e| {
       49 +            if e.kind() == std::io::ErrorKind::NotFound {
-      50 +                ChaqaqError::NonTrouve(id)
+      50 +                PinkhaError::NonTrouve(id)
       51 +            } else {
-      52 +                ChaqaqError::Io(e)
+      52 +                PinkhaError::Io(e)
       53 +            }
       54 +        })
       55 +    }
@@ -5500,13 +5500,13 @@
       53          Ok(metas)
       54      }
       55 +
-      56 +    fn delete(&self, id: Uuid) -> Result<(), ChaqaqError> {
+      56 +    fn delete(&self, id: Uuid) -> Result<(), PinkhaError> {
       57 +        let chemin = self.chemin(id);
       58 +        fs::remove_file(&chemin).map_err(|e| {
       59 +            if e.kind() == std::io::ErrorKind::NotFound {
-      60 +                ChaqaqError::NonTrouve(id)
+      60 +                PinkhaError::NonTrouve(id)
       61 +            } else {
-      62 +                ChaqaqError::Io(e)
+      62 +                PinkhaError::Io(e)
       63 +            }
       64 +        })
       65 +    }
@@ -5526,7 +5526,7 @@
       30 +pub fn supprimer_document(
       31 +    repo: &dyn DocumentRepository,
       32 +    doc_id: Uuid,
-      33 +) -> Result<(), ChaqaqError> {
+      33 +) -> Result<(), PinkhaError> {
       34 +    repo.delete(doc_id)
       35 +}
       36 +
@@ -5544,7 +5544,7 @@
       35 +pub fn supprimer_database(
       36 +    repo: &dyn DatabaseRepository,
       37 +    db_id: Uuid,
-      38 +) -> Result<(), ChaqaqError> {
+      38 +) -> Result<(), PinkhaError> {
       39 +    repo.delete(db_id)
       40 +}
       41 +
@@ -5555,9 +5555,9 @@
 ⏺ Now let's run cargo check to see if everything compiles before writing tests:
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo check 2>&1)
-  ⎿      Checking chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectgro
-     und — iCloud/Doneground/chaqaq)
+      iCloud/Doneground/pinkha" && cargo check 2>&1)
+  ⎿      Checking pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectgro
+     und — iCloud/Doneground/pinkha)
      warning: methods `get_block` and `get_mut_block` are never used
      … +15 lines (ctrl+o to expand)
 
@@ -5595,12 +5595,12 @@
   ⎿  Added 27 lines
       59  mod tests {
       60      use super::*;
-      61      use crate::application::error::ChaqaqError;
+      61      use crate::application::error::PinkhaError;
       62 +    use crate::domain::document::{Document, InlineText};
       63      use uuid::Uuid;
       64
       65 +    fn store_temp() -> JsonStore {
-      66 +        let dir = std::env::temp_dir().join(format!("chaqaq_json_{}", Uuid::new_v4()));
+      66 +        let dir = std::env::temp_dir().join(format!("pinkha_json_{}", Uuid::new_v4()));
       67 +        std::fs::create_dir_all(&dir).unwrap();
       68 +        JsonStore::new(dir)
       69 +    }
@@ -5611,9 +5611,9 @@
       74 +
       75      #[test]
       76      fn test_load_retourne_non_trouve() {
-      77          let store = JsonStore::new(PathBuf::from("/tmp/chaqaq_inexistant"));
+      77          let store = JsonStore::new(PathBuf::from("/tmp/pinkha_inexistant"));
       78          let id = Uuid::new_v4();
-      79          assert!(matches!(store.load(id), Err(ChaqaqError::NonTrouve(_))));
+      79          assert!(matches!(store.load(id), Err(PinkhaError::NonTrouve(_))));
       80      }
       81 +
       82 +    #[test]
@@ -5622,14 +5622,14 @@
       85 +        let d = doc("Test");
       86 +        store.save(&d).unwrap();
       87 +        store.delete(d.id).unwrap();
-      88 +        assert!(matches!(store.load(d.id), Err(ChaqaqError::NonTrouve(_))));
+      88 +        assert!(matches!(store.load(d.id), Err(PinkhaError::NonTrouve(_))));
       89 +    }
       90 +
       91 +    #[test]
       92 +    fn test_delete_inexistant_retourne_non_trouve() {
       93 +        let store = store_temp();
       94 +        let id = Uuid::new_v4();
-      95 +        assert!(matches!(store.delete(id), Err(ChaqaqError::NonTrouve(_))));
+      95 +        assert!(matches!(store.delete(id), Err(PinkhaError::NonTrouve(_))));
       96 +    }
       97  }
 
@@ -5643,14 +5643,14 @@
       115 +        let db = Database::nouvelle(titre("Temp"), vec![]);
       116 +        store.save(&db).unwrap();
       117 +        store.delete(db.id).unwrap();
-      118 +        assert!(matches!(store.load(db.id), Err(ChaqaqError::NonTrouve(_))));
+      118 +        assert!(matches!(store.load(db.id), Err(PinkhaError::NonTrouve(_))));
       119 +    }
       120 +
       121 +    #[test]
       122 +    fn test_delete_inexistant_retourne_non_trouve() {
       123 +        let store = store_temp();
       124 +        let id = Uuid::new_v4();
-      125 +        assert!(matches!(store.delete(id), Err(ChaqaqError::NonTrouve(_))));
+      125 +        assert!(matches!(store.delete(id), Err(PinkhaError::NonTrouve(_))));
       126 +    }
       127 +
       128 +    #[test]
@@ -5664,34 +5664,34 @@
   ⎿  Wrote 93 lines to tests/integration_delete.rs
       1 use std::collections::HashMap;
       2 use uuid::Uuid;
-      3 use chaqaq::application::error::ChaqaqError;
-      4 use chaqaq::application::use_cases::{creer_document, obtenir_document, supprimer_document};
-      5 use chaqaq::application::database_use_cases::{creer_database, obtenir_database, supprimer_databas
+      3 use pinkha::application::error::PinkhaError;
+      4 use pinkha::application::use_cases::{creer_document, obtenir_document, supprimer_document};
+      5 use pinkha::application::database_use_cases::{creer_database, obtenir_database, supprimer_databas
         e};
-      6 use chaqaq::domain::database::{ProprieteType, Propriete};
-      7 use chaqaq::domain::document::InlineText;
-      8 use chaqaq::infrastructure::database_store::DatabaseStore;
-      9 use chaqaq::infrastructure::json_store::JsonStore;
+      6 use pinkha::domain::database::{ProprieteType, Propriete};
+      7 use pinkha::domain::document::InlineText;
+      8 use pinkha::infrastructure::database_store::DatabaseStore;
+      9 use pinkha::infrastructure::json_store::JsonStore;
      … +83 lines (ctrl+o to expand)
 
 ⏺ Write(tests/e2e_delete.rs)
   ⎿  Wrote 97 lines to tests/e2e_delete.rs
        1 use std::collections::HashMap;
        2 use uuid::Uuid;
-       3 use chaqaq::application::error::ChaqaqError;
-       4 use chaqaq::application::use_cases::{
+       3 use pinkha::application::error::PinkhaError;
+       4 use pinkha::application::use_cases::{
        5     ajouter_bloc, creer_document, lister_documents, obtenir_document, supprimer_document,
        6 };
-       7 use chaqaq::application::database_use_cases::{
+       7 use pinkha::application::database_use_cases::{
        8     ajouter_entree, creer_database, lister_databases, obtenir_database, supprimer_database,
        9 };
-      10 use chaqaq::domain::database::{ProprieteType, Propriete, ValeurPropriete};
+      10 use pinkha::domain::database::{ProprieteType, Propriete, ValeurPropriete};
      … +87 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1)
-  ⎿     Compiling chaqaq v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectgro
-     und — iCloud/Doneground/chaqaq)
+      iCloud/Doneground/pinkha" && cargo test 2>&1)
+  ⎿     Compiling pinkha v0.1.0 (/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectgro
+     und — iCloud/Doneground/pinkha)
      warning: unused import: `std::collections::HashMap`
      … +139 lines (ctrl+o to expand)
 
@@ -5699,14 +5699,14 @@
   production code:
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && grep -rn "\.unwrap()" src/ 2>&1)
+      iCloud/Doneground/pinkha" && grep -rn "\.unwrap()" src/ 2>&1)
   ⎿  src/infrastructure/json_store.rs:67:        std::fs::create_dir_all(&dir).unwrap();
      src/infrastructure/json_store.rs:86:        store.save(&d).unwrap();
      src/infrastructure/json_store.rs:87:        store.delete(d.id).unwrap();
      … +12 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && grep -rn "\.unwrap()" tests/ 2>&1 | head -5)
+      iCloud/Doneground/pinkha" && grep -rn "\.unwrap()" tests/ 2>&1 | head -5)
   ⎿  tests/integration_database.rs:17:    DatabaseStore::nouveau(dir).unwrap()
      tests/integration_database.rs:34:    let db = creer_database(&store, titre("Projets"), props).unwrap()
      ;
@@ -5715,23 +5715,23 @@
 ⏺ All unwrap() in src/ are inside #[cfg(test)] blocks — that's fine. Let me verify the one in commandes.rs:
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && grep -n "unwrap\|#\[cfg(test\)" src/domain/comm…)
+      iCloud/Doneground/pinkha" && grep -n "unwrap\|#\[cfg(test\)" src/domain/comm…)
   ⎿  grep: parentheses not balanced
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && grep -rn "derive.*Clone" src/domain/document.rs…)
+      iCloud/Doneground/pinkha" && grep -rn "derive.*Clone" src/domain/document.rs…)
   ⎿  src/domain/document.rs:4:#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
      src/domain/document.rs:13:#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
      src/domain/document.rs:20:#[derive(Debug, Clone, Serialize, Deserialize)]
      … +13 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && grep -n "unwrap\|cfg.test" src/domain/commandes…)
+      iCloud/Doneground/pinkha" && grep -n "unwrap\|cfg.test" src/domain/commandes…)
   ⎿  139:#[cfg(test)]
      170:        let cmd = Supprimer::nouveau(&etat, 1).unwrap();
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && grep -n "derive" src/domain/document.rs | grep…)
+      iCloud/Doneground/pinkha" && grep -n "derive" src/domain/document.rs | grep…)
   ⎿  4:#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
      13:#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
      20:#[derive(Debug, Clone, Serialize, Deserialize)]
@@ -5769,8 +5769,8 @@
   ⎿  Removed 1 line
       1 -use std::collections::HashMap;
       1  use uuid::Uuid;
-      2  use chaqaq::application::error::ChaqaqError;
-      3  use chaqaq::application::use_cases::{creer_document, obtenir_document, supprimer_document};
+      2  use pinkha::application::error::PinkhaError;
+      3  use pinkha::application::use_cases::{creer_document, obtenir_document, supprimer_document};
 
   Read 2 files (ctrl+o to expand)
 
@@ -5786,15 +5786,15 @@
   ⎿  Added 2 lines, removed 2 lines
       1  use std::collections::HashMap;
       2  use uuid::Uuid;
-      3  use chaqaq::application::database_use_cases::{ajouter_entree, creer_database, rechercher_entrees
+      3  use pinkha::application::database_use_cases::{ajouter_entree, creer_database, rechercher_entrees
          };
-      4 -use chaqaq::application::use_cases::{ajouter_bloc, creer_document, rechercher_documents};
-      4 +use chaqaq::application::use_cases::{creer_document, rechercher_documents};
-      5  use chaqaq::domain::database::{ProprieteType, Propriete, ValeurPropriete};
-      6 -use chaqaq::domain::document::{BlockContent, InlineText};
-      6 +use chaqaq::domain::document::InlineText;
-      7  use chaqaq::infrastructure::database_store::DatabaseStore;
-      8  use chaqaq::infrastructure::json_store::JsonStore;
+      4 -use pinkha::application::use_cases::{ajouter_bloc, creer_document, rechercher_documents};
+      4 +use pinkha::application::use_cases::{creer_document, rechercher_documents};
+      5  use pinkha::domain::database::{ProprieteType, Propriete, ValeurPropriete};
+      6 -use pinkha::domain::document::{BlockContent, InlineText};
+      6 +use pinkha::domain::document::InlineText;
+      7  use pinkha::infrastructure::database_store::DatabaseStore;
+      8  use pinkha::infrastructure::json_store::JsonStore;
       9
 
   Read 1 file (ctrl+o to expand)
@@ -5803,15 +5803,15 @@
   ⎿  Added 2 lines, removed 2 lines
       1  use std::collections::HashMap;
       2  use uuid::Uuid;
-      3  use chaqaq::application::database_use_cases::{ajouter_entree, creer_database, rechercher_entrees
+      3  use pinkha::application::database_use_cases::{ajouter_entree, creer_database, rechercher_entrees
          };
-      4 -use chaqaq::application::use_cases::{ajouter_bloc, creer_document, rechercher_documents};
-      4 +use chaqaq::application::use_cases::{creer_document, rechercher_documents};
-      5  use chaqaq::domain::database::{ProprieteType, Propriete, ValeurPropriete};
-      6 -use chaqaq::domain::document::{BlockContent, InlineText};
-      6 +use chaqaq::domain::document::InlineText;
-      7  use chaqaq::infrastructure::database_store::DatabaseStore;
-      8  use chaqaq::infrastructure::json_store::JsonStore;
+      4 -use pinkha::application::use_cases::{ajouter_bloc, creer_document, rechercher_documents};
+      4 +use pinkha::application::use_cases::{creer_document, rechercher_documents};
+      5  use pinkha::domain::database::{ProprieteType, Propriete, ValeurPropriete};
+      6 -use pinkha::domain::document::{BlockContent, InlineText};
+      6 +use pinkha::domain::document::InlineText;
+      7  use pinkha::infrastructure::database_store::DatabaseStore;
+      8  use pinkha::infrastructure::json_store::JsonStore;
       9
 
 ⏺ Now fix the unused vue_id variables in integration_database.rs:
@@ -5824,7 +5824,7 @@
       262 -    let vue_id = db.vues[0].id;
       263 -
       262      // 3 entrées créées avec des cree_le manuellement espacés pour le test
-      263      let mut e1 = chaqaq::domain::database::Entree::nouvelle(HashMap::new());
+      263      let mut e1 = pinkha::domain::database::Entree::nouvelle(HashMap::new());
       264      e1.cree_le = "2023-01-01T00:00:00+00:00".to_string();
 
   Read 1 file (ctrl+o to expand)
@@ -5840,14 +5840,14 @@
       294      let mut v_ancienne = HashMap::new();
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | tail -40)
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | tail -40)
   ⎿  running 4 tests
      test test_undo_redo_multiple ... ok
      test test_sequence_insertion ... ok
      … +29 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | grep -E "^warning:|test resul…)
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | grep -E "^warning:|test resul…)
   ⎿  test result: ok. 80 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
@@ -5856,11 +5856,11 @@
 ⏺ Zero warnings, zero failures. Let me get the full count:
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | grep "test result:" | awk -F'…)
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | grep "test result:" | awk -F'…)
   ⎿  Total tests: 0
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | grep "test result:" | grep -o…)
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | grep "test result:" | grep -o…)
   ⎿  Total: 157 passed
 
 ⏺ 157 tests, all passing, no warnings. Let me do one final structural audit:
@@ -5868,7 +5868,7 @@
   Read 1 file (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && grep -rn "pub fn\|pub trait\|pub struct\|pub en…)
+      iCloud/Doneground/pinkha" && grep -rn "pub fn\|pub trait\|pub struct\|pub en…)
   ⎿  src/application/database_repository.rs:5:pub trait DatabaseRepository {
      src/application/database_use_cases.rs:104:pub fn requete(
      src/application/database_use_cases.rs:12:pub fn creer_database(
@@ -5877,14 +5877,14 @@
 ⏺ API is complete and symmetric. Now commit and push:
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git add src/domain/document.rs src/application/…)
+      iCloud/Doneground/pinkha" && git add src/domain/document.rs src/application/…)
   ⎿  On branch feature/backend-final
      Changes to be committed:
        (use "git restore --staged <file>..." to unstage)
      … +12 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git commit -m "$(cat <<'EOF'
+      iCloud/Doneground/pinkha" && git commit -m "$(cat <<'EOF'
       Finalize backend:…)
   ⎿  [feature/backend-final 3b59603] Finalize backend: delete ops, serde compat, Clone, zero warnings
       12 files changed, 277 insertions(+), 25 deletions(-)
@@ -5892,14 +5892,14 @@
       create mode 100644 tests/integration_delete.rs
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git push -u origin feature/backend-final 2>&1)
+      iCloud/Doneground/pinkha" && git push -u origin feature/backend-final 2>&1)
   ⎿  remote:
      remote: Create a pull request for 'feature/backend-final' on GitHub by visiting:
-     remote:      https://github.com/gloiiire/chaqaq/pull/new/feature/backend-final
+     remote:      https://github.com/gloiiire/pinkha/pull/new/feature/backend-final
      … +4 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && git checkout master && git merge feature/backen…)
+      iCloud/Doneground/pinkha" && git checkout master && git merge feature/backen…)
   ⎿  Switched to branch 'master'
      Your branch is up to date with 'origin/master'.
      Updating eb2ed01..3b59603
@@ -5927,50 +5927,50 @@
 ⏺ Laisse-moi faire un audit complet avant de répondre.
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && find src/ -name "*.rs" | sort && echo "---" &&…)
+      iCloud/Doneground/pinkha" && find src/ -name "*.rs" | sort && echo "---" &&…)
   ⎿  src/application/database_repository.rs
      src/application/database_use_cases.rs
      src/application/error.rs
      … +17 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && cargo test 2>&1 | grep "test result:")
+      iCloud/Doneground/pinkha" && cargo test 2>&1 | grep "test result:")
   ⎿  test result: ok. 80 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
      … +11 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && grep -n "pub fn\|pub trait\|pub struct\|pub enu…)
+      iCloud/Doneground/pinkha" && grep -n "pub fn\|pub trait\|pub struct\|pub enu…)
   ⎿  33:pub fn parse_inline(input: &str) -> Vec<InlineText> {
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && grep -n "pub fn\|pub trait\|pub struct\|pub enu…)
+      iCloud/Doneground/pinkha" && grep -n "pub fn\|pub trait\|pub struct\|pub enu…)
   ⎿  src/domain/rich_text.rs:8:pub struct Span {
      src/domain/rich_text.rs:16:pub struct RichText {
      src/domain/rich_text.rs:22:    pub fn vide() -> Self {
      … +18 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && grep -n "Underline\|Color\|Link" src/domain/par…)
+      iCloud/Doneground/pinkha" && grep -n "Underline\|Color\|Link" src/domain/par…)
   ⎿  4:enum LinkState {
      10:enum ColorState {
      29:    if underline { styles.push(InlineStyle::Underline); }
      … +12 lines (ctrl+o to expand)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && grep -n "Underline\|Color\|Link\|Bold\|Italic"…)
+      iCloud/Doneground/pinkha" && grep -n "Underline\|Color\|Link\|Bold\|Italic"…)
   ⎿  178:        InlineText { content: content.to_string(), styles: vec![InlineStyle::Bold] }
      191:        assert_eq!(rt.spans()[0].styles, vec![InlineStyle::Bold]);
      251:        rt.toggler_style(1..3, InlineStyle::Bold);
      260:        rt.toggler_style(1..4, InlineStyle::Bold); // tous ont Bold → retire
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && grep -n "Formule\|Formula\|formula" src/domain/…)
+      iCloud/Doneground/pinkha" && grep -n "Formule\|Formula\|formula" src/domain/…)
   ⎿  (No output)
 
 ⏺ Bash(cd "/Users/gloiiire_/Library/Mobile Documents/com~apple~CloudDocs/~ Projectground —
-      iCloud/Doneground/chaqaq" && grep -n "pub fn" src/application/use_cases.rs s…)
+      iCloud/Doneground/pinkha" && grep -n "pub fn" src/application/use_cases.rs s…)
   ⎿  src/application/use_cases.rs:8:pub fn creer_document(
      src/application/use_cases.rs:17:pub fn obtenir_document(
      src/application/use_cases.rs:24:pub fn lister_documents(
@@ -6012,7 +6012,7 @@
   │ Formules                         │ Tu l'avais demandé, mais seul le Rollup a été fait — les formules    │
   │                                  │ calculées (ex: prix * quantité) ne sont pas là                       │
   ├──────────────────────────────────┼──────────────────────────────────────────────────────────────────────┤
-  │ Façade FFI                       │ Pour flutter_rust_bridge il faudra une struct ChaqaqApp qui expose   │
+  │ Façade FFI                       │ Pour flutter_rust_bridge il faudra une struct PinkhaApp qui expose   │
   │                                  │ l'API en C ABI — c'est la prochaine vraie étape                      │
   └──────────────────────────────────┴──────────────────────────────────────────────────────────────────────┘
 
@@ -6032,5 +6032,5 @@
 
 Resume this session with:
 claude --resume 80827411-2599-4302-b513-dd38c5c0cc3b
-┌──(chaqaq)-git:[master]
+┌──(pinkha)-git:[master]
 └─@
