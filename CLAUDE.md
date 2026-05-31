@@ -38,7 +38,7 @@ Le repo est un **Cargo workspace** avec deux crates :
 ```
 crates/chaqaq/     — crate autonome rich text editor (crates.io: chaqaq v0.1.0)
   src/
-    lib.rs         — API publique + doc crate (en anglais)
+    lib.rs         — API publique + doc crate
     document.rs    — InlineStyle, InlineText
     rich_text.rs   — RichText + Span (indices chars Unicode)
     editor.rs      — EditorState (curseur, sélection, toggle style)
@@ -98,7 +98,7 @@ Toute la logique d'édition inline vit ici. Seule dépendance : `serde`.
 - **`History`** : pile undo/redo, capacité configurable (défaut 1 000), `apply` / `undo` / `redo` / `can_undo` / `can_redo`
 - **`parse_inline(input)`** : state machine sur `chars().peekable()`. `**bold**`, `_italic_`, `__underline__`, `~~strike~~`, `{color:text}`, `[label](url)`, combinaisons.
 
-> **Note langue** : les doc comments dans `crates/chaqaq` sont en **anglais** (crate open source, audience internationale) — exception à la règle "commentaires en français" qui s'applique à pinkha uniquement.
+> **Note langue** : tous les commentaires et doc-comments sont en **anglais** — dans `crates/chaqaq` comme dans `pinkha`.
 
 > **Publication** : bumper la version dans `crates/chaqaq/Cargo.toml` (semver), puis `cd crates/chaqaq && cargo publish`. Une version publiée est immuable. pinkha référence chaqaq via `{ path = "crates/chaqaq" }` donc compile toujours en local sans publier.
 
@@ -310,9 +310,7 @@ Ce qui **reste** à construire :
 ## Code style
 
 ### Langue
-- **Code en anglais** : tous les identifiants (types, fonctions, variables, champs, paramètres, méthodes FFI) en anglais idiomatique. Pas d'identifiants français (pas de `creer`, `titre`, `bloc`…).
-- **Commentaires en français** : tout commentaire, doc-comment et explication inline dans `pinkha` est en français. **Exception** : `crates/chaqaq` est une crate open source — ses `///` et `//!` sont en anglais (audience internationale).
-- **Chaînes utilisateur en français** : `Text("Bonjour")`, `placeholder("Titre du document")`, `accessibilityLabel("Annuler")` — restent en français car visibles par l'utilisateur final francophone.
+Tout dans le repo est en **anglais** : identifiants, commentaires, doc-comments, chaînes utilisateur, placeholders, accessibility labels. Exception unique : **CLAUDE.md** est en français.
 
 ### Conventions
 - Pas de `unwrap()` — toujours `?` et `Result` côté Rust
