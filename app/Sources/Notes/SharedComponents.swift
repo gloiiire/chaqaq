@@ -14,22 +14,6 @@ struct SectionHeader: View {
     }
 }
 
-/// Grande salutation affichée en haut de l'onglet Notes.
-struct WelcomeHeader: View {
-    let greeting: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(greeting).font(.largeTitle.bold())
-            Text("Tes notes, à toi.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
 /// Placeholder affiché quand il n'y a encore aucun document.
 struct NotesEmptyState: View {
     var body: some View {
