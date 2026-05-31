@@ -7,7 +7,7 @@ struct PinkhaErrorUXTests {
 
     @Test func notFoundProducesFriendlyMessage() {
         let msg = PinkhaError.NotFound(id: "abc").userMessage
-        #expect(msg.contains("introuvable"))
+        #expect(msg.contains("could not be found") || msg.contains("deleted"))
     }
 
     @Test func invalidOperationIncludesDetail() {
@@ -17,7 +17,7 @@ struct PinkhaErrorUXTests {
 
     @Test func storageMessageSuggestsRetry() {
         let msg = PinkhaError.Storage(detail: "lock").userMessage
-        #expect(msg.contains("Réessaie") || msg.contains("réessaie"))
+        #expect(msg.contains("try again") || msg.contains("Try again"))
     }
 
     @Test func onlyStorageIsRecoverable() {
@@ -105,7 +105,7 @@ struct TryCatchTests {
             throw PinkhaError.NotFound(id: "abc")
         }
         #expect(result == nil)
-        #expect(msg?.contains("introuvable") == true)
+        #expect(msg?.contains("could not be found") == true || msg?.contains("deleted") == true)
     }
 
     @Test func capturesGenericErrorAsLocalizedDescription() {

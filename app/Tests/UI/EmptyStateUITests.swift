@@ -17,7 +17,7 @@ final class EmptyStateUITests: XCTestCase {
 
     func testEmptyStateShowsHelpMessage() {
         let app = launchClean()
-        XCTAssertTrue(app.staticTexts["Aucun document"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No notes"].waitForExistence(timeout: 5))
     }
 
     func testFabStillPresentInEmptyState() {
@@ -29,8 +29,8 @@ final class EmptyStateUITests: XCTestCase {
 
     func testEmptyStateHasHelpText() {
         let app = launchClean()
-        // The help text starts with "Appuie sur le bouton…"
-        let predicate = NSPredicate(format: "label CONTAINS %@", "Appuie sur")
+        // The help text starts with "Tap the button…"
+        let predicate = NSPredicate(format: "label CONTAINS %@", "Tap the button")
         let helpText = app.staticTexts.element(matching: predicate)
         XCTAssertTrue(helpText.waitForExistence(timeout: 5))
     }

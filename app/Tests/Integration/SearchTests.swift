@@ -19,8 +19,8 @@ struct SearchTests {
     @Test func searchDocumentsCaseInsensitive() throws {
         let (api, url) = try makeApi()
         defer { try? FileManager.default.removeItem(at: url) }
-        _ = try api.createDocument(title: "Voyage à Paris")
-        _ = try api.createDocument(title: "Bons restaurants")
+        _ = try api.createDocument(title: "Trip to Paris")
+        _ = try api.createDocument(title: "Good restaurants")
 
         #expect(try api.searchDocuments(query: "paris").count == 1)
         #expect(try api.searchDocuments(query: "PARIS").count == 1)
@@ -40,8 +40,8 @@ struct SearchTests {
     @Test func searchInBlocksFindsThroughBlockContent() throws {
         let (api, url) = try makeApi()
         defer { try? FileManager.default.removeItem(at: url) }
-        let docId = try api.createDocument(title: "Vide")
-        _ = try api.addBlock(docId: docId, blockContentJson: try textBlock("Rust est génial"))
+        let docId = try api.createDocument(title: "Empty")
+        _ = try api.addBlock(docId: docId, blockContentJson: try textBlock("Rust is great"))
 
         let hits = try api.searchInBlocks(query: "rust")
         #expect(hits.contains(where: { $0.id == docId }))

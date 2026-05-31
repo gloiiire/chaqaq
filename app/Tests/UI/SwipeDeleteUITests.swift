@@ -20,9 +20,9 @@ final class SwipeDeleteUITests: XCTestCase {
         let row = app.staticTexts["Seeded Note 1"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
 
-        // Swipe left then tap Supprimer
+        // Swipe left then tap Delete
         row.swipeLeft()
-        let deleteBtn = app.buttons["Supprimer"]
+        let deleteBtn = app.buttons["Delete"]
         if deleteBtn.waitForExistence(timeout: 2) {
             deleteBtn.tap()
             XCTAssertFalse(app.staticTexts["Seeded Note 1"].waitForExistence(timeout: 2),

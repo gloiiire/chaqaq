@@ -16,7 +16,7 @@ struct DatabaseApiTests {
     @Test func createDatabaseReturnsUuid() throws {
         let (api, url) = try makeApi()
         defer { try? FileManager.default.removeItem(at: url) }
-        let id = try api.createDatabase(title: "Tâches")
+        let id = try api.createDatabase(title: "Tasks")
         #expect(UUID(uuidString: id) != nil)
     }
 

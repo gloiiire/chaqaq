@@ -29,7 +29,7 @@ struct DatabaseEntitiesTests {
 
     @Test func addPropertyDoesNotThrow() throws {
         let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
-        try api.addProperty(dbId: dbId, propertyJson: propertyJson(name: "Statut"))
+        try api.addProperty(dbId: dbId, propertyJson: propertyJson(name: "Status"))
     }
 
     @Test func addEntryWithEmptyValuesReturnsId() throws {
@@ -47,12 +47,12 @@ struct DatabaseEntitiesTests {
     @Test func renamePropertyApplies() throws {
         let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
         let propId = UUID().uuidString
-        let json = "{\"id\":\"\(propId)\",\"name\":\"Avant\",\"type_\":\"Text\"}"
+        let json = "{\"id\":\"\(propId)\",\"name\":\"Before\",\"type_\":\"Text\"}"
         try api.addProperty(dbId: dbId, propertyJson: json)
-        try api.renameProperty(dbId: dbId, propertyId: propId, newName: "Après")
+        try api.renameProperty(dbId: dbId, propertyId: propId, newName: "After")
         let dbJson = try api.getDatabaseJson(id: dbId)
-        #expect(dbJson.contains("Après"))
-        #expect(!dbJson.contains("\"Avant\""))
+        #expect(dbJson.contains("After"))
+        #expect(!dbJson.contains("\"Before\""))
     }
 
     @Test func deletePropertyRemovesIt() throws {

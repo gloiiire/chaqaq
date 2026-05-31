@@ -3,9 +3,9 @@ import UIKit
 
 // ── RichTextEditor ────────────────────────────────────────────────────────────
 
-/// `UIViewRepresentable` encapsulant `ExpandingTextView` avec édition rich text complète :
-/// gras/italique/souligné/barré/couleur/lien via une pill toolbar glass,
-/// raccourcis markdown, sauts de ligne Shift+Enter, et intégration undo/redo.
+/// `UIViewRepresentable` wrapping `ExpandingTextView` with full rich text editing:
+/// bold/italic/underline/strikethrough/color/link via a glass pill toolbar,
+/// markdown shortcuts, Shift+Enter line breaks, and undo/redo integration.
 struct RichTextEditor: UIViewRepresentable {
     typealias Coordinator = RichTextEditorCoordinator
 
@@ -26,11 +26,11 @@ struct RichTextEditor: UIViewRepresentable {
     var onNavigatePrevious: (() -> Void)? = nil
     var onNavigateNext: (() -> Void)? = nil
     var onStopNavigationRepeat: (() -> Void)? = nil
-    // Undo/redo câblés sur l'UndoManager du VM, exposés dans la pill clavier.
-    // `*Provider` = closures live qui lisent l'état courant du VM (pas un snapshot
-    // capturé à body time). Appelées par le Coordinator dans updateUIView,
-    // textViewDidChange et textViewDidChangeSelection — couvre frappe, undo/redo
-    // et changements de sélection.
+    // Undo/redo wired to the VM's UndoManager, exposed in the keyboard pill.
+    // `*Provider` = live closures that read the current VM state (not a snapshot
+    // captured at body time). Called by the Coordinator in updateUIView,
+    // textViewDidChange and textViewDidChangeSelection — covers typing, undo/redo
+    // and selection changes.
     var onUndo: (() -> Void)? = nil
     var onRedo: (() -> Void)? = nil
     var canUndoProvider: (() -> Bool)? = nil
@@ -88,12 +88,12 @@ struct RichTextEditor: UIViewRepresentable {
             DispatchQueue.main.async { isFocused = false }
         }
 
-        // Sauter la recomputation quand les spans n'ont pas changé : SwiftUI re-rend
-        // tout le ForEach à chaque frappe (typiquement pour un seul bloc) ; inutile
-        // de reconstruire NSAttributedString pour les N-1 autres blocs inchangés.
+        // Skip recomputation when spans have not changed: SwiftUI re-renders
+        // the whole ForEach on every keystroke (typically for a single block); no need
+        // to rebuild NSAttributedString for the N-1 other unchanged blocks.
         if coord.lastSyncedSpans != spans {
-            // Ne pas réassigner tv.font pendant l'édition : UITextView.font réapplique
-            // la police à TOUT le texte et effacerait le gras/italique par caractère.
+            // Do not reassign tv.font during editing: UITextView.font reapplies
+            // the font to ALL the text and would erase per-character bold/italic.
             let editingText: NSAttributedString = spans.isEmpty
                 ? NSAttributedString(string: "",
                                       attributes: [.font: baseFont, .foregroundColor: UIColor.label])
@@ -102,8 +102,8 @@ struct RichTextEditor: UIViewRepresentable {
                 tv.font = baseFont
                 tv.attributedText = spans.isEmpty ? coord.placeholder() : editingText
             } else if tv.attributedText.string != editingText.string {
-                // Undo/redo pendant l'édition : le VM a changé les spans sans passer
-                // par le clavier. Restaurer le curseur à la fin du texte restauré.
+                // Undo/redo during editing: the VM changed spans without going through
+                // the keyboard. Restore the cursor to the end of the restored text.
                 let savedTyping = tv.typingAttributes
                 tv.attributedText = editingText
                 tv.typingAttributes = savedTyping
@@ -124,7 +124,7 @@ struct RichTextEditor: UIViewRepresentable {
         }
     }
 
-    /// Superpose `extraAttrs` (ex. barré pour todo) sur les attributs dérivés des spans.
+    /// Overlays `extraAttrs` (e.g. strikethrough for todo) on top of the span-derived attributes.
     private func withExtras(_ attr: NSAttributedString) -> NSAttributedString {
         guard let extras = extraAttrs, !extras.isEmpty else { return attr }
         let m = NSMutableAttributedString(attributedString: attr)

@@ -2,7 +2,7 @@ import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
 
-// ── Titre et couverture ───────────────────────────────────────────────────────
+// ── Title and cover ───────────────────────────────────────────────────────────
 
 extension DocumentViewModel {
 
@@ -61,7 +61,7 @@ extension DocumentViewModel {
         return nom
     }
 
-    /// Répertoire de stockage des images de couverture. Accessible par `DocumentDecorView`.
+    /// Storage directory for cover images. Accessible by `DocumentDecorView`.
     static func coversDirectory() throws -> URL {
         let base = try FileManager.default.url(
             for: .applicationSupportDirectory,

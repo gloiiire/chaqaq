@@ -73,7 +73,7 @@ struct BlockOpsTests {
 
     @Test func searchInBlocksFindsByContent() throws {
         let (api, url, docId) = try makeApi(); defer { cleanup(url) }
-        _ = try api.addBlock(docId: docId, blockContentJson: try textBlock("Rust est génial"))
+        _ = try api.addBlock(docId: docId, blockContentJson: try textBlock("Rust is great"))
 
         let results = try api.searchInBlocks(query: "rust")
         #expect(results.contains(where: { $0.id == docId }))
@@ -81,7 +81,7 @@ struct BlockOpsTests {
 
     @Test func searchInBlocksMissesIrrelevant() throws {
         let (api, url, docId) = try makeApi(); defer { cleanup(url) }
-        _ = try api.addBlock(docId: docId, blockContentJson: try textBlock("Bonjour monde"))
+        _ = try api.addBlock(docId: docId, blockContentJson: try textBlock("Hello world"))
 
         let results = try api.searchInBlocks(query: "flutter")
         #expect(!results.contains(where: { $0.id == docId }))

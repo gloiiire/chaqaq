@@ -1,6 +1,6 @@
 import SwiftUI
 
-// ── Gestion des blocs ─────────────────────────────────────────────────────────
+// ── Block management ──────────────────────────────────────────────────────────
 
 extension DocumentViewModel {
 
@@ -32,7 +32,7 @@ extension DocumentViewModel {
             blockSnapshots[newId] = snapshotOf(newBlock)
             autoFocusOffset = 0
             autoFocusId = newId
-            // Undo : supprime le bloc qu'on vient de créer. deleteBlock auto-enregistre le redo (réinsertion).
+            // Undo: delete the just-created block. deleteBlock auto-registers the redo (reinsertion).
             undoMgr.registerUndo(withTarget: self) { vm in vm.deleteBlock(id: newId) }
         } catch { errorMessage = error.localizedDescription }
     }
@@ -46,17 +46,17 @@ extension DocumentViewModel {
             try api.deleteBlock(docId: docId, blockId: id)
             blocks.removeAll { $0.id == id }
             blockSnapshots.removeValue(forKey: id)
-            // Undo : réinsère le bloc à sa position d'origine. reinsertBlock enregistre le redo.
+            // Undo: reinsert the block at its original position. reinsertBlock registers the redo.
             undoMgr.registerUndo(withTarget: self) { vm in
                 vm.reinsertBlock(block, at: index)
             }
         } catch { errorMessage = error.localizedDescription }
     }
 
-    /// Recrée un bloc supprimé via l'API (génère un nouvel UUID) puis le reordonne
-    /// à sa position d'origine. L'UUID change à travers les cycles undo mais le contenu
-    /// est préservé — comportement undo iOS standard.
-    /// Focus automatique sur le bloc restauré (curseur en fin) — UX standard pour undo d'une suppression.
+    /// Recreates a deleted block via the API (generates a new UUID) then reorders it
+    /// to its original position. The UUID changes across undo cycles but the content
+    /// is preserved — standard iOS undo behaviour.
+    /// Auto-focus on the restored block (cursor at end) — standard UX for undo of a deletion.
     private func reinsertBlock(_ block: EditableBlock, at index: Int) {
         do {
             let content = block.content.withSpans(block.spans, done: block.done)
@@ -71,7 +71,7 @@ extension DocumentViewModel {
             blockSnapshots[newId] = snapshotOf(recreated)
             autoFocusOffset = nil
             autoFocusId = newId
-            // Redo : re-supprime ce bloc.
+            // Redo: re-delete this block.
             undoMgr.registerUndo(withTarget: self) { vm in vm.deleteBlock(id: newId) }
         } catch { errorMessage = error.localizedDescription }
     }
@@ -79,7 +79,7 @@ extension DocumentViewModel {
     func deleteBlocks(ids: Set<String>) {
         guard !ids.isEmpty else { return }
         for id in ids { flushBurst(blockId: id) }
-        // Capture les snapshots avec leurs indices (croissant) pour une restauration ordonnée.
+        // Capture snapshots with their indices (ascending) for ordered restoration.
         let snapshots: [(Int, EditableBlock)] = blocks.enumerated()
             .filter { ids.contains($0.element.id) }
             .map { ($0.offset, $0.element) }
@@ -99,7 +99,7 @@ extension DocumentViewModel {
         } catch { errorMessage = error.localizedDescription }
     }
 
-    /// Bascule l'état "done" d'un bloc todo. Undo le rebascule (auto-re-enregistrement).
+    /// Toggles the "done" state of a todo block. Undo toggles it back (auto-re-registration).
     func toggleBlockDone(id: String) {
         guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
         blocks[idx].done.toggle()
@@ -107,7 +107,7 @@ extension DocumentViewModel {
         undoMgr.registerUndo(withTarget: self) { vm in vm.toggleBlockDone(id: id) }
     }
 
-    /// Met à jour l'icône emoji d'un bloc callout. Undo restaure l'icône précédente.
+    /// Updates the emoji icon of a callout block. Undo restores the previous icon.
     func updateBlockIcon(id: String, icon: String) {
         guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
         guard case .quote(let oldIcon, _) = blocks[idx].content, oldIcon != icon else { return }
@@ -118,8 +118,8 @@ extension DocumentViewModel {
         }
     }
 
-    /// Convertit le contenu d'un bloc (raccourci markdown : text → heading, etc.).
-    /// Undo restaure le contenu + spans précédents ; redo réapplique la conversion.
+    /// Converts a block's content (markdown shortcut: text → heading, etc.).
+    /// Undo restores the previous content + spans; redo re-applies the conversion.
     func convertBlockContent(id: String, to newContent: BlockContentFfi) {
         guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
         let oldContent = blocks[idx].content
@@ -175,7 +175,7 @@ extension DocumentViewModel {
         undoMgr.registerUndo(withTarget: self) { vm in vm.applyBlockOrder(oldOrder) }
     }
 
-    /// Applique un ordre de blocs (utilisé par undo/redo de moveBlock).
+    /// Applies a block order (used by undo/redo of moveBlock).
     private func applyBlockOrder(_ order: [String]) {
         let oldOrder = blocks.map(\.id)
         let lookup = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, $0) })

@@ -1,8 +1,8 @@
-// ── Raccourcis markdown ───────────────────────────────────────────────────────
+// ── Markdown shortcuts ────────────────────────────────────────────────────────
 
-/// Convertit un raccourci markdown en son équivalent `BlockContentFfi`.
-/// Retourne `nil` si `text` n'est pas un raccourci reconnu.
-/// Fonction pure — testable indépendamment sans couche UI.
+/// Converts a markdown shortcut to its `BlockContentFfi` equivalent.
+/// Returns `nil` if `text` is not a recognized shortcut.
+/// Pure function — independently testable without a UI layer.
 func markdownShortcut(for text: String) -> BlockContentFfi? {
     switch text {
     case "# ":          return .heading(level: 1, text: [])

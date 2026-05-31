@@ -1,8 +1,8 @@
 import SwiftUI
 
-// ── État vide cliquable ───────────────────────────────────────────────────────
+// ── Tappable empty state ──────────────────────────────────────────────────────
 
-/// Placeholder affiché quand le document n'a pas encore de blocs. Un tap crée le premier bloc.
+/// Placeholder shown when the document has no blocks yet. A tap creates the first block.
 struct EmptyEditorState: View {
     let onBegin: () -> Void
     @State private var focused = false
@@ -11,7 +11,7 @@ struct EmptyEditorState: View {
         RichTextEditor(
             spans: .constant([]),
             isFocused: $focused,
-            placeholder: "Commence à écrire…",
+            placeholder: "Start writing…",
             onSave: nil,
             onNewBlock: nil,
             onDeleteBloc: nil,
@@ -23,16 +23,16 @@ struct EmptyEditorState: View {
     }
 }
 
-// ── Bouton ajouter un bloc ────────────────────────────────────────────────────
+// ── Add block button ──────────────────────────────────────────────────────────
 
-/// Bouton pied de liste qui ouvre la sheet de sélection de bloc.
+/// List footer button that opens the block picker sheet.
 struct AddBlockButton: View {
     let action: () -> Void
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: "plus.circle")
-                Text("Nouveau bloc")
+                Text("New block")
             }
             .font(.subheadline)
             .foregroundStyle(.tertiary)
@@ -43,10 +43,10 @@ struct AddBlockButton: View {
 }
 
 // ── Undo / Redo ───────────────────────────────────────────────────────────────
-// Un seul fond capsule glass pour les deux icônes — identique à la pill lock/reorder
-// de la nav bar : une capsule glass, chaque icône tappable indépendamment.
+// A single glass capsule background for both icons — same as the lock/reorder pill
+// in the nav bar: one glass capsule, each icon independently tappable.
 
-/// Pill glass-capsule avec boutons undo et redo. Affichée en bas à gauche quand le clavier est masqué.
+/// Glass capsule pill with undo and redo buttons. Shown at the bottom-left when the keyboard is hidden.
 struct UndoRedoPill: View {
     let canUndo: Bool
     let canRedo: Bool
@@ -76,9 +76,9 @@ struct UndoRedoPill: View {
     }
 }
 
-// ── Sheet sélecteur de type de bloc ──────────────────────────────────────────
+// ── Block type picker sheet ───────────────────────────────────────────────────
 
-/// Sheet listant tous les types de blocs disponibles pour l'insertion.
+/// Sheet listing all available block types for insertion.
 struct BlockPickerSheet: View {
     let onSelect: (NewBlockType) -> Void
     @Environment(\.dismiss) private var dismiss
@@ -94,12 +94,12 @@ struct BlockPickerSheet: View {
                         .foregroundStyle(.primary)
                 }
             }
-            .navigationTitle("Ajouter un bloc")
+            .navigationTitle("Add a block")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
-                        .accessibilityLabel("Annuler")
+                        .accessibilityLabel("Cancel")
                 }
             }
         }

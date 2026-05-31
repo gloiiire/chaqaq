@@ -2,9 +2,8 @@ import SwiftUI
 
 // ── Editable model ────────────────────────────────────────────────────────────
 
-/// Représentation en mémoire d'un bloc en cours d'édition. Capture le contenu,
-/// les spans et l'état "done" pour permettre à l'UI de se mettre à jour de manière
-/// optimiste sans attendre SQLite.
+/// In-memory representation of a block being edited. Captures the content,
+/// spans and "done" state so the UI can update optimistically without waiting for SQLite.
 struct EditableBlock: Identifiable, Equatable {
     let id: String
     var content: BlockContentFfi
@@ -14,21 +13,21 @@ struct EditableBlock: Identifiable, Equatable {
 }
 
 // ── Action repeater ───────────────────────────────────────────────────────────
-// Répète une closure à intervalle fixe (répétition de touche pour les flèches de navigation).
-// Encapsule la logique Timer pour garder le view model propre.
+// Repeats a closure at a fixed interval (key repeat for navigation arrows).
+// Encapsulates the Timer logic to keep the view model clean.
 
-/// Déclenche une closure à intervalle régulier tant qu'une touche de navigation est maintenue.
+/// Fires a closure at a regular interval while a navigation key is held down.
 final class ActionRepeater {
     private var timer: Timer?
     var active: Bool { timer != nil }
 
-    /// Démarre la répétition de `step` à `interval` secondes. Un second appel pendant l'activité est ignoré.
+    /// Starts repeating `step` every `interval` seconds. A second call while active is a no-op.
     func start(interval: TimeInterval = 0.12, _ step: @escaping () -> Void) {
         guard timer == nil else { return }
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in step() }
     }
 
-    /// Arrête le timer de répétition.
+    /// Stops the repeat timer.
     func stop() {
         timer?.invalidate()
         timer = nil
@@ -37,10 +36,10 @@ final class ActionRepeater {
 
 // ── Block types ────────────────────────────────────────────────────────────────
 
-/// Tous les types de blocs que l'utilisateur peut insérer via le sélecteur de blocs.
+/// All block types the user can insert via the block picker.
 enum NewBlockType: String, CaseIterable, Identifiable {
-    case text = "Texte", title1 = "Titre 1", title2 = "Titre 2", title3 = "Titre 3"
-    case quote = "Citation", callout = "Callout", todo = "À faire", divider = "Séparateur"
+    case text = "Text", title1 = "Title 1", title2 = "Title 2", title3 = "Title 3"
+    case quote = "Quote", callout = "Callout", todo = "To do", divider = "Divider"
     var id: String { rawValue }
     var icone: String {
         switch self {

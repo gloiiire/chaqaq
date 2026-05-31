@@ -3,9 +3,9 @@ import SwiftUI
 // ── Auto-focus shared extension ───────────────────────────────────────────────
 
 extension View {
-    /// Déclenche le focus et positionne optionnellement le curseur à `autoFocusOffset` quand
-    /// `autoFocusId` correspond à `blockId`. Fonctionne à la fois sur `.onAppear` et sur les
-    /// mises à jour `onChange` suivantes (ex. après réinsertion via undo).
+    /// Triggers focus and optionally positions the cursor at `autoFocusOffset` when
+    /// `autoFocusId` matches `blockId`. Works both on `.onAppear` and on subsequent
+    /// `onChange` updates (e.g. after reinsertion via undo).
     func autoFocusIfNeeded(blockId: String,
                               autoFocusId: Binding<String?>,
                               autoFocusOffset: Binding<Int?>,
@@ -29,11 +29,11 @@ extension View {
     }
 }
 
-// ── Callbacks des blocs ─────────────────────────────────────────────────────────
-// Regroupe les closures partagées par tous les types de blocs pour éviter de les répéter
-// dans chaque RowView et dans BlockRowView.
+// ── Block callbacks ──────────────────────────────────────────────────────────
+// Groups the closures shared by all block types to avoid repeating them
+// in every RowView and in BlockRowView.
 
-/// Bundle de callbacks passé depuis la vue document à chaque ligne de bloc.
+/// Callback bundle passed from the document view to each block row.
 struct BlockCallbacks {
     var onSave: () -> Void
     var onSaveSpans: ([InlineTextFfi]) -> Void
@@ -45,25 +45,25 @@ struct BlockCallbacks {
     var onStopNavigationRepeat: (() -> Void)? = nil
     var onLongPressSelection: (() -> Void)? = nil
     var onFocus: (() -> Void)? = nil
-    // Mutations atomiques avec undo : routées via le VM (toggleBlockDone, etc.)
-    // pour que l'inverse soit enregistré sur la pile undo.
+    // Atomic mutations with undo: routed via the VM (toggleBlockDone, etc.)
+    // so the inverse is registered on the undo stack.
     var onToggleDone: (() -> Void)? = nil
     var onChangeIcon: ((String) -> Void)? = nil
     var onConvertContent: ((BlockContentFfi) -> Void)? = nil
-    // Undo/redo exposés dans la pill clavier. Closures live — le Coordinator
-    // les appelle dans textViewDidChange/textViewDidChangeSelection + updateUIView,
-    // couvrant frappe, undo, redo et changements de sélection.
+    // Undo/redo exposed in the keyboard pill. Live closures — the Coordinator
+    // calls them in textViewDidChange/textViewDidChangeSelection + updateUIView,
+    // covering typing, undo, redo and selection changes.
     var onUndo: (() -> Void)? = nil
     var onRedo: (() -> Void)? = nil
     var canUndoProvider: (() -> Bool)? = nil
     var canRedoProvider: (() -> Bool)? = nil
 }
 
-// ── Éditeur de texte partagé pour tous les blocs ─────────────────────────────
-// Câblage unique de RichTextEditor + auto-focus + détection du focus. Chaque RowView
-// fournit uniquement le placeholder, la police, les décorations et les options spécifiques au bloc.
+// ── Shared text editor for all blocks ────────────────────────────────────────
+// Single wiring of RichTextEditor + auto-focus + focus change detection. Each RowView
+// only provides the placeholder, font, decorations and block-specific options.
 
-/// Wraps `RichTextEditor` avec la logique auto-focus et le suivi des changements de focus.
+/// Wraps `RichTextEditor` with auto-focus logic and focus change tracking.
 struct BlockTextEditor: View {
     @Binding var block: EditableBlock
     @Binding var autoFocusId: String?
@@ -104,9 +104,9 @@ struct BlockTextEditor: View {
     }
 }
 
-// ── Dispatcher de lignes de blocs ─────────────────────────────────────────────
+// ── Block row dispatcher ──────────────────────────────────────────────────────
 
-/// Route chaque bloc vers sa vue de ligne dédiée selon le type de contenu.
+/// Routes each block to its dedicated row view based on the content type.
 struct BlockRowView: View {
     @Binding var block: EditableBlock
     @Binding var autoFocusId: String?
@@ -136,13 +136,13 @@ struct BlockRowView: View {
         }
         .contextMenu {
             Button(role: .destructive, action: cb.onDelete) {
-                Label("Supprimer le bloc", systemImage: "trash")
+                Label("Delete block", systemImage: "trash")
             }
         }
     }
 }
 
-// ── Texte ──────────────────────────────────────────────────────────────────────
+// ── Text ──────────────────────────────────────────────────────────────────────
 
 private struct TextRowView: View {
     @Binding var block: EditableBlock
@@ -152,11 +152,11 @@ private struct TextRowView: View {
 
     var body: some View {
         BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                       placeholder: "Texte…", baseFont: .preferredFont(forTextStyle: .body), cb: cb)
+                       placeholder: "Text…", baseFont: .preferredFont(forTextStyle: .body), cb: cb)
     }
 }
 
-// ── Titre ─────────────────────────────────────────────────────────────────────
+// ── Heading ───────────────────────────────────────────────────────────────────
 
 private struct HeadingRowView: View {
     @Binding var block: EditableBlock
@@ -175,10 +175,10 @@ private struct HeadingRowView: View {
 
     var body: some View {
         BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                       placeholder: "Titre…", baseFont: uiFont, cb: cb)
+                       placeholder: "Heading…", baseFont: uiFont, cb: cb)
             .padding(.top, level == 1 ? 16 : 10)
             .padding(.bottom, 4)
     }
 }
 
-// QuoteRowView, CalloutRowView et TodoRowView sont dans BlockRowsExtra.swift.
+// QuoteRowView, CalloutRowView and TodoRowView are in BlockRowsExtra.swift.

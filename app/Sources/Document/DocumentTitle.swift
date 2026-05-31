@@ -1,8 +1,8 @@
 import SwiftUI
 
-// ── Titre du document ─────────────────────────────────────────────────────────
+// ── Document title ────────────────────────────────────────────────────────────
 
-/// Wrapper SwiftUI qui gère le focus pour l'éditeur de titre du document.
+/// SwiftUI wrapper that manages focus for the document title editor.
 struct DocumentTitleView: View {
     @Binding var title: String
     @Binding var focusDemande: Bool
@@ -22,8 +22,8 @@ struct DocumentTitleView: View {
     }
 }
 
-/// `UIViewRepresentable` wrappant un `ExpandingTextView` pour le champ titre du document.
-/// Intercepte l'insertion de retour à la ligne pour déclencher la création de bloc à la place.
+/// `UIViewRepresentable` wrapping an `ExpandingTextView` for the document title field.
+/// Intercepts newline insertion to trigger block creation instead.
 private struct TitleEditor: UIViewRepresentable {
     @Binding var text: String
     @Binding var isFocused: Bool
@@ -85,14 +85,14 @@ private struct TitleEditor: UIViewRepresentable {
         init(parent: TitleEditor) { self.parent = parent }
 
         func placeholderAttr() -> NSAttributedString {
-            NSAttributedString(string: "Sans titre",
+            NSAttributedString(string: "Untitled",
                                attributes: [.font: parent.police, .foregroundColor: UIColor.tertiaryLabel])
         }
 
         func textViewDidBeginEditing(_ tv: UITextView) {
             isEditing = true
             parent.isFocused = true
-            // Efface le placeholder quand l'édition commence.
+            // Clear the placeholder when editing begins.
             if tv.textColor == .tertiaryLabel {
                 tv.attributedText = NSAttributedString(string: "",
                     attributes: [.font: parent.police, .foregroundColor: UIColor.label])
@@ -110,7 +110,7 @@ private struct TitleEditor: UIViewRepresentable {
 
         func textViewDidChange(_ tv: UITextView) {
             guard let text = tv.text else { return }
-            // Enter dans le titre : supprime le retour à la ligne et crée le premier bloc.
+            // Enter in the title: remove the newline and create the first block.
             if let idx = text.firstIndex(of: "\n") {
                 tv.text = String(text[text.startIndex..<idx])
                 parent.text = tv.text

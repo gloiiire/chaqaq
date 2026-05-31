@@ -4,10 +4,10 @@ import UIKit
 
 extension RichTextEditorCoordinator {
 
-    // Menu déroulant couleur. Le contenu est calculé de façon paresseuse via `UIDeferredMenuElement.uncached` :
-    // la closure s'exécute à chaque ouverture du menu — point fiable pour cacher la pill
-    // au moment exact de la présentation (`.touchDown` est consommé par le gesture recognizer
-    // de `showsMenuAsPrimaryAction`).
+    // Color dropdown menu. Content is lazily computed via `UIDeferredMenuElement.uncached`:
+    // the closure runs at each menu opening — the reliable point for hiding the pill
+    // at the exact moment of presentation (`.touchDown` is consumed by the gesture recognizer
+    // of `showsMenuAsPrimaryAction`).
     func colorMenu(current: String?) -> UIMenu {
         let deferred = UIDeferredMenuElement.uncached { [weak self] completion in
             guard let self else { completion([]); return }
@@ -21,21 +21,21 @@ extension RichTextEditorCoordinator {
 
     func colorMenuChildren(current: String?) -> [UIMenuElement] {
         let palette: [(String, UIColor, String)] = [
-            ("rouge",  .systemRed,    "Rouge"),
-            ("rose",   .systemPink,   "Rose"),
+            ("rouge",  .systemRed,    "Red"),
+            ("rose",   .systemPink,   "Pink"),
             ("orange", .systemOrange, "Orange"),
-            ("jaune",  .systemYellow, "Jaune"),
-            ("vert",   .systemGreen,  "Vert"),
+            ("jaune",  .systemYellow, "Yellow"),
+            ("vert",   .systemGreen,  "Green"),
             ("cyan",   .cyan,         "Cyan"),
-            ("bleu",   .systemBlue,   "Bleu"),
-            ("violet", .systemPurple, "Violet"),
-            ("marron", .brown,        "Marron"),
+            ("bleu",   .systemBlue,   "Blue"),
+            ("violet", .systemPurple, "Purple"),
+            ("marron", .brown,        "Brown"),
         ]
         let cfgDot = UIImage.SymbolConfiguration(pointSize: 12, weight: .regular)
         let cfgX   = UIImage.SymbolConfiguration(pointSize: 12, weight: .medium)
 
         let none = UIAction(
-            title: "Aucune",
+            title: "None",
             image: UIImage(systemName: "xmark", withConfiguration: cfgX)
         ) { [weak self] _ in
             self?.clearColor()
@@ -68,7 +68,7 @@ extension RichTextEditorCoordinator {
         btn.menu = colorMenu(current: current)
     }
 
-    // Même pattern pour B/I/U/S — élément différé pour le hook fiable de présentation.
+    // Same pattern for B/I/U/S — deferred element for the reliable presentation hook.
     func textStyleMenu(bold: Bool, italic: Bool, underline: Bool, strike: Bool) -> UIMenu {
         let deferred = UIDeferredMenuElement.uncached { [weak self] completion in
             guard let self else { completion([]); return }
@@ -95,10 +95,10 @@ extension RichTextEditorCoordinator {
             return action
         }
         return [
-            styleAction(label: "Gras",     symbol: "bold",          active: bold)      { [weak self] in self?.toggleBold() },
-            styleAction(label: "Italique", symbol: "italic",        active: italic)    { [weak self] in self?.toggleItalic() },
-            styleAction(label: "Souligné", symbol: "underline",     active: underline) { [weak self] in self?.toggleUnderline() },
-            styleAction(label: "Barré",    symbol: "strikethrough", active: strike)    { [weak self] in self?.toggleStrike() },
+            styleAction(label: "Bold",          symbol: "bold",          active: bold)      { [weak self] in self?.toggleBold() },
+            styleAction(label: "Italic",        symbol: "italic",        active: italic)    { [weak self] in self?.toggleItalic() },
+            styleAction(label: "Underline",     symbol: "underline",     active: underline) { [weak self] in self?.toggleUnderline() },
+            styleAction(label: "Strikethrough", symbol: "strikethrough", active: strike)    { [weak self] in self?.toggleStrike() },
         ]
     }
 
