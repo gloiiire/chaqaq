@@ -14,6 +14,18 @@ struct SectionHeader: View {
     }
 }
 
+/// Salutation affichée en haut de l'onglet Notes.
+struct GreetingHeader: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.largeTitle.bold())
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 /// Placeholder affiché quand il n'y a encore aucun document.
 struct NotesEmptyState: View {
     var body: some View {
