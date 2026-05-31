@@ -1,5 +1,5 @@
-/// Flux complet : création d'un document → édition du title avec l'éditeur
-/// → sauvegarde → rechargement → vérification.
+/// End-to-end flow: create a document, edit its title via the editor,
+/// save, reload, and verify the persisted state.
 use pinkha::application::repository::DocumentRepository;
 use pinkha::application::use_cases::{create_document, get_document};
 use pinkha::domain::commandes::{ApplyStyle, History, Insert};
@@ -20,21 +20,21 @@ fn store_temp() -> (JsonStore, PathBuf) {
 fn test_editer_title_puis_sauvegarder() {
     let (store, dir) = store_temp();
 
-    // création du document
+    // create the document
     let mut doc = create_document(&store, "Titre").unwrap();
 
-    // édition du title via l'éditeur
+    // edit the title via the editor
     let mut state = EditorState::new(RichText::from(&doc.title));
     let mut hist = History::default();
 
     hist.apply(Box::new(Insert::new(5, '!')), &mut state);
     assert_eq!(state.text.content(), "Titre!");
 
-    // on réécrit le title dans le document et on sauvegarde
+    // write the new title back into the document and save
     doc.title = Vec::from(&state.text);
     store.save(&doc).unwrap();
 
-    // rechargement et vérification
+    // reload and verify
     let recharge = get_document(&store, doc.id).unwrap();
     assert_eq!(recharge.title[0].content, "Titre!");
 
@@ -50,7 +50,7 @@ fn test_style_persisté_apres_sauvegarde() {
     let mut state = EditorState::new(RichText::from(&doc.title));
     let mut hist = History::default();
 
-    // mettre "Notes" en gras
+    // apply Bold to "Notes"
     state.select(0..5);
     let cmd = ApplyStyle::new(&state, 0..5, InlineStyle::Bold);
     hist.apply(Box::new(cmd), &mut state);
@@ -84,7 +84,7 @@ fn test_undo_avant_sauvegarde() {
     hist.undo(&mut state);
     assert_eq!(state.text.content(), "Brouillon");
 
-    // sauvegarde de l'état après undo
+    // save the post-undo state
     doc.title = Vec::from(&state.text);
     store.save(&doc).unwrap();
 

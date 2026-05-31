@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-@Suite("Cas limites — caractères spéciaux, emojis, taille")
+@Suite("Edge cases — special characters, emojis, size")
 struct EdgeCasesTests {
 
     private func makeApi() throws -> (PinkhaApi, URL) {
@@ -26,9 +26,9 @@ struct EdgeCasesTests {
 
     @Test func combiningCharactersInTitle() throws {
         let (api, url) = try makeApi(); defer { cleanup(url) }
-        // é peut être encodé en NFC (1 codepoint) ou NFD (e + accent combinant)
-        let composed = "\u{00E9}"      // é précomposé
-        let decomposed = "e\u{0301}"   // e + accent combinant
+        // é can be encoded in NFC (1 codepoint) or NFD (e + combining accent)
+        let composed = "\u{00E9}"      // precomposed é
+        let decomposed = "e\u{0301}"   // e + combining accent
         let id1 = try api.createDocument(title: composed)
         let id2 = try api.createDocument(title: decomposed)
         let metas = try api.listDocuments()
@@ -39,7 +39,7 @@ struct EdgeCasesTests {
 
     @Test func longTitleNearLimitAccepted() throws {
         let (api, url) = try makeApi(); defer { cleanup(url) }
-        // 32 Ko — sous la limite de 64 Ko
+        // 32 KB — below the 64 KB limit
         let title = String(repeating: "a", count: 32 * 1024)
         let id = try api.createDocument(title: title)
         #expect(UUID(uuidString: id) != nil)
@@ -47,7 +47,7 @@ struct EdgeCasesTests {
 
     @Test func specialCharactersInTitle() throws {
         let (api, url) = try makeApi(); defer { cleanup(url) }
-        // On évite [] qui sont interprétés comme syntaxe de lien par le parser inline.
+        // Avoid [] which is interpreted as link syntax by the inline parser.
         let weird = "\"\\<>&'`{}/\\n\\t"
         let id = try api.createDocument(title: weird)
         let metas = try api.listDocuments()

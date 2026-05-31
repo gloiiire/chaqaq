@@ -13,12 +13,20 @@ use crate::domain::parser::parse_inline;
 use crate::infrastructure::sqlite_database_store::SqliteDatabaseStore;
 use crate::infrastructure::sqlite_document_store::SqliteDocumentStore;
 
-// ── Erreur FFI ────────────────────────────────────────────────────────────────
+// ── FFI error ─────────────────────────────────────────────────────────────────
 
+/// Error type exposed to Swift across the FFI boundary.
+///
+/// Maps the internal [`CoreError`] variants to three coarse categories that
+/// are easy to handle in Swift: a resource was not found, the caller sent
+/// invalid input, or a storage-layer problem occurred.
 #[derive(Debug)]
 pub enum PinkhaError {
+    /// A resource identified by `id` could not be found.
     NotFound { id: String },
+    /// The operation was rejected because of invalid input.
     InvalidOperation { detail: String },
+    /// A storage-layer error occurred (I/O, JSON serialization, SQLite).
     Storage { detail: String },
 }
 
@@ -50,25 +58,42 @@ impl From<CoreError> for PinkhaError {
     }
 }
 
-// ── Types dictionnaire ────────────────────────────────────────────────────────
+// ── Dictionary types ──────────────────────────────────────────────────────────
 
+/// Lightweight document metadata passed across the FFI boundary.
+///
+/// Carries pre-computed plain-text and JSON representations of the title so
+/// that Swift does not need to decode the full document to display a list item.
 pub struct DocumentMetaFfi {
+    /// UUID string of the document.
     pub id: String,
+    /// Concatenated plain-text title (all inline spans joined).
     pub title_plain: String,
+    /// JSON-encoded `Vec<InlineText>` title (for rich-text rendering).
     pub title_json: String,
+    /// Optional cover emoji or image identifier.
     pub cover: Option<String>,
+    /// RFC 3339 timestamp of the last update.
     pub updated_at: String,
+    /// RFC 3339 timestamp of creation.
     pub created_at: String,
 }
 
+/// Lightweight database metadata passed across the FFI boundary.
 pub struct DatabaseMetaFfi {
+    /// UUID string of the database.
     pub id: String,
+    /// Concatenated plain-text title.
     pub title_plain: String,
+    /// JSON-encoded `Vec<InlineText>` title.
     pub title_json: String,
+    /// RFC 3339 timestamp of the last update.
     pub updated_at: String,
+    /// RFC 3339 timestamp of creation.
     pub created_at: String,
 }
 
+/// Converts a [`DocumentMeta`] to its FFI representation.
 fn doc_meta_to_ffi(m: DocumentMeta) -> DocumentMetaFfi {
     let title_plain = m
         .title
@@ -87,6 +112,7 @@ fn doc_meta_to_ffi(m: DocumentMeta) -> DocumentMetaFfi {
     }
 }
 
+/// Converts a [`DatabaseMeta`] to its FFI representation.
 fn db_meta_to_ffi(m: DatabaseMeta) -> DatabaseMetaFfi {
     let title_plain = m
         .title
@@ -104,24 +130,27 @@ fn db_meta_to_ffi(m: DatabaseMeta) -> DatabaseMetaFfi {
     }
 }
 
-/// Taille max des payloads JSON acceptés à la frontière FFI (5 Mo) —
-/// protection contre les requêtes monstres qui satureraient la mémoire.
+/// Maximum size of JSON payloads accepted at the FFI boundary (5 MB).
+///
+/// Guards against oversized requests that would saturate memory.
 const MAX_JSON_BYTES: usize = 5 * 1024 * 1024;
 
-/// Taille max d'une chaîne d'entrée (titre, requête de recherche).
+/// Maximum size of a string input (title, search query).
 const MAX_STRING_BYTES: usize = 64 * 1024;
 
+/// Parses a UUID string, returning an [`InvalidOperation`] error on failure.
 fn parse_uuid(s: &str) -> Result<Uuid, PinkhaError> {
     Uuid::parse_str(s).map_err(|_| PinkhaError::InvalidOperation {
         detail: format!("UUID invalide : {s}"),
     })
 }
 
+/// Parses a list of UUID strings, returning on the first failure.
 fn parse_uuids(ids: Vec<String>) -> Result<Vec<Uuid>, PinkhaError> {
     ids.iter().map(|s| parse_uuid(s)).collect()
 }
 
-/// Refuse les chaînes trop longues à la frontière FFI (protection ressources).
+/// Rejects strings that exceed [`MAX_STRING_BYTES`] at the FFI boundary.
 fn validate_string(s: &str, field: &str) -> Result<(), PinkhaError> {
     if s.len() > MAX_STRING_BYTES {
         return Err(PinkhaError::InvalidOperation {
@@ -134,6 +163,7 @@ fn validate_string(s: &str, field: &str) -> Result<(), PinkhaError> {
     Ok(())
 }
 
+/// Deserializes a JSON string, enforcing the [`MAX_JSON_BYTES`] size limit.
 fn parse_json<T: DeserializeOwned>(json: &str) -> Result<T, PinkhaError> {
     if json.len() > MAX_JSON_BYTES {
         return Err(PinkhaError::InvalidOperation {
@@ -148,24 +178,33 @@ fn parse_json<T: DeserializeOwned>(json: &str) -> Result<T, PinkhaError> {
     })
 }
 
+/// Serializes a value to JSON, mapping errors to [`Storage`].
 fn to_json<T: serde::Serialize>(value: &T) -> Result<String, PinkhaError> {
     serde_json::to_string(value).map_err(|e| PinkhaError::Storage {
         detail: e.to_string(),
     })
 }
 
+/// Extracts the UUID string from a [`Block`].
 fn get_block_id(block: Block) -> String {
     block.id.to_string()
 }
 
-// ── Façade principale ─────────────────────────────────────────────────────────
+// ── Main facade ───────────────────────────────────────────────────────────────
 
+/// Top-level API exposed to Swift via UniFFI.
+///
+/// Opens both the document and database SQLite stores at the same file path
+/// and exposes all CRUD operations for documents, blocks, and databases.
+/// Blocks and full databases cross the boundary as JSON strings (Swift decodes
+/// them with `Codable`) to avoid expressing recursive types in the UDL.
 pub struct PinkhaApi {
     docs: SqliteDocumentStore,
     dbs: SqliteDatabaseStore,
 }
 
 impl PinkhaApi {
+    /// Creates a new API instance backed by a SQLite file at `db_path`.
     pub fn new(db_path: String) -> Result<Self, PinkhaError> {
         let docs = SqliteDocumentStore::new(&db_path).map_err(PinkhaError::from)?;
         let dbs = SqliteDatabaseStore::new(&db_path).map_err(PinkhaError::from)?;
@@ -174,12 +213,15 @@ impl PinkhaApi {
 
     // ── Documents ─────────────────────────────────────────────
 
+    /// Creates a new document with the given plain-text title.
+    /// Returns the UUID string of the created document.
     pub fn create_document(&self, title: String) -> Result<String, PinkhaError> {
         validate_string(&title, "title")?;
         let doc = use_cases::create_document(&self.docs, &title).map_err(PinkhaError::from)?;
         Ok(doc.id.to_string())
     }
 
+    /// Returns the full document as a JSON string (decodable as `DocumentFfi` in Swift).
     pub fn get_document_json(&self, id: String) -> Result<String, PinkhaError> {
         let uuid = parse_uuid(&id)?;
         let doc = use_cases::get_document(&self.docs, uuid).map_err(PinkhaError::from)?;
@@ -188,16 +230,19 @@ impl PinkhaApi {
         })
     }
 
+    /// Returns lightweight metadata for all non-deleted documents.
     pub fn list_documents(&self) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
         let metas = use_cases::list_documents(&self.docs).map_err(PinkhaError::from)?;
         Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
     }
 
+    /// Soft-deletes the document identified by `id`.
     pub fn delete_document(&self, id: String) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
         use_cases::delete_document(&self.docs, uuid).map_err(PinkhaError::from)
     }
 
+    /// Replaces the document title with a plain-text string parsed into inline spans.
     pub fn update_document_title(
         &self,
         id: String,
@@ -209,6 +254,7 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Sets or clears the cover of a document.
     pub fn update_document_cover(
         &self,
         id: String,
@@ -219,6 +265,8 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Appends a block to a document. `block_content_json` must be a JSON-encoded
+    /// [`BlockContent`]. Returns the UUID string of the newly created block.
     pub fn add_block(
         &self,
         doc_id: String,
@@ -235,6 +283,8 @@ impl PinkhaApi {
             })
     }
 
+    /// Replaces the content of an existing block. `content_json` must be a
+    /// JSON-encoded [`BlockContent`].
     pub fn update_block(
         &self,
         doc_id: String,
@@ -248,18 +298,22 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Removes a block (and all its children) from a document.
     pub fn delete_block(&self, doc_id: String, block_id: String) -> Result<(), PinkhaError> {
         let doc_uuid = parse_uuid(&doc_id)?;
         let block_uuid = parse_uuid(&block_id)?;
         use_cases::delete_block(&self.docs, doc_uuid, block_uuid).map_err(PinkhaError::from)
     }
 
+    /// Reorders the root-level blocks of a document according to `order`.
+    /// Blocks not mentioned in `order` are appended at the end.
     pub fn reorder_blocks(&self, doc_id: String, order: Vec<String>) -> Result<(), PinkhaError> {
         let doc_uuid = parse_uuid(&doc_id)?;
         let uuids = parse_uuids(order)?;
         use_cases::reorder_blocks(&self.docs, doc_uuid, uuids).map_err(PinkhaError::from)
     }
 
+    /// Appends a child block under `parent_id`. Returns the new block UUID string.
     pub fn add_child_block(
         &self,
         doc_id: String,
@@ -274,6 +328,7 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Reorders the children of `parent_id` according to `order`.
     pub fn reorder_child_blocks(
         &self,
         doc_id: String,
@@ -287,6 +342,8 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Moves a block to a new parent. Pass `None` for `new_parent_id` to move
+    /// the block to the document root.
     pub fn move_block(
         &self,
         doc_id: String,
@@ -300,6 +357,7 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Searches document titles for `query` (case-insensitive).
     pub fn search_documents(&self, query: String) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
         validate_string(&query, "query")?;
         let metas =
@@ -307,6 +365,7 @@ impl PinkhaApi {
         Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
     }
 
+    /// Full-text search across all block content in all documents (case-insensitive).
     pub fn search_in_blocks(
         &self,
         query: String,
@@ -318,9 +377,11 @@ impl PinkhaApi {
     }
 }
 
-// ── Façade : databases ────────────────────────────────────────────────────────
+// ── Database facade ───────────────────────────────────────────────────────────
 
 impl PinkhaApi {
+    /// Creates a new database with a plain-text title parsed into inline spans.
+    /// Returns the UUID string of the created database.
     pub fn create_database(&self, title: String) -> Result<String, PinkhaError> {
         validate_string(&title, "title")?;
         let db = database_use_cases::create_database(&self.dbs, parse_inline(&title), vec![])
@@ -328,6 +389,7 @@ impl PinkhaApi {
         Ok(db.id.to_string())
     }
 
+    /// Returns the full database as a JSON string.
     pub fn get_database_json(&self, id: String) -> Result<String, PinkhaError> {
         let uuid = parse_uuid(&id)?;
         let db =
@@ -337,16 +399,20 @@ impl PinkhaApi {
         })
     }
 
+    /// Returns lightweight metadata for all non-deleted databases.
     pub fn list_databases(&self) -> Result<Vec<DatabaseMetaFfi>, PinkhaError> {
         let metas = database_use_cases::list_databases(&self.dbs).map_err(PinkhaError::from)?;
         Ok(metas.into_iter().map(db_meta_to_ffi).collect())
     }
 
+    /// Soft-deletes the database identified by `id`.
     pub fn delete_database(&self, id: String) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
         database_use_cases::delete_database(&self.dbs, uuid).map_err(PinkhaError::from)
     }
 
+    /// Adds an entry to a database. `values_json` must be a JSON-encoded
+    /// `HashMap<Uuid, PropertyValue>`. Returns the new entry UUID string.
     pub fn add_entry(
         &self,
         db_id: String,
@@ -359,6 +425,7 @@ impl PinkhaApi {
         Ok(entry.id.to_string())
     }
 
+    /// Replaces all property values of an existing entry.
     pub fn update_entry(
         &self,
         db_id: String,
@@ -372,6 +439,7 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Removes an entry from a database.
     pub fn delete_entry(&self, db_id: String, entry_id: String) -> Result<(), PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
         let entry_uuid = parse_uuid(&entry_id)?;
@@ -379,6 +447,8 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Adds a property to an existing database. `property_json` must be a
+    /// JSON-encoded [`Property`].
     pub fn add_property(
         &self,
         db_id: String,
@@ -390,6 +460,7 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Renames a property in an existing database.
     pub fn rename_property(
         &self,
         db_id: String,
@@ -403,6 +474,7 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Removes a property from a database and clears its values in all entries.
     pub fn delete_property(
         &self,
         db_id: String,
@@ -414,6 +486,8 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Adds a view to a database. `view_json` must be a JSON-encoded [`View`].
+    /// Returns the new view UUID string.
     pub fn add_view(&self, db_id: String, view_json: String) -> Result<String, PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
         let view: View = parse_json(&view_json)?;
@@ -422,6 +496,7 @@ impl PinkhaApi {
         Ok(view.id.to_string())
     }
 
+    /// Updates the filters and sorts of an existing view.
     pub fn update_view(
         &self,
         db_id: String,
@@ -437,12 +512,15 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Removes a view from a database. Fails if it is the last view.
     pub fn delete_view(&self, db_id: String, view_id: String) -> Result<(), PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
         let view_uuid = parse_uuid(&view_id)?;
         database_use_cases::delete_view(&self.dbs, db_uuid, view_uuid).map_err(PinkhaError::from)
     }
 
+    /// Runs the filters and sorts defined on a view and returns matching entries
+    /// as a JSON array.
     pub fn query_database_json(
         &self,
         db_id: String,
@@ -455,6 +533,8 @@ impl PinkhaApi {
         to_json(&entries)
     }
 
+    /// Same as [`query_database_json`] but with rollup columns computed at read
+    /// time.
     pub fn query_database_with_rollups_json(
         &self,
         db_id: String,
@@ -468,6 +548,7 @@ impl PinkhaApi {
         to_json(&entries)
     }
 
+    /// Groups entries by `group_by` property and returns a JSON array of groups.
     pub fn grouped_query_database_json(
         &self,
         db_id: String,
@@ -482,6 +563,8 @@ impl PinkhaApi {
         to_json(&groups)
     }
 
+    /// Computes a column aggregate and returns the result as a JSON-encoded
+    /// [`PropertyValue`].
     pub fn column_aggregate_database_json(
         &self,
         db_id: String,
@@ -496,6 +579,8 @@ impl PinkhaApi {
         to_json(&value)
     }
 
+    /// Searches all text-valued properties of a database's entries for `query`
+    /// (case-insensitive). Returns matching entries as a JSON array.
     pub fn search_database_entries_json(
         &self,
         db_id: String,

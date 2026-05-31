@@ -68,7 +68,7 @@ fn test_filtrer_entries_par_valeur() {
     add_entry(&store, db.id, v1).unwrap();
     add_entry(&store, db.id, v2).unwrap();
 
-    // ajoute une vue avec filtre
+    // add a view with a filter
     let mut vue = View::new("En cours seulement", ViewType::Table);
     vue.filters.push(Filter {
         property_id: prop_id,
@@ -142,11 +142,11 @@ fn test_list_databases() {
 fn test_rollup_compte_entries_liees() {
     let store = store_temp();
 
-    // Database Tâches
+    // Tasks database
     let prop_title = Property::new("Titre", PropertyType::Title);
     let db_taches = create_database(&store, title("Tâches"), vec![prop_title]).unwrap();
 
-    // Ajoute 2 tâches
+    // Add 2 tasks
     let mut v1 = HashMap::new();
     v1.insert(
         db_taches.properties[0].id,
@@ -161,7 +161,7 @@ fn test_rollup_compte_entries_liees() {
     );
     let t2 = add_entry(&store, db_taches.id, v2).unwrap();
 
-    // Database Projets avec Relation → Tâches et Rollup (Count)
+    // Projects database with Relation → Tasks and Rollup (Count)
     let prop_rel = Property::new(
         "Tâches liées",
         PropertyType::Relation {
@@ -180,12 +180,12 @@ fn test_rollup_compte_entries_liees() {
     let rel_id = prop_rel.id;
     let db_projets = create_database(&store, title("Projets"), vec![prop_rel, prop_nb]).unwrap();
 
-    // Ajoute un projet lié aux 2 tâches
+    // Add a project linked to both tasks
     let mut vp = HashMap::new();
     vp.insert(rel_id, PropertyValue::Relation(vec![t1.id, t2.id]));
     let entry = add_entry(&store, db_projets.id, vp).unwrap();
 
-    // Évalue les rollups
+    // Evaluate rollups
     let db = get_database(&store, db_projets.id).unwrap();
     let enrichies = evaluate_rollups(&store, &db, vec![entry]).unwrap();
 
@@ -221,7 +221,7 @@ fn test_column_aggregate_moyenne() {
     assert_eq!(moy, PropertyValue::Number(10.0));
 }
 
-// ── Groupment ───────────────────────────────────────────────────────────────
+// ── Grouping ─────────────────────────────────────────────────────────────────
 
 #[test]
 fn test_grouped_query_par_selection() {
@@ -259,7 +259,7 @@ fn test_grouped_query_vide_en_dernier() {
     let db = create_database(&store, title("Items"), vec![prop]).unwrap();
     let view_id = db.views[0].id;
 
-    // une entrée avec valeur, une sans
+    // one entry with a value, one without
     let mut v1 = HashMap::new();
     v1.insert(prop_id, PropertyValue::Text("Actif".to_string()));
     add_entry(&store, db.id, v1).unwrap();
@@ -267,17 +267,17 @@ fn test_grouped_query_vide_en_dernier() {
 
     let groups = grouped_query(&store, db.id, view_id, prop_id).unwrap();
     assert_eq!(groups.len(), 2);
-    // Empty trié en dernier
+    // Empty group sorts last
     assert_eq!(groups.last().unwrap().value, PropertyValue::Empty);
 }
 
-// ── SortSource : date auto, manuelle, hybride ─────────────────────────────────
+// ── SortSource: auto date, manual, hybrid ────────────────────────────────────
 
 #[test]
 fn test_tri_by_creation_auto() {
     let store = store_temp();
     let db = create_database(&store, title("Journal"), vec![]).unwrap();
-    // 3 entrées créées avec des created_at manuellement espacés pour le test
+    // 3 entries with manually spaced created_at values for deterministic ordering
     let mut e1 = pinkha::domain::database::Entry::new(HashMap::new());
     e1.created_at = "2023-01-01T00:00:00+00:00".to_string();
     let mut e2 = pinkha::domain::database::Entry::new(HashMap::new());
@@ -285,7 +285,7 @@ fn test_tri_by_creation_auto() {
     let mut e3 = pinkha::domain::database::Entry::new(HashMap::new());
     e3.created_at = "2022-12-01T00:00:00+00:00".to_string();
 
-    // Persiste via save direct
+    // Persist via direct save
     use pinkha::application::database_repository::DatabaseRepository;
     let mut db = get_database(&store, db.id).unwrap();
     db.entries = vec![e1.clone(), e2.clone(), e3.clone()];
@@ -308,29 +308,29 @@ fn test_tri_manual_then_creation_cas_journal() {
     let date_id = prop_date.id;
     let db = create_database(&store, title("Journal"), vec![prop_date]).unwrap();
 
-    // Note ancienne : date manuelle renseignée, created_at récent (import)
+    // Old note: manual date filled in, recent created_at (imported retroactively)
     let mut v_ancienne = HashMap::new();
     v_ancienne.insert(date_id, PropertyValue::Date("2020-05-10".to_string()));
     let mut e_ancienne = pinkha::domain::database::Entry::new(v_ancienne);
-    e_ancienne.created_at = "2024-01-01T00:00:00+00:00".to_string(); // importée récemment
+    e_ancienne.created_at = "2024-01-01T00:00:00+00:00".to_string(); // imported recently
 
-    // Note new : pas de date manuelle, created_at = date réelle d'écriture
+    // New note: no manual date, created_at = actual writing date
     let mut e_new = pinkha::domain::database::Entry::new(HashMap::new());
     e_new.created_at = "2024-06-01T00:00:00+00:00".to_string();
 
     use pinkha::application::database_repository::DatabaseRepository;
     let mut db = get_database(&store, db.id).unwrap();
-    db.entries = vec![e_new.clone(), e_ancienne.clone()]; // order inversé intentionnel
+    db.entries = vec![e_new.clone(), e_ancienne.clone()]; // intentionally reversed order
     store.save(&db).unwrap();
 
-    // View avec tri ManualThenCreated croissant
+    // View with ManualThenCreated ascending sort
     let mut vue = View::new("Chronologique", ViewType::Table);
     vue.sorts
         .push(Sort::manual_then_creation(date_id, Order::Ascending));
     let vue = add_view(&store, db.id, vue).unwrap();
 
     let resultats = query(&store, db.id, vue.id).unwrap();
-    // L'ancienne note (date manuelle 2020) doit passer AVANT la new (created_at 2024)
+    // The old note (manual date 2020) must come BEFORE the new one (created_at 2024)
     let date_premiere = resultats[0].values.get(&date_id);
     assert_eq!(
         date_premiere,

@@ -5,45 +5,71 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-// ── Types de propriétés (colonnes) ───────────────────────────────────────────
+// ── Property types (columns) ─────────────────────────────────────────────────
 
+/// Aggregation function applied to a Rollup column.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Aggregate {
+    /// Number of linked entries.
     Count,
+    /// Sum of numeric values.
     Sum,
+    /// Arithmetic mean of numeric values.
     Average,
+    /// Minimum numeric value.
     Min,
+    /// Maximum numeric value.
     Max,
 }
 
+/// Determines the data type and behaviour of a database column.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PropertyType {
+    /// Primary title column — stores rich text.
     Title,
+    /// Plain text.
     Text,
+    /// Floating-point number.
     Number,
+    /// Single-choice dropdown; carries the list of allowed options.
     Selection(Vec<String>),
+    /// Multi-choice dropdown; carries the list of allowed options.
     SelectionMultiple(Vec<String>),
+    /// Date stored as an ISO 8601 string.
     Date,
+    /// Boolean checkbox.
     Checkbox,
+    /// URL string.
     Url,
+    /// Foreign key pointing at another database.
     Relation {
+        /// ID of the target database.
         db_id: Uuid,
     },
+    /// Computed column that aggregates values from a related database.
     Rollup {
+        /// Property that holds the relation (foreign key).
         relation_prop_id: Uuid,
+        /// Property in the related database to aggregate.
         target_prop_id: Uuid,
+        /// Aggregation function to apply.
         aggregate: Aggregate,
     },
 }
 
+/// A column definition in a database.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Property {
+    /// Unique identifier for this property.
     pub id: Uuid,
+    /// Display name shown in the UI.
     pub name: String,
+    /// Data type and configuration.
     pub type_: PropertyType,
 }
 
 impl Property {
+    /// Creates a new property with a freshly generated UUID.
     pub fn new(name: impl Into<String>, type_: PropertyType) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -53,34 +79,49 @@ impl Property {
     }
 }
 
-// ── Valeurs des cellules ─────────────────────────────────────────────────────
+// ── Cell values ──────────────────────────────────────────────────────────────
 
+/// The value stored in a cell for a given property.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PropertyValue {
+    /// Rich text value for a `Title` property.
     Title(Vec<InlineText>),
+    /// Plain text value.
     Text(String),
+    /// Numeric value.
     Number(f64),
+    /// Selected option for a single-choice property (`None` = nothing selected).
     Selection(Option<String>),
+    /// Selected options for a multi-choice property.
     SelectionMultiple(Vec<String>),
-    Date(String), // ISO 8601
+    /// ISO 8601 date string.
+    Date(String),
+    /// Boolean checkbox state.
     Checkbox(bool),
+    /// URL string.
     Url(String),
-    Relation(Vec<Uuid>), // IDs d'entrées dans la database liée
+    /// Entry IDs in the linked database (foreign keys).
+    Relation(Vec<Uuid>),
+    /// No value — cell is blank.
     Empty,
 }
 
-// ── Entrées (lignes) ─────────────────────────────────────────────────────────
+// ── Entries (rows) ───────────────────────────────────────────────────────────
 
+/// A single row in a database.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Entry {
+    /// Unique identifier for this entry.
     pub id: Uuid,
-    /// Timestamp ISO 8601 auto-généré à la création — jamais modifié après.
+    /// ISO 8601 timestamp automatically set at creation — never modified afterwards.
     #[serde(default)]
     pub created_at: String,
+    /// Cell values keyed by property ID.
     pub values: HashMap<Uuid, PropertyValue>,
 }
 
 impl Entry {
+    /// Creates a new entry with a freshly generated UUID and the current UTC timestamp.
     pub fn new(values: HashMap<Uuid, PropertyValue>) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -92,56 +133,83 @@ impl Entry {
 
 // ── Views ─────────────────────────────────────────────────────────────────────
 
+/// Layout used to display the entries of a database.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ViewType {
+    /// Spreadsheet-style row/column grid.
     Table,
-    Kanban { group_by: Uuid },
-    Calendar { property_id: Uuid },
+    /// Kanban board grouped by a property.
+    Kanban {
+        /// Property used to define the board columns.
+        group_by: Uuid,
+    },
+    /// Calendar layout driven by a date property.
+    Calendar {
+        /// Date property that positions entries on the calendar.
+        property_id: Uuid,
+    },
+    /// Card gallery layout.
     Gallery,
 }
 
+/// Condition used to include or exclude entries from a view.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FilterCondition {
+    /// Cell value must exactly equal the given value.
     Equal(PropertyValue),
+    /// Cell text must contain the given substring.
     Contains(String),
+    /// Cell must be empty.
     IsEmpty,
+    /// Cell must contain a non-empty value.
     IsFilled,
 }
 
+/// A filter applied to a view to restrict which entries are shown.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Filter {
+    /// Property this filter is applied to.
     pub property_id: Uuid,
+    /// Condition that entries must satisfy.
     pub condition: FilterCondition,
 }
 
+/// Sort direction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Order {
+    /// Smallest / earliest first.
     Ascending,
+    /// Largest / most recent first.
     Descending,
 }
 
-/// Détermine quelle date utiliser lors d'un tri.
+/// Determines which date value is used when sorting.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum SortSource {
-    /// Sort standard sur la valeur de `property_id`.
+    /// Standard sort on the value of `property_id`.
     #[default]
     Property,
-    /// Sort sur `created_at` uniquement (date auto-générée, `property_id` ignoré).
+    /// Sort on `created_at` only (auto-generated date, `property_id` is ignored).
     Created,
-    /// Utilise la valeur de `property_id` si elle est renseignée, sinon `created_at`.
-    /// Résout le cas journal : anciennes notes avec date manuelle + news notes sans.
+    /// Uses the value of `property_id` when present, falls back to `created_at`.
+    /// Useful for journals that mix manually-dated and auto-dated entries.
     ManualThenCreated,
 }
 
+/// A sort rule applied to a view.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Sort {
+    /// Property whose value is used for ordering (may be `Uuid::nil()` for `Created` source).
     pub property_id: Uuid,
+    /// Sort direction.
     pub order: Order,
+    /// Which date to use when `source` is `Created` or `ManualThenCreated`.
     #[serde(default)]
     pub source: SortSource,
 }
 
 impl Sort {
+    /// Builds a sort rule that orders entries by the value of `property_id`.
     pub fn by_property(property_id: Uuid, order: Order) -> Self {
         Self {
             property_id,
@@ -150,7 +218,8 @@ impl Sort {
         }
     }
 
-    /// Sort par date auto-générée. `property_id` peut être `Uuid::nil()`.
+    /// Builds a sort rule that orders entries by their auto-generated creation date.
+    /// `property_id` can be `Uuid::nil()`.
     pub fn by_creation(order: Order) -> Self {
         Self {
             property_id: Uuid::nil(),
@@ -159,7 +228,7 @@ impl Sort {
         }
     }
 
-    /// Date manuelle si renseignée, sinon date de création automatique.
+    /// Builds a sort rule that uses the manual date property when set, otherwise `created_at`.
     pub fn manual_then_creation(property_id: Uuid, order: Order) -> Self {
         Self {
             property_id,
@@ -169,16 +238,23 @@ impl Sort {
     }
 }
 
+/// A named view of a database with its own filters and sort rules.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct View {
+    /// Unique identifier for this view.
     pub id: Uuid,
+    /// Display name shown in the UI.
     pub name: String,
+    /// Layout type.
     pub type_: ViewType,
+    /// Active filters (all must pass for an entry to appear).
     pub filters: Vec<Filter>,
+    /// Sort rules applied in order.
     pub sorts: Vec<Sort>,
 }
 
 impl View {
+    /// Creates a new view with no filters or sort rules.
     pub fn new(name: impl Into<String>, type_: ViewType) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -190,51 +266,65 @@ impl View {
     }
 }
 
-// ── Groupment ───────────────────────────────────────────────────────────────
+// ── Grouping ─────────────────────────────────────────────────────────────────
 
+/// A set of entries sharing the same value for the grouping property.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Group {
-    pub value: PropertyValue, // valeur commune du groupe (Empty = sans valeur)
+    /// Common property value for this group (`Empty` = entries with no value).
+    pub value: PropertyValue,
+    /// Entries belonging to this group.
     pub entries: Vec<Entry>,
 }
 
-// ── Database ─────────────────────────────────────────────────────────────────
+// ── Database ──────────────────────────────────────────────────────────────────
 
+/// Lightweight database descriptor returned by list operations.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DatabaseMeta {
+    /// Database identifier.
     pub id: Uuid,
+    /// Rich-text title.
     pub title: Vec<InlineText>,
-    /// Timestamp ISO 8601 de la dernière modification — géré par l'infrastructure.
-    /// Empty si le backend ne le fournit pas (DatabaseStore JSON, mock).
+    /// ISO 8601 timestamp of the last modification, managed by the infrastructure layer.
+    /// Empty when the backend does not provide it (JSON store, mock).
     #[serde(default)]
     pub updated_at: String,
-    /// Timestamp ISO 8601 de création — setté à l'INSERT, jamais modifié.
-    /// Empty si le backend ne le fournit pas (DatabaseStore JSON, mock).
+    /// ISO 8601 creation timestamp, set at INSERT and never modified.
+    /// Empty when the backend does not provide it (JSON store, mock).
     #[serde(default)]
     pub created_at: String,
 }
 
+/// A Notion-style database: properties (columns), entries (rows), and views.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Database {
+    /// Database identifier.
     pub id: Uuid,
+    /// Rich-text title.
     pub title: Vec<InlineText>,
+    /// Column definitions.
     pub properties: Vec<Property>,
+    /// Rows.
     pub entries: Vec<Entry>,
+    /// Named views (filters + sorts + layout).
     pub views: Vec<View>,
 }
 
 impl Database {
+    /// Creates a new database with a default Table view and no entries.
     pub fn new(title: Vec<InlineText>, properties: Vec<Property>) -> Self {
-        let vue_defaut = View::new("Table", ViewType::Table);
+        let default_view = View::new("Table", ViewType::Table);
         Self {
             id: Uuid::new_v4(),
             title,
             properties,
             entries: vec![],
-            views: vec![vue_defaut],
+            views: vec![default_view],
         }
     }
 
+    /// Returns a lightweight `DatabaseMeta` snapshot (timestamps left empty).
     pub fn meta(&self) -> DatabaseMeta {
         DatabaseMeta {
             id: self.id,
@@ -332,7 +422,7 @@ mod tests {
     fn test_entry_new_a_created_at_non_vide() {
         let e = Entry::new(HashMap::new());
         assert!(!e.created_at.is_empty());
-        // ISO 8601 commence par l'année
+        // ISO 8601 starts with the year
         assert!(e.created_at.starts_with("20"));
     }
 

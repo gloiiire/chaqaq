@@ -1,7 +1,7 @@
 import XCTest
 
-// Tests UI utilisant des données pré-seedées via --ui-test-data
-// (évite typeText, flaky sur simulateur iOS 26).
+// UI tests using pre-seeded data via --ui-test-data
+// (avoids typeText, which is flaky on the iOS 26 simulator).
 
 final class SeededDataUITests: XCTestCase {
 
@@ -27,7 +27,7 @@ final class SeededDataUITests: XCTestCase {
         let row = app.staticTexts["Seeded Note 1"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
-        // Une fois dans l'éditeur, "Nouveau bloc" (label du bouton AddBlockButton) apparaît.
+        // Once in the editor, "Nouveau bloc" (AddBlockButton label) must appear.
         XCTAssertTrue(app.staticTexts["Nouveau bloc"].waitForExistence(timeout: 5))
     }
 
@@ -37,7 +37,7 @@ final class SeededDataUITests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
         XCTAssertTrue(app.staticTexts["Nouveau bloc"].waitForExistence(timeout: 5))
-        // Bouton back natif de NavigationStack
+        // Native back button of NavigationStack
         app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(app.staticTexts["pinkha"].waitForExistence(timeout: 3))
     }

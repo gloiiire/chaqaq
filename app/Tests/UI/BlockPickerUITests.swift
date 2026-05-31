@@ -1,6 +1,6 @@
 import XCTest
 
-// Flow E2E sur le picker de blocs depuis un doc seedé.
+// End-to-end flow through the block picker from a seeded document.
 
 final class BlockPickerUITests: XCTestCase {
 
@@ -21,9 +21,9 @@ final class BlockPickerUITests: XCTestCase {
 
     func testTapAddBlockOpensPicker() {
         let app = openSeededDoc()
-        // Le bouton "Nouveau bloc" en fin de liste.
+        // The "Nouveau bloc" button at the bottom of the list.
         app.staticTexts["Nouveau bloc"].tap()
-        // Le picker affiche le titre "Ajouter un bloc".
+        // The picker displays the title "Ajouter un bloc".
         XCTAssertTrue(app.staticTexts["Ajouter un bloc"].waitForExistence(timeout: 3))
     }
 
@@ -31,7 +31,7 @@ final class BlockPickerUITests: XCTestCase {
         let app = openSeededDoc()
         app.staticTexts["Nouveau bloc"].tap()
         XCTAssertTrue(app.staticTexts["Ajouter un bloc"].waitForExistence(timeout: 3))
-        // Au moins les types principaux doivent être listés.
+        // At least the main block types must be listed.
         XCTAssertTrue(app.staticTexts["Texte"].exists || app.cells.staticTexts["Texte"].exists)
         XCTAssertTrue(app.staticTexts["Titre 1"].exists || app.cells.staticTexts["Titre 1"].exists)
         XCTAssertTrue(app.staticTexts["À faire"].exists || app.cells.staticTexts["À faire"].exists)

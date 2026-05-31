@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-@Suite("Concurrence — écritures simultanées via le retry SQLite")
+@Suite("Concurrency — simultaneous writes via SQLite retry")
 struct ConcurrencyTests {
 
     private func makeApi() throws -> (PinkhaApi, URL) {
@@ -15,7 +15,7 @@ struct ConcurrencyTests {
         let (api, url) = try makeApi()
         defer { try? FileManager.default.removeItem(at: url) }
 
-        // 20 créations en parallèle. Le retry SQLite + WAL doit absorber les contentions.
+        // 20 parallel creations. The SQLite retry + WAL must absorb contention.
         let count = 20
         await withTaskGroup(of: String?.self) { group in
             for i in 0..<count {
@@ -28,7 +28,7 @@ struct ConcurrencyTests {
                 if let id = result { ids.append(id) }
             }
             #expect(ids.count == count,
-                    "toutes les créations concurrentes doivent réussir grâce au retry")
+                    "all concurrent creations must succeed thanks to retry")
         }
         #expect(try api.listDocuments().count == count)
     }
@@ -41,7 +41,7 @@ struct ConcurrencyTests {
             _ = try api.createDocument(title: "Pre \(i)")
         }
 
-        // Lectures + écritures simultanées.
+        // Simultaneous reads and writes.
         await withTaskGroup(of: Bool.self) { group in
             for i in 0..<10 {
                 group.addTask { (try? api.createDocument(title: "W \(i)")) != nil }
@@ -49,7 +49,7 @@ struct ConcurrencyTests {
             }
             var successes = 0
             for await ok in group { if ok { successes += 1 } }
-            #expect(successes == 20, "les 20 opérations concurrentes doivent réussir")
+            #expect(successes == 20, "all 20 concurrent operations must succeed")
         }
     }
 }

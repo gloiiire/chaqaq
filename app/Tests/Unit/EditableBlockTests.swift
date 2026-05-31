@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-@Suite("EditableBlock — modèle d'édition en mémoire")
+@Suite("EditableBlock — in-memory editing model")
 struct EditableBlockTests {
 
     @Test func plainTextConcatenatesAllSpans() {
@@ -29,7 +29,7 @@ struct EditableBlockTests {
     }
 }
 
-@Suite("BlockCallbacks — bundle de closures")
+@Suite("BlockCallbacks — closure bundle")
 struct BlockCallbacksTests {
 
     @Test func canBeConstructedWithMinimalCallbacks() {
@@ -39,7 +39,7 @@ struct BlockCallbacksTests {
             onDelete: {},
             onNewBlock: { _ in }
         )
-        // Les callbacks optionnels sont nil par défaut.
+        // Optional callbacks are nil by default.
         #expect(cb.onMerge == nil)
         #expect(cb.onNavigatePrevious == nil)
         #expect(cb.onNavigateNext == nil)

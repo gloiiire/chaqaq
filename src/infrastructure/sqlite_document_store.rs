@@ -7,11 +7,20 @@ use rusqlite::{Connection, params};
 use std::sync::Mutex;
 use uuid::Uuid;
 
+/// SQLite-backed document store.
+///
+/// All write and read operations go through a [`Mutex`]-protected connection
+/// so the store can be shared across threads. WAL mode is enabled at
+/// construction time for better concurrent read performance. Deletes are
+/// soft (a `deleted_at` timestamp is set rather than removing the row),
+/// which prepares the data for future CRDT-based sync.
 pub struct SqliteDocumentStore {
     conn: Mutex<Connection>,
 }
 
 impl SqliteDocumentStore {
+    /// Opens (or creates) a SQLite database at `path`, enables WAL mode, and
+    /// applies all pending schema migrations.
     pub fn new(path: &str) -> Result<Self, PinkhaError> {
         let mut conn = Connection::open(path).map_err(|e| PinkhaError::Db(e.to_string()))?;
         conn.execute_batch("PRAGMA journal_mode=WAL;")
@@ -22,6 +31,7 @@ impl SqliteDocumentStore {
         })
     }
 
+    /// Creates an in-memory store — useful for unit tests.
     pub fn in_memory() -> Result<Self, PinkhaError> {
         Self::new(":memory:")
     }
@@ -29,7 +39,7 @@ impl SqliteDocumentStore {
 
 impl DocumentRepository for SqliteDocumentStore {
     fn save(&self, doc: &Document) -> Result<(), PinkhaError> {
-        // Pré-calcul hors retry : pas de coût supplémentaire en cas de relance.
+        // Pre-compute outside the retry closure: no extra cost on retries.
         let data = serde_json::to_string(doc)?;
         let title_text: String = doc
             .title
@@ -232,7 +242,7 @@ mod tests {
         let d = doc("Test");
         store.save(&d).unwrap();
         let created_at_initial = store.list().unwrap()[0].created_at.clone();
-        store.save(&d).unwrap(); // deuxième save
+        store.save(&d).unwrap(); // second save
         let created_at_after = store.list().unwrap()[0].created_at.clone();
         assert_eq!(created_at_initial, created_at_after);
     }

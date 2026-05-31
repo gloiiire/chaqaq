@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-@Suite("JSON malformé — robustesse decode")
+@Suite("Malformed JSON — decode robustness")
 struct MalformedJSONTests {
 
     @Test func unknownInlineStyleThrows() {
@@ -60,10 +60,10 @@ struct MalformedJSONTests {
     }
 
     @Test func styleAliasFromRustOldFormat() throws {
-        // L'ancien format pouvait sérialiser "style" au lieu de "styles" pour InlineText.
-        // Le Rust gère cela via #[serde(alias = "style")] côté domaine. Le miroir Swift
-        // ne le supporte pas (alias serde n'a pas d'équivalent direct), mais on documente
-        // le comportement actuel : le décodeur Swift exige "styles".
+        // The old format could serialize "style" instead of "styles" for InlineText.
+        // Rust handles this via #[serde(alias = "style")] on the domain side. The Swift mirror
+        // does not support this (serde alias has no direct Swift equivalent), but we document
+        // the current behaviour: the Swift decoder requires "styles".
         let data = "{\"content\":\"x\",\"style\":[]}".data(using: .utf8)!
         #expect(throws: DecodingError.self) {
             _ = try JSONDecoder().decode(InlineTextFfi.self, from: data)

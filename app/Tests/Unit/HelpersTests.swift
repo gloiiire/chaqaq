@@ -2,7 +2,7 @@ import Testing
 import UIKit
 @testable import Pinkha
 
-@Suite("uiColorFromName — mapping nom de couleur → UIColor")
+@Suite("uiColorFromName — color name to UIColor mapping")
 struct UIColorFromNameTests {
 
     @Test func mapsAllFrenchColors() {
@@ -42,7 +42,7 @@ struct UIColorFromNameTests {
     }
 }
 
-@Suite("fontWithTraits — gras + italique avec fallbacks")
+@Suite("fontWithTraits — bold + italic with fallbacks")
 struct FontWithTraitsTests {
 
     private let base = UIFont.systemFont(ofSize: 16)
@@ -75,7 +75,7 @@ struct FontWithTraitsTests {
     }
 }
 
-@Suite("Attribut custom pinkhaColor")
+@Suite("Custom pinkhaColor attribute")
 struct PinkhaColorAttributeTests {
 
     @Test func keyIsConsistentAcrossUses() {

@@ -25,7 +25,7 @@ fn inlines(s: &str) -> Vec<InlineText> {
     }]
 }
 
-// ── Recherche documents ───────────────────────────────────────────────────────
+// ── Document search ───────────────────────────────────────────────────────────
 
 #[test]
 fn test_search_documents_par_title() {
@@ -67,7 +67,7 @@ fn test_search_documents_query_vide_retourne_tout() {
     assert_eq!(resultats.len(), 2);
 }
 
-// ── Recherche entrées database ────────────────────────────────────────────────
+// ── Database entry search ─────────────────────────────────────────────────────
 
 #[test]
 fn test_search_entries_par_texte() {
@@ -136,11 +136,11 @@ fn test_search_entries_multi_champs() {
     add_entry(&store, db.id, v1).unwrap();
     add_entry(&store, db.id, v2).unwrap();
 
-    // "tech" apparaît dans le tag des deux entrées
+    // "tech" appears in the tag of both entries
     let resultats = search_entries(&store, db.id, "tech").unwrap();
     assert_eq!(resultats.len(), 2);
 
-    // "rust" n'est que dans le title de la première
+    // "rust" only appears in the title of the first entry
     let resultats = search_entries(&store, db.id, "rust").unwrap();
     assert_eq!(resultats.len(), 1);
 }

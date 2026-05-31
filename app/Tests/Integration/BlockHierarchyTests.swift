@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-@Suite("Blocs imbriqués — addChildBlock, reorderChildBlocks, moveBlock")
+@Suite("Nested blocks — addChildBlock, reorderChildBlocks, moveBlock")
 struct BlockHierarchyTests {
 
     private func makeApi() throws -> (PinkhaApi, URL, String) {
@@ -30,7 +30,7 @@ struct BlockHierarchyTests {
         let child = try api.addChildBlock(
             docId: docId,
             parentId: parent,
-            blockContentJson: try textJson("enfant")
+            blockContentJson: try textJson("child")
         )
 
         let doc = try JSONDecoder().decode(
@@ -65,7 +65,7 @@ struct BlockHierarchyTests {
     @Test func moveBlockFromRootToParent() throws {
         let (api, url, docId) = try makeApi(); defer { cleanup(url) }
         let parent = try api.addBlock(docId: docId, blockContentJson: try textJson("parent"))
-        let movable = try api.addBlock(docId: docId, blockContentJson: try textJson("à déplacer"))
+        let movable = try api.addBlock(docId: docId, blockContentJson: try textJson("to move"))
 
         try api.moveBlock(docId: docId, blockId: movable, newParentId: parent)
 

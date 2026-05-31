@@ -1,5 +1,5 @@
-// Test d'intégration : le retry SQLite absorbe les contentions concurrentes
-// dans un scénario réaliste (multi-threads, écritures simultanées).
+// Integration test: SQLite retry absorbs concurrent contention in a realistic
+// scenario (multiple threads, simultaneous writes).
 
 use pinkha::application::repository::DocumentRepository;
 use pinkha::application::resilience::{is_transient, retry_with_backoff};
@@ -75,7 +75,7 @@ fn lectures_et_ecritures_concurrentes_coexistent() {
         h.join().unwrap();
     }
 
-    // 5 pre + 10 writes (i pair sur 20)
+    // 5 pre-seeded + 10 writes (even i over 20)
     assert_eq!(store.list().unwrap().len(), 15);
 
     let _ = std::fs::remove_file(&path);
@@ -88,12 +88,12 @@ fn retry_n_intervient_pas_sur_not_found() {
     let path = db_path();
     let store = SqliteDocumentStore::new(&path).unwrap();
 
-    // Pas de retry attendu sur NotFound — l'erreur remonte immédiatement.
+    // No retry expected on NotFound — the error propagates immediately.
     let inconnu = Uuid::new_v4();
     let result = store.load(inconnu);
     assert!(matches!(result, Err(PinkhaError::NotFound(_))));
 
-    // Vérifie via is_transient que NotFound n'est pas transitoire.
+    // Confirm via is_transient that NotFound is never considered transient.
     if let Err(e) = store.load(inconnu) {
         assert!(!is_transient(&e), "NotFound ne doit jamais être transitoire");
     }

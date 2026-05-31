@@ -28,7 +28,7 @@ fn state_from(s: &str) -> EditorState {
     EditorState::new(RichText::from(&il))
 }
 
-// ── Bridge EditorState → Block ────────────────────────────────────────────────
+// ── EditorState → Block bridge ───────────────────────────────────────────────
 
 #[test]
 fn test_save_edited_block_text() {
@@ -80,7 +80,7 @@ fn test_sauvegarder_bloc_non_textuel_retourne_erreur() {
     assert!(matches!(result, Err(PinkhaError::InvalidOperation(_))));
 }
 
-// ── Gestion des blocs ─────────────────────────────────────────────────────────
+// ── Block management ──────────────────────────────────────────────────────────
 
 #[test]
 fn test_update_block_toggle_todo() {
@@ -177,7 +177,7 @@ fn test_reorder_blocks_partiels_conserve_le_reste() {
     let id_a = doc.blocks[0].id;
     let id_c = doc.blocks[2].id;
 
-    // Réordonne seulement A et C ; B est non mentionné → va en fin
+    // Reorder only A and C; B is not mentioned → appended at the end
     reorder_blocks(&store, doc.id, vec![id_c, id_a]).unwrap();
 
     let recharge = get_document(&store, doc.id).unwrap();
@@ -186,7 +186,7 @@ fn test_reorder_blocks_partiels_conserve_le_reste() {
     assert_eq!(recharge.blocks[1].id, id_a);
 }
 
-// ── Métadonnées document ──────────────────────────────────────────────────────
+// ── Document metadata ─────────────────────────────────────────────────────────
 
 #[test]
 fn test_update_document_title() {
@@ -214,7 +214,7 @@ fn test_update_document_cover() {
     assert!(recharge.cover.is_none());
 }
 
-// ── Blocs imbriqués ───────────────────────────────────────────────────────────
+// ── Nested blocks ─────────────────────────────────────────────────────────────
 
 #[test]
 fn test_add_child_block() {

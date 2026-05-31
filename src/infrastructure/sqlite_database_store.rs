@@ -8,11 +8,18 @@ use rusqlite::{Connection, params};
 use std::sync::Mutex;
 use uuid::Uuid;
 
+/// SQLite-backed database store.
+///
+/// Mirrors [`SqliteDocumentStore`] but for [`Database`] records. Uses WAL mode,
+/// exponential-backoff retries on transient SQLite errors, and soft deletes
+/// (`deleted_at` timestamp) so that records remain recoverable and CRDT-ready.
 pub struct SqliteDatabaseStore {
     conn: Mutex<Connection>,
 }
 
 impl SqliteDatabaseStore {
+    /// Opens (or creates) a SQLite database at `path`, enables WAL mode, and
+    /// applies all pending schema migrations.
     pub fn new(path: &str) -> Result<Self, PinkhaError> {
         let mut conn = Connection::open(path).map_err(|e| PinkhaError::Db(e.to_string()))?;
         conn.execute_batch("PRAGMA journal_mode=WAL;")
@@ -23,6 +30,7 @@ impl SqliteDatabaseStore {
         })
     }
 
+    /// Creates an in-memory store — useful for unit tests.
     pub fn in_memory() -> Result<Self, PinkhaError> {
         Self::new(":memory:")
     }
@@ -30,7 +38,7 @@ impl SqliteDatabaseStore {
 
 impl DatabaseRepository for SqliteDatabaseStore {
     fn save(&self, db: &Database) -> Result<(), PinkhaError> {
-        // Pré-calcul hors retry : pas de coût en cas de relance.
+        // Pre-compute outside the retry closure: no extra cost on retries.
         let data = serde_json::to_string(db)?;
         let title_text: String = db
             .title

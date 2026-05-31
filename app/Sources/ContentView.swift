@@ -2,6 +2,7 @@ import SwiftUI
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 
+/// Observable store that owns the `PinkhaApi` connection and the document list.
 @MainActor
 final class PinkhaStore: ObservableObject {
     @Published var documents: [DocumentMetaFfi] = []
@@ -9,11 +10,12 @@ final class PinkhaStore: ObservableObject {
 
     private(set) var api: PinkhaApi?
 
+    /// Opens the SQLite database and seeds it when running under UI-test launch arguments.
     func connect() {
         guard api == nil else { return }
         tryCatch(into: &errorMessage) {
             let dir  = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            // Modes UI-test : DB éphémère pour reproductibilité.
+            // UI-test modes: use an ephemeral DB for reproducibility.
             let args = ProcessInfo.processInfo.arguments
             let isUITest = args.contains("--ui-test-data") || args.contains("--ui-test-clean")
             let dbName = isUITest ? "pinkha_uitest_\(UUID().uuidString).db" : "pinkha.db"
@@ -23,23 +25,26 @@ final class PinkhaStore: ObservableObject {
                 _ = try api?.createDocument(title: "Seeded Note 1")
                 _ = try api?.createDocument(title: "Seeded Note 2")
             }
-            // --ui-test-clean : DB vide, parfait pour tester l'état vide.
+            // --ui-test-clean: empty DB, ideal for testing the empty state.
         }
         if api != nil { load() }
     }
 
+    /// Refreshes the document list from the database.
     func load() {
         if let docs = tryCatch(into: &errorMessage, { try api?.listDocuments() ?? [] }) {
             documents = docs
         }
     }
 
+    /// Creates a new document and reloads the list.
     func create(title: String) {
         if tryCatch(into: &errorMessage, { try api?.createDocument(title: title) }) != nil {
             load()
         }
     }
 
+    /// Soft-deletes a document by id and reloads the list.
     func delete(id: String) {
         if tryCatch(into: &errorMessage, { try api?.deleteDocument(id: id) }) != nil {
             load()
@@ -47,8 +52,9 @@ final class PinkhaStore: ObservableObject {
     }
 }
 
-// ── Vue principale ────────────────────────────────────────────────────────────
+// ── Main view ─────────────────────────────────────────────────────────────────
 
+/// Root screen: document list with a greeting header, empty state, and FAB.
 struct ContentView: View {
     @StateObject private var store = PinkhaStore()
     @State private var showingCreate = false
@@ -116,6 +122,7 @@ struct ContentView: View {
         .onAppear { store.connect() }
     }
 
+    /// Returns a time-appropriate greeting string (morning / afternoon / evening).
     private var greeting: String {
         let h = Calendar.current.component(.hour, from: .now)
         switch h {
@@ -126,8 +133,9 @@ struct ContentView: View {
     }
 }
 
-// ── Composants ────────────────────────────────────────────────────────────────
+// ── Components ────────────────────────────────────────────────────────────────
 
+/// Large-title greeting shown at the top of the document list.
 private struct WelcomeHeader: View {
     let greeting: String
 
@@ -144,6 +152,7 @@ private struct WelcomeHeader: View {
     }
 }
 
+/// Placeholder shown when there are no documents yet.
 private struct EmptyState: View {
     var body: some View {
         VStack(spacing: 16) {
@@ -162,8 +171,8 @@ private struct EmptyState: View {
     }
 }
 
-// Bouton d'action flottant (FAB) partagé : accueil (square.and.pencil) et
-// document (pencil.and.outline). Style verre + pulse + retour haptique.
+/// Floating action button shared between the home screen (square.and.pencil) and
+/// the document editor (pencil.and.outline). Glass style + pulse animation + haptic feedback.
 struct FloatingButton: View {
     let icon: String
     let action: () -> Void
@@ -203,6 +212,7 @@ struct FloatingButton: View {
     }
 }
 
+/// Custom `ButtonStyle` for `FloatingButton`: glass effect, scale-down on press, colour shadow.
 private struct FloatingButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -216,6 +226,7 @@ private struct FloatingButtonStyle: ButtonStyle {
     }
 }
 
+/// A single row in the document list, showing icon, title, and relative date.
 struct DocumentRow: View {
     let doc: DocumentMetaFfi
 
@@ -237,6 +248,7 @@ struct DocumentRow: View {
         .padding(.vertical, 2)
     }
 
+    /// Renders the document icon: a custom emoji from UserDefaults, or a generic system image.
     @ViewBuilder
     private var documentIcon: some View {
         if let icon = UserDefaults.standard.string(forKey: Self.iconKey(docId: doc.id)), !icon.isEmpty {
@@ -252,10 +264,12 @@ struct DocumentRow: View {
         }
     }
 
+    /// Returns the UserDefaults key used to persist the emoji icon for a given document id.
     private static func iconKey(docId: String) -> String {
         "document.icon.\(docId)"
     }
 
+    /// Formats an ISO 8601 timestamp as a relative date string (e.g. "2 hours ago").
     private func formattedDate(_ iso: String) -> String? {
         guard !iso.isEmpty else { return nil }
         let parser = ISO8601DateFormatter()
@@ -265,6 +279,7 @@ struct DocumentRow: View {
     }
 }
 
+/// Sheet presented when creating a new document. Accepts a title and calls `onCreate` or `onCancel`.
 struct CreateDocumentSheet: View {
     @Binding var title: String
     let onCreate: () -> Void
