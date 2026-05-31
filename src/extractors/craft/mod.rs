@@ -7,13 +7,12 @@
 //   → RealmFile::open(db_path)
 //   → read class_DocumentDataModel  → collect the 226 real document IDs
 //   → read class_BlockDataModel     → group blocks by lastSyncedBlockIds (= doc ID)
-//   → for each doc: title block (titleEnabled) + content blocks
+//   → for each doc: first non-empty block → title, remaining blocks → content
 //   → persist one pinkha Document per Craft document
 
 use std::collections::HashMap;
 
 use realm_codec::RealmFile;
-use serde_json::Value as JsonValue;
 
 use crate::application::database_repository::DatabaseRepository;
 use crate::application::repository::DocumentRepository;
@@ -91,9 +90,6 @@ impl Extractor for CraftExtractor {
         let type_idx = block_table
             .column_index("type")
             .ok_or_else(|| ExtractorError::Parse("type column missing".into()))?;
-        let raw_props_idx = block_table
-            .column_index("rawProperties")
-            .ok_or_else(|| ExtractorError::Parse("rawProperties column missing".into()))?;
         let lsb_idx = block_table
             .column_index("lastSyncedBlockIds")
             .ok_or_else(|| ExtractorError::Parse("lastSyncedBlockIds column missing".into()))?;
@@ -110,25 +106,23 @@ impl Extractor for CraftExtractor {
 
             let content = row.get(content_idx).as_str().to_owned();
             let block_type = row.get(type_idx).as_str();
-            let raw_props = row.get(raw_props_idx).as_str();
 
             let entry = doc_map.entry(doc_id).or_insert((None, vec![], 0));
 
-            if is_title_block(raw_props) {
-                // Only keep the first title block as the document title.
-                if entry.0.is_none() {
-                    let first_line = content.lines().next().unwrap_or("").trim().to_string();
-                    entry.0 = Some(if first_line.is_empty() {
-                        "Untitled".to_string()
-                    } else {
-                        first_line
-                    });
+            // Title: first block with non-empty content — first line only.
+            // DocumentDataModel has no title column and rootBlockId is empty,
+            // so the document title is derived from the first meaningful block.
+            if entry.0.is_none() && !content.is_empty() {
+                let first_line = content.lines().next().unwrap_or("").trim().to_string();
+                if !first_line.is_empty() {
+                    entry.0 = Some(first_line);
+                    continue; // consumed as title, don't duplicate in content
                 }
-            } else {
-                match map_block(&content, block_type) {
-                    Some(bc) => entry.1.push(bc),
-                    None => entry.2 += 1,
-                }
+            }
+
+            match map_block(&content, block_type) {
+                Some(bc) => entry.1.push(bc),
+                None => entry.2 += 1,
             }
         }
 
@@ -157,18 +151,6 @@ impl Extractor for CraftExtractor {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-fn is_title_block(raw_props: &str) -> bool {
-    if raw_props.is_empty() || raw_props == "{}" {
-        return false;
-    }
-    if let Ok(v) = serde_json::from_str::<JsonValue>(raw_props) {
-        if let Some(te) = v.get("titleEnabled") {
-            return te.as_str() == Some("true") || te.as_bool() == Some(true);
-        }
-    }
-    false
-}
 
 fn map_block(content: &str, block_type: &str) -> Option<BlockContent> {
     match block_type {
@@ -210,33 +192,6 @@ fn flush_document(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn is_title_block_detects_string_true() {
-        assert!(is_title_block(r#"{"titleEnabled":"true"}"#));
-    }
-
-    #[test]
-    fn is_title_block_detects_bool_true() {
-        assert!(is_title_block(r#"{"titleEnabled":true}"#));
-    }
-
-    #[test]
-    fn is_title_block_rejects_empty() {
-        assert!(!is_title_block(""));
-        assert!(!is_title_block("{}"));
-    }
-
-    #[test]
-    fn is_title_block_rejects_false() {
-        assert!(!is_title_block(r#"{"titleEnabled":"false"}"#));
-        assert!(!is_title_block(r#"{"titleEnabled":false}"#));
-    }
-
-    #[test]
-    fn is_title_block_rejects_no_key() {
-        assert!(!is_title_block(r#"{"coverImageUrl":"https://example.com"}"#));
-    }
 
     #[test]
     fn map_block_text_plain() {
