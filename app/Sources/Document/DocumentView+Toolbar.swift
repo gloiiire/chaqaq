@@ -1,13 +1,13 @@
 import SwiftUI
 
-// ── Toolbar et boutons overlay ────────────────────────────────────────────────
+// ── Toolbar and overlay buttons ───────────────────────────────────────────────
 
 extension DocumentView {
 
     @ToolbarContentBuilder
     var documentToolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            Text(vm.title.isEmpty ? "Sans titre" : vm.title)
+            Text(vm.title.isEmpty ? "Untitled" : vm.title)
                 .font(.headline)
                 .opacity(titleInNavBar ? 1 : 0)
                 .offset(y: titleInNavBar ? 0 : 8)
@@ -18,7 +18,7 @@ extension DocumentView {
                 Button(role: .destructive) { deleteSelectedBlocks() } label: {
                     Image(systemName: "trash")
                 }
-                .accessibilityLabel("Supprimer les blocs sélectionnés")
+                .accessibilityLabel("Delete selected blocks")
             }
         }
         ToolbarItem(placement: .primaryAction) {
@@ -36,7 +36,7 @@ extension DocumentView {
             } label: {
                 Image(systemName: documentLocked ? "lock.fill" : "lock.open.fill")
             }
-            .accessibilityLabel(documentLocked ? "Déverrouiller le document" : "Verrouiller le document")
+            .accessibilityLabel(documentLocked ? "Unlock document" : "Lock document")
         }
         ToolbarItem(placement: .primaryAction) {
             Button {

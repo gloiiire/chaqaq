@@ -1,8 +1,8 @@
 import SwiftUI
 
-// ── Vue racine : layout 3 onglets ──────────────────────────────────────────────
+// ── Root view: 3-tab layout ──────────────────────────────────────────────────
 
-/// Vue racine — trois onglets : Notes, Bases, Recherche.
+/// Root view — three tabs: Notes, Databases, Search.
 struct ContentView: View {
     @StateObject private var store = PinkhaStore()
 
@@ -11,7 +11,7 @@ struct ContentView: View {
             Tab("Notes", systemImage: "note.text") {
                 NotesHomeView(store: store)
             }
-            Tab("Bases", systemImage: "tablecells") {
+            Tab("Databases", systemImage: "tablecells") {
                 DatabasesHomeView()
             }
             Tab(role: .search) {
@@ -23,9 +23,9 @@ struct ContentView: View {
     }
 }
 
-// ── Onglet 2 : Bases de données ───────────────────────────────────────────────
+// ── Tab 2: Databases ──────────────────────────────────────────────────────────
 
-/// Placeholder pour l'onglet Bases (backend complet, UI à venir).
+/// Placeholder for the Databases tab (backend complete, UI coming soon).
 private struct DatabasesHomeView: View {
     var body: some View {
         NavigationStack {
@@ -34,22 +34,22 @@ private struct DatabasesHomeView: View {
                     .font(.system(size: 52))
                     .foregroundStyle(.tertiary)
                 VStack(spacing: 6) {
-                    Text("Bases de données").font(.headline)
-                    Text("Bientôt disponible.")
+                    Text("Databases").font(.headline)
+                    Text("Coming soon.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .navigationTitle("Bases")
+            .navigationTitle("Databases")
             .navigationBarTitleDisplayMode(.large)
         }
     }
 }
 
-// ── Onglet 3 : Recherche ──────────────────────────────────────────────────────
+// ── Tab 3: Search ─────────────────────────────────────────────────────────────
 
-/// Onglet Recherche — possède son propre .searchable pour ne pas saigner dans les autres tabs.
+/// Search tab — owns its own .searchable so it does not bleed into other tabs.
 private struct SearchView: View {
     @ObservedObject var store: PinkhaStore
     @State private var query = ""
@@ -62,14 +62,14 @@ private struct SearchView: View {
         NavigationStack {
             List {
                 if query.isEmpty {
-                    Label("Tape pour chercher", systemImage: "text.magnifyingglass")
+                    Label("Type to search", systemImage: "text.magnifyingglass")
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                         .padding(.top, 32)
                 } else if results.isEmpty {
-                    Text("Aucun résultat pour « \(query) »")
+                    Text("No results for "\(query)"")
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .listRowBackground(Color.clear)
@@ -89,8 +89,8 @@ private struct SearchView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Recherche")
-            .searchable(text: $query, prompt: "Titres des notes…")
+            .navigationTitle("Search")
+            .searchable(text: $query, prompt: "Note titles…")
             .autocorrectionDisabled()
         }
     }

@@ -3,8 +3,8 @@ import SwiftUI
 
 // ── Coordinator RichTextEditor ────────────────────────────────────────────────
 
-/// Coordinator de `RichTextEditor` : délégué UITextView + gestionnaire de la toolbar pill.
-/// Défini au niveau du module pour permettre les extensions dans des fichiers séparés.
+/// Coordinator for `RichTextEditor`: UITextView delegate + pill toolbar manager.
+/// Defined at module level to allow extensions in separate files.
 final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate {
 
     var parent: RichTextEditor
@@ -13,9 +13,9 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
     var isDeleting = false
     var shiftEnterTyped = false
     var lastSelection = NSRange(location: 0, length: 0)
-    // Couleur en cours de frappe sans sélection : UIKit réinitialise typingAttributes
-    // après chaque caractère (et l'ouverture d'un menu peut resign first responder),
-    // donc on ré-injecte la couleur juste avant chaque insertion.
+    // Active typing color without a selection: UIKit resets typingAttributes
+    // after each character (and opening a menu may resign first responder),
+    // so we re-inject the color just before each insertion.
     var pendingColor: String? = nil
     var toolbarActionInProgress = false
     var selectionGeneration = 0
@@ -26,16 +26,16 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
     weak var btnRedo: UIButton?
     var lastCanUndo: Bool?
     var lastCanRedo: Bool?
-    /// Spans déjà synchronisés avec la text view — permet de sauter la recomputation
-    /// `spansToAttributed` lors des re-renders SwiftUI où les spans de ce bloc n'ont pas changé.
+    /// Spans already synced with the text view — allows skipping the `spansToAttributed`
+    /// recomputation during SwiftUI re-renders where this block's spans have not changed.
     var lastSyncedSpans: [InlineTextFfi]?
-    // La pill toolbar — animée à alpha 0 quand un menu déroulant s'ouvre
-    // (style Notes.app : la toolbar s'efface pendant que le menu est visible).
+    // The pill toolbar — animated to alpha 0 when a dropdown menu opens
+    // (Notes.app style: the toolbar fades while the menu is visible).
     weak var toolbarPill: UIView?
     var toolbarHidden = false
-    // Fenêtre de garde : pendant ~700 ms après l'ouverture d'un menu, ignorer les
-    // `textViewDidChangeSelection` parasites qu'UIKit émet pendant la présentation
-    // (sinon la pill clignote ou ne se cache jamais).
+    // Guard window: for ~700 ms after a menu opens, ignore spurious
+    // `textViewDidChangeSelection` events UIKit emits during presentation
+    // (otherwise the pill flickers or never hides).
     var menuPresentingUntil: Date?
 
     init(parent: RichTextEditor) {
@@ -75,7 +75,7 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
         isEditing = true
         parent.isFocused = true
         rememberSelection(tv.selectedRange, length: tv.attributedText.length)
-        // Effacer le placeholder quand l'édition commence.
+        // Clear the placeholder when editing begins.
         if tv.textColor == .tertiaryLabel {
             tv.attributedText = NSAttributedString(string: "", attributes: [
                 .font: parent.baseFont,
@@ -95,22 +95,22 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
         }
         updateToolbar()
         updateUndoRedoButtons()
-        // Si l'utilisateur a fermé un menu (tap dans le texte → sélection changée),
-        // restaurer la pill au cas où elle serait encore cachée.
-        // Sauter pendant la fenêtre de garde pour éviter d'annuler le hide demandé.
+        // If the user closed a menu (tap in text → selection changed),
+        // restore the pill in case it is still hidden.
+        // Skip during the guard window to avoid cancelling the requested hide.
         if let until = menuPresentingUntil, Date() < until { return }
         menuPresentingUntil = nil
         setToolbarHidden(false)
     }
 
     func textView(_ tv: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
-        // Retour arrière sur un bloc vide → supprimer le bloc
+        // Backspace on an empty block → delete the block
         if text.isEmpty, range == NSRange(location: 0, length: 0), tv.text.isEmpty {
             isDeleting = true
             DispatchQueue.main.async { [weak self] in self?.parent.onDeleteBloc?() }
             return false
         }
-        // Retour arrière en début de bloc non vide → fusionner avec le bloc précédent
+        // Backspace at the start of a non-empty block → merge with the previous block
         if text.isEmpty, range == NSRange(location: 0, length: 0), !tv.text.isEmpty,
            parent.onMergeAvecPrecedent != nil {
             isDeleting = true
@@ -120,15 +120,15 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
             }
             return false
         }
-        // Touche Entrée
+        // Enter key
         if text == "\n" {
             if shiftEnterTyped {
-                // Shift+Enter : laisser le saut de ligne s'insérer normalement
+                // Shift+Enter: let the line break insert normally
                 shiftEnterTyped = false
                 return true
             }
-            // Entrée normal : diviser le bloc et en créer un nouveau.
-            // Préserver les attributs (couleur, gras…) de la portion après le curseur.
+            // Normal Enter: split the block and create a new one.
+            // Preserve the attributes (color, bold…) of the portion after the cursor.
             let afterStart = range.location + range.length
             let attrBefore = tv.attributedText.attributedSubstring(
                 from: NSRange(location: 0, length: range.location))
@@ -143,8 +143,8 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
             parent.onNewBlock?(afterSpans)
             return false
         }
-        // Couleur de frappe : UIKit réinitialise typingAttributes après chaque caractère,
-        // on ré-injecte donc la couleur juste avant l'insertion.
+        // Typing color: UIKit resets typingAttributes after each character,
+        // so we re-inject the color just before the insertion.
         if !text.isEmpty, text != "\n", let nom = pendingColor {
             tv.typingAttributes[.foregroundColor] = uiColorFromName(nom)
             tv.typingAttributes[.pinkhaColor]     = nom
@@ -168,15 +168,15 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
             return
         }
 
-        // save() = mettre à jour parent.spans + appeler onSaveSpans → vm.saveBlock → capture l'ancre burst pour undo.
-        // Appelé à chaque frappe pour que canUndo soit true dès le premier caractère.
+        // save() = update parent.spans + call onSaveSpans → vm.saveBlock → capture the burst anchor for undo.
+        // Called on every keystroke so that canUndo is true from the first character.
         save(attributedToSpans(tv.attributedText, police: parent.baseFont))
         if tv.selectedRange.length == 0 { clearRememberedSelection() }
         tv.invalidateIntrinsicContentSize()
         updateUndoRedoButtons()
     }
 
-    // ── Sauvegarde ────────────────────────────────────────────────────────────
+    // ── Save ──────────────────────────────────────────────────────────────────
 
     func save(_ spans: [InlineTextFfi]) {
         parent.spans = spans

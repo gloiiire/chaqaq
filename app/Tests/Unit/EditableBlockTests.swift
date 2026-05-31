@@ -61,7 +61,7 @@ struct BlockCallbacksTests {
     }
 }
 
-@Suite("NewBlockType — toutes les variantes")
+@Suite("NewBlockType — all variants")
 struct NewBlockTypeTests {
 
     @Test func allCasesHaveDisplayName() {

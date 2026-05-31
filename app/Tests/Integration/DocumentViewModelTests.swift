@@ -84,11 +84,11 @@ struct DocumentViewModelTests {
     @Test func saveTitlePersists() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
-        vm.title = "Renommé"
+        vm.title = "Renamed"
         vm.saveTitle()
         // Reload to confirm persistence.
         vm.load()
-        #expect(vm.title == "Renommé")
+        #expect(vm.title == "Renamed")
     }
 
     @Test func saveCoverPersists() throws {

@@ -73,9 +73,9 @@ extension RichTextEditorCoordinator {
         addButton(bPaste); btnPaste = bPaste
         separator()
 
-        // Bouton unique B/I/U/S — menu déroulant comme le highlighter.
-        // Ouverture : `UIDeferredMenuElement.uncached` cache la pill.
-        // Fermeture : `onMenuWillEnd` la restaure (couvre le dismiss par tap hors du menu).
+        // Single B/I/U/S button — dropdown menu like the highlighter.
+        // Opening: `UIDeferredMenuElement.uncached` hides the pill.
+        // Closing: `onMenuWillEnd` restores it (covers dismiss by tapping outside the menu).
         let bTextStyle = MenuButton(type: .custom)
         bTextStyle.showsMenuAsPrimaryAction = true
         bTextStyle.menu = textStyleMenu(bold: false, italic: false, underline: false, strike: false)
@@ -88,7 +88,7 @@ extension RichTextEditorCoordinator {
             .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal), for: .normal)
         addButton(bTextStyle); btnTextStyle = bTextStyle
 
-        // Bouton highlighter placé juste à droite du bouton style (sans séparateur).
+        // Highlighter button placed just to the right of the style button (no separator).
         let bColor = MenuButton(type: .custom)
         bColor.showsMenuAsPrimaryAction = true
         bColor.menu = colorMenu(current: nil)
@@ -142,9 +142,9 @@ extension RichTextEditorCoordinator {
         toolbarActionInProgress = false
         shiftEnterTyped = true
         tv?.insertText("\n")
-        // Reset défensif : `insertText` programmatique peut bypasser `shouldChangeTextIn`,
-        // laissant `shiftEnterTyped = true`. La prochaine Entrée clavier serait alors
-        // traitée comme saut de ligne au lieu de diviser le bloc.
+        // Defensive reset: programmatic `insertText` can bypass `shouldChangeTextIn`,
+        // leaving `shiftEnterTyped = true`. The next keyboard Enter would then be
+        // treated as a line break instead of splitting the block.
         shiftEnterTyped = false
     }
 
@@ -163,10 +163,10 @@ extension RichTextEditorCoordinator {
         parent.onRedo?()
     }
 
-    /// Met à jour les visuels des boutons undo/redo via l'état live de
-    /// `canUndoProvider`/`canRedoProvider`. Appelé depuis `updateUIView`,
-    /// `textViewDidChange` et `textViewDidChangeSelection`.
-    /// Met en cache le dernier état connu pour éviter de recréer `UIImage` à chaque frappe.
+    /// Updates the undo/redo button visuals via the live state from
+    /// `canUndoProvider`/`canRedoProvider`. Called from `updateUIView`,
+    /// `textViewDidChange` and `textViewDidChangeSelection`.
+    /// Caches the last known state to avoid recreating `UIImage` on every keystroke.
     func updateUndoRedoButtons() {
         let cU = parent.canUndoProvider?() ?? false
         let cR = parent.canRedoProvider?() ?? false

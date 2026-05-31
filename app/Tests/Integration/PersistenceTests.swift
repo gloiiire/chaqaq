@@ -20,13 +20,13 @@ struct PersistenceTests {
         let docId: String
         do {
             let api = try PinkhaApi(dbPath: tmp.path)
-            docId = try api.createDocument(title: "Persistant")
-            try api.updateDocumentTitle(id: docId, newTitle: "Modifié")
+            docId = try api.createDocument(title: "Persistent")
+            try api.updateDocumentTitle(id: docId, newTitle: "Modified")
         }
         // New API instance on the same file.
         let api2 = try PinkhaApi(dbPath: tmp.path)
         let metas = try api2.listDocuments()
-        #expect(metas.contains(where: { $0.id == docId && $0.titlePlain == "Modifié" }))
+        #expect(metas.contains(where: { $0.id == docId && $0.titlePlain == "Modified" }))
     }
 
     @Test func blocksSurviveReopen() throws {

@@ -1,6 +1,6 @@
 import UIKit
 
-// ── Extension Sélection & Toolbar state ──────────────────────────────────────
+// ── Extension Selection & Toolbar state ──────────────────────────────────────
 
 extension RichTextEditorCoordinator {
 
@@ -24,8 +24,8 @@ extension RichTextEditorCoordinator {
             italic    = attrsContainItalic(attrs)
             underline = attrs[.underlineStyle]     != nil
             strike    = attrs[.strikethroughStyle]  != nil
-            // pendingColor a la priorité : typingAttributes est réinitialisé par
-            // textViewDidBeginEditing après la fermeture du menu, mais le mode couleur reste actif.
+            // pendingColor takes priority: typingAttributes is reset by
+            // textViewDidBeginEditing after the menu closes, but color mode remains active.
             color = pendingColor ?? (attrs[.pinkhaColor] as? String)
         }
 
@@ -65,8 +65,8 @@ extension RichTextEditorCoordinator {
         }
     }
 
-    /// Retourne la sélection à utiliser pour une action toolbar : la sélection courante si non vide,
-    /// sinon la dernière sélection non vide mémorisée (définie avant l'ouverture du menu).
+    /// Returns the selection to use for a toolbar action: the current selection if non-empty,
+    /// otherwise the last remembered non-empty selection (captured before the menu opened).
     func selectionForToolbar(currentSelection: NSRange, length: Int) -> NSRange {
         let current = normalizedSelection(currentSelection, length: length)
         if current.length > 0 { return current }
@@ -82,7 +82,7 @@ extension RichTextEditorCoordinator {
         return NSRange(location: range.location, length: max(0, end - range.location))
     }
 
-    /// Retourne `true` si `check` est satisfait pour chaque séquence d'attributs dans `range`.
+    /// Returns `true` if `check` is satisfied for every attribute run in `range`.
     func entireRange(
         in attr: NSAttributedString,
         range: NSRange,
@@ -109,10 +109,10 @@ extension RichTextEditorCoordinator {
 
     func attrsContainBold(_ attrs: [NSAttributedString.Key: Any]) -> Bool {
         if (attrs[.pinkhaBold] as? Bool) == true { return true }
-        // Fallback sur les traits symboliques de la police : UIKit supprime les attributs
-        // personnalisés de typingAttributes après l'insertion, mais le descripteur de police gras reste fiable.
-        // Comparaison avec baseFont pour ne pas marquer un titre (déjà gras par design)
-        // comme gras appliqué par l'utilisateur.
+        // Fallback on font symbolic traits: UIKit removes custom attributes from typingAttributes
+        // after insertion, but the bold font descriptor remains reliable.
+        // Compared against baseFont so a heading (already bold by design) is not marked
+        // as user-applied bold.
         guard let f = attrs[.font] as? UIFont else { return false }
         return f.fontDescriptor.symbolicTraits.contains(.traitBold)
             && !parent.baseFont.fontDescriptor.symbolicTraits.contains(.traitBold)
@@ -125,7 +125,7 @@ extension RichTextEditorCoordinator {
             && !parent.baseFont.fontDescriptor.symbolicTraits.contains(.traitItalic)
     }
 
-    // Méthode utilitaire pour mettre à jour le bouton coller (appelée depuis updateToolbar et pasteboardChanged).
+    // Utility method to update the paste button (called from updateToolbar and pasteboardChanged).
     func updatePasteButton() {
         setSymbolActive(btnPaste, active: UIPasteboard.general.hasStrings, name: "doc.on.clipboard")
     }

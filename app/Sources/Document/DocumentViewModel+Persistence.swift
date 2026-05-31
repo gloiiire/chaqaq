@@ -1,11 +1,11 @@
 import SwiftUI
 
-// ── Persistance ───────────────────────────────────────────────────────────────
+// ── Persistence ───────────────────────────────────────────────────────────────
 
 extension DocumentViewModel {
 
-    /// Écrit le bloc dans SQLite sans toucher au burst tracking ni aux blockSnapshots.
-    /// Utilisé par `saveBlock` (qui gère le burst séparément) et par `applyBlockSnapshot`.
+    /// Writes the block to SQLite without touching burst tracking or blockSnapshots.
+    /// Used by `saveBlock` (which manages the burst separately) and by `applyBlockSnapshot`.
     func persistBlockRaw(_ block: EditableBlock) {
         do {
             let new = block.content.withSpans(block.spans, done: block.done)
@@ -15,17 +15,17 @@ extension DocumentViewModel {
         } catch { errorMessage = error.localizedDescription }
     }
 
-    /// Persiste un bloc pour les mutations non-frappe (toggle, changement d'icône, conversion, etc.).
-    /// Flush d'abord tout burst en cours pour que le changement structurel ne soit pas englouti.
+    /// Persists a block for non-typing mutations (toggle, icon change, conversion, etc.).
+    /// Flushes any ongoing burst first so the structural change is not swallowed.
     func persistBlock(_ block: EditableBlock) {
         flushBurst(blockId: block.id)
         persistBlockRaw(block)
         blockSnapshots[block.id] = snapshotOf(block)
     }
 
-    /// Flush un burst : persiste l'état final et enregistre une seule étape undo
-    /// qui restaure l'ancre pré-burst. Appelé par le timer debounce, au changement de bloc,
-    /// ou via `persistBlock` (mutation structurelle).
+    /// Flushes a burst: persists the final state and registers a single undo step
+    /// that restores the pre-burst anchor. Called by the debounce timer, on block change,
+    /// or via `persistBlock` (structural mutation).
     func flushBurst(blockId: String) {
         guard let anchor = blockBurstAnchor[blockId] else { return }
         let current = blockSnapshots[blockId]
@@ -51,23 +51,23 @@ extension DocumentViewModel {
         burstFlushBlockId = nil
     }
 
-    /// Appelé à chaque frappe (RichTextEditor → save() → onSaveSpans).
-    /// Met à jour uniquement l'état en mémoire et le burst-undo tracking. La persistance SQLite
-    /// est différée à `flushBurst` (au plus 1 write par burst) pour éviter de saturer les I/O.
+    /// Called on every keystroke (RichTextEditor → save() → onSaveSpans).
+    /// Only updates in-memory state and burst-undo tracking. SQLite persistence
+    /// is deferred to `flushBurst` (at most 1 write per burst) to avoid saturating I/O.
     func saveBlock(_ block: EditableBlock) {
         let id = block.id
-        // Si l'utilisateur change de bloc, flush le burst précédent (le persiste).
+        // If the user switches blocks, flush the previous burst (persists it).
         if let prevId = burstFlushBlockId, prevId != id {
             flushBurst(blockId: prevId)
         }
-        // Début de burst : capture l'état pré-changement comme ancre.
+        // Start of burst: capture the pre-change state as anchor.
         if blockBurstAnchor[id] == nil, let baseline = blockSnapshots[id] {
             blockBurstAnchor[id] = baseline
         }
-        // Le snapshot stable suit l'état courant (post-changement).
+        // The stable snapshot tracks the current (post-change) state.
         blockSnapshots[id] = snapshotOf(block)
         burstFlushBlockId = id
-        // Debounce : pas de saveBlock pendant burstInterval → flush + persist.
+        // Debounce: no saveBlock for burstInterval → flush + persist.
         burstFlushWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
             self?.flushBurst(blockId: id)
@@ -83,8 +83,8 @@ extension DocumentViewModel {
     }
 
     func load() {
-        // Flush les bursts en attente avant de recharger depuis SQLite,
-        // sinon load() écraserait l'état in-memory non encore persisté.
+        // Flush pending bursts before reloading from SQLite,
+        // otherwise load() would overwrite in-memory state not yet persisted.
         flushAllBursts()
         do {
             let json = try api.getDocumentJson(id: docId)
@@ -98,7 +98,7 @@ extension DocumentViewModel {
                               spans: $0.content.spansOrEmpty,
                               done:  $0.content.isTodoDone)
             }
-            // Initialise les snapshots stables pour le burst undo tracking.
+            // Initialise stable snapshots for burst undo tracking.
             blockSnapshots = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, snapshotOf($0)) })
             blockBurstAnchor.removeAll()
         } catch { errorMessage = error.localizedDescription }

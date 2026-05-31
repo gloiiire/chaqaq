@@ -2,7 +2,7 @@ import SwiftUI
 
 // ── View Model ────────────────────────────────────────────────────────────────
 
-/// Possède tout l'état d'édition du document : titre, couverture, blocs, undo/redo et navigation.
+/// Owns all document editing state: title, cover, blocks, undo/redo and navigation.
 @MainActor
 final class DocumentViewModel: ObservableObject {
     let docId: String
@@ -18,28 +18,28 @@ final class DocumentViewModel: ObservableObject {
     var isNavigating: Bool { repeater.active }
 
     // ── Undo / redo ─────────────────────────────────────────────────────
-    // Capacité alignée sur CAPACITE_PAR_DEFAUT du backend Rust (1000).
+    // Capacity aligned with the Rust backend's default (1000).
     let undoMgr = UndoManager()
-    /// `canUndo` reflète aussi les bursts en attente : si l'utilisateur déclenche undo avant que
-    /// le timer de burst ne se déclenche (`burstInterval`), `vm.undo()` flush d'abord, puis annule.
+    /// `canUndo` also reflects pending bursts: if the user triggers undo before the burst
+    /// timer fires (`burstInterval`), `vm.undo()` flushes first, then undoes.
     var canUndo: Bool { undoMgr.canUndo || !blockBurstAnchor.isEmpty }
     var canRedo: Bool { undoMgr.canRedo }
-    /// Snapshot du dernier titre persisté, utilisé pour calculer l'inverse undo.
+    /// Snapshot of the last persisted title, used to compute the undo inverse.
     var lastPersistedTitle: String = ""
 
-    // ── Burst undo pour la frappe ───────────────────────────────────────
-    // Style Notes : une rafale continue d'appels saveBlock sur le même bloc
-    // compte comme une seule étape undo. Une pause `burstInterval` flush le burst.
+    // ── Burst undo for typing ────────────────────────────────────────────
+    // Notes style: a continuous burst of saveBlock calls on the same block
+    // counts as a single undo step. A `burstInterval` pause flushes the burst.
     struct BlockSnapshot: Equatable {
         let content: BlockContentFfi
         let spans: [InlineTextFfi]
         let done: Bool
     }
-    /// Dernier état stable connu par bloc (mis à jour à chaque flush ou mutation non-burst).
-    /// Sert d'ancre pour le prochain burst.
+    /// Last known stable state per block (updated at each flush or non-burst mutation).
+    /// Serves as anchor for the next burst.
     var blockSnapshots: [String: BlockSnapshot] = [:]
-    /// État pré-burst capturé au premier saveBlock d'un burst.
-    /// C'est ce que undo va restaurer.
+    /// Pre-burst state captured at the first saveBlock of a burst.
+    /// This is what undo will restore.
     var blockBurstAnchor: [String: BlockSnapshot] = [:]
     var burstFlushWork: DispatchWorkItem?
     var burstFlushBlockId: String?
@@ -51,11 +51,11 @@ final class DocumentViewModel: ObservableObject {
         self.docId = docId
         self.api   = api
         undoMgr.levelsOfUndo = 1000
-        // SwiftUI rafraîchit canUndo/canRedo via objectWillChange à chaque mutation de la pile undo.
-        // On dispatch async pour éviter de publier pendant un cycle de mise à jour de vue (warning :
-        // "Publishing changes from within view updates"), car NSUndoManagerCheckpoint peut être posté
-        // de manière synchrone depuis tout appel registerUndo, y compris ceux déclenchés
-        // par un onChange/binding dans body.
+        // SwiftUI refreshes canUndo/canRedo via objectWillChange on every mutation of the undo stack.
+        // We dispatch async to avoid publishing during a view update cycle (warning:
+        // "Publishing changes from within view updates"), because NSUndoManagerCheckpoint can be posted
+        // synchronously from any registerUndo call, including those triggered
+        // by an onChange/binding in body.
         NotificationCenter.default.addObserver(
             forName: .NSUndoManagerCheckpoint,
             object: undoMgr,
@@ -74,8 +74,8 @@ final class DocumentViewModel: ObservableObject {
         BlockSnapshot(content: block.content, spans: block.spans, done: block.done)
     }
 
-    /// Restaure un bloc à un snapshot d'ancre pré-burst et re-enregistre l'inverse
-    /// comme action redo (pattern UndoManager : registerUndo pendant un undo enregistre redo).
+    /// Restores a block to a pre-burst anchor snapshot and re-registers the inverse
+    /// as a redo action (UndoManager pattern: registerUndo during an undo registers redo).
     func applyBlockSnapshot(blockId: String, snapshot snap: BlockSnapshot) {
         guard let idx = blocks.firstIndex(where: { $0.id == blockId }) else { return }
         let previous = snapshotOf(blocks[idx])

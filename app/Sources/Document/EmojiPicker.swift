@@ -1,15 +1,15 @@
 import SwiftUI
 
-// ── Persistance des emojis récents ────────────────────────────────────────────
+// ── Recent emoji persistence ──────────────────────────────────────────────────
 
 let recentEmojisKey = "document.icon.recentEmojis"
 
-/// Charge la liste des emojis récemment utilisés depuis UserDefaults.
+/// Loads the list of recently used emojis from UserDefaults.
 func loadRecentEmojis() -> [String] {
     UserDefaults.standard.stringArray(forKey: recentEmojisKey) ?? []
 }
 
-/// Préfixe `emoji` à la liste des récents (plafonnée à 6), la persiste et retourne la nouvelle liste.
+/// Prepends `emoji` to the recents list (capped at 6), persists it, and returns the new list.
 @discardableResult
 func saveRecentEmoji(_ emoji: String) -> [String] {
     let existing = UserDefaults.standard.stringArray(forKey: recentEmojisKey) ?? []
@@ -18,9 +18,9 @@ func saveRecentEmoji(_ emoji: String) -> [String] {
     return liste
 }
 
-// ── Sélecteur d'emoji ─────────────────────────────────────────────────────────
+// ── Emoji picker ─────────────────────────────────────────────────────────────
 
-/// Sheet plein écran pour sélectionner ou saisir un emoji comme icône de document.
+/// Full-screen sheet for selecting or entering an emoji as the document icon.
 struct EmojiPickerSheet: View {
     let selection: String?
     let recents: [String]
@@ -31,7 +31,7 @@ struct EmojiPickerSheet: View {
 
     private let categories: [(String, [String])] = [
         ("Smileys", ["😀", "😃", "😄", "😁", "😆", "🥹", "😊", "🙂", "🙃", "😉", "😍", "😘", "😎", "🤓", "🥳", "😤", "😭", "😱", "🤯", "😴", "🤫", "🤭", "🫡", "🤔","👁️","👁️‍🗨️"]),
-        ("Mains", ["👋", "👌", "🤌", "🤏", "✌️", "🤞", "🫰", "🤟", "🤘", "👍", "👎", "👏", "🙌", "🫶", "🙏", "✍️", "💪"]),
+        ("Hands", ["👋", "👌", "🤌", "🤏", "✌️", "🤞", "🫰", "🤟", "🤘", "👍", "👎", "👏", "🙌", "🫶", "🙏", "✍️", "💪"]),
         ("Nature", ["🐶", "🐱", "🦁", "🐯", "🦊", "🐻", "🐼", "🐸", "🐵", "🦋", "🐝", "🌿", "🌲", "🌊", "🔥", "🌙", "☀️", "⭐️", "✨", "🌈", "🌧️", "❄️"]),
         ("Objets", ["📌", "📎", "✏️", "🖊️", "📜","📚", "📖", "💡", "🔒", "🔑", "🧭", "🎧", "📷", "💻", "📱", "⌚️", "🎮", "🧩", "🎯"]),
         ("Symboles", ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "💎", "⚡️", "✅", "❌", "‼️", "⁉️", "🔔", "🔕", "♾️", "☮️"])
@@ -46,7 +46,7 @@ struct EmojiPickerSheet: View {
                     }
 
                     if !recents.isEmpty {
-                        emojiSection(name: "Récents", emojis: recents)
+                        emojiSection(name: "Recents", emojis: recents)
                     }
 
                     ForEach(categories, id: \.0) { nom, emojis in
@@ -55,12 +55,12 @@ struct EmojiPickerSheet: View {
                 }
                 .padding(20)
             }
-            .navigationTitle("Icône")
+            .navigationTitle("Icon")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
-                        .accessibilityLabel("Annuler")
+                        .accessibilityLabel("Cancel")
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -70,7 +70,7 @@ struct EmojiPickerSheet: View {
                     } label: {
                         Image(systemName: "keyboard")
                     }
-                    .accessibilityLabel("Saisir un emoji")
+                    .accessibilityLabel("Enter an emoji")
                 }
             }
         }
@@ -129,7 +129,7 @@ struct EmojiPickerSheet: View {
         }
     }
 
-    /// Retourne le premier caractère emoji dans `text`, ou `nil` s'il n'y en a pas.
+    /// Returns the first emoji character in `text`, or `nil` if there is none.
     private func firstEmoji(_ text: String) -> String? {
         text.trimmingCharacters(in: .whitespacesAndNewlines)
             .first

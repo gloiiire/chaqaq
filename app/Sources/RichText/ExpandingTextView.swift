@@ -1,11 +1,11 @@
 import UIKit
 
-// ── Bouton menu avec hooks présentation/fermeture ────────────────────────────
+// ── Menu button with present/close hooks ──────────────────────────────────────
 
-/// Sous-classe `UIButton` qui intercepte `contextMenuInteraction(_:willEndFor:)` sur
-/// l'`UIContextMenuInteraction` interne installée par `showsMenuAsPrimaryAction = true`.
-/// Permet de savoir quand le menu se ferme — y compris lors du dismiss par tap hors du menu —
-/// cas où `textViewDidChangeSelection` ne se déclenche pas.
+/// `UIButton` subclass that intercepts `contextMenuInteraction(_:willEndFor:)` on
+/// the internal `UIContextMenuInteraction` installed by `showsMenuAsPrimaryAction = true`.
+/// Lets us know when the menu closes — including when dismissed by tapping outside —
+/// a case where `textViewDidChangeSelection` does not fire.
 final class MenuButton: UIButton {
     var onMenuWillEnd: (() -> Void)?
 
@@ -19,10 +19,10 @@ final class MenuButton: UIButton {
     }
 }
 
-// ── UITextView auto-extensible ────────────────────────────────────────────────
+// ── Auto-expanding UITextView ─────────────────────────────────────────────────
 
-/// Sous-classe `UITextView` qui se redimensionne verticalement et intercepte les raccourcis
-/// clavier matériel pour Shift+Enter, les toggles gras/italique/souligné, et la navigation inter-blocs.
+/// `UITextView` subclass that resizes vertically and intercepts hardware keyboard shortcuts
+/// for Shift+Enter, bold/italic/underline toggles, and inter-block navigation.
 final class ExpandingTextView: UITextView {
     var onShiftEnter: (() -> Void)?
     var onToggleBold: (() -> Void)?
@@ -65,7 +65,7 @@ final class ExpandingTextView: UITextView {
         if !unhandled.isEmpty { super.pressesChanged(unhandled, with: event) }
     }
 
-    /// Gère les touches flèches pour la navigation inter-blocs. Retourne les presses non traitées.
+    /// Handles arrow keys for inter-block navigation. Returns unhandled presses.
     @discardableResult
     private func handleArrows(_ presses: Set<UIPress>) -> Set<UIPress> {
         var unhandled = Set<UIPress>()
@@ -98,7 +98,7 @@ final class ExpandingTextView: UITextView {
         super.pressesEnded(presses, with: event)
     }
 
-    /// Retourne `true` si le curseur est sur la première ligne visuelle de la vue texte.
+    /// Returns `true` if the cursor is on the first visual line of the text view.
     private func isOnFirstLine() -> Bool {
         guard !text.isEmpty, let pos = selectedTextRange?.start else { return true }
         let caret = caretRect(for: pos)
@@ -106,7 +106,7 @@ final class ExpandingTextView: UITextView {
         return abs(caret.minY - first.minY) < 2
     }
 
-    /// Retourne `true` si le curseur est sur la dernière ligne visuelle de la vue texte.
+    /// Returns `true` if the cursor is on the last visual line of the text view.
     private func isOnLastLine() -> Bool {
         guard !text.isEmpty, let pos = selectedTextRange?.start else { return true }
         let caret = caretRect(for: pos)
