@@ -11,6 +11,9 @@ struct ContentView: View {
             Tab("Notes", systemImage: "note.text") {
                 NotesHomeView(store: store)
             }
+            Tab("Databases", systemImage: "tablecells") {
+                DatabasesHomeView(store: store)
+            }
             Tab(role: .search) {
                 SearchView(store: store)
             }

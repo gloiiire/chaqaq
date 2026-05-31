@@ -328,4 +328,52 @@ mod tests {
         assert_eq!(blocks.len(), 1);
         assert!(matches!(&blocks[0], BlockContent::Text(_)));
     }
+
+    // ── Additional tests required by spec ─────────────────────────────────────
+
+    #[test]
+    fn test_parse_empty_note() {
+        // An empty note body yields no blocks.
+        let blocks = parse_note_blocks("");
+        assert!(blocks.is_empty());
+    }
+
+    #[test]
+    fn test_parse_only_title() {
+        // A body consisting solely of the title heading produces no blocks
+        // because the title line is consumed by the skip-title logic.
+        let blocks = parse_note_blocks("# Title");
+        assert!(blocks.is_empty());
+    }
+
+    #[test]
+    fn test_parse_inline_bold() {
+        // `**gras**` should produce a Text block whose first span carries Bold.
+        let blocks = parse_note_blocks("**gras**");
+        assert_eq!(blocks.len(), 1);
+        if let BlockContent::Text(spans) = &blocks[0] {
+            assert!(!spans.is_empty(), "expected at least one span");
+            let has_bold = spans
+                .iter()
+                .any(|s| s.styles.contains(&crate::domain::document::InlineStyle::Bold));
+            assert!(has_bold, "expected Bold style in spans");
+        } else {
+            panic!("expected Text block");
+        }
+    }
+
+    #[test]
+    fn test_code_block_multiline() {
+        // A multi-line fenced code block must produce a single Code block
+        // whose `text` field has lines joined by '\n'.
+        let note = "```rust\nfn foo() {}\nfn bar() {}\n```";
+        let blocks = parse_note_blocks(note);
+        assert_eq!(blocks.len(), 1);
+        if let BlockContent::Code { language, text } = &blocks[0] {
+            assert_eq!(language, "rust");
+            assert_eq!(text, "fn foo() {}\nfn bar() {}");
+        } else {
+            panic!("expected Code block");
+        }
+    }
 }

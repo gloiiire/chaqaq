@@ -470,4 +470,296 @@ mod tests {
         };
         assert_eq!(map_property_type(&def), PropertyType::Number);
     }
+
+    // ── Additional block mapping tests ────────────────────────────────────────
+
+    #[test]
+    fn test_map_block_todo_checked() {
+        use super::super::schema::TodoBlock;
+        let rt = NotionRichText {
+            plain_text: "task".to_string(),
+            annotations: NotionAnnotations::default(),
+            href: None,
+        };
+        let block = NotionBlock {
+            id: "fake-id".to_string(),
+            type_: "to_do".to_string(),
+            has_children: false,
+            paragraph: None,
+            heading_1: None,
+            heading_2: None,
+            heading_3: None,
+            callout: None,
+            quote: None,
+            to_do: Some(TodoBlock { rich_text: vec![rt], checked: true }),
+            bulleted_list_item: None,
+            numbered_list_item: None,
+            code: None,
+        };
+        let result = map_block(&block);
+        assert!(matches!(
+            result,
+            Some(crate::domain::document::BlockContent::Todo { done: true, .. })
+        ));
+    }
+
+    #[test]
+    fn test_map_block_todo_unchecked() {
+        use super::super::schema::TodoBlock;
+        let rt = NotionRichText {
+            plain_text: "task".to_string(),
+            annotations: NotionAnnotations::default(),
+            href: None,
+        };
+        let block = NotionBlock {
+            id: "fake-id".to_string(),
+            type_: "to_do".to_string(),
+            has_children: false,
+            paragraph: None,
+            heading_1: None,
+            heading_2: None,
+            heading_3: None,
+            callout: None,
+            quote: None,
+            to_do: Some(TodoBlock { rich_text: vec![rt], checked: false }),
+            bulleted_list_item: None,
+            numbered_list_item: None,
+            code: None,
+        };
+        let result = map_block(&block);
+        assert!(matches!(
+            result,
+            Some(crate::domain::document::BlockContent::Todo { done: false, .. })
+        ));
+    }
+
+    #[test]
+    fn test_map_block_callout_with_emoji() {
+        use super::super::schema::{CalloutBlock, CalloutIcon};
+        let rt = NotionRichText {
+            plain_text: "fire".to_string(),
+            annotations: NotionAnnotations::default(),
+            href: None,
+        };
+        let block = NotionBlock {
+            id: "fake-id".to_string(),
+            type_: "callout".to_string(),
+            has_children: false,
+            paragraph: None,
+            heading_1: None,
+            heading_2: None,
+            heading_3: None,
+            callout: Some(CalloutBlock {
+                rich_text: vec![rt],
+                icon: Some(CalloutIcon {
+                    type_: "emoji".to_string(),
+                    emoji: Some("🔥".to_string()),
+                }),
+            }),
+            quote: None,
+            to_do: None,
+            bulleted_list_item: None,
+            numbered_list_item: None,
+            code: None,
+        };
+        let result = map_block(&block);
+        match result {
+            Some(crate::domain::document::BlockContent::Quote { icon, .. }) => {
+                assert_eq!(icon, Some("🔥".to_string()));
+            }
+            _ => panic!("expected Quote block"),
+        }
+    }
+
+    #[test]
+    fn test_map_block_callout_without_icon() {
+        use super::super::schema::CalloutBlock;
+        let rt = NotionRichText {
+            plain_text: "note".to_string(),
+            annotations: NotionAnnotations::default(),
+            href: None,
+        };
+        let block = NotionBlock {
+            id: "fake-id".to_string(),
+            type_: "callout".to_string(),
+            has_children: false,
+            paragraph: None,
+            heading_1: None,
+            heading_2: None,
+            heading_3: None,
+            callout: Some(CalloutBlock {
+                rich_text: vec![rt],
+                icon: None,
+            }),
+            quote: None,
+            to_do: None,
+            bulleted_list_item: None,
+            numbered_list_item: None,
+            code: None,
+        };
+        let result = map_block(&block);
+        match result {
+            Some(crate::domain::document::BlockContent::Quote { icon, .. }) => {
+                // No icon in the Notion block → icon is None (no default injected by mapper).
+                assert!(icon.is_none());
+            }
+            _ => panic!("expected Quote block"),
+        }
+    }
+
+    #[test]
+    fn test_map_block_quote() {
+        use super::super::schema::RichTextBlock;
+        let block = NotionBlock {
+            id: "fake-id".to_string(),
+            type_: "quote".to_string(),
+            has_children: false,
+            paragraph: None,
+            heading_1: None,
+            heading_2: None,
+            heading_3: None,
+            callout: None,
+            quote: Some(RichTextBlock {
+                rich_text: vec![NotionRichText {
+                    plain_text: "wisdom".to_string(),
+                    annotations: NotionAnnotations::default(),
+                    href: None,
+                }],
+            }),
+            to_do: None,
+            bulleted_list_item: None,
+            numbered_list_item: None,
+            code: None,
+        };
+        let result = map_block(&block);
+        match result {
+            Some(crate::domain::document::BlockContent::Quote { icon, text }) => {
+                assert!(icon.is_none());
+                assert_eq!(text.len(), 1);
+                assert_eq!(text[0].content, "wisdom");
+            }
+            _ => panic!("expected Quote block"),
+        }
+    }
+
+    #[test]
+    fn test_map_block_divider() {
+        let block = NotionBlock {
+            id: "fake-id".to_string(),
+            type_: "divider".to_string(),
+            has_children: false,
+            paragraph: None,
+            heading_1: None,
+            heading_2: None,
+            heading_3: None,
+            callout: None,
+            quote: None,
+            to_do: None,
+            bulleted_list_item: None,
+            numbered_list_item: None,
+            code: None,
+        };
+        let result = map_block(&block);
+        assert!(matches!(result, Some(crate::domain::document::BlockContent::Divider)));
+    }
+
+    // ── Additional property value tests ───────────────────────────────────────
+
+    #[test]
+    fn test_map_property_value_select_none() {
+        // Select with no chosen option → Selection(None).
+        let val = NotionPagePropValue::Select { select: None };
+        assert_eq!(
+            map_property_value(&val),
+            Some(crate::domain::database::PropertyValue::Selection(None))
+        );
+    }
+
+    #[test]
+    fn test_map_property_value_multiselect() {
+        use super::super::schema::SelectValue;
+        let val = NotionPagePropValue::MultiSelect {
+            multi_select: vec![
+                SelectValue { name: "a".to_string() },
+                SelectValue { name: "b".to_string() },
+            ],
+        };
+        match map_property_value(&val) {
+            Some(crate::domain::database::PropertyValue::SelectionMultiple(names)) => {
+                assert_eq!(names, vec!["a", "b"]);
+            }
+            _ => panic!("expected SelectionMultiple"),
+        }
+    }
+
+    #[test]
+    fn test_map_property_value_url() {
+        let val = NotionPagePropValue::Url {
+            url: Some("https://example.com".to_string()),
+        };
+        assert_eq!(
+            map_property_value(&val),
+            Some(crate::domain::database::PropertyValue::Url("https://example.com".to_string()))
+        );
+    }
+
+    // ── Additional rich text mapping tests ────────────────────────────────────
+
+    #[test]
+    fn test_map_rich_text_bold() {
+        let items = vec![NotionRichText {
+            plain_text: "bold text".to_string(),
+            annotations: NotionAnnotations {
+                bold: true,
+                ..NotionAnnotations::default()
+            },
+            href: None,
+        }];
+        let result = map_rich_text(&items);
+        assert_eq!(result.len(), 1);
+        assert!(result[0].styles.contains(&crate::domain::document::InlineStyle::Bold));
+    }
+
+    #[test]
+    fn test_map_rich_text_color() {
+        let items = vec![NotionRichText {
+            plain_text: "red text".to_string(),
+            annotations: NotionAnnotations {
+                color: "red".to_string(),
+                ..NotionAnnotations::default()
+            },
+            href: None,
+        }];
+        let result = map_rich_text(&items);
+        assert_eq!(result.len(), 1);
+        assert!(result[0]
+            .styles
+            .contains(&crate::domain::document::InlineStyle::Color("red".to_string())));
+    }
+
+    #[test]
+    fn test_map_rich_text_link() {
+        let url = "https://example.com";
+        let items = vec![NotionRichText {
+            plain_text: "click me".to_string(),
+            annotations: NotionAnnotations::default(),
+            href: Some(url.to_string()),
+        }];
+        let result = map_rich_text(&items);
+        assert_eq!(result.len(), 1);
+        assert!(result[0]
+            .styles
+            .contains(&crate::domain::document::InlineStyle::Link(url.to_string())));
+    }
+
+    // ── extract_database_id with workspace slug ───────────────────────────────
+
+    #[test]
+    fn test_extract_database_id_with_workspace() {
+        // URL format: notion.so/myworkspace/Title-{32hexchars}
+        let url =
+            "https://www.notion.so/myworkspace/Title-abc123def456abc123def456abc123de";
+        let id = extract_database_id(url);
+        assert_eq!(id, "abc123def456abc123def456abc123de");
+    }
 }

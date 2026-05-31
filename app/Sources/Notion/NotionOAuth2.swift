@@ -17,20 +17,26 @@ final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresent
     @Published var isLoading = false
     @Published var error: String?
 
+    /// Builds the Notion OAuth2 authorization URL for the given client ID and redirect URI.
+    /// Extracted as a static helper so it can be unit-tested without launching an authentication session.
+    static func authorizationUrl(clientId: String, redirectUri: String) -> URL? {
+        var comps = URLComponents(string: authBaseUrl)
+        comps?.queryItems = [
+            .init(name: "client_id",     value: clientId),
+            .init(name: "response_type", value: "code"),
+            .init(name: "owner",         value: "user"),
+            .init(name: "redirect_uri",  value: redirectUri),
+        ]
+        return comps?.url
+    }
+
     func authorize() async {
         // Build the authorization URL.
         guard !Self.clientId.isEmpty else {
             error = "Notion client ID not configured."
             return
         }
-        var comps = URLComponents(string: Self.authBaseUrl)!
-        comps.queryItems = [
-            .init(name: "client_id",     value: Self.clientId),
-            .init(name: "response_type", value: "code"),
-            .init(name: "owner",         value: "user"),
-            .init(name: "redirect_uri",  value: Self.redirectUri),
-        ]
-        guard let url = comps.url else { return }
+        guard let url = Self.authorizationUrl(clientId: Self.clientId, redirectUri: Self.redirectUri) else { return }
 
         isLoading = true
         error = nil
