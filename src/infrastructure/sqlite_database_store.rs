@@ -3,7 +3,7 @@ use crate::application::error::PinkhaError;
 use crate::application::resilience::retry_with_backoff;
 use crate::domain::database::{Database, DatabaseMeta};
 use crate::domain::document::InlineText;
-use crate::infrastructure::migrations::appliquer_migrations_databases;
+use crate::infrastructure::migrations::apply_database_migrations;
 use rusqlite::{Connection, params};
 use std::sync::Mutex;
 use uuid::Uuid;
@@ -13,18 +13,18 @@ pub struct SqliteDatabaseStore {
 }
 
 impl SqliteDatabaseStore {
-    pub fn nouveau(chemin: &str) -> Result<Self, PinkhaError> {
-        let mut conn = Connection::open(chemin).map_err(|e| PinkhaError::Db(e.to_string()))?;
+    pub fn new(path: &str) -> Result<Self, PinkhaError> {
+        let mut conn = Connection::open(path).map_err(|e| PinkhaError::Db(e.to_string()))?;
         conn.execute_batch("PRAGMA journal_mode=WAL;")
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
-        appliquer_migrations_databases(&mut conn)?;
+        apply_database_migrations(&mut conn)?;
         Ok(Self {
             conn: Mutex::new(conn),
         })
     }
 
-    pub fn en_memoire() -> Result<Self, PinkhaError> {
-        Self::nouveau(":memory:")
+    pub fn in_memory() -> Result<Self, PinkhaError> {
+        Self::new(":memory:")
     }
 }
 
@@ -113,13 +113,13 @@ impl DatabaseRepository for SqliteDatabaseStore {
     fn delete(&self, id: Uuid) -> Result<(), PinkhaError> {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
-            let modifies = conn
+            let affected = conn
                 .execute(
                     "UPDATE databases SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
                     params![chrono::Utc::now().to_rfc3339(), id.to_string()],
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
-            if modifies == 0 {
+            if affected == 0 {
                 return Err(PinkhaError::NotFound(id));
             }
             Ok(())
@@ -133,7 +133,7 @@ mod tests {
     use crate::domain::database::Database;
 
     fn store() -> SqliteDatabaseStore {
-        SqliteDatabaseStore::en_memoire().unwrap()
+        SqliteDatabaseStore::in_memory().unwrap()
     }
 
     fn title(s: &str) -> Vec<InlineText> {
@@ -143,8 +143,8 @@ mod tests {
         }]
     }
 
-    fn db(nom: &str) -> Database {
-        Database::new(title(nom), vec![])
+    fn db(name: &str) -> Database {
+        Database::new(title(name), vec![])
     }
 
     #[test]
@@ -152,9 +152,9 @@ mod tests {
         let store = store();
         let d = db("Projets");
         store.save(&d).unwrap();
-        let chargee = store.load(d.id).unwrap();
-        assert_eq!(chargee.id, d.id);
-        assert_eq!(chargee.title, d.title);
+        let loaded = store.load(d.id).unwrap();
+        assert_eq!(loaded.id, d.id);
+        assert_eq!(loaded.title, d.title);
     }
 
     #[test]
@@ -200,8 +200,8 @@ mod tests {
         store.save(&d).unwrap();
         d.title = title("Nouveau");
         store.save(&d).unwrap();
-        let chargee = store.load(d.id).unwrap();
-        assert_eq!(chargee.title[0].content, "Nouveau");
+        let loaded = store.load(d.id).unwrap();
+        assert_eq!(loaded.title[0].content, "Nouveau");
     }
 
     #[test]
@@ -231,8 +231,8 @@ mod tests {
         store.save(&d).unwrap();
         let created_at_initial = store.list_meta().unwrap()[0].created_at.clone();
         store.save(&d).unwrap();
-        let created_at_apres = store.list_meta().unwrap()[0].created_at.clone();
-        assert_eq!(created_at_initial, created_at_apres);
+        let created_at_after = store.list_meta().unwrap()[0].created_at.clone();
+        assert_eq!(created_at_initial, created_at_after);
     }
 
     #[test]

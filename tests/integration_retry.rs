@@ -21,7 +21,7 @@ fn db_path() -> String {
 #[test]
 fn ecritures_concurrentes_multi_threads_aboutissent_toutes() {
     let path = db_path();
-    let store = Arc::new(SqliteDocumentStore::nouveau(&path).unwrap());
+    let store = Arc::new(SqliteDocumentStore::new(&path).unwrap());
 
     let mut handles = vec![];
     for i in 0..30 {
@@ -47,7 +47,7 @@ fn ecritures_concurrentes_multi_threads_aboutissent_toutes() {
 #[test]
 fn lectures_et_ecritures_concurrentes_coexistent() {
     let path = db_path();
-    let store = Arc::new(SqliteDocumentStore::nouveau(&path).unwrap());
+    let store = Arc::new(SqliteDocumentStore::new(&path).unwrap());
 
     // Seed
     for i in 0..5 {
@@ -86,7 +86,7 @@ fn lectures_et_ecritures_concurrentes_coexistent() {
 #[test]
 fn retry_n_intervient_pas_sur_not_found() {
     let path = db_path();
-    let store = SqliteDocumentStore::nouveau(&path).unwrap();
+    let store = SqliteDocumentStore::new(&path).unwrap();
 
     // Pas de retry attendu sur NotFound — l'erreur remonte immédiatement.
     let inconnu = Uuid::new_v4();

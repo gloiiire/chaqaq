@@ -65,9 +65,9 @@ pub fn delete_entry(
     entry_id: Uuid,
 ) -> Result<(), PinkhaError> {
     let mut db = repo.load(db_id)?;
-    let avant = db.entries.len();
+    let before = db.entries.len();
     db.entries.retain(|e| e.id != entry_id);
-    if db.entries.len() == avant {
+    if db.entries.len() == before {
         return Err(PinkhaError::NotFound(entry_id));
     }
     repo.save(&db)
@@ -76,31 +76,31 @@ pub fn delete_entry(
 pub fn add_property(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
-    propriete: Property,
+    property: Property,
 ) -> Result<(), PinkhaError> {
     let mut db = repo.load(db_id)?;
-    db.properties.push(propriete);
+    db.properties.push(property);
     repo.save(&db)
 }
 
 pub fn add_view(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
-    vue: View,
+    view: View,
 ) -> Result<View, PinkhaError> {
     let mut db = repo.load(db_id)?;
-    db.views.push(vue.clone());
+    db.views.push(view.clone());
     repo.save(&db)?;
-    Ok(vue)
+    Ok(view)
 }
 
-pub fn requete(
+pub fn query(
     repo: &dyn DatabaseRepository,
     db_id: Uuid,
     view_id: Uuid,
 ) -> Result<Vec<Entry>, PinkhaError> {
     let db = repo.load(db_id)?;
-    let vue = db
+    let view = db
         .views
         .iter()
         .find(|v| v.id == view_id)
@@ -109,21 +109,21 @@ pub fn requete(
     let mut entries: Vec<Entry> = db
         .entries
         .iter()
-        .filter(|e| vue.filters.iter().all(|f| apply_filter(e, f)))
+        .filter(|e| view.filters.iter().all(|f| apply_filter(e, f)))
         .cloned()
         .collect();
 
-    for tri in vue.sorts.iter().rev() {
+    for sort_rule in view.sorts.iter().rev() {
         entries.sort_by(|a, b| {
-            let ord = match &tri.source {
+            let ord = match &sort_rule.source {
                 SortSource::Property => {
                     let va = a
                         .values
-                        .get(&tri.property_id)
+                        .get(&sort_rule.property_id)
                         .unwrap_or(&PropertyValue::Empty);
                     let vb = b
                         .values
-                        .get(&tri.property_id)
+                        .get(&sort_rule.property_id)
                         .unwrap_or(&PropertyValue::Empty);
                     compare_values(va, vb)
                 }
@@ -131,16 +131,16 @@ pub fn requete(
                 SortSource::ManualThenCreated => {
                     let va = a
                         .values
-                        .get(&tri.property_id)
+                        .get(&sort_rule.property_id)
                         .unwrap_or(&PropertyValue::Empty);
                     let vb = b
                         .values
-                        .get(&tri.property_id)
+                        .get(&sort_rule.property_id)
                         .unwrap_or(&PropertyValue::Empty);
-                    date_effective(va, &a.created_at).cmp(date_effective(vb, &b.created_at))
+                    effective_date(va, &a.created_at).cmp(effective_date(vb, &b.created_at))
                 }
             };
-            if tri.order == Order::Descending {
+            if sort_rule.order == Order::Descending {
                 ord.reverse()
             } else {
                 ord
@@ -176,9 +176,9 @@ pub fn delete_property(
     prop_id: Uuid,
 ) -> Result<(), PinkhaError> {
     let mut db = repo.load(db_id)?;
-    let avant = db.properties.len();
+    let before = db.properties.len();
     db.properties.retain(|p| p.id != prop_id);
-    if db.properties.len() == avant {
+    if db.properties.len() == before {
         return Err(PinkhaError::NotFound(prop_id));
     }
     for entry in &mut db.entries {
@@ -198,13 +198,13 @@ pub fn update_view(
     sorts: Vec<Sort>,
 ) -> Result<(), PinkhaError> {
     let mut db = repo.load(db_id)?;
-    let vue = db
+    let view = db
         .views
         .iter_mut()
         .find(|v| v.id == view_id)
         .ok_or(PinkhaError::NotFound(view_id))?;
-    vue.filters = filters;
-    vue.sorts = sorts;
+    view.filters = filters;
+    view.sorts = sorts;
     repo.save(&db)
 }
 
@@ -220,9 +220,9 @@ pub fn delete_view(
             "impossible de supprimer la dernière vue".to_string(),
         ));
     }
-    let avant = db.views.len();
+    let before = db.views.len();
     db.views.retain(|v| v.id != view_id);
-    if db.views.len() == avant {
+    if db.views.len() == before {
         return Err(PinkhaError::NotFound(view_id));
     }
     repo.save(&db)
@@ -291,7 +291,7 @@ pub fn evaluate_rollups(
     }
 
     for (rollup_id, relation_prop_id, target_prop_id, aggregate) in rollups {
-        let db_liee_id = db
+        let linked_db_id = db
             .properties
             .iter()
             .find(|p| p.id == relation_prop_id)
@@ -301,21 +301,21 @@ pub fn evaluate_rollups(
             })
             .ok_or(PinkhaError::NotFound(relation_prop_id))?;
 
-        let db_liee = repo.load(db_liee_id)?;
+        let linked_db = repo.load(linked_db_id)?;
 
         for entry in &mut entries {
-            let ids_lies = match entry.values.get(&relation_prop_id) {
+            let linked_ids = match entry.values.get(&relation_prop_id) {
                 Some(PropertyValue::Relation(ids)) => ids.clone(),
                 _ => vec![],
             };
-            let liees: Vec<&Entry> = db_liee
+            let linked_entries: Vec<&Entry> = linked_db
                 .entries
                 .iter()
-                .filter(|e| ids_lies.contains(&e.id))
+                .filter(|e| linked_ids.contains(&e.id))
                 .collect();
             entry
                 .values
-                .insert(rollup_id, calculer_aggregate(&liees, target_prop_id, &aggregate));
+                .insert(rollup_id, calculate_aggregate(&linked_entries, target_prop_id, &aggregate));
         }
     }
 
@@ -329,7 +329,7 @@ pub fn query_with_rollups(
     view_id: Uuid,
 ) -> Result<Vec<Entry>, PinkhaError> {
     let db = repo.load(db_id)?;
-    let entries = requete(repo, db_id, view_id)?;
+    let entries = query(repo, db_id, view_id)?;
     evaluate_rollups(repo, &db, entries)
 }
 
@@ -342,7 +342,7 @@ pub fn column_aggregate(
 ) -> Result<PropertyValue, PinkhaError> {
     let db = repo.load(db_id)?;
     let refs: Vec<&Entry> = db.entries.iter().collect();
-    Ok(calculer_aggregate(&refs, prop_id, &aggregate))
+    Ok(calculate_aggregate(&refs, prop_id, &aggregate))
 }
 
 /// Regroupe les entrées d'une vue par valeur d'une propriété.
@@ -352,7 +352,7 @@ pub fn grouped_query(
     view_id: Uuid,
     group_by: Uuid,
 ) -> Result<Vec<Group>, PinkhaError> {
-    let entries = requete(repo, db_id, view_id)?;
+    let entries = query(repo, db_id, view_id)?;
     let mut map: HashMap<String, Group> = HashMap::new();
 
     for entry in entries {
@@ -379,14 +379,14 @@ pub fn grouped_query(
 // ── Helpers internes ─────────────────────────────────────────────────────────
 
 /// Retourne la date effective : valeur manuelle si renseignée, sinon `created_at`.
-fn date_effective<'a>(v: &'a PropertyValue, created_at: &'a str) -> &'a str {
+fn effective_date<'a>(v: &'a PropertyValue, created_at: &'a str) -> &'a str {
     match v {
         PropertyValue::Date(d) if !d.is_empty() => d.as_str(),
         _ => created_at,
     }
 }
 
-fn calculer_aggregate(entries: &[&Entry], prop_id: Uuid, aggregate: &Aggregate) -> PropertyValue {
+fn calculate_aggregate(entries: &[&Entry], prop_id: Uuid, aggregate: &Aggregate) -> PropertyValue {
     let nums: Vec<f64> = entries
         .iter()
         .filter_map(|e| e.values.get(&prop_id))
@@ -426,12 +426,12 @@ fn group_key(v: &PropertyValue) -> String {
     }
 }
 
-fn apply_filter(entry: &Entry, filtre: &Filter) -> bool {
+fn apply_filter(entry: &Entry, filter: &Filter) -> bool {
     let value = entry
         .values
-        .get(&filtre.property_id)
+        .get(&filter.property_id)
         .unwrap_or(&PropertyValue::Empty);
-    match &filtre.condition {
+    match &filter.condition {
         FilterCondition::IsEmpty => matches!(value, PropertyValue::Empty),
         FilterCondition::IsFilled => !matches!(value, PropertyValue::Empty),
         FilterCondition::Equal(v) => value == v,
@@ -473,7 +473,7 @@ mod tests {
     }
 
     impl MockDbRepo {
-        fn nouveau() -> Self {
+        fn new() -> Self {
             Self {
                 dbs: RefCell::new(std::collections::HashMap::new()),
             }
@@ -513,7 +513,7 @@ mod tests {
 
     #[test]
     fn test_rename_property() {
-        let repo = MockDbRepo::nouveau();
+        let repo = MockDbRepo::new();
         let prop = Property::new("Ancien", PropertyType::Text);
         let prop_id = prop.id;
         let db = Database::new(title("DB"), vec![prop]);
@@ -527,7 +527,7 @@ mod tests {
 
     #[test]
     fn test_rename_property_inexistante_erreur() {
-        let repo = MockDbRepo::nouveau();
+        let repo = MockDbRepo::new();
         let db = Database::new(title("DB"), vec![]);
         repo.save(&db).unwrap();
 
@@ -537,7 +537,7 @@ mod tests {
 
     #[test]
     fn test_delete_property_retire_des_entries() {
-        let repo = MockDbRepo::nouveau();
+        let repo = MockDbRepo::new();
         let prop = Property::new("Statut", PropertyType::Text);
         let prop_id = prop.id;
         let mut db = Database::new(title("DB"), vec![prop]);
@@ -555,7 +555,7 @@ mod tests {
 
     #[test]
     fn test_delete_property_inexistante_erreur() {
-        let repo = MockDbRepo::nouveau();
+        let repo = MockDbRepo::new();
         let db = Database::new(title("DB"), vec![]);
         repo.save(&db).unwrap();
 
@@ -565,19 +565,19 @@ mod tests {
 
     #[test]
     fn test_update_view_met_a_jour_filters_et_sorts() {
-        let repo = MockDbRepo::nouveau();
+        let repo = MockDbRepo::new();
         let prop = Property::new("Note", PropertyType::Number);
         let prop_id = prop.id;
         let db = Database::new(title("DB"), vec![prop]);
         let view_id = db.views[0].id;
         repo.save(&db).unwrap();
 
-        let filtre = Filter {
+        let filter = Filter {
             property_id: prop_id,
             condition: FilterCondition::IsFilled,
         };
-        let tri = Sort::by_property(prop_id, Order::Descending);
-        update_view(&repo, db.id, view_id, vec![filtre], vec![tri]).unwrap();
+        let sort = Sort::by_property(prop_id, Order::Descending);
+        update_view(&repo, db.id, view_id, vec![filter], vec![sort]).unwrap();
 
         let db = repo.load(db.id).unwrap();
         assert_eq!(db.views[0].filters.len(), 1);
@@ -586,23 +586,23 @@ mod tests {
 
     #[test]
     fn test_delete_view() {
-        let repo = MockDbRepo::nouveau();
+        let repo = MockDbRepo::new();
         let mut db = Database::new(title("DB"), vec![]);
-        let vue2 = View::new("Kanban", ViewType::Gallery);
-        let vue2_id = vue2.id;
-        db.views.push(vue2);
+        let view2 = View::new("Kanban", ViewType::Gallery);
+        let view2_id = view2.id;
+        db.views.push(view2);
         repo.save(&db).unwrap();
 
-        delete_view(&repo, db.id, vue2_id).unwrap();
+        delete_view(&repo, db.id, view2_id).unwrap();
 
         let db = repo.load(db.id).unwrap();
         assert_eq!(db.views.len(), 1);
-        assert!(db.views.iter().all(|v| v.id != vue2_id));
+        assert!(db.views.iter().all(|v| v.id != view2_id));
     }
 
     #[test]
     fn test_supprimer_derniere_vue_erreur() {
-        let repo = MockDbRepo::nouveau();
+        let repo = MockDbRepo::new();
         let db = Database::new(title("DB"), vec![]);
         let view_id = db.views[0].id;
         repo.save(&db).unwrap();
@@ -613,7 +613,7 @@ mod tests {
 
     #[test]
     fn test_delete_view_inexistante_erreur() {
-        let repo = MockDbRepo::nouveau();
+        let repo = MockDbRepo::new();
         let mut db = Database::new(title("DB"), vec![]);
         db.views.push(View::new("Extra", ViewType::Gallery));
         repo.save(&db).unwrap();
@@ -622,7 +622,7 @@ mod tests {
         assert!(matches!(res, Err(PinkhaError::NotFound(_))));
     }
 
-    fn entry_avec_nombre(prop_id: Uuid, n: f64) -> Entry {
+    fn entry_with_number(prop_id: Uuid, n: f64) -> Entry {
         let mut map = HashMap::new();
         map.insert(prop_id, PropertyValue::Number(n));
         Entry::new(map)
@@ -638,44 +638,44 @@ mod tests {
     fn test_filtre_est_vide() {
         let prop_id = Uuid::new_v4();
         let entry = Entry::new(HashMap::new());
-        let filtre = Filter {
+        let filter = Filter {
             property_id: prop_id,
             condition: FilterCondition::IsEmpty,
         };
-        assert!(apply_filter(&entry, &filtre));
+        assert!(apply_filter(&entry, &filter));
     }
 
     #[test]
     fn test_filtre_est_plein() {
         let prop_id = Uuid::new_v4();
         let entry = entry_with_text(prop_id, "valeur");
-        let filtre = Filter {
+        let filter = Filter {
             property_id: prop_id,
             condition: FilterCondition::IsFilled,
         };
-        assert!(apply_filter(&entry, &filtre));
+        assert!(apply_filter(&entry, &filter));
     }
 
     #[test]
     fn test_filtre_contient() {
         let prop_id = Uuid::new_v4();
         let entry = entry_with_text(prop_id, "Bonjour monde");
-        let filtre = Filter {
+        let filter = Filter {
             property_id: prop_id,
             condition: FilterCondition::Contains("monde".to_string()),
         };
-        assert!(apply_filter(&entry, &filtre));
+        assert!(apply_filter(&entry, &filter));
     }
 
     #[test]
     fn test_filtre_egal_nombre() {
         let prop_id = Uuid::new_v4();
-        let entry = entry_avec_nombre(prop_id, 42.0);
-        let filtre = Filter {
+        let entry = entry_with_number(prop_id, 42.0);
+        let filter = Filter {
             property_id: prop_id,
             condition: FilterCondition::Equal(PropertyValue::Number(42.0)),
         };
-        assert!(apply_filter(&entry, &filtre));
+        assert!(apply_filter(&entry, &filter));
     }
 
     #[test]
@@ -696,13 +696,13 @@ mod tests {
     fn test_calculer_aggregate_somme() {
         let prop_id = Uuid::new_v4();
         let entries = vec![
-            entry_avec_nombre(prop_id, 10.0),
-            entry_avec_nombre(prop_id, 20.0),
-            entry_avec_nombre(prop_id, 30.0),
+            entry_with_number(prop_id, 10.0),
+            entry_with_number(prop_id, 20.0),
+            entry_with_number(prop_id, 30.0),
         ];
         let refs: Vec<&Entry> = entries.iter().collect();
         assert_eq!(
-            calculer_aggregate(&refs, prop_id, &Aggregate::Sum),
+            calculate_aggregate(&refs, prop_id, &Aggregate::Sum),
             PropertyValue::Number(60.0)
         );
     }
@@ -710,11 +710,11 @@ mod tests {
     #[test]
     fn test_calculer_aggregate_compter() {
         let prop_id = Uuid::new_v4();
-        let e1 = entry_avec_nombre(prop_id, 1.0);
-        let e2 = entry_avec_nombre(prop_id, 2.0);
+        let e1 = entry_with_number(prop_id, 1.0);
+        let e2 = entry_with_number(prop_id, 2.0);
         let refs: Vec<&Entry> = vec![&e1, &e2];
         assert_eq!(
-            calculer_aggregate(&refs, prop_id, &Aggregate::Count),
+            calculate_aggregate(&refs, prop_id, &Aggregate::Count),
             PropertyValue::Number(2.0)
         );
     }
@@ -723,12 +723,12 @@ mod tests {
     fn test_calculer_aggregate_moyenne() {
         let prop_id = Uuid::new_v4();
         let entries = vec![
-            entry_avec_nombre(prop_id, 10.0),
-            entry_avec_nombre(prop_id, 20.0),
+            entry_with_number(prop_id, 10.0),
+            entry_with_number(prop_id, 20.0),
         ];
         let refs: Vec<&Entry> = entries.iter().collect();
         assert_eq!(
-            calculer_aggregate(&refs, prop_id, &Aggregate::Average),
+            calculate_aggregate(&refs, prop_id, &Aggregate::Average),
             PropertyValue::Number(15.0)
         );
     }

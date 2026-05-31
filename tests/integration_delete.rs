@@ -17,7 +17,7 @@ fn doc_store_temp() -> JsonStore {
 
 fn db_store_temp() -> DatabaseStore {
     let dir = std::env::temp_dir().join(format!("pinkha_del_db_{}", Uuid::new_v4()));
-    DatabaseStore::nouveau(dir).unwrap()
+    DatabaseStore::new(dir).unwrap()
 }
 
 fn inlines(s: &str) -> Vec<InlineText> {

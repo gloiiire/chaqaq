@@ -1,6 +1,6 @@
 use pinkha::application::database_use_cases::{
     column_aggregate, add_entry, add_view, create_database, evaluate_rollups,
-    list_databases, update_entry, get_database, requete, grouped_query,
+    list_databases, update_entry, get_database, query, grouped_query,
     delete_entry,
 };
 use pinkha::domain::database::{
@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 fn store_temp() -> DatabaseStore {
     let dir = std::env::temp_dir().join(format!("pinkha_db_integ_{}", Uuid::new_v4()));
-    DatabaseStore::nouveau(dir).unwrap()
+    DatabaseStore::new(dir).unwrap()
 }
 
 fn title(s: &str) -> Vec<InlineText> {
@@ -76,7 +76,7 @@ fn test_filtrer_entries_par_valeur() {
     });
     let vue = add_view(&store, db.id, vue).unwrap();
 
-    let resultats = requete(&store, db.id, vue.id).unwrap();
+    let resultats = query(&store, db.id, vue.id).unwrap();
     assert_eq!(resultats.len(), 1);
 }
 
@@ -95,7 +95,7 @@ fn test_trier_entries_par_nombre() {
     vue.sorts.push(Sort::by_property(prop_id, Order::Ascending));
     let vue = add_view(&store, db.id, vue).unwrap();
 
-    let resultats = requete(&store, db.id, vue.id).unwrap();
+    let resultats = query(&store, db.id, vue.id).unwrap();
     let values: Vec<f64> = resultats
         .iter()
         .map(|e| match e.values.get(&prop_id).unwrap() {
@@ -295,7 +295,7 @@ fn test_tri_by_creation_auto() {
     vue.sorts.push(Sort::by_creation(Order::Ascending));
     let vue = add_view(&store, db.id, vue).unwrap();
 
-    let resultats = requete(&store, db.id, vue.id).unwrap();
+    let resultats = query(&store, db.id, vue.id).unwrap();
     assert_eq!(resultats[0].created_at, "2022-12-01T00:00:00+00:00");
     assert_eq!(resultats[1].created_at, "2023-01-01T00:00:00+00:00");
     assert_eq!(resultats[2].created_at, "2023-06-15T00:00:00+00:00");
@@ -329,7 +329,7 @@ fn test_tri_manual_then_creation_cas_journal() {
         .push(Sort::manual_then_creation(date_id, Order::Ascending));
     let vue = add_view(&store, db.id, vue).unwrap();
 
-    let resultats = requete(&store, db.id, vue.id).unwrap();
+    let resultats = query(&store, db.id, vue.id).unwrap();
     // L'ancienne note (date manuelle 2020) doit passer AVANT la new (created_at 2024)
     let date_premiere = resultats[0].values.get(&date_id);
     assert_eq!(
