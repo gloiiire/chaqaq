@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "crates/chaqaq", "crates/realm-rs"]
+members = [".", "crates/chaqaq", "crates/realm-codec"]
 resolver = "2"
 
 [package]

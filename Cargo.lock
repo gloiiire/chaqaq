@@ -989,7 +989,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "realm-rs"
+name = "realm-codec"
 version = "0.1.0"
 
 [[package]]

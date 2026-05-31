@@ -1,4 +1,4 @@
-# realm-rs
+# realm-codec
 
 Parser and writer for [Realm](https://github.com/realm/realm-core) binary database files (format version 9).
 
@@ -7,7 +7,7 @@ Parser and writer for [Realm](https://github.com/realm/realm-core) binary databa
 ## Reading
 
 ```rust
-use realm_rs::RealmFile;
+use realm_codec::RealmFile;
 
 let realm = RealmFile::open("/path/to/file.realm")?;
 
@@ -22,7 +22,7 @@ if let Some(table) = realm.table("class_BlockDataModel") {
 ## Writing
 
 ```rust
-use realm_rs::{RealmBuilder, ColumnType, Value};
+use realm_codec::{RealmBuilder, ColumnType, Value};
 
 let mut builder = RealmBuilder::new();
 builder
