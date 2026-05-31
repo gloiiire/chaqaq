@@ -65,7 +65,7 @@ struct DocumentView: View {
                               onSave: vm.saveTitle,
                               onNewBlock: { tail in
                                   let spans = tail.isEmpty ? [] : [InlineTextFfi(content: tail, styles: [])]
-                                  vm.addBlock(type: .text, initialSpans: spans)
+                                  vm.addBlock(type: .text, initialSpans: spans, atStart: true)
                               })
                 .disabled(documentLocked)
                 .listRowBackground(Color.clear).listRowSeparator(.hidden)
