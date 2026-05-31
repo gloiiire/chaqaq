@@ -6,6 +6,7 @@ import SwiftUI
 struct NotesHomeView: View {
     @ObservedObject var store: PinkhaStore
     @State private var showingCreate = false
+    @State private var showingImport = false
     @State private var newTitle = ""
     @State private var createMode: CreateMode = .note
 
@@ -81,12 +82,23 @@ struct NotesHomeView: View {
                     } label: {
                         Label("New database", systemImage: "tablecells")
                     }
+                    Divider()
+                    Button {
+                        showingImport = true
+                    } label: {
+                        Label("Import from Notion", systemImage: "arrow.down.doc")
+                    }
                 } label: {
                     FloatingButton(icon: "square.and.pencil") {}
                 }
                 .accessibilityIdentifier("createFAB")
                 .padding(.trailing, 24)
                 .padding(.bottom, 32)
+            }
+            .sheet(isPresented: $showingImport) {
+                NotionImportView(api: store.api) {
+                    store.load()
+                }
             }
             .sheet(isPresented: $showingCreate) {
                 CreateDocumentSheet(

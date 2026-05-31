@@ -354,6 +354,12 @@ private struct CellView: View {
                 TextCell(value: $value).frame(width: width)
             case .number:
                 NumberCell(value: $value).frame(width: width)
+            case .selection(let options):
+                SelectionCell(value: $value, options: options).frame(width: width)
+            case .selectionMultiple(let options):
+                MultiSelectCell(value: $value, options: options).frame(width: width)
+            case .date:
+                DateCell(value: $value).frame(width: width)
             default:
                 ReadOnlyCell(text: value.displayText).frame(width: width)
             }
@@ -429,5 +435,241 @@ private struct ReadOnlyCell: View {
             .lineLimit(1)
             .padding(.horizontal, 10)
             .frame(minHeight: 44, alignment: .leading)
+    }
+}
+
+// ── Selection / multi-select cells ────────────────────────────────────────────
+
+private struct SelectionCell: View {
+    @Binding var value: PropertyValueFfi
+    let options: [String]
+    @State private var showPicker = false
+
+    private var selected: String? {
+        guard case .selection(let s) = value else { return nil }
+        return s
+    }
+
+    var body: some View {
+        Button { showPicker = true } label: {
+            HStack(spacing: 0) {
+                if let s = selected { SelectionChip(label: s) } else { Color.clear }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .frame(minHeight: 44, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showPicker) {
+            SelectionPickerSheet(options: options, selected: selected) { pick in
+                value = .selection(pick)
+                showPicker = false
+            }
+            .presentationDetents([.medium, .large])
+        }
+    }
+}
+
+private struct MultiSelectCell: View {
+    @Binding var value: PropertyValueFfi
+    let options: [String]
+    @State private var showPicker = false
+
+    private var selected: [String] {
+        guard case .selectionMultiple(let s) = value else { return [] }
+        return s
+    }
+
+    var body: some View {
+        Button { showPicker = true } label: {
+            if selected.isEmpty {
+                Color.clear
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .padding(.horizontal, 10)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(selected, id: \.self) { SelectionChip(label: $0) }
+                    }
+                    .padding(.horizontal, 10)
+                }
+                .frame(minHeight: 44)
+            }
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showPicker) {
+            MultiSelectPickerSheet(options: options, selected: selected) { picks in
+                value = .selectionMultiple(picks)
+                showPicker = false
+            }
+            .presentationDetents([.medium, .large])
+        }
+    }
+}
+
+private struct DateCell: View {
+    @Binding var value: PropertyValueFfi
+    @State private var showPicker = false
+
+    private var date: Date? {
+        guard case .date(let s) = value else { return nil }
+        var fmt = ISO8601DateFormatter(); fmt.formatOptions = [.withFullDate]
+        return fmt.date(from: s)
+    }
+
+    var body: some View {
+        Button { showPicker = true } label: {
+            Text(date.map { $0.formatted(date: .abbreviated, time: .omitted) } ?? "")
+                .foregroundStyle(date == nil ? .tertiary : .primary)
+                .padding(.horizontal, 10)
+                .frame(minHeight: 44, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showPicker) {
+            DatePickerSheet(current: date) { picked in
+                var fmt = ISO8601DateFormatter(); fmt.formatOptions = [.withFullDate]
+                value = picked.map { .date(fmt.string(from: $0)) } ?? .empty
+                showPicker = false
+            }
+            .presentationDetents([.medium])
+        }
+    }
+}
+
+// ── Picker sheets ─────────────────────────────────────────────────────────────
+
+private struct SelectionPickerSheet: View {
+    let options: [String]
+    let selected: String?
+    let onSelect: (String?) -> Void
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if selected != nil {
+                    Button(role: .destructive) { onSelect(nil) } label: {
+                        Label("Clear", systemImage: "xmark.circle")
+                    }
+                }
+                ForEach(options, id: \.self) { opt in
+                    Button {
+                        onSelect(opt)
+                    } label: {
+                        HStack {
+                            SelectionChip(label: opt)
+                            Spacer()
+                            if opt == selected {
+                                Image(systemName: "checkmark").foregroundStyle(.tint)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .navigationTitle("Select")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onSelect(selected) }
+                }
+            }
+        }
+    }
+}
+
+private struct MultiSelectPickerSheet: View {
+    let options: [String]
+    let onDone: ([String]) -> Void
+    @State private var current: Set<String>
+
+    init(options: [String], selected: [String], onDone: @escaping ([String]) -> Void) {
+        self.options = options
+        self.onDone = onDone
+        self._current = State(initialValue: Set(selected))
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(options, id: \.self) { opt in
+                    Button {
+                        if current.contains(opt) { current.remove(opt) } else { current.insert(opt) }
+                    } label: {
+                        HStack {
+                            SelectionChip(label: opt)
+                            Spacer()
+                            if current.contains(opt) {
+                                Image(systemName: "checkmark").foregroundStyle(.tint)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .navigationTitle("Select")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { onDone(Array(current)) }
+                }
+            }
+        }
+    }
+}
+
+private struct DatePickerSheet: View {
+    let onDone: (Date?) -> Void
+    @State private var selected: Date
+    private let hasInitial: Bool
+
+    init(current: Date?, onDone: @escaping (Date?) -> Void) {
+        self.onDone = onDone
+        self.hasInitial = current != nil
+        self._selected = State(initialValue: current ?? .now)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                DatePicker("Date", selection: $selected, displayedComponents: .date)
+                    .datePickerStyle(.graphical)
+                if hasInitial {
+                    Button(role: .destructive) { onDone(nil) } label: {
+                        Label("Clear date", systemImage: "xmark.circle")
+                    }
+                }
+            }
+            .navigationTitle("Pick a date")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onDone(nil) }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { onDone(selected) }
+                }
+            }
+        }
+    }
+}
+
+// ── Shared chip ───────────────────────────────────────────────────────────────
+
+private struct SelectionChip: View {
+    let label: String
+
+    private var color: Color {
+        let palette: [Color] = [.red, .orange, .yellow, .green, .teal, .blue, .purple, .pink, .brown, .indigo]
+        return palette[abs(label.hashValue) % palette.count]
+    }
+
+    var body: some View {
+        Text(label)
+            .font(.caption.weight(.medium))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(color.opacity(0.15), in: Capsule())
+            .foregroundStyle(color)
+            .lineLimit(1)
     }
 }
