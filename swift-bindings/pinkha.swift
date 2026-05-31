@@ -559,6 +559,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func importFromBear(dbPath: String) async throws  -> ImportResultFfi
     
     /**
+     * Importe les pages Craft depuis le fichier `.realm` local de Craft.
+     * `db_path` est le chemin absolu vers le fichier `.realm` de Craft.
+     */
+    func importFromCraft(dbPath: String) async throws  -> ImportResultFfi
+    
+    /**
      * Importe une database Notion complète (schéma + pages + blocs).
      * `token` est un bearer token OAuth2 ou private integration token.
      * `database_id` est un UUID 32-char hex ou l'URL complète Notion.
@@ -904,6 +910,27 @@ open func importFromBear(dbPath: String)async throws  -> ImportResultFfi  {
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_pinkha_fn_method_pinkhaapi_import_from_bear(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(dbPath)
+                )
+            },
+            pollFunc: ffi_pinkha_rust_future_poll_rust_buffer,
+            completeFunc: ffi_pinkha_rust_future_complete_rust_buffer,
+            freeFunc: ffi_pinkha_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeImportResultFfi_lift,
+            errorHandler: FfiConverterTypePinkhaError_lift
+        )
+}
+    
+    /**
+     * Importe les pages Craft depuis le fichier `.realm` local de Craft.
+     * `db_path` est le chemin absolu vers le fichier `.realm` de Craft.
+     */
+open func importFromCraft(dbPath: String)async throws  -> ImportResultFfi  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_pinkha_fn_method_pinkhaapi_import_from_craft(
                     self.uniffiCloneHandle(),
                     FfiConverterString.lower(dbPath)
                 )
@@ -1693,6 +1720,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_bear() != 65442) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_craft() != 6467) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion() != 39297) {

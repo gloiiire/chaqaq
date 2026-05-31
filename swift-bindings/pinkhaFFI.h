@@ -348,6 +348,11 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_grouped_query_database_json(uint64_
 uint64_t uniffi_pinkha_fn_method_pinkhaapi_import_from_bear(uint64_t ptr, RustBuffer db_path
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_IMPORT_FROM_CRAFT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_IMPORT_FROM_CRAFT
+uint64_t uniffi_pinkha_fn_method_pinkhaapi_import_from_craft(uint64_t ptr, RustBuffer db_path
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_IMPORT_FROM_NOTION
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_IMPORT_FROM_NOTION
 uint64_t uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(uint64_t ptr, RustBuffer token, RustBuffer database_id
@@ -798,6 +803,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_grouped_query_database_json(voi
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_IMPORT_FROM_BEAR
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_IMPORT_FROM_BEAR
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_import_from_bear(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_IMPORT_FROM_CRAFT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_IMPORT_FROM_CRAFT
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_import_from_craft(void
     
 );
 #endif
