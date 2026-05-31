@@ -5,6 +5,7 @@ import Foundation
 // Unit tests for NotionOAuth2 URL construction.
 // No ASWebAuthenticationSession is launched — only the static helper is exercised.
 
+@MainActor
 @Suite("NotionOAuth2 — authorization URL construction")
 struct NotionOAuth2Tests {
 
