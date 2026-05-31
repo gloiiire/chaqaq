@@ -1,3 +1,7 @@
+[workspace]
+members = [".", "crates/chaqaq"]
+resolver = "2"
+
 [package]
 name = "pinkha"
 version = "0.1.0"
@@ -8,6 +12,7 @@ name = "pinkha"
 crate-type = ["staticlib", "cdylib", "lib"]
 
 [dependencies]
+chaqaq = { path = "crates/chaqaq" }
 chrono = { version = "0.4", features = ["serde"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
 rusqlite_migration = "1.2"
