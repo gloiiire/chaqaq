@@ -157,8 +157,20 @@ pub(super) fn calculate_aggregate(
                 nums.iter().sum::<f64>() / nums.len() as f64
             }
         }
-        Aggregate::Min => nums.iter().cloned().fold(f64::INFINITY, f64::min),
-        Aggregate::Max => nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
+        Aggregate::Min => {
+            return if nums.is_empty() {
+                PropertyValue::Empty
+            } else {
+                PropertyValue::Number(nums.iter().cloned().fold(f64::INFINITY, f64::min))
+            }
+        }
+        Aggregate::Max => {
+            return if nums.is_empty() {
+                PropertyValue::Empty
+            } else {
+                PropertyValue::Number(nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max))
+            }
+        }
     };
     PropertyValue::Number(r)
 }
