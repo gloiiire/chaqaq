@@ -11,7 +11,7 @@ extension DocumentViewModel {
             let new = block.content.withSpans(block.spans, done: block.done)
             let data = try JSONEncoder().encode(new)
             try api.updateBlock(docId: docId, blockId: block.id,
-                                 contentJson: String(data: data, encoding: .utf8)!)
+                                 contentJson: String(decoding: data, as: UTF8.self))
         } catch { errorMessage = error.localizedDescription }
     }
 
@@ -83,6 +83,9 @@ extension DocumentViewModel {
     }
 
     func load() {
+        // Flush les bursts en attente avant de recharger depuis SQLite,
+        // sinon load() écraserait l'état in-memory non encore persisté.
+        flushAllBursts()
         do {
             let json = try api.getDocumentJson(id: docId)
             guard let data = json.data(using: .utf8) else { return }

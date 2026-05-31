@@ -5,7 +5,6 @@ import SwiftUI
 /// Vue racine — trois onglets : Notes, Bases, Recherche.
 struct ContentView: View {
     @StateObject private var store = PinkhaStore()
-    @State private var searchQuery = ""
 
     var body: some View {
         TabView {
@@ -16,11 +15,9 @@ struct ContentView: View {
                 DatabasesHomeView()
             }
             Tab(role: .search) {
-                SearchView(store: store, query: searchQuery)
+                SearchView(store: store)
             }
         }
-        .searchable(text: $searchQuery, prompt: "Titres des notes…")
-        .autocorrectionDisabled()
         .onAppear { store.connect() }
         .errorAlert(message: $store.errorMessage, onRetry: store.load)
     }
@@ -52,10 +49,10 @@ private struct DatabasesHomeView: View {
 
 // ── Onglet 3 : Recherche ──────────────────────────────────────────────────────
 
-/// Onglet Recherche — la query vient du .searchable posé sur le TabView.
+/// Onglet Recherche — possède son propre .searchable pour ne pas saigner dans les autres tabs.
 private struct SearchView: View {
     @ObservedObject var store: PinkhaStore
-    let query: String
+    @State private var query = ""
 
     private var results: [DocumentMetaFfi] {
         query.isEmpty ? [] : store.search(query: query)
@@ -93,6 +90,8 @@ private struct SearchView: View {
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Recherche")
+            .searchable(text: $query, prompt: "Titres des notes…")
+            .autocorrectionDisabled()
         }
     }
 }
