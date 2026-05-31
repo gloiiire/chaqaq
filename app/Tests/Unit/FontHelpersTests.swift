@@ -2,13 +2,13 @@ import Testing
 import UIKit
 @testable import Pinkha
 
-@Suite("italicFontWithWeight — italique avec poids contrôlé")
+@Suite("italicFontWithWeight — italic with controlled weight")
 struct ItalicFontWithWeightTests {
 
     @Test func returnsItalicFont() {
         let font = italicFontWithWeight(17, weight: .medium)
-        // Selon le contexte SF Pro, withSymbolicTraits peut échouer ; le fallback est
-        // italicSystemFont(ofSize:) qui doit, lui, porter le trait italique.
+        // In the SF Pro context, withSymbolicTraits may fail; the fallback is
+        // italicSystemFont(ofSize:), which must carry the italic trait.
         let traits = font.fontDescriptor.symbolicTraits
         #expect(traits.contains(.traitItalic))
     }
@@ -27,13 +27,13 @@ struct ItalicFontWithWeightTests {
     }
 }
 
-@Suite("fontWithTraits — cas additionnels")
+@Suite("fontWithTraits — additional cases")
 struct FontWithTraitsExtendedTests {
 
     @Test func boldBaseFontStaysBold() {
         let base = UIFont.boldSystemFont(ofSize: 18)
         let font = fontWithTraits(base, bold: false, italic: false)
-        // Même avec bold: false, la base est déjà bold → le trait est conservé.
+        // Even with bold: false, the base font is already bold → the trait is preserved.
         #expect(font.fontDescriptor.symbolicTraits.contains(.traitBold))
     }
 

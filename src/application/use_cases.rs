@@ -5,24 +5,29 @@ use crate::domain::editor::EditorState;
 use crate::domain::parser::parse_inline;
 use uuid::Uuid;
 
+/// Creates a new document with a parsed inline title and persists it.
 pub fn create_document(repo: &dyn DocumentRepository, title: &str) -> Result<Document, PinkhaError> {
     let doc = Document::new(parse_inline(title));
     repo.save(&doc)?;
     Ok(doc)
 }
 
+/// Loads a full document by ID.
 pub fn get_document(repo: &dyn DocumentRepository, id: Uuid) -> Result<Document, PinkhaError> {
     repo.load(id)
 }
 
+/// Returns lightweight metadata for all documents (no blocks loaded).
 pub fn list_documents(repo: &dyn DocumentRepository) -> Result<Vec<DocumentMeta>, PinkhaError> {
     repo.list()
 }
 
+/// Deletes a document by ID.
 pub fn delete_document(repo: &dyn DocumentRepository, doc_id: Uuid) -> Result<(), PinkhaError> {
     repo.delete(doc_id)
 }
 
+/// Appends a new block to the document's top-level block list and persists.
 pub fn add_block(
     repo: &dyn DocumentRepository,
     id: Uuid,
@@ -34,8 +39,9 @@ pub fn add_block(
     Ok(doc)
 }
 
-// ── Métadonnées du document ───────────────────────────────────────────────────
+// ── Document metadata ─────────────────────────────────────────────────────────
 
+/// Updates the document title (parsed as inline rich text) and persists.
 pub fn update_document_title(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
@@ -46,6 +52,7 @@ pub fn update_document_title(
     repo.save(&doc)
 }
 
+/// Updates the document cover and persists.
 pub fn update_document_cover(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
@@ -56,10 +63,12 @@ pub fn update_document_cover(
     repo.save(&doc)
 }
 
-// ── Bridge EditorState → Block ────────────────────────────────────────────────
+// ── EditorState → Block bridge ────────────────────────────────────────────────
 
-/// Applique le contenu de l'éditeur sur un bloc textuel et persiste le document.
-/// Retourne InvalidOperation si le bloc ne porte pas de texte (Divider, Database…).
+/// Applies the editor state to a text-bearing block and persists the document.
+///
+/// Returns `InvalidOperation` when the target block does not carry editable text
+/// (e.g. `Divider`, `Database`).
 pub fn save_edited_block(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
@@ -87,16 +96,16 @@ pub fn save_edited_block(
         },
         _ => {
             return Err(PinkhaError::InvalidOperation(format!(
-                "le bloc {block_id} ne contient pas de texte éditable"
+                "block {block_id} does not contain editable text"
             )));
         }
     };
     repo.save(&doc)
 }
 
-// ── Gestion des blocs ─────────────────────────────────────────────────────────
+// ── Block management ──────────────────────────────────────────────────────────
 
-/// Remplace le contenu d'un bloc existant (toggle todo, changement de type…).
+/// Replaces the content of an existing block (e.g. toggle todo, type conversion) and persists.
 pub fn update_block(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
@@ -110,7 +119,7 @@ pub fn update_block(
     repo.save(&doc)
 }
 
-/// Supprime un bloc (et ses enfants) dans l'arbre du document.
+/// Deletes a block (and all its descendants) from the document tree and persists.
 pub fn delete_block(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
@@ -123,8 +132,9 @@ pub fn delete_block(
     repo.save(&doc)
 }
 
-/// Réordonne les blocs racine selon la liste d'UUIDs fournie.
-/// Les blocs absents de la liste sont conservés et placés à la fin.
+/// Reorders the top-level blocks according to the supplied list of UUIDs.
+///
+/// Blocks not present in `order` are preserved and appended at the end.
 pub fn reorder_blocks(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
@@ -142,7 +152,7 @@ pub fn reorder_blocks(
     repo.save(&doc)
 }
 
-/// Ajoute un bloc comme enfant direct d'un bloc existant (blocs imbriqués).
+/// Adds a block as a direct child of an existing block (nested blocks) and persists.
 pub fn add_child_block(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
@@ -158,9 +168,9 @@ pub fn add_child_block(
     Ok(child)
 }
 
-// ── Recherche ─────────────────────────────────────────────────────────────────
+// ── Search ────────────────────────────────────────────────────────────────────
 
-/// Recherche insensible à la casse dans les titles de documents.
+/// Case-insensitive search across document titles.
 pub fn search_documents(
     repo: &dyn DocumentRepository,
     query: &str,
@@ -177,14 +187,14 @@ pub fn search_documents(
         .collect())
 }
 
-// ── Helpers internes ──────────────────────────────────────────────────────────
+// ── Internal helpers ──────────────────────────────────────────────────────────
 
 fn find_block_mut(blocks: &mut Vec<Block>, id: Uuid) -> Option<&mut Block> {
-    // première passe : cherche au niveau courant
+    // first pass: search at the current level
     if let Some(pos) = blocks.iter().position(|b| b.id == id) {
         return Some(&mut blocks[pos]);
     }
-    // deuxième passe : récursion dans les enfants
+    // second pass: recurse into children
     for block in blocks.iter_mut() {
         if let Some(found) = find_block_mut(&mut block.children, id) {
             return Some(found);
@@ -233,10 +243,11 @@ fn block_contains(block: &Block, query: &str) -> bool {
     matches_text || blocks_contain(&block.children, query)
 }
 
-// ── Blocs imbriqués — réordonnement et déplacement ───────────────────────────
+// ── Nested blocks — reordering and moving ────────────────────────────────────
 
-/// Réordonne les blocs enfants d'un bloc parent selon la liste d'UUIDs fournie.
-/// Les enfants absents de la liste sont conservés et placés à la fin.
+/// Reorders the children of a parent block according to the supplied list of UUIDs.
+///
+/// Children not present in `order` are preserved and appended at the end.
 pub fn reorder_child_blocks(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
@@ -257,8 +268,9 @@ pub fn reorder_child_blocks(
     repo.save(&doc)
 }
 
-/// Déplace un bloc vers un nouveau parent (None = racine du document).
-/// Retourne InvalidOperation si block_id == new_parent_id.
+/// Moves a block to a new parent (`None` = document root).
+///
+/// Returns `InvalidOperation` when `block_id == new_parent_id`.
 pub fn move_block(
     repo: &dyn DocumentRepository,
     doc_id: Uuid,
@@ -267,7 +279,7 @@ pub fn move_block(
 ) -> Result<(), PinkhaError> {
     if new_parent_id == Some(block_id) {
         return Err(PinkhaError::InvalidOperation(
-            "impossible de déplacer un bloc dans lui-même".to_string(),
+            "cannot move a block into itself".to_string(),
         ));
     }
     let mut doc = repo.load(doc_id)?;
@@ -283,10 +295,11 @@ pub fn move_block(
     repo.save(&doc)
 }
 
-// ── Recherche plein texte ─────────────────────────────────────────────────────
+// ── Full-text search ──────────────────────────────────────────────────────────
 
-/// Recherche insensible à la casse dans le contenu textuel des blocs de tous les documents.
-/// Retourne les métadonnées des documents qui contiennent au moins un bloc correspondant.
+/// Case-insensitive full-text search across the block content of all documents.
+///
+/// Returns the metadata of documents that contain at least one matching block.
 pub fn search_in_blocks(
     repo: &dyn DocumentRepository,
     query: &str,

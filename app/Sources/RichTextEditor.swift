@@ -1,19 +1,28 @@
 import SwiftUI
 import UIKit
 
+/// App-wide selection tint color (falls back to systemOrange if the asset is missing).
 let pinkhaSelectionTint = UIColor(named: "SelectionTint") ?? .systemOrange
 
-// ── Clés d'attributs custom ───────────────────────────────────────────────────
+// ── Custom attribute keys ─────────────────────────────────────────────────────
 
 extension NSAttributedString.Key {
+    /// Stores the color name string alongside `.foregroundColor` for a reliable round-trip
+    /// between `NSAttributedString` and `[InlineTextFfi]`.
     static let pinkhaColor  = NSAttributedString.Key("com.pinkha.color")
+    /// Marks a run as explicitly bold (survives `typingAttributes` resets by UIKit).
     static let pinkhaBold   = NSAttributedString.Key("com.pinkha.bold")
+    /// Marks a run as explicitly italic.
     static let pinkhaItalic = NSAttributedString.Key("com.pinkha.italic")
+    /// Obliqueness value stored alongside italic to support fonts where `withSymbolicTraits` fails.
     static let pinkhaObliqueness = NSAttributedString.Key("NSObliqueness")
 }
 
-// ── Utilitaire font (libre pour usage dans spansToAttributed) ─────────────
+// ── Font utility (free function, usable in spansToAttributed) ─────────────────
 
+/// Returns a font derived from `base` with the requested bold/italic traits applied.
+/// Falls back to `boldSystemFont`/`italicSystemFont` when `withSymbolicTraits` returns `nil`
+/// (SF Pro does not always propagate traits in some iOS contexts).
 func fontWithTraits(_ base: UIFont, bold: Bool, italic: Bool) -> UIFont {
     let size = base.pointSize
     let traitsBase = base.fontDescriptor.symbolicTraits
@@ -30,7 +39,9 @@ func fontWithTraits(_ base: UIFont, bold: Bool, italic: Bool) -> UIFont {
     }
 }
 
-// Italique avec un poids précis — `.italicSystemFont` est toujours regular.
+/// Returns an italic font at the given `size` and `weight`.
+/// `.italicSystemFont` is always regular weight, so this helper applies the italic trait
+/// to a weighted font descriptor when possible.
 func italicFontWithWeight(_ size: CGFloat, weight: UIFont.Weight) -> UIFont {
     let base = UIFont.systemFont(ofSize: size, weight: weight)
     if let d = base.fontDescriptor.withSymbolicTraits(.traitItalic) {
@@ -39,12 +50,12 @@ func italicFontWithWeight(_ size: CGFloat, weight: UIFont.Weight) -> UIFont {
     return .italicSystemFont(ofSize: size)
 }
 
-// ── Bouton de menu avec hooks de présentation/fermeture ─────────────────────
+// ── Menu button with presentation/dismissal hooks ────────────────────────────
 
-/// `UIButton` enrichi : on intercepte `willEndFor` du `UIContextMenuInteraction`
-/// interne (que UIButton installe en `showsMenuAsPrimaryAction = true`) pour
-/// savoir quand le menu se ferme — y compris quand l'utilisateur dismisse en
-/// tapant en dehors (cas où `textViewDidChangeSelection` ne fire pas).
+/// `UIButton` subclass that intercepts `contextMenuInteraction(_:willEndFor:)` on
+/// the internal `UIContextMenuInteraction` installed by `showsMenuAsPrimaryAction = true`.
+/// This lets us know when the menu closes — including dismissal by tapping outside —
+/// a case where `textViewDidChangeSelection` does not fire.
 final class MenuButton: UIButton {
     var onMenuWillEnd: (() -> Void)?
 
@@ -58,8 +69,9 @@ final class MenuButton: UIButton {
     }
 }
 
-// ── Conversion spans ↔ NSAttributedString ────────────────────────────────────
+// ── Span ↔ NSAttributedString conversion ─────────────────────────────────────
 
+/// Converts an array of `InlineTextFfi` spans to an `NSAttributedString` using `font` as the base.
 func spansToAttributed(_ spans: [InlineTextFfi], police: UIFont) -> NSAttributedString {
     guard !spans.isEmpty else { return NSAttributedString() }
     let result = NSMutableAttributedString()
@@ -88,12 +100,15 @@ func spansToAttributed(_ spans: [InlineTextFfi], police: UIFont) -> NSAttributed
     return result
 }
 
+/// Converts an `NSAttributedString` back to an array of `InlineTextFfi` spans.
+/// Detects bold/italic both via custom keys (`.pinkhaBold`/`.pinkhaItalic`) and
+/// via the font's symbolic traits (relative to `font` so heading bases are not mistaken for user-applied bold).
 func attributedToSpans(_ attrStr: NSAttributedString, police: UIFont) -> [InlineTextFfi] {
     guard !attrStr.string.isEmpty else { return [] }
     var spans: [InlineTextFfi] = []
     let traitsBase = police.fontDescriptor.symbolicTraits
-    let baseEstBold = traitsBase.contains(.traitBold)
-    let baseEstItalic = traitsBase.contains(.traitItalic)
+    let baseIsBold = traitsBase.contains(.traitBold)
+    let baseIsItalic = traitsBase.contains(.traitItalic)
     attrStr.enumerateAttributes(in: NSRange(location: 0, length: attrStr.length)) { attrs, range, _ in
         let text = (attrStr.string as NSString).substring(with: range)
         guard !text.isEmpty else { return }
@@ -101,12 +116,12 @@ func attributedToSpans(_ attrStr: NSAttributedString, police: UIFont) -> [Inline
         let fontTraits = (attrs[.font] as? UIFont)?.fontDescriptor.symbolicTraits ?? []
         let boldCustom = (attrs[.pinkhaBold] as? Bool) == true
         let italicCustom = (attrs[.pinkhaItalic] as? Bool) == true
-        let boldParFonte = fontTraits.contains(.traitBold) && !baseEstBold
-        let italicParFonte = fontTraits.contains(.traitItalic) && !baseEstItalic
-        let italicParObliqueness = attrs[.pinkhaObliqueness] != nil && !baseEstItalic
+        let boldFromFont = fontTraits.contains(.traitBold) && !baseIsBold
+        let italicFromFont = fontTraits.contains(.traitItalic) && !baseIsItalic
+        let italicFromObliqueness = attrs[.pinkhaObliqueness] != nil && !baseIsItalic
 
-        if boldCustom || boldParFonte { styles.append(.bold) }
-        if italicCustom || italicParFonte || italicParObliqueness { styles.append(.italic) }
+        if boldCustom || boldFromFont { styles.append(.bold) }
+        if italicCustom || italicFromFont || italicFromObliqueness { styles.append(.italic) }
         if (attrs[.underlineStyle]     as? Int) != nil { styles.append(.underline) }
         if (attrs[.strikethroughStyle] as? Int) != nil { styles.append(.strikethrough) }
         if let nom = attrs[.pinkhaColor] as? String    { styles.append(.color(nom)) }
@@ -116,9 +131,9 @@ func attributedToSpans(_ attrStr: NSAttributedString, police: UIFont) -> [Inline
     return spans
 }
 
-/// Convertit un raccourci markdown (à la Notion) en `BlockContentFfi`.
-/// Retourne `nil` si la chaîne n'est pas un raccourci reconnu.
-/// Pur, testable indépendamment de la couche UI.
+/// Converts a Notion-style markdown shortcut string to its `BlockContentFfi` equivalent.
+/// Returns `nil` if `text` is not a recognized shortcut.
+/// Pure function — independently testable without any UI layer.
 func markdownShortcut(for text: String) -> BlockContentFfi? {
     switch text {
     case "# ":          return .heading(level: 1, text: [])
@@ -132,6 +147,8 @@ func markdownShortcut(for text: String) -> BlockContentFfi? {
     }
 }
 
+/// Maps a color name (French or English) to its `UIColor` equivalent.
+/// Unknown names fall back to `.label` so text remains readable.
 func uiColorFromName(_ nom: String) -> UIColor {
     switch nom.lowercased() {
     case "rouge", "red":             return .systemRed
@@ -148,8 +165,10 @@ func uiColorFromName(_ nom: String) -> UIColor {
     }
 }
 
-// ── UITextView auto-expansible ────────────────────────────────────────────────
+// ── Auto-expanding UITextView ─────────────────────────────────────────────────
 
+/// `UITextView` subclass that self-sizes vertically and intercepts hardware-keyboard
+/// shortcuts for Shift+Enter, bold/italic/underline toggles, and arrow-key navigation.
 final class ExpandingTextView: UITextView {
     var onShiftEnter: (() -> Void)?
     var onToggleBold: (() -> Void)?
@@ -160,12 +179,12 @@ final class ExpandingTextView: UITextView {
     var onStopNavigationRepeat: (() -> Void)?
 
     override var keyCommands: [UIKeyCommand]? {
-        let cmd = UIKeyCommand(input: "\r", modifierFlags: .shift, action: #selector(gererShiftEnter))
+        let cmd = UIKeyCommand(input: "\r", modifierFlags: .shift, action: #selector(handleShiftEnter))
         if #available(iOS 15, *) { cmd.wantsPriorityOverSystemBehavior = true }
         return [cmd]
     }
 
-    @objc private func gererShiftEnter() { onShiftEnter?() }
+    @objc private func handleShiftEnter() { onShiftEnter?() }
 
     override func toggleBoldface(_ sender: Any?) { onToggleBold?() }
     override func toggleItalics(_ sender: Any?) { onToggleItalic?() }
@@ -182,17 +201,18 @@ final class ExpandingTextView: UITextView {
     }
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
-        let unhandled = gererFleches(presses)
+        let unhandled = handleArrows(presses)
         if !unhandled.isEmpty { super.pressesBegan(unhandled, with: event) }
     }
 
     override func pressesChanged(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
-        let unhandled = gererFleches(presses)
+        let unhandled = handleArrows(presses)
         if !unhandled.isEmpty { super.pressesChanged(unhandled, with: event) }
     }
 
+    /// Handles arrow key presses for inter-block navigation. Returns the unhandled presses.
     @discardableResult
-    private func gererFleches(_ presses: Set<UIPress>) -> Set<UIPress> {
+    private func handleArrows(_ presses: Set<UIPress>) -> Set<UIPress> {
         var unhandled = Set<UIPress>()
         for press in presses {
             guard let key = press.key else { unhandled.insert(press); continue }
@@ -201,9 +221,9 @@ final class ExpandingTextView: UITextView {
                 onNavigatePrevious?()
             case .keyboardRightArrow where selectedRange.location == (text as NSString).length && selectedRange.length == 0:
                 onNavigateNext?()
-            case .keyboardUpArrow where estSurPremiereLigne():
+            case .keyboardUpArrow where isOnFirstLine():
                 onNavigatePrevious?()
-            case .keyboardDownArrow where estSurDerniereLigne():
+            case .keyboardDownArrow where isOnLastLine():
                 onNavigateNext?()
             default:
                 unhandled.insert(press)
@@ -223,14 +243,16 @@ final class ExpandingTextView: UITextView {
         super.pressesEnded(presses, with: event)
     }
 
-    private func estSurPremiereLigne() -> Bool {
+    /// Returns `true` if the caret is on the first visual line of the text view.
+    private func isOnFirstLine() -> Bool {
         guard !text.isEmpty, let pos = selectedTextRange?.start else { return true }
         let caret = caretRect(for: pos)
         let first = caretRect(for: beginningOfDocument)
         return abs(caret.minY - first.minY) < 2
     }
 
-    private func estSurDerniereLigne() -> Bool {
+    /// Returns `true` if the caret is on the last visual line of the text view.
+    private func isOnLastLine() -> Bool {
         guard !text.isEmpty, let pos = selectedTextRange?.start else { return true }
         let caret = caretRect(for: pos)
         let last  = caretRect(for: endOfDocument)
@@ -240,6 +262,9 @@ final class ExpandingTextView: UITextView {
 
 // ── RichTextEditor ────────────────────────────────────────────────────────────
 
+/// `UIViewRepresentable` wrapping `ExpandingTextView` with full rich-text editing:
+/// bold/italic/underline/strikethrough/color/link via a glass toolbar pill,
+/// markdown shortcuts, Shift+Enter line breaks, and undo/redo integration.
 struct RichTextEditor: UIViewRepresentable {
     @Binding var spans: [InlineTextFfi]
     @Binding var isFocused: Bool
@@ -258,11 +283,11 @@ struct RichTextEditor: UIViewRepresentable {
     var onNavigatePrevious: (() -> Void)? = nil
     var onNavigateNext: (() -> Void)? = nil
     var onStopNavigationRepeat: (() -> Void)? = nil
-    // Undo/redo branchés sur le UndoManager du VM, exposés dans la pill.
-    // `*Provider` = closures live qui lisent l'état courant du VM (et pas
-    // un snapshot capturé au body). Appelées par le Coordinator dans
-    // updateUIView, textViewDidChange et textViewDidChangeSelection — couvre
-    // les cas typing, undo/redo, et changements de sélection.
+    // Undo/redo wired to the VM's UndoManager, exposed in the keyboard pill.
+    // `*Provider` = live closures that read the current VM state (not a snapshot
+    // captured at body time). Called by the Coordinator in updateUIView,
+    // textViewDidChange, and textViewDidChangeSelection — covers typing, undo/redo,
+    // and selection changes.
     var onUndo: (() -> Void)? = nil
     var onRedo: (() -> Void)? = nil
     var canUndoProvider: (() -> Bool)? = nil
@@ -318,12 +343,12 @@ struct RichTextEditor: UIViewRepresentable {
             DispatchQueue.main.async { isFocused = false }
         }
 
-        // Skip toute la recomputation quand les spans n'ont pas bougé : SwiftUI
-        // re-render le ForEach entier à chaque keystroke (en général sur 1 seul
-        // bloc), inutile de reconstruire NSAttributedString pour les N-1 autres.
+        // Skip recomputation when spans have not changed: SwiftUI re-renders the
+        // entire ForEach on every keystroke (typically for a single block); no need
+        // to rebuild NSAttributedString for the N-1 other blocks that did not change.
         if coord.lastSyncedSpans != spans {
-            // Ne pas réassigner tv.font pendant l'édition : UITextView.font ré-applique
-            // la fonte à TOUT le texte et écraserait le gras/italique par caractère.
+            // Do not reassign tv.font while editing: UITextView.font reapplies the
+            // font to ALL text and would erase per-character bold/italic.
             let editingText: NSAttributedString = spans.isEmpty
                 ? NSAttributedString(string: "",
                                       attributes: [.font: baseFont, .foregroundColor: UIColor.label])
@@ -332,8 +357,8 @@ struct RichTextEditor: UIViewRepresentable {
                 tv.font = baseFont
                 tv.attributedText = spans.isEmpty ? coord.placeholder() : editingText
             } else if tv.attributedText.string != editingText.string {
-                // Cas undo/redo pendant l'édition : la VM change les spans sans
-                // passer par la frappe. Curseur en fin du texte restauré.
+                // Undo/redo while editing: the VM changed spans without going through
+                // the keyboard. Restore the cursor to the end of the restored text.
                 let savedTyping = tv.typingAttributes
                 tv.attributedText = editingText
                 tv.typingAttributes = savedTyping
@@ -354,6 +379,7 @@ struct RichTextEditor: UIViewRepresentable {
         }
     }
 
+    /// Overlays `extraAttrs` (e.g. todo strikethrough) on top of the span-derived attributes.
     private func withExtras(_ attr: NSAttributedString) -> NSAttributedString {
         guard let extras = extraAttrs, !extras.isEmpty else { return attr }
         let m = NSMutableAttributedString(attributedString: attr)
@@ -372,10 +398,10 @@ struct RichTextEditor: UIViewRepresentable {
         var isDeleting = false
         var shiftEnterTyped = false
         var lastSelection = NSRange(location: 0, length: 0)
-        // Couleur appliquée à la frappe sans sélection : UIKit réinitialise
-        // typingAttributes après chaque caractère (et le menu fait perdre le first
-        // responder), donc on la ré-applique à chaque insertion. Reste active tant
-        // que l'utilisateur ne la désactive pas (re-toggle ou « Aucune »).
+        // Color applied while typing without a selection: UIKit resets typingAttributes
+        // after every character (and showing a menu can resign first responder), so we
+        // re-inject the color just before each insertion. Stays active until the user
+        // toggles it off or chooses "None".
         private var pendingColor: String? = nil
         private var toolbarActionInProgress = false
         private var selectionGeneration = 0
@@ -386,17 +412,17 @@ struct RichTextEditor: UIViewRepresentable {
         private weak var btnRedo: UIButton?
         private var lastCanUndo: Bool?
         private var lastCanRedo: Bool?
-        /// Cache des spans déjà sync vers le textView — permet de skip toute la
-        /// recomputation de spansToAttributed pendant les re-renders SwiftUI où
-        /// ce bloc n'a pas changé (cas typique : un AUTRE bloc reçoit la frappe).
+        /// Cached spans already synced to the text view — allows skipping the full
+        /// `spansToAttributed` recomputation during SwiftUI re-renders where this
+        /// block's spans did not change (typical: a different block received the keystroke).
         fileprivate var lastSyncedSpans: [InlineTextFfi]?
-        // Pill de la toolbar — on l'anime à alpha 0 quand un menu déroulant
-        // s'ouvre (style Notes.app : la toolbar laisse la place au menu).
+        // The toolbar pill — animated to alpha 0 when a dropdown menu opens
+        // (Notes.app style: the toolbar steps aside while the menu is visible).
         private weak var toolbarPill: UIView?
         private var toolbarHidden = false
-        // Fenêtre de garde : pendant ~700ms après l'ouverture d'un menu, on ignore
-        // les `textViewDidChangeSelection` parasites que UIKit émet quand le menu
-        // se présente (sinon la pill clignote ou ne se cache jamais).
+        // Guard window: for ~700 ms after a menu opens, ignore the spurious
+        // `textViewDidChangeSelection` events UIKit emits during menu presentation
+        // (otherwise the pill flickers or never hides).
         private var menuPresentingUntil: Date?
 
         init(parent: RichTextEditor) {
@@ -414,7 +440,7 @@ struct RichTextEditor: UIViewRepresentable {
         }
 
         private func updatePasteButton() {
-            setSymbolActive(btnPaste, actif: UIPasteboard.general.hasStrings, nom: "doc.on.clipboard")
+            setSymbolActive(btnPaste, active: UIPasteboard.general.hasStrings, name: "doc.on.clipboard")
         }
 
         @objc func handleLongPressSelection(_ gesture: UILongPressGestureRecognizer) {
@@ -434,12 +460,13 @@ struct RichTextEditor: UIViewRepresentable {
                                                    .font: parent.baseFont])
         }
 
-        // ── Delegate ──────────────────────────────────────────────────────────
+        // ── UITextViewDelegate ────────────────────────────────────────────────
 
         func textViewDidBeginEditing(_ tv: UITextView) {
             isEditing = true
             parent.isFocused = true
-            rememberSelection(tv.selectedRange, longueur: tv.attributedText.length)
+            rememberSelection(tv.selectedRange, length: tv.attributedText.length)
+            // Clear placeholder when editing begins.
             if tv.textColor == .tertiaryLabel {
                 tv.attributedText = NSAttributedString(string: "", attributes: [
                     .font: parent.baseFont,
@@ -451,65 +478,64 @@ struct RichTextEditor: UIViewRepresentable {
         }
 
         func textViewDidChangeSelection(_ tv: UITextView) {
-            let selection = normalizedSelection(tv.selectedRange, longueur: tv.attributedText.length)
+            let selection = normalizedSelection(tv.selectedRange, length: tv.attributedText.length)
             if selection.length > 0 {
-                rememberSelection(selection, longueur: tv.attributedText.length)
+                rememberSelection(selection, length: tv.attributedText.length)
             } else {
                 cleanRememberedIfStillEmpty(tv)
             }
             updateToolbar()
             updateUndoRedoButtons()
-            // Si l'utilisateur a dismissé un menu (tap dans le texte → selection
-            // change), on restaure la pill au cas où elle est encore cachée. On
-            // ignore pendant la fenêtre de garde post-ouverture du menu pour ne
-            // pas annuler le hide qu'on vient de demander.
+            // If the user dismissed a menu (tapped in the text → selection changed),
+            // restore the pill in case it is still hidden. Skip during the guard window
+            // to avoid cancelling the hide we just requested.
             if let until = menuPresentingUntil, Date() < until { return }
             menuPresentingUntil = nil
             setToolbarHidden(false)
         }
 
         func textView(_ tv: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
-            // Backspace sur bloc vide → supprimer le bloc
+            // Backspace on an empty block → delete the block
             if text.isEmpty, range == NSRange(location: 0, length: 0), tv.text.isEmpty {
                 isDeleting = true
                 DispatchQueue.main.async { [weak self] in self?.parent.onDeleteBloc?() }
                 return false
             }
-            // Backspace au début d'un block non vide → fusionner avec le précédent
+            // Backspace at the beginning of a non-empty block → merge with the previous block
             if text.isEmpty, range == NSRange(location: 0, length: 0), !tv.text.isEmpty,
                parent.onMergeAvecPrecedent != nil {
                 isDeleting = true
-                let spansActuels = attributedToSpans(tv.attributedText, police: parent.baseFont)
+                let currentSpans = attributedToSpans(tv.attributedText, police: parent.baseFont)
                 DispatchQueue.main.async { [weak self] in
-                    self?.parent.onMergeAvecPrecedent?(spansActuels)
+                    self?.parent.onMergeAvecPrecedent?(currentSpans)
                 }
                 return false
             }
-            // Enter
+            // Enter key
             if text == "\n" {
                 if shiftEnterTyped {
-                    // Shift+Enter : laisser le \n s'insérer normalement
+                    // Shift+Enter: let the newline insert normally
                     shiftEnterTyped = false
                     return true
                 }
-                // Enter normal : couper le bloc et en créer un nouveau.
-                // On conserve les attributs (couleur, gras…) de la portion après le curseur.
-                let debutApres = range.location + range.length
-                let attrAvant = tv.attributedText.attributedSubstring(
+                // Regular Enter: split the block and create a new one.
+                // Preserve attributes (color, bold…) of the portion after the cursor.
+                let afterStart = range.location + range.length
+                let attrBefore = tv.attributedText.attributedSubstring(
                     from: NSRange(location: 0, length: range.location))
-                let attrApres = tv.attributedText.attributedSubstring(
-                    from: NSRange(location: debutApres, length: tv.attributedText.length - debutApres))
-                let afterSpans = attributedToSpans(attrApres, police: parent.baseFont)
-                tv.attributedText = attrAvant.string.isEmpty
+                let attrAfter = tv.attributedText.attributedSubstring(
+                    from: NSRange(location: afterStart, length: tv.attributedText.length - afterStart))
+                let afterSpans = attributedToSpans(attrAfter, police: parent.baseFont)
+                tv.attributedText = attrBefore.string.isEmpty
                     ? NSAttributedString(string: "", attributes: [.font: parent.baseFont, .foregroundColor: UIColor.label])
-                    : attrAvant
-                tv.selectedRange = NSRange(location: attrAvant.length, length: 0)
-                save(attributedToSpans(attrAvant, police: parent.baseFont))
+                    : attrBefore
+                tv.selectedRange = NSRange(location: attrBefore.length, length: 0)
+                save(attributedToSpans(attrBefore, police: parent.baseFont))
                 parent.onNewBlock?(afterSpans)
                 return false
             }
-            // Couleur de frappe : UIKit réinitialise typingAttributes après chaque
-            // caractère, on la ré-injecte juste avant l'insertion.
+            // Typing color: UIKit resets typingAttributes after each character,
+            // so we re-inject the color just before the insertion.
             if !text.isEmpty, text != "\n", let nom = pendingColor {
                 tv.typingAttributes[.foregroundColor] = uiColorFromName(nom)
                 tv.typingAttributes[.pinkhaColor]     = nom
@@ -533,10 +559,9 @@ struct RichTextEditor: UIViewRepresentable {
                 return
             }
 
-            // save() = parent.spans + onSaveSpans → vm.saveBlock → capture du burst
-            // anchor pour l'undo. On le déclenche à chaque frappe pour que canUndo
-            // devienne true dès le 1er caractère (au lieu d'attendre la fermeture
-            // du clavier dans textViewDidEndEditing). SQLite WAL absorbe le write.
+            // save() = update parent.spans + call onSaveSpans → vm.saveBlock → capture the burst
+            // anchor for undo. Called on every keystroke so canUndo becomes true from the
+            // first character (instead of waiting for the keyboard to close in textViewDidEndEditing).
             save(attributedToSpans(tv.attributedText, police: parent.baseFont))
             if tv.selectedRange.length == 0 { clearRememberedSelection() }
             tv.invalidateIntrinsicContentSize()
@@ -580,11 +605,11 @@ struct RichTextEditor: UIViewRepresentable {
 
             let iconSize: CGFloat = 22
 
-            func symbolButton(_ nom: String, taille: CGFloat = iconSize, action: Selector) -> UIButton {
+            func symbolButton(_ name: String, size: CGFloat = iconSize, action: Selector) -> UIButton {
                 let b   = UIButton(type: .custom)
-                let cfg = UIImage.SymbolConfiguration(pointSize: taille, weight: .medium)
+                let cfg = UIImage.SymbolConfiguration(pointSize: size, weight: .medium)
                 b.setImage(
-                    UIImage(systemName: nom, withConfiguration: cfg)?
+                    UIImage(systemName: name, withConfiguration: cfg)?
                         .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal),
                     for: .normal)
                 b.addTarget(self, action: #selector(captureSelectionBeforeToolbar), for: .touchDown)
@@ -595,14 +620,14 @@ struct RichTextEditor: UIViewRepresentable {
             var x: CGFloat = 12
             let btnW: CGFloat = 62
 
-            func ajouter(_ btn: UIButton) {
+            func addButton(_ btn: UIButton) {
                 btn.frame = CGRect(x: x, y: 0, width: btnW, height: pillH)
                 scroll.addSubview(btn)
                 x += btnW
             }
 
             @discardableResult
-            func separateur() -> UIView {
+            func separator() -> UIView {
                 let v = UIView(frame: CGRect(x: x + 4, y: (pillH - 28) / 2, width: 1, height: 28))
                 v.backgroundColor = UIColor.separator
                 scroll.addSubview(v)
@@ -610,13 +635,13 @@ struct RichTextEditor: UIViewRepresentable {
                 return v
             }
 
-            let bColler = symbolButton("doc.on.clipboard", action: #selector(paste))
-            ajouter(bColler); btnPaste = bColler
-            separateur()
+            let bPaste = symbolButton("doc.on.clipboard", action: #selector(paste))
+            addButton(bPaste); btnPaste = bPaste
+            separator()
 
-            // Bouton unique pour B/I/U/S — menu déroulant comme pour les couleurs.
-            // Open : `UIDeferredMenuElement.uncached` cache la pill.
-            // Close : `onMenuWillEnd` la restaure (couvre le cas « tap dehors »).
+            // Single button for B/I/U/S — dropdown menu like the color highlighter.
+            // Open: `UIDeferredMenuElement.uncached` hides the pill.
+            // Close: `onMenuWillEnd` restores it (covers the "tap outside" dismiss case).
             let bTextStyle = MenuButton(type: .custom)
             bTextStyle.showsMenuAsPrimaryAction = true
             bTextStyle.menu = textStyleMenu(bold: false, italic: false, underline: false, strike: false)
@@ -627,32 +652,32 @@ struct RichTextEditor: UIViewRepresentable {
             let cfgTS = UIImage.SymbolConfiguration(pointSize: iconSize, weight: .medium)
             bTextStyle.setImage(UIImage(systemName: "bold.italic.underline", withConfiguration: cfgTS)?
                 .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal), for: .normal)
-            ajouter(bTextStyle); btnTextStyle = bTextStyle
+            addButton(bTextStyle); btnTextStyle = bTextStyle
 
-            // Highlighter collé à droite de Aa (pas de séparateur entre les deux).
-            let bCouleur = MenuButton(type: .custom)
-            bCouleur.showsMenuAsPrimaryAction = true
-            bCouleur.menu = colorMenu(actuelle: nil)
-            bCouleur.onMenuWillEnd = { [weak self] in
+            // Highlighter button placed immediately to the right of the text-style button (no separator).
+            let bColor = MenuButton(type: .custom)
+            bColor.showsMenuAsPrimaryAction = true
+            bColor.menu = colorMenu(current: nil)
+            bColor.onMenuWillEnd = { [weak self] in
                 self?.menuPresentingUntil = nil
                 self?.setToolbarHidden(false)
             }
             let cfgH = UIImage.SymbolConfiguration(pointSize: iconSize, weight: .medium)
-            bCouleur.setImage(UIImage(systemName: "highlighter", withConfiguration: cfgH)?
+            bColor.setImage(UIImage(systemName: "highlighter", withConfiguration: cfgH)?
                 .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal), for: .normal)
-            ajouter(bCouleur); btnColor = bCouleur
+            addButton(bColor); btnColor = bColor
 
-            separateur()
+            separator()
             let bUndo = symbolButton("arrow.uturn.backward", action: #selector(toolbarUndo))
-            ajouter(bUndo); btnUndo = bUndo
+            addButton(bUndo); btnUndo = bUndo
             let bRedo = symbolButton("arrow.uturn.forward", action: #selector(toolbarRedo))
-            ajouter(bRedo); btnRedo = bRedo
+            addButton(bRedo); btnRedo = bRedo
             updateUndoRedoButtons()
 
-            separateur()
-            ajouter(symbolButton("return", action: #selector(toolbarLineBreak)))
-            separateur()
-            ajouter(symbolButton("keyboard.chevron.compact.down", action: #selector(dismissKeyboard)))
+            separator()
+            addButton(symbolButton("return", action: #selector(toolbarLineBreak)))
+            separator()
+            addButton(symbolButton("keyboard.chevron.compact.down", action: #selector(dismissKeyboard)))
 
             scroll.contentSize = CGSize(width: x + 12, height: pillH)
             return container
@@ -662,7 +687,7 @@ struct RichTextEditor: UIViewRepresentable {
             toolbarActionInProgress = true
             guard let tv else { return }
             if tv.selectedRange.length == 0 { clearRememberedSelection() }
-            rememberSelection(tv.selectedRange, longueur: tv.attributedText.length)
+            rememberSelection(tv.selectedRange, length: tv.attributedText.length)
         }
 
         private func setToolbarHidden(_ hidden: Bool) {
@@ -682,10 +707,10 @@ struct RichTextEditor: UIViewRepresentable {
             toolbarActionInProgress = false
             shiftEnterTyped = true
             tv?.insertText("\n")
-            // Defensive : `insertText` peut ne pas passer par `shouldChangeTextIn`
-            // pour les inserts programmés, le flag ne serait alors pas consommé
-            // et la prochaine touche Enter du clavier serait interprétée comme
-            // un saut de ligne au lieu de couper le bloc.
+            // Defensive reset: `insertText` for programmatic inserts may bypass
+            // `shouldChangeTextIn`, leaving `shiftEnterTyped = true`. The next Enter
+            // press from the keyboard would then be treated as a line break instead
+            // of splitting the block.
             shiftEnterTyped = false
         }
         @objc func paste() {
@@ -701,15 +726,14 @@ struct RichTextEditor: UIViewRepresentable {
             parent.onRedo?()
         }
 
-        /// Met à jour la couleur et l'opacité des boutons undo/redo selon l'état
-        /// live lu via `canUndoProvider`/`canRedoProvider`. Appelé depuis
-        /// `updateUIView`, `textViewDidChange` et `textViewDidChangeSelection`
-        /// pour couvrir respectivement re-renders SwiftUI, frappe et undo/redo.
+        /// Updates the undo/redo button visuals using the live state from
+        /// `canUndoProvider`/`canRedoProvider`. Called from `updateUIView`,
+        /// `textViewDidChange`, and `textViewDidChangeSelection` to cover
+        /// SwiftUI re-renders, typing, and undo/redo respectively.
+        /// Caches the last known state to avoid recreating `UIImage` on every keystroke.
         fileprivate func updateUndoRedoButtons() {
             let cU = parent.canUndoProvider?() ?? false
             let cR = parent.canRedoProvider?() ?? false
-            // Cache : éviter la création de UIImage à chaque frappe quand l'état
-            // n'a pas changé (la closure est appelée à chaque keystroke).
             if cU != lastCanUndo {
                 applyEnabled(btnUndo, enabled: cU, symbol: "arrow.uturn.backward")
                 lastCanUndo = cU
@@ -734,12 +758,12 @@ struct RichTextEditor: UIViewRepresentable {
         @objc func toggleItalic()   { applyStyle(.italic) }
         @objc func toggleUnderline()   { applyStyle(.underline) }
         @objc func toggleStrike()      { applyStyle(.strikethrough) }
-        private func applyColor(_ nom: String) { applyStyle(.color(nom)) }
+        private func applyColor(_ name: String) { applyStyle(.color(name)) }
 
         private func clearColor() {
             defer { toolbarActionInProgress = false }
             guard let tv, let attr = tv.attributedText else { return }
-            let range = selectionForToolbar(selectionActuelle: tv.selectedRange, longueur: attr.length)
+            let range = selectionForToolbar(currentSelection: tv.selectedRange, length: attr.length)
             guard range.length > 0 else {
                 var attrs = tv.typingAttributes
                 attrs.removeValue(forKey: .pinkhaColor)
@@ -758,7 +782,7 @@ struct RichTextEditor: UIViewRepresentable {
             tv.textStorage.setAttributedString(m)
             tv.textStorage.endEditing()
             tv.selectedRange = range
-            rememberSelection(range, longueur: m.length)
+            rememberSelection(range, length: m.length)
             save(attributedToSpans(tv.attributedText, police: parent.baseFont))
             updateToolbar()
         }
@@ -766,7 +790,7 @@ struct RichTextEditor: UIViewRepresentable {
         private func applyStyle(_ style: InlineStyleFfi) {
             defer { toolbarActionInProgress = false }
             guard let tv, let attr = tv.attributedText else { return }
-            let range = selectionForToolbar(selectionActuelle: tv.selectedRange, longueur: attr.length)
+            let range = selectionForToolbar(currentSelection: tv.selectedRange, length: attr.length)
 
             guard range.length > 0 else {
                 applyStyleTyping(tv: tv, style: style)
@@ -777,23 +801,23 @@ struct RichTextEditor: UIViewRepresentable {
 
             switch style {
             case .bold:
-                let toutBold = touteLaPlage(dans: attr, range: range, verifie: attrsContainBold)
+                let allBold = entireRange(in: attr, range: range, check: attrsContainBold)
                 attr.enumerateAttribute(.font, in: range) { _, r, _ in
-                    let italic = attrsContainItalic(attributsA: attr, position: r.location)
-                    m.addAttribute(.font, value: fontWithTraits(parent.baseFont, bold: !toutBold, italic: italic), range: r)
+                    let italic = attrsContainItalic(in: attr, position: r.location)
+                    m.addAttribute(.font, value: fontWithTraits(parent.baseFont, bold: !allBold, italic: italic), range: r)
                     if italic { m.addAttribute(.pinkhaObliqueness, value: 0.2, range: r) }
                     else       { m.removeAttribute(.pinkhaObliqueness, range: r) }
                 }
-                if !toutBold { m.addAttribute(.pinkhaBold,    value: true, range: range) }
+                if !allBold { m.addAttribute(.pinkhaBold,    value: true, range: range) }
                 else         { m.removeAttribute(.pinkhaBold,              range: range) }
 
             case .italic:
-                let toutItalic = touteLaPlage(dans: attr, range: range, verifie: attrsContainItalic)
+                let allItalic = entireRange(in: attr, range: range, check: attrsContainItalic)
                 attr.enumerateAttribute(.font, in: range) { _, r, _ in
-                    let bold = attrsContainBold(attributsA: attr, position: r.location)
-                    m.addAttribute(.font, value: fontWithTraits(parent.baseFont, bold: bold, italic: !toutItalic), range: r)
+                    let bold = attrsContainBold(in: attr, position: r.location)
+                    m.addAttribute(.font, value: fontWithTraits(parent.baseFont, bold: bold, italic: !allItalic), range: r)
                 }
-                if !toutItalic {
+                if !allItalic {
                     m.addAttribute(.pinkhaItalic, value: true, range: range)
                     m.addAttribute(.pinkhaObliqueness, value: 0.2, range: range)
                 } else {
@@ -802,18 +826,18 @@ struct RichTextEditor: UIViewRepresentable {
                 }
 
             case .underline:
-                let deja = attr.attribute(.underlineStyle, at: range.location, effectiveRange: nil) != nil
-                if deja { m.removeAttribute(.underlineStyle, range: range) }
+                let already = attr.attribute(.underlineStyle, at: range.location, effectiveRange: nil) != nil
+                if already { m.removeAttribute(.underlineStyle, range: range) }
                 else    { m.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: range) }
 
             case .strikethrough:
-                let deja = attr.attribute(.strikethroughStyle, at: range.location, effectiveRange: nil) != nil
-                if deja { m.removeAttribute(.strikethroughStyle, range: range) }
+                let already = attr.attribute(.strikethroughStyle, at: range.location, effectiveRange: nil) != nil
+                if already { m.removeAttribute(.strikethroughStyle, range: range) }
                 else    { m.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: range) }
 
             case .color(let nom):
-                let actuelle = attr.attribute(.pinkhaColor, at: range.location, effectiveRange: nil) as? String
-                if actuelle == nom {
+                let current = attr.attribute(.pinkhaColor, at: range.location, effectiveRange: nil) as? String
+                if current == nom {
                     m.removeAttribute(.foregroundColor, range: range)
                     m.removeAttribute(.pinkhaColor,     range: range)
                     m.addAttribute(.foregroundColor, value: UIColor.label, range: range)
@@ -828,11 +852,11 @@ struct RichTextEditor: UIViewRepresentable {
             tv.textStorage.setAttributedString(m)
             tv.textStorage.endEditing()
             tv.selectedRange  = range
-            rememberSelection(range, longueur: m.length)
+            rememberSelection(range, length: m.length)
             save(attributedToSpans(tv.attributedText, police: parent.baseFont))
             updateToolbar()
-            // Le menu couleur (showsMenuAsPrimaryAction) fait perdre le first
-            // responder : on le rétablit pour garder le clavier et la sélection.
+            // The color menu (showsMenuAsPrimaryAction) resigns first responder;
+            // restore it to keep the keyboard and the selection visible.
             _ = tv.becomeFirstResponder()
         }
 
@@ -864,8 +888,8 @@ struct RichTextEditor: UIViewRepresentable {
                 if attrs[.strikethroughStyle] != nil { attrs.removeValue(forKey: .strikethroughStyle) }
                 else { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
             case .color(let nom):
-                // Source de vérité : pendingColor (typingAttributes est réinitialisé
-                // par textViewDidBeginEditing après l'ouverture du menu).
+                // Source of truth: pendingColor (typingAttributes is reset by
+                // textViewDidBeginEditing after the menu closes).
                 let currentColor = pendingColor ?? (attrs[.pinkhaColor] as? String)
                 if currentColor == nom {
                     attrs.removeValue(forKey: .pinkhaColor)
@@ -884,8 +908,8 @@ struct RichTextEditor: UIViewRepresentable {
             _ = tv.becomeFirstResponder()
         }
 
-        private func rememberSelection(_ range: NSRange, longueur: Int) {
-            let selection = normalizedSelection(range, longueur: longueur)
+        private func rememberSelection(_ range: NSRange, length: Int) {
+            let selection = normalizedSelection(range, length: length)
             guard selection.length > 0 else { return }
             selectionGeneration += 1
             lastSelection = selection
@@ -906,57 +930,56 @@ struct RichTextEditor: UIViewRepresentable {
             let len  = attr.length
             let range = tv.selectedRange
 
-            let bold: Bool; let italic: Bool; let underline: Bool; let strike: Bool; let couleur: String?
+            let bold: Bool; let italic: Bool; let underline: Bool; let strike: Bool; let color: String?
             if range.length > 0, range.location < len {
                 let loc = min(range.location, len - 1)
-                bold     = touteLaPlage(dans: attr, range: range, verifie: attrsContainBold)
-                italic   = touteLaPlage(dans: attr, range: range, verifie: attrsContainItalic)
+                bold     = entireRange(in: attr, range: range, check: attrsContainBold)
+                italic   = entireRange(in: attr, range: range, check: attrsContainItalic)
                 underline = attr.attribute(.underlineStyle,     at: loc, effectiveRange: nil) != nil
                 strike   = attr.attribute(.strikethroughStyle, at: loc, effectiveRange: nil) != nil
-                couleur  = attr.attribute(.pinkhaColor,        at: loc, effectiveRange: nil) as? String
+                color  = attr.attribute(.pinkhaColor,        at: loc, effectiveRange: nil) as? String
             } else {
                 let attrs = tv.typingAttributes
                 bold     = attrsContainBold(attrs)
                 italic   = attrsContainItalic(attrs)
                 underline = attrs[.underlineStyle]     != nil
                 strike   = attrs[.strikethroughStyle]  != nil
-                // pendingColor prime : typingAttributes est réinitialisé par
-                // textViewDidBeginEditing après le menu, mais le mode frappe reste actif.
-                couleur  = pendingColor ?? (attrs[.pinkhaColor] as? String)
+                // pendingColor takes priority: typingAttributes is reset by
+                // textViewDidBeginEditing after the menu, but typing-color mode stays active.
+                color  = pendingColor ?? (attrs[.pinkhaColor] as? String)
             }
 
             updateTextStyleButton(bold: bold, italic: italic, underline: underline, strike: strike)
-            updateColorButton(couleur)
+            updateColorButton(color)
 
             updatePasteButton()
         }
 
 
-        private func setSymbolActive(_ btn: UIButton?, actif: Bool, nom: String, taille: CGFloat = 22) {
+        private func setSymbolActive(_ btn: UIButton?, active: Bool, name: String, size: CGFloat = 22) {
             guard let btn else { return }
-            let c: UIColor = actif ? (UIColor(named: "Accent") ?? .tintColor) : .secondaryLabel
-            let cfg = UIImage.SymbolConfiguration(pointSize: taille, weight: .medium)
-            btn.setImage(UIImage(systemName: nom, withConfiguration: cfg)?
+            let c: UIColor = active ? (UIColor(named: "Accent") ?? .tintColor) : .secondaryLabel
+            let cfg = UIImage.SymbolConfiguration(pointSize: size, weight: .medium)
+            btn.setImage(UIImage(systemName: name, withConfiguration: cfg)?
                 .withTintColor(c, renderingMode: .alwaysOriginal), for: .normal)
         }
 
-        // Menu déroulant des couleurs. Le contenu est calculé paresseusement via
-        // `UIDeferredMenuElement.uncached` : chaque fois que l'utilisateur ouvre
-        // le menu, la closure s'exécute — c'est le hook fiable pour cacher la
-        // pill au moment précis de la présentation (le `.touchDown` est avalé
-        // par le gesture recognizer de `showsMenuAsPrimaryAction`).
-        private func colorMenu(actuelle: String?) -> UIMenu {
+        // Color dropdown menu. Content is computed lazily via `UIDeferredMenuElement.uncached`:
+        // the closure runs each time the user opens the menu — this is the reliable hook
+        // for hiding the pill at the exact moment of presentation (`.touchDown` is consumed
+        // by the gesture recognizer of `showsMenuAsPrimaryAction`).
+        private func colorMenu(current: String?) -> UIMenu {
             let deferred = UIDeferredMenuElement.uncached { [weak self] completion in
                 guard let self else { completion([]); return }
                 self.captureSelectionBeforeToolbar()
                 self.menuPresentingUntil = Date().addingTimeInterval(0.7)
                 self.setToolbarHidden(true)
-                completion(self.colorMenuChildren(actuelle: actuelle))
+                completion(self.colorMenuChildren(current: current))
             }
             return UIMenu(title: "", children: [deferred])
         }
 
-        private func colorMenuChildren(actuelle: String?) -> [UIMenuElement] {
+        private func colorMenuChildren(current: String?) -> [UIMenuElement] {
             let palette: [(String, UIColor, String)] = [
                 ("rouge",  .systemRed,    "Rouge"),
                 ("rose",   .systemPink,   "Rose"),
@@ -971,7 +994,7 @@ struct RichTextEditor: UIViewRepresentable {
             let cfgDot = UIImage.SymbolConfiguration(pointSize: 12, weight: .regular)
             let cfgX   = UIImage.SymbolConfiguration(pointSize: 12, weight: .medium)
 
-            let aucune = UIAction(
+            let none = UIAction(
                 title: "Aucune",
                 image: UIImage(systemName: "xmark", withConfiguration: cfgX)
             ) { [weak self] _ in
@@ -979,7 +1002,7 @@ struct RichTextEditor: UIViewRepresentable {
                 self?.menuPresentingUntil = nil
                 self?.setToolbarHidden(false)
             }
-            if actuelle == nil { aucune.state = .on }
+            if current == nil { none.state = .on }
 
             let items = palette.map { (nom, couleur, label) -> UIAction in
                 let img = UIImage(systemName: "circle.fill", withConfiguration: cfgDot)?
@@ -989,23 +1012,23 @@ struct RichTextEditor: UIViewRepresentable {
                     self?.menuPresentingUntil = nil
                     self?.setToolbarHidden(false)
                 }
-                if actuelle == nom { action.state = .on }
+                if current == nom { action.state = .on }
                 return action
             }
-            return [aucune] + items
+            return [none] + items
         }
 
-        private func updateColorButton(_ actuelle: String?) {
+        private func updateColorButton(_ current: String?) {
             guard let btn = btnColor else { return }
-            let iconName = actuelle != nil ? "highlighter.badge.ellipsis" : "highlighter"
-            let c: UIColor = actuelle.map { uiColorFromName($0) } ?? .secondaryLabel
+            let iconName = current != nil ? "highlighter.badge.ellipsis" : "highlighter"
+            let c: UIColor = current.map { uiColorFromName($0) } ?? .secondaryLabel
             let cfg = UIImage.SymbolConfiguration(pointSize: 22, weight: .medium)
             btn.setImage(UIImage(systemName: iconName, withConfiguration: cfg)?
                 .withTintColor(c, renderingMode: .alwaysOriginal), for: .normal)
-            btn.menu = colorMenu(actuelle: actuelle)
+            btn.menu = colorMenu(current: current)
         }
 
-        // Idem pour B/I/U/S — deferred element pour le hook fiable de présentation.
+        // Same pattern for B/I/U/S — deferred element for the reliable presentation hook.
         private func textStyleMenu(bold: Bool, italic: Bool, underline: Bool, strike: Bool) -> UIMenu {
             let deferred = UIDeferredMenuElement.uncached { [weak self] completion in
                 guard let self else { completion([]); return }
@@ -1058,37 +1081,40 @@ struct RichTextEditor: UIViewRepresentable {
             let generation = selectionGeneration
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self, weak textView] in
                 guard let self, let textView else { return }
-                let selection = self.normalizedSelection(textView.selectedRange, longueur: textView.attributedText.length)
+                let selection = self.normalizedSelection(textView.selectedRange, length: textView.attributedText.length)
                 if self.selectionGeneration == generation && !self.toolbarActionInProgress && selection.length == 0 {
                     self.clearRememberedSelection()
                 }
             }
         }
 
-        private func selectionForToolbar(selectionActuelle: NSRange, longueur: Int) -> NSRange {
-            let courante = normalizedSelection(selectionActuelle, longueur: longueur)
-            if courante.length > 0 { return courante }
-            let memorisee = normalizedSelection(lastSelection, longueur: longueur)
-            return memorisee.length > 0 ? memorisee : courante
+        /// Returns the selection to use for a toolbar action: the current selection if non-empty,
+        /// otherwise the last remembered non-empty selection (set before the menu was opened).
+        private func selectionForToolbar(currentSelection: NSRange, length: Int) -> NSRange {
+            let current = normalizedSelection(currentSelection, length: length)
+            if current.length > 0 { return current }
+            let remembered = normalizedSelection(lastSelection, length: length)
+            return remembered.length > 0 ? remembered : current
         }
 
-        private func normalizedSelection(_ range: NSRange, longueur: Int) -> NSRange {
-            guard range.location != NSNotFound, range.location <= longueur else {
-                return NSRange(location: longueur, length: 0)
+        private func normalizedSelection(_ range: NSRange, length: Int) -> NSRange {
+            guard range.location != NSNotFound, range.location <= length else {
+                return NSRange(location: length, length: 0)
             }
-            let fin = min(range.location + range.length, longueur)
-            return NSRange(location: range.location, length: max(0, fin - range.location))
+            let end = min(range.location + range.length, length)
+            return NSRange(location: range.location, length: max(0, end - range.location))
         }
 
-        private func touteLaPlage(
-            dans attr: NSAttributedString,
+        /// Returns `true` if `check` is satisfied for every attribute run in `range`.
+        private func entireRange(
+            in attr: NSAttributedString,
             range: NSRange,
-            verifie: ([NSAttributedString.Key: Any]) -> Bool
+            check: ([NSAttributedString.Key: Any]) -> Bool
         ) -> Bool {
             guard range.length > 0 else { return false }
             var result = true
             attr.enumerateAttributes(in: range) { attrs, _, stop in
-                if !verifie(attrs) {
+                if !check(attrs) {
                     result = false
                     stop.pointee = true
                 }
@@ -1096,19 +1122,20 @@ struct RichTextEditor: UIViewRepresentable {
             return result
         }
 
-        private func attrsContainBold(attributsA attr: NSAttributedString, position: Int) -> Bool {
+        private func attrsContainBold(in attr: NSAttributedString, position: Int) -> Bool {
             attrsContainBold(attr.attributes(at: position, effectiveRange: nil))
         }
 
-        private func attrsContainItalic(attributsA attr: NSAttributedString, position: Int) -> Bool {
+        private func attrsContainItalic(in attr: NSAttributedString, position: Int) -> Bool {
             attrsContainItalic(attr.attributes(at: position, effectiveRange: nil))
         }
 
         private func attrsContainBold(_ attrs: [NSAttributedString.Key: Any]) -> Bool {
             if (attrs[.pinkhaBold] as? Bool) == true { return true }
-            // Repli sur la fonte : UIKit supprime les attributs custom de typingAttributes
-            // après insertion, mais la fonte (grasse) reste fiable. Comparaison au baseFont
-            // pour ne pas marquer un title (déjà gras) comme gras appliqué par l'utilisateur.
+            // Fall back to the font's symbolic traits: UIKit strips custom attributes from
+            // typingAttributes after insertion, but the bold font descriptor remains reliable.
+            // Compare against baseFont to avoid marking a heading (already bold by design)
+            // as user-applied bold.
             guard let f = attrs[.font] as? UIFont else { return false }
             return f.fontDescriptor.symbolicTraits.contains(.traitBold)
                 && !parent.baseFont.fontDescriptor.symbolicTraits.contains(.traitBold)

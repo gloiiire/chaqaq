@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-@Suite("Opérations document — cas limites")
+@Suite("Document operations — edge cases")
 struct EdgeOpsTests {
 
     private func makeApi() throws -> (PinkhaApi, URL, String) {
@@ -46,7 +46,7 @@ struct EdgeOpsTests {
         let a = try api.addBlock(docId: docId, blockContentJson: json)
         let b = try api.addBlock(docId: docId, blockContentJson: json)
         let fakeId = UUID().uuidString
-        // L'ordre contient un UUID inconnu — doit être ignoré, b et a réordonnés.
+        // The order contains an unknown UUID — it must be ignored, b and a reordered.
         try api.reorderBlocks(docId: docId, order: [fakeId, b, a])
         let doc = try JSONDecoder().decode(
             DocumentFfi.self,
@@ -61,7 +61,7 @@ struct EdgeOpsTests {
         let a = try api.addBlock(docId: docId, blockContentJson: json)
         let b = try api.addBlock(docId: docId, blockContentJson: json)
         let c = try api.addBlock(docId: docId, blockContentJson: json)
-        // Ne mentionne que c, a → b doit être conservé en fin.
+        // Only mentions c, a → b must be kept at the end.
         try api.reorderBlocks(docId: docId, order: [c, a])
         let doc = try JSONDecoder().decode(
             DocumentFfi.self,
@@ -82,7 +82,7 @@ struct EdgeOpsTests {
     @Test func searchWithSpecialCharactersDoesNotCrash() throws {
         let (api, url, docId) = try makeApi(); defer { cleanup(url) }
         _ = try api.addBlock(docId: docId, blockContentJson: try textJson("contenu normal"))
-        // Caractères spéciaux dans la requête : ne doit pas crasher.
+        // Special characters in the query: must not crash.
         _ = try api.searchInBlocks(query: "%_'\\\"")
         _ = try api.searchInBlocks(query: "🎯")
     }

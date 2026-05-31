@@ -1,6 +1,6 @@
 import XCTest
 
-// Swipe-to-delete sur une note pré-seedée — pas de typeText nécessaire.
+// Swipe-to-delete on a pre-seeded note — no typeText needed.
 
 final class SwipeDeleteUITests: XCTestCase {
 
@@ -20,14 +20,14 @@ final class SwipeDeleteUITests: XCTestCase {
         let row = app.staticTexts["Seeded Note 1"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
 
-        // Swipe left puis Supprimer
+        // Swipe left then tap Supprimer
         row.swipeLeft()
         let deleteBtn = app.buttons["Supprimer"]
         if deleteBtn.waitForExistence(timeout: 2) {
             deleteBtn.tap()
             XCTAssertFalse(app.staticTexts["Seeded Note 1"].waitForExistence(timeout: 2),
-                           "le doc supprimé ne doit plus apparaître")
-            // L'autre seeded doit toujours être là.
+                           "the deleted doc must no longer appear")
+            // The other seeded document must still be present.
             XCTAssertTrue(app.staticTexts["Seeded Note 2"].exists)
         }
     }

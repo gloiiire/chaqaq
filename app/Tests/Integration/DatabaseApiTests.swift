@@ -2,9 +2,9 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-// Tests FFI databases : même si l'UI n'existe pas encore, l'API doit fonctionner.
+// Database FFI tests: even though the UI does not exist yet, the API must work.
 
-@Suite("PinkhaApi — databases (FFI exposée, UI à venir)")
+@Suite("PinkhaApi — databases (FFI exposed, UI coming)")
 struct DatabaseApiTests {
 
     private func makeApi() throws -> (PinkhaApi, URL) {
@@ -44,7 +44,7 @@ struct DatabaseApiTests {
         defer { try? FileManager.default.removeItem(at: url) }
         let id = try api.createDatabase(title: "Test")
         let json = try api.getDatabaseJson(id: id)
-        // On vérifie juste que c'est du JSON valide et que l'id matche.
+        // Just verify it is valid JSON and that the id matches.
         #expect(json.contains(id))
     }
 }

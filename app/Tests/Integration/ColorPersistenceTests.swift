@@ -2,11 +2,11 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-// Vérifie que les styles inline (couleur, gras, etc.) survivent au round-trip
-// VM → API → JSON → reload → VM. Régression-clé du rich text.
+// Verifies that inline styles (colour, bold, etc.) survive the round-trip
+// VM → API → JSON → reload → VM. Key regression test for rich text.
 
 @MainActor
-@Suite("Color & styles — persistance via VM")
+@Suite("Color & styles — persistence via VM")
 struct ColorPersistenceTests {
 
     private func makeVM() throws -> (DocumentViewModel, URL) {
@@ -35,7 +35,7 @@ struct ColorPersistenceTests {
         let span = vm.blocks[0].spans.first
         #expect(span?.content == "Rouge")
         guard case .color(let name) = span?.styles.first else {
-            Issue.record("la couleur 'rouge' doit survivre au reload"); return
+            Issue.record("color 'rouge' must survive the reload"); return
         }
         #expect(name == "rouge")
     }
@@ -91,7 +91,7 @@ struct ColorPersistenceTests {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
         vm.addBlock(type: .todo)
-        // Toggle done puis save.
+        // Toggle done then save.
         var block = vm.blocks[0]
         block.done = true
         vm.saveBlock(block)
@@ -113,7 +113,7 @@ struct ColorPersistenceTests {
         if case .heading(let level, _) = vm.blocks[0].content {
             #expect(level == 2)
         } else {
-            Issue.record("le niveau du heading doit survivre")
+            Issue.record("heading level must survive the reload")
         }
     }
 }

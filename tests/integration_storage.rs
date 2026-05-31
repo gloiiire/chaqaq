@@ -76,7 +76,7 @@ fn test_save_ecrase_la_version_precedente() {
     let mut doc = Document::new(parse_inline("Titre initial"));
     store.save(&doc).unwrap();
 
-    // on modifie le title en mémoire et on re-sauvegarde
+    // modify the title in memory and save again
     doc.title = parse_inline("Titre modifié");
     store.save(&doc).unwrap();
 

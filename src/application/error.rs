@@ -1,25 +1,30 @@
 use std::fmt;
 use uuid::Uuid;
 
+/// Application-level error type used across all layers of pinkha.
 #[derive(Debug)]
 pub enum PinkhaError {
+    /// A resource with the given ID could not be found.
     NotFound(Uuid),
+    /// The requested operation is semantically invalid (e.g. moving a block into itself).
     InvalidOperation(String),
+    /// An underlying I/O error.
     Io(std::io::Error),
+    /// A JSON serialisation or deserialisation error.
     Json(serde_json::Error),
-    /// Erreur base de données — message converti pour ne pas coupler
-    /// l'application à une implémentation de stockage spécifique.
+    /// A storage error — message is converted to a string so that the application layer
+    /// does not depend on a specific storage implementation (e.g. rusqlite).
     Db(String),
 }
 
 impl fmt::Display for PinkhaError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PinkhaError::NotFound(id) => write!(f, "ressource introuvable : {id}"),
-            PinkhaError::InvalidOperation(msg) => write!(f, "opération invalide : {msg}"),
-            PinkhaError::Io(e) => write!(f, "erreur I/O : {e}"),
-            PinkhaError::Json(e) => write!(f, "erreur JSON : {e}"),
-            PinkhaError::Db(msg) => write!(f, "erreur base de données : {msg}"),
+            PinkhaError::NotFound(id) => write!(f, "resource not found: {id}"),
+            PinkhaError::InvalidOperation(msg) => write!(f, "invalid operation: {msg}"),
+            PinkhaError::Io(e) => write!(f, "I/O error: {e}"),
+            PinkhaError::Json(e) => write!(f, "JSON error: {e}"),
+            PinkhaError::Db(msg) => write!(f, "database error: {msg}"),
         }
     }
 }
@@ -58,7 +63,7 @@ mod tests {
     fn test_display_non_trouve() {
         let id = Uuid::new_v4();
         let msg = PinkhaError::NotFound(id).to_string();
-        assert!(msg.contains("introuvable"));
+        assert!(msg.contains("not found"));
         assert!(msg.contains(&id.to_string()));
     }
 
@@ -103,7 +108,7 @@ mod tests {
     #[test]
     fn test_display_operation_invalide() {
         let err = PinkhaError::InvalidOperation("bloc non textuel".to_string());
-        assert!(err.to_string().contains("invalide"));
+        assert!(err.to_string().contains("invalid"));
         assert!(err.to_string().contains("bloc non textuel"));
     }
 

@@ -1,6 +1,11 @@
 use crate::application::error::PinkhaError;
 use rusqlite::Connection;
 
+/// Applies all versioned schema migrations to the given SQLite connection.
+///
+/// Creates the `documents` and `databases` tables if they do not exist,
+/// then adds any columns introduced in later schema versions, and bumps
+/// `PRAGMA user_version` to 4.
 pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS documents (
@@ -33,14 +38,20 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
     Ok(())
 }
 
+/// Applies document-table migrations. Delegates to [`apply_migrations`].
 pub fn apply_document_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
     apply_migrations(conn)
 }
 
+/// Applies database-table migrations. Delegates to [`apply_migrations`].
 pub fn apply_database_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
     apply_migrations(conn)
 }
 
+/// Adds a column to a table only if it does not already exist.
+///
+/// Uses `PRAGMA table_info` to inspect the current schema before issuing
+/// `ALTER TABLE … ADD COLUMN`, making the migration idempotent.
 fn add_column_if_missing(
     conn: &Connection,
     table: &str,

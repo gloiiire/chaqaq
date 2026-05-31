@@ -2,9 +2,9 @@ import Testing
 import Foundation
 @testable import Pinkha
 
-// Vérifie le round-trip Codable des miroirs Swift des types Rust.
-// Le format JSON doit matcher exactement celui produit par serde côté Rust
-// (sinon les bindings cassent silencieusement).
+// Verifies the Codable round-trip of the Swift mirrors of Rust types.
+// The JSON format must exactly match what serde produces on the Rust side
+// (otherwise bindings break silently).
 
 @Suite("InlineStyleFfi — round-trip JSON")
 struct InlineStyleFfiTests {
@@ -45,12 +45,12 @@ struct InlineStyleFfiTests {
             let data = try JSONEncoder().encode(original)
             let decoded = try JSONDecoder().decode(InlineStyleFfi.self, from: data)
             let twice = try JSONEncoder().encode(decoded)
-            #expect(data == twice, "le round-trip doit produire un JSON identique")
+            #expect(data == twice, "the round-trip must produce identical JSON")
         }
     }
 }
 
-@Suite("BlockContentFfi — round-trip JSON + helpers")
+@Suite("BlockContentFfi — JSON round-trip + helpers")
 struct BlockContentFfiTests {
 
     @Test func dividerSerializesAsBareString() throws {

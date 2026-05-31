@@ -36,7 +36,7 @@ fn store_temp() -> (JsonStore, DatabaseStore) {
 fn test_flux_complet_database() {
     let (_doc_store, db_store) = store_temp();
 
-    // crée une database avec deux propriétés
+    // create a database with two properties
     let prop_nom = Property::new("Nom", PropertyType::Title);
     let prop_score = Property::new("Score", PropertyType::Number);
     let nom_id = prop_nom.id;
@@ -44,7 +44,7 @@ fn test_flux_complet_database() {
 
     let db = create_database(&db_store, title("Classement"), vec![prop_nom, prop_score]).unwrap();
 
-    // ajoute des entrées
+    // add entries
     let mut v1 = HashMap::new();
     v1.insert(nom_id, PropertyValue::Title(title("Alice")));
     v1.insert(score_id, PropertyValue::Number(95.0));
@@ -61,7 +61,7 @@ fn test_flux_complet_database() {
     add_entry(&db_store, db.id, v2).unwrap();
     add_entry(&db_store, db.id, v3).unwrap();
 
-    // vue triée par score décroissant
+    // view sorted by score descending
     let mut vue = View::new("Top scores", ViewType::Table);
     vue.sorts
         .push(Sort::by_property(score_id, Order::Descending));
@@ -81,7 +81,7 @@ fn test_database_liee_a_document() {
 
     let db = create_database(&db_store, title("Tâches"), vec![]).unwrap();
 
-    // document qui référence la database via un bloc
+    // document referencing the database via a block
     let mut doc = create_document(&doc_store, "Mon projet").unwrap();
     doc.add_block(BlockContent::Database { id: db.id });
     doc_store.save(&doc).unwrap();
@@ -166,7 +166,7 @@ fn test_add_property_a_database_existante() {
 fn test_flux_rollup_entre_deux_databases() {
     let (_doc_store, db_store) = store_temp();
 
-    // Sprints (database source des relations)
+    // Sprints (source database for relations)
     let prop_points = Property::new("Points", PropertyType::Number);
     let points_id = prop_points.id;
     let db_sprints = create_database(&db_store, title("Sprints"), vec![prop_points]).unwrap();
@@ -178,7 +178,7 @@ fn test_flux_rollup_entre_deux_databases() {
     let sprint1 = add_entry(&db_store, db_sprints.id, s1).unwrap();
     let sprint2 = add_entry(&db_store, db_sprints.id, s2).unwrap();
 
-    // Projets avec Relation → Sprints + Rollup (Sum des points)
+    // Projects with Relation → Sprints + Rollup (Sum of points)
     let prop_rel = Property::new(
         "Sprints",
         PropertyType::Relation {
@@ -214,7 +214,7 @@ fn test_flux_rollup_entre_deux_databases() {
     );
 }
 
-// ── E2E Kanban (groupement) ──────────────────────────────────────────────────
+// ── E2E Kanban (grouping) ────────────────────────────────────────────────────
 
 #[test]
 fn test_flux_kanban_complet() {
@@ -227,7 +227,7 @@ fn test_flux_kanban_complet() {
     let statut_id = prop_statut.id;
     let db = create_database(&db_store, title("Backlog"), vec![prop_statut]).unwrap();
 
-    // View Kanban groupée par statut
+    // Kanban view grouped by status
     let vue_kanban = View::new(
         "Kanban",
         ViewType::Kanban {
@@ -254,7 +254,7 @@ fn test_flux_kanban_complet() {
     assert_eq!(total, 6);
 }
 
-// ── E2E Agrégat colonne ──────────────────────────────────────────────────────
+// ── E2E Column aggregate ─────────────────────────────────────────────────────
 
 #[test]
 fn test_aggregate_min_max_colonne() {
@@ -277,11 +277,11 @@ fn test_aggregate_min_max_colonne() {
     assert_eq!(max, PropertyValue::Number(9.0));
 }
 
-// ── E2E Journal intime — le cas d'usage fondateur ────────────────────────────
+// ── E2E Personal journal — the founding use case ─────────────────────────────
 
-/// Scénario réel : tu importes d'anciennes notes avec des dates que tu as
-/// saisies à la main, et tu continues d'écrire de news notes dont la date
-/// est auto-générée. Une seule vue, un seul tri, tout dans le bon order.
+/// Real-world scenario: old notes imported with manually-entered dates coexist
+/// with new notes whose date is auto-generated. A single view with a single sort
+/// puts everything in the right chronological order.
 #[test]
 fn test_journal_intime_dates_mixtes() {
     let (_doc_store, db_store) = store_temp();
@@ -293,7 +293,7 @@ fn test_journal_intime_dates_mixtes() {
 
     let db = create_database(&db_store, title("Journal"), vec![prop_date, prop_content]).unwrap();
 
-    // — Anciennes notes importées : date manuelle renseignée, created_at = maintenant
+    // Old imported notes: manual date filled in, created_at = now
     let notes_anciennes = [
         ("2019-03-22", "Première entrée retrouvée"),
         ("2021-08-14", "Une pensée de l'été"),
@@ -306,7 +306,7 @@ fn test_journal_intime_dates_mixtes() {
         add_entry(&db_store, db.id, v).unwrap();
     }
 
-    // — Nouvelles notes : pas de date manuelle, created_at auto (aujourd'hui ≈ 2024+)
+    // New notes: no manual date, created_at auto-set to today (approx. 2024+)
     let notes_news = ["Ce soir il pleut", "Réflexions du matin"];
     for texte in notes_news {
         let mut v = HashMap::new();
@@ -314,7 +314,7 @@ fn test_journal_intime_dates_mixtes() {
         add_entry(&db_store, db.id, v).unwrap();
     }
 
-    // View chronologique : ManualThenCreated croissant
+    // Chronological view: ManualThenCreated ascending
     let mut vue = View::new("Chronologique", ViewType::Table);
     vue.sorts
         .push(Sort::manual_then_creation(date_id, Order::Ascending));
@@ -323,7 +323,7 @@ fn test_journal_intime_dates_mixtes() {
     let resultats = query(&db_store, db.id, vue.id).unwrap();
     assert_eq!(resultats.len(), 5);
 
-    // Les 3 premières doivent être les notes anciennes dans l'order chronologique
+    // The first 3 must be the old notes in chronological order
     let dates: Vec<Option<&PropertyValue>> =
         resultats.iter().map(|e| e.values.get(&date_id)).collect();
 
@@ -339,10 +339,10 @@ fn test_journal_intime_dates_mixtes() {
         dates[2],
         Some(&PropertyValue::Date("2021-08-14".to_string()))
     );
-    // Les 2 news arrivent après (created_at récent > toutes les dates manuelles)
+    // The 2 new notes come after (recent created_at > all manual dates)
     assert!(
         dates[3].is_none() || dates[3] == Some(&PropertyValue::Empty) || {
-            // pas de date manuelle donc tri par created_at
+            // no manual date, so sorted by created_at
             resultats[3].created_at > "2021".to_string()
         }
     );

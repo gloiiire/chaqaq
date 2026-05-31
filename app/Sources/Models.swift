@@ -1,8 +1,9 @@
 import Foundation
 import SwiftUI
 
-// Miroirs Swift des types Rust sérialisés par serde
+// Swift mirrors of the Rust types serialized by serde
 
+/// Swift mirror of the `Document` Rust type. Decoded from the JSON returned by the FFI.
 struct DocumentFfi: Codable {
     let id: String
     let cover: String?
@@ -10,17 +11,20 @@ struct DocumentFfi: Codable {
     let blocks: [BlockFfi]
 }
 
+/// Swift mirror of a `Block` node. Blocks are recursive (children).
 struct BlockFfi: Codable, Identifiable {
     let id: String
     let content: BlockContentFfi
     let children: [BlockFfi]
 }
 
+/// A run of text with zero or more inline styles applied to it.
 struct InlineTextFfi: Codable, Equatable {
     let content: String
     let styles: [InlineStyleFfi]
 }
 
+/// Inline formatting style. Matches the serde externally-tagged representation of `InlineStyle` in Rust.
 enum InlineStyleFfi: Codable, Equatable {
     case bold, italic, underline, strikethrough
     case color(String)
@@ -29,6 +33,7 @@ enum InlineStyleFfi: Codable, Equatable {
     private enum K: String, CodingKey { case Bold, Italic, Underline, Strikethrough, Color, Link }
 
     init(from decoder: Decoder) throws {
+        // Unit variants are serialized as plain strings by serde.
         if let sv = try? decoder.singleValueContainer(), let s = try? sv.decode(String.self) {
             switch s {
             case "Bold":         self = .bold;         return
@@ -38,10 +43,11 @@ enum InlineStyleFfi: Codable, Equatable {
             default: break
             }
         }
+        // Associated variants are serialized as keyed objects.
         let c = try decoder.container(keyedBy: K.self)
         if let v = try? c.decode(String.self, forKey: .Color) { self = .color(v); return }
         if let v = try? c.decode(String.self, forKey: .Link)  { self = .link(v);  return }
-        throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "InlineStyle inconnu"))
+        throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown InlineStyle"))
     }
 
     func encode(to encoder: Encoder) throws {
@@ -56,6 +62,7 @@ enum InlineStyleFfi: Codable, Equatable {
     }
 }
 
+/// Block content variant. Matches the serde externally-tagged representation of `BlockContent` in Rust.
 enum BlockContentFfi: Codable, Equatable {
     case text([InlineTextFfi])
     case heading(level: Int, text: [InlineTextFfi])
@@ -72,6 +79,7 @@ enum BlockContentFfi: Codable, Equatable {
     private struct PayloadDb:      Codable { let id: String }
 
     init(from decoder: Decoder) throws {
+        // Unit variants (Divider, Breadcrumb) are bare strings in serde's externally-tagged format.
         if let sv = try? decoder.singleValueContainer(), let s = try? sv.decode(String.self) {
             if s == "Divider"    { self = .divider;    return }
             if s == "Breadcrumb" { self = .breadcrumb; return }
@@ -82,7 +90,7 @@ enum BlockContentFfi: Codable, Equatable {
         if let v = try? c.decode(PayloadQuote.self,    forKey: .Quote)   { self = .quote(icon: v.icon, text: v.text); return }
         if let v = try? c.decode(PayloadTodo.self,     forKey: .Todo)    { self = .todo(done: v.done, text: v.text); return }
         if let v = try? c.decode(PayloadDb.self,       forKey: .Database){ self = .database(id: v.id); return }
-        throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "BlockContent inconnu"))
+        throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown BlockContent"))
     }
 
     func encode(to encoder: Encoder) throws {
@@ -108,6 +116,7 @@ enum BlockContentFfi: Codable, Equatable {
         }
     }
 
+    /// Concatenates the raw text of all inline spans, ignoring styles.
     var plainText: String {
         switch self {
         case .text(let s):         return s.map(\.content).joined()
@@ -118,6 +127,7 @@ enum BlockContentFfi: Codable, Equatable {
         }
     }
 
+    /// Returns the inline spans of the block, or an empty array for structural blocks (Divider, etc.).
     var spansOrEmpty: [InlineTextFfi] {
         switch self {
         case .text(let s):       return s
@@ -128,9 +138,12 @@ enum BlockContentFfi: Codable, Equatable {
         }
     }
 
+    /// `true` if this variant is a `.todo` block.
     var isTodo: Bool { if case .todo = self { return true }; return false }
+    /// `true` if this is a `.todo` block with `done == true`.
     var isTodoDone: Bool { if case .todo(let d, _) = self { return d }; return false }
 
+    /// Returns a copy of the block with its text replaced by a single unstyled span.
     func withText(_ newText: String, done: Bool = false) -> BlockContentFfi {
         let spans = newText.isEmpty ? [] : [InlineTextFfi(content: newText, styles: [])]
         switch self {
@@ -142,6 +155,7 @@ enum BlockContentFfi: Codable, Equatable {
         }
     }
 
+    /// Returns a copy of the block with its spans replaced by `spans`, preserving structure (level, icon, done).
     func withSpans(_ spans: [InlineTextFfi], done: Bool = false) -> BlockContentFfi {
         switch self {
         case .text:              return .text(spans)

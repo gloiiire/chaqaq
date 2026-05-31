@@ -25,18 +25,18 @@ fn inlines(s: &str) -> Vec<InlineText> {
     }]
 }
 
-/// Scénario journal : rechercher dans les titles de pages ET dans les entrées
-/// de la database journal — les deux coexistent.
+/// Journal scenario: search across page titles AND database entries —
+/// both coexist in the same result set.
 #[test]
 fn test_recherche_dans_journal_complet() {
     let (doc_store, db_store) = stores_temp();
 
-    // Pages de notes libres
+    // Free-form note pages
     create_document(&doc_store, "Réflexions sur Rust").unwrap();
     create_document(&doc_store, "Recettes végétariennes").unwrap();
     create_document(&doc_store, "Notes de lecture : Rust book").unwrap();
 
-    // Database journal avec entrées
+    // Journal database with entries
     let prop = Property::new("Texte", PropertyType::Text);
     let prop_id = prop.id;
     let db = create_database(&db_store, inlines("Journal"), vec![prop]).unwrap();
@@ -51,16 +51,16 @@ fn test_recherche_dans_journal_complet() {
         add_entry(&db_store, db.id, v).unwrap();
     }
 
-    // Recherche "rust" dans les pages
+    // Search "rust" in pages
     let pages = search_documents(&doc_store, "rust").unwrap();
-    assert_eq!(pages.len(), 2); // "Réflexions sur Rust" et "Notes de lecture : Rust book"
+    assert_eq!(pages.len(), 2); // "Réflexions sur Rust" and "Notes de lecture : Rust book"
 
-    // Recherche "rust" dans les entrées journal
+    // Search "rust" in journal entries
     let entries = search_entries(&db_store, db.id, "rust").unwrap();
     assert_eq!(entries.len(), 2);
 }
 
-/// Vérifie qu'une recherche vide retourne tout (comportement "voir tout").
+/// An empty query returns everything (show-all behaviour).
 #[test]
 fn test_recherche_vide_retourne_tout() {
     let (doc_store, db_store) = stores_temp();
@@ -82,7 +82,7 @@ fn test_recherche_vide_retourne_tout() {
     assert_eq!(search_entries(&db_store, db.id, "").unwrap().len(), 2);
 }
 
-/// Recherche dans une database avec plusieurs types de propriétés.
+/// Search across a database with mixed property types.
 #[test]
 fn test_recherche_entries_selection_et_texte() {
     let (_doc_store, db_store) = stores_temp();
@@ -117,11 +117,11 @@ fn test_recherche_entries_selection_et_texte() {
         add_entry(&db_store, db.id, v).unwrap();
     }
 
-    // "brouillon" matche les 2 articles en brouillon (via la colonne Statut)
+    // "brouillon" matches the 2 draft articles (via the Statut column)
     let brouillons = search_entries(&db_store, db.id, "brouillon").unwrap();
     assert_eq!(brouillons.len(), 2);
 
-    // "rust" ne matche que dans le title du second
+    // "rust" only matches in the title of the second article
     let rust = search_entries(&db_store, db.id, "rust").unwrap();
     assert_eq!(rust.len(), 1);
 }

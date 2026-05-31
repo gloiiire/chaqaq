@@ -1,7 +1,7 @@
 import Testing
 @testable import Pinkha
 
-@Suite("markdownShortcut — conversion raccourcis Notion")
+@Suite("markdownShortcut — Notion shortcut conversion")
 struct MarkdownShortcutTests {
 
     @Test func hashSpaceProducesHeading1() {
@@ -67,8 +67,8 @@ struct MarkdownShortcutTests {
 
     @Test func regularTextIsNotAShortcut() {
         #expect(markdownShortcut(for: "Bonjour") == nil)
-        #expect(markdownShortcut(for: "##") == nil) // sans espace
-        #expect(markdownShortcut(for: "[ ]") == nil) // sans espace final
+        #expect(markdownShortcut(for: "##") == nil) // missing trailing space
+        #expect(markdownShortcut(for: "[ ]") == nil) // missing trailing space
     }
 
     @Test func hashWithoutSpaceIsNotShortcut() {
