@@ -160,9 +160,24 @@ fn craft_inspect_link_to_doc() {
 fn craft_inspect_document_model() {
     let db = realm_codec::RealmFile::open(CRAFT_REALM).expect("open realm file");
 
-    // Collect all DocumentDataModel IDs and rootBlockIds.
+    // Print ALL DocumentDataModel columns.
     let doc_table = db.table("class_DocumentDataModel").expect("DocumentDataModel");
+    println!("DocumentDataModel columns ({}):", doc_table.columns.len());
+    for (i, (name, ct)) in doc_table.columns.iter().enumerate() {
+        println!("  col[{i:02}] {name}: {ct:?}");
+    }
+
+    // Print first 2 rows to see what values look like.
     let id_col   = doc_table.column_index("id").expect("id");
+    println!("\nFirst 2 DocumentDataModel rows:");
+    for row in doc_table.rows.iter().take(2) {
+        for (i, (name, _)) in doc_table.columns.iter().enumerate() {
+            let v = row.get(i).as_str();
+            if !v.is_empty() { println!("  {name}: {v:?}"); }
+        }
+        println!("---");
+    }
+
     let root_col = doc_table.column_index("rootBlockId").expect("rootBlockId");
 
     let doc_ids: std::collections::HashSet<String> = doc_table.rows.iter()
@@ -199,9 +214,54 @@ fn craft_inspect_document_model() {
         if root_block_ids.contains(&bid) { id_matches_root += 1; }
     }
 
+    // Count blocks per doc and titleEnabled per doc.
+    let lsb_col = btable.column_index("lastSyncedBlockIds").expect("lsb");
+    let mut doc_block_counts: std::collections::HashMap<String, (usize, usize)> = Default::default();
+    let mut empty_lsb = 0usize;
+    for row in &btable.rows {
+        let lsb = row.get(lsb_col).as_str().to_lowercase();
+        if lsb.is_empty() { empty_lsb += 1; continue; }
+        let raw = row.get(raw_col).as_str();
+        let is_title = raw.contains("\"titleEnabled\":\"true\"") || raw.contains("\"titleEnabled\":true");
+        let entry = doc_block_counts.entry(lsb).or_insert((0, 0));
+        entry.0 += 1;
+        if is_title { entry.1 += 1; }
+    }
+    let docs_with_zero_title = doc_block_counts.values().filter(|&&(_, t)| t == 0).count();
+    let docs_with_multi_title = doc_block_counts.values().filter(|&&(_, t)| t > 1).count();
+    let max_title = doc_block_counts.values().map(|&(_, t)| t).max().unwrap_or(0);
+
     println!("\nBlocks whose id ∈ doc_ids:        {id_matches_doc}");
     println!("Blocks whose id ∈ rootBlockIds:   {id_matches_root}");
     println!("Blocks with titleEnabled:          {title_enabled}");
+    println!("Blocks with empty lastSyncedBlockIds: {empty_lsb}");
+    println!("Docs with 0 titleEnabled blocks:  {docs_with_zero_title}");
+    println!("Docs with >1 titleEnabled blocks: {docs_with_multi_title}");
+    println!("Max titleEnabled blocks in one doc: {max_title}");
+
+    // Show 3 docs with 0 title blocks.
+    println!("\nSample docs with 0 titleEnabled blocks:");
+    let mut shown = 0;
+    for (doc_id, &(total, title_count)) in &doc_block_counts {
+        if title_count == 0 {
+            println!("  doc={doc_id} total_blocks={total}");
+            // Show first block of this doc
+            for row in &btable.rows {
+                let lsb = row.get(lsb_col).as_str().to_lowercase();
+                if &lsb == doc_id {
+                    let content_col = btable.column_index("content").unwrap();
+                    let type_col    = btable.column_index("type").unwrap();
+                    let content = row.get(content_col).as_str();
+                    println!("    first block: type={:?} content={:?}",
+                        row.get(type_col).as_str(),
+                        &content[..content.len().min(80)]);
+                    break;
+                }
+            }
+            shown += 1;
+            if shown >= 3 { break; }
+        }
+    }
 
     // Show a few rootBlockId blocks for verification.
     println!("\nFirst 3 blocks matched by rootBlockId:");
