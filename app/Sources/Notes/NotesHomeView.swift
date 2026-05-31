@@ -21,7 +21,6 @@ struct NotesHomeView: View {
                     // ── Salutation ────────────────────────────────────────
                     Section {
                         WelcomeHeader(greeting: greeting)
-                            .padding(.top, 24)
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                     }
@@ -72,7 +71,6 @@ struct NotesHomeView: View {
                     }
                 }
                 .listStyle(.insetGrouped)
-                .contentMargins(.top, 0, for: .scrollContent)
                 .scrollPosition($scrollPosition)
                 .toolbar(.hidden, for: .navigationBar)
 
