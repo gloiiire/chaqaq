@@ -130,6 +130,12 @@ struct BlockRowView: View {
                 TodoRowView(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
             case .divider:
                 Divider().padding(.vertical, 12)
+            case .bulletedListItem(let spans):
+                BulletedListItemView(spans: spans)
+            case .numberedListItem(let spans):
+                NumberedListItemView(spans: spans)
+            case .code(let language, let text):
+                CodeBlockView(language: language, text: text)
             default:
                 EmptyView()
             }
@@ -182,3 +188,56 @@ private struct HeadingRowView: View {
 }
 
 // QuoteRowView, CalloutRowView and TodoRowView are in BlockRowsExtra.swift.
+
+// ── Read-only import variants ─────────────────────────────────────────────────
+// These block types are produced by extractors (Notion, Bear) but are not yet
+// fully editable. They render as plain read-only text so imported content is
+// visible immediately.
+
+private struct BulletedListItemView: View {
+    let spans: [InlineTextFfi]
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("•").foregroundStyle(.secondary)
+            Text(spans.map(\.content).joined())
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+private struct NumberedListItemView: View {
+    let spans: [InlineTextFfi]
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: "circle.fill")
+                .font(.system(size: 4))
+                .foregroundStyle(.secondary)
+                .padding(.top, 7)
+            Text(spans.map(\.content).joined())
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+private struct CodeBlockView: View {
+    let language: String
+    let text: String
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if !language.isEmpty {
+                Text(language)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+            }
+            Text(text)
+                .font(.system(.footnote, design: .monospaced))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .padding(.vertical, 4)
+    }
+}

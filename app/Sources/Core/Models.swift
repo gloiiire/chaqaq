@@ -68,14 +68,20 @@ enum BlockContentFfi: Codable, Equatable {
     case heading(level: Int, text: [InlineTextFfi])
     case quote(icon: String, text: [InlineTextFfi])
     case todo(done: Bool, text: [InlineTextFfi])
+    case bulletedListItem([InlineTextFfi])
+    case numberedListItem([InlineTextFfi])
+    case code(language: String, text: String)
     case divider
     case breadcrumb
     case database(id: String)
 
-    private enum K: String, CodingKey { case Text, Heading, Quote, Todo, Divider, Breadcrumb, Database }
+    private enum K: String, CodingKey {
+        case Text, Heading, Quote, Todo, BulletedListItem, NumberedListItem, Code, Divider, Breadcrumb, Database
+    }
     private struct PayloadHeading: Codable { let level: Int; let text: [InlineTextFfi] }
     private struct PayloadQuote:   Codable { let icon: String; let text: [InlineTextFfi] }
     private struct PayloadTodo:    Codable { let done: Bool; let text: [InlineTextFfi] }
+    private struct PayloadCode:    Codable { let language: String; let text: String }
     private struct PayloadDb:      Codable { let id: String }
 
     init(from decoder: Decoder) throws {
@@ -85,11 +91,14 @@ enum BlockContentFfi: Codable, Equatable {
             if s == "Breadcrumb" { self = .breadcrumb; return }
         }
         let c = try decoder.container(keyedBy: K.self)
-        if let v = try? c.decode([InlineTextFfi].self, forKey: .Text)    { self = .text(v); return }
-        if let v = try? c.decode(PayloadHeading.self,  forKey: .Heading) { self = .heading(level: v.level, text: v.text); return }
-        if let v = try? c.decode(PayloadQuote.self,    forKey: .Quote)   { self = .quote(icon: v.icon, text: v.text); return }
-        if let v = try? c.decode(PayloadTodo.self,     forKey: .Todo)    { self = .todo(done: v.done, text: v.text); return }
-        if let v = try? c.decode(PayloadDb.self,       forKey: .Database){ self = .database(id: v.id); return }
+        if let v = try? c.decode([InlineTextFfi].self, forKey: .Text)             { self = .text(v); return }
+        if let v = try? c.decode(PayloadHeading.self,  forKey: .Heading)          { self = .heading(level: v.level, text: v.text); return }
+        if let v = try? c.decode(PayloadQuote.self,    forKey: .Quote)            { self = .quote(icon: v.icon, text: v.text); return }
+        if let v = try? c.decode(PayloadTodo.self,     forKey: .Todo)             { self = .todo(done: v.done, text: v.text); return }
+        if let v = try? c.decode([InlineTextFfi].self, forKey: .BulletedListItem) { self = .bulletedListItem(v); return }
+        if let v = try? c.decode([InlineTextFfi].self, forKey: .NumberedListItem) { self = .numberedListItem(v); return }
+        if let v = try? c.decode(PayloadCode.self,     forKey: .Code)             { self = .code(language: v.language, text: v.text); return }
+        if let v = try? c.decode(PayloadDb.self,       forKey: .Database)         { self = .database(id: v.id); return }
         throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown BlockContent"))
     }
 
@@ -110,6 +119,13 @@ enum BlockContentFfi: Codable, Equatable {
         case .todo(let done, let text):
             var c = encoder.container(keyedBy: K.self)
             try c.encode(PayloadTodo(done: done, text: text), forKey: .Todo)
+        case .bulletedListItem(let v):
+            var c = encoder.container(keyedBy: K.self); try c.encode(v, forKey: .BulletedListItem)
+        case .numberedListItem(let v):
+            var c = encoder.container(keyedBy: K.self); try c.encode(v, forKey: .NumberedListItem)
+        case .code(let language, let text):
+            var c = encoder.container(keyedBy: K.self)
+            try c.encode(PayloadCode(language: language, text: text), forKey: .Code)
         case .database(let id):
             var c = encoder.container(keyedBy: K.self)
             try c.encode(PayloadDb(id: id), forKey: .Database)
@@ -119,22 +135,27 @@ enum BlockContentFfi: Codable, Equatable {
     /// Concatenates the raw text of all inline spans, ignoring styles.
     var plainText: String {
         switch self {
-        case .text(let s):         return s.map(\.content).joined()
-        case .heading(_, let s):   return s.map(\.content).joined()
-        case .quote(_, let s):     return s.map(\.content).joined()
-        case .todo(_, let s):      return s.map(\.content).joined()
-        default:                   return ""
+        case .text(let s):              return s.map(\.content).joined()
+        case .heading(_, let s):        return s.map(\.content).joined()
+        case .quote(_, let s):          return s.map(\.content).joined()
+        case .todo(_, let s):           return s.map(\.content).joined()
+        case .bulletedListItem(let s):  return s.map(\.content).joined()
+        case .numberedListItem(let s):  return s.map(\.content).joined()
+        case .code(_, let t):           return t
+        default:                        return ""
         }
     }
 
     /// Returns the inline spans of the block, or an empty array for structural blocks (Divider, etc.).
     var spansOrEmpty: [InlineTextFfi] {
         switch self {
-        case .text(let s):       return s
-        case .heading(_, let s): return s
-        case .quote(_, let s):   return s
-        case .todo(_, let s):    return s
-        default:                 return []
+        case .text(let s):              return s
+        case .heading(_, let s):        return s
+        case .quote(_, let s):          return s
+        case .todo(_, let s):           return s
+        case .bulletedListItem(let s):  return s
+        case .numberedListItem(let s):  return s
+        default:                        return []
         }
     }
 
@@ -147,22 +168,26 @@ enum BlockContentFfi: Codable, Equatable {
     func withText(_ newText: String, done: Bool = false) -> BlockContentFfi {
         let spans = newText.isEmpty ? [] : [InlineTextFfi(content: newText, styles: [])]
         switch self {
-        case .text:              return .text(spans)
-        case .heading(let l, _): return .heading(level: l, text: spans)
-        case .quote(let i, _):   return .quote(icon: i, text: spans)
-        case .todo(_, _):        return .todo(done: done, text: spans)
-        default:                 return self
+        case .text:                     return .text(spans)
+        case .heading(let l, _):        return .heading(level: l, text: spans)
+        case .quote(let i, _):          return .quote(icon: i, text: spans)
+        case .todo(_, _):               return .todo(done: done, text: spans)
+        case .bulletedListItem:         return .bulletedListItem(spans)
+        case .numberedListItem:         return .numberedListItem(spans)
+        default:                        return self
         }
     }
 
     /// Returns a copy of the block with its spans replaced by `spans`, preserving structure (level, icon, done).
     func withSpans(_ spans: [InlineTextFfi], done: Bool = false) -> BlockContentFfi {
         switch self {
-        case .text:              return .text(spans)
-        case .heading(let l, _): return .heading(level: l, text: spans)
-        case .quote(let i, _):   return .quote(icon: i, text: spans)
-        case .todo(_, _):        return .todo(done: done, text: spans)
-        default:                 return self
+        case .text:                     return .text(spans)
+        case .heading(let l, _):        return .heading(level: l, text: spans)
+        case .quote(let i, _):          return .quote(icon: i, text: spans)
+        case .todo(_, _):               return .todo(done: done, text: spans)
+        case .bulletedListItem:         return .bulletedListItem(spans)
+        case .numberedListItem:         return .numberedListItem(spans)
+        default:                        return self
         }
     }
 }

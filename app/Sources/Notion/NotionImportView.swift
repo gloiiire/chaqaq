@@ -3,22 +3,26 @@ import SwiftUI
 // ── Import from Notion sheet ───────────────────────────────────────────────────
 //
 // Flow:
-//   1. User enters their Notion Internal Integration Token (secret_xxx)
+//   1. User enters their Notion integration token (secret_xxx)
 //   2. User pastes the database URL or ID
-//   3. Tap "Import" → NotionImporter fetches schema + pages, creates Pinkha DB
-//   4. Success screen shows entry count; "Done" calls onDone() to refresh the list.
-//
-// Setup (one-time): notion.so/my-integrations → New integration → copy token,
-// then open the Notion database → … → Connections → connect your integration.
+//   3. Tap "Import" → Rust extractor fetches schema + pages + blocks
+//   4. Success screen shows counts; "Done" refreshes the list.
 
 struct NotionImportView: View {
     let api: PinkhaApi?
     let onDone: () -> Void
 
-    @StateObject private var importer = NotionImporter()
     @State private var token = ""
     @State private var notionUrl = ""
+    @State private var state: ImportState = .idle
     @Environment(\.dismiss) private var dismiss
+
+    enum ImportState {
+        case idle
+        case running
+        case done(ImportResultFfi)
+        case failed(String)
+    }
 
     var body: some View {
         NavigationStack {
@@ -27,16 +31,13 @@ struct NotionImportView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        if !importer.isDone {
-                            Button("Cancel") { dismiss() }
-                        }
+                        if !isDone { Button("Cancel") { dismiss() } }
                     }
                     ToolbarItem(placement: .confirmationAction) {
-                        if importer.isDone {
-                            Button("Done") { onDone(); dismiss() }
-                                .fontWeight(.semibold)
+                        if isDone {
+                            Button("Done") { onDone(); dismiss() }.fontWeight(.semibold)
                         } else {
-                            importAction
+                            importButton
                         }
                     }
                 }
@@ -48,11 +49,7 @@ struct NotionImportView: View {
 
     @ViewBuilder
     private var content: some View {
-        if importer.isDone {
-            successView
-        } else {
-            formView
-        }
+        if isDone { successView } else { formView }
     }
 
     // ── Form ──────────────────────────────────────────────────────────────────
@@ -77,16 +74,16 @@ struct NotionImportView: View {
                 Text("Database URL or ID")
             }
 
-            if case .running(let msg) = importer.progress {
+            if case .running = state {
                 Section {
                     HStack(spacing: 12) {
                         ProgressView()
-                        Text(msg).foregroundStyle(.secondary)
+                        Text("Importing…").foregroundStyle(.secondary)
                     }
                 }
             }
 
-            if case .failed(let msg) = importer.progress {
+            if case .failed(let msg) = state {
                 Section {
                     Text(msg).foregroundStyle(.red).font(.footnote)
                 }
@@ -95,21 +92,13 @@ struct NotionImportView: View {
     }
 
     @ViewBuilder
-    private var importAction: some View {
-        switch importer.progress {
-        case .running:
+    private var importButton: some View {
+        if case .running = state {
             ProgressView().scaleEffect(0.8)
-        default:
-            Button("Import") {
-                guard let api else { return }
-                importer.start(
-                    token: token.trimmingCharacters(in: .whitespaces),
-                    notionUrl: notionUrl.trimmingCharacters(in: .whitespaces),
-                    api: api
-                )
-            }
-            .fontWeight(.semibold)
-            .disabled(!canImport)
+        } else {
+            Button("Import") { runImport() }
+                .fontWeight(.semibold)
+                .disabled(!canImport)
         }
     }
 
@@ -127,20 +116,39 @@ struct NotionImportView: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64))
                 .foregroundStyle(.green)
-            if case .done(let result) = importer.progress {
+            if case .done(let result) = state {
                 VStack(spacing: 8) {
                     Text("Import complete!")
                         .font(.title3.weight(.semibold))
-                    let noun = result.entryCount == 1 ? "entry" : "entries"
-                    Text("\(result.entryCount) \(noun) imported from \"\(result.databaseTitle)\".")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+                    let noun = result.entries == 1 ? "entry" : "entries"
+                    Text("\(result.entries) \(noun) and \(result.documents) \(result.documents == 1 ? "note" : "notes") imported.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
                 }
             }
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // ── Import ────────────────────────────────────────────────────────────────
+
+    private var isDone: Bool { if case .done = state { return true }; return false }
+
+    private func runImport() {
+        guard let api else { return }
+        let t = token.trimmingCharacters(in: .whitespaces)
+        let url = notionUrl.trimmingCharacters(in: .whitespaces)
+        state = .running
+        Task {
+            do {
+                let result = try await api.importFromNotion(token: t, databaseId: url)
+                state = .done(result)
+            } catch {
+                state = .failed(error.localizedDescription)
+            }
+        }
     }
 }

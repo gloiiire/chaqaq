@@ -4,6 +4,6 @@ pub mod extractors;
 pub mod ffi;
 pub mod infrastructure;
 
-pub use ffi::{PinkhaApi, PinkhaError, DatabaseMetaFfi, DocumentMetaFfi};
+pub use ffi::{PinkhaApi, PinkhaError, DatabaseMetaFfi, DocumentMetaFfi, ImportResultFfi};
 
 uniffi::include_scaffolding!("pinkha");
