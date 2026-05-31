@@ -1,22 +1,6 @@
+pub use chaqaq::{InlineStyle, InlineText};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum InlineStyle {
-    Bold,
-    Underline,
-    Strikethrough,
-    Link(String),
-    Italic,
-    Color(String),
-    // etc…
-}
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InlineText {
-    pub content: String,
-    #[serde(alias = "style")]
-    pub styles: Vec<InlineStyle>,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum BlockContent {

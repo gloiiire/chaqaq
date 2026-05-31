@@ -1,0 +1,13 @@
+[package]
+name = "chaqaq"
+version = "0.1.0"
+edition = "2021"
+description = "Rich text editor engine — inline styles, Unicode cursor/selection, undo/redo, markdown parser"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/gloiiire/pinkha"
+keywords = ["rich-text", "editor", "markdown", "undo-redo", "text"]
+categories = ["text-editors", "text-processing", "parser-implementations"]
+readme = "README.md"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
