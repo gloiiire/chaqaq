@@ -59,16 +59,24 @@ final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresent
     }
 
     func authorize() async {
+        print("[OAuth] authorize() called — clientId='\(Self.clientId)' proxyBaseUrl='\(Self.proxyBaseUrl)'")
+
         // Build the authorization URL.
         guard !Self.clientId.isEmpty else {
+            print("[OAuth] aborting: clientId is empty")
             error = "Notion client ID not configured."
             return
         }
         guard !Self.redirectUri.isEmpty else {
+            print("[OAuth] aborting: redirectUri is empty (NOTION_PROXY_URL missing)")
             error = "Notion proxy URL not configured (NOTION_PROXY_URL)."
             return
         }
-        guard let url = Self.authorizationUrl(clientId: Self.clientId, redirectUri: Self.redirectUri) else { return }
+        guard let url = Self.authorizationUrl(clientId: Self.clientId, redirectUri: Self.redirectUri) else {
+            print("[OAuth] aborting: failed to build authorize URL")
+            return
+        }
+        print("[OAuth] opening ASWebAuthenticationSession url=\(url.absoluteString) callbackScheme=\(Self.callbackScheme)")
 
         isLoading = true
         error = nil
@@ -79,22 +87,37 @@ final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresent
                     url: url,
                     callbackURLScheme: Self.callbackScheme
                 ) { url, err in
+                    print("[OAuth] session completion url=\(url?.absoluteString ?? "nil") err=\(err.map(String.init(describing:)) ?? "nil")")
                     if let err { cont.resume(throwing: err) }
                     else if let url { cont.resume(returning: url) }
                     else { cont.resume(throwing: URLError(.cancelled)) }
                 }
                 session.presentationContextProvider = self
                 session.prefersEphemeralWebBrowserSession = false
-                session.start()
+                let started = session.start()
+                print("[OAuth] session.start() returned \(started)")
+                // start() returns false silently when iOS refuses the session
+                // (e.g. no key window, invalid callback scheme, missing entitlement).
+                // Without this guard, the continuation would never resume and the
+                // Task would hang forever with no log output and no UI feedback.
+                if !started {
+                    cont.resume(throwing: URLError(.cannotConnectToHost))
+                }
             }
+            print("[OAuth] got callback url=\(callbackUrl.absoluteString)")
             // Exchange the authorization code for an access token.
             guard let code = URLComponents(url: callbackUrl, resolvingAgainstBaseURL: false)?
                     .queryItems?.first(where: { $0.name == "code" })?.value else {
+                print("[OAuth] no `code` query item in callback URL")
                 throw URLError(.badURL)
             }
+            print("[OAuth] exchanging code for token via proxy")
             token = try await exchangeCode(code)
+            print("[OAuth] token received, length=\(token?.count ?? 0)")
         } catch {
+            print("[OAuth] failed: \(error)")
             self.error = error.localizedDescription
+            Observability.capture(error)
         }
         isLoading = false
     }
