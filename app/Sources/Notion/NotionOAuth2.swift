@@ -95,10 +95,14 @@ final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresent
 
     /// Shared HMAC secret used to sign requests to `tokenProxyUrl`. Must match
     /// `PROXY_HMAC_SECRET` on the proxy. Hex-encoded, generated with
-    /// `openssl rand -hex 32`. Shipping it in the binary is acceptable as
-    /// defense-in-depth: combined with rate-limiting and Sentry on the proxy,
-    /// it raises the cost of abuse without pretending to be a strong secret.
-    static let proxyHmacSecret = ""
+    /// `openssl rand -hex 32`. Read from Info.plist at runtime (injected from
+    /// `app/Config/Secrets.xcconfig`) so the value never enters source control.
+    /// Shipping it in the binary is acceptable as defense-in-depth: combined
+    /// with rate-limiting and Sentry on the proxy, it raises the cost of abuse
+    /// without pretending to be a strong secret.
+    static var proxyHmacSecret: String {
+        Bundle.main.object(forInfoDictionaryKey: "PROXY_HMAC_SECRET") as? String ?? ""
+    }
 
     /// Errors specific to the OAuth2 flow.
     enum OAuthError: LocalizedError {
