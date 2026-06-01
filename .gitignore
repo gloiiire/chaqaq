@@ -10,3 +10,13 @@ app/*.xcodeproj/project.xcworkspace/xcuserdata/
 # On le sort entièrement de git (était partiel : .a gitignored mais headers/plist
 # trackés, ce qui causait des diffs spurious à chaque rebuild).
 pinkha.xcframework/
+
+# Local secrets injected via xcconfig (Sentry DSN). Template committed as
+# Secrets.xcconfig.example. Copy & fill in to set up locally.
+app/Config/Secrets.xcconfig
+
+# iCloud Drive conflict copies — files Apple appends " 2", " 3", etc. when
+# multiple devices touch the same blob. Should never be tracked.
+* [2-9].*
+* [2-9]
+*[[:space:]][0-9].plist
