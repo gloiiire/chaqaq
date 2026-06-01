@@ -24,6 +24,8 @@
     <string>$(PROXY_HMAC_SECRET)</string>
     <key>NOTION_PROXY_URL</key>
     <string>$(NOTION_PROXY_URL)</string>
+    <key>NOTION_CLIENT_ID</key>
+    <string>$(NOTION_CLIENT_ID)</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>UIApplicationSceneManifest</key>
