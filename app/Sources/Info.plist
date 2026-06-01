@@ -22,6 +22,8 @@
     <string>$(SENTRY_DSN)</string>
     <key>PROXY_HMAC_SECRET</key>
     <string>$(PROXY_HMAC_SECRET)</string>
+    <key>NOTION_PROXY_URL</key>
+    <string>$(NOTION_PROXY_URL)</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>UIApplicationSceneManifest</key>
