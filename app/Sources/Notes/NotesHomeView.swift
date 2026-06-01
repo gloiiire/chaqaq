@@ -82,14 +82,14 @@ struct NotesHomeView: View {
                             } label: {
                                 Image(systemName: "trash")
                             }
-                            .confirmationDialog("Delete all \(store.items.count) notes?",
-                                               isPresented: $showingDeleteAllConfirm,
-                                               titleVisibility: .visible) {
-                                Button("Delete All", role: .destructive) { store.deleteAll() }
-                                Button("Cancel", role: .cancel) {}
-                            }
                         }
                     }
+                }
+                .confirmationDialog("Delete all \(store.items.count) notes?",
+                                    isPresented: $showingDeleteAllConfirm,
+                                    titleVisibility: .visible) {
+                    Button("Delete All", role: .destructive) { store.deleteAll() }
+                    Button("Cancel", role: .cancel) {}
                 }
 
                 // ── FAB ───────────────────────────────────────────────────
