@@ -2,7 +2,7 @@
 
 use crate::format::{
     decode_short_string, multiply_elem_bytes, parse_file_header, read_bits_elem,
-    NodeHeader, NODE_HEADER_SIZE, WTYPE_BITS, WTYPE_IGNORE, WTYPE_MULTIPLY,
+    read_node_header, NodeHeader, NODE_HEADER_SIZE, WTYPE_BITS, WTYPE_IGNORE, WTYPE_MULTIPLY,
 };
 use crate::{ColumnType, RealmError, RealmTable, Result, Row, Value};
 
@@ -40,12 +40,7 @@ pub(crate) fn read_tables(data: &[u8]) -> Result<Vec<RealmTable>> {
 
 /// Parse the array at `offset` and return its elements as `Vec<u64>`.
 fn read_array(data: &[u8], offset: usize) -> Result<Vec<u64>> {
-    if offset + NODE_HEADER_SIZE > data.len() {
-        return Err(RealmError::InvalidFormat(format!(
-            "array offset {offset:#x} out of bounds"
-        )));
-    }
-    let hdr = NodeHeader::parse(data[offset..offset + 8].try_into().unwrap());
+    let hdr = read_node_header(data, offset)?;
     let payload = &data[offset + NODE_HEADER_SIZE..];
 
     let mut elems = Vec::with_capacity(hdr.size);
@@ -74,12 +69,7 @@ fn read_array(data: &[u8], offset: usize) -> Result<Vec<u64>> {
 }
 
 fn read_string_array_multiply(data: &[u8], offset: usize, slot_width: u8) -> Result<Vec<String>> {
-    if offset + NODE_HEADER_SIZE > data.len() {
-        return Err(RealmError::InvalidFormat(format!(
-            "string array offset {offset:#x} out of bounds"
-        )));
-    }
-    let hdr = NodeHeader::parse(data[offset..offset + 8].try_into().unwrap());
+    let hdr = read_node_header(data, offset)?;
     let payload = &data[offset + NODE_HEADER_SIZE..];
     let mut result = Vec::with_capacity(hdr.size);
     for i in 0..hdr.size {
@@ -250,10 +240,13 @@ fn cluster_index_for_col(col_idx: usize, col_type_ints: &[u64]) -> usize {
 /// — element 0 is always the offsets-tracking node (skip).
 /// — garbage refs (misaligned addresses) are detected and skipped.
 fn collect_strings_new(data: &[u8], col_ref: usize) -> Vec<String> {
-    if col_ref == 0 || col_ref % 8 != 0 || col_ref + NODE_HEADER_SIZE > data.len() {
+    if col_ref == 0 || col_ref % 8 != 0 {
         return vec![];
     }
-    let hdr = NodeHeader::parse(data[col_ref..col_ref + 8].try_into().unwrap());
+    let hdr = match read_node_header(data, col_ref) {
+        Ok(h) => h,
+        Err(_) => return vec![],
+    };
 
     if hdr.is_inner {
         let children = match read_array(data, col_ref) {
@@ -330,7 +323,7 @@ fn read_compact_string_leaf(data: &[u8], leaf_ref: usize) -> Result<Vec<String>>
         return Ok(vec![]);
     }
 
-    let blob_hdr = NodeHeader::parse(data[blob_ref..blob_ref + 8].try_into().unwrap());
+    let blob_hdr = read_node_header(data, blob_ref)?;
     if blob_hdr.wtype != WTYPE_IGNORE {
         return Ok(vec![]);
     }
@@ -369,7 +362,7 @@ fn read_perrow_string_refs(data: &[u8], leaf_ref: usize) -> Vec<String> {
 
 /// Read raw UTF-8 from a wtype=2 (WTYPE_IGNORE) node, stripping a trailing null if present.
 fn read_wtype2_string(data: &[u8], str_ref: usize) -> Result<String> {
-    let hdr = NodeHeader::parse(data[str_ref..str_ref + 8].try_into().unwrap());
+    let hdr = read_node_header(data, str_ref)?;
     if hdr.wtype != WTYPE_IGNORE {
         return Ok(String::new());
     }
@@ -386,10 +379,13 @@ fn read_wtype2_string(data: &[u8], str_ref: usize) -> Result<String> {
 /// Same inner-node layout as for strings: skip element 0 (offsets-tracking),
 /// filter garbage children by alignment.
 fn collect_ints_new(data: &[u8], col_ref: usize) -> Vec<u64> {
-    if col_ref == 0 || col_ref % 8 != 0 || col_ref + NODE_HEADER_SIZE > data.len() {
+    if col_ref == 0 || col_ref % 8 != 0 {
         return vec![];
     }
-    let hdr = NodeHeader::parse(data[col_ref..col_ref + 8].try_into().unwrap());
+    let hdr = match read_node_header(data, col_ref) {
+        Ok(h) => h,
+        Err(_) => return vec![],
+    };
 
     if hdr.is_inner {
         let children = match read_array(data, col_ref) {
@@ -424,10 +420,13 @@ fn collect_ints_new(data: &[u8], col_ref: usize) -> Vec<u64> {
 /// Each leaf element is either 0 (empty list) or a reference to a sub-array
 /// containing the ordered row indices.
 fn collect_linklists_new(data: &[u8], col_ref: usize) -> Vec<Vec<u32>> {
-    if col_ref == 0 || col_ref % 8 != 0 || col_ref + NODE_HEADER_SIZE > data.len() {
+    if col_ref == 0 || col_ref % 8 != 0 {
         return vec![];
     }
-    let hdr = NodeHeader::parse(data[col_ref..col_ref + 8].try_into().unwrap());
+    let hdr = match read_node_header(data, col_ref) {
+        Ok(h) => h,
+        Err(_) => return vec![],
+    };
 
     if hdr.is_inner {
         let children = match read_array(data, col_ref) {
@@ -469,10 +468,10 @@ fn collect_linklists_new(data: &[u8], col_ref: usize) -> Vec<Vec<u32>> {
 
 /// Count rows in a column node, traversing B-tree inner nodes if needed.
 fn count_node_rows(data: &[u8], node_ref: usize) -> usize {
-    if node_ref + NODE_HEADER_SIZE > data.len() {
-        return 0;
-    }
-    let hdr = NodeHeader::parse(data[node_ref..node_ref + 8].try_into().unwrap());
+    let hdr = match read_node_header(data, node_ref) {
+        Ok(h) => h,
+        Err(_) => return 0,
+    };
     if !hdr.is_inner {
         return hdr.size;
     }
@@ -489,10 +488,10 @@ fn count_node_rows(data: &[u8], node_ref: usize) -> usize {
 }
 
 fn read_cell(data: &[u8], col_ref: usize, row_idx: usize, col_type: ColumnType) -> Result<Value> {
-    if col_ref + NODE_HEADER_SIZE > data.len() {
-        return Ok(Value::Null);
-    }
-    let hdr = NodeHeader::parse(data[col_ref..col_ref + 8].try_into().unwrap());
+    let hdr = match read_node_header(data, col_ref) {
+        Ok(h) => h,
+        Err(_) => return Ok(Value::Null),
+    };
 
     if hdr.is_inner {
         return read_cell_btree(data, col_ref, row_idx, col_type);
@@ -551,10 +550,10 @@ fn read_cell_btree(
     row_idx: usize,
     col_type: ColumnType,
 ) -> Result<Value> {
-    if node_ref + NODE_HEADER_SIZE > data.len() {
-        return Ok(Value::Null);
-    }
-    let hdr = NodeHeader::parse(data[node_ref..node_ref + 8].try_into().unwrap());
+    let hdr = match read_node_header(data, node_ref) {
+        Ok(h) => h,
+        Err(_) => return Ok(Value::Null),
+    };
 
     if !hdr.is_inner {
         return read_cell(data, node_ref, row_idx, col_type);
@@ -583,10 +582,10 @@ fn read_cell_btree(
 }
 
 fn read_leaf_string(data: &[u8], str_ref: usize) -> Result<String> {
-    if str_ref + NODE_HEADER_SIZE > data.len() {
-        return Ok(String::new());
-    }
-    let hdr = NodeHeader::parse(data[str_ref..str_ref + 8].try_into().unwrap());
+    let hdr = match read_node_header(data, str_ref) {
+        Ok(h) => h,
+        Err(_) => return Ok(String::new()),
+    };
     let payload = &data[str_ref + NODE_HEADER_SIZE..];
 
     if hdr.wtype == WTYPE_MULTIPLY && hdr.width > 0 {

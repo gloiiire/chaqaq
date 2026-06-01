@@ -560,6 +560,21 @@ mod tests {
     }
 
     #[test]
+    fn truncated_file_no_panic() {
+        // Header is valid (24 bytes, good magic, version 9, top_ref pointing into
+        // the file) but the rest of the file is missing — node header reads must
+        // surface as InvalidFormat, not panic.
+        let mut data = vec![0u8; 24];
+        // top_ref = 24 (immediately past the header — but past EOF)
+        data[0..8].copy_from_slice(&24u64.to_le_bytes());
+        data[16..20].copy_from_slice(b"T-DB");
+        data[20] = 9;
+        let result = RealmFile::from_bytes(&data);
+        // Must be an Err, not a panic.
+        assert!(matches!(result, Err(RealmError::InvalidFormat(_))));
+    }
+
+    #[test]
     fn unsupported_version_rejected() {
         let mut data = vec![0u8; 24];
         data[16..20].copy_from_slice(b"T-DB");
