@@ -519,6 +519,11 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      */
     func createDocument(title: String) throws  -> String
     
+    /**
+     * Soft-delete de tous les documents. Retourne le nombre supprimé.
+     */
+    func deleteAllDocuments() throws  -> UInt32
+    
     func deleteBlock(docId: String, blockId: String) throws 
     
     /**
@@ -807,6 +812,17 @@ open func createDocument(title: String)throws  -> String  {
     uniffi_pinkha_fn_method_pinkhaapi_create_document(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(title),$0
+    )
+})
+}
+    
+    /**
+     * Soft-delete de tous les documents. Retourne le nombre supprimé.
+     */
+open func deleteAllDocuments()throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_all_documents(
+            self.uniffiCloneHandle(),$0
     )
 })
 }
@@ -1717,6 +1733,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_create_document() != 6653) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_documents() != 3995) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_block() != 14109) {

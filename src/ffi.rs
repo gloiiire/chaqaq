@@ -259,6 +259,16 @@ impl PinkhaApi {
         use_cases::delete_document(&self.docs, uuid).map_err(PinkhaError::from)
     }
 
+    /// Soft-deletes every document. Returns the number of documents deleted.
+    pub fn delete_all_documents(&self) -> Result<u32, PinkhaError> {
+        let metas = use_cases::list_documents(&self.docs).map_err(PinkhaError::from)?;
+        let count = metas.len() as u32;
+        for meta in metas {
+            use_cases::delete_document(&self.docs, meta.id).map_err(PinkhaError::from)?;
+        }
+        Ok(count)
+    }
+
     /// Replaces the document title with a plain-text string parsed into inline spans.
     pub fn update_document_title(
         &self,

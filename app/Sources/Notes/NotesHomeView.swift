@@ -10,6 +10,7 @@ struct NotesHomeView: View {
     @State private var showingBearImport = false
     @State private var showingCraftImport = false
     @State private var showingCraftTextBundleImport = false
+    @State private var showingDeleteAllConfirm = false
     @State private var newTitle = ""
     @State private var createMode: CreateMode = .note
 
@@ -68,6 +69,23 @@ struct NotesHomeView: View {
                 .listStyle(.insetGrouped)
                 .navigationTitle(greeting)
                 .navigationBarTitleDisplayMode(.large)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        if !store.items.isEmpty {
+                            Button(role: .destructive) {
+                                showingDeleteAllConfirm = true
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .confirmationDialog("Delete all \(store.items.count) notes?",
+                                               isPresented: $showingDeleteAllConfirm,
+                                               titleVisibility: .visible) {
+                                Button("Delete All", role: .destructive) { store.deleteAll() }
+                                Button("Cancel", role: .cancel) {}
+                            }
+                        }
+                    }
+                }
 
                 // ── FAB ───────────────────────────────────────────────────
                 Menu {
