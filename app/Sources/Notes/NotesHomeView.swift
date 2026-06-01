@@ -85,13 +85,6 @@ struct NotesHomeView: View {
                         }
                     }
                 }
-                .confirmationDialog("Delete all \(store.items.count) notes?",
-                                    isPresented: $showingDeleteAllConfirm,
-                                    titleVisibility: .visible) {
-                    Button("Delete All", role: .destructive) { store.deleteAll() }
-                    Button("Cancel", role: .cancel) {}
-                }
-
                 // ── FAB ───────────────────────────────────────────────────
                 Menu {
                     Button {
@@ -172,6 +165,12 @@ struct NotesHomeView: View {
                     showingCreate = false
                 }
             }
+        }
+        .confirmationDialog("Delete all \(store.items.count) notes?",
+                            isPresented: $showingDeleteAllConfirm,
+                            titleVisibility: .visible) {
+            Button("Delete All", role: .destructive) { store.deleteAll() }
+            Button("Cancel", role: .cancel) {}
         }
     }
 
