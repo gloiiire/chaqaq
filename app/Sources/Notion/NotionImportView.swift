@@ -20,6 +20,12 @@ struct NotionImportView: View {
     @StateObject private var oauth = NotionOAuth2()
     @Environment(\.dismiss) private var dismiss
 
+    private func loadStoredToken() {
+        if let stored = Keychain.load(KeychainKey.notionToken), !stored.isEmpty {
+            token = stored
+        }
+    }
+
     enum ImportState {
         case idle
         case running
@@ -48,6 +54,7 @@ struct NotionImportView: View {
                 .onChange(of: oauth.token) { _, newToken in
                     if let newToken { token = newToken }
                 }
+                .onAppear { loadStoredToken() }
         }
         .presentationDetents([.large])
     }
@@ -179,6 +186,9 @@ struct NotionImportView: View {
         Task {
             do {
                 let result = try await api.importFromNotion(token: t, databaseId: url)
+                // Persist the token only after a successful import, so we never
+                // store credentials the server rejected.
+                Keychain.save(t, for: KeychainKey.notionToken)
                 state = .done(result)
             } catch {
                 state = .failed(error.localizedDescription)

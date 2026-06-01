@@ -24,6 +24,23 @@ jobs:
       - name: cargo test
         run: cargo test --verbose
 
+  audit:
+    name: Cargo audit (CVE scan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+      - name: Install cargo-audit
+        run: cargo install --locked cargo-audit
+      - name: Run cargo audit
+        # Fails the build if any known vulnerability is found in the dependency
+        # tree. Dependabot covers GitHub-side scanning; this catches CVEs at PR
+        # time before merge.
+        run: cargo audit --deny warnings
+
   # Job Swift désactivé temporairement : le code utilise `UIGlassEffect` /
   # `.glassEffect()` (iOS 26) et un deployment target iOS 26.0, alors que les
   # runners GitHub Actions (`macos-15`) n'ont actuellement que Xcode 16.4 avec

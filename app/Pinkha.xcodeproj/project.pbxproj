@@ -33,6 +33,7 @@
 		406025C2132BC8574ADDE87F /* HomeScreenUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C07ADA01E894E83B574ABA /* HomeScreenUITests.swift */; };
 		40C21A3A5FFA779EAEDC92BC /* DocumentView+BlockCallbacks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29BD3C6FE47D102B72C2BB19 /* DocumentView+BlockCallbacks.swift */; };
 		4190B41652DB9D8C9534AD12 /* BlockHierarchyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB990B9A8557D574F681053B /* BlockHierarchyTests.swift */; };
+		436B46EF36AEEC5848161240 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48A52E3CBA4FFBC642AFD763 /* Keychain.swift */; };
 		47F932118B8D0EEDDC83639D /* FolderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED9B1DB1A313487130CA11D1 /* FolderView.swift */; };
 		483EB9F23E121089DB8929AC /* DocumentViewHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E5C44CC8FA2FC915E43ECC /* DocumentViewHelpers.swift */; };
 		4BA75C93F895BE5EE4307A17 /* EmptyStateUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6093527A0945328E7EC8D4F6 /* EmptyStateUITests.swift */; };
@@ -132,6 +133,7 @@
 		37543D1D1AAFB9CE1F61603F /* ResilienceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilienceTests.swift; sourceTree = "<group>"; };
 		39AA1D529D7B370CED6DFCA3 /* DocumentDecor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentDecor.swift; sourceTree = "<group>"; };
 		3A60A4A6A8B2EE03385292F9 /* PinkhaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinkhaStore.swift; sourceTree = "<group>"; };
+		48A52E3CBA4FFBC642AFD763 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		4A87F59E8025954E2D6046E5 /* ImportIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportIntegrationTests.swift; sourceTree = "<group>"; };
 		4E13ECEFE18B72D0CB681C2F /* RichTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextEditor.swift; sourceTree = "<group>"; };
 		51C6157A2F89654A80442CA7 /* RichTextConversion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextConversion.swift; sourceTree = "<group>"; };
@@ -374,6 +376,7 @@
 			children = (
 				F0C5E1D7104E176374A94957 /* Assets.xcassets */,
 				8D498BD6A504E837D38568BA /* Info.plist */,
+				48A52E3CBA4FFBC642AFD763 /* Keychain.swift */,
 				392DE59F50ABA7F2A42D7E9A /* Core */,
 				651EA0FB42E391E774BAC629 /* Database */,
 				990E3BE54B5E7DA3FFC7AE48 /* Document */,
@@ -586,6 +589,7 @@
 				BE220C38F87242DFA770FA8E /* EmojiPicker.swift in Sources */,
 				28975716F7613B5F9DAD18AE /* ExpandingTextView.swift in Sources */,
 				47F932118B8D0EEDDC83639D /* FolderView.swift in Sources */,
+				436B46EF36AEEC5848161240 /* Keychain.swift in Sources */,
 				7C52E3761387AD402A903707 /* MarkdownShortcuts.swift in Sources */,
 				FF00286E87AF237B14093E80 /* Models.swift in Sources */,
 				E73E1D68271106005E63ABAC /* NotesHomeView.swift in Sources */,

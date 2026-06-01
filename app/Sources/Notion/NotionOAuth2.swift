@@ -11,7 +11,6 @@ final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresent
     static let clientId    = ""          // e.g. "abc123"
     static let redirectUri = "pinkha://oauth/notion"
     static let authBaseUrl = "https://api.notion.com/v1/oauth/authorize"
-    static let tokenUrl    = "https://api.notion.com/v1/oauth/token"
 
     @Published var token: String?
     @Published var isLoading = false
@@ -84,20 +83,37 @@ final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresent
 
     // MARK: - Token exchange
 
-    private func exchangeCode(_ code: String) async throws -> String {
-        // POST to Notion token endpoint — client secret must be in a secure config,
-        // never hardcoded in production. Left empty here as a placeholder.
-        let clientSecret = ""   // TODO: load from Keychain or server-side proxy
-        guard let tokenEndpoint = URL(string: Self.tokenUrl) else {
-            throw URLError(.badURL)
+    /// Endpoint of a backend proxy that holds the Notion `client_secret` and
+    /// forwards the authorization-code exchange. **Must never be the public
+    /// Notion token endpoint with the secret embedded client-side** — a
+    /// secret shipped in an App Store binary is trivially extractable.
+    /// Empty means OAuth2 is not configured; the manual integration-token
+    /// flow remains available.
+    static let tokenProxyUrl = ""
+
+    /// Errors specific to the OAuth2 flow.
+    enum OAuthError: LocalizedError {
+        case proxyNotConfigured
+        var errorDescription: String? {
+            switch self {
+            case .proxyNotConfigured:
+                return "OAuth2 backend proxy is not configured. Use the manual integration token field, or set NotionOAuth2.tokenProxyUrl to your server endpoint."
+            }
         }
-        var req = URLRequest(url: tokenEndpoint)
+    }
+
+    private func exchangeCode(_ code: String) async throws -> String {
+        // Client secrets must never live in an iOS app binary. The exchange goes
+        // through a backend proxy that holds the secret and returns the access
+        // token. Left unconfigured by default — flow is opt-in.
+        guard !Self.tokenProxyUrl.isEmpty,
+              let proxyEndpoint = URL(string: Self.tokenProxyUrl) else {
+            throw OAuthError.proxyNotConfigured
+        }
+        var req = URLRequest(url: proxyEndpoint)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let creds = Data("\(Self.clientId):\(clientSecret)".utf8).base64EncodedString()
-        req.setValue("Basic \(creds)", forHTTPHeaderField: "Authorization")
         req.httpBody = try JSONSerialization.data(withJSONObject: [
-            "grant_type":   "authorization_code",
             "code":         code,
             "redirect_uri": Self.redirectUri,
         ])

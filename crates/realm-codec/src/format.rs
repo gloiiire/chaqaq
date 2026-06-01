@@ -39,7 +39,10 @@ pub(crate) fn parse_file_header(data: &[u8]) -> crate::Result<(usize, u32)> {
     if data.len() < FILE_HEADER_SIZE {
         return Err(crate::RealmError::InvalidFormat("file too small".into()));
     }
-    let top_ref = u64::from_le_bytes(data[0..8].try_into().unwrap()) as usize;
+    let top_ref_bytes: [u8; 8] = data[0..8]
+        .try_into()
+        .map_err(|_| crate::RealmError::InvalidFormat("top_ref slice".into()))?;
+    let top_ref = u64::from_le_bytes(top_ref_bytes) as usize;
     if &data[16..20] != MAGIC {
         return Err(crate::RealmError::InvalidFormat(
             format!("bad magic: {:?}", &data[16..20]),
@@ -54,6 +57,24 @@ pub(crate) fn parse_file_header(data: &[u8]) -> crate::Result<(usize, u32)> {
     Ok((top_ref, version))
 }
 
+/// Bounds-checked NodeHeader read at `offset`.
+///
+/// Returns [`RealmError::InvalidFormat`] if the 8-byte header would extend past
+/// the end of `data`. Used everywhere a `NodeHeader` is decoded from a raw ref —
+/// replaces the older `try_into().unwrap()` pattern which would panic on a
+/// truncated file.
+pub(crate) fn read_node_header(data: &[u8], offset: usize) -> crate::Result<NodeHeader> {
+    let slice = data
+        .get(offset..offset.saturating_add(NODE_HEADER_SIZE))
+        .ok_or_else(|| {
+            crate::RealmError::InvalidFormat(format!("node header offset {offset:#x} out of bounds"))
+        })?;
+    let bytes: &[u8; NODE_HEADER_SIZE] = slice
+        .try_into()
+        .map_err(|_| crate::RealmError::InvalidFormat("node header slice".into()))?;
+    Ok(NodeHeader::parse(bytes))
+}
+
 /// Read a single element from a WTYPE_BITS array at index `i`.
 /// `width` is in bits (0, 1, 2, 4, 8, 16, 32, 64). Returns `u64`.
 pub(crate) fn read_bits_elem(payload: &[u8], i: usize, width: u8) -> u64 {
@@ -65,15 +86,15 @@ pub(crate) fn read_bits_elem(payload: &[u8], i: usize, width: u8) -> u64 {
         8 => payload[i] as u64,
         16 => {
             let off = i * 2;
-            u16::from_le_bytes(payload[off..off + 2].try_into().unwrap()) as u64
+            u16::from_le_bytes(payload[off..off + 2].try_into().unwrap_or([0; 2])) as u64
         }
         32 => {
             let off = i * 4;
-            u32::from_le_bytes(payload[off..off + 4].try_into().unwrap()) as u64
+            u32::from_le_bytes(payload[off..off + 4].try_into().unwrap_or([0; 4])) as u64
         }
         64 => {
             let off = i * 8;
-            u64::from_le_bytes(payload[off..off + 8].try_into().unwrap())
+            u64::from_le_bytes(payload[off..off + 8].try_into().unwrap_or([0; 8]))
         }
         _ => 0,
     }

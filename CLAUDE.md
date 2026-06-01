@@ -294,7 +294,8 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
   - Undo/redo unifié (1000 niveaux) : pill bas-gauche + boutons toolbar, burst typing 300 ms style Notes, focus auto sur block réinséré
   - Perf : persist SQLite différé au flush burst, cache spans par bloc, cache état boutons undo
 - **CI** : GitHub Actions `cargo test` sur push/PR vers master/staging/dev (`macos-15`). Swift job suspendu en attendant Xcode 26 sur les runners
-- **Sécurité repo** : branches protégées (PR obligatoire, force-push bloqué, suppression bloquée, Rust CI requise), Secret Scanning + Push Protection, Dependabot Alerts + Security Updates, Dependabot config mensuelle pour Cargo + Actions
+- **Sécurité repo** : branches protégées (PR obligatoire, force-push bloqué, suppression bloquée, Rust CI requise), Secret Scanning + Push Protection, Dependabot Alerts + Security Updates, Dependabot config mensuelle pour Cargo + Actions, job CI `cargo-audit --deny warnings` (scan CVE à chaque PR)
+- **Stockage secrets** : `Keychain.swift` (wrapper minimal `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, jamais synchronisé iCloud) pour les tokens d'API. Token Notion persisté après import réussi seulement. OAuth2 client secret JAMAIS embarqué dans le binaire iOS — `NotionOAuth2.tokenProxyUrl` pointe vers un backend proxy qui détient le secret.
 - **Pipelines d'extraction** (`src/extractors/`) :
   - Architecture `Extractor` trait (async, `Config` associé, `ImportResult`)
   - **Notion** : client reqwest rustls-tls, API v1 paginée (database schema → pages → blocs récursifs), mapping complet propriétés/valeurs/blocs, `ImportResultFfi` exposé via UniFFI async
