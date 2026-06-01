@@ -93,6 +93,15 @@ final class DatabaseViewModel: ObservableObject {
         properties.append(prop)
     }
 
+    func renameProperty(id: String, newName: String) {
+        let name = newName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        tryCatch(into: &errorMessage) { try api.renameProperty(dbId: dbId, propertyId: id, newName: name) }
+        if let i = properties.firstIndex(where: { $0.id == id }) {
+            properties[i] = PropertyFfi(id: id, name: name, propertyType: properties[i].propertyType)
+        }
+    }
+
     /// Deletes a user-visible property. Title columns cannot be deleted.
     func deleteProperty(id: String) {
         guard let prop = properties.first(where: { $0.id == id }),
