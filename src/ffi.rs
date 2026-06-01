@@ -1,7 +1,28 @@
 use std::collections::HashMap;
+use std::sync::OnceLock;
 
 use serde::de::DeserializeOwned;
 use uuid::Uuid;
+
+/// Process-wide multi-threaded Tokio runtime used to drive `reqwest`-based
+/// extractors from a non-async UniFFI entry point.
+///
+/// UniFFI 0.31 ships its own foreign-task executor, which is not a Tokio
+/// runtime. Polling a `reqwest` future under that executor panics with
+/// "there is no reactor running" because reqwest registers I/O with Tokio
+/// directly. We sidestep this by exposing the import endpoints as synchronous
+/// FFI methods and `block_on`-ing the extractor future on this runtime.
+fn tokio_runtime() -> &'static tokio::runtime::Runtime {
+    static RT: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+    RT.get_or_init(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .worker_threads(2)
+            .thread_name("pinkha-tokio")
+            .build()
+            .expect("failed to build Tokio runtime for pinkha extractors")
+    })
+}
 
 use crate::application::error::PinkhaError as CoreError;
 use crate::application::{database_use_cases, folder_use_cases, use_cases};
@@ -749,7 +770,13 @@ impl PinkhaApi {
     ///
     /// `token`       — Notion bearer token (OAuth2 or private integration token).
     /// `database_id` — 32-char hex ID or full Notion URL of the database.
-    pub async fn import_from_notion(
+    ///
+    /// Synchronous on the FFI boundary: the extractor uses `reqwest`, which
+    /// needs a Tokio reactor, and UniFFI's foreign-task executor doesn't
+    /// provide one. We block on the process-wide Tokio runtime so callers must
+    /// dispatch this method off the main thread themselves (e.g. via Swift's
+    /// `Task.detached`). See [`tokio_runtime`] for the rationale.
+    pub fn import_from_notion(
         &self,
         token: String,
         database_id: String,
@@ -760,10 +787,14 @@ impl PinkhaApi {
         validate_string(&database_id, "database_id")?;
         let extractor = NotionExtractor::new();
         let config = NotionConfig { token, database_id };
-        extractor
-            .run(config, &self.docs as &(dyn crate::application::repository::DocumentRepository + Send + Sync), &self.dbs as &(dyn crate::application::database_repository::DatabaseRepository + Send + Sync), &self.folders)
-            .await
-            .map(|r| ffi_import_result(r))
+        tokio_runtime()
+            .block_on(extractor.run(
+                config,
+                &self.docs as &(dyn crate::application::repository::DocumentRepository + Send + Sync),
+                &self.dbs as &(dyn crate::application::database_repository::DatabaseRepository + Send + Sync),
+                &self.folders,
+            ))
+            .map(ffi_import_result)
             .map_err(|e| match e {
                 crate::extractors::ExtractorError::Http { status, message } =>
                     PinkhaError::Storage { detail: format!("Notion HTTP {status}: {message}") },

@@ -597,8 +597,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Importe une database Notion complète (schéma + pages + blocs).
      * `token` est un bearer token OAuth2 ou private integration token.
      * `database_id` est un UUID 32-char hex ou l'URL complète Notion.
+     *
+     * Synchrone côté FFI : Notion utilise `reqwest`, qui exige un runtime
+     * Tokio absent de l'executor UniFFI. On `block_on` côté Rust, donc Swift
+     * doit appeler depuis `Task.detached` pour ne pas bloquer le main thread.
      */
-    func importFromNotion(token: String, databaseId: String) async throws  -> ImportResultFfi
+    func importFromNotion(token: String, databaseId: String) throws  -> ImportResultFfi
     
     /**
      * Liste les métadonnées de toutes les databases actives.
@@ -1078,22 +1082,19 @@ open func importFromCraftTextbundle(rootDir: String)async throws  -> ImportResul
      * Importe une database Notion complète (schéma + pages + blocs).
      * `token` est un bearer token OAuth2 ou private integration token.
      * `database_id` est un UUID 32-char hex ou l'URL complète Notion.
+     *
+     * Synchrone côté FFI : Notion utilise `reqwest`, qui exige un runtime
+     * Tokio absent de l'executor UniFFI. On `block_on` côté Rust, donc Swift
+     * doit appeler depuis `Task.detached` pour ne pas bloquer le main thread.
      */
-open func importFromNotion(token: String, databaseId: String)async throws  -> ImportResultFfi  {
-    return
-        try  await uniffiRustCallAsync(
-            rustFutureFunc: {
-                uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(
-                    self.uniffiCloneHandle(),
-                    FfiConverterString.lower(token),FfiConverterString.lower(databaseId)
-                )
-            },
-            pollFunc: ffi_pinkha_rust_future_poll_rust_buffer,
-            completeFunc: ffi_pinkha_rust_future_complete_rust_buffer,
-            freeFunc: ffi_pinkha_rust_future_free_rust_buffer,
-            liftFunc: FfiConverterTypeImportResultFfi_lift,
-            errorHandler: FfiConverterTypePinkhaError_lift
-        )
+open func importFromNotion(token: String, databaseId: String)throws  -> ImportResultFfi  {
+    return try  FfiConverterTypeImportResultFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),
+        FfiConverterString.lower(databaseId),$0
+    )
+})
 }
     
     /**
@@ -2049,7 +2050,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_craft_textbundle() != 42783) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion() != 39297) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion() != 54840) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_databases() != 58802) {
