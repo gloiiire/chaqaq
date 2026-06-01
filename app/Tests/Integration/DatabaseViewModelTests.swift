@@ -146,6 +146,26 @@ struct DatabaseViewModelTests {
         #expect(vm.properties.isEmpty)
     }
 
+    @Test func renamePropertyUpdatesNameInMemory() throws {
+        let (vm, url) = try makeVM(); defer { cleanup(url) }
+        vm.load()
+        vm.addProperty(name: "Old Name", type: .text)
+        let propId = vm.properties[0].id
+        vm.renameProperty(id: propId, newName: "New Name")
+        #expect(vm.properties[0].name == "New Name")
+        #expect(vm.errorMessage == nil)
+    }
+
+    @Test func renamePropertyPersistsAcrossLoad() throws {
+        let (vm, url) = try makeVM(); defer { cleanup(url) }
+        vm.load()
+        vm.addProperty(name: "Original", type: .text)
+        let propId = vm.properties[0].id
+        vm.renameProperty(id: propId, newName: "Renamed")
+        vm.load()
+        #expect(vm.properties.first(where: { $0.id == propId })?.name == "Renamed")
+    }
+
     @Test func noErrorMessageAfterSuccessfulOperations() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()

@@ -348,6 +348,27 @@ Tout dans le repo est en **anglais** : identifiants, commentaires, doc-comments,
 - Nommage idiomatique : Rust `snake_case`/`PascalCase`, Swift `camelCase`/`PascalCase`
 - `flush()` pattern pour les parsers
 
+### Règle Rust-first (non négociable)
+
+**Toute opération sur les données appartient à Rust, jamais à Swift.**
+
+Avant d'écrire un loop ou une logique de traitement en Swift, s'arrêter et implémenter dans Rust :
+1. Ajouter la méthode dans `ffi.rs` (suivre le pattern `delete_all_documents` comme référence)
+2. L'exposer dans `pinkha.udl` (`[Throws=PinkhaError]`)
+3. Rebuilder le XCFramework (`./build-xcframework.sh`)
+4. Appeler le FFI depuis Swift
+
+**Opérations qui doivent être dans Rust :**
+- Mutations bulk (`delete_all_documents`, `delete_all_databases`, etc.)
+- Requêtes filtrées / recherches / agrégations
+- Toute logique qui touche au store SQLite
+
+**Exceptions acceptables en Swift (UI layer uniquement) :**
+- Formatage pour l'affichage (dates, nombres)
+- Wrapping en enum Swift (`WorkspaceItem.note($0)`, `WorkspaceItem.database($0)`)
+- `.map(\.id)` pour construire les tableaux d'UUIDs passés aux appels FFI
+- Filtres de présentation sur des données déjà fetchées (ex: filtrer les propriétés système de la UI table view)
+
 ### Architecture — SOLID + Clean Architecture
 - **Single Responsibility** : chaque module/type fait une chose. Domain (types purs), application (use cases + traits), infrastructure (stockage), ffi (adaptateur). Pas de "God objects".
 - **Open/Closed** : ajout d'une fonctionnalité = nouveau type/impl, pas de modification des use cases. Les `match` exhaustifs forcent par le compilateur à traiter chaque variant ajouté (voulu).

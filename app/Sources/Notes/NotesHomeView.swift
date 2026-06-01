@@ -11,6 +11,7 @@ struct NotesHomeView: View {
     @State private var showingCraftTextBundleImport = false
     @State private var showingCraftCombinedImport = false
     @State private var showingDeleteAllConfirm = false
+    @State private var showingDeleteAllConfirm2 = false
     @State private var newTitle = ""
     @State private var createMode: CreateMode = .note
 
@@ -82,16 +83,9 @@ struct NotesHomeView: View {
                             } label: {
                                 Image(systemName: "trash")
                             }
-                            .confirmationDialog("Delete all \(store.items.count) notes?",
-                                               isPresented: $showingDeleteAllConfirm,
-                                               titleVisibility: .visible) {
-                                Button("Delete All", role: .destructive) { store.deleteAll() }
-                                Button("Cancel", role: .cancel) {}
-                            }
                         }
                     }
                 }
-
                 // ── FAB ───────────────────────────────────────────────────
                 Menu {
                     Button {
@@ -172,6 +166,23 @@ struct NotesHomeView: View {
                     showingCreate = false
                 }
             }
+        }
+        .alert("Delete all \(store.items.count) notes?", isPresented: $showingDeleteAllConfirm) {
+            Button("Delete All", role: .destructive) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(300))
+                    showingDeleteAllConfirm2 = true
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will remove all your notes.")
+        }
+        .alert("Are you sure?", isPresented: $showingDeleteAllConfirm2) {
+            Button("Yes, delete everything", role: .destructive) { store.deleteAll() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This cannot be undone.")
         }
     }
 

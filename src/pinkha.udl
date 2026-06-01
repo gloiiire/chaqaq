@@ -145,6 +145,10 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void delete_database(string id);
 
+    /// Soft-deletes every database. Returns the number deleted.
+    [Throws=PinkhaError]
+    u32 delete_all_databases();
+
     /// Ajoute une entrée ; `values_json` est une map UUID -> ValeurPropriete sérialisée.
     [Throws=PinkhaError]
     string add_entry(string db_id, string values_json);

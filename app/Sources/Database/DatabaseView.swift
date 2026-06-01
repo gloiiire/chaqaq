@@ -12,7 +12,6 @@ struct DatabaseView: View {
     let api: PinkhaApi
 
     @State private var showAddColumn = false
-    @State private var newColumnName = ""
 
     init(dbId: String, api: PinkhaApi) {
         _vm  = StateObject(wrappedValue: DatabaseViewModel(dbId: dbId, api: api))
@@ -56,8 +55,13 @@ struct DatabaseView: View {
                 }
             }
         }
-        .sheet(isPresented: $showAddColumn, onDismiss: { newColumnName = "" }) {
-            addColumnSheet
+        .sheet(isPresented: $showAddColumn) {
+            AddColumnSheet { name, type in
+                vm.addProperty(name: name, type: type)
+                showAddColumn = false
+            } onCancel: {
+                showAddColumn = false
+            }
         }
         .onAppear { vm.load() }
         .errorAlert(message: $vm.errorMessage, onRetry: vm.load)
@@ -100,10 +104,10 @@ struct DatabaseView: View {
                     name: prop.name,
                     icon: prop.propertyType.icon,
                     width: columnWidth(for: prop.propertyType),
-                    isDeletable: !(prop.propertyType == .title)
-                ) {
-                    vm.deleteProperty(id: prop.id)
-                }
+                    isDeletable: !(prop.propertyType == .title),
+                    onRename: { vm.renameProperty(id: prop.id, newName: $0) },
+                    onDelete: { vm.deleteProperty(id: prop.id) }
+                )
             }
             // Add-column button
             Button { showAddColumn = true } label: {
@@ -163,41 +167,6 @@ struct DatabaseView: View {
         .padding()
     }
 
-    // ── Add-column sheet ──────────────────────────────────────────────────────
-
-    private var addColumnSheet: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("Column name", text: $newColumnName)
-                        .submitLabel(.done)
-                        .onSubmit { commitAddColumn() }
-                }
-            }
-            .navigationTitle("New column")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button { showAddColumn = false } label: { Image(systemName: "xmark") }
-                        .accessibilityLabel("Cancel")
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button { commitAddColumn() } label: { Image(systemName: "checkmark") }
-                        .accessibilityLabel("Add")
-                        .disabled(newColumnName.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
-            }
-        }
-        .presentationDetents([.medium])
-    }
-
-    private func commitAddColumn() {
-        let name = newColumnName.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return }
-        vm.addProperty(name: name, type: .text)
-        newColumnName = ""
-        showAddColumn = false
-    }
 }
 
 // ── Column header ─────────────────────────────────────────────────────────────
@@ -207,7 +176,11 @@ private struct PropertyHeaderCell: View {
     let icon: String
     let width: CGFloat
     let isDeletable: Bool
+    let onRename: (String) -> Void
     let onDelete: () -> Void
+
+    @State private var showRename = false
+    @State private var renameDraft = ""
 
     var body: some View {
         HStack(spacing: 4) {
@@ -226,11 +199,23 @@ private struct PropertyHeaderCell: View {
             Rectangle().frame(width: 0.5).foregroundStyle(.separator)
         }
         .contextMenu {
+            Button { renameDraft = name; showRename = true } label: {
+                Label("Rename", systemImage: "pencil")
+            }
             if isDeletable {
+                Divider()
                 Button(role: .destructive, action: onDelete) {
                     Label("Delete column", systemImage: "trash")
                 }
             }
+        }
+        .alert("Rename column", isPresented: $showRename) {
+            TextField("Name", text: $renameDraft)
+            Button("Rename") {
+                let n = renameDraft.trimmingCharacters(in: .whitespaces)
+                if !n.isEmpty { onRename(n) }
+            }
+            Button("Cancel", role: .cancel) {}
         }
     }
 }
@@ -354,6 +339,8 @@ private struct CellView: View {
                 TextCell(value: $value).frame(width: width)
             case .number:
                 NumberCell(value: $value).frame(width: width)
+            case .url:
+                UrlCell(value: $value).frame(width: width)
             case .selection(let options):
                 SelectionCell(value: $value, options: options).frame(width: width)
             case .selectionMultiple(let options):
@@ -650,6 +637,173 @@ private struct DatePickerSheet: View {
                 }
             }
         }
+    }
+}
+
+// ── URL cell ──────────────────────────────────────────────────────────────────
+
+private struct UrlCell: View {
+    @Binding var value: PropertyValueFfi
+    @State private var draft = ""
+    @FocusState private var focused: Bool
+    @Environment(\.openURL) private var openURL
+
+    private var urlString: String {
+        if case .url(let s) = value { return s }
+        return ""
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            TextField("https://", text: $draft)
+                .keyboardType(.URL)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .focused($focused)
+                .padding(.leading, 10)
+                .padding(.trailing, 4)
+                .frame(minHeight: 44, alignment: .leading)
+                .onAppear { draft = urlString }
+                .onChange(of: value) { _, _ in if !focused { draft = urlString } }
+                .onChange(of: focused) { _, f in
+                    guard !f else { return }
+                    let newVal: PropertyValueFfi = draft.isEmpty ? .empty : .url(draft)
+                    if newVal != value { value = newVal }
+                }
+
+            if !urlString.isEmpty, let url = URL(string: urlString) {
+                Button { openURL(url) } label: {
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 36, height: 44)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Spacer().frame(width: 36)
+            }
+        }
+    }
+}
+
+// ── Add-column sheet ──────────────────────────────────────────────────────────
+
+private struct AddColumnSheet: View {
+    let onAdd: (String, PropertyTypeFfi) -> Void
+    let onCancel: () -> Void
+
+    @State private var name = ""
+    @State private var columnType: ColumnType = .text
+    @State private var options: [String] = []
+    @State private var newOption = ""
+
+    enum ColumnType: String, CaseIterable, Identifiable {
+        case text = "Text"
+        case number = "Number"
+        case checkbox = "Checkbox"
+        case date = "Date"
+        case url = "URL"
+        case select = "Select"
+        case multiSelect = "Multi-select"
+
+        var id: String { rawValue }
+
+        var icon: String {
+            switch self {
+            case .text:        return "text.alignleft"
+            case .number:      return "number"
+            case .checkbox:    return "checkmark.square"
+            case .date:        return "calendar"
+            case .url:         return "link"
+            case .select:      return "list.bullet"
+            case .multiSelect: return "list.bullet.indent"
+            }
+        }
+
+        var needsOptions: Bool { self == .select || self == .multiSelect }
+
+        func propertyType(options: [String]) -> PropertyTypeFfi {
+            switch self {
+            case .text:        return .text
+            case .number:      return .number
+            case .checkbox:    return .checkbox
+            case .date:        return .date
+            case .url:         return .url
+            case .select:      return .selection(options)
+            case .multiSelect: return .selectionMultiple(options)
+            }
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Column name", text: $name)
+                        .submitLabel(.done)
+                }
+                Section("Type") {
+                    Picker("Type", selection: $columnType) {
+                        ForEach(ColumnType.allCases) { t in
+                            Label(t.rawValue, systemImage: t.icon).tag(t)
+                        }
+                    }
+                    .pickerStyle(.navigationLink)
+                }
+                if columnType.needsOptions {
+                    Section {
+                        ForEach(options, id: \.self) { opt in
+                            HStack {
+                                SelectionChip(label: opt)
+                                Spacer()
+                            }
+                        }
+                        .onDelete { options.remove(atOffsets: $0) }
+                        HStack {
+                            TextField("Add option…", text: $newOption)
+                                .submitLabel(.done)
+                                .onSubmit { addOption() }
+                            if !newOption.trimmingCharacters(in: .whitespaces).isEmpty {
+                                Button(action: addOption) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundStyle(.tint)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    } header: {
+                        Text("Options")
+                    }
+                }
+            }
+            .navigationTitle("New column")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button { onCancel() } label: { Image(systemName: "xmark") }
+                        .accessibilityLabel("Cancel")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button { commit() } label: { Image(systemName: "checkmark") }
+                        .accessibilityLabel("Add")
+                        .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func addOption() {
+        let opt = newOption.trimmingCharacters(in: .whitespaces)
+        guard !opt.isEmpty, !options.contains(opt) else { return }
+        options.append(opt)
+        newOption = ""
+    }
+
+    private func commit() {
+        let n = name.trimmingCharacters(in: .whitespaces)
+        guard !n.isEmpty else { return }
+        onAdd(n, columnType.propertyType(options: options))
     }
 }
 
