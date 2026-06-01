@@ -476,6 +476,16 @@ impl PinkhaApi {
         database_use_cases::delete_database(&self.dbs, uuid).map_err(PinkhaError::from)
     }
 
+    /// Soft-deletes every database. Returns the number deleted.
+    pub fn delete_all_databases(&self) -> Result<u32, PinkhaError> {
+        let metas = database_use_cases::list_databases(&self.dbs).map_err(PinkhaError::from)?;
+        let count = metas.len() as u32;
+        for meta in metas {
+            database_use_cases::delete_database(&self.dbs, meta.id).map_err(PinkhaError::from)?;
+        }
+        Ok(count)
+    }
+
     /// Adds an entry to a database. `values_json` must be a JSON-encoded
     /// `HashMap<Uuid, PropertyValue>`. Returns the new entry UUID string.
     pub fn add_entry(
