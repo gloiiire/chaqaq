@@ -42,6 +42,7 @@
 		510DD50589C1252C2F8253A6 /* DocumentApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8169A1E412FB3AB0851E5ADB /* DocumentApiTests.swift */; };
 		55606C176FE32C3B95C91293 /* ResilienceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37543D1D1AAFB9CE1F61603F /* ResilienceTests.swift */; };
 		57155F8A05B7C7EA1ED129AF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F0C5E1D7104E176374A94957 /* Assets.xcassets */; };
+		5898D72B50B77D1D3DBB9008 /* ObservabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EF086F9F0458E7ADBD9C439 /* ObservabilityTests.swift */; };
 		599105D6197DADEB981F1275 /* SwipeDeleteUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB8BDD53EA02FC1A56928B5 /* SwipeDeleteUITests.swift */; };
 		5B18786280FD41AB25892C2B /* DocumentViewModel+TitleCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AFC0FE415F63FAB0758C26A /* DocumentViewModel+TitleCover.swift */; };
 		5C5C57DA676A6B53F43953B1 /* DocumentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F03150360836B39486A73949 /* DocumentViewModel.swift */; };
@@ -61,6 +62,8 @@
 		8D5FA2C87A10F1A5515A71FF /* BlockContentFfiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36A6032BCBFCFE419E656DCE /* BlockContentFfiTests.swift */; };
 		8EDE253B7197FBC5C68EBBE1 /* DatabaseApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D790938BD86DCD84018B0A63 /* DatabaseApiTests.swift */; };
 		8F3D3AF599C0AA8C7432F385 /* DatabaseEntitiesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C48A6090EBBFBAB7A44A9513 /* DatabaseEntitiesTests.swift */; };
+		9074D56A0F02ACC6660A97DC /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 239C11BB7B359FC141B27B3C /* Sentry */; };
+		93D9C5663066A8320AA2B220 /* Observability.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F8AFBAF1ABB7C2F44C3F4E2 /* Observability.swift */; };
 		98E9AD73AC0F4AF81E73D662 /* EditableBlockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B033CFC2C8EE318FA058974 /* EditableBlockTests.swift */; };
 		9E488110AB0BE3931273EEA6 /* PerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8FFF93EEDC254780485D651 /* PerformanceTests.swift */; };
 		9F847BE98C77152B5D5443FA /* NotionOAuth2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E0D9D95D4E0246DE51A711E /* NotionOAuth2.swift */; };
@@ -116,6 +119,7 @@
 
 /* Begin PBXFileReference section */
 		0AFC0FE415F63FAB0758C26A /* DocumentViewModel+TitleCover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DocumentViewModel+TitleCover.swift"; sourceTree = "<group>"; };
+		0EF086F9F0458E7ADBD9C439 /* ObservabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObservabilityTests.swift; sourceTree = "<group>"; };
 		0EF8382835124C808B432EB7 /* AttributedRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttributedRoundTripTests.swift; sourceTree = "<group>"; };
 		1423EFE3FAFB25613958045E /* PinkhaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinkhaApp.swift; sourceTree = "<group>"; };
 		14E6EE9F19E2830C8651FAB1 /* DocumentView+Toolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DocumentView+Toolbar.swift"; sourceTree = "<group>"; };
@@ -127,6 +131,7 @@
 		28EEC29CAF243FC97EC0EB7C /* SearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchTests.swift; sourceTree = "<group>"; };
 		29BD3C6FE47D102B72C2BB19 /* DocumentView+BlockCallbacks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DocumentView+BlockCallbacks.swift"; sourceTree = "<group>"; };
 		2E2E7F51D0CD04EEBC8FE493 /* ImportUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportUITests.swift; sourceTree = "<group>"; };
+		2F8AFBAF1ABB7C2F44C3F4E2 /* Observability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Observability.swift; sourceTree = "<group>"; };
 		341793C59FCB240D68152FCD /* BearImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BearImportView.swift; sourceTree = "<group>"; };
 		35143E94E82BF3C5E00E94B5 /* DocumentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentView.swift; sourceTree = "<group>"; };
 		36A6032BCBFCFE419E656DCE /* BlockContentFfiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockContentFfiTests.swift; sourceTree = "<group>"; };
@@ -176,6 +181,7 @@
 		A4E2380661E5813755F120A1 /* Pinkha.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Pinkha.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AB990B9A8557D574F681053B /* BlockHierarchyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockHierarchyTests.swift; sourceTree = "<group>"; };
 		B6DB4D4AA0CC43137759C109 /* RichTextEditorCoordinator+Selection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RichTextEditorCoordinator+Selection.swift"; sourceTree = "<group>"; };
+		BAE708B54C4D296BE09E399D /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		BBCF4EDFC02A470DBC3BA602 /* PinkhaUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PinkhaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BC27E249DFB98A2B03FBBE07 /* DatabaseModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseModelsTests.swift; sourceTree = "<group>"; };
 		BEB8BDD53EA02FC1A56928B5 /* SwipeDeleteUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeDeleteUITests.swift; sourceTree = "<group>"; };
@@ -209,6 +215,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				62FDB0C4AF1E562971C8A80F /* pinkha.xcframework in Frameworks */,
+				9074D56A0F02ACC6660A97DC /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -229,6 +236,7 @@
 				D0A8005F4451F496EF2075F1 /* MarkdownShortcutTests.swift */,
 				7BDCE4B4A67B7675CF7E4994 /* ModelsTests.swift */,
 				D8829AA3035FF94BD0A3EF7B /* NotionOAuth2Tests.swift */,
+				0EF086F9F0458E7ADBD9C439 /* ObservabilityTests.swift */,
 				37543D1D1AAFB9CE1F61603F /* ResilienceTests.swift */,
 			);
 			path = Unit;
@@ -262,6 +270,7 @@
 			children = (
 				5B2A817A017AAA28F848C2A8 /* ContentView.swift */,
 				92DDD845F053E603964F7DD0 /* Models.swift */,
+				2F8AFBAF1ABB7C2F44C3F4E2 /* Observability.swift */,
 				1423EFE3FAFB25613958045E /* PinkhaApp.swift */,
 				3A60A4A6A8B2EE03385292F9 /* PinkhaStore.swift */,
 				56806548C25A65F2BB6E2671 /* Resilience.swift */,
@@ -312,6 +321,14 @@
 				6084E410F0DAFDE23346475E /* RichTextEditorCoordinator+Toolbar.swift */,
 			);
 			path = RichText;
+			sourceTree = "<group>";
+		};
+		52689657E616B098718D0A67 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				BAE708B54C4D296BE09E399D /* Secrets.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		57EFC2114549FF22DA2AC116 /* Integration */ = {
@@ -411,6 +428,7 @@
 		F122F2A1952EFD55C6F7E411 = {
 			isa = PBXGroup;
 			children = (
+				52689657E616B098718D0A67 /* Config */,
 				F90891AF98643A801B2DA46B /* pinkha */,
 				8FB7F1288CD331FA0F093783 /* Sources */,
 				7CE19974FB0E7C2FE24CED36 /* Tests */,
@@ -499,6 +517,7 @@
 			);
 			name = Pinkha;
 			packageProductDependencies = (
+				239C11BB7B359FC141B27B3C /* Sentry */,
 			);
 			productName = Pinkha;
 			productReference = A4E2380661E5813755F120A1 /* Pinkha.app */;
@@ -537,6 +556,9 @@
 			);
 			mainGroup = F122F2A1952EFD55C6F7E411;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C7825E2281810F2327BF98FF /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7459E38DDB42FA0567FB08BE /* Products */;
 			projectDirPath = "";
@@ -595,6 +617,7 @@
 				E73E1D68271106005E63ABAC /* NotesHomeView.swift in Sources */,
 				01281212E4F0399331A45AD4 /* NotionImportView.swift in Sources */,
 				9F847BE98C77152B5D5443FA /* NotionOAuth2.swift in Sources */,
+				93D9C5663066A8320AA2B220 /* Observability.swift in Sources */,
 				502AFCE7307680AEC893A42A /* PinkhaApp.swift in Sources */,
 				3D2EB438F75FBE9267D39944 /* PinkhaStore.swift in Sources */,
 				35790178FC28CBE4BBC07EB3 /* Resilience.swift in Sources */,
@@ -665,6 +688,7 @@
 				2F4DBAA7D9DAC41973B02B81 /* MarkdownShortcutTests.swift in Sources */,
 				39EC996E337D7668192E46B0 /* ModelsTests.swift in Sources */,
 				CADF13DFAEACD69368156D23 /* NotionOAuth2Tests.swift in Sources */,
+				5898D72B50B77D1D3DBB9008 /* ObservabilityTests.swift in Sources */,
 				55606C176FE32C3B95C91293 /* ResilienceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -692,6 +716,7 @@
 /* Begin XCBuildConfiguration section */
 		1C540A5CE0F83E920BB14DAF /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = BAE708B54C4D296BE09E399D /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
@@ -737,10 +762,12 @@
 		};
 		474E762450622F54CA598DC9 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = BAE708B54C4D296BE09E399D /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = N49VNC2G57;
+				ENABLE_TESTABILITY = YES;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -857,6 +884,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -953,6 +981,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -1028,6 +1057,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		C7825E2281810F2327BF98FF /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.49.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		239C11BB7B359FC141B27B3C /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C7825E2281810F2327BF98FF /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B6B20DC4A0EA8B3E7FC9B64C /* Project object */;
 }

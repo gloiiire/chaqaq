@@ -522,6 +522,11 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func createFolder(name: String, parentId: String?) throws  -> FolderMetaFfi
     
     /**
+     * Soft-deletes every database. Returns the number deleted.
+     */
+    func deleteAllDatabases() throws  -> UInt32
+    
+    /**
      * Soft-delete de tous les documents. Retourne le nombre supprimé.
      */
     func deleteAllDocuments() throws  -> UInt32
@@ -845,6 +850,17 @@ open func createFolder(name: String, parentId: String?)throws  -> FolderMetaFfi 
             self.uniffiCloneHandle(),
         FfiConverterString.lower(name),
         FfiConverterOptionString.lower(parentId),$0
+    )
+})
+}
+    
+    /**
+     * Soft-deletes every database. Returns the number deleted.
+     */
+open func deleteAllDatabases()throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_all_databases(
+            self.uniffiCloneHandle(),$0
     )
 })
 }
@@ -1980,6 +1996,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_create_folder() != 49423) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_databases() != 61257) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_documents() != 3995) {

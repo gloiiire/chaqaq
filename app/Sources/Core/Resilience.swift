@@ -30,13 +30,21 @@ extension PinkhaError {
 /// Executes `work`, returns its value on success, or writes a user-readable error
 /// message into `errorMessage` and returns `nil` on failure.
 /// Idiomatic pattern for view models that expose a `@Published errorMessage`.
+///
+/// Side effect: unexpected failures (transient storage errors, anything not a
+/// `PinkhaError`) are forwarded to Sentry. `NotFound` and `InvalidOperation`
+/// are user-facing expected states and stay silent to avoid alert fatigue.
 @discardableResult
 func tryCatch<T>(into errorMessage: inout String?, _ work: () throws -> T) -> T? {
     do {
         return try work()
     } catch let err as PinkhaError {
+        if case .Storage = err {
+            Observability.capture(err)
+        }
         errorMessage = err.userMessage
     } catch {
+        Observability.capture(error)
         errorMessage = error.localizedDescription
     }
     return nil
