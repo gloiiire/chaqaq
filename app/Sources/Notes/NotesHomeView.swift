@@ -11,6 +11,7 @@ struct NotesHomeView: View {
     @State private var showingCraftTextBundleImport = false
     @State private var showingCraftCombinedImport = false
     @State private var showingDeleteAllConfirm = false
+    @State private var showingDeleteAllConfirm2 = false
     @State private var newTitle = ""
     @State private var createMode: CreateMode = .note
 
@@ -169,7 +170,13 @@ struct NotesHomeView: View {
         .confirmationDialog("Delete all \(store.items.count) notes?",
                             isPresented: $showingDeleteAllConfirm,
                             titleVisibility: .visible) {
-            Button("Delete All", role: .destructive) { store.deleteAll() }
+            Button("Delete All", role: .destructive) { showingDeleteAllConfirm2 = true }
+            Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog("Are you sure? This cannot be undone.",
+                            isPresented: $showingDeleteAllConfirm2,
+                            titleVisibility: .visible) {
+            Button("Yes, delete everything", role: .destructive) { store.deleteAll() }
             Button("Cancel", role: .cancel) {}
         }
     }
