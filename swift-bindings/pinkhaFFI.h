@@ -390,7 +390,7 @@ uint64_t uniffi_pinkha_fn_method_pinkhaapi_import_from_craft_textbundle(uint64_t
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_IMPORT_FROM_NOTION
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_IMPORT_FROM_NOTION
-uint64_t uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(uint64_t ptr, RustBuffer token, RustBuffer database_id
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(uint64_t ptr, RustBuffer token, RustBuffer database_id, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DATABASES

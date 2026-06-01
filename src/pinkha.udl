@@ -230,7 +230,11 @@ interface PinkhaApi {
     /// Importe une database Notion complète (schéma + pages + blocs).
     /// `token` est un bearer token OAuth2 ou private integration token.
     /// `database_id` est un UUID 32-char hex ou l'URL complète Notion.
-    [Async, Throws=PinkhaError]
+    ///
+    /// Synchrone côté FFI : Notion utilise `reqwest`, qui exige un runtime
+    /// Tokio absent de l'executor UniFFI. On `block_on` côté Rust, donc Swift
+    /// doit appeler depuis `Task.detached` pour ne pas bloquer le main thread.
+    [Throws=PinkhaError]
     ImportResultFfi import_from_notion(string token, string database_id);
 
     /// Importe les notes Bear depuis la SQLite locale de Bear.

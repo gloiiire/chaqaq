@@ -50,9 +50,16 @@ struct NotionImportView: View {
                         }
                     }
                 }
-                // When OAuth2 delivers a token, pre-fill the manual field.
+                // When OAuth2 delivers a token, pre-fill the manual field and
+                // persist immediately to the Keychain. Without the persist step,
+                // dismissing and re-opening the sheet recreates the `@StateObject`
+                // `oauth`, wiping `oauth.token` back to nil, and the user sees an
+                // empty token field after a successful OAuth flow.
                 .onChange(of: oauth.token) { _, newToken in
-                    if let newToken { token = newToken }
+                    if let newToken {
+                        token = newToken
+                        Keychain.save(newToken, for: KeychainKey.notionToken)
+                    }
                 }
                 .onAppear { loadStoredToken() }
         }
@@ -190,15 +197,21 @@ struct NotionImportView: View {
         let t = token.trimmingCharacters(in: .whitespaces)
         let url = notionUrl.trimmingCharacters(in: .whitespaces)
         state = .running
-        Task {
+        // `importFromNotion` is synchronous on the Rust side (it `block_on`s a
+        // Tokio runtime internally because reqwest needs one and UniFFI's
+        // executor isn't Tokio). Dispatch off the main thread via a detached
+        // task so the call doesn't freeze the UI during the import.
+        Task.detached(priority: .userInitiated) {
             do {
-                let result = try await api.importFromNotion(token: t, databaseId: url)
-                // Persist the token only after a successful import, so we never
-                // store credentials the server rejected.
+                let result = try api.importFromNotion(token: t, databaseId: url)
+                // Re-confirm the token in the Keychain after a successful
+                // import — the OAuth flow already persisted it on receipt,
+                // but a manually-typed token also gets saved here.
                 Keychain.save(t, for: KeychainKey.notionToken)
-                state = .done(result)
+                await MainActor.run { state = .done(result) }
             } catch {
-                state = .failed(error.localizedDescription)
+                let message = error.localizedDescription
+                await MainActor.run { state = .failed(message) }
             }
         }
     }
