@@ -699,15 +699,37 @@ impl PinkhaApi {
         extractor
             .run(config, &self.docs, &self.dbs)
             .await
-            .map(|r| ImportResultFfi {
-                app: r.app.to_string(),
-                database_id: r.database_id.map(|id| id.to_string()).unwrap_or_default(),
-                documents: r.documents as u32,
-                entries: r.entries as u32,
-                blocks: r.blocks as u32,
-                skipped: r.skipped as u32,
-            })
+            .map(|r| ffi_import_result(r))
             .map_err(extractor_err_to_ffi)
+    }
+
+    /// `root_dir` — absolute path to the folder containing `.textbundle` packages
+    /// exported from Craft ("Export All").
+    pub async fn import_from_craft_textbundle(
+        &self,
+        root_dir: String,
+    ) -> Result<ImportResultFfi, PinkhaError> {
+        use crate::extractors::craft_textbundle::{CraftTextBundleExtractor, CraftTextBundleConfig};
+        use crate::extractors::traits::Extractor;
+        validate_string(&root_dir, "root_dir")?;
+        let extractor = CraftTextBundleExtractor::new();
+        let config = CraftTextBundleConfig { root_dir };
+        extractor
+            .run(config, &self.docs, &self.dbs)
+            .await
+            .map(|r| ffi_import_result(r))
+            .map_err(extractor_err_to_ffi)
+    }
+}
+
+fn ffi_import_result(r: crate::extractors::ImportResult) -> ImportResultFfi {
+    ImportResultFfi {
+        app: r.app.to_string(),
+        database_id: r.database_id.map(|id| id.to_string()).unwrap_or_default(),
+        documents: r.documents as u32,
+        entries: r.entries as u32,
+        blocks: r.blocks as u32,
+        skipped: r.skipped as u32,
     }
 }
 

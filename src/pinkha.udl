@@ -192,4 +192,9 @@ interface PinkhaApi {
     /// `db_path` est le chemin absolu vers le fichier `.realm` de Craft.
     [Async, Throws=PinkhaError]
     ImportResultFfi import_from_craft(string db_path);
+
+    /// Importe les pages Craft depuis un dossier de `.textbundle` exporté par Craft.
+    /// `root_dir` est le chemin absolu vers le dossier racine de l'export.
+    [Async, Throws=PinkhaError]
+    ImportResultFfi import_from_craft_textbundle(string root_dir);
 };
