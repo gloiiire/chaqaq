@@ -89,6 +89,13 @@ final class PinkhaStore: ObservableObject {
         }
     }
 
+    /// Soft-deletes all documents and reloads.
+    func deleteAll() {
+        if tryCatch(into: &errorMessage, { try api?.deleteAllDocuments() }) != nil {
+            load()
+        }
+    }
+
     /// Soft-deletes a database by id and reloads.
     func deleteDatabase(id: String) {
         if tryCatch(into: &errorMessage, { try api?.deleteDatabase(id: id) }) != nil {

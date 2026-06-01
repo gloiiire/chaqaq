@@ -65,6 +65,10 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void delete_document(string id);
 
+    /// Soft-delete de tous les documents. Retourne le nombre supprimé.
+    [Throws=PinkhaError]
+    u32 delete_all_documents();
+
     [Throws=PinkhaError]
     void update_document_title(string id, string new_title);
 

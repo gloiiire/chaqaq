@@ -298,6 +298,11 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_create_database(uint64_t ptr, RustB
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_create_document(uint64_t ptr, RustBuffer title, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_ALL_DOCUMENTS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_ALL_DOCUMENTS
+uint32_t uniffi_pinkha_fn_method_pinkhaapi_delete_all_documents(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_BLOCK
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_BLOCK
 void uniffi_pinkha_fn_method_pinkhaapi_delete_block(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustCallStatus *_Nonnull out_status
@@ -748,6 +753,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_create_database(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_CREATE_DOCUMENT
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_CREATE_DOCUMENT
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_create_document(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ALL_DOCUMENTS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ALL_DOCUMENTS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_all_documents(void
     
 );
 #endif
