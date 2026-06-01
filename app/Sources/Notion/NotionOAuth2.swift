@@ -1,4 +1,6 @@
 import AuthenticationServices
+import CryptoKit
+import Foundation
 import SwiftUI
 
 /// Handles the Notion OAuth2 authorization code flow via ASWebAuthenticationSession.
@@ -91,6 +93,13 @@ final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresent
     /// flow remains available.
     static let tokenProxyUrl = ""
 
+    /// Shared HMAC secret used to sign requests to `tokenProxyUrl`. Must match
+    /// `PROXY_HMAC_SECRET` on the proxy. Hex-encoded, generated with
+    /// `openssl rand -hex 32`. Shipping it in the binary is acceptable as
+    /// defense-in-depth: combined with rate-limiting and Sentry on the proxy,
+    /// it raises the cost of abuse without pretending to be a strong secret.
+    static let proxyHmacSecret = ""
+
     /// Errors specific to the OAuth2 flow.
     enum OAuthError: LocalizedError {
         case proxyNotConfigured
@@ -110,13 +119,19 @@ final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresent
               let proxyEndpoint = URL(string: Self.tokenProxyUrl) else {
             throw OAuthError.proxyNotConfigured
         }
-        var req = URLRequest(url: proxyEndpoint)
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONSerialization.data(withJSONObject: [
+        let body = try JSONSerialization.data(withJSONObject: [
             "code":         code,
             "redirect_uri": Self.redirectUri,
         ])
+        var req = URLRequest(url: proxyEndpoint)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let (timestamp, nonce, signature) = Self.signRequest(body: body)
+        req.setValue(timestamp, forHTTPHeaderField: "X-Pinkha-Timestamp")
+        req.setValue(nonce,     forHTTPHeaderField: "X-Pinkha-Nonce")
+        req.setValue(signature, forHTTPHeaderField: "X-Pinkha-Signature")
+        req.httpBody = body
+
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard (resp as? HTTPURLResponse)?.statusCode == 200 else {
             throw URLError(.badServerResponse)
@@ -126,5 +141,22 @@ final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresent
             throw URLError(.cannotParseResponse)
         }
         return accessToken
+    }
+
+    /// Builds the (timestamp, nonce, hex-signature) tuple for a proxy request.
+    /// Signature = HMAC-SHA256(secret, "<ts>\n<nonce>\n<body>") — must match
+    /// the verification logic in `notion-proxy::verify_signature`.
+    static func signRequest(body: Data, now: Date = Date(), nonce: String = UUID().uuidString) -> (String, String, String) {
+        let timestamp = String(Int(now.timeIntervalSince1970))
+        let key = SymmetricKey(data: Data(proxyHmacSecret.utf8))
+        var message = Data()
+        message.append(Data(timestamp.utf8))
+        message.append(0x0A) // "\n"
+        message.append(Data(nonce.utf8))
+        message.append(0x0A)
+        message.append(body)
+        let mac = HMAC<SHA256>.authenticationCode(for: message, using: key)
+        let signature = mac.map { String(format: "%02x", $0) }.joined()
+        return (timestamp, nonce, signature)
     }
 }
