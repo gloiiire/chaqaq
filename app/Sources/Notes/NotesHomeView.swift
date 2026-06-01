@@ -10,6 +10,7 @@ struct NotesHomeView: View {
     @State private var showingBearImport = false
     @State private var showingCraftImport = false
     @State private var showingCraftTextBundleImport = false
+    @State private var showingCraftCombinedImport = false
     @State private var showingDeleteAllConfirm = false
     @State private var newTitle = ""
     @State private var createMode: CreateMode = .note
@@ -124,6 +125,11 @@ struct NotesHomeView: View {
                     } label: {
                         Label("Import from Craft (TextBundle)", systemImage: "doc.zipper")
                     }
+                    Button {
+                        showingCraftCombinedImport = true
+                    } label: {
+                        Label("Import from Craft (Combined)", systemImage: "arrow.triangle.merge")
+                    }
                 } label: {
                     FloatingButton(icon: "square.and.pencil") {}
                 }
@@ -148,6 +154,11 @@ struct NotesHomeView: View {
             }
             .sheet(isPresented: $showingCraftTextBundleImport) {
                 CraftTextBundleImportView(api: store.api) {
+                    store.load()
+                }
+            }
+            .sheet(isPresented: $showingCraftCombinedImport) {
+                CraftCombinedImportView(api: store.api) {
                     store.load()
                 }
             }

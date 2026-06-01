@@ -87,7 +87,7 @@ impl Extractor for CraftTextBundleExtractor {
 
 /// Walks `dir` recursively and returns paths to every `.textbundle` package found.
 /// Does not recurse into `.textbundle` directories themselves.
-fn find_textbundles(dir: &Path) -> Vec<PathBuf> {
+pub fn find_textbundles(dir: &Path) -> Vec<PathBuf> {
     let mut result = Vec::new();
     let Ok(entries) = std::fs::read_dir(dir) else {
         return result;
@@ -107,7 +107,7 @@ fn find_textbundles(dir: &Path) -> Vec<PathBuf> {
 }
 
 /// Extracts the document title from a `.textbundle` path (the filename stem).
-fn textbundle_title(path: &Path) -> String {
+pub fn textbundle_title(path: &Path) -> String {
     path.file_stem()
         .and_then(|s| s.to_str())
         .filter(|s| !s.is_empty())

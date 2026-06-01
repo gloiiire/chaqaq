@@ -151,7 +151,7 @@ impl Extractor for CraftExtractor {
 
 // Returns the title candidate from a block: only "text" blocks qualify,
 // and only the first non-empty trimmed line is used.
-fn title_candidate(content: &str, block_type: &str) -> Option<String> {
+pub fn title_candidate(content: &str, block_type: &str) -> Option<String> {
     if block_type != "text" {
         return None;
     }
@@ -159,7 +159,7 @@ fn title_candidate(content: &str, block_type: &str) -> Option<String> {
     if line.is_empty() { None } else { Some(line.to_string()) }
 }
 
-fn map_block(content: &str, block_type: &str) -> Option<BlockContent> {
+pub fn map_block(content: &str, block_type: &str) -> Option<BlockContent> {
     match block_type {
         "text" => Some(BlockContent::Text(plain(content))),
         "code" => {
@@ -173,11 +173,11 @@ fn map_block(content: &str, block_type: &str) -> Option<BlockContent> {
     }
 }
 
-fn plain(s: &str) -> Vec<InlineText> {
+pub fn plain(s: &str) -> Vec<InlineText> {
     vec![InlineText { content: s.to_string(), styles: vec![] }]
 }
 
-fn flush_document(
+pub fn flush_document(
     docs: &(dyn DocumentRepository + Send + Sync),
     title: &str,
     blocks: Vec<BlockContent>,

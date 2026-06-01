@@ -730,6 +730,27 @@ impl PinkhaApi {
             .map(|r| ffi_import_result(r))
             .map_err(extractor_err_to_ffi)
     }
+
+    /// Combines Craft's `.realm` database with a folder of `.textbundle` exports.
+    /// `realm_path` — absolute path to the `.realm` file.
+    /// `textbundle_root` — absolute path to the folder containing `.textbundle` packages.
+    pub async fn import_from_craft_combined(
+        &self,
+        realm_path: String,
+        textbundle_root: String,
+    ) -> Result<ImportResultFfi, PinkhaError> {
+        use crate::extractors::craft_combined::{CraftCombinedExtractor, CraftCombinedConfig};
+        use crate::extractors::traits::Extractor;
+        validate_string(&realm_path, "realm_path")?;
+        validate_string(&textbundle_root, "textbundle_root")?;
+        let extractor = CraftCombinedExtractor::new();
+        let config = CraftCombinedConfig { realm_path, textbundle_root };
+        extractor
+            .run(config, &self.docs, &self.dbs)
+            .await
+            .map(|r| ffi_import_result(r))
+            .map_err(extractor_err_to_ffi)
+    }
 }
 
 fn ffi_import_result(r: crate::extractors::ImportResult) -> ImportResultFfi {

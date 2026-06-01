@@ -570,6 +570,13 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func importFromCraft(dbPath: String) async throws  -> ImportResultFfi
     
     /**
+     * Combine le fichier `.realm` de Craft et un dossier de `.textbundle` :
+     * les pages ayant un textbundle correspondant utilisent son contenu markdown ;
+     * les autres pages utilisent le contenu realm.
+     */
+    func importFromCraftCombined(realmPath: String, textbundleRoot: String) async throws  -> ImportResultFfi
+    
+    /**
      * Importe les pages Craft depuis un dossier de `.textbundle` exporté par Craft.
      * `root_dir` est le chemin absolu vers le dossier racine de l'export.
      */
@@ -955,6 +962,28 @@ open func importFromCraft(dbPath: String)async throws  -> ImportResultFfi  {
                 uniffi_pinkha_fn_method_pinkhaapi_import_from_craft(
                     self.uniffiCloneHandle(),
                     FfiConverterString.lower(dbPath)
+                )
+            },
+            pollFunc: ffi_pinkha_rust_future_poll_rust_buffer,
+            completeFunc: ffi_pinkha_rust_future_complete_rust_buffer,
+            freeFunc: ffi_pinkha_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeImportResultFfi_lift,
+            errorHandler: FfiConverterTypePinkhaError_lift
+        )
+}
+    
+    /**
+     * Combine le fichier `.realm` de Craft et un dossier de `.textbundle` :
+     * les pages ayant un textbundle correspondant utilisent son contenu markdown ;
+     * les autres pages utilisent le contenu realm.
+     */
+open func importFromCraftCombined(realmPath: String, textbundleRoot: String)async throws  -> ImportResultFfi  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_pinkha_fn_method_pinkhaapi_import_from_craft_combined(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(realmPath),FfiConverterString.lower(textbundleRoot)
                 )
             },
             pollFunc: ffi_pinkha_rust_future_poll_rust_buffer,
@@ -1769,6 +1798,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_craft() != 6467) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_craft_combined() != 48693) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_craft_textbundle() != 42783) {

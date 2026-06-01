@@ -201,4 +201,10 @@ interface PinkhaApi {
     /// `root_dir` est le chemin absolu vers le dossier racine de l'export.
     [Async, Throws=PinkhaError]
     ImportResultFfi import_from_craft_textbundle(string root_dir);
+
+    /// Combine le fichier `.realm` de Craft et un dossier de `.textbundle` :
+    /// les pages ayant un textbundle correspondant utilisent son contenu markdown ;
+    /// les autres pages utilisent le contenu realm.
+    [Async, Throws=PinkhaError]
+    ImportResultFfi import_from_craft_combined(string realm_path, string textbundle_root);
 };
