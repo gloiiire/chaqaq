@@ -179,11 +179,11 @@ struct NotesHomeView: View {
             Button("Delete All", role: .destructive) { showingDeleteAllConfirm2 = true }
             Button("Cancel", role: .cancel) {}
         }
-        .confirmationDialog("Are you sure? This cannot be undone.",
-                            isPresented: $showingDeleteAllConfirm2,
-                            titleVisibility: .visible) {
+        .alert("Are you sure?", isPresented: $showingDeleteAllConfirm2) {
             Button("Yes, delete everything", role: .destructive) { store.deleteAll() }
             Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This cannot be undone.")
         }
     }
 
