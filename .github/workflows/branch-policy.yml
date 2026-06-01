@@ -1,0 +1,25 @@
+name: Branch policy
+
+on:
+  pull_request:
+    branches: [staging, master]
+
+jobs:
+  check-source:
+    name: Enforce promotion chain
+    runs-on: ubuntu-latest
+    steps:
+      - name: PRs to staging must come from dev
+        if: github.base_ref == 'staging' && github.head_ref != 'dev'
+        run: |
+          echo "❌ PRs to staging must come from dev (got: ${{ github.head_ref }})"
+          exit 1
+
+      - name: PRs to master must come from staging
+        if: github.base_ref == 'master' && github.head_ref != 'staging'
+        run: |
+          echo "❌ PRs to master must come from staging (got: ${{ github.head_ref }})"
+          exit 1
+
+      - name: OK
+        run: echo "✅ Source branch is valid"
