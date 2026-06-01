@@ -83,12 +83,6 @@ struct NotesHomeView: View {
                             } label: {
                                 Image(systemName: "trash")
                             }
-                            .confirmationDialog("Delete all \(store.items.count) notes?",
-                                               isPresented: $showingDeleteAllConfirm,
-                                               titleVisibility: .visible) {
-                                Button("Delete All", role: .destructive) { showingDeleteAllConfirm2 = true }
-                                Button("Cancel", role: .cancel) {}
-                            }
                         }
                     }
                 }
@@ -173,11 +167,16 @@ struct NotesHomeView: View {
                 }
             }
         }
-        .confirmationDialog("Delete all \(store.items.count) notes?",
-                            isPresented: $showingDeleteAllConfirm,
-                            titleVisibility: .visible) {
-            Button("Delete All", role: .destructive) { showingDeleteAllConfirm2 = true }
+        .alert("Delete all \(store.items.count) notes?", isPresented: $showingDeleteAllConfirm) {
+            Button("Delete All", role: .destructive) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(300))
+                    showingDeleteAllConfirm2 = true
+                }
+            }
             Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will remove all your notes.")
         }
         .alert("Are you sure?", isPresented: $showingDeleteAllConfirm2) {
             Button("Yes, delete everything", role: .destructive) { store.deleteAll() }
