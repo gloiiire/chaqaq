@@ -74,7 +74,14 @@ struct NotionImportView: View {
             if !NotionOAuth2.clientId.isEmpty {
                 Section {
                     Button {
-                        Task { await oauth.authorize() }
+                        // `Task { … }` inside a Button closure inherits the
+                        // surrounding View's task scope and gets cancelled
+                        // when the View re-renders (e.g. because `oauth.isLoading`
+                        // flips and SwiftUI re-evaluates the body). The OAuth
+                        // flow then hangs silently with no error, no log past
+                        // the first `@Published` mutation. `Task.detached`
+                        // runs free of any View lifecycle.
+                        Task.detached { await oauth.authorize() }
                     } label: {
                         HStack {
                             if oauth.isLoading {
