@@ -59,7 +59,7 @@ struct FoldersSectionView: View {
                 showingNewFolder = true
             } label: {
                 Label("New Folder", systemImage: "folder.badge.plus")
-                    .foregroundStyle(.accent)
+                    .foregroundStyle(.tint)
             }
         } header: {
             SectionHeader(title: "Folders")
