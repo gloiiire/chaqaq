@@ -519,6 +519,13 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      */
     func createDocument(title: String) throws  -> String
     
+    func createFolder(name: String, parentId: String?) throws  -> FolderMetaFfi
+    
+    /**
+     * Soft-delete de tous les documents. Retourne le nombre supprimé.
+     */
+    func deleteAllDocuments() throws  -> UInt32
+    
     func deleteBlock(docId: String, blockId: String) throws 
     
     /**
@@ -533,6 +540,8 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     
     func deleteEntry(dbId: String, entryId: String) throws 
     
+    func deleteFolder(id: String) throws 
+    
     func deleteProperty(dbId: String, propertyId: String) throws 
     
     func deleteView(dbId: String, viewId: String) throws 
@@ -546,6 +555,8 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Retourne le document complet sérialisé en JSON (avec blocs).
      */
     func getDocumentJson(id: String) throws  -> String
+    
+    func getFolder(id: String) throws  -> FolderMetaFfi
     
     /**
      * Retourne les groupes d'entrées en JSON.
@@ -565,6 +576,19 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func importFromCraft(dbPath: String) async throws  -> ImportResultFfi
     
     /**
+     * Combine le fichier `.realm` de Craft et un dossier de `.textbundle` :
+     * les pages ayant un textbundle correspondant utilisent son contenu markdown ;
+     * les autres pages utilisent le contenu realm.
+     */
+    func importFromCraftCombined(realmPath: String, textbundleRoot: String) async throws  -> ImportResultFfi
+    
+    /**
+     * Importe les pages Craft depuis un dossier de `.textbundle` exporté par Craft.
+     * `root_dir` est le chemin absolu vers le dossier racine de l'export.
+     */
+    func importFromCraftTextbundle(rootDir: String) async throws  -> ImportResultFfi
+    
+    /**
      * Importe une database Notion complète (schéma + pages + blocs).
      * `token` est un bearer token OAuth2 ou private integration token.
      * `database_id` est un UUID 32-char hex ou l'URL complète Notion.
@@ -581,10 +605,18 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      */
     func listDocuments() throws  -> [DocumentMetaFfi]
     
+    func listDocumentsInFolder(folderId: String?) throws  -> [DocumentMetaFfi]
+    
+    func listFolders() throws  -> [FolderMetaFfi]
+    
     /**
      * Déplace un bloc vers un parent ou vers la racine si `new_parent_id` est nul.
      */
     func moveBlock(docId: String, blockId: String, newParentId: String?) throws 
+    
+    func moveDocumentToFolder(docId: String, folderId: String?) throws 
+    
+    func moveFolderTo(id: String, newParentId: String?) throws 
     
     /**
      * Retourne les entrées filtrées/triées en JSON.
@@ -595,6 +627,8 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Retourne les entrées filtrées/triées avec rollups calculés en JSON.
      */
     func queryDatabaseWithRollupsJson(dbId: String, viewId: String) throws  -> String
+    
+    func renameFolder(id: String, newName: String) throws 
     
     func renameProperty(dbId: String, propertyId: String, newName: String) throws 
     
@@ -805,6 +839,27 @@ open func createDocument(title: String)throws  -> String  {
 })
 }
     
+open func createFolder(name: String, parentId: String?)throws  -> FolderMetaFfi  {
+    return try  FfiConverterTypeFolderMetaFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_create_folder(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterOptionString.lower(parentId),$0
+    )
+})
+}
+    
+    /**
+     * Soft-delete de tous les documents. Retourne le nombre supprimé.
+     */
+open func deleteAllDocuments()throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_all_documents(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
 open func deleteBlock(docId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_delete_block(
             self.uniffiCloneHandle(),
@@ -845,6 +900,14 @@ open func deleteEntry(dbId: String, entryId: String)throws   {try rustCallWithEr
 }
 }
     
+open func deleteFolder(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_folder(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
 open func deleteProperty(dbId: String, propertyId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_delete_property(
             self.uniffiCloneHandle(),
@@ -881,6 +944,15 @@ open func getDatabaseJson(id: String)throws  -> String  {
 open func getDocumentJson(id: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_get_document_json(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+})
+}
+    
+open func getFolder(id: String)throws  -> FolderMetaFfi  {
+    return try  FfiConverterTypeFolderMetaFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_get_folder(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
@@ -944,6 +1016,49 @@ open func importFromCraft(dbPath: String)async throws  -> ImportResultFfi  {
 }
     
     /**
+     * Combine le fichier `.realm` de Craft et un dossier de `.textbundle` :
+     * les pages ayant un textbundle correspondant utilisent son contenu markdown ;
+     * les autres pages utilisent le contenu realm.
+     */
+open func importFromCraftCombined(realmPath: String, textbundleRoot: String)async throws  -> ImportResultFfi  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_pinkha_fn_method_pinkhaapi_import_from_craft_combined(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(realmPath),FfiConverterString.lower(textbundleRoot)
+                )
+            },
+            pollFunc: ffi_pinkha_rust_future_poll_rust_buffer,
+            completeFunc: ffi_pinkha_rust_future_complete_rust_buffer,
+            freeFunc: ffi_pinkha_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeImportResultFfi_lift,
+            errorHandler: FfiConverterTypePinkhaError_lift
+        )
+}
+    
+    /**
+     * Importe les pages Craft depuis un dossier de `.textbundle` exporté par Craft.
+     * `root_dir` est le chemin absolu vers le dossier racine de l'export.
+     */
+open func importFromCraftTextbundle(rootDir: String)async throws  -> ImportResultFfi  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_pinkha_fn_method_pinkhaapi_import_from_craft_textbundle(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(rootDir)
+                )
+            },
+            pollFunc: ffi_pinkha_rust_future_poll_rust_buffer,
+            completeFunc: ffi_pinkha_rust_future_complete_rust_buffer,
+            freeFunc: ffi_pinkha_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeImportResultFfi_lift,
+            errorHandler: FfiConverterTypePinkhaError_lift
+        )
+}
+    
+    /**
      * Importe une database Notion complète (schéma + pages + blocs).
      * `token` est un bearer token OAuth2 ou private integration token.
      * `database_id` est un UUID 32-char hex ou l'URL complète Notion.
@@ -987,6 +1102,23 @@ open func listDocuments()throws  -> [DocumentMetaFfi]  {
 })
 }
     
+open func listDocumentsInFolder(folderId: String?)throws  -> [DocumentMetaFfi]  {
+    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_documents_in_folder(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionString.lower(folderId),$0
+    )
+})
+}
+    
+open func listFolders()throws  -> [FolderMetaFfi]  {
+    return try  FfiConverterSequenceTypeFolderMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_folders(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
     /**
      * Déplace un bloc vers un parent ou vers la racine si `new_parent_id` est nul.
      */
@@ -995,6 +1127,24 @@ open func moveBlock(docId: String, blockId: String, newParentId: String?)throws 
             self.uniffiCloneHandle(),
         FfiConverterString.lower(docId),
         FfiConverterString.lower(blockId),
+        FfiConverterOptionString.lower(newParentId),$0
+    )
+}
+}
+    
+open func moveDocumentToFolder(docId: String, folderId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_move_document_to_folder(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(docId),
+        FfiConverterOptionString.lower(folderId),$0
+    )
+}
+}
+    
+open func moveFolderTo(id: String, newParentId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_move_folder_to(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
         FfiConverterOptionString.lower(newParentId),$0
     )
 }
@@ -1024,6 +1174,15 @@ open func queryDatabaseWithRollupsJson(dbId: String, viewId: String)throws  -> S
         FfiConverterString.lower(viewId),$0
     )
 })
+}
+    
+open func renameFolder(id: String, newName: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_rename_folder(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterString.lower(newName),$0
+    )
+}
 }
     
 open func renameProperty(dbId: String, propertyId: String, newName: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1277,16 +1436,18 @@ public struct DocumentMetaFfi: Equatable, Hashable {
     public var cover: String?
     public var updatedAt: String
     public var createdAt: String
+    public var folderId: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, titlePlain: String, titleJson: String, cover: String?, updatedAt: String, createdAt: String) {
+    public init(id: String, titlePlain: String, titleJson: String, cover: String?, updatedAt: String, createdAt: String, folderId: String?) {
         self.id = id
         self.titlePlain = titlePlain
         self.titleJson = titleJson
         self.cover = cover
         self.updatedAt = updatedAt
         self.createdAt = createdAt
+        self.folderId = folderId
     }
 
     
@@ -1310,7 +1471,8 @@ public struct FfiConverterTypeDocumentMetaFfi: FfiConverterRustBuffer {
                 titleJson: FfiConverterString.read(from: &buf), 
                 cover: FfiConverterOptionString.read(from: &buf), 
                 updatedAt: FfiConverterString.read(from: &buf), 
-                createdAt: FfiConverterString.read(from: &buf)
+                createdAt: FfiConverterString.read(from: &buf), 
+                folderId: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -1321,6 +1483,7 @@ public struct FfiConverterTypeDocumentMetaFfi: FfiConverterRustBuffer {
         FfiConverterOptionString.write(value.cover, into: &buf)
         FfiConverterString.write(value.updatedAt, into: &buf)
         FfiConverterString.write(value.createdAt, into: &buf)
+        FfiConverterOptionString.write(value.folderId, into: &buf)
     }
 }
 
@@ -1341,6 +1504,75 @@ public func FfiConverterTypeDocumentMetaFfi_lower(_ value: DocumentMetaFfi) -> R
 
 
 /**
+ * Métadonnées légères d'un dossier.
+ */
+public struct FolderMetaFfi: Equatable, Hashable {
+    public var id: String
+    public var name: String
+    public var parentId: String?
+    public var createdAt: String
+    public var updatedAt: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, name: String, parentId: String?, createdAt: String, updatedAt: String) {
+        self.id = id
+        self.name = name
+        self.parentId = parentId
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FolderMetaFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFolderMetaFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FolderMetaFfi {
+        return
+            try FolderMetaFfi(
+                id: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                parentId: FfiConverterOptionString.read(from: &buf), 
+                createdAt: FfiConverterString.read(from: &buf), 
+                updatedAt: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FolderMetaFfi, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterOptionString.write(value.parentId, into: &buf)
+        FfiConverterString.write(value.createdAt, into: &buf)
+        FfiConverterString.write(value.updatedAt, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFolderMetaFfi_lift(_ buf: RustBuffer) throws -> FolderMetaFfi {
+    return try FfiConverterTypeFolderMetaFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFolderMetaFfi_lower(_ value: FolderMetaFfi) -> RustBuffer {
+    return FfiConverterTypeFolderMetaFfi.lower(value)
+}
+
+
+/**
  * Résumé d'une opération d'import retourné à Swift.
  */
 public struct ImportResultFfi: Equatable, Hashable {
@@ -1350,16 +1582,40 @@ public struct ImportResultFfi: Equatable, Hashable {
     public var entries: UInt32
     public var blocks: UInt32
     public var skipped: UInt32
+    /**
+     * Combined importer only: pages imported via textbundle content (0 otherwise).
+     */
+    public var matchedTextbundle: UInt32
+    /**
+     * Combined importer only: realm pages with no matching textbundle (0 otherwise).
+     */
+    public var realmFallback: UInt32
+    /**
+     * Combined importer only: textbundles with no matching realm page (0 otherwise).
+     */
+    public var textbundleOnly: UInt32
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(app: String, databaseId: String, documents: UInt32, entries: UInt32, blocks: UInt32, skipped: UInt32) {
+    public init(app: String, databaseId: String, documents: UInt32, entries: UInt32, blocks: UInt32, skipped: UInt32, 
+        /**
+         * Combined importer only: pages imported via textbundle content (0 otherwise).
+         */matchedTextbundle: UInt32, 
+        /**
+         * Combined importer only: realm pages with no matching textbundle (0 otherwise).
+         */realmFallback: UInt32, 
+        /**
+         * Combined importer only: textbundles with no matching realm page (0 otherwise).
+         */textbundleOnly: UInt32) {
         self.app = app
         self.databaseId = databaseId
         self.documents = documents
         self.entries = entries
         self.blocks = blocks
         self.skipped = skipped
+        self.matchedTextbundle = matchedTextbundle
+        self.realmFallback = realmFallback
+        self.textbundleOnly = textbundleOnly
     }
 
     
@@ -1383,7 +1639,10 @@ public struct FfiConverterTypeImportResultFfi: FfiConverterRustBuffer {
                 documents: FfiConverterUInt32.read(from: &buf), 
                 entries: FfiConverterUInt32.read(from: &buf), 
                 blocks: FfiConverterUInt32.read(from: &buf), 
-                skipped: FfiConverterUInt32.read(from: &buf)
+                skipped: FfiConverterUInt32.read(from: &buf), 
+                matchedTextbundle: FfiConverterUInt32.read(from: &buf), 
+                realmFallback: FfiConverterUInt32.read(from: &buf), 
+                textbundleOnly: FfiConverterUInt32.read(from: &buf)
         )
     }
 
@@ -1394,6 +1653,9 @@ public struct FfiConverterTypeImportResultFfi: FfiConverterRustBuffer {
         FfiConverterUInt32.write(value.entries, into: &buf)
         FfiConverterUInt32.write(value.blocks, into: &buf)
         FfiConverterUInt32.write(value.skipped, into: &buf)
+        FfiConverterUInt32.write(value.matchedTextbundle, into: &buf)
+        FfiConverterUInt32.write(value.realmFallback, into: &buf)
+        FfiConverterUInt32.write(value.textbundleOnly, into: &buf)
     }
 }
 
@@ -1604,6 +1866,31 @@ fileprivate struct FfiConverterSequenceTypeDocumentMetaFfi: FfiConverterRustBuff
         return seq
     }
 }
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeFolderMetaFfi: FfiConverterRustBuffer {
+    typealias SwiftType = [FolderMetaFfi]
+
+    public static func write(_ value: [FolderMetaFfi], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFolderMetaFfi.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FolderMetaFfi] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FolderMetaFfi]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFolderMetaFfi.read(from: &buf))
+        }
+        return seq
+    }
+}
 private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
 private let UNIFFI_RUST_FUTURE_POLL_WAKE: Int8 = 1
 
@@ -1692,6 +1979,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_create_document() != 6653) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_create_folder() != 49423) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_documents() != 3995) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_block() != 14109) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -1702,6 +1995,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_entry() != 44863) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_folder() != 31554) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_property() != 45324) {
@@ -1716,6 +2012,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_get_document_json() != 23306) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_get_folder() != 38177) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_grouped_query_database_json() != 2473) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -1723,6 +2022,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_craft() != 6467) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_craft_combined() != 48693) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_craft_textbundle() != 42783) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion() != 39297) {
@@ -1734,13 +2039,28 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_documents() != 62408) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_documents_in_folder() != 8688) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_folders() != 40736) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_move_block() != 56333) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_move_document_to_folder() != 22257) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_move_folder_to() != 28416) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_query_database_json() != 4012) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_query_database_with_rollups_json() != 38250) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_rename_folder() != 49667) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_rename_property() != 36506) {

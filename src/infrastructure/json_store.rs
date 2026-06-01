@@ -74,6 +74,14 @@ impl DocumentRepository for JsonStore {
             }
         })
     }
+
+    fn move_to_folder(&self, _doc_id: Uuid, _folder_id: Option<Uuid>) -> Result<(), PinkhaError> {
+        Ok(())
+    }
+
+    fn list_by_folder(&self, _folder_id: Option<Uuid>) -> Result<Vec<DocumentMeta>, PinkhaError> {
+        self.list()
+    }
 }
 
 #[cfg(test)]

@@ -4,14 +4,16 @@ use serde::de::DeserializeOwned;
 use uuid::Uuid;
 
 use crate::application::error::PinkhaError as CoreError;
-use crate::application::{database_use_cases, use_cases};
+use crate::application::{database_use_cases, folder_use_cases, use_cases};
 use crate::domain::database::{
     Aggregate, DatabaseMeta, Entry, Filter, Property, Sort, PropertyValue, View,
 };
 use crate::domain::document::{Block, BlockContent, DocumentMeta};
+use crate::domain::folder::FolderMeta;
 use crate::domain::parser::parse_inline;
 use crate::infrastructure::sqlite_database_store::SqliteDatabaseStore;
 use crate::infrastructure::sqlite_document_store::SqliteDocumentStore;
+use crate::infrastructure::sqlite_folder_store::SqliteFolderStore;
 
 // ── FFI error ─────────────────────────────────────────────────────────────────
 
@@ -77,6 +79,22 @@ pub struct DocumentMetaFfi {
     pub updated_at: String,
     /// RFC 3339 timestamp of creation.
     pub created_at: String,
+    /// UUID of the folder this document belongs to, or `None` for root.
+    pub folder_id: Option<String>,
+}
+
+/// Lightweight folder metadata passed across the FFI boundary.
+pub struct FolderMetaFfi {
+    /// UUID string of the folder.
+    pub id: String,
+    /// Display name.
+    pub name: String,
+    /// UUID of the parent folder, or `None` for a top-level folder.
+    pub parent_id: Option<String>,
+    /// RFC 3339 creation timestamp.
+    pub created_at: String,
+    /// RFC 3339 last-update timestamp.
+    pub updated_at: String,
 }
 
 /// Summary of a completed import operation, returned to Swift.
@@ -94,6 +112,12 @@ pub struct ImportResultFfi {
     pub blocks: u32,
     /// Number of source items skipped (unsupported block type, etc.).
     pub skipped: u32,
+    /// Combined importer only: pages imported via textbundle content (0 otherwise).
+    pub matched_textbundle: u32,
+    /// Combined importer only: realm pages with no matching textbundle (0 otherwise).
+    pub realm_fallback: u32,
+    /// Combined importer only: textbundles with no matching realm page (0 otherwise).
+    pub textbundle_only: u32,
 }
 
 /// Lightweight database metadata passed across the FFI boundary.
@@ -126,6 +150,18 @@ fn doc_meta_to_ffi(m: DocumentMeta) -> DocumentMetaFfi {
         cover: m.cover,
         updated_at: m.updated_at,
         created_at: m.created_at,
+        folder_id: m.folder_id.map(|id| id.to_string()),
+    }
+}
+
+/// Converts a [`FolderMeta`] to its FFI representation.
+fn folder_meta_to_ffi(m: FolderMeta) -> FolderMetaFfi {
+    FolderMetaFfi {
+        id: m.id.to_string(),
+        name: m.name,
+        parent_id: m.parent_id.map(|id| id.to_string()),
+        created_at: m.created_at,
+        updated_at: m.updated_at,
     }
 }
 
@@ -218,6 +254,7 @@ fn get_block_id(block: Block) -> String {
 pub struct PinkhaApi {
     docs: SqliteDocumentStore,
     dbs: SqliteDatabaseStore,
+    folders: SqliteFolderStore,
 }
 
 impl PinkhaApi {
@@ -225,7 +262,8 @@ impl PinkhaApi {
     pub fn new(db_path: String) -> Result<Self, PinkhaError> {
         let docs = SqliteDocumentStore::new(&db_path).map_err(PinkhaError::from)?;
         let dbs = SqliteDatabaseStore::new(&db_path).map_err(PinkhaError::from)?;
-        Ok(Self { docs, dbs })
+        let folders = SqliteFolderStore::new(&db_path).map_err(PinkhaError::from)?;
+        Ok(Self { docs, dbs, folders })
     }
 
     // ── Documents ─────────────────────────────────────────────
@@ -257,6 +295,16 @@ impl PinkhaApi {
     pub fn delete_document(&self, id: String) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
         use_cases::delete_document(&self.docs, uuid).map_err(PinkhaError::from)
+    }
+
+    /// Soft-deletes every document. Returns the number of documents deleted.
+    pub fn delete_all_documents(&self) -> Result<u32, PinkhaError> {
+        let metas = use_cases::list_documents(&self.docs).map_err(PinkhaError::from)?;
+        let count = metas.len() as u32;
+        for meta in metas {
+            use_cases::delete_document(&self.docs, meta.id).map_err(PinkhaError::from)?;
+        }
+        Ok(count)
     }
 
     /// Replaces the document title with a plain-text string parsed into inline spans.
@@ -610,6 +658,74 @@ impl PinkhaApi {
         to_json(&entries)
     }
 
+    // ── Folders ───────────────────────────────────────────────────────────────
+
+    pub fn create_folder(
+        &self,
+        name: String,
+        parent_id: Option<String>,
+    ) -> Result<FolderMetaFfi, PinkhaError> {
+        validate_string(&name, "name")?;
+        let pid = parent_id.as_deref().map(parse_uuid).transpose()?;
+        let folder = folder_use_cases::create_folder(&self.folders, &name, pid)
+            .map_err(PinkhaError::from)?;
+        Ok(folder_meta_to_ffi((&folder).into()))
+    }
+
+    pub fn get_folder(&self, id: String) -> Result<FolderMetaFfi, PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        let folder = folder_use_cases::get_folder(&self.folders, uuid)
+            .map_err(PinkhaError::from)?;
+        Ok(folder_meta_to_ffi((&folder).into()))
+    }
+
+    pub fn list_folders(&self) -> Result<Vec<FolderMetaFfi>, PinkhaError> {
+        folder_use_cases::list_folders(&self.folders)
+            .map(|v| v.into_iter().map(folder_meta_to_ffi).collect())
+            .map_err(PinkhaError::from)
+    }
+
+    pub fn rename_folder(&self, id: String, new_name: String) -> Result<(), PinkhaError> {
+        validate_string(&new_name, "new_name")?;
+        let uuid = parse_uuid(&id)?;
+        folder_use_cases::rename_folder(&self.folders, uuid, &new_name)
+            .map_err(PinkhaError::from)
+    }
+
+    pub fn delete_folder(&self, id: String) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        folder_use_cases::delete_folder(&self.folders, uuid)
+            .map_err(PinkhaError::from)
+    }
+
+    pub fn move_folder_to(&self, id: String, new_parent_id: Option<String>) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        let pid = new_parent_id.as_deref().map(parse_uuid).transpose()?;
+        folder_use_cases::move_folder(&self.folders, uuid, pid)
+            .map_err(PinkhaError::from)
+    }
+
+    pub fn move_document_to_folder(
+        &self,
+        doc_id: String,
+        folder_id: Option<String>,
+    ) -> Result<(), PinkhaError> {
+        let doc_uuid = parse_uuid(&doc_id)?;
+        let fid = folder_id.as_deref().map(parse_uuid).transpose()?;
+        use_cases::move_document_to_folder(&self.docs, doc_uuid, fid)
+            .map_err(PinkhaError::from)
+    }
+
+    pub fn list_documents_in_folder(
+        &self,
+        folder_id: Option<String>,
+    ) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
+        let fid = folder_id.as_deref().map(parse_uuid).transpose()?;
+        use_cases::list_documents_in_folder(&self.docs, fid)
+            .map(|v| v.into_iter().map(doc_meta_to_ffi).collect())
+            .map_err(PinkhaError::from)
+    }
+
     // ── Extractors ────────────────────────────────────────────────────────────
     //
     // Async import methods — one per source application.
@@ -635,16 +751,9 @@ impl PinkhaApi {
         let extractor = NotionExtractor::new();
         let config = NotionConfig { token, database_id };
         extractor
-            .run(config, &self.docs as &(dyn crate::application::repository::DocumentRepository + Send + Sync), &self.dbs as &(dyn crate::application::database_repository::DatabaseRepository + Send + Sync))
+            .run(config, &self.docs as &(dyn crate::application::repository::DocumentRepository + Send + Sync), &self.dbs as &(dyn crate::application::database_repository::DatabaseRepository + Send + Sync), &self.folders)
             .await
-            .map(|r| ImportResultFfi {
-                app: r.app.to_string(),
-                database_id: r.database_id.map(|id| id.to_string()).unwrap_or_default(),
-                documents: r.documents as u32,
-                entries: r.entries as u32,
-                blocks: r.blocks as u32,
-                skipped: r.skipped as u32,
-            })
+            .map(|r| ffi_import_result(r))
             .map_err(|e| match e {
                 crate::extractors::ExtractorError::Http { status, message } =>
                     PinkhaError::Storage { detail: format!("Notion HTTP {status}: {message}") },
@@ -670,16 +779,9 @@ impl PinkhaApi {
         let extractor = BearExtractor::new();
         let config = BearConfig { db_path };
         extractor
-            .run(config, &self.docs, &self.dbs)
+            .run(config, &self.docs, &self.dbs, &self.folders)
             .await
-            .map(|r| ImportResultFfi {
-                app: r.app.to_string(),
-                database_id: r.database_id.map(|id| id.to_string()).unwrap_or_default(),
-                documents: r.documents as u32,
-                entries: r.entries as u32,
-                blocks: r.blocks as u32,
-                skipped: r.skipped as u32,
-            })
+            .map(|r| ffi_import_result(r))
             .map_err(extractor_err_to_ffi)
     }
 
@@ -697,17 +799,72 @@ impl PinkhaApi {
         let extractor = CraftExtractor::new();
         let config = CraftConfig { db_path };
         extractor
-            .run(config, &self.docs, &self.dbs)
+            .run(config, &self.docs, &self.dbs, &self.folders)
             .await
-            .map(|r| ImportResultFfi {
+            .map(|r| ffi_import_result(r))
+            .map_err(extractor_err_to_ffi)
+    }
+
+    /// `root_dir` — absolute path to the folder containing `.textbundle` packages
+    /// exported from Craft ("Export All").
+    pub async fn import_from_craft_textbundle(
+        &self,
+        root_dir: String,
+    ) -> Result<ImportResultFfi, PinkhaError> {
+        use crate::extractors::craft_textbundle::{CraftTextBundleExtractor, CraftTextBundleConfig};
+        use crate::extractors::traits::Extractor;
+        validate_string(&root_dir, "root_dir")?;
+        let extractor = CraftTextBundleExtractor::new();
+        let config = CraftTextBundleConfig { root_dir };
+        extractor
+            .run(config, &self.docs, &self.dbs, &self.folders)
+            .await
+            .map(|r| ffi_import_result(r))
+            .map_err(extractor_err_to_ffi)
+    }
+
+    /// Combines Craft's `.realm` database with a folder of `.textbundle` exports.
+    /// `realm_path` — absolute path to the `.realm` file.
+    /// `textbundle_root` — absolute path to the folder containing `.textbundle` packages.
+    pub async fn import_from_craft_combined(
+        &self,
+        realm_path: String,
+        textbundle_root: String,
+    ) -> Result<ImportResultFfi, PinkhaError> {
+        use crate::extractors::craft_combined::{CraftCombinedExtractor, CraftCombinedConfig};
+        validate_string(&realm_path, "realm_path")?;
+        validate_string(&textbundle_root, "textbundle_root")?;
+        let extractor = CraftCombinedExtractor::new();
+        let config = CraftCombinedConfig { realm_path, textbundle_root };
+        extractor
+            .run_detailed(config, &self.docs, &self.dbs, &self.folders)
+            .await
+            .map(|(r, bd)| ImportResultFfi {
                 app: r.app.to_string(),
-                database_id: r.database_id.map(|id| id.to_string()).unwrap_or_default(),
+                database_id: String::new(),
                 documents: r.documents as u32,
-                entries: r.entries as u32,
+                entries: 0,
                 blocks: r.blocks as u32,
                 skipped: r.skipped as u32,
+                matched_textbundle: bd.matched_textbundle as u32,
+                realm_fallback: bd.realm_fallback as u32,
+                textbundle_only: bd.textbundle_only as u32,
             })
             .map_err(extractor_err_to_ffi)
+    }
+}
+
+fn ffi_import_result(r: crate::extractors::ImportResult) -> ImportResultFfi {
+    ImportResultFfi {
+        app: r.app.to_string(),
+        database_id: r.database_id.map(|id| id.to_string()).unwrap_or_default(),
+        documents: r.documents as u32,
+        entries: r.entries as u32,
+        blocks: r.blocks as u32,
+        skipped: r.skipped as u32,
+        matched_textbundle: 0,
+        realm_fallback: 0,
+        textbundle_only: 0,
     }
 }
 

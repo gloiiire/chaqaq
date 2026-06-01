@@ -13,6 +13,8 @@ pub mod traits;
 pub mod notion;
 pub mod bear;
 pub mod craft;
+pub mod craft_textbundle;
+pub mod craft_combined;
 
 use crate::application::error::PinkhaError;
 use uuid::Uuid;

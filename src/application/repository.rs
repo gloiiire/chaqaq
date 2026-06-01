@@ -18,4 +18,10 @@ pub trait DocumentRepository {
 
     /// Soft-deletes (or permanently removes) a document by ID.
     fn delete(&self, id: Uuid) -> Result<(), PinkhaError>;
+
+    /// Moves a document into a folder (or to root if `folder_id` is None).
+    fn move_to_folder(&self, doc_id: Uuid, folder_id: Option<Uuid>) -> Result<(), PinkhaError>;
+
+    /// Lists metadata for documents in a specific folder (None = root-level only).
+    fn list_by_folder(&self, folder_id: Option<Uuid>) -> Result<Vec<DocumentMeta>, PinkhaError>;
 }

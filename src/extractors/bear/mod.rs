@@ -17,8 +17,10 @@ pub mod schema;
 pub mod mapper;
 
 use crate::application::database_repository::DatabaseRepository;
+use crate::application::folder_repository::FolderRepository;
 use crate::application::repository::DocumentRepository;
 use crate::application::use_cases;
+use crate::domain::document::Block;
 use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
 
@@ -64,43 +66,30 @@ impl Extractor for BearExtractor {
         config: BearConfig,
         docs: &(dyn DocumentRepository + Send + Sync),
         dbs: &(dyn DatabaseRepository + Send + Sync),
+        _folders: &(dyn FolderRepository + Send + Sync),
     ) -> Result<ImportResult, ExtractorError> {
-        // Unused — Bear produces only documents, no databases.
         let _ = dbs;
 
-        // 1. Open Bear's SQLite in read-only mode.
         let reader = BearReader::new(&config.db_path)?;
-
-        // 2. Fetch all non-trashed notes.
         let notes = reader.fetch_notes()?;
 
         let mut total_blocks: usize = 0;
 
-        // 3. Import each note as a Pinkha document.
         for note in &notes {
-            // Use the Bear title as the Pinkha document title.
-            let title = if note.title.is_empty() {
-                "Untitled"
-            } else {
-                &note.title
-            };
+            let title = if note.title.is_empty() { "Untitled" } else { &note.title };
 
-            // Create the document (this does one save with title only).
-            let doc = use_cases::create_document(docs, title)?;
-            let doc_id = doc.id;
+            let mut doc = use_cases::create_document(docs, title)?;
+            let parsed_blocks = parse_note_blocks(&note.text);
+            let block_count = parsed_blocks.len();
 
-            // Parse the note body into blocks.
-            let block_contents = parse_note_blocks(&note.text);
-            let block_count = block_contents.len();
-
-            // Bulk in-memory update: load → push all blocks → save once.
-            if !block_contents.is_empty() {
-                let mut full_doc = docs.load(doc_id)?;
-                for content in block_contents {
-                    full_doc.add_block(content);
+            for parsed in parsed_blocks {
+                let mut block = Block::new(parsed.content);
+                for child_content in parsed.children {
+                    block.children.push(Block::new(child_content));
                 }
-                docs.save(&full_doc)?;
+                doc.blocks.push(block);
             }
+            docs.save(&doc)?;
 
             total_blocks += block_count;
         }

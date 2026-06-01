@@ -15,12 +15,15 @@ use std::collections::HashMap;
 use realm_codec::RealmFile;
 
 use crate::application::database_repository::DatabaseRepository;
+use crate::application::folder_repository::FolderRepository;
 use crate::application::repository::DocumentRepository;
 use crate::application::use_cases;
-use crate::domain::document::BlockContent;
+use crate::domain::document::{Block, BlockContent};
+use crate::extractors::bear::mapper::ParsedBlock;
 use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
 use chaqaq::InlineText;
+use uuid::Uuid;
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -56,6 +59,7 @@ impl Extractor for CraftExtractor {
         config: CraftConfig,
         docs: &(dyn DocumentRepository + Send + Sync),
         _dbs: &(dyn DatabaseRepository + Send + Sync),
+        _folders: &(dyn FolderRepository + Send + Sync),
     ) -> Result<ImportResult, ExtractorError> {
         let realm = RealmFile::open(&config.db_path)
             .map_err(|e| ExtractorError::Parse(format!("cannot open realm file: {e}")))?;
@@ -95,7 +99,7 @@ impl Extractor for CraftExtractor {
             .ok_or_else(|| ExtractorError::Parse("lastSyncedBlockIds column missing".into()))?;
 
         // doc_id → (title, content_blocks, skipped_count)
-        let mut doc_map: HashMap<String, (Option<String>, Vec<BlockContent>, usize)> =
+        let mut doc_map: HashMap<String, (Option<String>, Vec<ParsedBlock>, usize)> =
             HashMap::new();
 
         for row in &block_table.rows {
@@ -118,7 +122,7 @@ impl Extractor for CraftExtractor {
             }
 
             match map_block(&content, block_type) {
-                Some(bc) => entry.1.push(bc),
+                Some(bc) => entry.1.push(ParsedBlock { content: bc, children: vec![] }),
                 None => entry.2 += 1,
             }
         }
@@ -132,7 +136,7 @@ impl Extractor for CraftExtractor {
             let title = title_opt.unwrap_or_else(|| "Untitled".to_string());
             block_count += blocks.len();
             skipped += doc_skipped;
-            flush_document(docs, &title, blocks)?;
+            flush_document(docs, &title, blocks, None)?;
             doc_count += 1;
         }
 
@@ -151,7 +155,7 @@ impl Extractor for CraftExtractor {
 
 // Returns the title candidate from a block: only "text" blocks qualify,
 // and only the first non-empty trimmed line is used.
-fn title_candidate(content: &str, block_type: &str) -> Option<String> {
+pub fn title_candidate(content: &str, block_type: &str) -> Option<String> {
     if block_type != "text" {
         return None;
     }
@@ -159,7 +163,7 @@ fn title_candidate(content: &str, block_type: &str) -> Option<String> {
     if line.is_empty() { None } else { Some(line.to_string()) }
 }
 
-fn map_block(content: &str, block_type: &str) -> Option<BlockContent> {
+pub fn map_block(content: &str, block_type: &str) -> Option<BlockContent> {
     match block_type {
         "text" => Some(BlockContent::Text(plain(content))),
         "code" => {
@@ -173,24 +177,28 @@ fn map_block(content: &str, block_type: &str) -> Option<BlockContent> {
     }
 }
 
-fn plain(s: &str) -> Vec<InlineText> {
+pub fn plain(s: &str) -> Vec<InlineText> {
     vec![InlineText { content: s.to_string(), styles: vec![] }]
 }
 
-fn flush_document(
+pub fn flush_document(
     docs: &(dyn DocumentRepository + Send + Sync),
     title: &str,
-    blocks: Vec<BlockContent>,
+    blocks: Vec<ParsedBlock>,
+    folder_id: Option<Uuid>,
 ) -> Result<(), ExtractorError> {
-    let doc = use_cases::create_document(docs, title)?;
-    if blocks.is_empty() {
-        return Ok(());
+    let mut doc = use_cases::create_document(docs, title)?;
+    for parsed in blocks {
+        let mut block = Block::new(parsed.content);
+        for child_content in parsed.children {
+            block.children.push(Block::new(child_content));
+        }
+        doc.blocks.push(block);
     }
-    let mut full_doc = docs.load(doc.id)?;
-    for bc in blocks {
-        full_doc.add_block(bc);
+    if let Some(fid) = folder_id {
+        doc.folder_id = Some(fid);
     }
-    docs.save(&full_doc)?;
+    docs.save(&doc)?;
     Ok(())
 }
 

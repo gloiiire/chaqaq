@@ -6,12 +6,14 @@ import SwiftUI
 struct DocumentTitleView: View {
     @Binding var title: String
     @Binding var focusDemande: Bool
+    @Binding var focusCursorOffset: Int?
     let onSave: () -> Void
-    let onNewBlock: () -> Void
+    let onNewBlock: (String) -> Void
     @State private var focused = false
 
     var body: some View {
         TitleEditor(text: $title, isFocused: $focused,
+                    cursorOffset: $focusCursorOffset,
                     onSave: onSave, onNewBlock: onNewBlock)
             .onChange(of: focusDemande) { _, requested in
                 if requested {
@@ -27,9 +29,10 @@ struct DocumentTitleView: View {
 private struct TitleEditor: UIViewRepresentable {
     @Binding var text: String
     @Binding var isFocused: Bool
+    @Binding var cursorOffset: Int?
     @Environment(\.isEnabled) private var isEnabled
     let onSave: () -> Void
-    let onNewBlock: () -> Void
+    let onNewBlock: (String) -> Void
 
     private let police = UIFont.systemFont(ofSize: 32, weight: .bold)
 
@@ -66,9 +69,16 @@ private struct TitleEditor: UIViewRepresentable {
                 : NSAttributedString(string: text, attributes: [.font: police, .foregroundColor: UIColor.label])
         }
         if isFocused && !tv.isFirstResponder {
+            let targetOffset = cursorOffset
             DispatchQueue.main.async {
                 _ = tv.becomeFirstResponder()
-                tv.selectedRange = NSRange(location: tv.text.count, length: 0)
+                if let offset = targetOffset {
+                    let loc = min(offset, tv.text.utf16.count)
+                    tv.selectedRange = NSRange(location: loc, length: 0)
+                    self.cursorOffset = nil
+                } else {
+                    tv.selectedRange = NSRange(location: tv.text.utf16.count, length: 0)
+                }
             }
         } else if !isFocused && tv.isFirstResponder {
             tv.resignFirstResponder()
@@ -110,12 +120,15 @@ private struct TitleEditor: UIViewRepresentable {
 
         func textViewDidChange(_ tv: UITextView) {
             guard let text = tv.text else { return }
-            // Enter in the title: remove the newline and create the first block.
+            // Enter in the title: keep text before the newline as title,
+            // move text after the newline into a new block below.
             if let idx = text.firstIndex(of: "\n") {
-                tv.text = String(text[text.startIndex..<idx])
-                parent.text = tv.text
+                let before = String(text[text.startIndex..<idx])
+                let after  = String(text[text.index(after: idx)...])
+                tv.text = before
+                parent.text = before
                 parent.onSave()
-                parent.onNewBlock()
+                parent.onNewBlock(after)
                 return
             }
             parent.text = text

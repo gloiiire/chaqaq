@@ -1,19 +1,18 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-// ── Import from Craft sheet ────────────────────────────────────────────────────
+// ── Import from Craft (TextBundle) sheet ──────────────────────────────────────
 //
-// On macOS (Catalyst) the sheet auto-detects Craft's .realm file at its known
-// container path — the user just taps "Import".
-// On iOS the user must select the file manually via the file picker.
+// The user selects the root folder exported from Craft ("Export All as TextBundle").
+// On macOS (Catalyst) the folder picker works natively.
+// On iOS the folder must be accessible via the Files app.
 
-struct CraftImportView: View {
+struct CraftTextBundleImportView: View {
     let api: PinkhaApi?
     let onDone: () -> Void
 
     @State private var selectedPath: String?
-    @State private var autoDetected = false
-    @State private var showingFilePicker = false
+    @State private var showingFolderPicker = false
     @State private var importState: ImportState = .idle
     @Environment(\.dismiss) private var dismiss
 
@@ -42,17 +41,15 @@ struct CraftImportView: View {
                     }
                 }
                 .fileImporter(
-                    isPresented: $showingFilePicker,
-                    allowedContentTypes: [UTType(filenameExtension: "realm") ?? .data],
+                    isPresented: $showingFolderPicker,
+                    allowedContentTypes: [.folder],
                     allowsMultipleSelection: false
                 ) { result in
                     if case .success(let urls) = result, let url = urls.first {
                         _ = url.startAccessingSecurityScopedResource()
                         selectedPath = url.path
-                        autoDetected = false
                     }
                 }
-                .task { detectCraftDatabase() }
         }
         .presentationDetents([.large])
     }
@@ -70,7 +67,7 @@ struct CraftImportView: View {
         Form {
             Section {
                 Button {
-                    showingFilePicker = true
+                    showingFolderPicker = true
                 } label: {
                     HStack {
                         Image(systemName: "folder")
@@ -79,35 +76,25 @@ struct CraftImportView: View {
                             if let path = selectedPath {
                                 Text(URL(fileURLWithPath: path).lastPathComponent)
                                     .foregroundStyle(.primary)
-                                if autoDetected {
-                                    Text("Auto-detected · tap to change")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                }
                             } else {
-                                Text("Choose Craft database…")
+                                Text("Choose export folder…")
                                     .foregroundStyle(.secondary)
                             }
                         }
                         Spacer()
                         if selectedPath != nil {
-                            Image(systemName: autoDetected ? "sparkles" : "checkmark")
-                                .foregroundStyle(autoDetected ? Color.accentColor : Color.green)
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.green)
                                 .font(.footnote.weight(.semibold))
                         }
                     }
                 }
                 .buttonStyle(.plain)
             } header: {
-                Text("Craft Database")
+                Text("TextBundle Export Folder")
             } footer: {
-                if autoDetected {
-                    Text("Craft database detected automatically.")
-                        .font(.caption2)
-                } else {
-                    Text("Craft's database is at:\n~/Library/Containers/com.lukilabs.lukiapp/Data/Library/Application Support/com.lukilabs.lukiapp/LukiMain_*.realm")
-                        .font(.caption2)
-                }
+                Text("In Craft: ··· → Export → Export All → TextBundle. Select the exported folder here.")
+                    .font(.caption2)
             }
 
             if case .running = importState {
@@ -165,38 +152,6 @@ struct CraftImportView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // ── Auto-detect ───────────────────────────────────────────────────────────
-
-    private func detectCraftDatabase() {
-        guard selectedPath == nil else { return }
-        #if targetEnvironment(macCatalyst)
-        let fm = FileManager.default
-        let home = fm.homeDirectoryForCurrentUser
-        let container = home
-            .appendingPathComponent("Library/Containers/com.lukilabs.lukiapp")
-            .appendingPathComponent("Data/Library/Application Support/com.lukilabs.lukiapp")
-
-        guard let entries = try? fm.contentsOfDirectory(
-            at: container,
-            includingPropertiesForKeys: [.contentModificationDateKey],
-            options: .skipsHiddenFiles
-        ) else { return }
-
-        let latest = entries
-            .filter { $0.pathExtension == "realm" }
-            .max {
-                let a = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
-                let b = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
-                return a < b
-            }
-
-        if let url = latest {
-            selectedPath = url.path
-            autoDetected = true
-        }
-        #endif
-    }
-
     // ── Import ────────────────────────────────────────────────────────────────
 
     private var isDone: Bool { if case .done = importState { return true }; return false }
@@ -206,7 +161,7 @@ struct CraftImportView: View {
         importState = .running
         Task {
             do {
-                let result = try await api.importFromCraft(dbPath: path)
+                let result = try await api.importFromCraftTextbundle(rootDir: path)
                 importState = .done(result)
             } catch {
                 importState = .failed(error.localizedDescription)

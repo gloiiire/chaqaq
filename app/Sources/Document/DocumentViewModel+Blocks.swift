@@ -4,7 +4,7 @@ import SwiftUI
 
 extension DocumentViewModel {
 
-    func addBlock(type: NewBlockType, initialSpans: [InlineTextFfi] = [], afterId: String? = nil) {
+    func addBlock(type: NewBlockType, initialSpans: [InlineTextFfi] = [], afterId: String? = nil, atStart: Bool = false) {
         do {
             let content: BlockContentFfi
             switch type {
@@ -24,6 +24,9 @@ extension DocumentViewModel {
 
             if let afterId, let idx = blocks.firstIndex(where: { $0.id == afterId }) {
                 blocks.insert(newBlock, at: idx + 1)
+                try? api.reorderBlocks(docId: docId, order: blocks.map(\.id))
+            } else if atStart {
+                blocks.insert(newBlock, at: 0)
                 try? api.reorderBlocks(docId: docId, order: blocks.map(\.id))
             } else {
                 blocks.append(newBlock)
