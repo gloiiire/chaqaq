@@ -13,6 +13,11 @@
 //
 // Result: full coverage, no duplicates, textbundle content preferred when
 // available (richer markdown fidelity, reliable filename-based title).
+//
+// Matching is done on normalized titles (see `normalize()`):
+//   - lowercase + trim
+//   - leading Markdown heading markers stripped ("# ", "## ", "### ")
+//   - trailing Craft dedup suffix stripped (" (1)", " (2)", …)
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -36,6 +41,18 @@ pub struct CraftCombinedConfig {
     pub textbundle_root: String,
 }
 
+// ── Breakdown ─────────────────────────────────────────────────────────────────
+
+/// Per-source breakdown returned by `run_detailed`.
+pub struct CraftCombinedBreakdown {
+    /// Pages imported via matching textbundle content (best quality).
+    pub matched_textbundle: usize,
+    /// Realm pages with no matching textbundle (fallback to realm blocks).
+    pub realm_fallback: usize,
+    /// Textbundles with no matching realm page (imported as-is).
+    pub textbundle_only: usize,
+}
+
 // ── Extractor ─────────────────────────────────────────────────────────────────
 
 pub struct CraftCombinedExtractor;
@@ -44,27 +61,16 @@ impl CraftCombinedExtractor {
     pub fn new() -> Self {
         Self
     }
-}
 
-impl Default for CraftCombinedExtractor {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Extractor for CraftCombinedExtractor {
-    type Config = CraftCombinedConfig;
-
-    fn app_name(&self) -> &'static str {
-        "Craft (Combined)"
-    }
-
-    async fn run(
+    /// Full import with per-source breakdown statistics.
+    pub async fn run_detailed(
         &self,
         config: CraftCombinedConfig,
         docs: &(dyn DocumentRepository + Send + Sync),
-        _dbs: &(dyn DatabaseRepository + Send + Sync),
-    ) -> Result<ImportResult, ExtractorError> {
+        dbs: &(dyn DatabaseRepository + Send + Sync),
+    ) -> Result<(ImportResult, CraftCombinedBreakdown), ExtractorError> {
+        let _ = dbs;
+
         // ── Step 1: index textbundles by normalized title ─────────────────────
         let tb_root = Path::new(&config.textbundle_root);
         let bundles = find_textbundles(tb_root);
@@ -137,33 +143,35 @@ impl Extractor for CraftCombinedExtractor {
         }
 
         // ── Step 4: persist, preferring textbundle when title matches ─────────
-        let mut doc_count = 0usize;
         let mut block_count = 0usize;
         let mut skipped = 0usize;
         let mut matched_tb_keys: HashSet<String> = HashSet::new();
+        let mut tb_matched_count = 0usize;
+        let mut realm_fallback_count = 0usize;
 
         for (_doc_id, (title_opt, realm_blocks, doc_skipped)) in doc_map {
             let realm_title = title_opt.unwrap_or_else(|| "Untitled".to_string());
             let key = normalize(&realm_title);
 
             if let Some((tb_title, bundle_path)) = tb_map.get(&key) {
-                // Textbundle match: use markdown content + filename title.
                 let md = std::fs::read_to_string(bundle_path.join("text.markdown"))
                     .unwrap_or_default();
                 let blocks = parse_note_blocks(&md);
                 block_count += blocks.len();
                 flush_document(docs, tb_title, blocks)?;
                 matched_tb_keys.insert(key);
+                tb_matched_count += 1;
             } else {
-                // Realm-only page: use realm block content.
                 block_count += realm_blocks.len();
                 skipped += doc_skipped;
                 flush_document(docs, &realm_title, realm_blocks)?;
+                realm_fallback_count += 1;
             }
-            doc_count += 1;
         }
 
         // ── Step 5: import textbundles with no realm counterpart ──────────────
+        let mut tb_only_count = 0usize;
+
         for bundle in &bundles {
             let title = textbundle_title(bundle);
             if matched_tb_keys.contains(&normalize(&title)) {
@@ -173,24 +181,82 @@ impl Extractor for CraftCombinedExtractor {
             let blocks = parse_note_blocks(&md);
             block_count += blocks.len();
             flush_document(docs, &title, blocks)?;
-            doc_count += 1;
+            tb_only_count += 1;
         }
 
-        Ok(ImportResult {
+        let doc_count = tb_matched_count + realm_fallback_count + tb_only_count;
+        let result = ImportResult {
             app: "Craft (Combined)",
             database_id: None,
             documents: doc_count,
             entries: 0,
             blocks: block_count,
             skipped,
-        })
+        };
+        let breakdown = CraftCombinedBreakdown {
+            matched_textbundle: tb_matched_count,
+            realm_fallback: realm_fallback_count,
+            textbundle_only: tb_only_count,
+        };
+        Ok((result, breakdown))
+    }
+}
+
+impl Default for CraftCombinedExtractor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Extractor for CraftCombinedExtractor {
+    type Config = CraftCombinedConfig;
+
+    fn app_name(&self) -> &'static str {
+        "Craft (Combined)"
+    }
+
+    async fn run(
+        &self,
+        config: CraftCombinedConfig,
+        docs: &(dyn DocumentRepository + Send + Sync),
+        dbs: &(dyn DatabaseRepository + Send + Sync),
+    ) -> Result<ImportResult, ExtractorError> {
+        self.run_detailed(config, docs, dbs).await.map(|(r, _)| r)
     }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-fn normalize(title: &str) -> String {
-    title.trim().to_lowercase()
+/// Normalizes a title for cross-source matching.
+///
+/// Steps (in order):
+///   1. Trim leading/trailing whitespace.
+///   2. Strip leading Markdown heading markers (`# `, `## `, `### `).
+///   3. Strip trailing Craft dedup suffix (` (1)`, ` (2)`, …).
+///   4. Lowercase.
+pub fn normalize(title: &str) -> String {
+    let s = title.trim();
+    // Strip heading markers that may appear if a heading block was picked as title
+    let s = s
+        .strip_prefix("### ")
+        .or_else(|| s.strip_prefix("## "))
+        .or_else(|| s.strip_prefix("# "))
+        .unwrap_or(s);
+    // Strip Craft dedup suffix " (N)"
+    let s = strip_dedup_suffix(s);
+    s.to_lowercase()
+}
+
+/// Strips a trailing ` (N)` suffix where N is one or more ASCII digits.
+fn strip_dedup_suffix(s: &str) -> &str {
+    if let Some(open) = s.rfind(" (") {
+        let tail = &s[open + 2..];
+        let digits = tail.strip_suffix(')').unwrap_or("");
+        if !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()) {
+            return &s[..open];
+        }
+    }
+    s
 }
 
 // ── Unit tests ────────────────────────────────────────────────────────────────
@@ -212,5 +278,46 @@ mod tests {
     #[test]
     fn normalize_emoji_preserved() {
         assert_eq!(normalize("Courses 🏡"), "courses 🏡");
+    }
+
+    #[test]
+    fn normalize_strips_h1() {
+        assert_eq!(normalize("# My Note"), "my note");
+    }
+
+    #[test]
+    fn normalize_strips_h2() {
+        assert_eq!(normalize("## My Note"), "my note");
+    }
+
+    #[test]
+    fn normalize_strips_h3() {
+        assert_eq!(normalize("### My Note"), "my note");
+    }
+
+    #[test]
+    fn normalize_no_heading_untouched() {
+        assert_eq!(normalize("#Hashtag"), "#hashtag");
+    }
+
+    #[test]
+    fn normalize_strips_dedup_suffix() {
+        assert_eq!(normalize("My Note (1)"), "my note");
+        assert_eq!(normalize("My Note (12)"), "my note");
+    }
+
+    #[test]
+    fn normalize_dedup_not_stripped_non_digits() {
+        assert_eq!(normalize("My Note (abc)"), "my note (abc)");
+    }
+
+    #[test]
+    fn normalize_dedup_not_stripped_empty_parens() {
+        assert_eq!(normalize("My Note ()"), "my note ()");
+    }
+
+    #[test]
+    fn normalize_heading_and_dedup_combined() {
+        assert_eq!(normalize("# Meeting Notes (2)"), "meeting notes");
     }
 }

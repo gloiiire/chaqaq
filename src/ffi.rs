@@ -94,6 +94,12 @@ pub struct ImportResultFfi {
     pub blocks: u32,
     /// Number of source items skipped (unsupported block type, etc.).
     pub skipped: u32,
+    /// Combined importer only: pages imported via textbundle content (0 otherwise).
+    pub matched_textbundle: u32,
+    /// Combined importer only: realm pages with no matching textbundle (0 otherwise).
+    pub realm_fallback: u32,
+    /// Combined importer only: textbundles with no matching realm page (0 otherwise).
+    pub textbundle_only: u32,
 }
 
 /// Lightweight database metadata passed across the FFI boundary.
@@ -647,14 +653,7 @@ impl PinkhaApi {
         extractor
             .run(config, &self.docs as &(dyn crate::application::repository::DocumentRepository + Send + Sync), &self.dbs as &(dyn crate::application::database_repository::DatabaseRepository + Send + Sync))
             .await
-            .map(|r| ImportResultFfi {
-                app: r.app.to_string(),
-                database_id: r.database_id.map(|id| id.to_string()).unwrap_or_default(),
-                documents: r.documents as u32,
-                entries: r.entries as u32,
-                blocks: r.blocks as u32,
-                skipped: r.skipped as u32,
-            })
+            .map(|r| ffi_import_result(r))
             .map_err(|e| match e {
                 crate::extractors::ExtractorError::Http { status, message } =>
                     PinkhaError::Storage { detail: format!("Notion HTTP {status}: {message}") },
@@ -682,14 +681,7 @@ impl PinkhaApi {
         extractor
             .run(config, &self.docs, &self.dbs)
             .await
-            .map(|r| ImportResultFfi {
-                app: r.app.to_string(),
-                database_id: r.database_id.map(|id| id.to_string()).unwrap_or_default(),
-                documents: r.documents as u32,
-                entries: r.entries as u32,
-                blocks: r.blocks as u32,
-                skipped: r.skipped as u32,
-            })
+            .map(|r| ffi_import_result(r))
             .map_err(extractor_err_to_ffi)
     }
 
@@ -740,15 +732,24 @@ impl PinkhaApi {
         textbundle_root: String,
     ) -> Result<ImportResultFfi, PinkhaError> {
         use crate::extractors::craft_combined::{CraftCombinedExtractor, CraftCombinedConfig};
-        use crate::extractors::traits::Extractor;
         validate_string(&realm_path, "realm_path")?;
         validate_string(&textbundle_root, "textbundle_root")?;
         let extractor = CraftCombinedExtractor::new();
         let config = CraftCombinedConfig { realm_path, textbundle_root };
         extractor
-            .run(config, &self.docs, &self.dbs)
+            .run_detailed(config, &self.docs, &self.dbs)
             .await
-            .map(|r| ffi_import_result(r))
+            .map(|(r, bd)| ImportResultFfi {
+                app: r.app.to_string(),
+                database_id: String::new(),
+                documents: r.documents as u32,
+                entries: 0,
+                blocks: r.blocks as u32,
+                skipped: r.skipped as u32,
+                matched_textbundle: bd.matched_textbundle as u32,
+                realm_fallback: bd.realm_fallback as u32,
+                textbundle_only: bd.textbundle_only as u32,
+            })
             .map_err(extractor_err_to_ffi)
     }
 }
@@ -761,6 +762,9 @@ fn ffi_import_result(r: crate::extractors::ImportResult) -> ImportResultFfi {
         entries: r.entries as u32,
         blocks: r.blocks as u32,
         skipped: r.skipped as u32,
+        matched_textbundle: 0,
+        realm_fallback: 0,
+        textbundle_only: 0,
     }
 }
 

@@ -188,16 +188,39 @@ struct CraftCombinedImportView: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64))
                 .foregroundStyle(.green)
-            if case .done(let result) = importState {
-                VStack(spacing: 8) {
-                    Text("Import complete!")
+            if case .done(let r) = importState {
+                VStack(spacing: 12) {
+                    let noun = r.documents == 1 ? "note" : "notes"
+                    Text("\(r.documents) \(noun) imported")
                         .font(.title3.weight(.semibold))
-                    let noun = result.documents == 1 ? "note" : "notes"
-                    Text("\(result.documents) \(noun) imported from Craft.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+
+                    VStack(spacing: 6) {
+                        if r.matchedTextbundle > 0 {
+                            BreakdownRow(
+                                icon: "doc.text",
+                                color: .green,
+                                label: "TextBundle",
+                                count: Int(r.matchedTextbundle)
+                            )
+                        }
+                        if r.realmFallback > 0 {
+                            BreakdownRow(
+                                icon: "cylinder",
+                                color: .orange,
+                                label: "Realm uniquement",
+                                count: Int(r.realmFallback)
+                            )
+                        }
+                        if r.textbundleOnly > 0 {
+                            BreakdownRow(
+                                icon: "folder",
+                                color: .blue,
+                                label: "TextBundle uniquement",
+                                count: Int(r.textbundleOnly)
+                            )
+                        }
+                    }
+                    .padding(.top, 4)
                 }
             }
             Spacer()
@@ -252,5 +275,30 @@ struct CraftCombinedImportView: View {
                 importState = .failed(error.localizedDescription)
             }
         }
+    }
+}
+
+// ── BreakdownRow ──────────────────────────────────────────────────────────────
+
+private struct BreakdownRow: View {
+    let icon: String
+    let color: Color
+    let label: String
+    let count: Int
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+                .frame(width: 20)
+            Text(label)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text("\(count)")
+                .monospacedDigit()
+                .fontWeight(.medium)
+        }
+        .font(.subheadline)
+        .padding(.horizontal, 32)
     }
 }

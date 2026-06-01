@@ -1422,16 +1422,40 @@ public struct ImportResultFfi: Equatable, Hashable {
     public var entries: UInt32
     public var blocks: UInt32
     public var skipped: UInt32
+    /**
+     * Combined importer only: pages imported via textbundle content (0 otherwise).
+     */
+    public var matchedTextbundle: UInt32
+    /**
+     * Combined importer only: realm pages with no matching textbundle (0 otherwise).
+     */
+    public var realmFallback: UInt32
+    /**
+     * Combined importer only: textbundles with no matching realm page (0 otherwise).
+     */
+    public var textbundleOnly: UInt32
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(app: String, databaseId: String, documents: UInt32, entries: UInt32, blocks: UInt32, skipped: UInt32) {
+    public init(app: String, databaseId: String, documents: UInt32, entries: UInt32, blocks: UInt32, skipped: UInt32, 
+        /**
+         * Combined importer only: pages imported via textbundle content (0 otherwise).
+         */matchedTextbundle: UInt32, 
+        /**
+         * Combined importer only: realm pages with no matching textbundle (0 otherwise).
+         */realmFallback: UInt32, 
+        /**
+         * Combined importer only: textbundles with no matching realm page (0 otherwise).
+         */textbundleOnly: UInt32) {
         self.app = app
         self.databaseId = databaseId
         self.documents = documents
         self.entries = entries
         self.blocks = blocks
         self.skipped = skipped
+        self.matchedTextbundle = matchedTextbundle
+        self.realmFallback = realmFallback
+        self.textbundleOnly = textbundleOnly
     }
 
     
@@ -1455,7 +1479,10 @@ public struct FfiConverterTypeImportResultFfi: FfiConverterRustBuffer {
                 documents: FfiConverterUInt32.read(from: &buf), 
                 entries: FfiConverterUInt32.read(from: &buf), 
                 blocks: FfiConverterUInt32.read(from: &buf), 
-                skipped: FfiConverterUInt32.read(from: &buf)
+                skipped: FfiConverterUInt32.read(from: &buf), 
+                matchedTextbundle: FfiConverterUInt32.read(from: &buf), 
+                realmFallback: FfiConverterUInt32.read(from: &buf), 
+                textbundleOnly: FfiConverterUInt32.read(from: &buf)
         )
     }
 
@@ -1466,6 +1493,9 @@ public struct FfiConverterTypeImportResultFfi: FfiConverterRustBuffer {
         FfiConverterUInt32.write(value.entries, into: &buf)
         FfiConverterUInt32.write(value.blocks, into: &buf)
         FfiConverterUInt32.write(value.skipped, into: &buf)
+        FfiConverterUInt32.write(value.matchedTextbundle, into: &buf)
+        FfiConverterUInt32.write(value.realmFallback, into: &buf)
+        FfiConverterUInt32.write(value.textbundleOnly, into: &buf)
     }
 }
 

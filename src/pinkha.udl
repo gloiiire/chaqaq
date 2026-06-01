@@ -38,6 +38,12 @@ dictionary ImportResultFfi {
     u32 entries;
     u32 blocks;
     u32 skipped;
+    /// Combined importer only: pages imported via textbundle content (0 otherwise).
+    u32 matched_textbundle;
+    /// Combined importer only: realm pages with no matching textbundle (0 otherwise).
+    u32 realm_fallback;
+    /// Combined importer only: textbundles with no matching realm page (0 otherwise).
+    u32 textbundle_only;
 };
 
 // ── Façade principale ─────────────────────────────────────────────────────────

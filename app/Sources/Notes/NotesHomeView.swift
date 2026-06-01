@@ -8,7 +8,6 @@ struct NotesHomeView: View {
     @State private var showingCreate = false
     @State private var showingImport = false
     @State private var showingBearImport = false
-    @State private var showingCraftImport = false
     @State private var showingCraftTextBundleImport = false
     @State private var showingCraftCombinedImport = false
     @State private var showingDeleteAllConfirm = false
@@ -116,11 +115,6 @@ struct NotesHomeView: View {
                         Label("Import from Bear", systemImage: "pencil.and.list.clipboard")
                     }
                     Button {
-                        showingCraftImport = true
-                    } label: {
-                        Label("Import from Craft", systemImage: "books.vertical")
-                    }
-                    Button {
                         showingCraftTextBundleImport = true
                     } label: {
                         Label("Import from Craft (TextBundle)", systemImage: "doc.zipper")
@@ -144,11 +138,6 @@ struct NotesHomeView: View {
             }
             .sheet(isPresented: $showingBearImport) {
                 BearImportView(api: store.api) {
-                    store.load()
-                }
-            }
-            .sheet(isPresented: $showingCraftImport) {
-                CraftImportView(api: store.api) {
                     store.load()
                 }
             }
