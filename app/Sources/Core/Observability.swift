@@ -9,15 +9,24 @@ enum Observability {
     /// Boots Sentry. No-op when the DSN is missing or still set to the
     /// placeholder — e.g. on a fresh checkout without local secrets.
     static func start() {
-        guard let dsn = Bundle.main.object(forInfoDictionaryKey: "SENTRY_DSN") as? String,
-              !dsn.isEmpty,
-              !dsn.contains("your-dsn-here") else {
+        let raw = Bundle.main.object(forInfoDictionaryKey: "SENTRY_DSN") as? String ?? ""
+        #if DEBUG
+        // Surface what was actually loaded so a missing/malformed DSN is easy
+        // to diagnose from the Xcode console.
+        print("[Observability] SENTRY_DSN from Info.plist: \(raw.isEmpty ? "(empty)" : raw)")
+        #endif
+        guard !raw.isEmpty, !raw.contains("your-dsn-here") else {
+            #if DEBUG
+            print("[Observability] Sentry disabled (no DSN or placeholder).")
+            #endif
             return
         }
         SentrySDK.start { options in
-            options.dsn = dsn
+            options.dsn = raw
             options.environment = isDebugBuild ? "debug" : "release"
             options.attachStacktrace = true
+            // Verbose SDK logs in debug builds — proves the init path ran.
+            options.debug = isDebugBuild
             // Distributed tracing: sentry-cocoa swizzles URLSession and injects
             // the `sentry-trace` header on outbound requests, so the proxy can
             // correlate the iOS trace with its own span.
@@ -25,6 +34,9 @@ enum Observability {
             // 100% in dev for visibility, reduced in release to control volume.
             options.tracesSampleRate = isDebugBuild ? 1.0 : 0.2
         }
+        #if DEBUG
+        print("[Observability] Sentry started.")
+        #endif
     }
 
     /// Reports an error to Sentry. Safe to call before `start()`: the SDK
