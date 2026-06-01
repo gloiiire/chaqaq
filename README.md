@@ -196,6 +196,55 @@ See the "Git workflow" section of [CLAUDE.md](CLAUDE.md) for detailed rules.
 
 ---
 
+## OAuth2 architecture (Notion)
+
+The Notion import uses a standard OAuth2 *authorization code* flow with one important constraint: **the Notion `client_secret` must never live in the iOS binary**. Anyone can decompile an IPA and extract a hardcoded secret, so all token exchanges go through a small backend proxy.
+
+### The two kinds of credentials
+
+OAuth2 distinguishes between two layers that are easy to conflate:
+
+| Credential | Identifies | Where it lives | How many |
+|---|---|---|---|
+| `client_id` + `client_secret` | The **pinkha app itself** | Notion dashboard → Railway env vars (proxy only) | **One pair for the whole app** |
+| `access_token` | An **individual user's grant** to pinkha | Returned per user, stored in iOS Keychain | **One per user** |
+
+Your Notion credentials say "I am the pinkha app" — exactly like Spotify has one `client_id` with Google, even though millions of different Google users sign in.
+
+### Per-user flow on the App Store
+
+When Alice taps "Import from Notion" inside the published app:
+
+```
+1. App opens Notion's authorize URL with YOUR client_id
+2. Alice logs in with HER own Notion account
+3. Notion asks her "Authorize pinkha to access your workspace?"
+4. Alice taps "Allow"
+5. Notion redirects to pinkha://oauth/notion with a temporary `code`
+6. App sends `code` → notion-proxy (signed with HMAC)
+7. Proxy combines `code` + your client_secret → asks Notion
+8. Notion returns an `access_token` scoped to Alice's workspace
+9. Proxy returns the token to the app
+10. App stores it in Keychain (per-device, never iCloud-synced) and uses it
+    to read Alice's pages
+```
+
+Bob doing the same gets his **own** distinct `access_token`. Neither user has to know anything about your Notion credentials — they only ever see Notion's own consent screen.
+
+### Setup checklist before App Store release
+
+1. Create a **Public** integration (not Internal) at https://www.notion.so/my-integrations
+   - Type: `Public`
+   - Redirect URI: `pinkha://oauth/notion`
+   - Notion gives you **one** `client_id` + `client_secret` for the entire app
+2. Add `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET`, `PROXY_HMAC_SECRET`, `SENTRY_DSN` as Railway env vars on the `pinkha-app/notion-proxy` service
+3. Copy the Railway public URL into `NotionOAuth2.tokenProxyUrl`
+4. The same `PROXY_HMAC_SECRET` value must be in `app/Config/Secrets.xcconfig` locally (gitignored) so the iOS build can sign requests
+
+End users never touch any of this.
+
+---
+
 ## CI / Security
 
 - **GitHub Actions**: `cargo test` on push/PR to master/staging/dev (~25 s). The Swift job is suspended pending Xcode 26 on runners.
