@@ -9,6 +9,7 @@ struct NotesHomeView: View {
     @State private var showingImport = false
     @State private var showingBearImport = false
     @State private var showingCraftImport = false
+    @State private var showingCraftTextBundleImport = false
     @State private var newTitle = ""
     @State private var createMode: CreateMode = .note
 
@@ -100,6 +101,11 @@ struct NotesHomeView: View {
                     } label: {
                         Label("Import from Craft", systemImage: "books.vertical")
                     }
+                    Button {
+                        showingCraftTextBundleImport = true
+                    } label: {
+                        Label("Import from Craft (TextBundle)", systemImage: "doc.zipper")
+                    }
                 } label: {
                     FloatingButton(icon: "square.and.pencil") {}
                 }
@@ -119,6 +125,11 @@ struct NotesHomeView: View {
             }
             .sheet(isPresented: $showingCraftImport) {
                 CraftImportView(api: store.api) {
+                    store.load()
+                }
+            }
+            .sheet(isPresented: $showingCraftTextBundleImport) {
+                CraftTextBundleImportView(api: store.api) {
                     store.load()
                 }
             }

@@ -11,6 +11,7 @@
 		01281212E4F0399331A45AD4 /* NotionImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D22912E7931E931F0028EC18 /* NotionImportView.swift */; };
 		048E816F4477212B390A9656 /* SeededDataUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51F23F0716FCE3363F1AA084 /* SeededDataUITests.swift */; };
 		06A8C248F91DAAA3D81987DD /* DocumentDecor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39AA1D529D7B370CED6DFCA3 /* DocumentDecor.swift */; };
+		0770B209E6B5A6EE212698D0 /* CraftTextBundleImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D0670D69D6088BD905593C8 /* CraftTextBundleImportView.swift */; };
 		080E62AC634C6662AE03D666 /* SharedComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED135BF384902D45638398A9 /* SharedComponents.swift */; };
 		0D09EEB6D1A6381EEA6CF030 /* AttributedRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EF8382835124C808B432EB7 /* AttributedRoundTripTests.swift */; };
 		155B0A7C57DD6BC320421DBB /* ImportIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A87F59E8025954E2D6046E5 /* ImportIntegrationTests.swift */; };
@@ -163,6 +164,7 @@
 		94AB645E2E656B62E6D0182C /* ResilienceFFITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilienceFFITests.swift; sourceTree = "<group>"; };
 		97AAE4ED1A7A8EFFA0FFB26F /* FontHelpersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontHelpersTests.swift; sourceTree = "<group>"; };
 		989079D332C7B04FEE02C8BC /* PinkhaIntegrationTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PinkhaIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9D0670D69D6088BD905593C8 /* CraftTextBundleImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CraftTextBundleImportView.swift; sourceTree = "<group>"; };
 		9E0D9D95D4E0246DE51A711E /* NotionOAuth2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionOAuth2.swift; sourceTree = "<group>"; };
 		9E3470806F13B18DD1BDF7AC /* pinkha.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = pinkha.xcframework; path = ../pinkha.xcframework; sourceTree = "<group>"; };
 		9F3EF0593ACB7C1002859466 /* DatabaseViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseViewModel.swift; sourceTree = "<group>"; };
@@ -267,6 +269,7 @@
 			children = (
 				341793C59FCB240D68152FCD /* BearImportView.swift */,
 				5D3BCB304BB58C917915CB17 /* CraftImportView.swift */,
+				9D0670D69D6088BD905593C8 /* CraftTextBundleImportView.swift */,
 				D22912E7931E931F0028EC18 /* NotionImportView.swift */,
 				9E0D9D95D4E0246DE51A711E /* NotionOAuth2.swift */,
 			);
@@ -562,6 +565,7 @@
 				C756E395291058C30197E60E /* BlockRowsExtra.swift in Sources */,
 				BCD05B9F8601BC3AE8946EBD /* ContentView.swift in Sources */,
 				B02F572FD00C06FC266DC079 /* CraftImportView.swift in Sources */,
+				0770B209E6B5A6EE212698D0 /* CraftTextBundleImportView.swift in Sources */,
 				8BC5F7E62E7BD5C734E00D7C /* DatabaseView.swift in Sources */,
 				D030E663D697B3BDBAE36FA4 /* DatabaseViewModel.swift in Sources */,
 				E92F562B0BC4BFD440E650AF /* DatabasesHomeView.swift in Sources */,
