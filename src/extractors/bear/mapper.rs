@@ -12,6 +12,22 @@ use crate::domain::document::{BlockContent, InlineText};
 /// the Unix epoch (1970-01-01).
 const CORE_DATA_EPOCH_OFFSET: f64 = 978_307_200.0;
 
+/// A parsed block with optional nested children (e.g. indented list items).
+///
+/// `children` carry `BlockContent` values that become `Block::children` in the
+/// domain model — one level of nesting, matching Pinkha's recursive `Block` type.
+#[derive(Debug)]
+pub struct ParsedBlock {
+    pub content: BlockContent,
+    pub children: Vec<BlockContent>,
+}
+
+impl ParsedBlock {
+    fn leaf(content: BlockContent) -> Self {
+        Self { content, children: vec![] }
+    }
+}
+
 /// Converts a Bear Core Data timestamp to an ISO 8601 date string ("YYYY-MM-DD").
 pub fn bear_date_to_iso(timestamp: f64) -> String {
     let unix_secs = timestamp + CORE_DATA_EPOCH_OFFSET;
@@ -22,12 +38,15 @@ pub fn bear_date_to_iso(timestamp: f64) -> String {
     dt.format("%Y-%m-%d").to_string()
 }
 
-/// Parses a Bear note body into a list of Pinkha `BlockContent` values.
+/// Parses a Bear note body into a list of [`ParsedBlock`] values.
 ///
 /// Bear includes the note title as the first `# Heading` in the body — that
 /// line is skipped because the title is already used as the document title.
-pub fn parse_note_blocks(text: &str) -> Vec<BlockContent> {
-    let mut blocks = Vec::new();
+///
+/// Indented list items (`    - ` / `    * `) become children of the immediately
+/// preceding block (one level of nesting).
+pub fn parse_note_blocks(text: &str) -> Vec<ParsedBlock> {
+    let mut blocks: Vec<ParsedBlock> = Vec::new();
     let mut lines = text.lines().peekable();
 
     // Skip the leading `# Title` line if present.
@@ -45,16 +64,14 @@ pub fn parse_note_blocks(text: &str) -> Vec<BlockContent> {
         // ── Code fences ───────────────────────────────────────────────────────
         if line.starts_with("```") {
             if in_code_block {
-                // Closing fence — emit the accumulated code block.
-                blocks.push(BlockContent::Code {
+                blocks.push(ParsedBlock::leaf(BlockContent::Code {
                     language: code_language.clone(),
                     text: code_lines.join("\n"),
-                });
+                }));
                 in_code_block = false;
                 code_language.clear();
                 code_lines.clear();
             } else {
-                // Opening fence — capture optional language hint.
                 in_code_block = true;
                 code_language = line.trim_start_matches('`').trim().to_string();
             }
@@ -66,70 +83,88 @@ pub fn parse_note_blocks(text: &str) -> Vec<BlockContent> {
             continue;
         }
 
+        // ── Indented list items (one level of nesting) ────────────────────────
+        if let Some(rest) = line
+            .strip_prefix("    - ")
+            .or_else(|| line.strip_prefix("    * "))
+        {
+            let child = BlockContent::BulletedListItem(parse_inline_text(rest));
+            if let Some(last) = blocks.last_mut() {
+                last.children.push(child);
+            } else {
+                blocks.push(ParsedBlock::leaf(child));
+            }
+            continue;
+        }
+
         // ── Headings ──────────────────────────────────────────────────────────
         if let Some(rest) = line.strip_prefix("### ") {
-            blocks.push(BlockContent::Heading {
+            blocks.push(ParsedBlock::leaf(BlockContent::Heading {
                 text: parse_inline_text(rest),
                 level: 3,
-            });
+            }));
             continue;
         }
         if let Some(rest) = line.strip_prefix("## ") {
-            blocks.push(BlockContent::Heading {
+            blocks.push(ParsedBlock::leaf(BlockContent::Heading {
                 text: parse_inline_text(rest),
                 level: 2,
-            });
+            }));
             continue;
         }
         if let Some(rest) = line.strip_prefix("# ") {
-            blocks.push(BlockContent::Heading {
+            blocks.push(ParsedBlock::leaf(BlockContent::Heading {
                 text: parse_inline_text(rest),
                 level: 1,
-            });
+            }));
             continue;
         }
 
         // ── Block quote ───────────────────────────────────────────────────────
         if let Some(rest) = line.strip_prefix("> ") {
-            blocks.push(BlockContent::Quote {
+            blocks.push(ParsedBlock::leaf(BlockContent::Quote {
                 icon: None,
                 text: parse_inline_text(rest),
-            });
+            }));
             continue;
         }
 
         // ── Todo items ────────────────────────────────────────────────────────
         if let Some(rest) = line.strip_prefix("- [ ] ") {
-            blocks.push(BlockContent::Todo {
+            blocks.push(ParsedBlock::leaf(BlockContent::Todo {
                 done: false,
                 text: parse_inline_text(rest),
-            });
+            }));
             continue;
         }
         if let Some(rest) = line.strip_prefix("- [x] ").or_else(|| line.strip_prefix("- [X] ")) {
-            blocks.push(BlockContent::Todo {
+            blocks.push(ParsedBlock::leaf(BlockContent::Todo {
                 done: true,
                 text: parse_inline_text(rest),
-            });
+            }));
             continue;
         }
 
         // ── Bullet list ───────────────────────────────────────────────────────
         if let Some(rest) = line.strip_prefix("- ").or_else(|| line.strip_prefix("* ")) {
-            blocks.push(BlockContent::BulletedListItem(parse_inline_text(rest)));
+            blocks.push(ParsedBlock::leaf(BlockContent::BulletedListItem(
+                parse_inline_text(rest),
+            )));
             continue;
         }
 
         // ── Numbered list ─────────────────────────────────────────────────────
         if let Some(rest) = strip_numbered_list(line) {
-            blocks.push(BlockContent::NumberedListItem(parse_inline_text(rest)));
+            blocks.push(ParsedBlock::leaf(BlockContent::NumberedListItem(
+                parse_inline_text(rest),
+            )));
             continue;
         }
 
         // ── Dividers ──────────────────────────────────────────────────────────
         let trimmed = line.trim();
         if trimmed == "---" || trimmed == "***" || trimmed == "___" {
-            blocks.push(BlockContent::Divider);
+            blocks.push(ParsedBlock::leaf(BlockContent::Divider));
             continue;
         }
 
@@ -139,15 +174,15 @@ pub fn parse_note_blocks(text: &str) -> Vec<BlockContent> {
         }
 
         // ── Default: rich text paragraph ──────────────────────────────────────
-        blocks.push(BlockContent::Text(parse_inline_text(line)));
+        blocks.push(ParsedBlock::leaf(BlockContent::Text(parse_inline_text(line))));
     }
 
     // If the file ended inside a code block, flush what we have.
     if in_code_block && !code_lines.is_empty() {
-        blocks.push(BlockContent::Code {
+        blocks.push(ParsedBlock::leaf(BlockContent::Code {
             language: code_language,
             text: code_lines.join("\n"),
-        });
+        }));
     }
 
     blocks
@@ -161,7 +196,6 @@ fn parse_inline_text(s: &str) -> Vec<InlineText> {
 /// Matches `^\d+\. ` and returns the rest of the line, or `None`.
 fn strip_numbered_list(line: &str) -> Option<&str> {
     let mut chars = line.char_indices();
-    // Consume one or more digits.
     let (_, first) = chars.next()?;
     if !first.is_ascii_digit() {
         return None;
@@ -171,7 +205,6 @@ fn strip_numbered_list(line: &str) -> Option<&str> {
         if c.is_ascii_digit() {
             last_digit_pos = i;
         } else if c == '.' {
-            // Next must be a space.
             let rest = &line[i + 1..];
             if let Some(content) = rest.strip_prefix(' ') {
                 return Some(content);
@@ -196,7 +229,7 @@ mod tests {
         let text = "# My Note\nSome text";
         let blocks = parse_note_blocks(text);
         assert_eq!(blocks.len(), 1);
-        assert!(matches!(&blocks[0], BlockContent::Text(_)));
+        assert!(matches!(&blocks[0].content, BlockContent::Text(_)));
     }
 
     #[test]
@@ -204,8 +237,8 @@ mod tests {
         let text = "## Section\n### Sub";
         let blocks = parse_note_blocks(text);
         assert_eq!(blocks.len(), 2);
-        assert!(matches!(&blocks[0], BlockContent::Heading { level: 2, .. }));
-        assert!(matches!(&blocks[1], BlockContent::Heading { level: 3, .. }));
+        assert!(matches!(&blocks[0].content, BlockContent::Heading { level: 2, .. }));
+        assert!(matches!(&blocks[1].content, BlockContent::Heading { level: 3, .. }));
     }
 
     #[test]
@@ -213,8 +246,8 @@ mod tests {
         let text = "- [ ] Undone\n- [x] Done";
         let blocks = parse_note_blocks(text);
         assert_eq!(blocks.len(), 2);
-        assert!(matches!(&blocks[0], BlockContent::Todo { done: false, .. }));
-        assert!(matches!(&blocks[1], BlockContent::Todo { done: true, .. }));
+        assert!(matches!(&blocks[0].content, BlockContent::Todo { done: false, .. }));
+        assert!(matches!(&blocks[1].content, BlockContent::Todo { done: true, .. }));
     }
 
     #[test]
@@ -222,7 +255,7 @@ mod tests {
         let text = "```rust\nfn main() {}\n```";
         let blocks = parse_note_blocks(text);
         assert_eq!(blocks.len(), 1);
-        if let BlockContent::Code { language, text } = &blocks[0] {
+        if let BlockContent::Code { language, text } = &blocks[0].content {
             assert_eq!(language, "rust");
             assert_eq!(text, "fn main() {}");
         } else {
@@ -235,7 +268,7 @@ mod tests {
         let text = "---";
         let blocks = parse_note_blocks(text);
         assert_eq!(blocks.len(), 1);
-        assert!(matches!(&blocks[0], BlockContent::Divider));
+        assert!(matches!(&blocks[0].content, BlockContent::Divider));
     }
 
     #[test]
@@ -243,8 +276,8 @@ mod tests {
         let text = "- item one\n* item two";
         let blocks = parse_note_blocks(text);
         assert_eq!(blocks.len(), 2);
-        assert!(matches!(&blocks[0], BlockContent::BulletedListItem(_)));
-        assert!(matches!(&blocks[1], BlockContent::BulletedListItem(_)));
+        assert!(matches!(&blocks[0].content, BlockContent::BulletedListItem(_)));
+        assert!(matches!(&blocks[1].content, BlockContent::BulletedListItem(_)));
     }
 
     #[test]
@@ -252,12 +285,11 @@ mod tests {
         let text = "1. first\n2. second";
         let blocks = parse_note_blocks(text);
         assert_eq!(blocks.len(), 2);
-        assert!(matches!(&blocks[0], BlockContent::NumberedListItem(_)));
+        assert!(matches!(&blocks[0].content, BlockContent::NumberedListItem(_)));
     }
 
     #[test]
     fn test_bear_date_to_iso() {
-        // 0.0 Core Data → 2001-01-01
         let s = bear_date_to_iso(0.0);
         assert_eq!(s, "2001-01-01");
     }
@@ -274,14 +306,9 @@ mod tests {
         assert!(strip_numbered_list("- bullet").is_none());
     }
 
-    // ── Additional tests required by spec ─────────────────────────────────────
-
     #[test]
     fn test_parse_heading1() {
         let blocks = parse_note_blocks("# Title");
-        // The leading `# Title` line is skipped as the document title.
-        // A standalone `# Title` with no preceding title is consumed by the
-        // title-skip logic, so the result is empty.
         assert_eq!(blocks.len(), 0);
     }
 
@@ -289,69 +316,61 @@ mod tests {
     fn test_parse_heading2() {
         let blocks = parse_note_blocks("## H2");
         assert_eq!(blocks.len(), 1);
-        assert!(matches!(&blocks[0], BlockContent::Heading { level: 2, .. }));
+        assert!(matches!(&blocks[0].content, BlockContent::Heading { level: 2, .. }));
     }
 
     #[test]
     fn test_parse_todo_unchecked() {
         let blocks = parse_note_blocks("- [ ] tâche");
         assert_eq!(blocks.len(), 1);
-        assert!(matches!(&blocks[0], BlockContent::Todo { done: false, .. }));
+        assert!(matches!(&blocks[0].content, BlockContent::Todo { done: false, .. }));
     }
 
     #[test]
     fn test_parse_todo_checked() {
         let blocks = parse_note_blocks("- [x] tâche");
         assert_eq!(blocks.len(), 1);
-        assert!(matches!(&blocks[0], BlockContent::Todo { done: true, .. }));
+        assert!(matches!(&blocks[0].content, BlockContent::Todo { done: true, .. }));
     }
 
     #[test]
     fn test_parse_bullet() {
         let blocks = parse_note_blocks("- item");
         assert_eq!(blocks.len(), 1);
-        assert!(matches!(&blocks[0], BlockContent::BulletedListItem(_)));
+        assert!(matches!(&blocks[0].content, BlockContent::BulletedListItem(_)));
     }
 
     #[test]
     fn test_parse_plain_text() {
         let blocks = parse_note_blocks("just a plain paragraph");
         assert_eq!(blocks.len(), 1);
-        assert!(matches!(&blocks[0], BlockContent::Text(_)));
+        assert!(matches!(&blocks[0].content, BlockContent::Text(_)));
     }
 
     #[test]
     fn test_skips_title_line() {
-        // First `# Title` line is treated as the document title and skipped.
-        // The second line becomes a Text block.
         let blocks = parse_note_blocks("# Title\nparagraphe");
         assert_eq!(blocks.len(), 1);
-        assert!(matches!(&blocks[0], BlockContent::Text(_)));
+        assert!(matches!(&blocks[0].content, BlockContent::Text(_)));
     }
-
-    // ── Additional tests required by spec ─────────────────────────────────────
 
     #[test]
     fn test_parse_empty_note() {
-        // An empty note body yields no blocks.
         let blocks = parse_note_blocks("");
         assert!(blocks.is_empty());
     }
 
     #[test]
     fn test_parse_only_title() {
-        // A body consisting solely of the title heading produces no blocks
-        // because the title line is consumed by the skip-title logic.
         let blocks = parse_note_blocks("# Title");
         assert!(blocks.is_empty());
     }
 
     #[test]
     fn test_parse_inline_bold() {
-        // `**gras**` should produce a Text block whose first span carries Bold.
         let blocks = parse_note_blocks("**gras**");
         assert_eq!(blocks.len(), 1);
-        if let BlockContent::Text(spans) = &blocks[0] {
+        if let BlockContent::Text(spans) = &blocks[0].content {
             assert!(!spans.is_empty(), "expected at least one span");
             let has_bold = spans
                 .iter()
@@ -364,16 +383,57 @@ mod tests {
 
     #[test]
     fn test_code_block_multiline() {
-        // A multi-line fenced code block must produce a single Code block
-        // whose `text` field has lines joined by '\n'.
         let note = "```rust\nfn foo() {}\nfn bar() {}\n```";
         let blocks = parse_note_blocks(note);
         assert_eq!(blocks.len(), 1);
-        if let BlockContent::Code { language, text } = &blocks[0] {
+        if let BlockContent::Code { language, text } = &blocks[0].content {
             assert_eq!(language, "rust");
             assert_eq!(text, "fn foo() {}\nfn bar() {}");
         } else {
             panic!("expected Code block");
         }
+    }
+
+    #[test]
+    fn test_indented_bullet_becomes_child() {
+        let text = "- parent\n    - child";
+        let blocks = parse_note_blocks(text);
+        assert_eq!(blocks.len(), 1, "indented item should not create a top-level block");
+        assert!(matches!(&blocks[0].content, BlockContent::BulletedListItem(_)));
+        assert_eq!(blocks[0].children.len(), 1);
+        assert!(matches!(&blocks[0].children[0], BlockContent::BulletedListItem(_)));
+    }
+
+    #[test]
+    fn test_indented_star_becomes_child() {
+        let text = "- parent\n    * star child";
+        let blocks = parse_note_blocks(text);
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0].children.len(), 1);
+    }
+
+    #[test]
+    fn test_multiple_children() {
+        let text = "- parent\n    - child one\n    - child two";
+        let blocks = parse_note_blocks(text);
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0].children.len(), 2);
+    }
+
+    #[test]
+    fn test_indented_with_no_preceding_block_becomes_leaf() {
+        let text = "    - orphan child";
+        let blocks = parse_note_blocks(text);
+        assert_eq!(blocks.len(), 1);
+        assert!(matches!(&blocks[0].content, BlockContent::BulletedListItem(_)));
+    }
+
+    #[test]
+    fn test_sibling_blocks_after_children() {
+        let text = "- a\n    - a1\n- b";
+        let blocks = parse_note_blocks(text);
+        assert_eq!(blocks.len(), 2);
+        assert_eq!(blocks[0].children.len(), 1);
+        assert_eq!(blocks[1].children.len(), 0);
     }
 }

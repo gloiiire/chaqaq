@@ -1,6 +1,6 @@
 [package]
 name = "realm-codec"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Parser and writer for Realm binary database files (v9) — read tables, build new files"
 license = "MIT OR Apache-2.0"

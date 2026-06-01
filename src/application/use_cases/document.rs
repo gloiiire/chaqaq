@@ -49,6 +49,23 @@ pub fn update_document_cover(
     repo.save(&doc)
 }
 
+/// Moves a document to a folder (or to the root when `folder_id` is `None`).
+pub fn move_document_to_folder(
+    repo: &dyn DocumentRepository,
+    doc_id: Uuid,
+    folder_id: Option<Uuid>,
+) -> Result<(), PinkhaError> {
+    repo.move_to_folder(doc_id, folder_id)
+}
+
+/// Returns lightweight metadata for all documents in the given folder (or root).
+pub fn list_documents_in_folder(
+    repo: &dyn DocumentRepository,
+    folder_id: Option<Uuid>,
+) -> Result<Vec<DocumentMeta>, PinkhaError> {
+    repo.list_by_folder(folder_id)
+}
+
 /// Applies the editor state to a text-bearing block and persists the document.
 ///
 /// Returns `InvalidOperation` when the target block does not carry editable text

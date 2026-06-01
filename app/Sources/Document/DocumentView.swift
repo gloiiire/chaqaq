@@ -8,6 +8,7 @@ struct DocumentView: View {
     @State var showingBlockPicker = false
     @State var editMode: EditMode = .inactive
     @State var focusTitle = false
+    @State var titleFocusOffset: Int? = nil
     @State var titleInNavBar = false
     @State var documentLocked: Bool
     @State var documentIcon: String?
@@ -62,8 +63,12 @@ struct DocumentView: View {
             .listRowInsets(EdgeInsets()).moveDisabled(true).deleteDisabled(true)
 
             DocumentTitleView(title: $vm.title, focusDemande: $focusTitle,
+                              focusCursorOffset: $titleFocusOffset,
                               onSave: vm.saveTitle,
-                              onNewBlock: { vm.addBlock(type: .text) })
+                              onNewBlock: { tail in
+                                  let spans = tail.isEmpty ? [] : [InlineTextFfi(content: tail, styles: [])]
+                                  vm.addBlock(type: .text, initialSpans: spans, atStart: true)
+                              })
                 .disabled(documentLocked)
                 .listRowBackground(Color.clear).listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 8, trailing: 20))

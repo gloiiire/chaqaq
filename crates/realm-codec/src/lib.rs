@@ -160,6 +160,8 @@ pub enum Value {
     String(String),
     /// Row index in a linked table.
     Link(usize),
+    /// Ordered list of row indices in a linked table.
+    LinkList(Vec<u32>),
 }
 
 impl Value {
@@ -191,6 +193,11 @@ impl Value {
     /// Returns the inner `f64` if this is a [`Value::Float`], otherwise `0.0`.
     pub fn as_float(&self) -> f64 {
         if let Value::Float(f) = self { *f } else { 0.0 }
+    }
+
+    /// Returns the row indices if this is a [`Value::LinkList`], otherwise `&[]`.
+    pub fn as_link_list(&self) -> &[u32] {
+        if let Value::LinkList(v) = self { v } else { &[] }
     }
 }
 
@@ -446,6 +453,7 @@ mod tests {
         assert_eq!(Value::Bool(true).as_bool(), true);
         assert_eq!(Value::Timestamp(100).as_timestamp(), 100);
         assert!((Value::Float(3.14).as_float() - 3.14).abs() < 1e-9);
+        assert_eq!(Value::LinkList(vec![1, 2, 3]).as_link_list(), &[1u32, 2, 3]);
     }
 
     #[test]
@@ -455,6 +463,27 @@ mod tests {
         assert_eq!(Value::Null.as_bool(), false);
         assert_eq!(Value::Null.as_timestamp(), 0);
         assert_eq!(Value::Null.as_float(), 0.0);
+        assert_eq!(Value::Null.as_link_list(), &[] as &[u32]);
+    }
+
+    #[test]
+    fn value_link_list_empty() {
+        let v = Value::LinkList(vec![]);
+        assert_eq!(v.as_link_list(), &[] as &[u32]);
+        assert!(!v.is_null());
+    }
+
+    #[test]
+    fn value_link_list_non_empty() {
+        let v = Value::LinkList(vec![0, 42, 100]);
+        assert_eq!(v.as_link_list(), &[0u32, 42, 100]);
+    }
+
+    #[test]
+    fn value_as_link_list_miss_returns_empty_slice() {
+        assert_eq!(Value::Int(5).as_link_list(), &[] as &[u32]);
+        assert_eq!(Value::String("x".into()).as_link_list(), &[] as &[u32]);
+        assert_eq!(Value::Bool(true).as_link_list(), &[] as &[u32]);
     }
 
     #[test]
@@ -462,6 +491,7 @@ mod tests {
         assert!(Value::Null.is_null());
         assert!(!Value::Int(1).is_null());
         assert!(!Value::String("x".into()).is_null());
+        assert!(!Value::LinkList(vec![]).is_null());
     }
 
     // ── Row / RealmTable ──────────────────────────────────────────────────────

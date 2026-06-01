@@ -138,4 +138,54 @@ struct ImportIntegrationTests {
         }
         #expect(wasInvalidOperation, "validate_string must return InvalidOperation for strings > 64 KB")
     }
+
+    // MARK: - Craft import — error paths
+
+    @Test func importFromCraft_rejects_invalid_path() async throws {
+        let (api, url) = try makeApi(); defer { cleanup(url) }
+
+        var caught = false
+        do {
+            _ = try await api.importFromCraft(dbPath: "/nonexistent.realm")
+            Issue.record("Expected PinkhaError for a nonexistent Craft realm path, got success")
+        } catch is PinkhaError {
+            caught = true
+        } catch {
+            Issue.record("Expected PinkhaError, got \(type(of: error)): \(error)")
+        }
+        #expect(caught, "importFromCraft with a nonexistent path must throw PinkhaError")
+    }
+
+    @Test func importFromCraft_rejects_too_long_path() async throws {
+        let (api, url) = try makeApi(); defer { cleanup(url) }
+
+        // 128 KB > MAX_STRING_BYTES (64 KB) — validate_string rejects it as InvalidOperation.
+        let hugePath = "/" + String(repeating: "a", count: 128 * 1024)
+        do {
+            _ = try await api.importFromCraft(dbPath: hugePath)
+            Issue.record("Expected PinkhaError.InvalidOperation for oversized path")
+        } catch PinkhaError.InvalidOperation {
+            #expect(Bool(true))
+        } catch {
+            Issue.record("Expected PinkhaError.InvalidOperation, got: \(error)")
+        }
+    }
+
+    @Test func importFromCraft_error_is_storage_or_invalid_operation() async throws {
+        let (api, url) = try makeApi(); defer { cleanup(url) }
+
+        do {
+            _ = try await api.importFromCraft(dbPath: "/no/such/file.realm")
+            Issue.record("Expected an error but got success")
+        } catch let error as PinkhaError {
+            switch error {
+            case .Storage, .InvalidOperation:
+                break
+            case .NotFound:
+                Issue.record("Unexpected NotFound — import errors should be Storage or InvalidOperation")
+            }
+        } catch {
+            Issue.record("Expected PinkhaError, got \(type(of: error)): \(error)")
+        }
+    }
 }

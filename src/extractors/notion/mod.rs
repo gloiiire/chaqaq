@@ -16,6 +16,7 @@ use uuid::Uuid;
 
 use crate::application::database_repository::DatabaseRepository;
 use crate::application::database_use_cases;
+use crate::application::folder_repository::FolderRepository;
 use crate::application::repository::DocumentRepository;
 use crate::application::use_cases;
 use crate::domain::database::{Property, PropertyType, PropertyValue};
@@ -69,6 +70,7 @@ impl Extractor for NotionExtractor {
         config: NotionConfig,
         docs: &(dyn DocumentRepository + Send + Sync),
         dbs: &(dyn DatabaseRepository + Send + Sync),
+        _folders: &(dyn FolderRepository + Send + Sync),
     ) -> Result<ImportResult, ExtractorError> {
         // 1. Normalise the database ID.
         let db_id = extract_database_id(&config.database_id);

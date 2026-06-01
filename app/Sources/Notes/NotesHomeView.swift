@@ -8,6 +8,9 @@ struct NotesHomeView: View {
     @State private var showingCreate = false
     @State private var showingImport = false
     @State private var showingBearImport = false
+    @State private var showingCraftTextBundleImport = false
+    @State private var showingCraftCombinedImport = false
+    @State private var showingDeleteAllConfirm = false
     @State private var newTitle = ""
     @State private var createMode: CreateMode = .note
 
@@ -29,6 +32,11 @@ struct NotesHomeView: View {
                         } header: {
                             SectionHeader(title: "Recent")
                         }
+                    }
+
+                    // ── Folders ───────────────────────────────────────────
+                    if !store.listFolders().isEmpty {
+                        FoldersSectionView(store: store)
                     }
 
                     // ── All items ─────────────────────────────────────────
@@ -66,6 +74,23 @@ struct NotesHomeView: View {
                 .listStyle(.insetGrouped)
                 .navigationTitle(greeting)
                 .navigationBarTitleDisplayMode(.large)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        if !store.items.isEmpty {
+                            Button(role: .destructive) {
+                                showingDeleteAllConfirm = true
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .confirmationDialog("Delete all \(store.items.count) notes?",
+                                               isPresented: $showingDeleteAllConfirm,
+                                               titleVisibility: .visible) {
+                                Button("Delete All", role: .destructive) { store.deleteAll() }
+                                Button("Cancel", role: .cancel) {}
+                            }
+                        }
+                    }
+                }
 
                 // ── FAB ───────────────────────────────────────────────────
                 Menu {
@@ -94,6 +119,16 @@ struct NotesHomeView: View {
                     } label: {
                         Label("Import from Bear", systemImage: "pencil.and.list.clipboard")
                     }
+                    Button {
+                        showingCraftTextBundleImport = true
+                    } label: {
+                        Label("Import from Craft (TextBundle)", systemImage: "doc.zipper")
+                    }
+                    Button {
+                        showingCraftCombinedImport = true
+                    } label: {
+                        Label("Import from Craft (Combined)", systemImage: "arrow.triangle.merge")
+                    }
                 } label: {
                     FloatingButton(icon: "square.and.pencil") {}
                 }
@@ -108,6 +143,16 @@ struct NotesHomeView: View {
             }
             .sheet(isPresented: $showingBearImport) {
                 BearImportView(api: store.api) {
+                    store.load()
+                }
+            }
+            .sheet(isPresented: $showingCraftTextBundleImport) {
+                CraftTextBundleImportView(api: store.api) {
+                    store.load()
+                }
+            }
+            .sheet(isPresented: $showingCraftCombinedImport) {
+                CraftCombinedImportView(api: store.api) {
                     store.load()
                 }
             }

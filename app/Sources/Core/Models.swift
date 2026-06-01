@@ -79,7 +79,7 @@ enum BlockContentFfi: Codable, Equatable {
         case Text, Heading, Quote, Todo, BulletedListItem, NumberedListItem, Code, Divider, Breadcrumb, Database
     }
     private struct PayloadHeading: Codable { let level: Int; let text: [InlineTextFfi] }
-    private struct PayloadQuote:   Codable { let icon: String; let text: [InlineTextFfi] }
+    private struct PayloadQuote:   Codable { let icon: String?; let text: [InlineTextFfi] }
     private struct PayloadTodo:    Codable { let done: Bool; let text: [InlineTextFfi] }
     private struct PayloadCode:    Codable { let language: String; let text: String }
     private struct PayloadDb:      Codable { let id: String }
@@ -93,7 +93,7 @@ enum BlockContentFfi: Codable, Equatable {
         let c = try decoder.container(keyedBy: K.self)
         if let v = try? c.decode([InlineTextFfi].self, forKey: .Text)             { self = .text(v); return }
         if let v = try? c.decode(PayloadHeading.self,  forKey: .Heading)          { self = .heading(level: v.level, text: v.text); return }
-        if let v = try? c.decode(PayloadQuote.self,    forKey: .Quote)            { self = .quote(icon: v.icon, text: v.text); return }
+        if let v = try? c.decode(PayloadQuote.self,    forKey: .Quote)            { self = .quote(icon: v.icon ?? "", text: v.text); return }
         if let v = try? c.decode(PayloadTodo.self,     forKey: .Todo)             { self = .todo(done: v.done, text: v.text); return }
         if let v = try? c.decode([InlineTextFfi].self, forKey: .BulletedListItem) { self = .bulletedListItem(v); return }
         if let v = try? c.decode([InlineTextFfi].self, forKey: .NumberedListItem) { self = .numberedListItem(v); return }

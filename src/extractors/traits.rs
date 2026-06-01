@@ -6,6 +6,7 @@
 // or call concrete types directly from the FFI layer.
 
 use crate::application::database_repository::DatabaseRepository;
+use crate::application::folder_repository::FolderRepository;
 use crate::application::repository::DocumentRepository;
 use super::{ExtractorError, ImportResult};
 
@@ -43,5 +44,6 @@ pub trait Extractor {
         config: Self::Config,
         docs: &(dyn DocumentRepository + Send + Sync),
         dbs: &(dyn DatabaseRepository + Send + Sync),
+        folders: &(dyn FolderRepository + Send + Sync),
     ) -> impl std::future::Future<Output = Result<ImportResult, ExtractorError>> + Send;
 }

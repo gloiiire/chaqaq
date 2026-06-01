@@ -276,7 +276,7 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
 - Gestion complète des vues (ajout, modification filtres/tris, suppression)
 - **SQLite local-first** : `SqliteDocumentStore` + `SqliteDatabaseStore` avec soft delete, `updated_at`, migrations versionnées, WAL, retry exponentiel
 - **Crate `chaqaq` v0.1.0** : core rich text editor extrait en crate autonome, publié sur crates.io (MIT OR Apache-2.0). Cargo workspace.
-- **Crate `realm-codec` v0.1.0** : parser + writer Realm v9 binary (NodeHeader, Group, B-tree, `RealmBuilder`/`TableBuilder`), publié sur crates.io (MIT OR Apache-2.0). Base pour le futur extractor Craft.
+- **Crate `realm-codec` v0.1.0** : parser + writer Realm v9 binary (NodeHeader, Group, B-tree, cluster tree format Realm SDK 5+, `RealmBuilder`/`TableBuilder`), publié sur crates.io (MIT OR Apache-2.0). Utilisé par l'extractor Craft.
 - **Couche FFI UniFFI** : `PinkhaApi` exposée à Swift en API anglaise idiomatique
 - **XCFramework** : `pinkha.xcframework` compilé (ios-arm64, ios-arm64-simulator, macos-arm64)
 - **Projet Xcode** : `app/Pinkha.xcodeproj` généré par xcodegen
@@ -300,15 +300,15 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
   - **Notion** : client reqwest rustls-tls, API v1 paginée (database schema → pages → blocs récursifs), mapping complet propriétés/valeurs/blocs, `ImportResultFfi` exposé via UniFFI async
   - **Bear** : lecteur SQLite read-only, conversion timestamps Core Data, parseur Markdown Bear ligne par ligne
   - Trois nouveaux variants `BlockContent` : `BulletedListItem`, `NumberedListItem`, `Code` — full-fidelity import, rendu read-only + édition dans l'éditeur
-  - `NotionImportView.swift` (thin FFI wrapper) + `BearImportView.swift` (fileImporter) + `NotionOAuth2.swift` (ASWebAuthenticationSession)
-  - FAB menu : "Import from Notion" + "Import from Bear"
+  - **Craft** : lecteur Realm v9 binary read-only via `realm-codec` (crate workspace), heuristique `rawProperties.titleEnabled == "true"` pour détecter les pages, 2498 docs / 4224 blocs / 41 skipped sur fichier réel
+  - `NotionImportView.swift` (thin FFI wrapper) + `BearImportView.swift` (fileImporter) + `CraftImportView.swift` (fileImporter `.realm`) + `NotionOAuth2.swift` (ASWebAuthenticationSession)
+  - FAB menu : "Import from Notion" + "Import from Bear" + "Import from Craft"
 
 Ce qui **reste** à construire :
 1. UI Databases — tab "Bases" est un placeholder, backend Notion complet existe
 2. Vue iPad / Mac (NavigationSplitView)
-3. Extractor Craft — lira les fichiers `.realm` locaux de Craft via `realm-codec` (crate publiée)
-4. Sync entre appareils (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
-5. Réactiver Swift CI quand Xcode 26 sera dispo sur les runners GitHub Actions
+3. Sync entre appareils (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
+4. Réactiver Swift CI quand Xcode 26 sera dispo sur les runners GitHub Actions
 
 ## Git workflow
 

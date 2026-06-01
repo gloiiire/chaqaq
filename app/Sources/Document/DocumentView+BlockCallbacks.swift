@@ -64,7 +64,16 @@ extension DocumentView {
             onNewBlock: { afterSpans in
                 vm.addBlock(type: .text, initialSpans: afterSpans, afterId: block.id)
             },
-            onMerge: vm.blocks.first?.id == block.id ? nil : { spansToMerge in
+            onMerge: vm.blocks.first?.id == block.id ? { spansToMerge in
+                // First block: merge its content into the title.
+                let tail = spansToMerge.map(\.content).joined()
+                let mergeOffset = vm.title.count
+                vm.title += tail
+                vm.saveTitle()
+                vm.deleteBlock(id: block.id)
+                titleFocusOffset = mergeOffset
+                focusTitle = true
+            } : { spansToMerge in
                 guard let idx = vm.blocks.firstIndex(where: { $0.id == block.id }), idx > 0 else { return }
                 let prevIdx = idx - 1
                 let prevId = vm.blocks[prevIdx].id
