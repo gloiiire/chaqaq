@@ -11,8 +11,29 @@ final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresent
     // MARK: - Configuration (fill in once you have a public Notion integration)
 
     static let clientId    = ""          // e.g. "abc123"
-    static let redirectUri = "pinkha://oauth/notion"
     static let authBaseUrl = "https://api.notion.com/v1/oauth/authorize"
+
+    /// Public HTTPS base URL of the notion-proxy on Railway, read at runtime
+    /// from Info.plist (injected from `app/Config/Secrets.xcconfig`). Empty
+    /// when the proxy is not configured yet — `OAuthError.proxyNotConfigured`
+    /// is thrown in that case.
+    static var proxyBaseUrl: String {
+        (Bundle.main.object(forInfoDictionaryKey: "NOTION_PROXY_URL") as? String) ?? ""
+    }
+
+    /// Redirect URI sent to Notion in the authorization URL. Must be HTTPS
+    /// (Notion rejects custom URL schemes since 2024). The proxy receives
+    /// the callback at this URL and bounces the browser to `pinkha://oauth/notion`,
+    /// which `ASWebAuthenticationSession` catches via `callbackURLScheme: "pinkha"`.
+    static var redirectUri: String {
+        let base = proxyBaseUrl
+        return base.isEmpty ? "" : "\(base)/oauth/callback"
+    }
+
+    /// Custom URL scheme registered in Info.plist (`CFBundleURLSchemes`). The
+    /// proxy redirects to `\(callbackScheme)://oauth/notion?code=...` and this
+    /// session picks it up.
+    static let callbackScheme = "pinkha"
 
     @Published var token: String?
     @Published var isLoading = false
@@ -37,6 +58,10 @@ final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresent
             error = "Notion client ID not configured."
             return
         }
+        guard !Self.redirectUri.isEmpty else {
+            error = "Notion proxy URL not configured (NOTION_PROXY_URL)."
+            return
+        }
         guard let url = Self.authorizationUrl(clientId: Self.clientId, redirectUri: Self.redirectUri) else { return }
 
         isLoading = true
@@ -46,7 +71,7 @@ final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresent
             let callbackUrl = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<URL, Error>) in
                 let session = ASWebAuthenticationSession(
                     url: url,
-                    callbackURLScheme: "pinkha"
+                    callbackURLScheme: Self.callbackScheme
                 ) { url, err in
                     if let err { cont.resume(throwing: err) }
                     else if let url { cont.resume(returning: url) }
@@ -89,9 +114,12 @@ final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresent
     /// forwards the authorization-code exchange. **Must never be the public
     /// Notion token endpoint with the secret embedded client-side** — a
     /// secret shipped in an App Store binary is trivially extractable.
-    /// Empty means OAuth2 is not configured; the manual integration-token
-    /// flow remains available.
-    static let tokenProxyUrl = ""
+    /// Derived from `proxyBaseUrl` so a single Info.plist value configures
+    /// both the redirect URI and the token endpoint.
+    static var tokenProxyUrl: String {
+        let base = proxyBaseUrl
+        return base.isEmpty ? "" : "\(base)/oauth/token"
+    }
 
     /// Shared HMAC secret used to sign requests to `tokenProxyUrl`. Must match
     /// `PROXY_HMAC_SECRET` on the proxy. Hex-encoded, generated with
