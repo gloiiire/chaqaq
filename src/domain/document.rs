@@ -90,6 +90,9 @@ pub struct DocumentMeta {
     /// Empty when the backend does not provide it (JsonStore, mock).
     #[serde(default)]
     pub created_at: String,
+    /// Folder this document belongs to. None = root level.
+    #[serde(default)]
+    pub folder_id: Option<Uuid>,
 }
 
 impl From<&Document> for DocumentMeta {
@@ -100,6 +103,7 @@ impl From<&Document> for DocumentMeta {
             title: doc.title.clone(),
             updated_at: String::new(),
             created_at: String::new(),
+            folder_id: doc.folder_id,
         }
     }
 }
@@ -115,6 +119,9 @@ pub struct Document {
     pub title: Vec<InlineText>,
     /// Top-level blocks (each may have nested children).
     pub blocks: Vec<Block>,
+    /// Folder this document belongs to. None = root level.
+    #[serde(default)]
+    pub folder_id: Option<Uuid>,
 }
 
 impl Document {
@@ -125,6 +132,7 @@ impl Document {
             title,
             cover: None,
             blocks: vec![],
+            folder_id: None,
         }
     }
 

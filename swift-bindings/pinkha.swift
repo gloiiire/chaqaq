@@ -519,6 +519,8 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      */
     func createDocument(title: String) throws  -> String
     
+    func createFolder(name: String, parentId: String?) throws  -> FolderMetaFfi
+    
     /**
      * Soft-delete de tous les documents. Retourne le nombre supprimé.
      */
@@ -538,6 +540,8 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     
     func deleteEntry(dbId: String, entryId: String) throws 
     
+    func deleteFolder(id: String) throws 
+    
     func deleteProperty(dbId: String, propertyId: String) throws 
     
     func deleteView(dbId: String, viewId: String) throws 
@@ -551,6 +555,8 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Retourne le document complet sérialisé en JSON (avec blocs).
      */
     func getDocumentJson(id: String) throws  -> String
+    
+    func getFolder(id: String) throws  -> FolderMetaFfi
     
     /**
      * Retourne les groupes d'entrées en JSON.
@@ -599,10 +605,18 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      */
     func listDocuments() throws  -> [DocumentMetaFfi]
     
+    func listDocumentsInFolder(folderId: String?) throws  -> [DocumentMetaFfi]
+    
+    func listFolders() throws  -> [FolderMetaFfi]
+    
     /**
      * Déplace un bloc vers un parent ou vers la racine si `new_parent_id` est nul.
      */
     func moveBlock(docId: String, blockId: String, newParentId: String?) throws 
+    
+    func moveDocumentToFolder(docId: String, folderId: String?) throws 
+    
+    func moveFolderTo(id: String, newParentId: String?) throws 
     
     /**
      * Retourne les entrées filtrées/triées en JSON.
@@ -613,6 +627,8 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Retourne les entrées filtrées/triées avec rollups calculés en JSON.
      */
     func queryDatabaseWithRollupsJson(dbId: String, viewId: String) throws  -> String
+    
+    func renameFolder(id: String, newName: String) throws 
     
     func renameProperty(dbId: String, propertyId: String, newName: String) throws 
     
@@ -823,6 +839,16 @@ open func createDocument(title: String)throws  -> String  {
 })
 }
     
+open func createFolder(name: String, parentId: String?)throws  -> FolderMetaFfi  {
+    return try  FfiConverterTypeFolderMetaFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_create_folder(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterOptionString.lower(parentId),$0
+    )
+})
+}
+    
     /**
      * Soft-delete de tous les documents. Retourne le nombre supprimé.
      */
@@ -874,6 +900,14 @@ open func deleteEntry(dbId: String, entryId: String)throws   {try rustCallWithEr
 }
 }
     
+open func deleteFolder(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_folder(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
 open func deleteProperty(dbId: String, propertyId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_delete_property(
             self.uniffiCloneHandle(),
@@ -910,6 +944,15 @@ open func getDatabaseJson(id: String)throws  -> String  {
 open func getDocumentJson(id: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_get_document_json(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+})
+}
+    
+open func getFolder(id: String)throws  -> FolderMetaFfi  {
+    return try  FfiConverterTypeFolderMetaFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_get_folder(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
@@ -1059,6 +1102,23 @@ open func listDocuments()throws  -> [DocumentMetaFfi]  {
 })
 }
     
+open func listDocumentsInFolder(folderId: String?)throws  -> [DocumentMetaFfi]  {
+    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_documents_in_folder(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionString.lower(folderId),$0
+    )
+})
+}
+    
+open func listFolders()throws  -> [FolderMetaFfi]  {
+    return try  FfiConverterSequenceTypeFolderMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_folders(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
     /**
      * Déplace un bloc vers un parent ou vers la racine si `new_parent_id` est nul.
      */
@@ -1067,6 +1127,24 @@ open func moveBlock(docId: String, blockId: String, newParentId: String?)throws 
             self.uniffiCloneHandle(),
         FfiConverterString.lower(docId),
         FfiConverterString.lower(blockId),
+        FfiConverterOptionString.lower(newParentId),$0
+    )
+}
+}
+    
+open func moveDocumentToFolder(docId: String, folderId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_move_document_to_folder(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(docId),
+        FfiConverterOptionString.lower(folderId),$0
+    )
+}
+}
+    
+open func moveFolderTo(id: String, newParentId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_move_folder_to(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
         FfiConverterOptionString.lower(newParentId),$0
     )
 }
@@ -1096,6 +1174,15 @@ open func queryDatabaseWithRollupsJson(dbId: String, viewId: String)throws  -> S
         FfiConverterString.lower(viewId),$0
     )
 })
+}
+    
+open func renameFolder(id: String, newName: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_rename_folder(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterString.lower(newName),$0
+    )
+}
 }
     
 open func renameProperty(dbId: String, propertyId: String, newName: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1349,16 +1436,18 @@ public struct DocumentMetaFfi: Equatable, Hashable {
     public var cover: String?
     public var updatedAt: String
     public var createdAt: String
+    public var folderId: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, titlePlain: String, titleJson: String, cover: String?, updatedAt: String, createdAt: String) {
+    public init(id: String, titlePlain: String, titleJson: String, cover: String?, updatedAt: String, createdAt: String, folderId: String?) {
         self.id = id
         self.titlePlain = titlePlain
         self.titleJson = titleJson
         self.cover = cover
         self.updatedAt = updatedAt
         self.createdAt = createdAt
+        self.folderId = folderId
     }
 
     
@@ -1382,7 +1471,8 @@ public struct FfiConverterTypeDocumentMetaFfi: FfiConverterRustBuffer {
                 titleJson: FfiConverterString.read(from: &buf), 
                 cover: FfiConverterOptionString.read(from: &buf), 
                 updatedAt: FfiConverterString.read(from: &buf), 
-                createdAt: FfiConverterString.read(from: &buf)
+                createdAt: FfiConverterString.read(from: &buf), 
+                folderId: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -1393,6 +1483,7 @@ public struct FfiConverterTypeDocumentMetaFfi: FfiConverterRustBuffer {
         FfiConverterOptionString.write(value.cover, into: &buf)
         FfiConverterString.write(value.updatedAt, into: &buf)
         FfiConverterString.write(value.createdAt, into: &buf)
+        FfiConverterOptionString.write(value.folderId, into: &buf)
     }
 }
 
@@ -1409,6 +1500,75 @@ public func FfiConverterTypeDocumentMetaFfi_lift(_ buf: RustBuffer) throws -> Do
 #endif
 public func FfiConverterTypeDocumentMetaFfi_lower(_ value: DocumentMetaFfi) -> RustBuffer {
     return FfiConverterTypeDocumentMetaFfi.lower(value)
+}
+
+
+/**
+ * Métadonnées légères d'un dossier.
+ */
+public struct FolderMetaFfi: Equatable, Hashable {
+    public var id: String
+    public var name: String
+    public var parentId: String?
+    public var createdAt: String
+    public var updatedAt: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, name: String, parentId: String?, createdAt: String, updatedAt: String) {
+        self.id = id
+        self.name = name
+        self.parentId = parentId
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FolderMetaFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFolderMetaFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FolderMetaFfi {
+        return
+            try FolderMetaFfi(
+                id: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                parentId: FfiConverterOptionString.read(from: &buf), 
+                createdAt: FfiConverterString.read(from: &buf), 
+                updatedAt: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FolderMetaFfi, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterOptionString.write(value.parentId, into: &buf)
+        FfiConverterString.write(value.createdAt, into: &buf)
+        FfiConverterString.write(value.updatedAt, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFolderMetaFfi_lift(_ buf: RustBuffer) throws -> FolderMetaFfi {
+    return try FfiConverterTypeFolderMetaFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFolderMetaFfi_lower(_ value: FolderMetaFfi) -> RustBuffer {
+    return FfiConverterTypeFolderMetaFfi.lower(value)
 }
 
 
@@ -1706,6 +1866,31 @@ fileprivate struct FfiConverterSequenceTypeDocumentMetaFfi: FfiConverterRustBuff
         return seq
     }
 }
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeFolderMetaFfi: FfiConverterRustBuffer {
+    typealias SwiftType = [FolderMetaFfi]
+
+    public static func write(_ value: [FolderMetaFfi], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFolderMetaFfi.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FolderMetaFfi] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FolderMetaFfi]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFolderMetaFfi.read(from: &buf))
+        }
+        return seq
+    }
+}
 private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
 private let UNIFFI_RUST_FUTURE_POLL_WAKE: Int8 = 1
 
@@ -1794,6 +1979,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_create_document() != 6653) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_create_folder() != 49423) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_documents() != 3995) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -1809,6 +1997,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_entry() != 44863) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_folder() != 31554) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_property() != 45324) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -1819,6 +2010,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_get_document_json() != 23306) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_get_folder() != 38177) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_grouped_query_database_json() != 2473) {
@@ -1845,13 +2039,28 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_documents() != 62408) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_documents_in_folder() != 8688) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_folders() != 40736) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_move_block() != 56333) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_move_document_to_folder() != 22257) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_move_folder_to() != 28416) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_query_database_json() != 4012) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_query_database_with_rollups_json() != 38250) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_rename_folder() != 49667) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_rename_property() != 36506) {

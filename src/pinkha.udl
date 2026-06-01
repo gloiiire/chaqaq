@@ -19,6 +19,16 @@ dictionary DocumentMetaFfi {
     string? cover;
     string updated_at;
     string created_at;
+    string? folder_id;
+};
+
+/// Métadonnées légères d'un dossier.
+dictionary FolderMetaFfi {
+    string id;
+    string name;
+    string? parent_id;
+    string created_at;
+    string updated_at;
 };
 
 /// Métadonnées légères d'une database (sans entrées).
@@ -184,6 +194,32 @@ interface PinkhaApi {
     /// Retourne les entrées correspondant à la recherche en JSON.
     [Throws=PinkhaError]
     string search_database_entries_json(string db_id, string query);
+
+    // ── Dossiers ──────────────────────────────────────────────
+
+    [Throws=PinkhaError]
+    FolderMetaFfi create_folder(string name, string? parent_id);
+
+    [Throws=PinkhaError]
+    FolderMetaFfi get_folder(string id);
+
+    [Throws=PinkhaError]
+    sequence<FolderMetaFfi> list_folders();
+
+    [Throws=PinkhaError]
+    void rename_folder(string id, string new_name);
+
+    [Throws=PinkhaError]
+    void delete_folder(string id);
+
+    [Throws=PinkhaError]
+    void move_folder_to(string id, string? new_parent_id);
+
+    [Throws=PinkhaError]
+    void move_document_to_folder(string doc_id, string? folder_id);
+
+    [Throws=PinkhaError]
+    sequence<DocumentMetaFfi> list_documents_in_folder(string? folder_id);
 
     // ── Imports ───────────────────────────────────────────────
 

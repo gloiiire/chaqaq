@@ -8,7 +8,16 @@ use rusqlite::Connection;
 /// `PRAGMA user_version` to 4.
 pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
     conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS documents (
+        "CREATE TABLE IF NOT EXISTS folders (
+            id          TEXT PRIMARY KEY,
+            name        TEXT NOT NULL,
+            parent_id   TEXT,
+            created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+            updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+            deleted_at  TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS documents (
             id          TEXT PRIMARY KEY,
             title_text  TEXT NOT NULL DEFAULT '',
             title_json  TEXT NOT NULL DEFAULT '[]',
@@ -33,7 +42,8 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
 
     add_column_if_missing(conn, "documents", "created_at", "TEXT NOT NULL DEFAULT ''")?;
     add_column_if_missing(conn, "databases", "created_at", "TEXT NOT NULL DEFAULT ''")?;
-    conn.pragma_update(None, "user_version", 4)
+    add_column_if_missing(conn, "documents", "folder_id", "TEXT")?;
+    conn.pragma_update(None, "user_version", 5)
         .map_err(|e| PinkhaError::Db(e.to_string()))?;
     Ok(())
 }

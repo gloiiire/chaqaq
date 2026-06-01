@@ -25,12 +25,16 @@ use std::path::{Path, PathBuf};
 use realm_codec::RealmFile;
 
 use crate::application::database_repository::DatabaseRepository;
+use crate::application::folder_repository::FolderRepository;
 use crate::application::repository::DocumentRepository;
-use crate::extractors::bear::mapper::parse_note_blocks;
+use crate::extractors::bear::mapper::{parse_note_blocks, ParsedBlock};
 use crate::extractors::craft::{flush_document, map_block, title_candidate};
-use crate::extractors::craft_textbundle::{find_textbundles, textbundle_title};
+use crate::extractors::craft_textbundle::{
+    find_textbundles, relative_folder_components, textbundle_title,
+};
 use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
+use uuid::Uuid;
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -68,6 +72,7 @@ impl CraftCombinedExtractor {
         config: CraftCombinedConfig,
         docs: &(dyn DocumentRepository + Send + Sync),
         dbs: &(dyn DatabaseRepository + Send + Sync),
+        folders: &(dyn FolderRepository + Send + Sync),
     ) -> Result<(ImportResult, CraftCombinedBreakdown), ExtractorError> {
         let _ = dbs;
 
@@ -83,6 +88,8 @@ impl CraftCombinedExtractor {
                 .entry(normalize(&title))
                 .or_insert_with(|| (title, bundle.clone()));
         }
+
+        let mut folder_cache: HashMap<Vec<String>, Uuid> = HashMap::new();
 
         // ── Step 2: open realm + collect document IDs ─────────────────────────
         let realm = RealmFile::open(&config.realm_path)
@@ -119,7 +126,8 @@ impl CraftCombinedExtractor {
             .ok_or_else(|| ExtractorError::Parse("lastSyncedBlockIds column missing".into()))?;
 
         // doc_id → (title_opt, content_blocks, skipped_count)
-        let mut doc_map: HashMap<String, (Option<String>, Vec<_>, usize)> = HashMap::new();
+        let mut doc_map: HashMap<String, (Option<String>, Vec<ParsedBlock>, usize)> =
+            HashMap::new();
 
         for row in &block_table.rows {
             let doc_id = row.get(lsb_idx).as_str().to_lowercase();
@@ -137,7 +145,7 @@ impl CraftCombinedExtractor {
                 }
             }
             match map_block(&content, block_type) {
-                Some(bc) => entry.1.push(bc),
+                Some(bc) => entry.1.push(ParsedBlock { content: bc, children: vec![] }),
                 None => entry.2 += 1,
             }
         }
@@ -158,13 +166,15 @@ impl CraftCombinedExtractor {
                     .unwrap_or_default();
                 let blocks = parse_note_blocks(&md);
                 block_count += blocks.len();
-                flush_document(docs, tb_title, blocks)?;
+                let components = relative_folder_components(bundle_path, tb_root);
+                let folder_id = ensure_folder_cached(&components, folders, &mut folder_cache)?;
+                flush_document(docs, tb_title, blocks, folder_id)?;
                 matched_tb_keys.insert(key);
                 tb_matched_count += 1;
             } else {
                 block_count += realm_blocks.len();
                 skipped += doc_skipped;
-                flush_document(docs, &realm_title, realm_blocks)?;
+                flush_document(docs, &realm_title, realm_blocks, None)?;
                 realm_fallback_count += 1;
             }
         }
@@ -180,7 +190,9 @@ impl CraftCombinedExtractor {
             let md = std::fs::read_to_string(bundle.join("text.markdown")).unwrap_or_default();
             let blocks = parse_note_blocks(&md);
             block_count += blocks.len();
-            flush_document(docs, &title, blocks)?;
+            let components = relative_folder_components(bundle, tb_root);
+            let folder_id = ensure_folder_cached(&components, folders, &mut folder_cache)?;
+            flush_document(docs, &title, blocks, folder_id)?;
             tb_only_count += 1;
         }
 
@@ -220,12 +232,35 @@ impl Extractor for CraftCombinedExtractor {
         config: CraftCombinedConfig,
         docs: &(dyn DocumentRepository + Send + Sync),
         dbs: &(dyn DatabaseRepository + Send + Sync),
+        folders: &(dyn FolderRepository + Send + Sync),
     ) -> Result<ImportResult, ExtractorError> {
-        self.run_detailed(config, docs, dbs).await.map(|(r, _)| r)
+        self.run_detailed(config, docs, dbs, folders).await.map(|(r, _)| r)
     }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/// Gets or creates the folder for `components`, caching results.
+fn ensure_folder_cached(
+    components: &[String],
+    folders: &dyn FolderRepository,
+    cache: &mut HashMap<Vec<String>, Uuid>,
+) -> Result<Option<Uuid>, ExtractorError> {
+    if components.is_empty() {
+        return Ok(None);
+    }
+    let key = components.to_vec();
+    if let Some(&id) = cache.get(&key) {
+        return Ok(Some(id));
+    }
+    let parent_id = ensure_folder_cached(&components[..components.len() - 1], folders, cache)?;
+    let name = &components[components.len() - 1];
+    let folder = folders
+        .create(name, parent_id)
+        .map_err(|e| ExtractorError::Parse(format!("folder creation failed: {e}")))?;
+    cache.insert(key, folder.id);
+    Ok(Some(folder.id))
+}
 
 /// Normalizes a title for cross-source matching.
 ///

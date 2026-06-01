@@ -34,6 +34,11 @@ struct NotesHomeView: View {
                         }
                     }
 
+                    // ── Folders ───────────────────────────────────────────
+                    if !store.listFolders().isEmpty {
+                        FoldersSectionView(store: store)
+                    }
+
                     // ── All items ─────────────────────────────────────────
                     if store.items.isEmpty {
                         Section {

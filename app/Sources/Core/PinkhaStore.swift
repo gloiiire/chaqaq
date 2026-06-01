@@ -108,4 +108,44 @@ final class PinkhaStore: ObservableObject {
         guard !query.isEmpty, let api else { return [] }
         return (try? api.searchDocuments(query: query)) ?? []
     }
+
+    // ── Folders ───────────────────────────────────────────────────────────────
+
+    /// Returns all folders sorted by name.
+    func listFolders() -> [FolderMetaFfi] {
+        guard let api else { return [] }
+        return (try? api.listFolders()) ?? []
+    }
+
+    /// Creates a folder and reloads.
+    @discardableResult
+    func createFolder(name: String, parentId: String? = nil) -> FolderMetaFfi? {
+        guard let api else { return nil }
+        let folder = tryCatch(into: &errorMessage) { try api.createFolder(name: name, parentId: parentId) }
+        return folder
+    }
+
+    /// Renames a folder and reloads.
+    func renameFolder(id: String, newName: String) {
+        tryCatch(into: &errorMessage) { try api?.renameFolder(id: id, newName: newName) }
+        load()
+    }
+
+    /// Deletes a folder (orphaned docs move to root) and reloads.
+    func deleteFolder(id: String) {
+        tryCatch(into: &errorMessage) { try api?.deleteFolder(id: id) }
+        load()
+    }
+
+    /// Moves a document into a folder (or to root when `folderId` is nil) and reloads.
+    func moveDocumentToFolder(docId: String, folderId: String?) {
+        tryCatch(into: &errorMessage) { try api?.moveDocumentToFolder(docId: docId, folderId: folderId) }
+        load()
+    }
+
+    /// Returns documents in the given folder (`nil` = root level).
+    func documentsInFolder(folderId: String?) -> [DocumentMetaFfi] {
+        guard let api else { return [] }
+        return (try? api.listDocumentsInFolder(folderId: folderId)) ?? []
+    }
 }

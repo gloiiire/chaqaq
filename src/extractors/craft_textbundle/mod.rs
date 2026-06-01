@@ -6,17 +6,19 @@
 //   → walk root_dir recursively for *.textbundle directories
 //   → title   = filename stem (e.g. "My Note.textbundle" → "My Note")
 //   → content = text.markdown parsed by the Bear markdown parser (same dialect)
-//   → persist one pinkha Document per textbundle
+//   → persist one pinkha Document per textbundle, mirroring subdirectory → folder
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::application::database_repository::DatabaseRepository;
+use crate::application::folder_repository::FolderRepository;
 use crate::application::repository::DocumentRepository;
-use crate::application::use_cases;
-use crate::domain::document::BlockContent;
 use crate::extractors::bear::mapper::parse_note_blocks;
+use crate::extractors::craft::flush_document;
 use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
+use uuid::Uuid;
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -54,21 +56,27 @@ impl Extractor for CraftTextBundleExtractor {
         config: CraftTextBundleConfig,
         docs: &(dyn DocumentRepository + Send + Sync),
         _dbs: &(dyn DatabaseRepository + Send + Sync),
+        folders: &(dyn FolderRepository + Send + Sync),
     ) -> Result<ImportResult, ExtractorError> {
         let root = Path::new(&config.root_dir);
         let bundles = find_textbundles(root);
 
         let mut doc_count = 0usize;
         let mut block_count = 0usize;
-        let skipped = 0usize;
+        let mut folder_cache: HashMap<Vec<String>, Uuid> = HashMap::new();
 
         for bundle_path in &bundles {
             let title = textbundle_title(bundle_path);
             let md_path = bundle_path.join("text.markdown");
             let markdown = std::fs::read_to_string(&md_path).unwrap_or_default();
-            let blocks = parse_note_blocks(&markdown);
-            block_count += blocks.len();
-            flush_document(docs, &title, blocks)?;
+            let parsed_blocks = parse_note_blocks(&markdown);
+            block_count += parsed_blocks.len();
+
+            let components = relative_folder_components(bundle_path, root);
+            let folder_id = ensure_folder(&components, folders, &mut folder_cache)
+                .map_err(|e| ExtractorError::Parse(format!("folder creation failed: {e}")))?;
+
+            flush_document(docs, &title, parsed_blocks, folder_id)?;
             doc_count += 1;
         }
 
@@ -78,7 +86,7 @@ impl Extractor for CraftTextBundleExtractor {
             documents: doc_count,
             entries: 0,
             blocks: block_count,
-            skipped,
+            skipped: 0,
         })
     }
 }
@@ -115,21 +123,42 @@ pub fn textbundle_title(path: &Path) -> String {
         .to_string()
 }
 
-fn flush_document(
-    docs: &(dyn DocumentRepository + Send + Sync),
-    title: &str,
-    blocks: Vec<BlockContent>,
-) -> Result<(), ExtractorError> {
-    let doc = use_cases::create_document(docs, title)?;
-    if blocks.is_empty() {
-        return Ok(());
+/// Returns the folder path components for a bundle relative to the export root.
+///
+/// e.g. `/root/SpaceA/SubFolder/Note.textbundle` with root `/root`
+/// → `["SpaceA", "SubFolder"]`
+pub fn relative_folder_components(bundle_path: &Path, root: &Path) -> Vec<String> {
+    let rel = bundle_path.strip_prefix(root).unwrap_or(bundle_path);
+    let parent = rel.parent().unwrap_or(Path::new(""));
+    parent
+        .components()
+        .filter_map(|c| c.as_os_str().to_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// Gets or creates the folder for `components`, returning its UUID.
+///
+/// Parents are created recursively, deepest last. Results are cached so each
+/// unique path is created only once per import run.
+fn ensure_folder(
+    components: &[String],
+    folders: &dyn FolderRepository,
+    cache: &mut HashMap<Vec<String>, Uuid>,
+) -> Result<Option<Uuid>, crate::application::error::PinkhaError> {
+    if components.is_empty() {
+        return Ok(None);
     }
-    let mut full_doc = docs.load(doc.id)?;
-    for bc in blocks {
-        full_doc.add_block(bc);
+    let key = components.to_vec();
+    if let Some(&id) = cache.get(&key) {
+        return Ok(Some(id));
     }
-    docs.save(&full_doc)?;
-    Ok(())
+    let parent_id = ensure_folder(&components[..components.len() - 1], folders, cache)?;
+    let name = &components[components.len() - 1];
+    let folder = folders.create(name, parent_id)?;
+    cache.insert(key, folder.id);
+    Ok(Some(folder.id))
 }
 
 // ── Unit tests ────────────────────────────────────────────────────────────────
@@ -202,5 +231,29 @@ mod tests {
     fn textbundle_title_no_parent() {
         let p = Path::new("Simple.textbundle");
         assert_eq!(textbundle_title(p), "Simple");
+    }
+
+    #[test]
+    fn relative_folder_components_root_level() {
+        let root = Path::new("/export");
+        let bundle = Path::new("/export/Note.textbundle");
+        let components = relative_folder_components(bundle, root);
+        assert!(components.is_empty());
+    }
+
+    #[test]
+    fn relative_folder_components_one_level() {
+        let root = Path::new("/export");
+        let bundle = Path::new("/export/SpaceA/Note.textbundle");
+        let components = relative_folder_components(bundle, root);
+        assert_eq!(components, vec!["SpaceA"]);
+    }
+
+    #[test]
+    fn relative_folder_components_nested() {
+        let root = Path::new("/export");
+        let bundle = Path::new("/export/SpaceA/SubFolder/Note.textbundle");
+        let components = relative_folder_components(bundle, root);
+        assert_eq!(components, vec!["SpaceA", "SubFolder"]);
     }
 }
