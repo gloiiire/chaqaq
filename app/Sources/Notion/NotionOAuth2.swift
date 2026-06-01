@@ -10,7 +10,13 @@ final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresent
 
     // MARK: - Configuration (fill in once you have a public Notion integration)
 
-    static let clientId    = ""          // e.g. "abc123"
+    /// Public Notion integration client ID. Public on purpose — it ends up in
+    /// the authorize URL opened in the browser, so it's not a secret. Read at
+    /// runtime from Info.plist (injected from `app/Config/Secrets.xcconfig`)
+    /// so a fresh checkout doesn't need a source edit to wire OAuth up.
+    static var clientId: String {
+        (Bundle.main.object(forInfoDictionaryKey: "NOTION_CLIENT_ID") as? String) ?? ""
+    }
     static let authBaseUrl = "https://api.notion.com/v1/oauth/authorize"
 
     /// Public HTTPS base URL of the notion-proxy on Railway, read at runtime
