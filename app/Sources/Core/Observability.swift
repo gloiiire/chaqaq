@@ -45,9 +45,26 @@ enum Observability {
         SentrySDK.capture(error: error)
     }
 
-    /// Reports an arbitrary message, useful for unexpected non-error states
-    /// worth investigating after the fact.
+    /// Records a lightweight breadcrumb that will be attached to the next
+    /// captured event. Use this for flow tracing ("step N happened") — it's
+    /// cheap (~microseconds, no stacktrace, batched in-memory) and survives
+    /// app hangs the same way crash reports do.
+    ///
+    /// Do NOT use `SentrySDK.capture(message:)` in hot paths: each call
+    /// serializes a full Event with a ~30-frame stacktrace and ships it
+    /// synchronously, which blocks the main thread for hundreds of
+    /// milliseconds and can suspend awaiting Tasks.
     static func capture(message: String) {
+        let breadcrumb = Breadcrumb(level: .info, category: "app")
+        breadcrumb.message = message
+        SentrySDK.addBreadcrumb(breadcrumb)
+    }
+
+    /// Captures a message as a full Sentry event (with stacktrace). Heavy —
+    /// only call once per investigation, e.g. at the failure site. For
+    /// regular flow tracing, prefer `capture(message:)` which is now a
+    /// breadcrumb.
+    static func captureAsEvent(message: String) {
         SentrySDK.capture(message: message)
     }
 
