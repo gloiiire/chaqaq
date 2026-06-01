@@ -102,16 +102,22 @@ final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresent
     // MARK: - ASWebAuthenticationPresentationContextProviding
 
     nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        // Must be called from a nonisolated context; safe because UIApplication usage
-        // is dispatched synchronously on the main thread via DispatchQueue.main.sync.
-        var anchor = ASPresentationAnchor()
-        DispatchQueue.main.sync {
-            anchor = UIApplication.shared.connectedScenes
+        // `ASWebAuthenticationSession` calls this on the main thread (it's the
+        // standard contract for `ASWebAuthenticationPresentationContextProviding`).
+        // The previous implementation used `DispatchQueue.main.sync { … }`, which
+        // dead-locks immediately when invoked from the main thread — iOS 26
+        // detects the deadlock and raises EXC_BREAKPOINT, crashing the app
+        // before the auth WebView ever opens.
+        //
+        // `MainActor.assumeIsolated` runs the block synchronously when the
+        // caller is already on the main actor (which we are), with a runtime
+        // assertion as a safety net.
+        MainActor.assumeIsolated {
+            UIApplication.shared.connectedScenes
                 .compactMap { $0 as? UIWindowScene }
                 .flatMap(\.windows)
                 .first(where: \.isKeyWindow) ?? ASPresentationAnchor()
         }
-        return anchor
     }
 
     // MARK: - Token exchange
