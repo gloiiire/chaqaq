@@ -216,30 +216,38 @@ Your Notion credentials say "I am the pinkha app" — exactly like Spotify has o
 When Alice taps "Import from Notion" inside the published app:
 
 ```
-1. App opens Notion's authorize URL with YOUR client_id
-2. Alice logs in with HER own Notion account
-3. Notion asks her "Authorize pinkha to access your workspace?"
-4. Alice taps "Allow"
-5. Notion redirects to pinkha://oauth/notion with a temporary `code`
-6. App sends `code` → notion-proxy (signed with HMAC)
-7. Proxy combines `code` + your client_secret → asks Notion
-8. Notion returns an `access_token` scoped to Alice's workspace
-9. Proxy returns the token to the app
-10. App stores it in Keychain (per-device, never iCloud-synced) and uses it
-    to read Alice's pages
+ 1. App opens Notion's authorize URL with YOUR client_id and
+    redirect_uri = https://<proxy>/oauth/callback
+ 2. Alice logs in with HER own Notion account
+ 3. Notion asks her "Authorize pinkha to access your workspace?"
+ 4. Alice taps "Allow"
+ 5. Notion redirects the browser to https://<proxy>/oauth/callback?code=...
+ 6. The proxy answers a 302 → pinkha://oauth/notion?code=...
+ 7. iOS's ASWebAuthenticationSession catches the `pinkha://` scheme
+    and returns the URL to the app
+ 8. App POSTs `code` → https://<proxy>/oauth/token (signed with HMAC)
+ 9. Proxy combines `code` + your client_secret → asks Notion
+10. Notion returns an `access_token` scoped to Alice's workspace
+11. Proxy returns the token to the app
+12. App stores it in Keychain (per-device, never iCloud-synced) and uses
+    it to read Alice's pages
 ```
 
 Bob doing the same gets his **own** distinct `access_token`. Neither user has to know anything about your Notion credentials — they only ever see Notion's own consent screen.
+
+#### Why the HTTPS bridge (steps 5 → 6)
+
+Notion stopped accepting custom URL schemes as redirect URIs in 2024 — only HTTPS URLs are allowed. Apple still allows custom schemes for native auth flows, so the proxy exposes a tiny `GET /oauth/callback` endpoint that immediately bounces the browser to `pinkha://oauth/notion?code=...`. The endpoint has no HMAC because it's browser-initiated and the Notion `code` is single-use and short-lived.
 
 ### Setup checklist before App Store release
 
 1. Create a **Public** integration (not Internal) at https://www.notion.so/my-integrations
    - Type: `Public`
-   - Redirect URI: `pinkha://oauth/notion`
+   - Redirect URI: `https://<your-proxy>.up.railway.app/oauth/callback` (HTTPS, Notion rejects custom schemes)
    - Notion gives you **one** `client_id` + `client_secret` for the entire app
 2. Add `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET`, `PROXY_HMAC_SECRET`, `SENTRY_DSN` as Railway env vars on the `pinkha-app/notion-proxy` service
-3. Copy the Railway public URL into `NotionOAuth2.tokenProxyUrl`
-4. The same `PROXY_HMAC_SECRET` value must be in `app/Config/Secrets.xcconfig` locally (gitignored) so the iOS build can sign requests
+3. Fill `NOTION_PROXY_URL` in `app/Config/Secrets.xcconfig` (gitignored) with the Railway public URL — the app derives both `/oauth/callback` and `/oauth/token` from this single base URL
+4. The same `PROXY_HMAC_SECRET` value must also be in `app/Config/Secrets.xcconfig` (matches the proxy's env var) so the iOS build can sign token-exchange requests
 
 End users never touch any of this.
 
