@@ -91,6 +91,10 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void update_document_cover(string id, string? cover);
 
+    /// Pose ou retire l'icône d'un document (emoji, filename local, ou URL).
+    [Throws=PinkhaError]
+    void update_document_icon(string id, string? icon);
+
     /// Ajoute un bloc ; le contenu est passé en JSON (BlockContent sérialisé).
     /// Retourne le document mis à jour en JSON.
     [Throws=PinkhaError]

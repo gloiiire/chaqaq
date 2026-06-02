@@ -8,6 +8,9 @@ final class DocumentViewModel: ObservableObject {
     let docId: String
     @Published var title: String = ""
     @Published var cover: String?
+    /// Page icon — emoji or filename in the covers directory. Mirrors
+    /// `Document.icon` from Rust, sync via `saveIcon`.
+    @Published var icon: String?
     @Published var blocks: [EditableBlock] = []
     @Published var errorMessage: String?
     @Published var autoFocusId: String?

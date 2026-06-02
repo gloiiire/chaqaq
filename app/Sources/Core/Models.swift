@@ -7,6 +7,10 @@ import SwiftUI
 struct DocumentFfi: Codable {
     let id: String
     let cover: String?
+    /// Page icon — emoji (`"📕"`), filename inside `coversDirectory()`, or
+    /// remote URL. Decoded as nil for documents created before the field
+    /// existed (Rust uses `#[serde(default)]`).
+    let icon: String?
     let title: [InlineTextFfi]
     let blocks: [BlockFfi]
 }

@@ -35,7 +35,7 @@ struct DocumentFfiTests {
 
     @Test func emptyDocumentRoundTrips() throws {
         let id = UUID().uuidString
-        let doc = DocumentFfi(id: id, cover: nil, title: [], blocks: [])
+        let doc = DocumentFfi(id: id, cover: nil, icon: nil, title: [], blocks: [])
         let data = try JSONEncoder().encode(doc)
         let decoded = try JSONDecoder().decode(DocumentFfi.self, from: data)
         #expect(decoded.id == id)
@@ -45,7 +45,7 @@ struct DocumentFfiTests {
     }
 
     @Test func documentWithCoverEncodes() throws {
-        let doc = DocumentFfi(id: "x", cover: "aurora.jpg", title: [], blocks: [])
+        let doc = DocumentFfi(id: "x", cover: "aurora.jpg", icon: nil, title: [], blocks: [])
         let data = try JSONEncoder().encode(doc)
         let decoded = try JSONDecoder().decode(DocumentFfi.self, from: data)
         #expect(decoded.cover == "aurora.jpg")
@@ -58,7 +58,7 @@ struct DocumentFfiTests {
             children: [],
             color: nil
         )
-        let doc = DocumentFfi(id: "d1", cover: nil,
+        let doc = DocumentFfi(id: "d1", cover: nil, icon: nil,
                               title: [InlineTextFfi(content: "Titre", styles: [])],
                               blocks: [block])
         let data = try JSONEncoder().encode(doc)
@@ -71,7 +71,7 @@ struct DocumentFfiTests {
     @Test func nestedChildrenRoundTrip() throws {
         let child = BlockFfi(id: "c", content: .text([]), children: [], color: nil)
         let parent = BlockFfi(id: "p", content: .text([]), children: [child], color: nil)
-        let doc = DocumentFfi(id: "d", cover: nil, title: [], blocks: [parent])
+        let doc = DocumentFfi(id: "d", cover: nil, icon: nil, title: [], blocks: [parent])
         let data = try JSONEncoder().encode(doc)
         let decoded = try JSONDecoder().decode(DocumentFfi.self, from: data)
         #expect(decoded.blocks[0].children.count == 1)
