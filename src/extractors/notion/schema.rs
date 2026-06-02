@@ -93,6 +93,57 @@ pub struct NotionQueryResponse {
 pub struct NotionPageResult {
     pub id: String,
     pub properties: HashMap<String, NotionPagePropValue>,
+    /// Cover image of the page. `None` when the user didn't pick one.
+    #[serde(default)]
+    pub cover: Option<NotionPageCover>,
+    /// Page icon (emoji or external image). `None` when not set.
+    #[serde(default)]
+    pub icon: Option<NotionPageIcon>,
+}
+
+/// Cover image returned by the Notion API. Two variants depending on the
+/// source (Notion-hosted file vs external URL); we only care about the URL.
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NotionPageCover {
+    External { external: NotionExternalFile },
+    File { file: NotionHostedFile },
+    #[serde(other)]
+    Unknown,
+}
+
+impl NotionPageCover {
+    /// Returns the URL pointing at the cover image, regardless of where it is
+    /// hosted. `None` for the catch-all `Unknown` variant.
+    pub fn url(&self) -> Option<&str> {
+        match self {
+            Self::External { external } => Some(&external.url),
+            Self::File { file } => Some(&file.url),
+            Self::Unknown => None,
+        }
+    }
+}
+
+/// Page icon — the Notion API returns either an emoji or an image (external
+/// URL or Notion-hosted file).
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NotionPageIcon {
+    Emoji { emoji: String },
+    External { external: NotionExternalFile },
+    File { file: NotionHostedFile },
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NotionExternalFile {
+    pub url: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NotionHostedFile {
+    pub url: String,
 }
 
 /// Property value variants returned inside a page result.

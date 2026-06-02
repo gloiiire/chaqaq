@@ -66,6 +66,10 @@ struct BlockCallbacks {
     /// toolbar's ¶ button can highlight the active colour, and the closure
     /// applies a new one (nil = clear back to default) via the VM.
     var onSetBlockColor: ((String?) -> Void)? = nil
+    /// Called when an inline `pinkha://doc/{uuid}` link is tapped — the
+    /// parent navigates to that document. Set by `DocumentView` and read by
+    /// `RichTextEditor`.
+    var onOpenInternalDoc: ((String) -> Void)? = nil
 }
 
 // ── Shared text editor for all blocks ────────────────────────────────────────
@@ -110,7 +114,8 @@ struct BlockTextEditor: View {
             onIndent: cb.onIndent,
             onOutdent: cb.onOutdent,
             blockColor: block.color,
-            onSetBlockColor: cb.onSetBlockColor)
+            onSetBlockColor: cb.onSetBlockColor,
+            onOpenInternalDoc: cb.onOpenInternalDoc)
         .autoFocusIfNeeded(blockId: block.id, autoFocusId: $autoFocusId,
                               autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
         .onChange(of: focused) { _, f in if f { cb.onFocus?() } }

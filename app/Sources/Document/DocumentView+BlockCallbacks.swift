@@ -121,7 +121,8 @@ extension DocumentView {
             canRedoProvider: { vm.canRedo },
             onIndent: { vm.indentBlock(id: block.id) },
             onOutdent: { vm.outdentBlock(id: block.id) },
-            onSetBlockColor: { color in vm.setBlockColor(id: block.id, color: color) }
+            onSetBlockColor: { color in vm.setBlockColor(id: block.id, color: color) },
+            onOpenInternalDoc: { docId in pushedDocId = docId }
         )
     }
 }

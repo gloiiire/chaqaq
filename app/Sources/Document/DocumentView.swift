@@ -15,6 +15,11 @@ struct DocumentView: View {
     @State var recentEmojis: [String]
     @State var selectedBlocks: Set<String> = []
     @State var keyboardVisible = false
+    /// Set when the user taps a `pinkha://doc/{uuid}` link inside the
+    /// editor. The `navigationDestination` below pushes a new
+    /// `DocumentView` whenever this becomes non-nil — the mention link
+    /// resolves to an internal navigation rather than an external URL open.
+    @State var pushedDocId: String? = nil
     let lockKey: String
     let iconKey: String
 
@@ -122,6 +127,13 @@ struct DocumentView: View {
         )) {
             Button("OK") { vm.errorMessage = nil }
         } message: { Text(vm.errorMessage ?? "") }
+        // Internal-link navigation: tapping a `pinkha://doc/{uuid}` link in
+        // a block pushes a fresh DocumentView onto the same NavigationStack.
+        // The destination view runs through `onAppear { vm.load() }`, so the
+        // target document loads from SQLite without any extra plumbing.
+        .navigationDestination(item: $pushedDocId) { docId in
+            DocumentView(docId: docId, api: vm.api, onDisappear: nil)
+        }
     }
 
     // ── Selection / helpers ───────────────────────────────────────────────────

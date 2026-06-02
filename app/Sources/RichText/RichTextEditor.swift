@@ -48,6 +48,13 @@ struct RichTextEditor: UIViewRepresentable {
     /// Called when the user picks a colour from the ¶ menu (or "None" to
     /// clear). Goes through the VM which calls the FFI `set_block_color`.
     var onSetBlockColor: ((String?) -> Void)? = nil
+    /// Called when the user taps a `pinkha://doc/{uuid}` link in the
+    /// editor — the value is the destination document UUID. The parent
+    /// view (DocumentView) navigates to that document instead of opening
+    /// the URL in Safari. Notion mentions rewritten at import time
+    /// (`feat: 2-pass Notion mention rewrite`) are the main producer of
+    /// these URLs.
+    var onOpenInternalDoc: ((String) -> Void)? = nil
 
     func makeUIView(context: Context) -> ExpandingTextView {
         let tv = ExpandingTextView()
