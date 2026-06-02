@@ -881,14 +881,43 @@ async fn import_from_craft_textbundle_path_too_large_fails() {
 }
 
 #[tokio::test]
-async fn import_from_craft_textbundle_with_missing_dir_does_not_panic() {
+async fn import_from_craft_textbundle_with_missing_dir_returns_error() {
     let a = api();
-    // Missing dir is treated as "empty input" by the textbundle extractor:
-    // it returns an empty ImportResult rather than an error. We only assert
-    // the call returns without panicking.
-    let _ = a
+    let err = a
         .import_from_craft_textbundle("/nonexistent_dir_xyz".to_string())
-        .await;
+        .await
+        .expect_err("missing dir should be an error");
+    // The textbundle extractor now validates the path up-front and
+    // surfaces a storage error with a descriptive message.
+    assert!(matches!(err, PinkhaError::Storage { .. }));
+}
+
+#[tokio::test]
+async fn import_from_craft_textbundle_with_file_path_returns_error() {
+    let a = api();
+    // Pass a path that exists but is not a directory.
+    let file_path = std::env::temp_dir().join(format!("pinkha-test-{}.txt", Uuid::new_v4()));
+    std::fs::write(&file_path, b"not a directory").expect("write");
+    let err = a
+        .import_from_craft_textbundle(file_path.to_string_lossy().to_string())
+        .await
+        .expect_err("file path should be an error");
+    assert!(matches!(err, PinkhaError::Storage { .. }));
+    let _ = std::fs::remove_file(&file_path);
+}
+
+#[tokio::test]
+async fn import_from_craft_textbundle_with_empty_dir_succeeds_with_zero_docs() {
+    let a = api();
+    // Existing, empty directory → no error, just 0 imports.
+    let dir = std::env::temp_dir().join(format!("pinkha-test-empty-{}", Uuid::new_v4()));
+    std::fs::create_dir(&dir).expect("mkdir");
+    let result = a
+        .import_from_craft_textbundle(dir.to_string_lossy().to_string())
+        .await
+        .expect("empty dir should succeed");
+    assert_eq!(result.documents, 0);
+    let _ = std::fs::remove_dir(&dir);
 }
 
 #[tokio::test]

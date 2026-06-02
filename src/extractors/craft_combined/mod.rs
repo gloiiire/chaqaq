@@ -78,6 +78,18 @@ impl CraftCombinedExtractor {
 
         // ── Step 1: index textbundles by normalized title ─────────────────────
         let tb_root = Path::new(&config.textbundle_root);
+        if !tb_root.exists() {
+            return Err(ExtractorError::Parse(format!(
+                "textbundle root does not exist: {}",
+                config.textbundle_root
+            )));
+        }
+        if !tb_root.is_dir() {
+            return Err(ExtractorError::Parse(format!(
+                "textbundle root is not a directory: {}",
+                config.textbundle_root
+            )));
+        }
         let bundles = find_textbundles(tb_root);
 
         // normalized_title → (display_title, bundle_path)
