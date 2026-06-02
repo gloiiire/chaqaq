@@ -239,18 +239,15 @@ extension DocumentViewModel {
 
     /// Reloads the full document from SQLite after a structural mutation
     /// (indent / outdent). Index-based bookkeeping is no longer enough once
-    /// the tree changes shape.
+    /// the tree changes shape — we use the same DFS-flatten as `load()` so
+    /// the visible block list mirrors the Rust tree, with `depth` driving
+    /// the visual indentation in the row view.
     private func reloadBlocksAfterStructuralChange() {
         guard let json = try? api.getDocumentJson(id: docId),
               let data = json.data(using: .utf8),
               let doc = try? JSONDecoder().decode(DocumentFfi.self, from: data) else {
             return
         }
-        blocks = doc.blocks.map {
-            EditableBlock(id: $0.id, content: $0.content,
-                          spans: $0.content.spansOrEmpty,
-                          done:  $0.content.isTodoDone,
-                          color: $0.color)
-        }
+        blocks = DocumentViewModel.flattenBlocks(doc.blocks, depth: 0)
     }
 }

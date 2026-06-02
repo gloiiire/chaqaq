@@ -128,7 +128,16 @@ struct RichTextEditor: UIViewRepresentable {
                 //    and re-entered the note.
                 // Preserve the cursor position when only attributes changed;
                 // jump to the end on a string-level edit (undo/redo).
-                let savedTyping = tv.typingAttributes
+                var savedTyping = tv.typingAttributes
+                // When the block colour just flipped AND the user has no
+                // pending inline colour active, update the default foreground
+                // in `typingAttributes` so the *next* keystroke inherits the
+                // new block colour instead of staying on the previous value
+                // (typically UIColor.label = white in dark mode).
+                if coord.lastSyncedBlockColor != blockColor && coord.pendingColor == nil
+                    && savedTyping[.pinkhaColor] == nil {
+                    savedTyping[.foregroundColor] = blockColor.map(uiColorFromName) ?? UIColor.label
+                }
                 let savedSelection = tv.selectedRange
                 let stringChanged = tv.attributedText.string != editingText.string
                 tv.attributedText = editingText

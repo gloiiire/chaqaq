@@ -10,6 +10,14 @@ extension DocumentView {
         let b = block.wrappedValue
         HStack(alignment: .center, spacing: 10) {
             if editMode == .active { selectionButton(b.id) }
+            // Visual indentation for nested blocks. The Rust domain models
+            // nesting as `Block.children`; we flatten the tree at load time
+            // and translate the resulting `depth` to a leading padding here.
+            // Each level shifts the block right by 20 pt — enough to read at
+            // a glance, conservative to fit nested-3 on a narrow phone.
+            if b.depth > 0 {
+                Spacer().frame(width: CGFloat(b.depth) * 20)
+            }
             BlockRowView(
                 block: block,
                 autoFocusId: $vm.autoFocusId,
