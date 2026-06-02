@@ -271,6 +271,8 @@ struct CraftCombinedImportView: View {
             do {
                 let result = try await api.importFromCraftCombined(realmPath: realm, textbundleRoot: tb)
                 importState = .done(result)
+            } catch let err as PinkhaError {
+                importState = .failed(err.userMessage)
             } catch {
                 importState = .failed(error.localizedDescription)
             }
