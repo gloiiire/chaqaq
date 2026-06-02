@@ -210,7 +210,7 @@ private struct PropertyHeaderCell: View {
                           ? "arrow.up"
                           : "arrow.down")
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.accentColor)
+                        .foregroundStyle(Color.accentColor)
                 }
             }
             .padding(.horizontal, 10)

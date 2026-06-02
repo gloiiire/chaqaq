@@ -81,7 +81,7 @@ final class DatabaseViewModel: ObservableObject {
               let entryId = tryCatch(into: &errorMessage, { try api.addEntry(dbId: dbId, valuesJson: vJson) })
         else { return }
 
-        entries.append(EntryFfi(id: entryId, createdAt: "", values: initial))
+        entries.append(EntryFfi(id: entryId, createdAt: "", values: initial, documentId: docId))
     }
 
     /// Deletes the entry and its linked document.
