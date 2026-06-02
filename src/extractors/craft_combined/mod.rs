@@ -145,7 +145,11 @@ impl CraftCombinedExtractor {
                 }
             }
             match map_block(&content, block_type) {
-                Some(bc) => entry.1.push(ParsedBlock { content: bc, children: vec![] }),
+                // craft_combined doesn't yet probe the colour column —
+                // colour fidelity here is a future iteration once textbundle
+                // parsing also exposes block colours. See `craft::run` for
+                // the per-block colour probing pattern.
+                Some(bc) => entry.1.push(ParsedBlock { content: bc, children: vec![], color: None }),
                 None => entry.2 += 1,
             }
         }
