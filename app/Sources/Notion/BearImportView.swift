@@ -170,6 +170,8 @@ struct BearImportView: View {
             do {
                 let result = try await api.importFromBear(dbPath: path)
                 importState = .done(result)
+            } catch let err as PinkhaError {
+                importState = .failed(err.userMessage)
             } catch {
                 importState = .failed(error.localizedDescription)
             }

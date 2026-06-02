@@ -209,6 +209,9 @@ struct NotionImportView: View {
                 // but a manually-typed token also gets saved here.
                 Keychain.save(t, for: KeychainKey.notionToken)
                 await MainActor.run { state = .done(result) }
+            } catch let err as PinkhaError {
+                let message = err.userMessage
+                await MainActor.run { state = .failed(message) }
             } catch {
                 let message = error.localizedDescription
                 await MainActor.run { state = .failed(message) }

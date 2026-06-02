@@ -15,8 +15,15 @@ struct PinkhaErrorUXTests {
         #expect(msg.contains("UUID invalide"))
     }
 
-    @Test func storageMessageSuggestsRetry() {
-        let msg = PinkhaError.Storage(detail: "lock").userMessage
+    @Test func storageMessageIncludesDetail() {
+        // Detail is surfaced verbatim so import errors (path issues, etc.)
+        // give the user something actionable.
+        let msg = PinkhaError.Storage(detail: "textbundle root does not exist: /foo").userMessage
+        #expect(msg.contains("textbundle root does not exist"))
+    }
+
+    @Test func storageMessageFallsBackWhenDetailIsEmpty() {
+        let msg = PinkhaError.Storage(detail: "").userMessage
         #expect(msg.contains("try again") || msg.contains("Try again"))
     }
 

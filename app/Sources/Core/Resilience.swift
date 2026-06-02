@@ -13,8 +13,14 @@ extension PinkhaError {
             return "This item could not be found. It may have been deleted."
         case .InvalidOperation(let detail):
             return "Invalid operation: \(detail)"
-        case .Storage:
-            return "A storage error occurred. Please try again in a moment."
+        case .Storage(let detail):
+            // Detail messages from the Rust side are typically user-friendly
+            // for import errors (e.g. "textbundle root does not exist: ...")
+            // and informative even when technical. Surfacing the detail beats
+            // a generic message that hides what actually went wrong.
+            return detail.isEmpty
+                ? "A storage error occurred. Please try again in a moment."
+                : detail
         }
     }
 
