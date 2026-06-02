@@ -6,7 +6,10 @@ use crate::domain::parser::parse_inline;
 use uuid::Uuid;
 
 /// Creates a new document with a parsed inline title and persists it.
-pub fn create_document(repo: &dyn DocumentRepository, title: &str) -> Result<Document, PinkhaError> {
+pub fn create_document(
+    repo: &dyn DocumentRepository,
+    title: &str,
+) -> Result<Document, PinkhaError> {
     let doc = Document::new(parse_inline(title));
     repo.save(&doc)?;
     Ok(doc)
@@ -90,8 +93,7 @@ pub fn save_edited_block(
 ) -> Result<(), PinkhaError> {
     let mut doc = repo.load(doc_id)?;
     let inlines: Vec<InlineText> = Vec::from(&editor_state.text);
-    let block =
-        find_block_mut(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
+    let block = find_block_mut(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
 
     block.content = match &block.content {
         BlockContent::Text(_) => BlockContent::Text(inlines),

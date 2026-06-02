@@ -36,11 +36,12 @@ fn rewrite_replaces_notion_url_with_pinkha_doc_link() {
     // The "source" page that links to the target.
     let mut source_doc = create_document(&store, "Source page").unwrap();
     let notion_target_id = "abc123def456abc123def456abc123de"; // 32 hex
-    let notion_url = format!(
-        "https://www.notion.so/My-Workspace/Target-page-{notion_target_id}"
-    );
+    let notion_url = format!("https://www.notion.so/My-Workspace/Target-page-{notion_target_id}");
     source_doc.blocks.push(Block::new(BlockContent::Text(vec![
-        InlineText { content: "See ".into(), styles: vec![] },
+        InlineText {
+            content: "See ".into(),
+            styles: vec![],
+        },
         span_with_link("Target page", &notion_url),
     ])));
     use pinkha::application::repository::DocumentRepository;
@@ -71,9 +72,11 @@ fn rewrite_leaves_unknown_links_alone() {
     let store = store_temp();
     let mut doc = create_document(&store, "Page").unwrap();
     let foreign_url = "https://example.com/article";
-    doc.blocks.push(Block::new(BlockContent::Text(vec![
-        span_with_link("Read more", foreign_url),
-    ])));
+    doc.blocks
+        .push(Block::new(BlockContent::Text(vec![span_with_link(
+            "Read more",
+            foreign_url,
+        )])));
     use pinkha::application::repository::DocumentRepository;
     store.save(&doc).unwrap();
 

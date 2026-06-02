@@ -1,12 +1,12 @@
 use pinkha::application::database_use_cases::{
-    column_aggregate, add_entry, add_property, add_view, create_database,
-    evaluate_rollups, get_database, query, grouped_query,
+    add_entry, add_property, add_view, column_aggregate, create_database, evaluate_rollups,
+    get_database, grouped_query, query,
 };
 use pinkha::application::repository::DocumentRepository;
 use pinkha::application::use_cases::create_document;
 use pinkha::domain::database::{
-    Aggregate, FilterCondition, Filter, Order, Property, PropertyType, Sort, ViewType,
-    PropertyValue, View,
+    Aggregate, Filter, FilterCondition, Order, Property, PropertyType, PropertyValue, Sort, View,
+    ViewType,
 };
 use pinkha::domain::document::{BlockContent, InlineText};
 use pinkha::infrastructure::database_store::DatabaseStore;
@@ -26,10 +26,7 @@ fn store_temp() -> (JsonStore, DatabaseStore) {
     let doc_dir = std::env::temp_dir().join(format!("pinkha_e2e_docs_{id}"));
     let db_dir = std::env::temp_dir().join(format!("pinkha_e2e_dbs_{id}"));
     std::fs::create_dir_all(&doc_dir).unwrap();
-    (
-        JsonStore::new(doc_dir),
-        DatabaseStore::new(db_dir).unwrap(),
-    )
+    (JsonStore::new(doc_dir), DatabaseStore::new(db_dir).unwrap())
 }
 
 #[test]
@@ -69,10 +66,7 @@ fn test_flux_complet_database() {
 
     let resultats = query(&db_store, db.id, vue.id).unwrap();
     assert_eq!(resultats.len(), 3);
-    assert_eq!(
-        resultats[0].values[&score_id],
-        PropertyValue::Number(95.0)
-    );
+    assert_eq!(resultats[0].values[&score_id], PropertyValue::Number(95.0));
 }
 
 #[test]
@@ -143,21 +137,10 @@ fn test_vue_avec_filtre_et_tri_combines() {
 fn test_add_property_a_database_existante() {
     let (_doc_store, db_store) = store_temp();
     let db = create_database(&db_store, title("Notes"), vec![]).unwrap();
-    assert_eq!(
-        get_database(&db_store, db.id).unwrap().properties.len(),
-        0
-    );
+    assert_eq!(get_database(&db_store, db.id).unwrap().properties.len(), 0);
 
-    add_property(
-        &db_store,
-        db.id,
-        Property::new("Date", PropertyType::Date),
-    )
-    .unwrap();
-    assert_eq!(
-        get_database(&db_store, db.id).unwrap().properties.len(),
-        1
-    );
+    add_property(&db_store, db.id, Property::new("Date", PropertyType::Date)).unwrap();
+    assert_eq!(get_database(&db_store, db.id).unwrap().properties.len(), 1);
 }
 
 // ── E2E Relations & Rollups ──────────────────────────────────────────────────
@@ -208,10 +191,7 @@ fn test_flux_rollup_entre_deux_databases() {
     let db = get_database(&db_store, db_projets.id).unwrap();
     let enrichies = evaluate_rollups(&db_store, &db, vec![projet]).unwrap();
 
-    assert_eq!(
-        enrichies[0].values[&total_id],
-        PropertyValue::Number(21.0)
-    );
+    assert_eq!(enrichies[0].values[&total_id], PropertyValue::Number(21.0));
 }
 
 // ── E2E Kanban (grouping) ────────────────────────────────────────────────────

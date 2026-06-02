@@ -1,8 +1,8 @@
 //! High-level Realm file reader: Group → Tables → Rows.
 
 use crate::format::{
-    decode_short_string, multiply_elem_bytes, parse_file_header, read_bits_elem,
-    read_node_header, NodeHeader, NODE_HEADER_SIZE, WTYPE_BITS, WTYPE_IGNORE, WTYPE_MULTIPLY,
+    decode_short_string, multiply_elem_bytes, parse_file_header, read_bits_elem, read_node_header,
+    NodeHeader, NODE_HEADER_SIZE, WTYPE_BITS, WTYPE_IGNORE, WTYPE_MULTIPLY,
 };
 use crate::{ColumnType, RealmError, RealmTable, Result, Row, Value};
 
@@ -84,13 +84,17 @@ fn read_string_array_multiply(data: &[u8], offset: usize, slot_width: u8) -> Res
 fn read_table(data: &[u8], name: &str, table_ref: usize) -> Result<RealmTable> {
     let table_arr = read_array(data, table_ref)?;
     if table_arr.is_empty() {
-        return Err(RealmError::InvalidFormat(format!("table '{name}' array empty")));
+        return Err(RealmError::InvalidFormat(format!(
+            "table '{name}' array empty"
+        )));
     }
 
     let spec_ref = table_arr[0] as usize;
     let spec_arr = read_array(data, spec_ref)?;
     if spec_arr.len() < 2 {
-        return Err(RealmError::InvalidFormat(format!("table '{name}' spec too small")));
+        return Err(RealmError::InvalidFormat(format!(
+            "table '{name}' spec too small"
+        )));
     }
 
     let col_names = read_string_array_multiply(data, spec_arr[1] as usize, 32)?;
@@ -141,7 +145,11 @@ fn read_table(data: &[u8], name: &str, table_ref: usize) -> Result<RealmTable> {
         rows.push(Row { values });
     }
 
-    Ok(RealmTable { name: name.to_string(), columns, rows })
+    Ok(RealmTable {
+        name: name.to_string(),
+        columns,
+        rows,
+    })
 }
 
 // ── New-format (cluster tree) table reader ────────────────────────────────────
@@ -207,7 +215,11 @@ fn read_table_new(
         rows.push(Row { values });
     }
 
-    Ok(RealmTable { name: name.to_string(), columns: columns.to_vec(), rows })
+    Ok(RealmTable {
+        name: name.to_string(),
+        columns: columns.to_vec(),
+        rows,
+    })
 }
 
 /// Map a column index to its position in the cluster root array.
@@ -225,8 +237,8 @@ fn cluster_index_for_col(col_idx: usize, col_type_ints: &[u64]) -> usize {
     for k in 1..col_idx {
         let ct = col_type_ints.get(k).copied().unwrap_or(0) as u8;
         match ct {
-            8 => ci += 2,  // Timestamp: seconds + fractionals = 2 cluster slots
-            14 => {}       // BackLink: virtual, 0 cluster slots
+            8 => ci += 2, // Timestamp: seconds + fractionals = 2 cluster slots
+            14 => {}      // BackLink: virtual, 0 cluster slots
             _ => ci += 1,
         }
     }
@@ -337,7 +349,11 @@ fn read_compact_string_leaf(data: &[u8], leaf_ref: usize) -> Result<Vec<String>>
         let start = if r == 0 { 0 } else { offsets[r - 1] as usize };
         // offsets[r] points one past the null terminator; subtract 1 for the string end
         let raw_end = offsets[r] as usize;
-        let end = if raw_end > 0 { (raw_end - 1).min(blob.len()) } else { start };
+        let end = if raw_end > 0 {
+            (raw_end - 1).min(blob.len())
+        } else {
+            start
+        };
         let start = start.min(end);
         strings.push(String::from_utf8_lossy(&blob[start..end]).into_owned());
     }
@@ -369,7 +385,11 @@ fn read_wtype2_string(data: &[u8], str_ref: usize) -> Result<String> {
     }
     let payload = &data[str_ref + NODE_HEADER_SIZE..];
     let len = hdr.size.min(payload.len());
-    let end = if len > 0 && payload[len - 1] == 0 { len - 1 } else { len };
+    let end = if len > 0 && payload[len - 1] == 0 {
+        len - 1
+    } else {
+        len
+    };
     Ok(String::from_utf8_lossy(&payload[..end]).into_owned())
 }
 
@@ -460,7 +480,10 @@ fn collect_linklists_new(data: &[u8], col_ref: usize) -> Vec<Vec<u32>> {
             if list_ref == 0 || list_ref % 8 != 0 || list_ref + NODE_HEADER_SIZE > data.len() {
                 return vec![];
             }
-            collect_ints_new(data, list_ref).into_iter().map(|v| v as u32).collect()
+            collect_ints_new(data, list_ref)
+                .into_iter()
+                .map(|v| v as u32)
+                .collect()
         })
         .collect()
 }
@@ -505,14 +528,18 @@ fn read_cell(data: &[u8], col_ref: usize, row_idx: usize, col_type: ColumnType) 
     let payload = &data[col_ref + NODE_HEADER_SIZE..];
 
     match col_type {
-        ColumnType::Bool => Ok(Value::Bool(read_bits_elem(payload, row_idx, hdr.width) != 0)),
-        ColumnType::Int => Ok(Value::Int(read_bits_elem(payload, row_idx, hdr.width) as i64)),
-        ColumnType::Timestamp => {
-            Ok(Value::Timestamp(read_bits_elem(payload, row_idx, hdr.width) as i64))
-        }
-        ColumnType::Link | ColumnType::LinkList | ColumnType::BackLink => {
-            Ok(Value::Link(read_bits_elem(payload, row_idx, hdr.width) as usize))
-        }
+        ColumnType::Bool => Ok(Value::Bool(
+            read_bits_elem(payload, row_idx, hdr.width) != 0,
+        )),
+        ColumnType::Int => Ok(Value::Int(
+            read_bits_elem(payload, row_idx, hdr.width) as i64
+        )),
+        ColumnType::Timestamp => Ok(Value::Timestamp(
+            read_bits_elem(payload, row_idx, hdr.width) as i64,
+        )),
+        ColumnType::Link | ColumnType::LinkList | ColumnType::BackLink => Ok(Value::Link(
+            read_bits_elem(payload, row_idx, hdr.width) as usize,
+        )),
         ColumnType::Float if hdr.width == 32 => {
             let off = row_idx * 4;
             let f = f32::from_le_bytes(payload[off..off + 4].try_into().unwrap_or([0; 4]));

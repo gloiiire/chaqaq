@@ -1,9 +1,9 @@
 use pinkha::application::database_use_cases::{
-    add_entry, create_database, list_databases, get_database, delete_database,
+    add_entry, create_database, delete_database, get_database, list_databases,
 };
 use pinkha::application::error::PinkhaError;
 use pinkha::application::use_cases::{
-    add_block, create_document, list_documents, get_document, delete_document,
+    add_block, create_document, delete_document, get_document, list_documents,
 };
 use pinkha::domain::database::{Property, PropertyType, PropertyValue};
 use pinkha::domain::document::{BlockContent, InlineText};

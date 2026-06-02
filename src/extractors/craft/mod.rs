@@ -102,9 +102,15 @@ impl Extractor for CraftExtractor {
         // names and pick the first that exists. `None` means the column wasn't
         // found in this Craft version — import keeps working, just without
         // colour fidelity. Add candidates here as the real schema is mapped.
-        let color_idx = ["highlightColor", "textColor", "colorName", "color", "blockColor"]
-            .iter()
-            .find_map(|name| block_table.column_index(name));
+        let color_idx = [
+            "highlightColor",
+            "textColor",
+            "colorName",
+            "color",
+            "blockColor",
+        ]
+        .iter()
+        .find_map(|name| block_table.column_index(name));
 
         // doc_id → (title, content_blocks, skipped_count)
         let mut doc_map: HashMap<String, (Option<String>, Vec<ParsedBlock>, usize)> =
@@ -135,7 +141,11 @@ impl Extractor for CraftExtractor {
                 .and_then(craft_color_name_to_pinkha);
 
             match map_block(&content, block_type) {
-                Some(bc) => entry.1.push(ParsedBlock { content: bc, children: vec![], color }),
+                Some(bc) => entry.1.push(ParsedBlock {
+                    content: bc,
+                    children: vec![],
+                    color,
+                }),
                 None => entry.2 += 1,
             }
         }
@@ -173,7 +183,11 @@ pub fn title_candidate(content: &str, block_type: &str) -> Option<String> {
         return None;
     }
     let line = content.lines().next().unwrap_or("").trim();
-    if line.is_empty() { None } else { Some(line.to_string()) }
+    if line.is_empty() {
+        None
+    } else {
+        Some(line.to_string())
+    }
 }
 
 pub fn map_block(content: &str, block_type: &str) -> Option<BlockContent> {
@@ -183,7 +197,10 @@ pub fn map_block(content: &str, block_type: &str) -> Option<BlockContent> {
             if content.is_empty() {
                 return None;
             }
-            Some(BlockContent::Code { language: String::new(), text: content.to_string() })
+            Some(BlockContent::Code {
+                language: String::new(),
+                text: content.to_string(),
+            })
         }
         "line" => Some(BlockContent::Divider),
         _ => None,
@@ -191,7 +208,10 @@ pub fn map_block(content: &str, block_type: &str) -> Option<BlockContent> {
 }
 
 pub fn plain(s: &str) -> Vec<InlineText> {
-    vec![InlineText { content: s.to_string(), styles: vec![] }]
+    vec![InlineText {
+        content: s.to_string(),
+        styles: vec![],
+    }]
 }
 
 pub fn flush_document(
@@ -226,16 +246,16 @@ pub fn flush_document(
 /// case-insensitive). Extend as new observed values surface in real imports.
 pub fn craft_color_name_to_pinkha(raw: &str) -> Option<String> {
     match raw.to_ascii_lowercase().as_str() {
-        "red"                  => Some("red".into()),
-        "pink"                 => Some("pink".into()),
-        "orange"               => Some("orange".into()),
-        "yellow"               => Some("yellow".into()),
-        "green"                => Some("green".into()),
-        "cyan" | "teal"        => Some("cyan".into()),
-        "blue"                 => Some("blue".into()),
-        "purple" | "violet"    => Some("purple".into()),
-        "brown"                => Some("brown".into()),
-        _                      => None,
+        "red" => Some("red".into()),
+        "pink" => Some("pink".into()),
+        "orange" => Some("orange".into()),
+        "yellow" => Some("yellow".into()),
+        "green" => Some("green".into()),
+        "cyan" | "teal" => Some("cyan".into()),
+        "blue" => Some("blue".into()),
+        "purple" | "violet" => Some("purple".into()),
+        "brown" => Some("brown".into()),
+        _ => None,
     }
 }
 
@@ -291,12 +311,18 @@ mod tests {
 
     #[test]
     fn title_candidate_text_returns_first_line() {
-        assert_eq!(title_candidate("Hello\nworld", "text").as_deref(), Some("Hello"));
+        assert_eq!(
+            title_candidate("Hello\nworld", "text").as_deref(),
+            Some("Hello")
+        );
     }
 
     #[test]
     fn title_candidate_text_trims_whitespace() {
-        assert_eq!(title_candidate("  Hello  \nworld", "text").as_deref(), Some("Hello"));
+        assert_eq!(
+            title_candidate("  Hello  \nworld", "text").as_deref(),
+            Some("Hello")
+        );
     }
 
     #[test]
@@ -332,7 +358,10 @@ mod tests {
     #[test]
     fn craft_color_synonyms_collapse_correctly() {
         assert_eq!(craft_color_name_to_pinkha("teal").as_deref(), Some("cyan"));
-        assert_eq!(craft_color_name_to_pinkha("violet").as_deref(), Some("purple"));
+        assert_eq!(
+            craft_color_name_to_pinkha("violet").as_deref(),
+            Some("purple")
+        );
     }
 
     #[test]

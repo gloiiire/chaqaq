@@ -40,7 +40,9 @@ pub fn is_transient(err: &PinkhaError) -> bool {
     match err {
         PinkhaError::Db(msg) => {
             let lower = msg.to_lowercase();
-            lower.contains("busy") || lower.contains("locked") || lower.contains("database is locked")
+            lower.contains("busy")
+                || lower.contains("locked")
+                || lower.contains("database is locked")
         }
         PinkhaError::Io(io_err) => matches!(
             io_err.kind(),
@@ -122,7 +124,9 @@ mod tests {
     fn is_transient_couvre_les_cas_attendus() {
         assert!(is_transient(&PinkhaError::Db("database is locked".into())));
         assert!(is_transient(&PinkhaError::Db("BUSY (5)".into())));
-        assert!(is_transient(&PinkhaError::Io(std::io::Error::from(std::io::ErrorKind::WouldBlock))));
+        assert!(is_transient(&PinkhaError::Io(std::io::Error::from(
+            std::io::ErrorKind::WouldBlock
+        ))));
         assert!(!is_transient(&PinkhaError::NotFound(Uuid::new_v4())));
         assert!(!is_transient(&PinkhaError::InvalidOperation("x".into())));
     }

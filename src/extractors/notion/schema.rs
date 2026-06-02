@@ -141,8 +141,12 @@ pub struct NotionPageResult {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NotionPageCover {
-    External { external: NotionExternalFile },
-    File { file: NotionHostedFile },
+    External {
+        external: NotionExternalFile,
+    },
+    File {
+        file: NotionHostedFile,
+    },
     #[serde(other)]
     Unknown,
 }
@@ -164,9 +168,15 @@ impl NotionPageCover {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NotionPageIcon {
-    Emoji { emoji: String },
-    External { external: NotionExternalFile },
-    File { file: NotionHostedFile },
+    Emoji {
+        emoji: String,
+    },
+    External {
+        external: NotionExternalFile,
+    },
+    File {
+        file: NotionHostedFile,
+    },
     #[serde(other)]
     Unknown,
 }

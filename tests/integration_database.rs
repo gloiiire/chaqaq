@@ -1,11 +1,10 @@
 use pinkha::application::database_use_cases::{
-    column_aggregate, add_entry, add_view, create_database, evaluate_rollups,
-    list_databases, update_entry, get_database, query, grouped_query,
-    delete_entry,
+    add_entry, add_view, column_aggregate, create_database, delete_entry, evaluate_rollups,
+    get_database, grouped_query, list_databases, query, update_entry,
 };
 use pinkha::domain::database::{
-    Aggregate, FilterCondition, Filter, Order, Property, PropertyType, Sort, ViewType,
-    PropertyValue, View,
+    Aggregate, Filter, FilterCondition, Order, Property, PropertyType, PropertyValue, Sort, View,
+    ViewType,
 };
 use pinkha::domain::document::InlineText;
 use pinkha::infrastructure::database_store::DatabaseStore;

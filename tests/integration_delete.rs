@@ -1,8 +1,6 @@
-use pinkha::application::database_use_cases::{
-    create_database, get_database, delete_database,
-};
+use pinkha::application::database_use_cases::{create_database, delete_database, get_database};
 use pinkha::application::error::PinkhaError;
-use pinkha::application::use_cases::{create_document, get_document, delete_document};
+use pinkha::application::use_cases::{create_document, delete_document, get_document};
 use pinkha::domain::database::{Property, PropertyType};
 use pinkha::domain::document::InlineText;
 use pinkha::infrastructure::database_store::DatabaseStore;

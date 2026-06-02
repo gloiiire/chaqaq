@@ -157,7 +157,9 @@ impl SqliteDocumentStore {
                  ORDER BY updated_at DESC"
             };
             let fid_str = folder_id.map(|u| u.to_string());
-            let mut stmt = conn.prepare(sql).map_err(|e| PinkhaError::Db(e.to_string()))?;
+            let mut stmt = conn
+                .prepare(sql)
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let mapper = |row: &rusqlite::Row<'_>| {
                 Ok((
                     row.get::<_, String>(0)?,
@@ -183,7 +185,11 @@ impl SqliteDocumentStore {
                 })?;
                 let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
                 metas.push(DocumentMeta {
-                    id, title, cover, updated_at, created_at,
+                    id,
+                    title,
+                    cover,
+                    updated_at,
+                    created_at,
                     folder_id: fid.and_then(|s| Uuid::parse_str(&s).ok()),
                 });
             }

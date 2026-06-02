@@ -56,7 +56,11 @@ pub fn set_view_single_sort(
         None => Vec::new(),
         Some(pid) => vec![Sort {
             property_id: pid,
-            order: if ascending { Order::Ascending } else { Order::Descending },
+            order: if ascending {
+                Order::Ascending
+            } else {
+                Order::Descending
+            },
             source: SortSource::Property,
         }],
     };
@@ -208,7 +212,10 @@ mod tests {
         let date_prop = Property::new("Date", PropertyType::Date);
         let date_id = date_prop.id;
         let db = Database::new(
-            vec![InlineText { content: "Tasks".into(), styles: vec![] }],
+            vec![InlineText {
+                content: "Tasks".into(),
+                styles: vec![],
+            }],
             vec![title_prop, date_prop],
         );
         let db_id = db.id;
@@ -236,7 +243,10 @@ mod tests {
         let prop = Property::new("Name", PropertyType::Title);
         let prop_id = prop.id;
         let db = Database::new(
-            vec![InlineText { content: "Tasks".into(), styles: vec![] }],
+            vec![InlineText {
+                content: "Tasks".into(),
+                styles: vec![],
+            }],
             vec![prop],
         );
         let db_id = db.id;
@@ -254,7 +264,10 @@ mod tests {
     fn set_view_single_sort_unknown_view_returns_not_found() {
         let repo = MockDbRepo::new();
         let db = Database::new(
-            vec![InlineText { content: "x".into(), styles: vec![] }],
+            vec![InlineText {
+                content: "x".into(),
+                styles: vec![],
+            }],
             vec![],
         );
         let db_id = db.id;

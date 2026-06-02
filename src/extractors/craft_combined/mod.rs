@@ -27,7 +27,7 @@ use realm_codec::RealmFile;
 use crate::application::database_repository::DatabaseRepository;
 use crate::application::folder_repository::FolderRepository;
 use crate::application::repository::DocumentRepository;
-use crate::extractors::bear::mapper::{parse_note_blocks, ParsedBlock};
+use crate::extractors::bear::mapper::{ParsedBlock, parse_note_blocks};
 use crate::extractors::craft::{flush_document, map_block, title_candidate};
 use crate::extractors::craft_textbundle::{
     find_textbundles, relative_folder_components, textbundle_title,
@@ -161,7 +161,11 @@ impl CraftCombinedExtractor {
                 // colour fidelity here is a future iteration once textbundle
                 // parsing also exposes block colours. See `craft::run` for
                 // the per-block colour probing pattern.
-                Some(bc) => entry.1.push(ParsedBlock { content: bc, children: vec![], color: None }),
+                Some(bc) => entry.1.push(ParsedBlock {
+                    content: bc,
+                    children: vec![],
+                    color: None,
+                }),
                 None => entry.2 += 1,
             }
         }
@@ -178,8 +182,8 @@ impl CraftCombinedExtractor {
             let key = normalize(&realm_title);
 
             if let Some((tb_title, bundle_path)) = tb_map.get(&key) {
-                let md = std::fs::read_to_string(bundle_path.join("text.markdown"))
-                    .unwrap_or_default();
+                let md =
+                    std::fs::read_to_string(bundle_path.join("text.markdown")).unwrap_or_default();
                 let blocks = parse_note_blocks(&md);
                 block_count += blocks.len();
                 let components = relative_folder_components(bundle_path, tb_root);
@@ -250,7 +254,9 @@ impl Extractor for CraftCombinedExtractor {
         dbs: &(dyn DatabaseRepository + Send + Sync),
         folders: &(dyn FolderRepository + Send + Sync),
     ) -> Result<ImportResult, ExtractorError> {
-        self.run_detailed(config, docs, dbs, folders).await.map(|(r, _)| r)
+        self.run_detailed(config, docs, dbs, folders)
+            .await
+            .map(|(r, _)| r)
     }
 }
 

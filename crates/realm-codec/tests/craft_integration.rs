@@ -49,7 +49,12 @@ fn craft_all_tables_readable() {
     assert!(!tables.is_empty(), "should have at least one table");
 
     for t in tables {
-        println!("  {} ({} rows, {} cols)", t.name, t.rows.len(), t.columns.len());
+        println!(
+            "  {} ({} rows, {} cols)",
+            t.name,
+            t.rows.len(),
+            t.columns.len()
+        );
     }
     assert!(
         tables.iter().any(|t| t.name.contains("BlockDataModel")),
@@ -102,10 +107,15 @@ fn craft_inspect_col_types() {
 
     // Verify blocks column is a LinkList and is readable.
     let blocks_idx = table.column_index("blocks").expect("blocks");
-    let non_empty = table.rows.iter()
+    let non_empty = table
+        .rows
+        .iter()
         .filter(|r| !r.get(blocks_idx).as_link_list().is_empty())
         .count();
-    println!("\ntotal rows={}, non-empty blocks link lists: {non_empty}", table.rows.len());
+    println!(
+        "\ntotal rows={}, non-empty blocks link lists: {non_empty}",
+        table.rows.len()
+    );
     assert!(
         matches!(table.columns[11].1, realm_codec::ColumnType::LinkList),
         "col[11] should be LinkList"
@@ -118,25 +128,35 @@ fn craft_inspect_link_to_doc() {
     let db = realm_codec::RealmFile::open(CRAFT_REALM).expect("open realm file");
 
     // Collect DocumentDataModel IDs (lowercase).
-    let doc_table = db.table("class_DocumentDataModel").expect("DocumentDataModel");
-    let did_col   = doc_table.column_index("id").expect("id");
-    let doc_ids: std::collections::HashSet<String> = doc_table.rows.iter()
+    let doc_table = db
+        .table("class_DocumentDataModel")
+        .expect("DocumentDataModel");
+    let did_col = doc_table.column_index("id").expect("id");
+    let doc_ids: std::collections::HashSet<String> = doc_table
+        .rows
+        .iter()
         .map(|r| r.get(did_col).as_str().to_lowercase())
         .filter(|s| !s.is_empty())
         .collect();
 
-    let btable  = db.table("class_BlockDataModel").expect("block table");
+    let btable = db.table("class_BlockDataModel").expect("block table");
     let _bid_col = btable.column_index("id").expect("id");
     let _raw_col = btable.column_index("rawProperties").expect("rawProperties");
-    let lsb_col  = btable.column_index("lastSyncedBlockIds").expect("lastSyncedBlockIds");
+    let lsb_col = btable
+        .column_index("lastSyncedBlockIds")
+        .expect("lastSyncedBlockIds");
 
     // Check if lastSyncedBlockIds values match doc IDs.
     let mut lsb_matches = 0usize;
     let mut unique_lsb: std::collections::HashSet<String> = Default::default();
     for row in &btable.rows {
         let lsb = row.get(lsb_col).as_str().to_lowercase();
-        if !lsb.is_empty() { unique_lsb.insert(lsb.clone()); }
-        if doc_ids.contains(&lsb) { lsb_matches += 1; }
+        if !lsb.is_empty() {
+            unique_lsb.insert(lsb.clone());
+        }
+        if doc_ids.contains(&lsb) {
+            lsb_matches += 1;
+        }
     }
     println!("unique lastSyncedBlockIds: {}", unique_lsb.len());
     println!("lastSyncedBlockIds ∈ doc_ids: {lsb_matches}");
@@ -147,7 +167,9 @@ fn craft_inspect_link_to_doc() {
         let mut hits = 0usize;
         for row in &btable.rows {
             let v = row.get(ci).as_str().to_lowercase();
-            if doc_ids.contains(&v) { hits += 1; }
+            if doc_ids.contains(&v) {
+                hits += 1;
+            }
         }
         if hits > 0 {
             println!("  [{ci}] {col_name}: {hits} matches");
@@ -161,75 +183,108 @@ fn craft_inspect_document_model() {
     let db = realm_codec::RealmFile::open(CRAFT_REALM).expect("open realm file");
 
     // Print ALL DocumentDataModel columns.
-    let doc_table = db.table("class_DocumentDataModel").expect("DocumentDataModel");
+    let doc_table = db
+        .table("class_DocumentDataModel")
+        .expect("DocumentDataModel");
     println!("DocumentDataModel columns ({}):", doc_table.columns.len());
     for (i, (name, ct)) in doc_table.columns.iter().enumerate() {
         println!("  col[{i:02}] {name}: {ct:?}");
     }
 
     // Print first 2 rows to see what values look like.
-    let id_col   = doc_table.column_index("id").expect("id");
+    let id_col = doc_table.column_index("id").expect("id");
     println!("\nFirst 2 DocumentDataModel rows:");
     for row in doc_table.rows.iter().take(2) {
         for (i, (name, _)) in doc_table.columns.iter().enumerate() {
             let v = row.get(i).as_str();
-            if !v.is_empty() { println!("  {name}: {v:?}"); }
+            if !v.is_empty() {
+                println!("  {name}: {v:?}");
+            }
         }
         println!("---");
     }
 
     let root_col = doc_table.column_index("rootBlockId").expect("rootBlockId");
 
-    let doc_ids: std::collections::HashSet<String> = doc_table.rows.iter()
+    let doc_ids: std::collections::HashSet<String> = doc_table
+        .rows
+        .iter()
         .map(|r| r.get(id_col).as_str().to_lowercase())
         .filter(|s| !s.is_empty())
         .collect();
 
-    let root_block_ids: std::collections::HashSet<String> = doc_table.rows.iter()
+    let root_block_ids: std::collections::HashSet<String> = doc_table
+        .rows
+        .iter()
         .map(|r| r.get(root_col).as_str().to_lowercase())
         .filter(|s| !s.is_empty())
         .collect();
 
-    println!("DocumentDataModel: {} docs, {} with rootBlockId", doc_ids.len(), root_block_ids.len());
+    println!(
+        "DocumentDataModel: {} docs, {} with rootBlockId",
+        doc_ids.len(),
+        root_block_ids.len()
+    );
     println!("Sample doc IDs:");
-    for id in doc_ids.iter().take(5) { println!("  {id}"); }
+    for id in doc_ids.iter().take(5) {
+        println!("  {id}");
+    }
     println!("Sample rootBlockIds:");
-    for id in root_block_ids.iter().take(5) { println!("  {id}"); }
+    for id in root_block_ids.iter().take(5) {
+        println!("  {id}");
+    }
 
     // Scan BlockDataModel: check how many block IDs are in doc_ids or root_block_ids.
     let btable = db.table("class_BlockDataModel").expect("block table");
-    let bid_col  = btable.column_index("id").expect("id");
-    let raw_col  = btable.column_index("rawProperties").expect("rawProperties");
+    let bid_col = btable.column_index("id").expect("id");
+    let raw_col = btable.column_index("rawProperties").expect("rawProperties");
 
-    let mut id_matches_doc   = 0usize;
-    let mut id_matches_root  = 0usize;
-    let mut title_enabled    = 0usize;
+    let mut id_matches_doc = 0usize;
+    let mut id_matches_root = 0usize;
+    let mut title_enabled = 0usize;
 
     for row in &btable.rows {
-        let bid  = row.get(bid_col).as_str().to_lowercase();
-        let raw  = row.get(raw_col).as_str();
-        let te   = raw.contains("\"titleEnabled\":\"true\"") || raw.contains("\"titleEnabled\":true");
-        if te { title_enabled += 1; }
-        if doc_ids.contains(&bid)        { id_matches_doc  += 1; }
-        if root_block_ids.contains(&bid) { id_matches_root += 1; }
+        let bid = row.get(bid_col).as_str().to_lowercase();
+        let raw = row.get(raw_col).as_str();
+        let te = raw.contains("\"titleEnabled\":\"true\"") || raw.contains("\"titleEnabled\":true");
+        if te {
+            title_enabled += 1;
+        }
+        if doc_ids.contains(&bid) {
+            id_matches_doc += 1;
+        }
+        if root_block_ids.contains(&bid) {
+            id_matches_root += 1;
+        }
     }
 
     // Count blocks per doc and titleEnabled per doc.
     let lsb_col = btable.column_index("lastSyncedBlockIds").expect("lsb");
-    let mut doc_block_counts: std::collections::HashMap<String, (usize, usize)> = Default::default();
+    let mut doc_block_counts: std::collections::HashMap<String, (usize, usize)> =
+        Default::default();
     let mut empty_lsb = 0usize;
     for row in &btable.rows {
         let lsb = row.get(lsb_col).as_str().to_lowercase();
-        if lsb.is_empty() { empty_lsb += 1; continue; }
+        if lsb.is_empty() {
+            empty_lsb += 1;
+            continue;
+        }
         let raw = row.get(raw_col).as_str();
-        let is_title = raw.contains("\"titleEnabled\":\"true\"") || raw.contains("\"titleEnabled\":true");
+        let is_title =
+            raw.contains("\"titleEnabled\":\"true\"") || raw.contains("\"titleEnabled\":true");
         let entry = doc_block_counts.entry(lsb).or_insert((0, 0));
         entry.0 += 1;
-        if is_title { entry.1 += 1; }
+        if is_title {
+            entry.1 += 1;
+        }
     }
     let docs_with_zero_title = doc_block_counts.values().filter(|&&(_, t)| t == 0).count();
     let docs_with_multi_title = doc_block_counts.values().filter(|&&(_, t)| t > 1).count();
-    let max_title = doc_block_counts.values().map(|&(_, t)| t).max().unwrap_or(0);
+    let max_title = doc_block_counts
+        .values()
+        .map(|&(_, t)| t)
+        .max()
+        .unwrap_or(0);
 
     println!("\nBlocks whose id ∈ doc_ids:        {id_matches_doc}");
     println!("Blocks whose id ∈ rootBlockIds:   {id_matches_root}");
@@ -250,38 +305,47 @@ fn craft_inspect_document_model() {
                 let lsb = row.get(lsb_col).as_str().to_lowercase();
                 if &lsb == doc_id {
                     let content_col = btable.column_index("content").unwrap();
-                    let type_col    = btable.column_index("type").unwrap();
+                    let type_col = btable.column_index("type").unwrap();
                     let content = row.get(content_col).as_str();
-                    println!("    first block: type={:?} content={:?}",
+                    println!(
+                        "    first block: type={:?} content={:?}",
                         row.get(type_col).as_str(),
-                        &content[..content.len().min(80)]);
+                        &content[..content.len().min(80)]
+                    );
                     break;
                 }
             }
             shown += 1;
-            if shown >= 3 { break; }
+            if shown >= 3 {
+                break;
+            }
         }
     }
 
     // Investigate documentId column — does it point to embedded sub-pages?
-    let doc_id_col  = btable.column_index("documentId").expect("documentId");
+    let doc_id_col = btable.column_index("documentId").expect("documentId");
     let content_col = btable.column_index("content").unwrap();
-    let type_col    = btable.column_index("type").unwrap();
+    let type_col = btable.column_index("type").unwrap();
 
     let mut blocks_with_document_id = 0usize;
-    let mut document_id_in_doc_ids  = 0usize;
+    let mut document_id_in_doc_ids = 0usize;
     let mut shown_samples = 0;
     println!("\ndocumentId column investigation:");
     for row in &btable.rows {
         let did = row.get(doc_id_col).as_str().to_lowercase();
-        if did.is_empty() { continue; }
+        if did.is_empty() {
+            continue;
+        }
         blocks_with_document_id += 1;
-        if doc_ids.contains(&did) { document_id_in_doc_ids += 1; }
+        if doc_ids.contains(&did) {
+            document_id_in_doc_ids += 1;
+        }
         if shown_samples < 5 {
-            let raw  = row.get(raw_col).as_str();
-            let te   = raw.contains("\"titleEnabled\":\"true\"") || raw.contains("\"titleEnabled\":true");
-            let lsb  = row.get(lsb_col).as_str().to_lowercase();
-            let ct   = row.get(content_col).as_str();
+            let raw = row.get(raw_col).as_str();
+            let te =
+                raw.contains("\"titleEnabled\":\"true\"") || raw.contains("\"titleEnabled\":true");
+            let lsb = row.get(lsb_col).as_str().to_lowercase();
+            let ct = row.get(content_col).as_str();
             let same = &lsb == &did;
             println!("  documentId={did:?} lsb={lsb:?} same={same} titleEnabled={te} type={:?} content={:?}",
                 row.get(type_col).as_str(),
@@ -293,14 +357,23 @@ fn craft_inspect_document_model() {
     println!("of which documentId ∈ doc_ids: {document_id_in_doc_ids}");
 
     // How many unique documentId values appear that differ from lastSyncedBlockIds?
-    let cross_refs: std::collections::HashSet<String> = btable.rows.iter()
+    let cross_refs: std::collections::HashSet<String> = btable
+        .rows
+        .iter()
         .filter_map(|r| {
             let did = r.get(doc_id_col).as_str().to_lowercase();
             let lsb = r.get(lsb_col).as_str().to_lowercase();
-            if !did.is_empty() && did != lsb { Some(did) } else { None }
+            if !did.is_empty() && did != lsb {
+                Some(did)
+            } else {
+                None
+            }
         })
         .collect();
-    println!("unique documentId values ≠ lastSyncedBlockIds: {}", cross_refs.len());
+    println!(
+        "unique documentId values ≠ lastSyncedBlockIds: {}",
+        cross_refs.len()
+    );
 
     // Print full rawProperties of first 10 titleEnabled blocks to look for pageId / sub-page links.
     println!("\nrawProperties of first 10 titleEnabled blocks:");
@@ -310,7 +383,7 @@ fn craft_inspect_document_model() {
         let te = raw.contains("\"titleEnabled\":\"true\"") || raw.contains("\"titleEnabled\":true");
         if te && shown2 < 10 {
             let lsb = row.get(lsb_col).as_str();
-            let ct  = row.get(content_col).as_str();
+            let ct = row.get(content_col).as_str();
             println!("  lsb={:?}", &lsb[..lsb.len().min(36)]);
             println!("  content={:?}", &ct[..ct.len().min(60)]);
             println!("  rawProps={:?}", &raw[..raw.len().min(300)]);

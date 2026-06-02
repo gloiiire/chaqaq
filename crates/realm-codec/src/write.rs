@@ -78,7 +78,9 @@ impl RealmBuilder {
             columns: Vec::new(),
             rows: Vec::new(),
         });
-        TableBuilder { def: self.tables.last_mut().unwrap() }
+        TableBuilder {
+            def: self.tables.last_mut().unwrap(),
+        }
     }
 
     /// Serialise the entire database to a Realm v9 binary byte vector.
@@ -123,7 +125,9 @@ struct Serializer {
 impl Serializer {
     fn new() -> Self {
         // Reserve 24 bytes for the file header (filled in at finalise time).
-        Serializer { buf: vec![0u8; FILE_HEADER_SIZE] }
+        Serializer {
+            buf: vec![0u8; FILE_HEADER_SIZE],
+        }
     }
 
     fn align(&mut self) {
@@ -137,7 +141,9 @@ impl Serializer {
         self.align();
         let start = self.buf.len();
         let mut h4 = (wtype << 3) | (wenc & 0x07);
-        if has_refs { h4 |= 0x40; }
+        if has_refs {
+            h4 |= 0x40;
+        }
         let h5 = ((size >> 16) & 0xFF) as u8;
         let h6 = ((size >> 8) & 0xFF) as u8;
         let h7 = (size & 0xFF) as u8;
@@ -171,7 +177,9 @@ impl Serializer {
         let n_bytes = values.len().div_ceil(8);
         let mut bytes = vec![0u8; n_bytes];
         for (i, &b) in values.iter().enumerate() {
-            if b { bytes[i / 8] |= 1u8 << (i % 8); }
+            if b {
+                bytes[i / 8] |= 1u8 << (i % 8);
+            }
         }
         self.buf.extend_from_slice(&bytes);
         self.align();
@@ -252,7 +260,11 @@ impl Serializer {
         let refs: Vec<u64> = strings
             .iter()
             .map(|&s| {
-                if s.is_empty() { 0 } else { self.write_string_node(s) as u64 }
+                if s.is_empty() {
+                    0
+                } else {
+                    self.write_string_node(s) as u64
+                }
             })
             .collect();
         self.write_u64_array(&refs, true)
@@ -276,7 +288,17 @@ impl Serializer {
 /// Both use the same encoding table: 0→0, 1→1, 2→2, 4→3, 8→4, 16→5, 32→6, 64→7.
 #[inline]
 fn wenc(w: u8) -> u8 {
-    match w { 0 => 0, 1 => 1, 2 => 2, 4 => 3, 8 => 4, 16 => 5, 32 => 6, 64 => 7, _ => 0 }
+    match w {
+        0 => 0,
+        1 => 1,
+        2 => 2,
+        4 => 3,
+        8 => 4,
+        16 => 5,
+        32 => 6,
+        64 => 7,
+        _ => 0,
+    }
 }
 
 // ── Serialisation helpers ─────────────────────────────────────────────────────
@@ -356,7 +378,10 @@ fn serialize_column(s: &mut Serializer, rows: &[Vec<Value>], ci: usize, ct: Colu
             s.write_bool_array(&v)
         }
         ColumnType::Float => {
-            let v: Vec<f32> = rows.iter().map(|r| row_val(r, ci).as_float() as f32).collect();
+            let v: Vec<f32> = rows
+                .iter()
+                .map(|r| row_val(r, ci).as_float() as f32)
+                .collect();
             s.write_f32_array(&v)
         }
         ColumnType::Double => {
@@ -432,7 +457,8 @@ mod tests {
     #[test]
     fn int_column_roundtrip() {
         let mut b = RealmBuilder::new();
-        b.table("T").column("n", ColumnType::Int)
+        b.table("T")
+            .column("n", ColumnType::Int)
             .row(vec![Value::Int(0)])
             .row(vec![Value::Int(42)])
             .row(vec![Value::Int(-1)])
@@ -449,7 +475,8 @@ mod tests {
     #[test]
     fn bool_column_roundtrip() {
         let mut b = RealmBuilder::new();
-        b.table("T").column("flag", ColumnType::Bool)
+        b.table("T")
+            .column("flag", ColumnType::Bool)
             .row(vec![Value::Bool(true)])
             .row(vec![Value::Bool(false)])
             .row(vec![Value::Bool(true)]);
@@ -463,7 +490,8 @@ mod tests {
     #[test]
     fn string_column_short_roundtrip() {
         let mut b = RealmBuilder::new();
-        b.table("T").column("s", ColumnType::String)
+        b.table("T")
+            .column("s", ColumnType::String)
             .row(vec![Value::String("hello".into())])
             .row(vec![Value::String("world".into())])
             .row(vec![Value::String("".into())]);
@@ -478,7 +506,8 @@ mod tests {
     fn string_column_long_roundtrip() {
         let long = "a".repeat(500);
         let mut b = RealmBuilder::new();
-        b.table("T").column("body", ColumnType::String)
+        b.table("T")
+            .column("body", ColumnType::String)
             .row(vec![Value::String(long.clone())]);
         let realm = roundtrip(b);
         let t = realm.table("T").unwrap();
@@ -488,7 +517,8 @@ mod tests {
     #[test]
     fn timestamp_column_roundtrip() {
         let mut b = RealmBuilder::new();
-        b.table("T").column("ts", ColumnType::Timestamp)
+        b.table("T")
+            .column("ts", ColumnType::Timestamp)
             .row(vec![Value::Timestamp(1_700_000_000)])
             .row(vec![Value::Timestamp(0)])
             .row(vec![Value::Timestamp(-1)]);
@@ -502,7 +532,8 @@ mod tests {
     #[test]
     fn float_column_roundtrip() {
         let mut b = RealmBuilder::new();
-        b.table("T").column("f", ColumnType::Float)
+        b.table("T")
+            .column("f", ColumnType::Float)
             .row(vec![Value::Float(3.14_f32 as f64)])
             .row(vec![Value::Float(0.0)])
             .row(vec![Value::Float(-1.5_f32 as f64)]);
@@ -517,7 +548,8 @@ mod tests {
     fn double_column_roundtrip() {
         let pi = std::f64::consts::PI;
         let mut b = RealmBuilder::new();
-        b.table("T").column("d", ColumnType::Double)
+        b.table("T")
+            .column("d", ColumnType::Double)
             .row(vec![Value::Float(pi)])
             .row(vec![Value::Float(f64::MAX)]);
         let realm = roundtrip(b);
@@ -559,20 +591,39 @@ mod tests {
     #[test]
     fn multiple_tables_roundtrip() {
         let mut b = RealmBuilder::new();
-        b.table("A").column("x", ColumnType::Int).row(vec![Value::Int(1)]);
-        b.table("B").column("y", ColumnType::String).row(vec![Value::String("hi".into())]);
+        b.table("A")
+            .column("x", ColumnType::Int)
+            .row(vec![Value::Int(1)]);
+        b.table("B")
+            .column("y", ColumnType::String)
+            .row(vec![Value::String("hi".into())]);
         let realm = roundtrip(b);
         assert_eq!(realm.tables().len(), 2);
         assert!(realm.table("A").is_some());
         assert!(realm.table("B").is_some());
-        assert_eq!(realm.table("A").unwrap().get(&realm.table("A").unwrap().rows[0], "x").as_int(), 1);
-        assert_eq!(realm.table("B").unwrap().get(&realm.table("B").unwrap().rows[0], "y").as_str(), "hi");
+        assert_eq!(
+            realm
+                .table("A")
+                .unwrap()
+                .get(&realm.table("A").unwrap().rows[0], "x")
+                .as_int(),
+            1
+        );
+        assert_eq!(
+            realm
+                .table("B")
+                .unwrap()
+                .get(&realm.table("B").unwrap().rows[0], "y")
+                .as_str(),
+            "hi"
+        );
     }
 
     #[test]
     fn table_name_preserved() {
         let mut b = RealmBuilder::new();
-        b.table("class_BlockDataModel").column("id", ColumnType::String);
+        b.table("class_BlockDataModel")
+            .column("id", ColumnType::String);
         let realm = roundtrip(b);
         assert!(realm.table("class_BlockDataModel").is_some());
     }
@@ -581,7 +632,9 @@ mod tests {
     fn unicode_string_roundtrip() {
         let s = "こんにちは world 🦀";
         let mut b = RealmBuilder::new();
-        b.table("T").column("s", ColumnType::String).row(vec![Value::String(s.into())]);
+        b.table("T")
+            .column("s", ColumnType::String)
+            .row(vec![Value::String(s.into())]);
         let realm = roundtrip(b);
         let t = realm.table("T").unwrap();
         assert_eq!(t.get(&t.rows[0], "s").as_str(), s);
@@ -593,7 +646,9 @@ mod tests {
         let mut b = RealmBuilder::new();
         let mut tb = b.table("T");
         tb.column("i", ColumnType::Int);
-        for i in 0..n { tb.row(vec![Value::Int(i as i64)]); }
+        for i in 0..n {
+            tb.row(vec![Value::Int(i as i64)]);
+        }
         let realm = roundtrip(b);
         let t = realm.table("T").unwrap();
         assert_eq!(t.rows.len(), n);
@@ -605,7 +660,9 @@ mod tests {
     #[test]
     fn write_to_file_roundtrip() {
         let mut b = RealmBuilder::new();
-        b.table("T").column("v", ColumnType::Int).row(vec![Value::Int(99)]);
+        b.table("T")
+            .column("v", ColumnType::Int)
+            .row(vec![Value::Int(99)]);
 
         let path = std::env::temp_dir().join("realm_writer_test.realm");
         b.write(&path).expect("write failed");

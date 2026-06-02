@@ -24,8 +24,7 @@ pub fn update_block(
     new_content: BlockContent,
 ) -> Result<(), PinkhaError> {
     let mut doc = repo.load(doc_id)?;
-    let block =
-        find_block_mut(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
+    let block = find_block_mut(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
     block.content = new_content;
     repo.save(&doc)
 }
@@ -42,8 +41,7 @@ pub fn set_block_color(
     color: Option<String>,
 ) -> Result<(), PinkhaError> {
     let mut doc = repo.load(doc_id)?;
-    let block =
-        find_block_mut(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
+    let block = find_block_mut(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
     block.color = color;
     repo.save(&doc)
 }
@@ -167,10 +165,7 @@ pub fn indent_block(
 /// performs the indent in place. Returns `Ok` on success, `NotFound` if not
 /// in this subtree, or `InvalidOperation` when `block_id` is the first child
 /// of its container.
-fn indent_in_siblings(
-    siblings: &mut Vec<Block>,
-    block_id: Uuid,
-) -> Result<(), PinkhaError> {
+fn indent_in_siblings(siblings: &mut Vec<Block>, block_id: Uuid) -> Result<(), PinkhaError> {
     if let Some(pos) = siblings.iter().position(|b| b.id == block_id) {
         if pos == 0 {
             return Err(PinkhaError::InvalidOperation(
@@ -264,8 +259,8 @@ fn extract_block(blocks: &mut Vec<Block>, id: Uuid) -> Option<Block> {
 mod tests {
     use super::*;
     use crate::application::error::PinkhaError;
-    use crate::domain::document::{Document, DocumentMeta};
     use crate::domain::document::InlineText;
+    use crate::domain::document::{Document, DocumentMeta};
     use std::cell::RefCell;
     use std::collections::HashMap;
     use uuid::Uuid;
@@ -309,8 +304,19 @@ mod tests {
                 .map(|_| ())
                 .ok_or(PinkhaError::NotFound(id))
         }
-        fn move_to_folder(&self, _doc_id: Uuid, _folder_id: Option<Uuid>) -> Result<(), PinkhaError> { Ok(()) }
-        fn list_by_folder(&self, _folder_id: Option<Uuid>) -> Result<Vec<DocumentMeta>, PinkhaError> { self.list() }
+        fn move_to_folder(
+            &self,
+            _doc_id: Uuid,
+            _folder_id: Option<Uuid>,
+        ) -> Result<(), PinkhaError> {
+            Ok(())
+        }
+        fn list_by_folder(
+            &self,
+            _folder_id: Option<Uuid>,
+        ) -> Result<Vec<DocumentMeta>, PinkhaError> {
+            self.list()
+        }
     }
 
     fn inline(s: &str) -> Vec<InlineText> {

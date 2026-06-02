@@ -29,7 +29,10 @@ fn db_store() -> DatabaseStore {
 }
 
 fn span(text: &str) -> Vec<InlineText> {
-    vec![InlineText { content: text.into(), styles: vec![] }]
+    vec![InlineText {
+        content: text.into(),
+        styles: vec![],
+    }]
 }
 
 #[test]
@@ -46,15 +49,13 @@ fn renaming_a_linked_row_renames_the_underlying_document() {
     let db = create_database(&dbs, span("Notes"), vec![title_prop]).unwrap();
 
     // Link the row to the document.
-    let initial: HashMap<Uuid, PropertyValue> = HashMap::from([
-        (title_prop_id, PropertyValue::Title(span("Old name"))),
-    ]);
+    let initial: HashMap<Uuid, PropertyValue> =
+        HashMap::from([(title_prop_id, PropertyValue::Title(span("Old name")))]);
     let entry = add_entry_with_document(&dbs, db.id, initial, doc.id).unwrap();
 
     // Rename via the orchestration use case.
-    let renamed: HashMap<Uuid, PropertyValue> = HashMap::from([
-        (title_prop_id, PropertyValue::Title(span("New name"))),
-    ]);
+    let renamed: HashMap<Uuid, PropertyValue> =
+        HashMap::from([(title_prop_id, PropertyValue::Title(span("New name")))]);
     update_entry_propagating_title(&docs, &dbs, db.id, entry.id, renamed).unwrap();
 
     // Both the row AND the document reflect the new name.
@@ -85,14 +86,12 @@ fn renaming_an_unlinked_row_does_not_touch_unrelated_documents() {
     let db = create_database(&dbs, span("DB"), vec![title_prop]).unwrap();
 
     // Standalone row.
-    let initial: HashMap<Uuid, PropertyValue> = HashMap::from([
-        (title_prop_id, PropertyValue::Title(span("Row A"))),
-    ]);
+    let initial: HashMap<Uuid, PropertyValue> =
+        HashMap::from([(title_prop_id, PropertyValue::Title(span("Row A")))]);
     let entry = add_entry(&dbs, db.id, initial).unwrap();
 
-    let renamed: HashMap<Uuid, PropertyValue> = HashMap::from([
-        (title_prop_id, PropertyValue::Title(span("Row A renamed"))),
-    ]);
+    let renamed: HashMap<Uuid, PropertyValue> =
+        HashMap::from([(title_prop_id, PropertyValue::Title(span("Row A renamed")))]);
     update_entry_propagating_title(&docs, &dbs, db.id, entry.id, renamed).unwrap();
 
     // Bystander document untouched.

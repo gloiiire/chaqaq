@@ -28,9 +28,7 @@ fn value_contains(v: &PropertyValue, query: &str) -> bool {
         PropertyValue::Text(s) => s.to_lowercase().contains(query),
         PropertyValue::Url(s) => s.to_lowercase().contains(query),
         PropertyValue::Selection(Some(s)) => s.to_lowercase().contains(query),
-        PropertyValue::SelectionMultiple(vs) => {
-            vs.iter().any(|s| s.to_lowercase().contains(query))
-        }
+        PropertyValue::SelectionMultiple(vs) => vs.iter().any(|s| s.to_lowercase().contains(query)),
         PropertyValue::Title(inlines) => inlines
             .iter()
             .any(|i| i.content.to_lowercase().contains(query)),
@@ -86,9 +84,10 @@ pub fn evaluate_rollups(
                 .iter()
                 .filter(|e| linked_ids.contains(&e.id))
                 .collect();
-            entry
-                .values
-                .insert(rollup_id, calculate_aggregate(&linked_entries, target_prop_id, &aggregate));
+            entry.values.insert(
+                rollup_id,
+                calculate_aggregate(&linked_entries, target_prop_id, &aggregate),
+            );
         }
     }
 
@@ -170,7 +169,10 @@ mod tests {
         use crate::domain::document::InlineText;
         let repo = MockDbRepo::new();
         let db = Database::new(
-            vec![InlineText { content: "DB".to_string(), styles: vec![] }],
+            vec![InlineText {
+                content: "DB".to_string(),
+                styles: vec![],
+            }],
             vec![],
         );
         repo.save(&db).unwrap();

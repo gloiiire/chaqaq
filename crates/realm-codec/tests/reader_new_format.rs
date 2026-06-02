@@ -20,7 +20,9 @@ struct Bldr {
 
 impl Bldr {
     fn new() -> Self {
-        Self { buf: vec![0u8; FILE_HEADER_SIZE] }
+        Self {
+            buf: vec![0u8; FILE_HEADER_SIZE],
+        }
     }
 
     fn align(&mut self) {

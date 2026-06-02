@@ -16,7 +16,9 @@ struct Bldr {
 
 impl Bldr {
     fn new() -> Self {
-        Self { buf: vec![0u8; FILE_HEADER_SIZE] }
+        Self {
+            buf: vec![0u8; FILE_HEADER_SIZE],
+        }
     }
 
     fn align(&mut self) {
@@ -200,8 +202,7 @@ fn old_format_inner_btree_int_column_three_leaves() {
     let l1 = b.write_i64_array(&[4i64, 5]);
     let l2 = b.write_i64_array(&[6i64, 7, 8, 9]);
     let sizes_ref = b.write_i64_array(&[3i64, 5, 9]);
-    let inner =
-        b.write_inner_u64_node(&[l0 as u64, l1 as u64, l2 as u64, sizes_ref as u64]);
+    let inner = b.write_inner_u64_node(&[l0 as u64, l1 as u64, l2 as u64, sizes_ref as u64]);
 
     let data = finalize_with_table(b, "T", "n", 0, inner);
     let realm = RealmFile::from_bytes(&data).expect("parse");
