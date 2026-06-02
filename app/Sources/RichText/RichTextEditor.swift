@@ -40,6 +40,14 @@ struct RichTextEditor: UIViewRepresentable {
     /// call the right FFI on the right block. `nil` = button disabled.
     var onIndent: (() -> Void)? = nil
     var onOutdent: (() -> Void)? = nil
+    /// Block-level text color name (matches the Rust `Block.color` field).
+    /// `spansToAttributed` uses it as the default foreground when a span has
+    /// no inline `.color(...)` override — implements the "inline wins over
+    /// block" priority rule from the domain.
+    var blockColor: String? = nil
+    /// Called when the user picks a colour from the ¶ menu (or "None" to
+    /// clear). Goes through the VM which calls the FFI `set_block_color`.
+    var onSetBlockColor: ((String?) -> Void)? = nil
 
     func makeUIView(context: Context) -> ExpandingTextView {
         let tv = ExpandingTextView()
@@ -77,7 +85,7 @@ struct RichTextEditor: UIViewRepresentable {
         longPress.delegate = context.coordinator
         tv.addGestureRecognizer(longPress)
         if spans.isEmpty { tv.attributedText = context.coordinator.placeholder() }
-        else { tv.attributedText = withExtras(spansToAttributed(spans, police: baseFont)) }
+        else { tv.attributedText = withExtras(spansToAttributed(spans, police: baseFont, blockColor: blockColor)) }
         return tv
     }
 
@@ -85,6 +93,7 @@ struct RichTextEditor: UIViewRepresentable {
         let coord = context.coordinator
         coord.parent = self
         coord.updateUndoRedoButtons()
+        coord.updateBlockColorButton(blockColor)
         tv.tintColor = pinkhaSelectionTint
         tv.isEditable = isEnabled
         tv.isSelectable = isEnabled
@@ -102,7 +111,7 @@ struct RichTextEditor: UIViewRepresentable {
             let editingText: NSAttributedString = spans.isEmpty
                 ? NSAttributedString(string: "",
                                       attributes: [.font: baseFont, .foregroundColor: UIColor.label])
-                : withExtras(spansToAttributed(spans, police: baseFont))
+                : withExtras(spansToAttributed(spans, police: baseFont, blockColor: blockColor))
             if !coord.isEditing {
                 tv.font = baseFont
                 tv.attributedText = spans.isEmpty ? coord.placeholder() : editingText

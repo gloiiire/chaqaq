@@ -3,13 +3,24 @@ import UIKit
 // ── Conversion Span ↔ NSAttributedString ─────────────────────────────────────
 
 /// Converts an array of `InlineTextFfi` spans into an `NSAttributedString` using `police` as the base font.
-func spansToAttributed(_ spans: [InlineTextFfi], police: UIFont) -> NSAttributedString {
+///
+/// `blockColor`, when non-nil, becomes the default foreground for spans
+/// without an inline `.color(...)` style — matches the domain rule "inline
+/// color wins over block color". Inline color is *not* persisted as
+/// `.pinkhaColor` on spans that only inherit the block color, so removing the
+/// inline color naturally falls back to the block color at the next render.
+func spansToAttributed(
+    _ spans: [InlineTextFfi],
+    police: UIFont,
+    blockColor: String? = nil
+) -> NSAttributedString {
     guard !spans.isEmpty else { return NSAttributedString() }
+    let defaultForeground: UIColor = blockColor.map(uiColorFromName) ?? .label
     let result = NSMutableAttributedString()
     for span in spans {
         var isBold   = false
         var isItalic = false
-        var attrs: [NSAttributedString.Key: Any] = [.foregroundColor: UIColor.label]
+        var attrs: [NSAttributedString.Key: Any] = [.foregroundColor: defaultForeground]
         for style in span.styles {
             switch style {
             case .bold:              isBold = true

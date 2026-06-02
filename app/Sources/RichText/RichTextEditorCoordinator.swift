@@ -21,6 +21,7 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
     var selectionGeneration = 0
     weak var btnTextStyle: UIButton?
     weak var btnColor: UIButton?
+    weak var btnBlockColor: UIButton?
     weak var btnPaste: UIButton?
     weak var btnUndo: UIButton?
     weak var btnRedo: UIButton?
