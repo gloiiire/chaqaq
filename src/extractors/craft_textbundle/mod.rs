@@ -59,6 +59,18 @@ impl Extractor for CraftTextBundleExtractor {
         folders: &(dyn FolderRepository + Send + Sync),
     ) -> Result<ImportResult, ExtractorError> {
         let root = Path::new(&config.root_dir);
+        if !root.exists() {
+            return Err(ExtractorError::Parse(format!(
+                "textbundle root does not exist: {}",
+                config.root_dir
+            )));
+        }
+        if !root.is_dir() {
+            return Err(ExtractorError::Parse(format!(
+                "textbundle root is not a directory: {}",
+                config.root_dir
+            )));
+        }
         let bundles = find_textbundles(root);
 
         let mut doc_count = 0usize;
