@@ -49,18 +49,20 @@ struct DocumentView: View {
     var documentList: some View {
         List {
             DocumentDecorView(
-                cover: vm.cover, icone: documentIcon, recentEmojis: recentEmojis,
+                cover: vm.cover, icone: vm.icon, recentEmojis: recentEmojis,
                 verrouille: documentLocked,
                 onCouverture: { vm.saveCover($0) },
                 onImageData: { data in vm.saveCoverImage(data: data) },
                 onImageFichier: { url in vm.saveCoverImageFromFile(url) },
                 onIcone: { nouvelleIcone in
-                    documentIcon = nouvelleIcone
+                    // The icon is now persisted in the Rust document via the
+                    // FFI — same model as the cover. The legacy UserDefaults
+                    // fallback is kept for newly-typed emojis (we still track
+                    // the "recently used" list in UserDefaults) but the
+                    // canonical store is SQLite.
+                    vm.saveIcon(nouvelleIcone)
                     if let nouvelleIcone {
-                        UserDefaults.standard.set(nouvelleIcone, forKey: iconKey)
                         recentEmojis = saveRecentEmoji(nouvelleIcone)
-                    } else {
-                        UserDefaults.standard.removeObject(forKey: iconKey)
                     }
                 }
             )
@@ -116,7 +118,18 @@ struct DocumentView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             withAnimation(.easeInOut(duration: 0.2)) { keyboardVisible = false }
         }
-        .onAppear { vm.load() }
+        .onAppear {
+            vm.load()
+            // One-shot migration: documents created before the icon moved
+            // to the Rust domain stored their emoji in UserDefaults. Carry
+            // it over to the freshly-loaded document, then clear the legacy
+            // entry so the migration runs at most once per doc.
+            if vm.icon == nil,
+               let legacy = UserDefaults.standard.string(forKey: iconKey) {
+                vm.saveIcon(legacy)
+                UserDefaults.standard.removeObject(forKey: iconKey)
+            }
+        }
         .onDisappear { vm.flushAllBursts(); vm.saveTitle(); onDisappear?() }
         .sheet(isPresented: $showingBlockPicker) {
             BlockPickerSheet { type in vm.addBlock(type: type, afterId: vm.activeBlockId) }

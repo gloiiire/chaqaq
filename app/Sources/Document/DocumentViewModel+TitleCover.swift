@@ -33,6 +33,21 @@ extension DocumentViewModel {
         } catch { errorMessage = error.localizedDescription }
     }
 
+    /// Sets the page icon and persists to SQLite via the FFI. Mirrors
+    /// `saveCover` for the icon slot — emoji, filename, or remote URL.
+    func saveIcon(_ newIcon: String?) {
+        let oldIcon = self.icon
+        guard oldIcon != newIcon else {
+            icon = newIcon
+            return
+        }
+        do {
+            icon = newIcon
+            try api.updateDocumentIcon(id: docId, icon: newIcon)
+            undoMgr.registerUndo(withTarget: self) { vm in vm.saveIcon(oldIcon) }
+        } catch { errorMessage = error.localizedDescription }
+    }
+
     func saveCoverImage(data: Data, fileExtension: String = "jpg") {
         do {
             let nom = try Self.writeCoverImage(data: data, docId: docId, fileExtension: fileExtension)

@@ -355,6 +355,21 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Sets or clears the page icon. Accepts an emoji, a local cover-dir
+    /// filename, or a remote URL — the renderer picks the right strategy.
+    pub fn update_document_icon(
+        &self,
+        id: String,
+        icon: Option<String>,
+    ) -> Result<(), PinkhaError> {
+        if let Some(i) = icon.as_deref() {
+            validate_string(i, "icon")?;
+        }
+        let uuid = parse_uuid(&id)?;
+        use_cases::update_document_icon(&self.docs, uuid, icon)
+            .map_err(PinkhaError::from)
+    }
+
     /// Appends a block to a document. `block_content_json` must be a JSON-encoded
     /// [`BlockContent`]. Returns the UUID string of the newly created block.
     pub fn add_block(

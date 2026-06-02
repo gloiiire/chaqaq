@@ -49,6 +49,18 @@ pub fn update_document_cover(
     repo.save(&doc)
 }
 
+/// Updates the document icon (small visual identifier — emoji or image URL/
+/// filename) and persists.
+pub fn update_document_icon(
+    repo: &dyn DocumentRepository,
+    doc_id: Uuid,
+    icon: Option<String>,
+) -> Result<(), PinkhaError> {
+    let mut doc = repo.load(doc_id)?;
+    doc.icon = icon;
+    repo.save(&doc)
+}
+
 /// Moves a document to a folder (or to the root when `folder_id` is `None`).
 pub fn move_document_to_folder(
     repo: &dyn DocumentRepository,

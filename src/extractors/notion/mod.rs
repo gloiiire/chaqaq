@@ -233,40 +233,33 @@ async fn import_page(
     // critical for Notion-hosted URLs which expire after ~1h. Otherwise we
     // fall back to storing the raw URL (the SwiftUI renderer resolves it
     // via AsyncImage but it'll break once the URL dies).
-    //
-    // Icons get the same treatment, with a Notion-emoji shortcut (just store
-    // the emoji string — the renderer doesn't try to interpret it as a URL).
-    let cover_url = page.cover.as_ref().and_then(|c| c.url()).map(str::to_owned);
-    let icon_value = page.icon.as_ref().and_then(|i| match i {
-        schema::NotionPageIcon::Emoji { emoji } => Some(emoji.clone()),
-        schema::NotionPageIcon::External { external } => Some(external.url.clone()),
-        schema::NotionPageIcon::File { file } => Some(file.url.clone()),
-        schema::NotionPageIcon::Unknown => None,
-    });
-    let cover_to_store: Option<String> = match (cover_url, icon_value) {
-        (Some(url), _) => {
-            if let Some(dir) = covers_dir {
-                Some(download_cover(client, &url, dir, doc_id).await.unwrap_or(url))
-            } else {
-                Some(url)
+    if let Some(url) = page.cover.as_ref().and_then(|c| c.url()) {
+        let stored = if let Some(dir) = covers_dir {
+            download_cover(client, url, dir, doc_id).await.unwrap_or_else(|_| url.to_string())
+        } else {
+            url.to_string()
+        };
+        use_cases::update_document_cover(docs, doc_id, Some(stored))?;
+    }
+
+    // Icons are independent of covers in Notion (a page can have both, one,
+    // or neither). Emojis stay as-is (the renderer prints them directly);
+    // URL-shaped icons get downloaded with a `_icon` suffix so they don't
+    // collide with the cover file on disk.
+    if let Some(icon) = page.icon.as_ref() {
+        let stored = match icon {
+            schema::NotionPageIcon::Emoji { emoji } => Some(emoji.clone()),
+            schema::NotionPageIcon::External { external } => {
+                Some(download_or_keep_icon(client, &external.url, covers_dir, doc_id).await)
             }
-        }
-        (None, Some(icon)) => {
-            // Emoji icons are short strings (1-4 chars), never URLs — store
-            // as-is. URL-shaped icons get downloaded too.
-            if (icon.starts_with("http://") || icon.starts_with("https://"))
-                && covers_dir.is_some()
-            {
-                let dir = covers_dir.unwrap();
-                Some(download_cover(client, &icon, dir, doc_id).await.unwrap_or(icon))
-            } else {
-                Some(icon)
+            schema::NotionPageIcon::File { file } => {
+                Some(download_or_keep_icon(client, &file.url, covers_dir, doc_id).await)
             }
+            schema::NotionPageIcon::Unknown => None,
+        };
+        if let Some(value) = stored {
+            use_cases::update_document_icon(docs, doc_id, Some(value))?;
         }
-        (None, None) => None,
-    };
-    if let Some(cover) = cover_to_store {
-        use_cases::update_document_cover(docs, doc_id, Some(cover))?;
     }
 
     // Fetch and add all blocks to the document efficiently (bulk in-memory, one save).
@@ -348,6 +341,51 @@ async fn download_cover(
     let mut path = std::path::PathBuf::from(covers_dir);
     path.push(&filename);
     std::fs::write(&path, &bytes).map_err(|e| format!("write {path:?}: {e}"))?;
+    Ok(filename)
+}
+
+/// Downloads an icon URL to disk when a covers directory is configured,
+/// otherwise returns the original URL. The local filename uses a `-icon`
+/// suffix so it can coexist with the page cover.
+async fn download_or_keep_icon(
+    client: &NotionClient,
+    url: &str,
+    covers_dir: Option<&str>,
+    doc_id: Uuid,
+) -> String {
+    let Some(dir) = covers_dir else { return url.to_owned() };
+    match download_icon(client, url, dir, doc_id).await {
+        Ok(filename) => filename,
+        Err(_) => url.to_owned(),
+    }
+}
+
+/// Same shape as `download_cover` but with a `-icon` suffix in the filename
+/// so a doc with both cover and icon doesn't overwrite one with the other.
+async fn download_icon(
+    _client: &NotionClient,
+    url: &str,
+    covers_dir: &str,
+    doc_id: Uuid,
+) -> Result<String, String> {
+    let http = reqwest::Client::builder().build().map_err(|e| e.to_string())?;
+    let response = http.get(url).send().await.map_err(|e| e.to_string())?;
+    if !response.status().is_success() {
+        return Err(format!("HTTP {}", response.status().as_u16()));
+    }
+    let extension = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .and_then(extension_for_content_type)
+        .or_else(|| extension_from_url_path(url))
+        .unwrap_or("png")
+        .to_owned();
+    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+    let filename = format!("{doc_id}-icon.{extension}");
+    let mut path = std::path::PathBuf::from(covers_dir);
+    path.push(&filename);
+    std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
     Ok(filename)
 }
 

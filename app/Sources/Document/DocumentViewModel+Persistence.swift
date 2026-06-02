@@ -93,6 +93,7 @@ extension DocumentViewModel {
             title = doc.title.map(\.content).joined()
             lastPersistedTitle = title
             cover = doc.cover
+            icon = doc.icon
             blocks = DocumentViewModel.flattenBlocks(doc.blocks, depth: 0)
             // Initialise stable snapshots for burst undo tracking.
             blockSnapshots = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, snapshotOf($0)) })

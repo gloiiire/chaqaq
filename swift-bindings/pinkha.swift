@@ -727,6 +727,11 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     
     func updateDocumentCover(id: String, cover: String?) throws 
     
+    /**
+     * Pose ou retire l'icône d'un document (emoji, filename local, ou URL).
+     */
+    func updateDocumentIcon(id: String, icon: String?) throws 
+    
     func updateDocumentTitle(id: String, newTitle: String) throws 
     
     func updateEntry(dbId: String, entryId: String, valuesJson: String) throws 
@@ -1408,6 +1413,18 @@ open func updateDocumentCover(id: String, cover: String?)throws   {try rustCallW
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
         FfiConverterOptionString.lower(cover),$0
+    )
+}
+}
+    
+    /**
+     * Pose ou retire l'icône d'un document (emoji, filename local, ou URL).
+     */
+open func updateDocumentIcon(id: String, icon: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_document_icon(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(icon),$0
     )
 }
 }
@@ -2233,6 +2250,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_cover() != 31520) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_icon() != 32890) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_title() != 35631) {

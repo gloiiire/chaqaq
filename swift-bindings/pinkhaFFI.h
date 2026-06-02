@@ -503,6 +503,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_update_block(uint64_t ptr, RustBuffer doc
 void uniffi_pinkha_fn_method_pinkhaapi_update_document_cover(uint64_t ptr, RustBuffer id, RustBuffer cover, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_ICON
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_ICON
+void uniffi_pinkha_fn_method_pinkhaapi_update_document_icon(uint64_t ptr, RustBuffer id, RustBuffer icon, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_TITLE
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_TITLE
 void uniffi_pinkha_fn_method_pinkhaapi_update_document_title(uint64_t ptr, RustBuffer id, RustBuffer new_title, RustCallStatus *_Nonnull out_status
@@ -1069,6 +1074,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_block(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_COVER
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_COVER
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_cover(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_ICON
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_ICON
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_icon(void
     
 );
 #endif

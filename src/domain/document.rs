@@ -126,6 +126,13 @@ pub struct Document {
     pub id: Uuid,
     /// Optional cover image URL or emoji.
     pub cover: Option<String>,
+    /// Page icon. Small visual identifier shown next to the title — an emoji
+    /// (`"📕"`), a local filename inside the covers directory, or a remote
+    /// URL. Distinct from `cover` which is the big banner image at the top.
+    /// `#[serde(default)]` keeps backward compatibility with documents
+    /// serialised before this field existed.
+    #[serde(default)]
+    pub icon: Option<String>,
     /// Rich-text title.
     pub title: Vec<InlineText>,
     /// Top-level blocks (each may have nested children).
@@ -142,6 +149,7 @@ impl Document {
             id: Uuid::new_v4(),
             title,
             cover: None,
+            icon: None,
             blocks: vec![],
             folder_id: None,
         }
