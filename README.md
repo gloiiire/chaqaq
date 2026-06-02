@@ -177,6 +177,19 @@ xcodebuild test -project app/Pinkha.xcodeproj -scheme Pinkha \
 cd crates/chaqaq && cargo publish
 ```
 
+### Contributor setup
+
+After cloning, run these two scripts once to wire up the local git environment:
+
+```bash
+./scripts/setup-aliases.sh   # git new-feature / new-fix / promote-staging / …
+./scripts/install-hooks.sh   # installs the pre-commit hook (fmt)
+```
+
+The **pre-commit hook** runs `cargo fmt --all --check` whenever a commit touches a `.rs` file. Commits with no Rust changes are skipped instantly. Clippy is **not** in the hook yet — the legacy code still has unaddressed `-D warnings` violations that will be cleaned up in a follow-up PR; once green, clippy will be added to the hook.
+
+Hook sources live in [`scripts/hooks/`](scripts/hooks) and are symlinked into `.git/hooks/`, so editing them in-place takes effect immediately. Emergency bypass: `git commit --no-verify` — but the repo rule is to fix the root cause instead.
+
 ---
 
 ## Git workflow

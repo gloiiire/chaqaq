@@ -478,6 +478,8 @@ Ces points sont **acceptables en l'état actuel** (projet solo, 208 tests Rust +
   - Pour atteindre 98% : ~934 lignes restantes (ffi.rs imports HTTP non-mockables, retry paths SQLite, use_cases/blocks + db_doc_sync, database_use_cases/query).
   - Swift : `xcodebuild -enableCodeCoverage YES` à mesurer quand le job Swift sera réactivé.
 - **Workflow contributeur** : ✅ branches `feature/**`, `fix/**`, `refactor/**`, `docs/**`, `chore/**`, `perf/**` depuis `dev` ; promotion `dev` → `staging` → `master`. Cf. section "Git workflow" plus haut.
+- **Pre-commit hook** : ✅ `scripts/hooks/pre-commit` versionné, installé via `./scripts/install-hooks.sh` (symlinks dans `.git/hooks/`). Tourne `cargo fmt --all --check` quand au moins un fichier `.rs` est staged. Skip silencieux pour les commits docs/Swift-only. Bypass d'urgence via `git commit --no-verify` mais la règle reste : corriger plutôt que skip. Baseline fmt posée par la PR `chore/pre-commit-hook` (55 fichiers reformatés).
+- **Clippy strict dans le hook + CI** : ⏸ pas encore activé. Le workspace a ~40 violations `cargo clippy --workspace --all-targets -- -D warnings` (collapse-if, redundant-closure, useless `vec!`, `io::Error::other`, manual `.is_multiple_of()`, `assert_eq!` bool, etc.). À nettoyer dans une PR dédiée `chore/clippy-cleanup`, puis ajout au hook **et** à `.github/workflows/ci.yml`.
 
 ### Tests à renforcer
 - **Coordinator class** (`RichTextEditor.Coordinator`) : selection memory (`rememberSelection`/`selectionForToolbar`), toolbar state updates (`updateToolbar`), color application chain — tout n'est testé qu'**en bout-en-bout** via le VM. Un bug subtil dans cette logique passerait. Extraire en helpers libres ou exposer pour tests.
