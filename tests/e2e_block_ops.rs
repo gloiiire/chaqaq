@@ -1,7 +1,7 @@
 use pinkha::application::use_cases::{
-    add_block, add_child_block, create_document, update_block, update_document_cover,
-    update_document_title, get_document, reorder_blocks, save_edited_block,
-    delete_block,
+    add_block, add_child_block, create_document, set_block_color, update_block,
+    update_document_cover, update_document_title, get_document, reorder_blocks,
+    save_edited_block, delete_block,
 };
 use pinkha::domain::document::{BlockContent, InlineStyle, InlineText};
 use pinkha::domain::editor::EditorState;
@@ -220,4 +220,28 @@ fn test_flux_page_complete() {
         &page.blocks[0].children[1].content,
         BlockContent::Todo { done: false, .. }
     ));
+}
+
+/// Block color: set → reload from disk → still there → clear → reload → gone.
+/// Exercises the JsonStore round-trip on the new `Block.color` field.
+#[test]
+fn test_block_color_persists_round_trip() {
+    let store = store_temp();
+    let doc = create_document(&store, "Color test").unwrap();
+    let block_id = add_block(&store, doc.id, BlockContent::Text(inlines("hello"))).unwrap();
+    let block_uuid = block_id.blocks.last().unwrap().id;
+
+    // No color by default.
+    let reloaded = get_document(&store, doc.id).unwrap();
+    assert!(reloaded.blocks[0].color.is_none());
+
+    // Apply a color and verify it survives a reload from disk.
+    set_block_color(&store, doc.id, block_uuid, Some("purple".into())).unwrap();
+    let reloaded = get_document(&store, doc.id).unwrap();
+    assert_eq!(reloaded.blocks[0].color.as_deref(), Some("purple"));
+
+    // Clear the color and verify it disappears.
+    set_block_color(&store, doc.id, block_uuid, None).unwrap();
+    let reloaded = get_document(&store, doc.id).unwrap();
+    assert!(reloaded.blocks[0].color.is_none());
 }

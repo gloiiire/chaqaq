@@ -60,15 +60,26 @@ pub struct Block {
     pub content: BlockContent,
     /// Nested child blocks (recursive structure).
     pub children: Vec<Block>,
+    /// Block-level text color name (e.g. `"red"`, `"blue"`). When set, applies
+    /// to every span that does NOT carry its own [`InlineStyle::Color`] —
+    /// inline color overrides block color at render time. `None` means the
+    /// block inherits the default theme color.
+    ///
+    /// `#[serde(default)]` keeps the field backward-compatible with documents
+    /// serialised before this field existed (they decode as `None`).
+    #[serde(default)]
+    pub color: Option<String>,
 }
 
 impl Block {
-    /// Creates a new leaf block with no children and a freshly generated UUID.
+    /// Creates a new leaf block with no children, no color, and a freshly
+    /// generated UUID.
     pub fn new(content: BlockContent) -> Self {
         Block {
             id: Uuid::new_v4(),
             content,
             children: vec![],
+            color: None,
         }
     }
 }
@@ -139,5 +150,42 @@ impl Document {
     /// Appends a new block at the end of the top-level block list.
     pub fn add_block(&mut self, content: BlockContent) {
         self.blocks.push(Block::new(content));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn block_new_starts_without_color() {
+        let block = Block::new(BlockContent::Divider);
+        assert!(block.color.is_none());
+    }
+
+    #[test]
+    fn block_serde_round_trip_preserves_color() {
+        let mut block = Block::new(BlockContent::Divider);
+        block.color = Some("orange".into());
+        let json = serde_json::to_string(&block).unwrap();
+        let decoded: Block = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.color.as_deref(), Some("orange"));
+        assert_eq!(decoded.id, block.id);
+    }
+
+    /// Documents serialised before the `color` field existed must still decode
+    /// — `#[serde(default)]` on the new field makes the absence equivalent to
+    /// `None`. Regression guard: removing the attribute would break every
+    /// existing user's data file.
+    #[test]
+    fn block_decodes_legacy_json_without_color_field() {
+        let id = Uuid::new_v4();
+        let legacy_json = format!(
+            r#"{{"id":"{id}","content":"Divider","children":[]}}"#
+        );
+        let decoded: Block = serde_json::from_str(&legacy_json).unwrap();
+        assert_eq!(decoded.id, id);
+        assert!(decoded.color.is_none());
+        assert!(decoded.children.is_empty());
     }
 }

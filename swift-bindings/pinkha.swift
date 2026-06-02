@@ -667,6 +667,13 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func searchInBlocks(query: String) throws  -> [DocumentMetaFfi]
     
     /**
+     * Pose ou retire la couleur d'un bloc (texte). `color` est un nom de
+     * couleur (`"red"`, `"blue"`, etc.) ou `null` pour revenir au thème.
+     * Les couleurs inline sur les spans ont toujours priorité.
+     */
+    func setBlockColor(docId: String, blockId: String, color: String?) throws 
+    
+    /**
      * Remplace le contenu d'un bloc existant (JSON de BlockContent).
      */
     func updateBlock(docId: String, blockId: String, contentJson: String) throws 
@@ -1272,6 +1279,21 @@ open func searchInBlocks(query: String)throws  -> [DocumentMetaFfi]  {
         FfiConverterString.lower(query),$0
     )
 })
+}
+    
+    /**
+     * Pose ou retire la couleur d'un bloc (texte). `color` est un nom de
+     * couleur (`"red"`, `"blue"`, etc.) ou `null` pour revenir au thème.
+     * Les couleurs inline sur les spans ont toujours priorité.
+     */
+open func setBlockColor(docId: String, blockId: String, color: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_set_block_color(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(docId),
+        FfiConverterString.lower(blockId),
+        FfiConverterOptionString.lower(color),$0
+    )
+}
 }
     
     /**
@@ -2099,6 +2121,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks() != 65038) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_color() != 56489) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_block() != 49420) {

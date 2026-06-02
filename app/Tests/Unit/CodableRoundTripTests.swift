@@ -55,7 +55,8 @@ struct DocumentFfiTests {
         let block = BlockFfi(
             id: "b1",
             content: .text([InlineTextFfi(content: "Hello", styles: [.bold])]),
-            children: []
+            children: [],
+            color: nil
         )
         let doc = DocumentFfi(id: "d1", cover: nil,
                               title: [InlineTextFfi(content: "Titre", styles: [])],
@@ -68,13 +69,35 @@ struct DocumentFfiTests {
     }
 
     @Test func nestedChildrenRoundTrip() throws {
-        let child = BlockFfi(id: "c", content: .text([]), children: [])
-        let parent = BlockFfi(id: "p", content: .text([]), children: [child])
+        let child = BlockFfi(id: "c", content: .text([]), children: [], color: nil)
+        let parent = BlockFfi(id: "p", content: .text([]), children: [child], color: nil)
         let doc = DocumentFfi(id: "d", cover: nil, title: [], blocks: [parent])
         let data = try JSONEncoder().encode(doc)
         let decoded = try JSONDecoder().decode(DocumentFfi.self, from: data)
         #expect(decoded.blocks[0].children.count == 1)
         #expect(decoded.blocks[0].children[0].id == "c")
+    }
+
+    @Test func blockColorRoundTrips() throws {
+        let block = BlockFfi(
+            id: "b1",
+            content: .text([InlineTextFfi(content: "Coloured", styles: [])]),
+            children: [],
+            color: "red"
+        )
+        let data = try JSONEncoder().encode(block)
+        let decoded = try JSONDecoder().decode(BlockFfi.self, from: data)
+        #expect(decoded.color == "red")
+    }
+
+    /// Documents serialised before `color` existed must still decode (mirrors
+    /// the Rust `#[serde(default)]` guarantee on `Block.color`).
+    @Test func blockDecodesLegacyJsonWithoutColor() throws {
+        let legacy = #"{"id":"b1","content":"Divider","children":[]}"#
+        let data = legacy.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(BlockFfi.self, from: data)
+        #expect(decoded.id == "b1")
+        #expect(decoded.color == nil)
     }
 }
 

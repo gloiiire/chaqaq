@@ -12,10 +12,17 @@ struct DocumentFfi: Codable {
 }
 
 /// Swift mirror of a `Block` node. Blocks are recursive (children).
+///
+/// `color` is the block-level text color name (e.g. `"red"`). When present
+/// it applies to every span that doesn't carry its own inline color —
+/// inline color always wins over block color at render time. `nil` means
+/// the block inherits the default theme color.
 struct BlockFfi: Codable, Identifiable {
     let id: String
     let content: BlockContentFfi
     let children: [BlockFfi]
+    /// Decoded as nil for documents serialised before this field existed.
+    let color: String?
 }
 
 /// A run of text with zero or more inline styles applied to it.
