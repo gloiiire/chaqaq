@@ -44,6 +44,23 @@ pub fn add_entry(
     Ok(entry)
 }
 
+/// Adds a new row backed by an existing document. Used by import pipelines
+/// where every imported page becomes both a Document and a database row, so
+/// renaming the row in the DB view propagates to the document title (and
+/// vice-versa, eventually).
+pub fn add_entry_with_document(
+    repo: &dyn DatabaseRepository,
+    db_id: Uuid,
+    values: HashMap<Uuid, PropertyValue>,
+    document_id: Uuid,
+) -> Result<Entry, PinkhaError> {
+    let mut db = repo.load(db_id)?;
+    let entry = Entry::with_document(values, document_id);
+    db.entries.push(entry.clone());
+    repo.save(&db)?;
+    Ok(entry)
+}
+
 /// Replaces all cell values for an existing entry and persists.
 pub fn update_entry(
     repo: &dyn DatabaseRepository,

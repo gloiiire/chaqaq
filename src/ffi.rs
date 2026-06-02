@@ -541,7 +541,10 @@ impl PinkhaApi {
         Ok(entry.id.to_string())
     }
 
-    /// Replaces all property values of an existing entry.
+    /// Replaces all property values of an existing entry. When the entry is
+    /// linked to a document and the new values touch the Title property, the
+    /// document title is updated in lockstep — fixing the UX bug where
+    /// renaming a row in the DB view left the underlying note's title stale.
     pub fn update_entry(
         &self,
         db_id: String,
@@ -551,8 +554,14 @@ impl PinkhaApi {
         let db_uuid = parse_uuid(&db_id)?;
         let entry_uuid = parse_uuid(&entry_id)?;
         let values: HashMap<Uuid, PropertyValue> = parse_json(&values_json)?;
-        database_use_cases::update_entry(&self.dbs, db_uuid, entry_uuid, values)
-            .map_err(PinkhaError::from)
+        use_cases::update_entry_propagating_title(
+            &self.docs,
+            &self.dbs,
+            db_uuid,
+            entry_uuid,
+            values,
+        )
+        .map_err(PinkhaError::from)
     }
 
     /// Removes an entry from a database.

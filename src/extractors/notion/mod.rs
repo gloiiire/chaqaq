@@ -232,7 +232,7 @@ async fn import_page(
         }
     }
 
-    database_use_cases::add_entry(dbs, pinkha_db_id, values)?;
+    database_use_cases::add_entry_with_document(dbs, pinkha_db_id, values, doc_id)?;
 
     Ok((block_count, skipped_count))
 }
