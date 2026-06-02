@@ -16,15 +16,18 @@ const CORE_DATA_EPOCH_OFFSET: f64 = 978_307_200.0;
 ///
 /// `children` carry `BlockContent` values that become `Block::children` in the
 /// domain model — one level of nesting, matching Pinkha's recursive `Block` type.
+/// `color` becomes `Block.color` — populated by importers that capture
+/// block-level text colour (Craft currently; Bear leaves it `None`).
 #[derive(Debug)]
 pub struct ParsedBlock {
     pub content: BlockContent,
     pub children: Vec<BlockContent>,
+    pub color: Option<String>,
 }
 
 impl ParsedBlock {
     fn leaf(content: BlockContent) -> Self {
-        Self { content, children: vec![] }
+        Self { content, children: vec![], color: None }
     }
 }
 
