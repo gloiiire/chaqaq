@@ -184,6 +184,25 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
         if tv.attributedText.string.isEmpty { tv.attributedText = placeholder() }
     }
 
+    /// Intercepts taps / long-press-then-open on links inside the editor.
+    /// Returns `false` to suppress UIKit's default behaviour (opening the
+    /// URL externally) when the scheme is `pinkha://` — we hand the path off
+    /// to the SwiftUI parent, which navigates to the matching document.
+    func textView(_ tv: UITextView,
+                  shouldInteractWith url: URL,
+                  in characterRange: NSRange,
+                  interaction: UITextItemInteraction) -> Bool {
+        guard interaction == .invokeDefaultAction else { return true }
+        if url.scheme == "pinkha", url.host == "doc" {
+            // Path format: `/{uuid}` — strip the leading slash.
+            let uuid = url.path.dropFirst()
+            guard !uuid.isEmpty else { return true }
+            parent.onOpenInternalDoc?(String(uuid))
+            return false
+        }
+        return true
+    }
+
     func textViewDidChange(_ tv: UITextView) {
         let text = tv.text ?? ""
 

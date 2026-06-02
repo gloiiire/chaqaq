@@ -222,6 +222,24 @@ async fn import_page(
     let doc = use_cases::create_document(docs, &plain_title)?;
     let doc_id = doc.id;
 
+    // Carry the Notion cover and icon over to the new Pinkha document, when
+    // present. Notion exposes icon as an emoji *or* an image URL; we fold
+    // emojis into the cover field as a unified string ("📕" or "https://…").
+    // A dedicated `Document.icon` slot is a future refinement.
+    let cover_url = page.cover.as_ref().and_then(|c| c.url()).map(str::to_owned);
+    let icon_url = page.icon.as_ref().and_then(|i| match i {
+        schema::NotionPageIcon::Emoji { emoji } => Some(emoji.clone()),
+        schema::NotionPageIcon::External { external } => Some(external.url.clone()),
+        schema::NotionPageIcon::File { file } => Some(file.url.clone()),
+        schema::NotionPageIcon::Unknown => None,
+    });
+    // Prefer cover (visual) over icon (small). When only an icon exists, use
+    // it as the cover — better than losing it entirely while a dedicated
+    // icon field doesn't exist yet.
+    if let Some(cover) = cover_url.or(icon_url) {
+        use_cases::update_document_cover(docs, doc_id, Some(cover))?;
+    }
+
     // Fetch and add all blocks to the document efficiently (bulk in-memory, one save).
     let (block_count, skipped_count) = fetch_and_add_blocks(client, &page.id, doc_id, docs).await?;
 
