@@ -35,10 +35,9 @@ jobs:
         #   - Notion extractor pipeline (needs a live api.notion.com)
         #   - Craft extractors (need real `.realm` / `.textbundle` files)
         #   - Bear extractor pipeline (needs Bear's SQLite database)
-        #   - realm-codec reader (needs binary `.realm` fixtures)
         run: |
           cargo llvm-cov --workspace --summary-only --fail-under-lines 90 \
-            --ignore-filename-regex '(src/main\.rs|src/bin/.*|src/extractors/mod\.rs|src/extractors/notion/.*|src/extractors/craft/.*|src/extractors/craft_combined/.*|src/extractors/craft_textbundle/.*|src/extractors/bear/mod\.rs|src/extractors/bear/reader\.rs|crates/realm-codec/src/reader\.rs)'
+            --ignore-filename-regex '(src/main\.rs|src/bin/.*|src/extractors/mod\.rs|src/extractors/notion/.*|src/extractors/craft/.*|src/extractors/craft_combined/.*|src/extractors/craft_textbundle/.*|src/extractors/bear/mod\.rs|src/extractors/bear/reader\.rs)'
 
   audit:
     name: Cargo audit (CVE scan)
