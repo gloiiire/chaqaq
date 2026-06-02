@@ -155,4 +155,71 @@ final class PinkhaStore: ObservableObject {
         guard let api else { return [] }
         return (try? api.listDocumentsInFolder(folderId: folderId)) ?? []
     }
+
+    // ── Trash (soft-deleted items) ────────────────────────────────────────────
+
+    /// Returns the trashed documents (newest-deleted first).
+    func listDeletedDocuments() -> [DocumentMetaFfi] {
+        guard let api else { return [] }
+        return (try? api.listDeletedDocuments()) ?? []
+    }
+
+    /// Returns the trashed databases.
+    func listDeletedDatabases() -> [DatabaseMetaFfi] {
+        guard let api else { return [] }
+        return (try? api.listDeletedDatabases()) ?? []
+    }
+
+    /// Returns the trashed folders.
+    func listDeletedFolders() -> [FolderMetaFfi] {
+        guard let api else { return [] }
+        return (try? api.listDeletedFolders()) ?? []
+    }
+
+    /// Restores a soft-deleted document.
+    func restoreDocument(id: String) {
+        tryCatch(into: &errorMessage) { try api?.restoreDocument(id: id) }
+        load()
+    }
+
+    /// Permanently deletes a soft-deleted document.
+    func purgeDocument(id: String) {
+        tryCatch(into: &errorMessage) { try api?.purgeDocument(id: id) }
+    }
+
+    /// Restores a soft-deleted database.
+    func restoreDatabase(id: String) {
+        tryCatch(into: &errorMessage) { try api?.restoreDatabase(id: id) }
+        load()
+    }
+
+    /// Permanently deletes a soft-deleted database.
+    func purgeDatabase(id: String) {
+        tryCatch(into: &errorMessage) { try api?.purgeDatabase(id: id) }
+    }
+
+    /// Restores a soft-deleted folder.
+    func restoreFolder(id: String) {
+        tryCatch(into: &errorMessage) { try api?.restoreFolder(id: id) }
+        load()
+    }
+
+    /// Permanently deletes a soft-deleted folder.
+    func purgeFolder(id: String) {
+        tryCatch(into: &errorMessage) { try api?.purgeFolder(id: id) }
+    }
+
+    /// Empties the trash by purging every soft-deleted document, database
+    /// and folder. Returns the total number of items removed.
+    @discardableResult
+    func emptyTrash() -> Int {
+        let docs = listDeletedDocuments()
+        let dbs = listDeletedDatabases()
+        let folders = listDeletedFolders()
+        for d in docs { purgeDocument(id: d.id) }
+        for d in dbs { purgeDatabase(id: d.id) }
+        for f in folders { purgeFolder(id: f.id) }
+        load()
+        return docs.count + dbs.count + folders.count
+    }
 }

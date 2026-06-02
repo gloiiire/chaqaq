@@ -644,6 +644,26 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func listDatabases() throws  -> [DatabaseMetaFfi]
     
     /**
+     * Liste les databases en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     */
+    func listDeletedDatabases() throws  -> [DatabaseMetaFfi]
+    
+    /**
+     * Liste les documents en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     */
+    func listDeletedDocuments() throws  -> [DocumentMetaFfi]
+    
+    /**
+     * Liste les entries soft-deleted d'une database (JSON array).
+     */
+    func listDeletedEntriesJson(dbId: String) throws  -> String
+    
+    /**
+     * Liste les dossiers en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     */
+    func listDeletedFolders() throws  -> [FolderMetaFfi]
+    
+    /**
      * Liste les métadonnées de tous les documents actifs.
      */
     func listDocuments() throws  -> [DocumentMetaFfi]
@@ -675,6 +695,26 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func outdentBlock(docId: String, blockId: String) throws 
     
     /**
+     * Supprime définitivement une database de la corbeille (hard delete).
+     */
+    func purgeDatabase(id: String) throws 
+    
+    /**
+     * Supprime définitivement un document de la corbeille (hard delete).
+     */
+    func purgeDocument(id: String) throws 
+    
+    /**
+     * Supprime définitivement une entry soft-deleted (hard delete).
+     */
+    func purgeEntry(dbId: String, entryId: String) throws 
+    
+    /**
+     * Supprime définitivement un dossier de la corbeille (hard delete).
+     */
+    func purgeFolder(id: String) throws 
+    
+    /**
      * Retourne les entrées filtrées/triées en JSON.
      */
     func queryDatabaseJson(dbId: String, viewId: String) throws  -> String
@@ -697,6 +737,26 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Réordonne les enfants directs d'un bloc parent.
      */
     func reorderChildBlocks(docId: String, parentId: String, order: [String]) throws 
+    
+    /**
+     * Restaure une database depuis la corbeille.
+     */
+    func restoreDatabase(id: String) throws 
+    
+    /**
+     * Restaure un document depuis la corbeille.
+     */
+    func restoreDocument(id: String) throws 
+    
+    /**
+     * Restaure une entry depuis la corbeille de sa database.
+     */
+    func restoreEntry(dbId: String, entryId: String) throws 
+    
+    /**
+     * Restaure un dossier depuis la corbeille.
+     */
+    func restoreFolder(id: String) throws 
     
     /**
      * Retourne les entrées correspondant à la recherche en JSON.
@@ -1192,6 +1252,51 @@ open func listDatabases()throws  -> [DatabaseMetaFfi]  {
 }
     
     /**
+     * Liste les databases en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     */
+open func listDeletedDatabases()throws  -> [DatabaseMetaFfi]  {
+    return try  FfiConverterSequenceTypeDatabaseMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_deleted_databases(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Liste les documents en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     */
+open func listDeletedDocuments()throws  -> [DocumentMetaFfi]  {
+    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_deleted_documents(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Liste les entries soft-deleted d'une database (JSON array).
+     */
+open func listDeletedEntriesJson(dbId: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_deleted_entries_json(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dbId),$0
+    )
+})
+}
+    
+    /**
+     * Liste les dossiers en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     */
+open func listDeletedFolders()throws  -> [FolderMetaFfi]  {
+    return try  FfiConverterSequenceTypeFolderMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_deleted_folders(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
      * Liste les métadonnées de tous les documents actifs.
      */
 open func listDocuments()throws  -> [DocumentMetaFfi]  {
@@ -1278,6 +1383,51 @@ open func outdentBlock(docId: String, blockId: String)throws   {try rustCallWith
 }
     
     /**
+     * Supprime définitivement une database de la corbeille (hard delete).
+     */
+open func purgeDatabase(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_purge_database(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+    /**
+     * Supprime définitivement un document de la corbeille (hard delete).
+     */
+open func purgeDocument(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_purge_document(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+    /**
+     * Supprime définitivement une entry soft-deleted (hard delete).
+     */
+open func purgeEntry(dbId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_purge_entry(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(entryId),$0
+    )
+}
+}
+    
+    /**
+     * Supprime définitivement un dossier de la corbeille (hard delete).
+     */
+open func purgeFolder(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_purge_folder(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+    /**
      * Retourne les entrées filtrées/triées en JSON.
      */
 open func queryDatabaseJson(dbId: String, viewId: String)throws  -> String  {
@@ -1343,6 +1493,51 @@ open func reorderChildBlocks(docId: String, parentId: String, order: [String])th
         FfiConverterString.lower(docId),
         FfiConverterString.lower(parentId),
         FfiConverterSequenceString.lower(order),$0
+    )
+}
+}
+    
+    /**
+     * Restaure une database depuis la corbeille.
+     */
+open func restoreDatabase(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_restore_database(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+    /**
+     * Restaure un document depuis la corbeille.
+     */
+open func restoreDocument(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_restore_document(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+    /**
+     * Restaure une entry depuis la corbeille de sa database.
+     */
+open func restoreEntry(dbId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_restore_entry(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(entryId),$0
+    )
+}
+}
+    
+    /**
+     * Restaure un dossier depuis la corbeille.
+     */
+open func restoreFolder(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_restore_folder(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
     )
 }
 }
@@ -2302,6 +2497,18 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_databases() != 58802) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_databases() != 23880) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_documents() != 36222) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_entries_json() != 45731) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_folders() != 33419) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_documents() != 62408) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -2326,6 +2533,18 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_outdent_block() != 55400) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_database() != 13513) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_document() != 62109) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_entry() != 63480) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_folder() != 8367) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_query_database_json() != 4012) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -2342,6 +2561,18 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_reorder_child_blocks() != 60852) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_database() != 9191) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_document() != 33151) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_entry() != 19357) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_folder() != 11915) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_search_database_entries_json() != 53101) {

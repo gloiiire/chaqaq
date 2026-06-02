@@ -157,6 +157,18 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> search_in_blocks(string query);
 
+    /// Liste les documents en corbeille (soft-deleted), du plus récemment supprimé en premier.
+    [Throws=PinkhaError]
+    sequence<DocumentMetaFfi> list_deleted_documents();
+
+    /// Restaure un document depuis la corbeille.
+    [Throws=PinkhaError]
+    void restore_document(string id);
+
+    /// Supprime définitivement un document de la corbeille (hard delete).
+    [Throws=PinkhaError]
+    void purge_document(string id);
+
     // ── Databases ─────────────────────────────────────────────
 
     /// Crée une nouvelle database et retourne son UUID.
@@ -188,6 +200,30 @@ interface PinkhaApi {
 
     [Throws=PinkhaError]
     void delete_entry(string db_id, string entry_id);
+
+    /// Restaure une entry depuis la corbeille de sa database.
+    [Throws=PinkhaError]
+    void restore_entry(string db_id, string entry_id);
+
+    /// Supprime définitivement une entry soft-deleted (hard delete).
+    [Throws=PinkhaError]
+    void purge_entry(string db_id, string entry_id);
+
+    /// Liste les entries soft-deleted d'une database (JSON array).
+    [Throws=PinkhaError]
+    string list_deleted_entries_json(string db_id);
+
+    /// Liste les databases en corbeille (soft-deleted), du plus récemment supprimé en premier.
+    [Throws=PinkhaError]
+    sequence<DatabaseMetaFfi> list_deleted_databases();
+
+    /// Restaure une database depuis la corbeille.
+    [Throws=PinkhaError]
+    void restore_database(string id);
+
+    /// Supprime définitivement une database de la corbeille (hard delete).
+    [Throws=PinkhaError]
+    void purge_database(string id);
 
     /// Ajoute une propriété sérialisée en JSON.
     [Throws=PinkhaError]
@@ -250,6 +286,18 @@ interface PinkhaApi {
 
     [Throws=PinkhaError]
     void delete_folder(string id);
+
+    /// Liste les dossiers en corbeille (soft-deleted), du plus récemment supprimé en premier.
+    [Throws=PinkhaError]
+    sequence<FolderMetaFfi> list_deleted_folders();
+
+    /// Restaure un dossier depuis la corbeille.
+    [Throws=PinkhaError]
+    void restore_folder(string id);
+
+    /// Supprime définitivement un dossier de la corbeille (hard delete).
+    [Throws=PinkhaError]
+    void purge_folder(string id);
 
     [Throws=PinkhaError]
     void move_folder_to(string id, string? new_parent_id);
