@@ -118,13 +118,24 @@ struct RichTextEditor: UIViewRepresentable {
             if !coord.isEditing {
                 tv.font = baseFont
                 tv.attributedText = spans.isEmpty ? coord.placeholder() : editingText
-            } else if tv.attributedText.string != editingText.string {
-                // Undo/redo during editing: the VM changed spans without going through
-                // the keyboard. Restore the cursor to the end of the restored text.
+            } else if tv.attributedText.string != editingText.string
+                        || coord.lastSyncedBlockColor != blockColor {
+                // Two reasons to refresh during editing:
+                //  - Text string changed (undo/redo applied via the VM).
+                //  - Block colour changed: the string is identical but the
+                //    default foreground attribute differs. Without this branch
+                //    the ¶ palette wouldn't take effect until the user left
+                //    and re-entered the note.
+                // Preserve the cursor position when only attributes changed;
+                // jump to the end on a string-level edit (undo/redo).
                 let savedTyping = tv.typingAttributes
+                let savedSelection = tv.selectedRange
+                let stringChanged = tv.attributedText.string != editingText.string
                 tv.attributedText = editingText
                 tv.typingAttributes = savedTyping
-                tv.selectedRange = NSRange(location: editingText.length, length: 0)
+                tv.selectedRange = stringChanged
+                    ? NSRange(location: editingText.length, length: 0)
+                    : savedSelection
             }
             coord.lastSyncedSpans = spans
             coord.lastSyncedBlockColor = blockColor
