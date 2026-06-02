@@ -127,6 +127,11 @@ impl Extractor for NotionExtractor {
         let mut total_blocks: usize = 0;
         let mut total_skipped: usize = 0;
 
+        // Built incrementally as pages are imported. Used in step 7 to rewrite
+        // `[label](https://notion.so/...{notion_id})` links so they point to
+        // the matching Pinkha document instead of staying broken Notion URLs.
+        let mut notion_to_pinkha: HashMap<String, Uuid> = HashMap::new();
+
         let mut cursor: Option<String> = None;
 
         loop {
@@ -135,7 +140,7 @@ impl Extractor for NotionExtractor {
                 .await?;
 
             for page in &response.results {
-                let (block_count, skipped_count) = import_page(
+                let (block_count, skipped_count, pinkha_doc_id) = import_page(
                     &client,
                     page,
                     pinkha_db_id,
@@ -147,6 +152,8 @@ impl Extractor for NotionExtractor {
                 )
                 .await?;
 
+                notion_to_pinkha.insert(normalize_notion_id(&page.id), pinkha_doc_id);
+
                 total_documents += 1;
                 total_entries += 1;
                 total_blocks += block_count;
@@ -157,6 +164,15 @@ impl Extractor for NotionExtractor {
                 break;
             }
             cursor = response.next_cursor;
+        }
+
+        // 7. Second pass: rewrite Notion page-link URLs to internal
+        //    `pinkha://doc/{uuid}` links now that we know every Notion page's
+        //    Pinkha equivalent. Done at the very end because mentions can
+        //    point to pages later in the same database — we need the full
+        //    map before rewriting any document.
+        for pinkha_doc_id in notion_to_pinkha.values() {
+            rewrite_notion_mentions(docs, *pinkha_doc_id, &notion_to_pinkha)?;
         }
 
         Ok(ImportResult {
@@ -175,7 +191,9 @@ impl Extractor for NotionExtractor {
 /// Imports one Notion page: creates a Pinkha document, fetches its blocks,
 /// and adds a database entry that back-links to the document.
 ///
-/// Returns `(block_count, skipped_count)`.
+/// Returns `(block_count, skipped_count, pinkha_doc_id)` — the doc id is
+/// captured by the caller into the Notion→Pinkha map used for rewriting
+/// mention links in the second pass.
 #[allow(clippy::too_many_arguments)]
 async fn import_page(
     client: &NotionClient,
@@ -186,7 +204,7 @@ async fn import_page(
     prop_map: &HashMap<String, Uuid>,
     docs: &(dyn DocumentRepository + Send + Sync),
     dbs: &(dyn DatabaseRepository + Send + Sync),
-) -> Result<(usize, usize), ExtractorError> {
+) -> Result<(usize, usize, Uuid), ExtractorError> {
     // Extract the page title from the "title" property type.
     let plain_title = page
         .properties
@@ -234,7 +252,114 @@ async fn import_page(
 
     database_use_cases::add_entry_with_document(dbs, pinkha_db_id, values, doc_id)?;
 
-    Ok((block_count, skipped_count))
+    Ok((block_count, skipped_count, doc_id))
+}
+
+// ── Mention rewriting ─────────────────────────────────────────────────────────
+
+/// Normalises a Notion ID (page or block) for use as a `HashMap` key.
+///
+/// Notion sometimes returns IDs with dashes (`1234abcd-...-...`), sometimes
+/// without (in URLs). Strip the dashes and lower-case so equivalent IDs hash
+/// to the same bucket.
+pub fn normalize_notion_id(raw: &str) -> String {
+    raw.chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .flat_map(|c| c.to_lowercase())
+        .collect()
+}
+
+/// Walks a Pinkha document loaded from `docs` and rewrites every inline link
+/// whose URL embeds a Notion page ID we just imported. The new URL points to
+/// the corresponding Pinkha document via the `pinkha://doc/{uuid}` scheme.
+///
+/// Persists the document only when at least one link was rewritten — keeps
+/// I/O minimal for documents that don't cross-reference anything.
+pub fn rewrite_notion_mentions(
+    docs: &(dyn DocumentRepository + Send + Sync),
+    doc_id: Uuid,
+    notion_to_pinkha: &HashMap<String, Uuid>,
+) -> Result<(), ExtractorError> {
+    use crate::application::error::PinkhaError;
+    let mut doc = docs.load(doc_id).map_err(|e: PinkhaError| match e {
+        PinkhaError::NotFound(_) => ExtractorError::Parse(format!("doc {doc_id} not found")),
+        other => ExtractorError::Parse(other.to_string()),
+    })?;
+    let mut rewrote = false;
+    for block in doc.blocks.iter_mut() {
+        rewrite_block_links(block, notion_to_pinkha, &mut rewrote);
+    }
+    if rewrote {
+        docs.save(&doc)
+            .map_err(|e| ExtractorError::Parse(e.to_string()))?;
+    }
+    Ok(())
+}
+
+/// Recursively rewrites links in `block` and its descendants. Sets
+/// `*rewrote = true` if any link was changed so the caller can skip the
+/// `save` when nothing changed.
+fn rewrite_block_links(
+    block: &mut crate::domain::document::Block,
+    notion_to_pinkha: &HashMap<String, Uuid>,
+    rewrote: &mut bool,
+) {
+    rewrite_inlines_in_content(&mut block.content, notion_to_pinkha, rewrote);
+    for child in block.children.iter_mut() {
+        rewrite_block_links(child, notion_to_pinkha, rewrote);
+    }
+}
+
+/// Walks the inline-bearing variants of `BlockContent` and rewrites their
+/// link styles. Variants without inline text (`Divider`, `Breadcrumb`,
+/// `Database`, `Code`) are no-ops.
+fn rewrite_inlines_in_content(
+    content: &mut crate::domain::document::BlockContent,
+    notion_to_pinkha: &HashMap<String, Uuid>,
+    rewrote: &mut bool,
+) {
+    use crate::domain::document::BlockContent;
+    let inlines: Option<&mut Vec<InlineText>> = match content {
+        BlockContent::Text(t)              => Some(t),
+        BlockContent::Heading { text, .. } => Some(text),
+        BlockContent::Quote   { text, .. } => Some(text),
+        BlockContent::Todo    { text, .. } => Some(text),
+        BlockContent::BulletedListItem(t)  => Some(t),
+        BlockContent::NumberedListItem(t)  => Some(t),
+        BlockContent::Divider
+        | BlockContent::Breadcrumb
+        | BlockContent::Database { .. }
+        | BlockContent::Code { .. } => None,
+    };
+    if let Some(spans) = inlines {
+        for span in spans.iter_mut() {
+            for style in span.styles.iter_mut() {
+                if let chaqaq::InlineStyle::Link(url) = style {
+                    if let Some(new_url) = rewrite_url(url, notion_to_pinkha) {
+                        *url = new_url;
+                        *rewrote = true;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Returns `Some(new_url)` if `url` contains a known Notion page ID; `None`
+/// otherwise. The pinkha scheme uses dashed UUIDs for human readability when
+/// debugging logs — strict format isn't important since only the app parses
+/// these URLs.
+fn rewrite_url(url: &str, notion_to_pinkha: &HashMap<String, Uuid>) -> Option<String> {
+    let normalized = normalize_notion_id(url);
+    // A 32-hex page ID is buried somewhere in the URL — scan for one of our
+    // known IDs as a substring. Linear in the map size, fine for typical
+    // imports (~hundreds of pages).
+    for (notion_id, pinkha_id) in notion_to_pinkha {
+        if normalized.contains(notion_id) {
+            return Some(format!("pinkha://doc/{pinkha_id}"));
+        }
+    }
+    None
 }
 
 /// Paginates through a page's block children, fetches nested children
@@ -320,4 +445,46 @@ fn count_blocks_recursive(blocks: &[crate::domain::document::Block]) -> usize {
         .iter()
         .map(|b| 1 + count_blocks_recursive(&b.children))
         .sum()
+}
+
+#[cfg(test)]
+mod mention_tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn normalize_strips_dashes_and_lowercases() {
+        assert_eq!(
+            normalize_notion_id("1234ABCD-EF56-7890-ABCD-EF1234567890"),
+            "1234abcdef567890abcdef1234567890"
+        );
+        // Already-normalised IDs pass through unchanged.
+        assert_eq!(
+            normalize_notion_id("abc123def456abc123def456abc123de"),
+            "abc123def456abc123def456abc123de"
+        );
+    }
+
+    #[test]
+    fn rewrite_url_matches_known_page_id() {
+        let notion_id = "abc123def456abc123def456abc123de".to_string();
+        let pinkha_id = Uuid::new_v4();
+        let mut map = HashMap::new();
+        map.insert(notion_id.clone(), pinkha_id);
+
+        // Standard Notion page URL with dashes — must still match after
+        // normalisation.
+        let url = "https://www.notion.so/My-Page-abc123def456abc123def456abc123de";
+        let rewritten = rewrite_url(url, &map).expect("expected rewrite");
+        assert_eq!(rewritten, format!("pinkha://doc/{pinkha_id}"));
+    }
+
+    #[test]
+    fn rewrite_url_returns_none_for_unknown_ids() {
+        let map: HashMap<String, Uuid> = HashMap::new();
+        let url = "https://www.notion.so/Some-Page-abc123def456abc123def456abc123de";
+        assert!(rewrite_url(url, &map).is_none());
+        // Non-Notion URLs aren't touched either.
+        assert!(rewrite_url("https://example.com", &map).is_none());
+    }
 }
