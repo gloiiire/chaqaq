@@ -163,8 +163,20 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
         isEditing = false
         parent.isFocused = false
         guard !isDeleting else { return }
+        // If the UITextView is being detached from the view hierarchy (a
+        // structural mutation like indent/outdent shrank the parent's array
+        // and SwiftUI is in the middle of removing this view), the indexed
+        // bindings into `vm.blocks` are stale — reading or writing them
+        // crashes with "Index out of range". Skip the persistence and
+        // placeholder restore in that case; the new view that replaces this
+        // one will render the correct content from the fresh array.
+        guard tv.window != nil else { return }
         save(attributedToSpans(tv.attributedText, police: parent.baseFont))
-        if parent.spans.isEmpty { tv.attributedText = placeholder() }
+        // Use the UITextView's own state instead of reading `parent.spans` —
+        // the latter accesses an indexed Binding that may also be stale even
+        // when the window check above let us through (e.g. SwiftUI between
+        // renders).
+        if tv.attributedText.string.isEmpty { tv.attributedText = placeholder() }
     }
 
     func textViewDidChange(_ tv: UITextView) {
