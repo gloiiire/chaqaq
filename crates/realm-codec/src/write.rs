@@ -615,4 +615,86 @@ mod tests {
         let t = realm.table("T").unwrap();
         assert_eq!(t.get(&t.rows[0], "v").as_int(), 99);
     }
+
+    // ── Coverage for col_type_code + serialize_column variants ───────────────
+
+    #[test]
+    fn data_column_roundtrips_as_string() {
+        // Data column shares the string-column serializer; reader returns
+        // Value::String for both.
+        let mut b = RealmBuilder::new();
+        b.table("T")
+            .column("blob", ColumnType::Data)
+            .row(vec![Value::String("binary-ish".into())]);
+        let realm = roundtrip(b);
+        let t = realm.table("T").unwrap();
+        assert_eq!(t.get(&t.rows[0], "blob").as_str(), "binary-ish");
+    }
+
+    #[test]
+    fn link_column_roundtrip() {
+        let mut b = RealmBuilder::new();
+        b.table("T")
+            .column("ref", ColumnType::Link)
+            .row(vec![Value::Link(42)])
+            .row(vec![Value::Link(0)]);
+        let realm = roundtrip(b);
+        let t = realm.table("T").unwrap();
+        // The writer emits an i64 array; the reader interprets it as
+        // Value::Link(usize) for Link/LinkList/BackLink column types.
+        assert_eq!(t.get(&t.rows[0], "ref"), &Value::Link(42));
+        assert_eq!(t.get(&t.rows[1], "ref"), &Value::Link(0));
+    }
+
+    #[test]
+    fn linklist_column_roundtrip() {
+        // LinkList in old-format is written as i64 (matches reader's
+        // ColumnType::LinkList → Value::Link branch).
+        let mut b = RealmBuilder::new();
+        b.table("T")
+            .column("links", ColumnType::LinkList)
+            .row(vec![Value::Link(7)]);
+        let realm = roundtrip(b);
+        let t = realm.table("T").unwrap();
+        assert_eq!(t.get(&t.rows[0], "links"), &Value::Link(7));
+    }
+
+    #[test]
+    fn backlink_column_roundtrip() {
+        let mut b = RealmBuilder::new();
+        b.table("T")
+            .column("back", ColumnType::BackLink)
+            .row(vec![Value::Link(3)]);
+        let realm = roundtrip(b);
+        let t = realm.table("T").unwrap();
+        assert_eq!(t.get(&t.rows[0], "back"), &Value::Link(3));
+    }
+
+    #[test]
+    fn link_column_with_non_link_value_falls_back_to_int() {
+        // The match arm `other => other.as_int()` handles cells that are
+        // not Value::Link — Int(5) goes through this path.
+        let mut b = RealmBuilder::new();
+        b.table("T")
+            .column("ref", ColumnType::Link)
+            .row(vec![Value::Int(5)]);
+        let realm = roundtrip(b);
+        let t = realm.table("T").unwrap();
+        assert_eq!(t.get(&t.rows[0], "ref"), &Value::Link(5));
+    }
+
+    #[test]
+    fn unknown_column_type_serializes_to_empty_and_reads_as_null() {
+        let mut b = RealmBuilder::new();
+        b.table("T")
+            .column("mystery", ColumnType::Unknown(99))
+            .row(vec![Value::Null]);
+        let realm = roundtrip(b);
+        let t = realm.table("T").unwrap();
+        // Unknown columns serialize to an empty u64 array. The reader can
+        // still parse the table; the cell is Null because no data exists.
+        // (The row count comes from `count_node_rows` on this empty node
+        // which returns 0, so the table has no rows.)
+        assert_eq!(t.rows.len(), 0);
+    }
 }

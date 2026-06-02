@@ -422,6 +422,37 @@ mod tests {
         assert_eq!(read_bits_elem(&[0xFF], 0, 0), 0);
     }
 
+    #[test]
+    fn read_bits_elem_2bit() {
+        // byte 0xE4 = 0b1110_0100 — 2-bit elems 0..3 = 0b00, 0b01, 0b10, 0b11
+        let data = [0xE4u8];
+        assert_eq!(read_bits_elem(&data, 0, 2), 0b00);
+        assert_eq!(read_bits_elem(&data, 1, 2), 0b01);
+        assert_eq!(read_bits_elem(&data, 2, 2), 0b10);
+        assert_eq!(read_bits_elem(&data, 3, 2), 0b11);
+    }
+
+    #[test]
+    fn read_bits_elem_16bit() {
+        let data = [0x34u8, 0x12, 0x78, 0x56];
+        assert_eq!(read_bits_elem(&data, 0, 16), 0x1234);
+        assert_eq!(read_bits_elem(&data, 1, 16), 0x5678);
+    }
+
+    #[test]
+    fn read_bits_elem_32bit() {
+        let data = [0x78u8, 0x56, 0x34, 0x12, 0xAA, 0xBB, 0xCC, 0xDD];
+        assert_eq!(read_bits_elem(&data, 0, 32), 0x1234_5678);
+        assert_eq!(read_bits_elem(&data, 1, 32), 0xDDCC_BBAA);
+    }
+
+    #[test]
+    fn read_bits_elem_unsupported_width_returns_zero() {
+        // Any width not in {0, 1, 2, 4, 8, 16, 32, 64} falls to `_ => 0`.
+        assert_eq!(read_bits_elem(&[0xFFu8; 8], 0, 3), 0);
+        assert_eq!(read_bits_elem(&[0xFFu8; 8], 0, 127), 0);
+    }
+
     // ── ColumnType ────────────────────────────────────────────────────────────
 
     #[test]

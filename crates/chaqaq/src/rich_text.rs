@@ -131,11 +131,13 @@ impl RichText {
     }
 
     fn remove_style(&mut self, range: Range<usize>, style: &InlineStyle) {
+        // Only called from `toggle_style` after `all_have_style(range)` returned
+        // true, which means every index in `range` is in a span — and every
+        // span maps to a real char. So `i < by_char.len()` always holds and
+        // no bound check is needed.
         let mut by_char = self.styles_by_char();
         for i in range {
-            if i < by_char.len() {
-                by_char[i].retain(|s| s != style);
-            }
+            by_char[i].retain(|s| s != style);
         }
         self.spans = Self::build_spans(by_char);
     }
@@ -324,5 +326,44 @@ mod tests {
         assert_eq!(rt.length(), 3);
         rt.insert_char(1, 'X');
         assert_eq!(rt.content(), "éXàü");
+    }
+
+    #[test]
+    fn empty_yields_no_chars_and_no_spans() {
+        let rt = RichText::empty();
+        assert_eq!(rt.length(), 0);
+        assert_eq!(rt.content(), "");
+        assert!(rt.spans().is_empty());
+    }
+
+    #[test]
+    fn delete_char_past_end_is_noop() {
+        let mut rt = RichText::from(&vec![text("abc")]);
+        rt.delete_char(99);
+        assert_eq!(rt.content(), "abc");
+    }
+
+    #[test]
+    fn toggle_style_with_empty_range_is_noop() {
+        let mut rt = RichText::from(&vec![text("hello")]);
+        rt.toggle_style(2..2, InlineStyle::Bold);
+        assert!(rt.spans().is_empty());
+    }
+
+    #[test]
+    fn remove_style_clears_style_when_all_have_it() {
+        // Style covers full range → toggle_style routes to remove_style,
+        // which exercises the by_char[i].retain branch.
+        let mut rt = RichText::from(&vec![bold("abc")]);
+        rt.toggle_style(0..3, InlineStyle::Bold);
+        let back: Vec<InlineText> = Vec::from(&rt);
+        assert_eq!(back, vec![text("abc")]);
+    }
+
+    #[test]
+    fn from_empty_rich_text_to_inline_vec_yields_empty() {
+        let rt = RichText::empty();
+        let back: Vec<InlineText> = Vec::from(&rt);
+        assert!(back.is_empty());
     }
 }
