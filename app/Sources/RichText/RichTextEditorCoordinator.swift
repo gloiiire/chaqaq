@@ -36,6 +36,12 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
     /// render, because the spans-equality check skips the `spansToAttributed`
     /// rebuild.
     var lastSyncedBlockColor: String?
+    /// Mirror of `parent.isEnabled` (lock state). When the user locks the
+    /// page, empty blocks should hide their placeholder — but the spans-
+    /// equality short-circuit otherwise prevents the recompute, leaving the
+    /// stale placeholder visible until the user scrolls or closes the note.
+    /// Tracked here so `updateUIView` can force the refresh on flip.
+    var lastSyncedIsEnabled: Bool?
     // The pill toolbar — animated to alpha 0 when a dropdown menu opens
     // (Notes.app style: the toolbar fades while the menu is visible).
     weak var toolbarPill: UIView?

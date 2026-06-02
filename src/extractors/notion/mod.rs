@@ -40,6 +40,10 @@ pub struct NotionConfig {
     pub token: String,
     /// ID (32-char hex) or URL of the Notion database to import.
     pub database_id: String,
+    /// Absolute path to an existing directory where page covers will be
+    /// downloaded. When `None`, covers are stored as their original URL —
+    /// fine for external covers, but Notion-hosted ones expire after ~1h.
+    pub covers_dir: Option<String>,
 }
 
 // ── Extractor ─────────────────────────────────────────────────────────────────
@@ -149,6 +153,7 @@ impl Extractor for NotionExtractor {
                     &prop_map,
                     docs,
                     dbs,
+                    config.covers_dir.as_deref(),
                 )
                 .await?;
 
@@ -204,6 +209,7 @@ async fn import_page(
     prop_map: &HashMap<String, Uuid>,
     docs: &(dyn DocumentRepository + Send + Sync),
     dbs: &(dyn DatabaseRepository + Send + Sync),
+    covers_dir: Option<&str>,
 ) -> Result<(usize, usize, Uuid), ExtractorError> {
     // Extract the page title from the "title" property type.
     let plain_title = page
@@ -222,21 +228,44 @@ async fn import_page(
     let doc = use_cases::create_document(docs, &plain_title)?;
     let doc_id = doc.id;
 
-    // Carry the Notion cover and icon over to the new Pinkha document, when
-    // present. Notion exposes icon as an emoji *or* an image URL; we fold
-    // emojis into the cover field as a unified string ("📕" or "https://…").
-    // A dedicated `Document.icon` slot is a future refinement.
+    // Carry the Notion cover over to the new Pinkha document. When a covers
+    // directory is provided, the image is downloaded and stored locally —
+    // critical for Notion-hosted URLs which expire after ~1h. Otherwise we
+    // fall back to storing the raw URL (the SwiftUI renderer resolves it
+    // via AsyncImage but it'll break once the URL dies).
+    //
+    // Icons get the same treatment, with a Notion-emoji shortcut (just store
+    // the emoji string — the renderer doesn't try to interpret it as a URL).
     let cover_url = page.cover.as_ref().and_then(|c| c.url()).map(str::to_owned);
-    let icon_url = page.icon.as_ref().and_then(|i| match i {
+    let icon_value = page.icon.as_ref().and_then(|i| match i {
         schema::NotionPageIcon::Emoji { emoji } => Some(emoji.clone()),
         schema::NotionPageIcon::External { external } => Some(external.url.clone()),
         schema::NotionPageIcon::File { file } => Some(file.url.clone()),
         schema::NotionPageIcon::Unknown => None,
     });
-    // Prefer cover (visual) over icon (small). When only an icon exists, use
-    // it as the cover — better than losing it entirely while a dedicated
-    // icon field doesn't exist yet.
-    if let Some(cover) = cover_url.or(icon_url) {
+    let cover_to_store: Option<String> = match (cover_url, icon_value) {
+        (Some(url), _) => {
+            if let Some(dir) = covers_dir {
+                Some(download_cover(client, &url, dir, doc_id).await.unwrap_or(url))
+            } else {
+                Some(url)
+            }
+        }
+        (None, Some(icon)) => {
+            // Emoji icons are short strings (1-4 chars), never URLs — store
+            // as-is. URL-shaped icons get downloaded too.
+            if (icon.starts_with("http://") || icon.starts_with("https://"))
+                && covers_dir.is_some()
+            {
+                let dir = covers_dir.unwrap();
+                Some(download_cover(client, &icon, dir, doc_id).await.unwrap_or(icon))
+            } else {
+                Some(icon)
+            }
+        }
+        (None, None) => None,
+    };
+    if let Some(cover) = cover_to_store {
         use_cases::update_document_cover(docs, doc_id, Some(cover))?;
     }
 
@@ -271,6 +300,85 @@ async fn import_page(
     database_use_cases::add_entry_with_document(dbs, pinkha_db_id, values, doc_id)?;
 
     Ok((block_count, skipped_count, doc_id))
+}
+
+// ── Cover image download ──────────────────────────────────────────────────────
+
+/// Downloads `url` to `covers_dir/{doc_id}.{ext}` and returns the file name
+/// (relative — the Swift renderer resolves it via its covers directory).
+///
+/// Notion serves cover images at unauthenticated URLs (even for Notion-hosted
+/// covers), so we issue the GET with a fresh client to avoid sending the bearer
+/// token to AWS S3. Returns an error string the caller can fall back from when
+/// the network / disk write fails.
+async fn download_cover(
+    _client: &NotionClient,
+    url: &str,
+    covers_dir: &str,
+    doc_id: Uuid,
+) -> Result<String, String> {
+    // The auth-less client: Notion covers don't accept the `Authorization`
+    // header (especially on the S3 redirect step), and we don't want to leak
+    // the bearer token to AWS even if it did.
+    let http = reqwest::Client::builder()
+        .build()
+        .map_err(|e| format!("client build: {e}"))?;
+    let response = http
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("GET {url}: {e}"))?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!("HTTP {} for {url}", status.as_u16()));
+    }
+    let extension = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .and_then(extension_for_content_type)
+        .or_else(|| extension_from_url_path(url))
+        .unwrap_or("jpg")
+        .to_owned();
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("read body: {e}"))?;
+    let filename = format!("{doc_id}.{extension}");
+    let mut path = std::path::PathBuf::from(covers_dir);
+    path.push(&filename);
+    std::fs::write(&path, &bytes).map_err(|e| format!("write {path:?}: {e}"))?;
+    Ok(filename)
+}
+
+/// Maps a `Content-Type` header value to a sensible file extension. Returns
+/// `None` for types we don't have an extension for, letting the caller try
+/// other heuristics or fall back to `"jpg"`.
+fn extension_for_content_type(content_type: &str) -> Option<&'static str> {
+    let main = content_type.split(';').next().unwrap_or("").trim();
+    match main.to_ascii_lowercase().as_str() {
+        "image/jpeg" | "image/jpg" => Some("jpg"),
+        "image/png"                => Some("png"),
+        "image/heic"               => Some("heic"),
+        "image/webp"               => Some("webp"),
+        "image/gif"                => Some("gif"),
+        _ => None,
+    }
+}
+
+/// Falls back to the URL's path extension when the server didn't send a
+/// usable `Content-Type`.
+fn extension_from_url_path(url: &str) -> Option<&'static str> {
+    let path = url.split('?').next()?;
+    let (_, ext) = path.rsplit_once('.')?;
+    match ext.to_ascii_lowercase().as_str() {
+        "jpg" | "jpeg" => Some("jpg"),
+        "png" => Some("png"),
+        "heic" => Some("heic"),
+        "webp" => Some("webp"),
+        "gif" => Some("gif"),
+        _ => None,
+    }
 }
 
 // ── Mention rewriting ─────────────────────────────────────────────────────────

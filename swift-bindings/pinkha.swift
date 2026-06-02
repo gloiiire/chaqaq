@@ -625,8 +625,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Synchrone côté FFI : Notion utilise `reqwest`, qui exige un runtime
      * Tokio absent de l'executor UniFFI. On `block_on` côté Rust, donc Swift
      * doit appeler depuis `Task.detached` pour ne pas bloquer le main thread.
+     * `covers_dir` est un chemin absolu vers un dossier existant où les
+     * images de cover sont téléchargées. Quand null, on stocke seulement
+     * l'URL — OK pour les covers externes mais celles hébergées par Notion
+     * expirent au bout d'~1h.
      */
-    func importFromNotion(token: String, databaseId: String) throws  -> ImportResultFfi
+    func importFromNotion(token: String, databaseId: String, coversDir: String?) throws  -> ImportResultFfi
     
     /**
      * Indente un bloc : le déplace sous le frère précédent au même niveau.
@@ -1136,13 +1140,18 @@ open func importFromCraftTextbundle(rootDir: String)async throws  -> ImportResul
      * Synchrone côté FFI : Notion utilise `reqwest`, qui exige un runtime
      * Tokio absent de l'executor UniFFI. On `block_on` côté Rust, donc Swift
      * doit appeler depuis `Task.detached` pour ne pas bloquer le main thread.
+     * `covers_dir` est un chemin absolu vers un dossier existant où les
+     * images de cover sont téléchargées. Quand null, on stocke seulement
+     * l'URL — OK pour les covers externes mais celles hébergées par Notion
+     * expirent au bout d'~1h.
      */
-open func importFromNotion(token: String, databaseId: String)throws  -> ImportResultFfi  {
+open func importFromNotion(token: String, databaseId: String, coversDir: String?)throws  -> ImportResultFfi  {
     return try  FfiConverterTypeImportResultFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(token),
-        FfiConverterString.lower(databaseId),$0
+        FfiConverterString.lower(databaseId),
+        FfiConverterOptionString.lower(coversDir),$0
     )
 })
 }
@@ -2157,7 +2166,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_craft_textbundle() != 42783) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion() != 54840) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion() != 18771) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_indent_block() != 34803) {

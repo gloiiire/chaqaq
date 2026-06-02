@@ -256,8 +256,12 @@ interface PinkhaApi {
     /// Synchrone côté FFI : Notion utilise `reqwest`, qui exige un runtime
     /// Tokio absent de l'executor UniFFI. On `block_on` côté Rust, donc Swift
     /// doit appeler depuis `Task.detached` pour ne pas bloquer le main thread.
+    /// `covers_dir` est un chemin absolu vers un dossier existant où les
+    /// images de cover sont téléchargées. Quand null, on stocke seulement
+    /// l'URL — OK pour les covers externes mais celles hébergées par Notion
+    /// expirent au bout d'~1h.
     [Throws=PinkhaError]
-    ImportResultFfi import_from_notion(string token, string database_id);
+    ImportResultFfi import_from_notion(string token, string database_id, string? covers_dir);
 
     /// Importe les notes Bear depuis la SQLite locale de Bear.
     /// `db_path` est le chemin absolu vers `database.sqlite` de Bear.

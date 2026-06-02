@@ -115,7 +115,9 @@ struct RichTextEditor: UIViewRepresentable {
         // We also recompute when `blockColor` flips — else the user would
         // have to leave the note and come back to see the new colour, because
         // the spans-equality check would skip the `spansToAttributed` rebuild.
-        if coord.lastSyncedSpans != spans || coord.lastSyncedBlockColor != blockColor {
+        if coord.lastSyncedSpans != spans
+            || coord.lastSyncedBlockColor != blockColor
+            || coord.lastSyncedIsEnabled != isEnabled {
             // Do not reassign tv.font during editing: UITextView.font reapplies
             // the font to ALL the text and would erase per-character bold/italic.
             let editingText: NSAttributedString = spans.isEmpty
@@ -155,6 +157,7 @@ struct RichTextEditor: UIViewRepresentable {
             }
             coord.lastSyncedSpans = spans
             coord.lastSyncedBlockColor = blockColor
+            coord.lastSyncedIsEnabled = isEnabled
         }
 
         if isFocused && !tv.isFirstResponder {
