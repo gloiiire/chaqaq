@@ -21,7 +21,12 @@ fn flush(result: &mut Vec<InlineText>, current_text: &mut String, styles: Vec<In
     }
 }
 
-fn active_styles(bold: bool, italic: bool, underline: bool, strikethrough: bool) -> Vec<InlineStyle> {
+fn active_styles(
+    bold: bool,
+    italic: bool,
+    underline: bool,
+    strikethrough: bool,
+) -> Vec<InlineStyle> {
     let mut styles = vec![];
     if bold {
         styles.push(InlineStyle::Bold);
@@ -63,30 +68,50 @@ pub fn parse_inline(input: &str) -> Vec<InlineText> {
         match ch {
             '*' if chars.peek() == Some(&'*') && link.is_none() && color.is_none() => {
                 chars.next();
-                flush(&mut block, &mut current_text, active_styles(bold, italic, underline, strikethrough));
+                flush(
+                    &mut block,
+                    &mut current_text,
+                    active_styles(bold, italic, underline, strikethrough),
+                );
                 bold = !bold;
             }
             '*' if link.is_none() && color.is_none() => current_text.push('*'),
 
             '~' if chars.peek() == Some(&'~') && link.is_none() && color.is_none() => {
                 chars.next();
-                flush(&mut block, &mut current_text, active_styles(bold, italic, underline, strikethrough));
+                flush(
+                    &mut block,
+                    &mut current_text,
+                    active_styles(bold, italic, underline, strikethrough),
+                );
                 strikethrough = !strikethrough;
             }
             '~' if link.is_none() && color.is_none() => current_text.push('~'),
 
             '_' if chars.peek() == Some(&'_') && link.is_none() && color.is_none() => {
                 chars.next();
-                flush(&mut block, &mut current_text, active_styles(bold, italic, underline, strikethrough));
+                flush(
+                    &mut block,
+                    &mut current_text,
+                    active_styles(bold, italic, underline, strikethrough),
+                );
                 underline = !underline;
             }
             '_' if link.is_none() && color.is_none() => {
-                flush(&mut block, &mut current_text, active_styles(bold, italic, underline, strikethrough));
+                flush(
+                    &mut block,
+                    &mut current_text,
+                    active_styles(bold, italic, underline, strikethrough),
+                );
                 italic = !italic;
             }
 
             '{' if link.is_none() && color.is_none() => {
-                flush(&mut block, &mut current_text, active_styles(bold, italic, underline, strikethrough));
+                flush(
+                    &mut block,
+                    &mut current_text,
+                    active_styles(bold, italic, underline, strikethrough),
+                );
                 color = Some(ColorState::ColorName(String::new()));
             }
             ':' if matches!(color, Some(ColorState::ColorName(_))) => {
@@ -110,7 +135,11 @@ pub fn parse_inline(input: &str) -> Vec<InlineText> {
             }
 
             '[' if link.is_none() && color.is_none() => {
-                flush(&mut block, &mut current_text, active_styles(bold, italic, underline, strikethrough));
+                flush(
+                    &mut block,
+                    &mut current_text,
+                    active_styles(bold, italic, underline, strikethrough),
+                );
                 link = Some(LinkState::Text(String::new()));
             }
             ']' if matches!(link, Some(LinkState::Text(_))) => {
@@ -161,28 +190,52 @@ mod tests {
     use crate::{InlineStyle, InlineText};
 
     fn text(content: &str) -> InlineText {
-        InlineText { content: content.to_string(), styles: vec![] }
+        InlineText {
+            content: content.to_string(),
+            styles: vec![],
+        }
     }
     fn bold(content: &str) -> InlineText {
-        InlineText { content: content.to_string(), styles: vec![InlineStyle::Bold] }
+        InlineText {
+            content: content.to_string(),
+            styles: vec![InlineStyle::Bold],
+        }
     }
     fn italic(content: &str) -> InlineText {
-        InlineText { content: content.to_string(), styles: vec![InlineStyle::Italic] }
+        InlineText {
+            content: content.to_string(),
+            styles: vec![InlineStyle::Italic],
+        }
     }
     fn underlined(content: &str) -> InlineText {
-        InlineText { content: content.to_string(), styles: vec![InlineStyle::Underline] }
+        InlineText {
+            content: content.to_string(),
+            styles: vec![InlineStyle::Underline],
+        }
     }
     fn strikethrough(content: &str) -> InlineText {
-        InlineText { content: content.to_string(), styles: vec![InlineStyle::Strikethrough] }
+        InlineText {
+            content: content.to_string(),
+            styles: vec![InlineStyle::Strikethrough],
+        }
     }
     fn bold_italic(content: &str) -> InlineText {
-        InlineText { content: content.to_string(), styles: vec![InlineStyle::Bold, InlineStyle::Italic] }
+        InlineText {
+            content: content.to_string(),
+            styles: vec![InlineStyle::Bold, InlineStyle::Italic],
+        }
     }
     fn link(content: &str, url: &str) -> InlineText {
-        InlineText { content: content.to_string(), styles: vec![InlineStyle::Link(url.to_string())] }
+        InlineText {
+            content: content.to_string(),
+            styles: vec![InlineStyle::Link(url.to_string())],
+        }
     }
     fn color(content: &str, c: &str) -> InlineText {
-        InlineText { content: content.to_string(), styles: vec![InlineStyle::Color(c.to_string())] }
+        InlineText {
+            content: content.to_string(),
+            styles: vec![InlineStyle::Color(c.to_string())],
+        }
     }
 
     #[test]
@@ -266,10 +319,7 @@ mod tests {
 
     #[test]
     fn test_gras_italique() {
-        assert_eq!(
-            parse_inline("**_combiné_**"),
-            vec![bold_italic("combiné")]
-        );
+        assert_eq!(parse_inline("**_combiné_**"), vec![bold_italic("combiné")]);
     }
 
     #[test]

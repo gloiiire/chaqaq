@@ -12,9 +12,9 @@
 //   → parse Bear's Markdown subset → Pinkha BlockContent list
 //   → persist as Pinkha documents
 
+pub mod mapper;
 pub mod reader;
 pub mod schema;
-pub mod mapper;
 
 use crate::application::database_repository::DatabaseRepository;
 use crate::application::folder_repository::FolderRepository;
@@ -76,7 +76,11 @@ impl Extractor for BearExtractor {
         let mut total_blocks: usize = 0;
 
         for note in &notes {
-            let title = if note.title.is_empty() { "Untitled" } else { &note.title };
+            let title = if note.title.is_empty() {
+                "Untitled"
+            } else {
+                &note.title
+            };
 
             let mut doc = use_cases::create_document(docs, title)?;
             let parsed_blocks = parse_note_blocks(&note.text);

@@ -3,9 +3,11 @@
 // Thin reqwest wrapper that handles auth headers and error extraction.
 // Rate-limit retry is left to a future iteration.
 
-use super::schema::{NotionBlocksResponse, NotionDatabaseSchema, NotionQueryResponse, NotionSearchResponse};
+use super::schema::{
+    NotionBlocksResponse, NotionDatabaseSchema, NotionQueryResponse, NotionSearchResponse,
+};
 use crate::extractors::ExtractorError;
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
+use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 
 /// Reusable HTTP client for the Notion API v1.
 pub struct NotionClient {
@@ -18,15 +20,12 @@ impl NotionClient {
         let mut headers = HeaderMap::new();
 
         let auth_value = format!("Bearer {token}");
-        let mut auth_header = HeaderValue::from_str(&auth_value)
-            .map_err(|e| ExtractorError::Auth(e.to_string()))?;
+        let mut auth_header =
+            HeaderValue::from_str(&auth_value).map_err(|e| ExtractorError::Auth(e.to_string()))?;
         auth_header.set_sensitive(true);
         headers.insert(AUTHORIZATION, auth_header);
 
-        headers.insert(
-            "Notion-Version",
-            HeaderValue::from_static("2022-06-28"),
-        );
+        headers.insert("Notion-Version", HeaderValue::from_static("2022-06-28"));
 
         let client = reqwest::Client::builder()
             .default_headers(headers)
@@ -61,12 +60,7 @@ impl NotionClient {
             serde_json::json!({})
         };
 
-        let resp = self
-            .client
-            .post(&url)
-            .json(&body)
-            .send()
-            .await?;
+        let resp = self.client.post(&url).json(&body).send().await?;
         let bytes = self.extract_ok(resp).await?;
         let result: NotionQueryResponse = serde_json::from_slice(&bytes)?;
         Ok(result)
@@ -116,9 +110,7 @@ impl NotionClient {
         page_id: &str,
         cursor: Option<&str>,
     ) -> Result<NotionBlocksResponse, ExtractorError> {
-        let mut url = format!(
-            "https://api.notion.com/v1/blocks/{page_id}/children?page_size=100"
-        );
+        let mut url = format!("https://api.notion.com/v1/blocks/{page_id}/children?page_size=100");
         if let Some(c) = cursor {
             url.push_str("&start_cursor=");
             url.push_str(c);
@@ -131,10 +123,7 @@ impl NotionClient {
     }
 
     /// Reads the response bytes; on non-2xx status, extracts the API error message.
-    async fn extract_ok(
-        &self,
-        resp: reqwest::Response,
-    ) -> Result<Vec<u8>, ExtractorError> {
+    async fn extract_ok(&self, resp: reqwest::Response) -> Result<Vec<u8>, ExtractorError> {
         let status = resp.status();
         let bytes = resp.bytes().await.map(|b| b.to_vec())?;
 

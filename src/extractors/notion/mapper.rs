@@ -125,16 +125,16 @@ fn map_notion_color(c: &str) -> Option<&'static str> {
 /// dropping data into the wrong field.
 pub fn map_block_color(block: &NotionBlock) -> Option<String> {
     let raw: &str = match block.type_.as_str() {
-        "paragraph"          => block.paragraph.as_ref().map(|b| b.color.as_str()),
-        "heading_1"          => block.heading_1.as_ref().map(|b| b.color.as_str()),
-        "heading_2"          => block.heading_2.as_ref().map(|b| b.color.as_str()),
-        "heading_3"          => block.heading_3.as_ref().map(|b| b.color.as_str()),
-        "callout"            => block.callout.as_ref().map(|b| b.color.as_str()),
-        "quote"              => block.quote.as_ref().map(|b| b.color.as_str()),
-        "to_do"              => block.to_do.as_ref().map(|b| b.color.as_str()),
+        "paragraph" => block.paragraph.as_ref().map(|b| b.color.as_str()),
+        "heading_1" => block.heading_1.as_ref().map(|b| b.color.as_str()),
+        "heading_2" => block.heading_2.as_ref().map(|b| b.color.as_str()),
+        "heading_3" => block.heading_3.as_ref().map(|b| b.color.as_str()),
+        "callout" => block.callout.as_ref().map(|b| b.color.as_str()),
+        "quote" => block.quote.as_ref().map(|b| b.color.as_str()),
+        "to_do" => block.to_do.as_ref().map(|b| b.color.as_str()),
         "bulleted_list_item" => block.bulleted_list_item.as_ref().map(|b| b.color.as_str()),
         "numbered_list_item" => block.numbered_list_item.as_ref().map(|b| b.color.as_str()),
-        "code"               => block.code.as_ref().map(|b| b.color.as_str()),
+        "code" => block.code.as_ref().map(|b| b.color.as_str()),
         _ => None,
     }?;
     map_notion_color(raw).map(str::to_owned)
@@ -173,10 +173,13 @@ pub fn map_block(block: &NotionBlock) -> Option<BlockContent> {
         }
         "callout" => {
             let cb = block.callout.as_ref()?;
-            let icon = cb
-                .icon
-                .as_ref()
-                .and_then(|i| if i.type_ == "emoji" { i.emoji.clone() } else { None });
+            let icon = cb.icon.as_ref().and_then(|i| {
+                if i.type_ == "emoji" {
+                    i.emoji.clone()
+                } else {
+                    None
+                }
+            });
             Some(BlockContent::Quote {
                 icon,
                 text: map_rich_text(&cb.rich_text),
@@ -258,9 +261,7 @@ pub fn map_property_type(def: &NotionPropertyDef) -> PropertyType {
 /// Returns `None` for `Unknown` variants (property types not yet modelled).
 pub fn map_property_value(val: &NotionPagePropValue) -> Option<PropertyValue> {
     match val {
-        NotionPagePropValue::Title { title } => {
-            Some(PropertyValue::Title(map_rich_text(title)))
-        }
+        NotionPagePropValue::Title { title } => Some(PropertyValue::Title(map_rich_text(title))),
         NotionPagePropValue::RichText { rich_text } => {
             let text: String = rich_text.iter().map(|r| r.plain_text.as_str()).collect();
             Some(PropertyValue::Text(text))
@@ -268,9 +269,9 @@ pub fn map_property_value(val: &NotionPagePropValue) -> Option<PropertyValue> {
         NotionPagePropValue::Number { number } => {
             Some(PropertyValue::Number(number.unwrap_or(0.0)))
         }
-        NotionPagePropValue::Select { select } => {
-            Some(PropertyValue::Selection(select.as_ref().map(|s| s.name.clone())))
-        }
+        NotionPagePropValue::Select { select } => Some(PropertyValue::Selection(
+            select.as_ref().map(|s| s.name.clone()),
+        )),
         NotionPagePropValue::MultiSelect { multi_select } => {
             let names = multi_select.iter().map(|s| s.name.clone()).collect();
             Some(PropertyValue::SelectionMultiple(names))
@@ -279,9 +280,7 @@ pub fn map_property_value(val: &NotionPagePropValue) -> Option<PropertyValue> {
             let s = date.as_ref().map(|d| d.start.clone()).unwrap_or_default();
             Some(PropertyValue::Date(s))
         }
-        NotionPagePropValue::Checkbox { checkbox } => {
-            Some(PropertyValue::Checkbox(*checkbox))
-        }
+        NotionPagePropValue::Checkbox { checkbox } => Some(PropertyValue::Checkbox(*checkbox)),
         NotionPagePropValue::Url { url } => {
             Some(PropertyValue::Url(url.clone().unwrap_or_default()))
         }
@@ -300,7 +299,8 @@ mod tests {
 
     #[test]
     fn test_extract_database_id_from_url() {
-        let url = "https://www.notion.so/workspace/My-Page-Title-1234567890abcdef1234567890abcdef?pvs=4";
+        let url =
+            "https://www.notion.so/workspace/My-Page-Title-1234567890abcdef1234567890abcdef?pvs=4";
         let id = extract_database_id(url);
         assert_eq!(id, "1234567890abcdef1234567890abcdef");
     }
@@ -352,7 +352,10 @@ mod tests {
     #[test]
     fn test_map_property_value_checkbox() {
         let val = NotionPagePropValue::Checkbox { checkbox: true };
-        assert_eq!(map_property_value(&val), Some(PropertyValue::Checkbox(true)));
+        assert_eq!(
+            map_property_value(&val),
+            Some(PropertyValue::Checkbox(true))
+        );
     }
 
     #[test]
@@ -382,15 +385,43 @@ mod tests {
             id: "fake-id".to_string(),
             type_: type_.to_string(),
             has_children: false,
-            paragraph: if type_ == "paragraph" { Some(rt_block("hello")) } else { None },
-            heading_1: if type_ == "heading_1" { Some(rt_block("hello")) } else { None },
-            heading_2: if type_ == "heading_2" { Some(rt_block("hello")) } else { None },
-            heading_3: if type_ == "heading_3" { Some(rt_block("hello")) } else { None },
+            paragraph: if type_ == "paragraph" {
+                Some(rt_block("hello"))
+            } else {
+                None
+            },
+            heading_1: if type_ == "heading_1" {
+                Some(rt_block("hello"))
+            } else {
+                None
+            },
+            heading_2: if type_ == "heading_2" {
+                Some(rt_block("hello"))
+            } else {
+                None
+            },
+            heading_3: if type_ == "heading_3" {
+                Some(rt_block("hello"))
+            } else {
+                None
+            },
             callout: None,
-            quote: if type_ == "quote" { Some(rt_block("hello")) } else { None },
+            quote: if type_ == "quote" {
+                Some(rt_block("hello"))
+            } else {
+                None
+            },
             to_do: None,
-            bulleted_list_item: if type_ == "bulleted_list_item" { Some(rt_block("hello")) } else { None },
-            numbered_list_item: if type_ == "numbered_list_item" { Some(rt_block("hello")) } else { None },
+            bulleted_list_item: if type_ == "bulleted_list_item" {
+                Some(rt_block("hello"))
+            } else {
+                None
+            },
+            numbered_list_item: if type_ == "numbered_list_item" {
+                Some(rt_block("hello"))
+            } else {
+                None
+            },
             code: None,
         }
     }
@@ -399,7 +430,10 @@ mod tests {
     fn test_map_block_paragraph() {
         let block = make_rt_block("paragraph");
         let result = map_block(&block);
-        assert!(matches!(result, Some(crate::domain::document::BlockContent::Text(_))));
+        assert!(matches!(
+            result,
+            Some(crate::domain::document::BlockContent::Text(_))
+        ));
     }
 
     #[test]
@@ -483,8 +517,8 @@ mod tests {
 
     #[test]
     fn test_map_property_type_number() {
-        use crate::domain::database::PropertyType;
         use super::super::schema::NotionPropertyDef;
+        use crate::domain::database::PropertyType;
         let def = NotionPropertyDef {
             id: "abc".to_string(),
             name: "Score".to_string(),
@@ -515,7 +549,11 @@ mod tests {
             heading_3: None,
             callout: None,
             quote: None,
-            to_do: Some(TodoBlock { rich_text: vec![rt], checked: true, color: "default".into() }),
+            to_do: Some(TodoBlock {
+                rich_text: vec![rt],
+                checked: true,
+                color: "default".into(),
+            }),
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
@@ -545,7 +583,11 @@ mod tests {
             heading_3: None,
             callout: None,
             quote: None,
-            to_do: Some(TodoBlock { rich_text: vec![rt], checked: false, color: "default".into() }),
+            to_do: Some(TodoBlock {
+                rich_text: vec![rt],
+                checked: false,
+                color: "default".into(),
+            }),
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
@@ -687,7 +729,10 @@ mod tests {
             code: None,
         };
         let result = map_block(&block);
-        assert!(matches!(result, Some(crate::domain::document::BlockContent::Divider)));
+        assert!(matches!(
+            result,
+            Some(crate::domain::document::BlockContent::Divider)
+        ));
     }
 
     // ── Additional property value tests ───────────────────────────────────────
@@ -707,8 +752,12 @@ mod tests {
         use super::super::schema::SelectValue;
         let val = NotionPagePropValue::MultiSelect {
             multi_select: vec![
-                SelectValue { name: "a".to_string() },
-                SelectValue { name: "b".to_string() },
+                SelectValue {
+                    name: "a".to_string(),
+                },
+                SelectValue {
+                    name: "b".to_string(),
+                },
             ],
         };
         match map_property_value(&val) {
@@ -726,7 +775,9 @@ mod tests {
         };
         assert_eq!(
             map_property_value(&val),
-            Some(crate::domain::database::PropertyValue::Url("https://example.com".to_string()))
+            Some(crate::domain::database::PropertyValue::Url(
+                "https://example.com".to_string()
+            ))
         );
     }
 
@@ -744,7 +795,11 @@ mod tests {
         }];
         let result = map_rich_text(&items);
         assert_eq!(result.len(), 1);
-        assert!(result[0].styles.contains(&crate::domain::document::InlineStyle::Bold));
+        assert!(
+            result[0]
+                .styles
+                .contains(&crate::domain::document::InlineStyle::Bold)
+        );
     }
 
     #[test]
@@ -759,9 +814,13 @@ mod tests {
         }];
         let result = map_rich_text(&items);
         assert_eq!(result.len(), 1);
-        assert!(result[0]
-            .styles
-            .contains(&crate::domain::document::InlineStyle::Color("red".to_string())));
+        assert!(
+            result[0]
+                .styles
+                .contains(&crate::domain::document::InlineStyle::Color(
+                    "red".to_string()
+                ))
+        );
     }
 
     #[test]
@@ -774,9 +833,11 @@ mod tests {
         }];
         let result = map_rich_text(&items);
         assert_eq!(result.len(), 1);
-        assert!(result[0]
-            .styles
-            .contains(&crate::domain::document::InlineStyle::Link(url.to_string())));
+        assert!(
+            result[0]
+                .styles
+                .contains(&crate::domain::document::InlineStyle::Link(url.to_string()))
+        );
     }
 
     // ── extract_database_id with workspace slug ───────────────────────────────
@@ -784,8 +845,7 @@ mod tests {
     #[test]
     fn test_extract_database_id_with_workspace() {
         // URL format: notion.so/myworkspace/Title-{32hexchars}
-        let url =
-            "https://www.notion.so/myworkspace/Title-abc123def456abc123def456abc123de";
+        let url = "https://www.notion.so/myworkspace/Title-abc123def456abc123def456abc123de";
         let id = extract_database_id(url);
         assert_eq!(id, "abc123def456abc123def456abc123de");
     }

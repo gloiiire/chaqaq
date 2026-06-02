@@ -9,12 +9,12 @@
 // OAuth2 token exchange (browser flow, Keychain) stays in Swift; Rust only
 // receives the final bearer token.
 
-pub mod traits;
-pub mod notion;
 pub mod bear;
 pub mod craft;
-pub mod craft_textbundle;
 pub mod craft_combined;
+pub mod craft_textbundle;
+pub mod notion;
+pub mod traits;
 
 use crate::application::error::PinkhaError;
 use uuid::Uuid;

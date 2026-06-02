@@ -27,7 +27,7 @@ fn tokio_runtime() -> &'static tokio::runtime::Runtime {
 use crate::application::error::PinkhaError as CoreError;
 use crate::application::{database_use_cases, folder_use_cases, use_cases};
 use crate::domain::database::{
-    Aggregate, DatabaseMeta, Entry, Filter, Property, Sort, PropertyValue, View,
+    Aggregate, DatabaseMeta, Entry, Filter, Property, PropertyValue, Sort, View,
 };
 use crate::domain::document::{Block, BlockContent, DocumentMeta};
 use crate::domain::folder::FolderMeta;
@@ -349,15 +349,10 @@ impl PinkhaApi {
     }
 
     /// Replaces the document title with a plain-text string parsed into inline spans.
-    pub fn update_document_title(
-        &self,
-        id: String,
-        new_title: String,
-    ) -> Result<(), PinkhaError> {
+    pub fn update_document_title(&self, id: String, new_title: String) -> Result<(), PinkhaError> {
         validate_string(&new_title, "new_title")?;
         let uuid = parse_uuid(&id)?;
-        use_cases::update_document_title(&self.docs, uuid, &new_title)
-            .map_err(PinkhaError::from)
+        use_cases::update_document_title(&self.docs, uuid, &new_title).map_err(PinkhaError::from)
     }
 
     /// Sets or clears the cover of a document.
@@ -367,8 +362,7 @@ impl PinkhaApi {
         cover: Option<String>,
     ) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        use_cases::update_document_cover(&self.docs, uuid, cover)
-            .map_err(PinkhaError::from)
+        use_cases::update_document_cover(&self.docs, uuid, cover).map_err(PinkhaError::from)
     }
 
     /// Sets or clears the page icon. Accepts an emoji, a local cover-dir
@@ -382,8 +376,7 @@ impl PinkhaApi {
             validate_string(i, "icon")?;
         }
         let uuid = parse_uuid(&id)?;
-        use_cases::update_document_icon(&self.docs, uuid, icon)
-            .map_err(PinkhaError::from)
+        use_cases::update_document_icon(&self.docs, uuid, icon).map_err(PinkhaError::from)
     }
 
     /// Appends a block to a document. `block_content_json` must be a JSON-encoded
@@ -501,11 +494,7 @@ impl PinkhaApi {
     /// Indents a block — moves it under the previous sibling at the same
     /// level. Fails with `InvalidOperation` when the block is the first of
     /// its level (nothing to indent under).
-    pub fn indent_block(
-        &self,
-        doc_id: String,
-        block_id: String,
-    ) -> Result<(), PinkhaError> {
+    pub fn indent_block(&self, doc_id: String, block_id: String) -> Result<(), PinkhaError> {
         let doc_uuid = parse_uuid(&doc_id)?;
         let block_uuid = parse_uuid(&block_id)?;
         use_cases::indent_block(&self.docs, doc_uuid, block_uuid).map_err(PinkhaError::from)
@@ -514,11 +503,7 @@ impl PinkhaApi {
     /// Outdents a block — moves it out of its current parent up to the
     /// grandparent level, inserted right after the former parent. Fails with
     /// `InvalidOperation` when the block is already at the document root.
-    pub fn outdent_block(
-        &self,
-        doc_id: String,
-        block_id: String,
-    ) -> Result<(), PinkhaError> {
+    pub fn outdent_block(&self, doc_id: String, block_id: String) -> Result<(), PinkhaError> {
         let doc_uuid = parse_uuid(&doc_id)?;
         let block_uuid = parse_uuid(&block_id)?;
         use_cases::outdent_block(&self.docs, doc_uuid, block_uuid).map_err(PinkhaError::from)
@@ -527,19 +512,14 @@ impl PinkhaApi {
     /// Searches document titles for `query` (case-insensitive).
     pub fn search_documents(&self, query: String) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
         validate_string(&query, "query")?;
-        let metas =
-            use_cases::search_documents(&self.docs, &query).map_err(PinkhaError::from)?;
+        let metas = use_cases::search_documents(&self.docs, &query).map_err(PinkhaError::from)?;
         Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
     }
 
     /// Full-text search across all block content in all documents (case-insensitive).
-    pub fn search_in_blocks(
-        &self,
-        query: String,
-    ) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
+    pub fn search_in_blocks(&self, query: String) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
         validate_string(&query, "query")?;
-        let metas =
-            use_cases::search_in_blocks(&self.docs, &query).map_err(PinkhaError::from)?;
+        let metas = use_cases::search_in_blocks(&self.docs, &query).map_err(PinkhaError::from)?;
         Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
     }
 }
@@ -559,8 +539,7 @@ impl PinkhaApi {
     /// Returns the full database as a JSON string.
     pub fn get_database_json(&self, id: String) -> Result<String, PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        let db =
-            database_use_cases::get_database(&self.dbs, uuid).map_err(PinkhaError::from)?;
+        let db = database_use_cases::get_database(&self.dbs, uuid).map_err(PinkhaError::from)?;
         serde_json::to_string(&db).map_err(|e| PinkhaError::Storage {
             detail: e.to_string(),
         })
@@ -590,15 +569,11 @@ impl PinkhaApi {
 
     /// Adds an entry to a database. `values_json` must be a JSON-encoded
     /// `HashMap<Uuid, PropertyValue>`. Returns the new entry UUID string.
-    pub fn add_entry(
-        &self,
-        db_id: String,
-        values_json: String,
-    ) -> Result<String, PinkhaError> {
+    pub fn add_entry(&self, db_id: String, values_json: String) -> Result<String, PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
         let values: HashMap<Uuid, PropertyValue> = parse_json(&values_json)?;
-        let entry = database_use_cases::add_entry(&self.dbs, db_uuid, values)
-            .map_err(PinkhaError::from)?;
+        let entry =
+            database_use_cases::add_entry(&self.dbs, db_uuid, values).map_err(PinkhaError::from)?;
         Ok(entry.id.to_string())
     }
 
@@ -616,11 +591,7 @@ impl PinkhaApi {
         let entry_uuid = parse_uuid(&entry_id)?;
         let values: HashMap<Uuid, PropertyValue> = parse_json(&values_json)?;
         use_cases::update_entry_propagating_title(
-            &self.docs,
-            &self.dbs,
-            db_uuid,
-            entry_uuid,
-            values,
+            &self.docs, &self.dbs, db_uuid, entry_uuid, values,
         )
         .map_err(PinkhaError::from)
     }
@@ -629,21 +600,15 @@ impl PinkhaApi {
     pub fn delete_entry(&self, db_id: String, entry_id: String) -> Result<(), PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
         let entry_uuid = parse_uuid(&entry_id)?;
-        database_use_cases::delete_entry(&self.dbs, db_uuid, entry_uuid)
-            .map_err(PinkhaError::from)
+        database_use_cases::delete_entry(&self.dbs, db_uuid, entry_uuid).map_err(PinkhaError::from)
     }
 
     /// Adds a property to an existing database. `property_json` must be a
     /// JSON-encoded [`Property`].
-    pub fn add_property(
-        &self,
-        db_id: String,
-        property_json: String,
-    ) -> Result<(), PinkhaError> {
+    pub fn add_property(&self, db_id: String, property_json: String) -> Result<(), PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
         let property: Property = parse_json(&property_json)?;
-        database_use_cases::add_property(&self.dbs, db_uuid, property)
-            .map_err(PinkhaError::from)
+        database_use_cases::add_property(&self.dbs, db_uuid, property).map_err(PinkhaError::from)
     }
 
     /// Renames a property in an existing database.
@@ -661,11 +626,7 @@ impl PinkhaApi {
     }
 
     /// Removes a property from a database and clears its values in all entries.
-    pub fn delete_property(
-        &self,
-        db_id: String,
-        property_id: String,
-    ) -> Result<(), PinkhaError> {
+    pub fn delete_property(&self, db_id: String, property_id: String) -> Result<(), PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
         let prop_uuid = parse_uuid(&property_id)?;
         database_use_cases::delete_property(&self.dbs, db_uuid, prop_uuid)
@@ -712,8 +673,10 @@ impl PinkhaApi {
         let db_uuid = parse_uuid(&db_id)?;
         let view_uuid = parse_uuid(&view_id)?;
         let prop_uuid = property_id.as_deref().map(parse_uuid).transpose()?;
-        database_use_cases::set_view_single_sort(&self.dbs, db_uuid, view_uuid, prop_uuid, ascending)
-            .map_err(PinkhaError::from)
+        database_use_cases::set_view_single_sort(
+            &self.dbs, db_uuid, view_uuid, prop_uuid, ascending,
+        )
+        .map_err(PinkhaError::from)
     }
 
     /// Removes a view from a database. Fails if it is the last view.
@@ -813,8 +776,8 @@ impl PinkhaApi {
 
     pub fn get_folder(&self, id: String) -> Result<FolderMetaFfi, PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        let folder = folder_use_cases::get_folder(&self.folders, uuid)
-            .map_err(PinkhaError::from)?;
+        let folder =
+            folder_use_cases::get_folder(&self.folders, uuid).map_err(PinkhaError::from)?;
         Ok(folder_meta_to_ffi((&folder).into()))
     }
 
@@ -827,21 +790,22 @@ impl PinkhaApi {
     pub fn rename_folder(&self, id: String, new_name: String) -> Result<(), PinkhaError> {
         validate_string(&new_name, "new_name")?;
         let uuid = parse_uuid(&id)?;
-        folder_use_cases::rename_folder(&self.folders, uuid, &new_name)
-            .map_err(PinkhaError::from)
+        folder_use_cases::rename_folder(&self.folders, uuid, &new_name).map_err(PinkhaError::from)
     }
 
     pub fn delete_folder(&self, id: String) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        folder_use_cases::delete_folder(&self.folders, uuid)
-            .map_err(PinkhaError::from)
+        folder_use_cases::delete_folder(&self.folders, uuid).map_err(PinkhaError::from)
     }
 
-    pub fn move_folder_to(&self, id: String, new_parent_id: Option<String>) -> Result<(), PinkhaError> {
+    pub fn move_folder_to(
+        &self,
+        id: String,
+        new_parent_id: Option<String>,
+    ) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
         let pid = new_parent_id.as_deref().map(parse_uuid).transpose()?;
-        folder_use_cases::move_folder(&self.folders, uuid, pid)
-            .map_err(PinkhaError::from)
+        folder_use_cases::move_folder(&self.folders, uuid, pid).map_err(PinkhaError::from)
     }
 
     pub fn move_document_to_folder(
@@ -851,8 +815,7 @@ impl PinkhaApi {
     ) -> Result<(), PinkhaError> {
         let doc_uuid = parse_uuid(&doc_id)?;
         let fid = folder_id.as_deref().map(parse_uuid).transpose()?;
-        use_cases::move_document_to_folder(&self.docs, doc_uuid, fid)
-            .map_err(PinkhaError::from)
+        use_cases::move_document_to_folder(&self.docs, doc_uuid, fid).map_err(PinkhaError::from)
     }
 
     pub fn list_documents_in_folder(
@@ -896,12 +859,17 @@ impl PinkhaApi {
         let summaries = tokio_runtime()
             .block_on(crate::extractors::notion::list_databases(&token))
             .map_err(|e| match e {
-                crate::extractors::ExtractorError::Http { status, message } =>
-                    PinkhaError::Storage { detail: format!("Notion HTTP {status}: {message}") },
-                crate::extractors::ExtractorError::Auth(msg) =>
-                    PinkhaError::InvalidOperation { detail: msg },
-                crate::extractors::ExtractorError::Parse(msg) =>
-                    PinkhaError::Storage { detail: msg },
+                crate::extractors::ExtractorError::Http { status, message } => {
+                    PinkhaError::Storage {
+                        detail: format!("Notion HTTP {status}: {message}"),
+                    }
+                }
+                crate::extractors::ExtractorError::Auth(msg) => {
+                    PinkhaError::InvalidOperation { detail: msg }
+                }
+                crate::extractors::ExtractorError::Parse(msg) => {
+                    PinkhaError::Storage { detail: msg }
+                }
                 crate::extractors::ExtractorError::Storage(e) => e.into(),
             })?;
         Ok(summaries
@@ -921,7 +889,7 @@ impl PinkhaApi {
         database_id: String,
         covers_dir: Option<String>,
     ) -> Result<ImportResultFfi, PinkhaError> {
-        use crate::extractors::notion::{NotionExtractor, NotionConfig};
+        use crate::extractors::notion::{NotionConfig, NotionExtractor};
         use crate::extractors::traits::Extractor;
         validate_string(&token, "token")?;
         validate_string(&database_id, "database_id")?;
@@ -929,22 +897,37 @@ impl PinkhaApi {
             validate_string(dir, "covers_dir")?;
         }
         let extractor = NotionExtractor::new();
-        let config = NotionConfig { token, database_id, covers_dir };
+        let config = NotionConfig {
+            token,
+            database_id,
+            covers_dir,
+        };
         tokio_runtime()
             .block_on(extractor.run(
                 config,
-                &self.docs as &(dyn crate::application::repository::DocumentRepository + Send + Sync),
-                &self.dbs as &(dyn crate::application::database_repository::DatabaseRepository + Send + Sync),
+                &self.docs
+                    as &(dyn crate::application::repository::DocumentRepository + Send + Sync),
+                &self.dbs
+                    as &(
+                         dyn crate::application::database_repository::DatabaseRepository
+                             + Send
+                             + Sync
+                     ),
                 &self.folders,
             ))
             .map(ffi_import_result)
             .map_err(|e| match e {
-                crate::extractors::ExtractorError::Http { status, message } =>
-                    PinkhaError::Storage { detail: format!("Notion HTTP {status}: {message}") },
-                crate::extractors::ExtractorError::Auth(msg) =>
-                    PinkhaError::InvalidOperation { detail: msg },
-                crate::extractors::ExtractorError::Parse(msg) =>
-                    PinkhaError::Storage { detail: msg },
+                crate::extractors::ExtractorError::Http { status, message } => {
+                    PinkhaError::Storage {
+                        detail: format!("Notion HTTP {status}: {message}"),
+                    }
+                }
+                crate::extractors::ExtractorError::Auth(msg) => {
+                    PinkhaError::InvalidOperation { detail: msg }
+                }
+                crate::extractors::ExtractorError::Parse(msg) => {
+                    PinkhaError::Storage { detail: msg }
+                }
                 crate::extractors::ExtractorError::Storage(e) => e.into(),
             })
     }
@@ -953,11 +936,8 @@ impl PinkhaApi {
     ///
     /// `db_path` — absolute path to Bear's `database.sqlite`, obtained via a
     /// Swift file picker scoped to Bear's group container.
-    pub async fn import_from_bear(
-        &self,
-        db_path: String,
-    ) -> Result<ImportResultFfi, PinkhaError> {
-        use crate::extractors::bear::{BearExtractor, BearConfig};
+    pub async fn import_from_bear(&self, db_path: String) -> Result<ImportResultFfi, PinkhaError> {
+        use crate::extractors::bear::{BearConfig, BearExtractor};
         use crate::extractors::traits::Extractor;
         validate_string(&db_path, "db_path")?;
         let extractor = BearExtractor::new();
@@ -973,11 +953,8 @@ impl PinkhaApi {
     ///
     /// `db_path` — absolute path to a `*.realm` file inside Craft's container,
     /// obtained via a Swift file picker.  Pinkha reads it in read-only mode.
-    pub async fn import_from_craft(
-        &self,
-        db_path: String,
-    ) -> Result<ImportResultFfi, PinkhaError> {
-        use crate::extractors::craft::{CraftExtractor, CraftConfig};
+    pub async fn import_from_craft(&self, db_path: String) -> Result<ImportResultFfi, PinkhaError> {
+        use crate::extractors::craft::{CraftConfig, CraftExtractor};
         use crate::extractors::traits::Extractor;
         validate_string(&db_path, "db_path")?;
         let extractor = CraftExtractor::new();
@@ -995,7 +972,9 @@ impl PinkhaApi {
         &self,
         root_dir: String,
     ) -> Result<ImportResultFfi, PinkhaError> {
-        use crate::extractors::craft_textbundle::{CraftTextBundleExtractor, CraftTextBundleConfig};
+        use crate::extractors::craft_textbundle::{
+            CraftTextBundleConfig, CraftTextBundleExtractor,
+        };
         use crate::extractors::traits::Extractor;
         validate_string(&root_dir, "root_dir")?;
         let extractor = CraftTextBundleExtractor::new();
@@ -1015,11 +994,14 @@ impl PinkhaApi {
         realm_path: String,
         textbundle_root: String,
     ) -> Result<ImportResultFfi, PinkhaError> {
-        use crate::extractors::craft_combined::{CraftCombinedExtractor, CraftCombinedConfig};
+        use crate::extractors::craft_combined::{CraftCombinedConfig, CraftCombinedExtractor};
         validate_string(&realm_path, "realm_path")?;
         validate_string(&textbundle_root, "textbundle_root")?;
         let extractor = CraftCombinedExtractor::new();
-        let config = CraftCombinedConfig { realm_path, textbundle_root };
+        let config = CraftCombinedConfig {
+            realm_path,
+            textbundle_root,
+        };
         extractor
             .run_detailed(config, &self.docs, &self.dbs, &self.folders)
             .await
@@ -1054,12 +1036,13 @@ fn ffi_import_result(r: crate::extractors::ImportResult) -> ImportResultFfi {
 
 fn extractor_err_to_ffi(e: crate::extractors::ExtractorError) -> PinkhaError {
     match e {
-        crate::extractors::ExtractorError::Http { status, message } =>
-            PinkhaError::Storage { detail: format!("HTTP {status}: {message}") },
-        crate::extractors::ExtractorError::Auth(msg) =>
-            PinkhaError::InvalidOperation { detail: msg },
-        crate::extractors::ExtractorError::Parse(msg) =>
-            PinkhaError::Storage { detail: msg },
+        crate::extractors::ExtractorError::Http { status, message } => PinkhaError::Storage {
+            detail: format!("HTTP {status}: {message}"),
+        },
+        crate::extractors::ExtractorError::Auth(msg) => {
+            PinkhaError::InvalidOperation { detail: msg }
+        }
+        crate::extractors::ExtractorError::Parse(msg) => PinkhaError::Storage { detail: msg },
         crate::extractors::ExtractorError::Storage(e) => e.into(),
     }
 }

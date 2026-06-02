@@ -35,7 +35,10 @@ fn get_existing_folder() {
 fn get_missing_folder_returns_not_found() {
     let s = store();
     let err = s.get(Uuid::new_v4()).expect_err("should be missing");
-    assert!(matches!(err, pinkha::application::error::PinkhaError::NotFound(_)));
+    assert!(matches!(
+        err,
+        pinkha::application::error::PinkhaError::NotFound(_)
+    ));
 }
 
 #[test]
@@ -77,7 +80,10 @@ fn rename_changes_name_and_updated_at() {
 fn rename_missing_folder_fails() {
     let s = store();
     let err = s.rename(Uuid::new_v4(), "X").expect_err("should fail");
-    assert!(matches!(err, pinkha::application::error::PinkhaError::NotFound(_)));
+    assert!(matches!(
+        err,
+        pinkha::application::error::PinkhaError::NotFound(_)
+    ));
 }
 
 #[test]
@@ -86,7 +92,10 @@ fn rename_deleted_folder_fails() {
     let f = s.create("Doomed", None).expect("create");
     s.delete(f.id).expect("delete");
     let err = s.rename(f.id, "X").expect_err("should fail");
-    assert!(matches!(err, pinkha::application::error::PinkhaError::NotFound(_)));
+    assert!(matches!(
+        err,
+        pinkha::application::error::PinkhaError::NotFound(_)
+    ));
 }
 
 #[test]
@@ -95,14 +104,20 @@ fn delete_marks_folder_as_deleted() {
     let f = s.create("Doomed", None).expect("create");
     s.delete(f.id).expect("delete");
     let err = s.get(f.id).expect_err("should be missing");
-    assert!(matches!(err, pinkha::application::error::PinkhaError::NotFound(_)));
+    assert!(matches!(
+        err,
+        pinkha::application::error::PinkhaError::NotFound(_)
+    ));
 }
 
 #[test]
 fn delete_missing_folder_fails() {
     let s = store();
     let err = s.delete(Uuid::new_v4()).expect_err("should fail");
-    assert!(matches!(err, pinkha::application::error::PinkhaError::NotFound(_)));
+    assert!(matches!(
+        err,
+        pinkha::application::error::PinkhaError::NotFound(_)
+    ));
 }
 
 #[test]
@@ -111,7 +126,10 @@ fn delete_twice_fails_second_time() {
     let f = s.create("X", None).expect("create");
     s.delete(f.id).expect("first delete");
     let err = s.delete(f.id).expect_err("second delete should fail");
-    assert!(matches!(err, pinkha::application::error::PinkhaError::NotFound(_)));
+    assert!(matches!(
+        err,
+        pinkha::application::error::PinkhaError::NotFound(_)
+    ));
 }
 
 #[test]
@@ -158,8 +176,13 @@ fn move_folder_to_root() {
 #[test]
 fn move_missing_folder_fails() {
     let s = store();
-    let err = s.move_folder(Uuid::new_v4(), None).expect_err("should fail");
-    assert!(matches!(err, pinkha::application::error::PinkhaError::NotFound(_)));
+    let err = s
+        .move_folder(Uuid::new_v4(), None)
+        .expect_err("should fail");
+    assert!(matches!(
+        err,
+        pinkha::application::error::PinkhaError::NotFound(_)
+    ));
 }
 
 #[test]
@@ -168,7 +191,10 @@ fn move_deleted_folder_fails() {
     let f = s.create("X", None).expect("create");
     s.delete(f.id).expect("delete");
     let err = s.move_folder(f.id, None).expect_err("should fail");
-    assert!(matches!(err, pinkha::application::error::PinkhaError::NotFound(_)));
+    assert!(matches!(
+        err,
+        pinkha::application::error::PinkhaError::NotFound(_)
+    ));
 }
 
 #[test]

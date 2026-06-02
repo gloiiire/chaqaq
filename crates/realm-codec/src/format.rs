@@ -16,8 +16,8 @@ pub(crate) const WTYPE_IGNORE: u8 = 2; // raw bytes; `size` field = byte count
 #[derive(Debug, Clone)]
 pub(crate) struct NodeHeader {
     pub(crate) size: usize,
-    pub(crate) width: u8,    // element width in bits: 0,1,2,4,8,16,32,64
-    pub(crate) wtype: u8,    // WTYPE_BITS / WTYPE_MULTIPLY / WTYPE_IGNORE
+    pub(crate) width: u8, // element width in bits: 0,1,2,4,8,16,32,64
+    pub(crate) wtype: u8, // WTYPE_BITS / WTYPE_MULTIPLY / WTYPE_IGNORE
     pub(crate) is_inner: bool,
 }
 
@@ -28,9 +28,18 @@ impl NodeHeader {
         let wtype = (flags & 0x18) >> 3;
         // width_enc 0..7 → actual width: 0,1,2,4,8,16,32,64
         let width_enc = flags & 0x07;
-        let width: u8 = if width_enc == 0 { 0 } else { 1u8 << (width_enc - 1) };
+        let width: u8 = if width_enc == 0 {
+            0
+        } else {
+            1u8 << (width_enc - 1)
+        };
         let size = ((h[5] as usize) << 16) | ((h[6] as usize) << 8) | (h[7] as usize);
-        NodeHeader { size, width, wtype, is_inner }
+        NodeHeader {
+            size,
+            width,
+            wtype,
+            is_inner,
+        }
     }
 }
 
@@ -44,9 +53,10 @@ pub(crate) fn parse_file_header(data: &[u8]) -> crate::Result<(usize, u32)> {
         .map_err(|_| crate::RealmError::InvalidFormat("top_ref slice".into()))?;
     let top_ref = u64::from_le_bytes(top_ref_bytes) as usize;
     if &data[16..20] != MAGIC {
-        return Err(crate::RealmError::InvalidFormat(
-            format!("bad magic: {:?}", &data[16..20]),
-        ));
+        return Err(crate::RealmError::InvalidFormat(format!(
+            "bad magic: {:?}",
+            &data[16..20]
+        )));
     }
     // Byte 20 is the file-format version (u8). Bytes 21-23 are history-type and
     // history-schema-version fields that vary by Realm feature set — ignore them.
@@ -67,7 +77,9 @@ pub(crate) fn read_node_header(data: &[u8], offset: usize) -> crate::Result<Node
     let slice = data
         .get(offset..offset.saturating_add(NODE_HEADER_SIZE))
         .ok_or_else(|| {
-            crate::RealmError::InvalidFormat(format!("node header offset {offset:#x} out of bounds"))
+            crate::RealmError::InvalidFormat(format!(
+                "node header offset {offset:#x} out of bounds"
+            ))
         })?;
     let bytes: &[u8; NODE_HEADER_SIZE] = slice
         .try_into()

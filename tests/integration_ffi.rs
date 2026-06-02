@@ -33,7 +33,8 @@ fn new_on_disk_persists_across_reopens() {
     let path = rand_path();
     let id = {
         let api = PinkhaApi::new(path.clone()).expect("open");
-        api.create_document("Persisted".to_string()).expect("create")
+        api.create_document("Persisted".to_string())
+            .expect("create")
     };
     let api2 = PinkhaApi::new(path.clone()).expect("reopen");
     let json = api2.get_document_json(id).expect("get");
@@ -129,7 +130,8 @@ fn update_document_cover_set_and_clear() {
         .expect("set cover");
     let json = a.get_document_json(id.clone()).unwrap();
     assert!(json.contains("🌸"));
-    a.update_document_cover(id.clone(), None).expect("clear cover");
+    a.update_document_cover(id.clone(), None)
+        .expect("clear cover");
 }
 
 #[test]
@@ -150,9 +152,7 @@ fn get_document_invalid_uuid_fails() {
 #[test]
 fn get_document_not_found_fails() {
     let a = api();
-    let err = a
-        .get_document_json(Uuid::new_v4().to_string())
-        .unwrap_err();
+    let err = a.get_document_json(Uuid::new_v4().to_string()).unwrap_err();
     assert!(matches!(err, PinkhaError::NotFound { .. }));
 }
 
@@ -166,7 +166,9 @@ fn text_block_json(text: &str) -> String {
 fn add_block_returns_uuid() {
     let a = api();
     let doc = a.create_document("Doc".to_string()).unwrap();
-    let block_id = a.add_block(doc, text_block_json("Hello")).expect("add block");
+    let block_id = a
+        .add_block(doc, text_block_json("Hello"))
+        .expect("add block");
     assert!(Uuid::parse_str(&block_id).is_ok());
 }
 
@@ -439,7 +441,8 @@ fn make_title_property(name: &str) -> (String, String) {
 fn add_property_to_database() {
     let a = api();
     let db = a.create_database("DB".to_string()).unwrap();
-    a.add_property(db.clone(), make_text_property("Notes")).unwrap();
+    a.add_property(db.clone(), make_text_property("Notes"))
+        .unwrap();
     let json = a.get_database_json(db).unwrap();
     assert!(json.contains("Notes"));
 }
@@ -561,7 +564,8 @@ fn update_view_filters_and_sorts() {
     let db = a.create_database("DB".to_string()).unwrap();
     let (_, view_json) = make_view("V");
     let view = a.add_view(db.clone(), view_json).unwrap();
-    a.update_view(db, view, "[]".to_string(), "[]".to_string()).unwrap();
+    a.update_view(db, view, "[]".to_string(), "[]".to_string())
+        .unwrap();
 }
 
 #[test]
@@ -571,7 +575,8 @@ fn set_view_sort_with_and_without_property() {
     let (_, view_json) = make_view("V");
     let view = a.add_view(db.clone(), view_json).unwrap();
     let prop = Uuid::new_v4().to_string();
-    a.set_view_sort(db.clone(), view.clone(), Some(prop), true).unwrap();
+    a.set_view_sort(db.clone(), view.clone(), Some(prop), true)
+        .unwrap();
     a.set_view_sort(db, view, None, false).unwrap();
 }
 
@@ -646,11 +651,7 @@ fn column_aggregate_invalid_json_fails() {
     let a = api();
     let db = a.create_database("DB".to_string()).unwrap();
     let err = a
-        .column_aggregate_database_json(
-            db,
-            Uuid::new_v4().to_string(),
-            "garbage".to_string(),
-        )
+        .column_aggregate_database_json(db, Uuid::new_v4().to_string(), "garbage".to_string())
         .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
@@ -664,7 +665,9 @@ fn search_database_entries() {
     a.add_property(db.clone(), prop_json).unwrap();
     let values = json!({prop_id: {"Text": "needle"}}).to_string();
     a.add_entry(db.clone(), values).unwrap();
-    let json = a.search_database_entries_json(db, "needle".to_string()).unwrap();
+    let json = a
+        .search_database_entries_json(db, "needle".to_string())
+        .unwrap();
     assert!(json.contains("needle"));
 }
 
@@ -755,7 +758,8 @@ fn move_folder_to_new_parent() {
     let a = api();
     let a_folder = a.create_folder("A".to_string(), None).unwrap();
     let b = a.create_folder("B".to_string(), None).unwrap();
-    a.move_folder_to(a_folder.id.clone(), Some(b.id.clone())).unwrap();
+    a.move_folder_to(a_folder.id.clone(), Some(b.id.clone()))
+        .unwrap();
     assert_eq!(
         a.get_folder(a_folder.id).unwrap().parent_id.as_deref(),
         Some(b.id.as_str())
@@ -776,9 +780,7 @@ fn move_folder_to_root() {
 #[test]
 fn move_folder_with_invalid_uuid_fails() {
     let a = api();
-    let err = a
-        .move_folder_to("nope".to_string(), None)
-        .unwrap_err();
+    let err = a.move_folder_to("nope".to_string(), None).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
@@ -826,7 +828,9 @@ fn import_from_notion_with_empty_token_or_db_id_does_not_panic() {
 fn import_from_notion_token_too_large_fails() {
     let a = api();
     let huge = "a".repeat(70 * 1024);
-    let err = a.import_from_notion(huge, "db".to_string(), None).unwrap_err();
+    let err = a
+        .import_from_notion(huge, "db".to_string(), None)
+        .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
@@ -950,21 +954,11 @@ async fn import_from_craft_combined_textbundle_root_too_large_fails() {
 
 #[test]
 fn error_display_renders_french_messages() {
-    assert!(format!(
-        "{}",
-        PinkhaError::NotFound { id: "abc".into() }
-    )
-    .contains("non trouvé"));
-    assert!(format!(
-        "{}",
-        PinkhaError::InvalidOperation { detail: "x".into() }
-    )
-    .contains("invalide"));
-    assert!(format!(
-        "{}",
-        PinkhaError::Storage { detail: "x".into() }
-    )
-    .contains("stockage"));
+    assert!(format!("{}", PinkhaError::NotFound { id: "abc".into() }).contains("non trouvé"));
+    assert!(
+        format!("{}", PinkhaError::InvalidOperation { detail: "x".into() }).contains("invalide")
+    );
+    assert!(format!("{}", PinkhaError::Storage { detail: "x".into() }).contains("stockage"));
 }
 
 #[test]
@@ -988,7 +982,8 @@ fn doc_metadata_includes_timestamps_and_folder() {
     let a = api();
     let folder = a.create_folder("F".to_string(), None).unwrap();
     let doc_id = a.create_document("D".to_string()).unwrap();
-    a.move_document_to_folder(doc_id.clone(), Some(folder.id.clone())).unwrap();
+    a.move_document_to_folder(doc_id.clone(), Some(folder.id.clone()))
+        .unwrap();
     let in_folder = a.list_documents_in_folder(Some(folder.id.clone())).unwrap();
     assert_eq!(in_folder.len(), 1);
     let meta = &in_folder[0];

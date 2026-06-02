@@ -1,7 +1,6 @@
 use pinkha::application::use_cases::{
-    add_block, add_child_block, create_document, set_block_color, update_block,
-    update_document_cover, update_document_title, get_document, reorder_blocks,
-    save_edited_block, delete_block,
+    add_block, add_child_block, create_document, delete_block, get_document, reorder_blocks,
+    save_edited_block, set_block_color, update_block, update_document_cover, update_document_title,
 };
 use pinkha::domain::document::{BlockContent, InlineStyle, InlineText};
 use pinkha::domain::editor::EditorState;

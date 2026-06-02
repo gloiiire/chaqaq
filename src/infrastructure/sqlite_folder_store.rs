@@ -17,7 +17,9 @@ impl SqliteFolderStore {
         conn.execute_batch("PRAGMA journal_mode=WAL;")
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
         apply_migrations(&mut conn)?;
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 
     pub fn in_memory() -> Result<Self, PinkhaError> {
@@ -95,8 +97,9 @@ impl FolderRepository for SqliteFolderStore {
             for row in rows {
                 let (id_str, name, parent_str, created_at, updated_at) =
                     row.map_err(|e| PinkhaError::Db(e.to_string()))?;
-                let id = Uuid::parse_str(&id_str)
-                    .map_err(|_| PinkhaError::InvalidOperation(format!("invalid UUID: {id_str}")))?;
+                let id = Uuid::parse_str(&id_str).map_err(|_| {
+                    PinkhaError::InvalidOperation(format!("invalid UUID: {id_str}"))
+                })?;
                 metas.push(FolderMeta {
                     id,
                     name,

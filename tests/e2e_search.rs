@@ -12,10 +12,7 @@ fn stores_temp() -> (JsonStore, DatabaseStore) {
     let doc_dir = std::env::temp_dir().join(format!("pinkha_e2e_search_doc_{id}"));
     let db_dir = std::env::temp_dir().join(format!("pinkha_e2e_search_db_{id}"));
     std::fs::create_dir_all(&doc_dir).unwrap();
-    (
-        JsonStore::new(doc_dir),
-        DatabaseStore::new(db_dir).unwrap(),
-    )
+    (JsonStore::new(doc_dir), DatabaseStore::new(db_dir).unwrap())
 }
 
 fn inlines(s: &str) -> Vec<InlineText> {

@@ -162,14 +162,14 @@ pub(super) fn calculate_aggregate(
                 PropertyValue::Empty
             } else {
                 PropertyValue::Number(nums.iter().cloned().fold(f64::INFINITY, f64::min))
-            }
+            };
         }
         Aggregate::Max => {
             return if nums.is_empty() {
                 PropertyValue::Empty
             } else {
                 PropertyValue::Number(nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max))
-            }
+            };
         }
     };
     PropertyValue::Number(r)
@@ -198,9 +198,7 @@ pub(super) fn apply_filter(entry: &Entry, filter: &Filter) -> bool {
         FilterCondition::Contains(s) => match value {
             PropertyValue::Text(t) => t.contains(s.as_str()),
             PropertyValue::Url(u) => u.contains(s.as_str()),
-            PropertyValue::Title(inlines) => {
-                inlines.iter().any(|i| i.content.contains(s.as_str()))
-            }
+            PropertyValue::Title(inlines) => inlines.iter().any(|i| i.content.contains(s.as_str())),
             _ => false,
         },
     }

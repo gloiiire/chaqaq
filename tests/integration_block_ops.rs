@@ -1,8 +1,7 @@
 use pinkha::application::error::PinkhaError;
 use pinkha::application::use_cases::{
-    add_block, add_child_block, create_document, update_block, update_document_cover,
-    update_document_title, get_document, reorder_blocks, save_edited_block,
-    delete_block,
+    add_block, add_child_block, create_document, delete_block, get_document, reorder_blocks,
+    save_edited_block, update_block, update_document_cover, update_document_title,
 };
 use pinkha::domain::document::{BlockContent, InlineText};
 use pinkha::domain::editor::EditorState;

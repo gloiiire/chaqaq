@@ -188,9 +188,7 @@ mod tests {
     #[test]
     fn block_decodes_legacy_json_without_color_field() {
         let id = Uuid::new_v4();
-        let legacy_json = format!(
-            r#"{{"id":"{id}","content":"Divider","children":[]}}"#
-        );
+        let legacy_json = format!(r#"{{"id":"{id}","content":"Divider","children":[]}}"#);
         let decoded: Block = serde_json::from_str(&legacy_json).unwrap();
         assert_eq!(decoded.id, id);
         assert!(decoded.color.is_none());

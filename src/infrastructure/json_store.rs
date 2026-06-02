@@ -135,7 +135,11 @@ mod tests {
         let corrupt = store.dir.join(format!("{}.json", Uuid::new_v4()));
         std::fs::write(&corrupt, "{ pas du JSON valide").unwrap();
         let metas = store.list().unwrap();
-        assert_eq!(metas.len(), 1, "le fichier sain doit être listé, le corrompu ignoré");
+        assert_eq!(
+            metas.len(),
+            1,
+            "le fichier sain doit être listé, le corrompu ignoré"
+        );
     }
 
     #[test]
@@ -160,6 +164,9 @@ mod tests {
             .filter_map(|e| e.ok())
             .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("tmp"))
             .collect();
-        assert!(tmps.is_empty(), "aucun .tmp ne doit subsister après save atomique");
+        assert!(
+            tmps.is_empty(),
+            "aucun .tmp ne doit subsister après save atomique"
+        );
     }
 }

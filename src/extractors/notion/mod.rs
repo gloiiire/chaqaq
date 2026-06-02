@@ -7,8 +7,8 @@
 //   → map → persist via DocumentRepository + DatabaseRepository
 
 pub mod client;
-pub mod schema;
 pub mod mapper;
+pub mod schema;
 
 use std::collections::HashMap;
 
@@ -25,7 +25,9 @@ use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
 
 use self::client::NotionClient;
-use self::mapper::{extract_database_id, map_block, map_block_color, map_property_type, map_property_value};
+use self::mapper::{
+    extract_database_id, map_block, map_block_color, map_property_type, map_property_value,
+};
 use self::schema::NotionPagePropValue;
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -188,9 +190,7 @@ impl Extractor for NotionExtractor {
         let mut cursor: Option<String> = None;
 
         loop {
-            let response = client
-                .query_database(&db_id, cursor.as_deref())
-                .await?;
+            let response = client.query_database(&db_id, cursor.as_deref()).await?;
 
             for page in &response.results {
                 let (block_count, skipped_count, pinkha_doc_id) = import_page(
@@ -266,7 +266,12 @@ async fn import_page(
         .values()
         .find_map(|v| {
             if let NotionPagePropValue::Title { title } = v {
-                Some(title.iter().map(|r| r.plain_text.as_str()).collect::<String>())
+                Some(
+                    title
+                        .iter()
+                        .map(|r| r.plain_text.as_str())
+                        .collect::<String>(),
+                )
             } else {
                 None
             }
@@ -284,7 +289,9 @@ async fn import_page(
     // via AsyncImage but it'll break once the URL dies).
     if let Some(url) = page.cover.as_ref().and_then(|c| c.url()) {
         let stored = if let Some(dir) = covers_dir {
-            download_cover(client, url, dir, doc_id).await.unwrap_or_else(|_| url.to_string())
+            download_cover(client, url, dir, doc_id)
+                .await
+                .unwrap_or_else(|_| url.to_string())
         } else {
             url.to_string()
         };
@@ -325,10 +332,7 @@ async fn import_page(
             styles: vec![],
         }]),
     );
-    values.insert(
-        page_prop_id,
-        PropertyValue::Text(doc_id.to_string()),
-    );
+    values.insert(page_prop_id, PropertyValue::Text(doc_id.to_string()));
 
     // Notion properties → Pinkha property values.
     for (notion_name, pinkha_id) in prop_map {
@@ -402,7 +406,9 @@ async fn download_or_keep_icon(
     covers_dir: Option<&str>,
     doc_id: Uuid,
 ) -> String {
-    let Some(dir) = covers_dir else { return url.to_owned() };
+    let Some(dir) = covers_dir else {
+        return url.to_owned();
+    };
     match download_icon(client, url, dir, doc_id).await {
         Ok(filename) => filename,
         Err(_) => url.to_owned(),
@@ -417,7 +423,9 @@ async fn download_icon(
     covers_dir: &str,
     doc_id: Uuid,
 ) -> Result<String, String> {
-    let http = reqwest::Client::builder().build().map_err(|e| e.to_string())?;
+    let http = reqwest::Client::builder()
+        .build()
+        .map_err(|e| e.to_string())?;
     let response = http.get(url).send().await.map_err(|e| e.to_string())?;
     if !response.status().is_success() {
         return Err(format!("HTTP {}", response.status().as_u16()));
@@ -445,10 +453,10 @@ fn extension_for_content_type(content_type: &str) -> Option<&'static str> {
     let main = content_type.split(';').next().unwrap_or("").trim();
     match main.to_ascii_lowercase().as_str() {
         "image/jpeg" | "image/jpg" => Some("jpg"),
-        "image/png"                => Some("png"),
-        "image/heic"               => Some("heic"),
-        "image/webp"               => Some("webp"),
-        "image/gif"                => Some("gif"),
+        "image/png" => Some("png"),
+        "image/heic" => Some("heic"),
+        "image/webp" => Some("webp"),
+        "image/gif" => Some("gif"),
         _ => None,
     }
 }
@@ -533,12 +541,12 @@ fn rewrite_inlines_in_content(
 ) {
     use crate::domain::document::BlockContent;
     let inlines: Option<&mut Vec<InlineText>> = match content {
-        BlockContent::Text(t)              => Some(t),
+        BlockContent::Text(t) => Some(t),
         BlockContent::Heading { text, .. } => Some(text),
-        BlockContent::Quote   { text, .. } => Some(text),
-        BlockContent::Todo    { text, .. } => Some(text),
-        BlockContent::BulletedListItem(t)  => Some(t),
-        BlockContent::NumberedListItem(t)  => Some(t),
+        BlockContent::Quote { text, .. } => Some(text),
+        BlockContent::Todo { text, .. } => Some(text),
+        BlockContent::BulletedListItem(t) => Some(t),
+        BlockContent::NumberedListItem(t) => Some(t),
         BlockContent::Divider
         | BlockContent::Breadcrumb
         | BlockContent::Database { .. }

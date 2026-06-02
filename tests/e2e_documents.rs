@@ -1,7 +1,5 @@
 use pinkha::application::error::PinkhaError;
-use pinkha::application::use_cases::{
-    add_block, create_document, list_documents, get_document,
-};
+use pinkha::application::use_cases::{add_block, create_document, get_document, list_documents};
 use pinkha::domain::document::BlockContent;
 use pinkha::domain::parser::parse_inline;
 use pinkha::infrastructure::json_store::JsonStore;

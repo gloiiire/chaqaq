@@ -104,8 +104,9 @@ impl DatabaseRepository for SqliteDatabaseStore {
             for row in rows {
                 let (id_str, title_json, updated_at, created_at) =
                     row.map_err(|e| PinkhaError::Db(e.to_string()))?;
-                let id = Uuid::parse_str(&id_str)
-                    .map_err(|_| PinkhaError::InvalidOperation(format!("UUID invalide : {id_str}")))?;
+                let id = Uuid::parse_str(&id_str).map_err(|_| {
+                    PinkhaError::InvalidOperation(format!("UUID invalide : {id_str}"))
+                })?;
                 let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
                 metas.push(DatabaseMeta {
                     id,

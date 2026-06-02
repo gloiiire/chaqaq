@@ -76,7 +76,11 @@ impl std::fmt::Display for RealmError {
 
 impl std::error::Error for RealmError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        if let RealmError::Io(e) = self { Some(e) } else { None }
+        if let RealmError::Io(e) = self {
+            Some(e)
+        } else {
+            None
+        }
     }
 }
 
@@ -172,32 +176,56 @@ impl Value {
 
     /// Returns the inner `&str` if this is a [`Value::String`], otherwise `""`.
     pub fn as_str(&self) -> &str {
-        if let Value::String(s) = self { s } else { "" }
+        if let Value::String(s) = self {
+            s
+        } else {
+            ""
+        }
     }
 
     /// Returns the inner `i64` if this is a [`Value::Int`], otherwise `0`.
     pub fn as_int(&self) -> i64 {
-        if let Value::Int(i) = self { *i } else { 0 }
+        if let Value::Int(i) = self {
+            *i
+        } else {
+            0
+        }
     }
 
     /// Returns the inner `bool` if this is a [`Value::Bool`], otherwise `false`.
     pub fn as_bool(&self) -> bool {
-        if let Value::Bool(b) = self { *b } else { false }
+        if let Value::Bool(b) = self {
+            *b
+        } else {
+            false
+        }
     }
 
     /// Returns the inner Unix timestamp if this is a [`Value::Timestamp`], otherwise `0`.
     pub fn as_timestamp(&self) -> i64 {
-        if let Value::Timestamp(t) = self { *t } else { 0 }
+        if let Value::Timestamp(t) = self {
+            *t
+        } else {
+            0
+        }
     }
 
     /// Returns the inner `f64` if this is a [`Value::Float`], otherwise `0.0`.
     pub fn as_float(&self) -> f64 {
-        if let Value::Float(f) = self { *f } else { 0.0 }
+        if let Value::Float(f) = self {
+            *f
+        } else {
+            0.0
+        }
     }
 
     /// Returns the row indices if this is a [`Value::LinkList`], otherwise `&[]`.
     pub fn as_link_list(&self) -> &[u32] {
-        if let Value::LinkList(v) = self { v } else { &[] }
+        if let Value::LinkList(v) = self {
+            v
+        } else {
+            &[]
+        }
     }
 }
 
@@ -529,14 +557,18 @@ mod tests {
 
     #[test]
     fn row_get_in_bounds() {
-        let row = Row { values: vec![Value::Int(1), Value::Bool(true)] };
+        let row = Row {
+            values: vec![Value::Int(1), Value::Bool(true)],
+        };
         assert_eq!(row.get(0), &Value::Int(1));
         assert_eq!(row.get(1), &Value::Bool(true));
     }
 
     #[test]
     fn row_get_out_of_bounds() {
-        let row = Row { values: vec![Value::Int(1)] };
+        let row = Row {
+            values: vec![Value::Int(1)],
+        };
         assert_eq!(row.get(99), &Value::Null);
     }
 
@@ -557,7 +589,9 @@ mod tests {
 
     #[test]
     fn realm_table_get_by_name() {
-        let row = Row { values: vec![Value::String("abc".into()), Value::Int(7)] };
+        let row = Row {
+            values: vec![Value::String("abc".into()), Value::Int(7)],
+        };
         let table = RealmTable {
             name: "t".into(),
             columns: vec![

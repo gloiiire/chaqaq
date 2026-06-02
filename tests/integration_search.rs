@@ -94,10 +94,7 @@ fn test_search_entries_insensible_casse() {
     let db = create_database(&store, inlines("DB"), vec![prop]).unwrap();
 
     let mut v = HashMap::new();
-    v.insert(
-        prop_id,
-        PropertyValue::Text("Vacances d'Été".to_string()),
-    );
+    v.insert(prop_id, PropertyValue::Text("Vacances d'Été".to_string()));
     add_entry(&store, db.id, v).unwrap();
 
     let resultats = search_entries(&store, db.id, "été").unwrap();
