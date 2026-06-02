@@ -144,6 +144,22 @@ pub struct ImportResultFfi {
     pub textbundle_only: u32,
 }
 
+/// Lightweight Notion database summary returned by `list_notion_databases`.
+/// Carries just enough for the picker UI to render a row (title + icon) and
+/// kick off an import.
+pub struct NotionDatabaseSummaryFfi {
+    /// 32-char hex ID. Pass to [`import_from_notion`] as `database_id`.
+    pub id: String,
+    /// Plain-text title concatenated from Notion's rich-text title runs.
+    pub title: String,
+    /// Optional emoji icon. Image icons aren't surfaced — the picker uses a
+    /// generic database icon when this is empty.
+    pub icon_emoji: Option<String>,
+    /// ISO 8601 last-edited timestamp from Notion. Already sorted recent-
+    /// first by the Rust list call.
+    pub last_edited: String,
+}
+
 /// Lightweight database metadata passed across the FFI boundary.
 #[derive(Debug, Clone)]
 pub struct DatabaseMetaFfi {
@@ -868,6 +884,37 @@ impl PinkhaApi {
     /// provide one. We block on the process-wide Tokio runtime so callers must
     /// dispatch this method off the main thread themselves (e.g. via Swift's
     /// `Task.detached`). See [`tokio_runtime`] for the rationale.
+    /// Lists every Notion database the OAuth token can see — used by the
+    /// picker UI so the user can multi-select databases to import without
+    /// copy-pasting URLs. Sync for the same Tokio-reactor reason as
+    /// `import_from_notion` (cf. [`tokio_runtime`]).
+    pub fn list_notion_databases(
+        &self,
+        token: String,
+    ) -> Result<Vec<NotionDatabaseSummaryFfi>, PinkhaError> {
+        validate_string(&token, "token")?;
+        let summaries = tokio_runtime()
+            .block_on(crate::extractors::notion::list_databases(&token))
+            .map_err(|e| match e {
+                crate::extractors::ExtractorError::Http { status, message } =>
+                    PinkhaError::Storage { detail: format!("Notion HTTP {status}: {message}") },
+                crate::extractors::ExtractorError::Auth(msg) =>
+                    PinkhaError::InvalidOperation { detail: msg },
+                crate::extractors::ExtractorError::Parse(msg) =>
+                    PinkhaError::Storage { detail: msg },
+                crate::extractors::ExtractorError::Storage(e) => e.into(),
+            })?;
+        Ok(summaries
+            .into_iter()
+            .map(|s| NotionDatabaseSummaryFfi {
+                id: s.id,
+                title: s.title,
+                icon_emoji: s.icon_emoji,
+                last_edited: s.last_edited,
+            })
+            .collect())
+    }
+
     pub fn import_from_notion(
         &self,
         token: String,

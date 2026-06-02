@@ -56,6 +56,55 @@ impl NotionExtractor {
     }
 }
 
+/// Public summary of a Notion database, returned by [`list_databases`] for
+/// the picker UI. Plain title and emoji-or-`None` icon — no rich text
+/// gymnastics for the caller, the renderer just slots them into a row.
+pub struct NotionDatabaseSummary {
+    /// 32-char hex ID (dashed UUID format, matches how `import_from_notion`
+    /// expects to receive it).
+    pub id: String,
+    /// Concatenated plain-text title runs. Empty string when the database
+    /// has no title.
+    pub title: String,
+    /// Emoji icon if any (`"📚"`). Image icons aren't yet surfaced — the
+    /// picker falls back to a generic database icon when this is `None`.
+    pub icon_emoji: Option<String>,
+    /// ISO 8601 last-edited timestamp from Notion (`"2026-06-01T…"`). The
+    /// picker sorts recent-first; an empty string sorts to the bottom.
+    pub last_edited: String,
+}
+
+/// Lists every Notion database the supplied OAuth token can see. Used by the
+/// Swift picker so the user no longer needs to copy-paste each database URL.
+pub async fn list_databases(token: &str) -> Result<Vec<NotionDatabaseSummary>, ExtractorError> {
+    let client = NotionClient::new(token)?;
+    let hits = client.list_accessible_databases().await?;
+    let mut summaries: Vec<NotionDatabaseSummary> = hits
+        .into_iter()
+        .map(|hit| {
+            let title: String = hit
+                .title
+                .iter()
+                .map(|run| run.plain_text.as_str())
+                .collect();
+            let icon_emoji = match hit.icon {
+                Some(schema::NotionPageIcon::Emoji { emoji }) => Some(emoji),
+                _ => None,
+            };
+            NotionDatabaseSummary {
+                id: hit.id,
+                title,
+                icon_emoji,
+                last_edited: hit.last_edited_time,
+            }
+        })
+        .collect();
+    // Recent-first ordering by ISO 8601 timestamp — string comparison works
+    // because the format is fixed-width with leading zeros.
+    summaries.sort_by(|a, b| b.last_edited.cmp(&a.last_edited));
+    Ok(summaries)
+}
+
 impl Default for NotionExtractor {
     fn default() -> Self {
         Self::new()

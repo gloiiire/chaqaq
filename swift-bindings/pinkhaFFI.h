@@ -418,6 +418,11 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_documents_in_folder(uint64_t p
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_folders(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_NOTION_DATABASES
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_NOTION_DATABASES
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_notion_databases(uint64_t ptr, RustBuffer token, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_MOVE_BLOCK
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_MOVE_BLOCK
 void uniffi_pinkha_fn_method_pinkhaapi_move_block(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustBuffer new_parent_id, RustCallStatus *_Nonnull out_status
@@ -972,6 +977,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_documents_in_folder(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_FOLDERS
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_FOLDERS
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_folders(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_NOTION_DATABASES
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_NOTION_DATABASES
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases(void
     
 );
 #endif

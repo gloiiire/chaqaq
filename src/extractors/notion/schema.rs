@@ -38,6 +38,41 @@ pub struct NotionRichText {
     pub href: Option<String>,
 }
 
+// ── Search response (database picker) ─────────────────────────────────────────
+
+/// Paginated response from `POST /v1/search` filtered to databases. Only the
+/// fields the picker UI needs are deserialised — the actual database schema
+/// is fetched lazily by the existing per-import flow.
+#[derive(Debug, Deserialize)]
+pub struct NotionSearchResponse {
+    pub results: Vec<NotionDatabaseSearchHit>,
+    pub has_more: bool,
+    pub next_cursor: Option<String>,
+}
+
+/// A single database returned by the search endpoint. Carries enough data for
+/// the picker to render a row (title + icon + freshness) without doing extra
+/// API calls.
+#[derive(Debug, Deserialize)]
+pub struct NotionDatabaseSearchHit {
+    pub id: String,
+    /// Rich-text title runs. Concatenate `plain_text` for display.
+    #[serde(default)]
+    pub title: Vec<NotionRichText>,
+    /// Page icon (emoji or image). `None` when the user didn't set one.
+    #[serde(default)]
+    pub icon: Option<NotionPageIcon>,
+    /// ISO 8601 timestamp of the last edit. Used to sort recent-first in the
+    /// picker. `#[serde(default)]` keeps things resilient against API
+    /// variations.
+    #[serde(default)]
+    pub last_edited_time: String,
+    /// URL inside notion.so. Useful for "open in Notion" links from the
+    /// picker, though we don't surface that yet.
+    #[serde(default)]
+    pub url: String,
+}
+
 // ── Database schema ───────────────────────────────────────────────────────────
 
 /// Schema of a Notion database (property definitions + title).
