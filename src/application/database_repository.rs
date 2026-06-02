@@ -18,4 +18,25 @@ pub trait DatabaseRepository: Send + Sync {
 
     /// Soft-deletes (or permanently removes) a database by ID.
     fn delete(&self, id: Uuid) -> Result<(), PinkhaError>;
+
+    /// Returns metadata for soft-deleted databases (in the trash), newest first.
+    fn list_deleted(&self) -> Result<Vec<DatabaseMeta>, PinkhaError> {
+        Ok(vec![])
+    }
+
+    /// Restores a soft-deleted database by clearing its `deleted_at`. Returns
+    /// `NotFound` when the id doesn't match a soft-deleted database.
+    fn restore(&self, _id: Uuid) -> Result<(), PinkhaError> {
+        Err(PinkhaError::InvalidOperation(
+            "restore not supported by this repository".into(),
+        ))
+    }
+
+    /// Permanently removes a soft-deleted database. Implementations should
+    /// refuse when the database is still live.
+    fn purge(&self, _id: Uuid) -> Result<(), PinkhaError> {
+        Err(PinkhaError::InvalidOperation(
+            "purge not supported by this repository".into(),
+        ))
+    }
 }

@@ -532,6 +532,26 @@ impl PinkhaApi {
         let metas = use_cases::search_in_blocks(&self.uow(), &query).map_err(PinkhaError::from)?;
         Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
     }
+
+    // ── Trash (soft-deleted documents) ────────────────────────────────────────
+
+    /// Lists soft-deleted documents (the trash). Newest-deleted first.
+    pub fn list_deleted_documents(&self) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
+        let metas = use_cases::list_deleted_documents(&self.uow()).map_err(PinkhaError::from)?;
+        Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
+    }
+
+    /// Restores a soft-deleted document.
+    pub fn restore_document(&self, id: String) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        use_cases::restore_document(&self.uow(), uuid).map_err(PinkhaError::from)
+    }
+
+    /// Permanently deletes a soft-deleted document (purge from trash).
+    pub fn purge_document(&self, id: String) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        use_cases::purge_document(&self.uow(), uuid).map_err(PinkhaError::from)
+    }
 }
 
 // ── Database facade ───────────────────────────────────────────────────────────
@@ -604,12 +624,54 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
-    /// Removes an entry from a database.
+    /// Soft-deletes an entry — recoverable via `restore_entry`.
     pub fn delete_entry(&self, db_id: String, entry_id: String) -> Result<(), PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
         let entry_uuid = parse_uuid(&entry_id)?;
         database_use_cases::delete_entry(&self.uow(), db_uuid, entry_uuid)
             .map_err(PinkhaError::from)
+    }
+
+    /// Restores a soft-deleted entry.
+    pub fn restore_entry(&self, db_id: String, entry_id: String) -> Result<(), PinkhaError> {
+        let db_uuid = parse_uuid(&db_id)?;
+        let entry_uuid = parse_uuid(&entry_id)?;
+        database_use_cases::restore_entry(&self.uow(), db_uuid, entry_uuid)
+            .map_err(PinkhaError::from)
+    }
+
+    /// Permanently deletes a soft-deleted entry (purge from trash).
+    pub fn purge_entry(&self, db_id: String, entry_id: String) -> Result<(), PinkhaError> {
+        let db_uuid = parse_uuid(&db_id)?;
+        let entry_uuid = parse_uuid(&entry_id)?;
+        database_use_cases::purge_entry(&self.uow(), db_uuid, entry_uuid).map_err(PinkhaError::from)
+    }
+
+    /// Lists soft-deleted entries of a database as a JSON array.
+    pub fn list_deleted_entries_json(&self, db_id: String) -> Result<String, PinkhaError> {
+        let db_uuid = parse_uuid(&db_id)?;
+        let entries = database_use_cases::list_deleted_entries(&self.uow(), db_uuid)
+            .map_err(PinkhaError::from)?;
+        to_json(&entries)
+    }
+
+    /// Lists soft-deleted databases (the trash). Newest-deleted first.
+    pub fn list_deleted_databases(&self) -> Result<Vec<DatabaseMetaFfi>, PinkhaError> {
+        let metas =
+            database_use_cases::list_deleted_databases(&self.uow()).map_err(PinkhaError::from)?;
+        Ok(metas.into_iter().map(db_meta_to_ffi).collect())
+    }
+
+    /// Restores a soft-deleted database.
+    pub fn restore_database(&self, id: String) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        database_use_cases::restore_database(&self.uow(), uuid).map_err(PinkhaError::from)
+    }
+
+    /// Permanently deletes a soft-deleted database (purge from trash).
+    pub fn purge_database(&self, id: String) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        database_use_cases::purge_database(&self.uow(), uuid).map_err(PinkhaError::from)
     }
 
     /// Adds a property to an existing database. `property_json` must be a
@@ -809,6 +871,25 @@ impl PinkhaApi {
     pub fn delete_folder(&self, id: String) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
         folder_use_cases::delete_folder(&self.uow(), uuid).map_err(PinkhaError::from)
+    }
+
+    /// Lists soft-deleted folders (the trash). Newest-deleted first.
+    pub fn list_deleted_folders(&self) -> Result<Vec<FolderMetaFfi>, PinkhaError> {
+        folder_use_cases::list_deleted_folders(&self.uow())
+            .map(|v| v.into_iter().map(folder_meta_to_ffi).collect())
+            .map_err(PinkhaError::from)
+    }
+
+    /// Restores a soft-deleted folder.
+    pub fn restore_folder(&self, id: String) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        folder_use_cases::restore_folder(&self.uow(), uuid).map_err(PinkhaError::from)
+    }
+
+    /// Permanently deletes a soft-deleted folder (purge from trash).
+    pub fn purge_folder(&self, id: String) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        folder_use_cases::purge_folder(&self.uow(), uuid).map_err(PinkhaError::from)
     }
 
     pub fn move_folder_to(

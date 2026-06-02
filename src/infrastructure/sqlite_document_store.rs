@@ -131,6 +131,84 @@ impl DocumentRepository for SqliteDocumentStore {
             Ok(())
         })
     }
+
+    fn list_deleted(&self) -> Result<Vec<DocumentMeta>, PinkhaError> {
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let mut stmt = conn
+                .prepare(
+                    "SELECT id, title_json, cover, updated_at, created_at, folder_id
+                     FROM documents WHERE deleted_at IS NOT NULL
+                     ORDER BY deleted_at DESC",
+                )
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            let rows = stmt
+                .query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, Option<String>>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, Option<String>>(5)?,
+                    ))
+                })
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            let mut metas = Vec::new();
+            for row in rows {
+                let (id_str, title_json, cover, updated_at, created_at, fid) =
+                    row.map_err(|e| PinkhaError::Db(e.to_string()))?;
+                let id = Uuid::parse_str(&id_str).map_err(|_| {
+                    PinkhaError::InvalidOperation(format!("UUID invalide : {id_str}"))
+                })?;
+                let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
+                metas.push(DocumentMeta {
+                    id,
+                    title,
+                    cover,
+                    updated_at,
+                    created_at,
+                    folder_id: fid.and_then(|s| Uuid::parse_str(&s).ok()),
+                });
+            }
+            Ok(metas)
+        })
+    }
+
+    fn restore(&self, id: Uuid) -> Result<(), PinkhaError> {
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let affected = conn
+                .execute(
+                    "UPDATE documents SET deleted_at = NULL, updated_at = ?1
+                     WHERE id = ?2 AND deleted_at IS NOT NULL",
+                    params![chrono::Utc::now().to_rfc3339(), id.to_string()],
+                )
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            if affected == 0 {
+                return Err(PinkhaError::NotFound(id));
+            }
+            Ok(())
+        })
+    }
+
+    fn purge(&self, id: Uuid) -> Result<(), PinkhaError> {
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let affected = conn
+                .execute(
+                    "DELETE FROM documents WHERE id = ?1 AND deleted_at IS NOT NULL",
+                    params![id.to_string()],
+                )
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            if affected == 0 {
+                return Err(PinkhaError::InvalidOperation(format!(
+                    "document {id} must be soft-deleted before it can be purged"
+                )));
+            }
+            Ok(())
+        })
+    }
 }
 
 impl SqliteDocumentStore {

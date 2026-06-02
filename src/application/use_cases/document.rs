@@ -22,9 +22,24 @@ pub fn list_documents(uow: &dyn UnitOfWork) -> Result<Vec<DocumentMeta>, PinkhaE
     uow.documents().list()
 }
 
-/// Deletes a document by ID.
+/// Soft-deletes a document by ID — recoverable via [`restore_document`].
 pub fn delete_document(uow: &dyn UnitOfWork, doc_id: Uuid) -> Result<(), PinkhaError> {
     uow.documents().delete(doc_id)
+}
+
+/// Lists soft-deleted documents (newest-deleted first) — what the trash UI shows.
+pub fn list_deleted_documents(uow: &dyn UnitOfWork) -> Result<Vec<DocumentMeta>, PinkhaError> {
+    uow.documents().list_deleted()
+}
+
+/// Restores a soft-deleted document (clears its `deleted_at`).
+pub fn restore_document(uow: &dyn UnitOfWork, doc_id: Uuid) -> Result<(), PinkhaError> {
+    uow.documents().restore(doc_id)
+}
+
+/// Permanently deletes a soft-deleted document (hard delete).
+pub fn purge_document(uow: &dyn UnitOfWork, doc_id: Uuid) -> Result<(), PinkhaError> {
+    uow.documents().purge(doc_id)
 }
 
 /// Updates the document title (parsed as inline rich text) and persists.

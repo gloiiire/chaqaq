@@ -184,4 +184,78 @@ impl FolderRepository for SqliteFolderStore {
             Ok(())
         })
     }
+
+    fn list_deleted(&self) -> Result<Vec<FolderMeta>, PinkhaError> {
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let mut stmt = conn
+                .prepare(
+                    "SELECT id, name, parent_id, created_at, updated_at
+                     FROM folders WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC",
+                )
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            let rows = stmt
+                .query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, Option<String>>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, String>(4)?,
+                    ))
+                })
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            let mut metas = Vec::new();
+            for row in rows {
+                let (id_str, name, parent_str, created_at, updated_at) =
+                    row.map_err(|e| PinkhaError::Db(e.to_string()))?;
+                let id = Uuid::parse_str(&id_str).map_err(|_| {
+                    PinkhaError::InvalidOperation(format!("invalid UUID: {id_str}"))
+                })?;
+                metas.push(FolderMeta {
+                    id,
+                    name,
+                    parent_id: parent_str.and_then(|s| Uuid::parse_str(&s).ok()),
+                    created_at,
+                    updated_at,
+                });
+            }
+            Ok(metas)
+        })
+    }
+
+    fn restore(&self, id: Uuid) -> Result<(), PinkhaError> {
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let affected = conn
+                .execute(
+                    "UPDATE folders SET deleted_at = NULL, updated_at = ?1
+                     WHERE id = ?2 AND deleted_at IS NOT NULL",
+                    params![chrono::Utc::now().to_rfc3339(), id.to_string()],
+                )
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            if affected == 0 {
+                return Err(PinkhaError::NotFound(id));
+            }
+            Ok(())
+        })
+    }
+
+    fn purge(&self, id: Uuid) -> Result<(), PinkhaError> {
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let affected = conn
+                .execute(
+                    "DELETE FROM folders WHERE id = ?1 AND deleted_at IS NOT NULL",
+                    params![id.to_string()],
+                )
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            if affected == 0 {
+                return Err(PinkhaError::InvalidOperation(format!(
+                    "folder {id} must be soft-deleted before it can be purged"
+                )));
+            }
+            Ok(())
+        })
+    }
 }

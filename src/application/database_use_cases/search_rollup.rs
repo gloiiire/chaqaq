@@ -15,6 +15,7 @@ pub fn search_entries(
     Ok(db
         .entries
         .into_iter()
+        .filter(|e| !e.is_deleted())
         .filter(|e| entry_matches(e, &q))
         .collect())
 }
@@ -82,6 +83,7 @@ pub fn evaluate_rollups(
             let linked_entries: Vec<&Entry> = linked_db
                 .entries
                 .iter()
+                .filter(|e| !e.is_deleted())
                 .filter(|e| linked_ids.contains(&e.id))
                 .collect();
             entry.values.insert(
