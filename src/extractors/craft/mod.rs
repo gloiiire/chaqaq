@@ -22,6 +22,7 @@ use crate::domain::document::{Block, BlockContent};
 use crate::extractors::bear::mapper::ParsedBlock;
 use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
+use crate::infrastructure::no_op_unit_of_work::NoOpUnitOfWork;
 use chaqaq::InlineText;
 use uuid::Uuid;
 
@@ -220,7 +221,8 @@ pub fn flush_document(
     blocks: Vec<ParsedBlock>,
     folder_id: Option<Uuid>,
 ) -> Result<(), ExtractorError> {
-    let mut doc = use_cases::create_document(docs, title)?;
+    let uow = NoOpUnitOfWork::with_docs(docs);
+    let mut doc = use_cases::create_document(&uow, title)?;
     for parsed in blocks {
         let mut block = Block::new(parsed.content);
         block.color = parsed.color;

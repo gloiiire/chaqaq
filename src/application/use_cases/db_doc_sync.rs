@@ -7,10 +7,9 @@
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::application::database_repository::DatabaseRepository;
 use crate::application::database_use_cases;
 use crate::application::error::PinkhaError;
-use crate::application::repository::DocumentRepository;
+use crate::application::unit_of_work::UnitOfWork;
 use crate::application::use_cases as doc_use_cases;
 use crate::domain::database::{PropertyType, PropertyValue};
 
@@ -23,9 +22,13 @@ use crate::domain::database::{PropertyType, PropertyValue};
 /// left the corresponding note's name untouched. Idempotent: re-applying the
 /// same title is a no-op writer-side because `update_document_title` always
 /// re-parses and re-saves.
+///
+/// Truly cross-domain: touches both the database repository (for the entry
+/// update) and the document repository (for the title propagation). When the
+/// underlying `UnitOfWork` is transactional, both writes commit or roll back
+/// together.
 pub fn update_entry_propagating_title(
-    docs: &dyn DocumentRepository,
-    dbs: &dyn DatabaseRepository,
+    uow: &dyn UnitOfWork,
     db_id: Uuid,
     entry_id: Uuid,
     values: HashMap<Uuid, PropertyValue>,
@@ -33,7 +36,7 @@ pub fn update_entry_propagating_title(
     // Capture the entry's document link and the database's Title property
     // before we mutate anything — the post-write reload would still give us
     // the same data, but doing it upfront keeps the function easy to read.
-    let db = dbs.load(db_id)?;
+    let db = uow.databases().load(db_id)?;
     let document_id = db
         .entries
         .iter()
@@ -47,13 +50,13 @@ pub fn update_entry_propagating_title(
         .map(|p| p.id);
 
     // Perform the entry update.
-    database_use_cases::update_entry(dbs, db_id, entry_id, values.clone())?;
+    database_use_cases::update_entry(uow, db_id, entry_id, values.clone())?;
 
     // Propagate to the document title when applicable.
     if let (Some(doc_id), Some(title_id)) = (document_id, title_prop_id) {
         if let Some(PropertyValue::Title(spans)) = values.get(&title_id) {
             let plain: String = spans.iter().map(|t| t.content.as_str()).collect();
-            doc_use_cases::update_document_title(docs, doc_id, &plain)?;
+            doc_use_cases::update_document_title(uow, doc_id, &plain)?;
         }
     }
 
@@ -63,34 +66,38 @@ pub fn update_entry_propagating_title(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::application::database_repository::DatabaseRepository;
+    use crate::application::repository::DocumentRepository;
+    use crate::application::unit_of_work::test_support::MockUnitOfWork;
     use crate::domain::database::{Database, Property, PropertyType};
     use crate::domain::document::{Document, InlineText};
-    use std::cell::RefCell;
+
     use std::collections::HashMap;
 
     // ── Minimal in-memory mocks ────────────────────────────────────────────
 
     struct MockDocRepo {
-        docs: RefCell<HashMap<Uuid, Document>>,
+        docs: std::sync::Mutex<HashMap<Uuid, Document>>,
     }
     impl MockDocRepo {
         fn new() -> Self {
             Self {
-                docs: RefCell::new(HashMap::new()),
+                docs: std::sync::Mutex::new(HashMap::new()),
             }
         }
         fn seed(&self, doc: Document) {
-            self.docs.borrow_mut().insert(doc.id, doc);
+            self.docs.lock().unwrap().insert(doc.id, doc);
         }
     }
     impl DocumentRepository for MockDocRepo {
         fn save(&self, doc: &Document) -> Result<(), PinkhaError> {
-            self.docs.borrow_mut().insert(doc.id, doc.clone());
+            self.docs.lock().unwrap().insert(doc.id, doc.clone());
             Ok(())
         }
         fn load(&self, id: Uuid) -> Result<Document, PinkhaError> {
             self.docs
-                .borrow()
+                .lock()
+                .unwrap()
                 .get(&id)
                 .cloned()
                 .ok_or(PinkhaError::NotFound(id))
@@ -98,14 +105,16 @@ mod tests {
         fn list(&self) -> Result<Vec<crate::domain::document::DocumentMeta>, PinkhaError> {
             Ok(self
                 .docs
-                .borrow()
+                .lock()
+                .unwrap()
                 .values()
                 .map(crate::domain::document::DocumentMeta::from)
                 .collect())
         }
         fn delete(&self, id: Uuid) -> Result<(), PinkhaError> {
             self.docs
-                .borrow_mut()
+                .lock()
+                .unwrap()
                 .remove(&id)
                 .map(|_| ())
                 .ok_or(PinkhaError::NotFound(id))
@@ -122,36 +131,44 @@ mod tests {
     }
 
     struct MockDbRepo {
-        dbs: RefCell<HashMap<Uuid, Database>>,
+        dbs: std::sync::Mutex<HashMap<Uuid, Database>>,
     }
     impl MockDbRepo {
         fn new() -> Self {
             Self {
-                dbs: RefCell::new(HashMap::new()),
+                dbs: std::sync::Mutex::new(HashMap::new()),
             }
         }
         fn seed(&self, db: Database) {
-            self.dbs.borrow_mut().insert(db.id, db);
+            self.dbs.lock().unwrap().insert(db.id, db);
         }
     }
     impl DatabaseRepository for MockDbRepo {
         fn save(&self, db: &Database) -> Result<(), PinkhaError> {
-            self.dbs.borrow_mut().insert(db.id, db.clone());
+            self.dbs.lock().unwrap().insert(db.id, db.clone());
             Ok(())
         }
         fn load(&self, id: Uuid) -> Result<Database, PinkhaError> {
             self.dbs
-                .borrow()
+                .lock()
+                .unwrap()
                 .get(&id)
                 .cloned()
                 .ok_or(PinkhaError::NotFound(id))
         }
         fn list_meta(&self) -> Result<Vec<crate::domain::database::DatabaseMeta>, PinkhaError> {
-            Ok(self.dbs.borrow().values().map(|db| db.meta()).collect())
+            Ok(self
+                .dbs
+                .lock()
+                .unwrap()
+                .values()
+                .map(|db| db.meta())
+                .collect())
         }
         fn delete(&self, id: Uuid) -> Result<(), PinkhaError> {
             self.dbs
-                .borrow_mut()
+                .lock()
+                .unwrap()
                 .remove(&id)
                 .map(|_| ())
                 .ok_or(PinkhaError::NotFound(id))
@@ -190,14 +207,28 @@ mod tests {
         // Add a row linked to that document.
         let initial_values: HashMap<Uuid, PropertyValue> =
             HashMap::from([(title_prop_id, PropertyValue::Title(span("Old title")))]);
-        let entry =
-            database_use_cases::add_entry_with_document(&dbs, db_id, initial_values, doc_id)
-                .unwrap();
+        let entry = database_use_cases::add_entry_with_document(
+            &MockUnitOfWork::with_dbs(&dbs),
+            db_id,
+            initial_values,
+            doc_id,
+        )
+        .unwrap();
 
         // Rename the row.
         let new_values: HashMap<Uuid, PropertyValue> =
             HashMap::from([(title_prop_id, PropertyValue::Title(span("Brand new title")))]);
-        update_entry_propagating_title(&docs, &dbs, db_id, entry.id, new_values).unwrap();
+        update_entry_propagating_title(
+            &MockUnitOfWork {
+                docs: Some(&docs),
+                dbs: Some(&dbs),
+                folders: None,
+            },
+            db_id,
+            entry.id,
+            new_values,
+        )
+        .unwrap();
 
         // Document was renamed under the hood.
         let updated_doc = docs.load(doc_id).unwrap();
@@ -223,11 +254,23 @@ mod tests {
         // Row with no document_id (standalone tabular data).
         let initial_values: HashMap<Uuid, PropertyValue> =
             HashMap::from([(title_prop_id, PropertyValue::Title(span("row title")))]);
-        let entry = database_use_cases::add_entry(&dbs, db_id, initial_values).unwrap();
+        let entry =
+            database_use_cases::add_entry(&MockUnitOfWork::with_dbs(&dbs), db_id, initial_values)
+                .unwrap();
 
         let new_values: HashMap<Uuid, PropertyValue> =
             HashMap::from([(title_prop_id, PropertyValue::Title(span("renamed row")))]);
-        update_entry_propagating_title(&docs, &dbs, db_id, entry.id, new_values).unwrap();
+        update_entry_propagating_title(
+            &MockUnitOfWork {
+                docs: Some(&docs),
+                dbs: Some(&dbs),
+                folders: None,
+            },
+            db_id,
+            entry.id,
+            new_values,
+        )
+        .unwrap();
 
         // Original doc unchanged — sanity check.
         let untouched = docs.load(doc_id).unwrap();
@@ -247,13 +290,27 @@ mod tests {
 
         let initial_values: HashMap<Uuid, PropertyValue> =
             HashMap::from([(title_prop_id, PropertyValue::Title(span("Stable title")))]);
-        let entry =
-            database_use_cases::add_entry_with_document(&dbs, db_id, initial_values, doc_id)
-                .unwrap();
+        let entry = database_use_cases::add_entry_with_document(
+            &MockUnitOfWork::with_dbs(&dbs),
+            db_id,
+            initial_values,
+            doc_id,
+        )
+        .unwrap();
 
         // Update some non-Title property (the same Title slot left out entirely).
         let new_values: HashMap<Uuid, PropertyValue> = HashMap::new();
-        update_entry_propagating_title(&docs, &dbs, db_id, entry.id, new_values).unwrap();
+        update_entry_propagating_title(
+            &MockUnitOfWork {
+                docs: Some(&docs),
+                dbs: Some(&dbs),
+                folders: None,
+            },
+            db_id,
+            entry.id,
+            new_values,
+        )
+        .unwrap();
 
         // Document title is untouched.
         let untouched = docs.load(doc_id).unwrap();
@@ -267,8 +324,16 @@ mod tests {
         let dbs = MockDbRepo::new();
         let (db_id, _) = seed_db_with_title_prop(&dbs);
 
-        let res =
-            update_entry_propagating_title(&docs, &dbs, db_id, Uuid::new_v4(), HashMap::new());
+        let res = update_entry_propagating_title(
+            &MockUnitOfWork {
+                docs: Some(&docs),
+                dbs: Some(&dbs),
+                folders: None,
+            },
+            db_id,
+            Uuid::new_v4(),
+            HashMap::new(),
+        );
         assert!(matches!(res, Err(PinkhaError::NotFound(_))));
     }
 }

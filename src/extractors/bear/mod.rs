@@ -23,6 +23,7 @@ use crate::application::use_cases;
 use crate::domain::document::Block;
 use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
+use crate::infrastructure::no_op_unit_of_work::NoOpUnitOfWork;
 
 use self::mapper::parse_note_blocks;
 use self::reader::BearReader;
@@ -82,7 +83,8 @@ impl Extractor for BearExtractor {
                 &note.title
             };
 
-            let mut doc = use_cases::create_document(docs, title)?;
+            let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
+            let mut doc = use_cases::create_document(&uow, title)?;
             let parsed_blocks = parse_note_blocks(&note.text);
             let block_count = parsed_blocks.len();
 

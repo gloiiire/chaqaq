@@ -1,14 +1,15 @@
 use crate::application::error::PinkhaError;
-use crate::application::repository::DocumentRepository;
+use crate::application::unit_of_work::UnitOfWork;
 use crate::domain::document::{Block, BlockContent, DocumentMeta};
 
 /// Case-insensitive search across document titles.
 pub fn search_documents(
-    repo: &dyn DocumentRepository,
+    uow: &dyn UnitOfWork,
     query: &str,
 ) -> Result<Vec<DocumentMeta>, PinkhaError> {
     let q = query.to_lowercase();
-    Ok(repo
+    Ok(uow
+        .documents()
         .list()?
         .into_iter()
         .filter(|m| {
@@ -23,9 +24,10 @@ pub fn search_documents(
 ///
 /// Returns the metadata of documents that contain at least one matching block.
 pub fn search_in_blocks(
-    repo: &dyn DocumentRepository,
+    uow: &dyn UnitOfWork,
     query: &str,
 ) -> Result<Vec<DocumentMeta>, PinkhaError> {
+    let repo = uow.documents();
     let q = query.to_lowercase();
     let metas = repo.list()?;
     let mut results = Vec::new();
@@ -65,30 +67,31 @@ mod tests {
     use super::*;
     use crate::application::error::PinkhaError;
     use crate::domain::document::{Block, BlockContent, Document, DocumentMeta, InlineText};
-    use std::cell::RefCell;
+
     use std::collections::HashMap;
     use uuid::Uuid;
 
     struct MockRepo {
-        docs: RefCell<HashMap<Uuid, Document>>,
+        docs: std::sync::Mutex<HashMap<Uuid, Document>>,
     }
 
     impl MockRepo {
         fn new() -> Self {
             Self {
-                docs: RefCell::new(HashMap::new()),
+                docs: std::sync::Mutex::new(HashMap::new()),
             }
         }
     }
 
     impl crate::application::repository::DocumentRepository for MockRepo {
         fn save(&self, doc: &Document) -> Result<(), PinkhaError> {
-            self.docs.borrow_mut().insert(doc.id, doc.clone());
+            self.docs.lock().unwrap().insert(doc.id, doc.clone());
             Ok(())
         }
         fn load(&self, id: Uuid) -> Result<Document, PinkhaError> {
             self.docs
-                .borrow()
+                .lock()
+                .unwrap()
                 .get(&id)
                 .cloned()
                 .ok_or(PinkhaError::NotFound(id))
@@ -96,14 +99,16 @@ mod tests {
         fn list(&self) -> Result<Vec<DocumentMeta>, PinkhaError> {
             Ok(self
                 .docs
-                .borrow()
+                .lock()
+                .unwrap()
                 .values()
                 .map(DocumentMeta::from)
                 .collect())
         }
         fn delete(&self, id: Uuid) -> Result<(), PinkhaError> {
             self.docs
-                .borrow_mut()
+                .lock()
+                .unwrap()
                 .remove(&id)
                 .map(|_| ())
                 .ok_or(PinkhaError::NotFound(id))
@@ -123,6 +128,9 @@ mod tests {
         }
     }
 
+    use crate::application::repository::DocumentRepository;
+    use crate::application::unit_of_work::test_support::MockUnitOfWork;
+
     fn inline(s: &str) -> Vec<InlineText> {
         vec![InlineText {
             content: s.to_string(),
@@ -140,13 +148,17 @@ mod tests {
         doc
     }
 
+    fn doc_uow(repo: &MockRepo) -> MockUnitOfWork<'_> {
+        MockUnitOfWork::with_docs(repo)
+    }
+
     #[test]
     fn test_search_in_blocks_trouve() {
         let repo = MockRepo::new();
         let doc = doc_with_blocks("Doc", vec![text_block("Rust est génial")]);
         repo.save(&doc).unwrap();
 
-        let results = search_in_blocks(&repo, "rust").unwrap();
+        let results = search_in_blocks(&doc_uow(&repo), "rust").unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, doc.id);
     }
@@ -157,7 +169,7 @@ mod tests {
         let doc = doc_with_blocks("Doc", vec![text_block("Bonjour monde")]);
         repo.save(&doc).unwrap();
 
-        let results = search_in_blocks(&repo, "flutter").unwrap();
+        let results = search_in_blocks(&doc_uow(&repo), "flutter").unwrap();
         assert!(results.is_empty());
     }
 
@@ -171,7 +183,7 @@ mod tests {
         let doc = doc_with_blocks("Doc", vec![parent]);
         repo.save(&doc).unwrap();
 
-        let results = search_in_blocks(&repo, "profondeur").unwrap();
+        let results = search_in_blocks(&doc_uow(&repo), "profondeur").unwrap();
         assert_eq!(results.len(), 1);
     }
 }

@@ -30,13 +30,24 @@ fn inlines(s: &str) -> Vec<InlineText> {
 #[test]
 fn test_delete_document_existant() {
     let store = doc_store_temp();
-    let doc = create_document(&store, "À supprimer").unwrap();
+    let doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "À supprimer",
+    )
+    .unwrap();
     let id = doc.id;
 
-    delete_document(&store, id).unwrap();
+    delete_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        id,
+    )
+    .unwrap();
 
     assert!(matches!(
-        get_document(&store, id),
+        get_document(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+            id
+        ),
         Err(PinkhaError::NotFound(_))
     ));
 }
@@ -46,23 +57,47 @@ fn test_delete_document_inexistant_retourne_non_trouve() {
     let store = doc_store_temp();
     let faux_id = Uuid::new_v4();
 
-    let result = delete_document(&store, faux_id);
+    let result = delete_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        faux_id,
+    );
     assert!(matches!(result, Err(PinkhaError::NotFound(_))));
 }
 
 #[test]
 fn test_delete_document_ne_supprime_pas_les_autres() {
     let store = doc_store_temp();
-    let doc_a = create_document(&store, "A").unwrap();
-    let doc_b = create_document(&store, "B").unwrap();
+    let doc_a = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "A",
+    )
+    .unwrap();
+    let doc_b = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "B",
+    )
+    .unwrap();
 
-    delete_document(&store, doc_a.id).unwrap();
+    delete_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc_a.id,
+    )
+    .unwrap();
 
     assert!(matches!(
-        get_document(&store, doc_a.id),
+        get_document(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+            doc_a.id
+        ),
         Err(PinkhaError::NotFound(_))
     ));
-    assert!(get_document(&store, doc_b.id).is_ok());
+    assert!(
+        get_document(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+            doc_b.id
+        )
+        .is_ok()
+    );
 }
 
 // ── delete_database ────────────────────────────────────────────────────────
@@ -71,13 +106,25 @@ fn test_delete_document_ne_supprime_pas_les_autres() {
 fn test_delete_database_existante() {
     let store = db_store_temp();
     let prop = Property::new("Titre", PropertyType::Title);
-    let db = create_database(&store, inlines("À supprimer"), vec![prop]).unwrap();
+    let db = create_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        inlines("À supprimer"),
+        vec![prop],
+    )
+    .unwrap();
     let id = db.id;
 
-    delete_database(&store, id).unwrap();
+    delete_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        id,
+    )
+    .unwrap();
 
     assert!(matches!(
-        get_database(&store, id),
+        get_database(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+            id
+        ),
         Err(PinkhaError::NotFound(_))
     ));
 }
@@ -87,21 +134,47 @@ fn test_delete_database_inexistante_retourne_non_trouve() {
     let store = db_store_temp();
     let faux_id = Uuid::new_v4();
 
-    let result = delete_database(&store, faux_id);
+    let result = delete_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        faux_id,
+    );
     assert!(matches!(result, Err(PinkhaError::NotFound(_))));
 }
 
 #[test]
 fn test_delete_database_ne_supprime_pas_les_autres() {
     let store = db_store_temp();
-    let db_a = create_database(&store, inlines("A"), vec![]).unwrap();
-    let db_b = create_database(&store, inlines("B"), vec![]).unwrap();
+    let db_a = create_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        inlines("A"),
+        vec![],
+    )
+    .unwrap();
+    let db_b = create_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        inlines("B"),
+        vec![],
+    )
+    .unwrap();
 
-    delete_database(&store, db_a.id).unwrap();
+    delete_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        db_a.id,
+    )
+    .unwrap();
 
     assert!(matches!(
-        get_database(&store, db_a.id),
+        get_database(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+            db_a.id
+        ),
         Err(PinkhaError::NotFound(_))
     ));
-    assert!(get_database(&store, db_b.id).is_ok());
+    assert!(
+        get_database(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+            db_b.id
+        )
+        .is_ok()
+    );
 }

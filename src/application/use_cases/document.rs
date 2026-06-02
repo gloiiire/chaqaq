@@ -1,41 +1,39 @@
 use crate::application::error::PinkhaError;
-use crate::application::repository::DocumentRepository;
+use crate::application::unit_of_work::UnitOfWork;
 use crate::domain::document::{Block, BlockContent, Document, DocumentMeta, InlineText};
 use crate::domain::editor::EditorState;
 use crate::domain::parser::parse_inline;
 use uuid::Uuid;
 
 /// Creates a new document with a parsed inline title and persists it.
-pub fn create_document(
-    repo: &dyn DocumentRepository,
-    title: &str,
-) -> Result<Document, PinkhaError> {
+pub fn create_document(uow: &dyn UnitOfWork, title: &str) -> Result<Document, PinkhaError> {
     let doc = Document::new(parse_inline(title));
-    repo.save(&doc)?;
+    uow.documents().save(&doc)?;
     Ok(doc)
 }
 
 /// Loads a full document by ID.
-pub fn get_document(repo: &dyn DocumentRepository, id: Uuid) -> Result<Document, PinkhaError> {
-    repo.load(id)
+pub fn get_document(uow: &dyn UnitOfWork, id: Uuid) -> Result<Document, PinkhaError> {
+    uow.documents().load(id)
 }
 
 /// Returns lightweight metadata for all documents (no blocks loaded).
-pub fn list_documents(repo: &dyn DocumentRepository) -> Result<Vec<DocumentMeta>, PinkhaError> {
-    repo.list()
+pub fn list_documents(uow: &dyn UnitOfWork) -> Result<Vec<DocumentMeta>, PinkhaError> {
+    uow.documents().list()
 }
 
 /// Deletes a document by ID.
-pub fn delete_document(repo: &dyn DocumentRepository, doc_id: Uuid) -> Result<(), PinkhaError> {
-    repo.delete(doc_id)
+pub fn delete_document(uow: &dyn UnitOfWork, doc_id: Uuid) -> Result<(), PinkhaError> {
+    uow.documents().delete(doc_id)
 }
 
 /// Updates the document title (parsed as inline rich text) and persists.
 pub fn update_document_title(
-    repo: &dyn DocumentRepository,
+    uow: &dyn UnitOfWork,
     doc_id: Uuid,
     new_title: &str,
 ) -> Result<(), PinkhaError> {
+    let repo = uow.documents();
     let mut doc = repo.load(doc_id)?;
     doc.title = parse_inline(new_title);
     repo.save(&doc)
@@ -43,10 +41,11 @@ pub fn update_document_title(
 
 /// Updates the document cover and persists.
 pub fn update_document_cover(
-    repo: &dyn DocumentRepository,
+    uow: &dyn UnitOfWork,
     doc_id: Uuid,
     cover: Option<String>,
 ) -> Result<(), PinkhaError> {
+    let repo = uow.documents();
     let mut doc = repo.load(doc_id)?;
     doc.cover = cover;
     repo.save(&doc)
@@ -55,10 +54,11 @@ pub fn update_document_cover(
 /// Updates the document icon (small visual identifier — emoji or image URL/
 /// filename) and persists.
 pub fn update_document_icon(
-    repo: &dyn DocumentRepository,
+    uow: &dyn UnitOfWork,
     doc_id: Uuid,
     icon: Option<String>,
 ) -> Result<(), PinkhaError> {
+    let repo = uow.documents();
     let mut doc = repo.load(doc_id)?;
     doc.icon = icon;
     repo.save(&doc)
@@ -66,19 +66,19 @@ pub fn update_document_icon(
 
 /// Moves a document to a folder (or to the root when `folder_id` is `None`).
 pub fn move_document_to_folder(
-    repo: &dyn DocumentRepository,
+    uow: &dyn UnitOfWork,
     doc_id: Uuid,
     folder_id: Option<Uuid>,
 ) -> Result<(), PinkhaError> {
-    repo.move_to_folder(doc_id, folder_id)
+    uow.documents().move_to_folder(doc_id, folder_id)
 }
 
 /// Returns lightweight metadata for all documents in the given folder (or root).
 pub fn list_documents_in_folder(
-    repo: &dyn DocumentRepository,
+    uow: &dyn UnitOfWork,
     folder_id: Option<Uuid>,
 ) -> Result<Vec<DocumentMeta>, PinkhaError> {
-    repo.list_by_folder(folder_id)
+    uow.documents().list_by_folder(folder_id)
 }
 
 /// Applies the editor state to a text-bearing block and persists the document.
@@ -86,11 +86,12 @@ pub fn list_documents_in_folder(
 /// Returns `InvalidOperation` when the target block does not carry editable text
 /// (e.g. `Divider`, `Database`).
 pub fn save_edited_block(
-    repo: &dyn DocumentRepository,
+    uow: &dyn UnitOfWork,
     doc_id: Uuid,
     block_id: Uuid,
     editor_state: &EditorState,
 ) -> Result<(), PinkhaError> {
+    let repo = uow.documents();
     let mut doc = repo.load(doc_id)?;
     let inlines: Vec<InlineText> = Vec::from(&editor_state.text);
     let block = find_block_mut(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;

@@ -16,8 +16,16 @@ fn store_temp() -> (JsonStore, PathBuf) {
 fn test_creer_puis_obtenir() {
     let (store, dir) = store_temp();
 
-    let doc = create_document(&store, "Mon title").unwrap();
-    let obtenu = get_document(&store, doc.id).unwrap();
+    let doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Mon title",
+    )
+    .unwrap();
+    let obtenu = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    )
+    .unwrap();
 
     assert_eq!(doc.id, obtenu.id);
     assert_eq!(obtenu.title[0].content, "Mon title");
@@ -30,16 +38,23 @@ fn test_flux_complet() {
     let (store, dir) = store_temp();
 
     // création
-    let doc = create_document(&store, "Journal").unwrap();
+    let doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Journal",
+    )
+    .unwrap();
 
     // listing : 1 document, bon id
-    let liste = list_documents(&store).unwrap();
+    let liste = list_documents(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    )
+    .unwrap();
     assert_eq!(liste.len(), 1);
     assert_eq!(liste[0].id, doc.id);
 
     // ajout d'un bloc
     let mis_a_jour = add_block(
-        &store,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
         doc.id,
         BlockContent::Text(parse_inline("Premier bloc")),
     )
@@ -47,7 +62,11 @@ fn test_flux_complet() {
     assert_eq!(mis_a_jour.blocks.len(), 1);
 
     // rechargement : le bloc est bien persisté
-    let recharge = get_document(&store, doc.id).unwrap();
+    let recharge = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    )
+    .unwrap();
     assert_eq!(recharge.blocks.len(), 1);
 
     std::fs::remove_dir_all(dir).unwrap();
@@ -57,11 +76,26 @@ fn test_flux_complet() {
 fn test_lister_plusieurs_documents() {
     let (store, dir) = store_temp();
 
-    create_document(&store, "Alpha").unwrap();
-    create_document(&store, "Beta").unwrap();
-    create_document(&store, "Gamma").unwrap();
+    create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Alpha",
+    )
+    .unwrap();
+    create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Beta",
+    )
+    .unwrap();
+    create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Gamma",
+    )
+    .unwrap();
 
-    let liste = list_documents(&store).unwrap();
+    let liste = list_documents(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    )
+    .unwrap();
     assert_eq!(liste.len(), 3);
 
     std::fs::remove_dir_all(dir).unwrap();
@@ -71,7 +105,10 @@ fn test_lister_plusieurs_documents() {
 fn test_get_document_inexistant() {
     let (store, dir) = store_temp();
 
-    let result = get_document(&store, Uuid::new_v4());
+    let result = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        Uuid::new_v4(),
+    );
     assert!(matches!(result, Err(PinkhaError::NotFound(_))));
 
     std::fs::remove_dir_all(dir).unwrap();
@@ -81,11 +118,20 @@ fn test_get_document_inexistant() {
 fn test_ajouter_plusieurs_blocs() {
     let (store, dir) = store_temp();
 
-    let doc = create_document(&store, "Notes").unwrap();
+    let doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Notes",
+    )
+    .unwrap();
 
-    add_block(&store, doc.id, BlockContent::Text(parse_inline("Bloc 1"))).unwrap();
     add_block(
-        &store,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        BlockContent::Text(parse_inline("Bloc 1")),
+    )
+    .unwrap();
+    add_block(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
         doc.id,
         BlockContent::Heading {
             text: parse_inline("Titre"),
@@ -93,9 +139,18 @@ fn test_ajouter_plusieurs_blocs() {
         },
     )
     .unwrap();
-    add_block(&store, doc.id, BlockContent::Divider).unwrap();
+    add_block(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        BlockContent::Divider,
+    )
+    .unwrap();
 
-    let recharge = get_document(&store, doc.id).unwrap();
+    let recharge = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    )
+    .unwrap();
     assert_eq!(recharge.blocks.len(), 3);
 
     std::fs::remove_dir_all(dir).unwrap();

@@ -6,7 +6,7 @@ use uuid::Uuid;
 ///
 /// Any storage backend (SQLite, JSON, in-memory mock) must implement this trait.
 /// Use cases depend exclusively on this abstraction — never on a concrete store.
-pub trait DocumentRepository {
+pub trait DocumentRepository: Send + Sync {
     /// Persists a document, creating or replacing it as needed.
     fn save(&self, doc: &Document) -> Result<(), PinkhaError>;
 

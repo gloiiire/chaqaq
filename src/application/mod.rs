@@ -5,4 +5,5 @@ pub mod folder_repository;
 pub mod folder_use_cases;
 pub mod repository;
 pub mod resilience;
+pub mod unit_of_work;
 pub mod use_cases;
