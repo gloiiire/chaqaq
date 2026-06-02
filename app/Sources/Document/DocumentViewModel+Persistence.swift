@@ -93,15 +93,33 @@ extension DocumentViewModel {
             title = doc.title.map(\.content).joined()
             lastPersistedTitle = title
             cover = doc.cover
-            blocks = doc.blocks.map {
-                EditableBlock(id: $0.id, content: $0.content,
-                              spans: $0.content.spansOrEmpty,
-                              done:  $0.content.isTodoDone,
-                              color: $0.color)
-            }
+            blocks = DocumentViewModel.flattenBlocks(doc.blocks, depth: 0)
             // Initialise stable snapshots for burst undo tracking.
             blockSnapshots = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, snapshotOf($0)) })
             blockBurstAnchor.removeAll()
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// Depth-first flatten of the recursive `BlockFfi` tree into the flat list
+    /// the editor UI renders. Each child is appended right after its parent
+    /// with `depth + 1`, so the visual order matches the document's reading
+    /// order and indent levels translate to a left-padding in the view.
+    static func flattenBlocks(_ tree: [BlockFfi], depth: Int) -> [EditableBlock] {
+        var result: [EditableBlock] = []
+        result.reserveCapacity(tree.count)
+        for node in tree {
+            result.append(EditableBlock(
+                id: node.id,
+                content: node.content,
+                spans: node.content.spansOrEmpty,
+                done: node.content.isTodoDone,
+                color: node.color,
+                depth: depth
+            ))
+            if !node.children.isEmpty {
+                result.append(contentsOf: flattenBlocks(node.children, depth: depth + 1))
+            }
+        }
+        return result
     }
 }

@@ -82,14 +82,19 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
         isEditing = true
         parent.isFocused = true
         rememberSelection(tv.selectedRange, length: tv.attributedText.length)
+        // Default foreground: block-level colour when set, otherwise the
+        // standard label colour. This is what newly typed text inherits.
+        // Without this, typing in a coloured block would produce white text
+        // because UIKit would use the bare `UIColor.label` default.
+        let defaultForeground: UIColor = parent.blockColor.map(uiColorFromName) ?? .label
         // Clear the placeholder when editing begins.
         if tv.textColor == .tertiaryLabel {
             tv.attributedText = NSAttributedString(string: "", attributes: [
                 .font: parent.baseFont,
-                .foregroundColor: UIColor.label
+                .foregroundColor: defaultForeground
             ])
         }
-        tv.typingAttributes = [.font: parent.baseFont, .foregroundColor: UIColor.label]
+        tv.typingAttributes = [.font: parent.baseFont, .foregroundColor: defaultForeground]
         updateToolbar()
     }
 
