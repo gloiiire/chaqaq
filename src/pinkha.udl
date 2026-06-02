@@ -193,6 +193,11 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void update_view(string db_id, string view_id, string filters_json, string sorts_json);
 
+    /// Pose un tri unique sur une vue, en remplaçant ceux qui existent.
+    /// `property_id = null` retire le tri.
+    [Throws=PinkhaError]
+    void set_view_sort(string db_id, string view_id, string? property_id, boolean ascending);
+
     [Throws=PinkhaError]
     void delete_view(string db_id, string view_id);
 
