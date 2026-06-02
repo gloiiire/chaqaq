@@ -30,6 +30,12 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
     /// Spans already synced with the text view — allows skipping the `spansToAttributed`
     /// recomputation during SwiftUI re-renders where this block's spans have not changed.
     var lastSyncedSpans: [InlineTextFfi]?
+    /// Mirror of `parent.blockColor` at last `updateUIView` recompute. Lets us
+    /// detect "spans unchanged but block colour changed" — without this guard
+    /// the user has to leave and re-enter the note for the new block colour to
+    /// render, because the spans-equality check skips the `spansToAttributed`
+    /// rebuild.
+    var lastSyncedBlockColor: String?
     // The pill toolbar — animated to alpha 0 when a dropdown menu opens
     // (Notes.app style: the toolbar fades while the menu is visible).
     weak var toolbarPill: UIView?
@@ -180,10 +186,21 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
     // ── Save ──────────────────────────────────────────────────────────────────
 
     func save(_ spans: [InlineTextFfi]) {
-        parent.spans = spans
+        // When `onSaveSpans` is wired (block editors), prefer the ID-safe
+        // callback path: the VM looks up the block by ID, updates its `spans`,
+        // and the @Published change re-renders the editor. Writing
+        // `parent.spans = spans` directly would crash with "Index out of
+        // range" after a structural mutation (indent/outdent/delete) because
+        // the binding still points at a stale array index — `textViewDidEndEditing`
+        // can fire AFTER the array has shrunk.
+        //
+        // When `onSaveSpans` is nil (title editor, anything bound to a
+        // non-array @State), the binding write is the only way for the parent
+        // to learn about the new spans.
         if let onSaveSpans = parent.onSaveSpans {
             onSaveSpans(spans)
         } else {
+            parent.spans = spans
             parent.onSave?()
         }
     }
