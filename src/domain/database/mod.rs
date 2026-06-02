@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#[allow(clippy::module_inception)]
 mod database;
 mod entry;
 mod property;

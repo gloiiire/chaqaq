@@ -296,7 +296,7 @@ mod tests {
     fn test_calculer_aggregate_somme() {
         use crate::domain::database::Aggregate;
         let prop_id = Uuid::new_v4();
-        let entries = vec![
+        let entries = [
             entry_with_number(prop_id, 10.0),
             entry_with_number(prop_id, 20.0),
             entry_with_number(prop_id, 30.0),
@@ -325,7 +325,7 @@ mod tests {
     fn test_calculer_aggregate_moyenne() {
         use crate::domain::database::Aggregate;
         let prop_id = Uuid::new_v4();
-        let entries = vec![
+        let entries = [
             entry_with_number(prop_id, 10.0),
             entry_with_number(prop_id, 20.0),
         ];

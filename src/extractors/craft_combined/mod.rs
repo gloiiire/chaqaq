@@ -150,11 +150,11 @@ impl CraftCombinedExtractor {
             let block_type = row.get(type_idx).as_str();
             let entry = doc_map.entry(doc_id).or_insert((None, vec![], 0));
 
-            if entry.0.is_none() {
-                if let Some(t) = title_candidate(&content, block_type) {
-                    entry.0 = Some(t);
-                    continue;
-                }
+            if entry.0.is_none()
+                && let Some(t) = title_candidate(&content, block_type)
+            {
+                entry.0 = Some(t);
+                continue;
             }
             match map_block(&content, block_type) {
                 // craft_combined doesn't yet probe the colour column —

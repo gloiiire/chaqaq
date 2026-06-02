@@ -30,8 +30,7 @@ pub fn extract_database_id(input: &str) -> String {
     // Take the last path component.
     let last_segment = without_query
         .split('/')
-        .filter(|s| !s.is_empty())
-        .last()
+        .rfind(|s| !s.is_empty())
         .unwrap_or(without_query);
 
     // Find the trailing 32-char hex sequence (UUID without dashes after the last `-`).

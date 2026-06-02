@@ -26,7 +26,7 @@ impl Bldr {
     }
 
     fn align(&mut self) {
-        while self.buf.len() % 8 != 0 {
+        while !self.buf.len().is_multiple_of(8) {
             self.buf.push(0);
         }
     }
@@ -532,8 +532,8 @@ fn new_format_with_bool_column() {
     let data = b.finalize(group_ref);
     let realm = RealmFile::from_bytes(&data).expect("parse");
     let t = realm.table("T").unwrap();
-    assert_eq!(t.get(&t.rows[0], "flag").as_bool(), true);
-    assert_eq!(t.get(&t.rows[1], "flag").as_bool(), false);
+    assert!(t.get(&t.rows[0], "flag").as_bool());
+    assert!(!t.get(&t.rows[1], "flag").as_bool());
 }
 
 #[test]

@@ -53,11 +53,11 @@ pub fn update_entry_propagating_title(
     database_use_cases::update_entry(uow, db_id, entry_id, values.clone())?;
 
     // Propagate to the document title when applicable.
-    if let (Some(doc_id), Some(title_id)) = (document_id, title_prop_id) {
-        if let Some(PropertyValue::Title(spans)) = values.get(&title_id) {
-            let plain: String = spans.iter().map(|t| t.content.as_str()).collect();
-            doc_use_cases::update_document_title(uow, doc_id, &plain)?;
-        }
+    if let (Some(doc_id), Some(title_id)) = (document_id, title_prop_id)
+        && let Some(PropertyValue::Title(spans)) = values.get(&title_id)
+    {
+        let plain: String = spans.iter().map(|t| t.content.as_str()).collect();
+        doc_use_cases::update_document_title(uow, doc_id, &plain)?;
     }
 
     Ok(())

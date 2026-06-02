@@ -482,9 +482,9 @@ mod tests {
             .row(vec![Value::Bool(true)]);
         let realm = roundtrip(b);
         let t = realm.table("T").unwrap();
-        assert_eq!(t.get(&t.rows[0], "flag").as_bool(), true);
-        assert_eq!(t.get(&t.rows[1], "flag").as_bool(), false);
-        assert_eq!(t.get(&t.rows[2], "flag").as_bool(), true);
+        assert!(t.get(&t.rows[0], "flag").as_bool());
+        assert!(!t.get(&t.rows[1], "flag").as_bool());
+        assert!(t.get(&t.rows[2], "flag").as_bool());
     }
 
     #[test]
@@ -534,13 +534,13 @@ mod tests {
         let mut b = RealmBuilder::new();
         b.table("T")
             .column("f", ColumnType::Float)
-            .row(vec![Value::Float(3.14_f32 as f64)])
+            .row(vec![Value::Float(1.5_f32 as f64)])
             .row(vec![Value::Float(0.0)])
             .row(vec![Value::Float(-1.5_f32 as f64)]);
         let realm = roundtrip(b);
         let t = realm.table("T").unwrap();
-        // stored as f32, so compare with f32 precision
-        assert!((t.get(&t.rows[0], "f").as_float() - 3.14_f32 as f64).abs() < 1e-5);
+        // 1.5 is exactly representable in f32, so the round-trip is bit-exact.
+        assert_eq!(t.get(&t.rows[0], "f").as_float(), 1.5);
         assert_eq!(t.get(&t.rows[1], "f").as_float(), 0.0);
     }
 
@@ -583,9 +583,9 @@ mod tests {
         assert_eq!(t.rows.len(), 2);
         assert_eq!(t.get(&t.rows[0], "id").as_str(), "1");
         assert_eq!(t.get(&t.rows[0], "body").as_str(), "Buy milk");
-        assert_eq!(t.get(&t.rows[0], "done").as_bool(), true);
+        assert!(t.get(&t.rows[0], "done").as_bool());
         assert_eq!(t.get(&t.rows[0], "score").as_int(), 5);
-        assert_eq!(t.get(&t.rows[1], "done").as_bool(), false);
+        assert!(!t.get(&t.rows[1], "done").as_bool());
     }
 
     #[test]

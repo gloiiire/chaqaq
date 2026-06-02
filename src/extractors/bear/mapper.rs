@@ -57,10 +57,10 @@ pub fn parse_note_blocks(text: &str) -> Vec<ParsedBlock> {
     let mut lines = text.lines().peekable();
 
     // Skip the leading `# Title` line if present.
-    if let Some(first) = lines.peek() {
-        if first.starts_with("# ") {
-            lines.next();
-        }
+    if let Some(first) = lines.peek()
+        && first.starts_with("# ")
+    {
+        lines.next();
     }
 
     let mut in_code_block = false;

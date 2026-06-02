@@ -99,7 +99,7 @@ pub fn reorder_child_blocks(
             reordered.push(parent.children.remove(pos));
         }
     }
-    reordered.extend(parent.children.drain(..));
+    reordered.append(&mut parent.children);
     parent.children = reordered;
     repo.save(&doc)
 }

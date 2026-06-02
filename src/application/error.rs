@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn test_from_io() {
-        let err: PinkhaError = io::Error::new(io::ErrorKind::Other, "test").into();
+        let err: PinkhaError = io::Error::other("test").into();
         assert!(matches!(err, PinkhaError::Io(_)));
     }
 
@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn test_source_io_est_some() {
-        let err = PinkhaError::Io(io::Error::new(io::ErrorKind::Other, "test"));
+        let err = PinkhaError::Io(io::Error::other("test"));
         assert!(err.source().is_some());
     }
 

@@ -25,6 +25,11 @@ jobs:
         uses: Swatinem/rust-cache@v2
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
+      - name: cargo clippy (warnings as errors)
+        # Mirrors the pre-commit hook so contributors can catch the same
+        # lints locally before push. Both gates are kept in lockstep — any
+        # tightening here should be applied to scripts/hooks/pre-commit too.
+        run: cargo clippy --workspace --all-targets -- -D warnings
       - name: cargo test + coverage gate (90%)
         # Fails the build if line coverage drops below 90% (ratchet — never
         # go down). Tightening to 95/98% is planned as test debt is paid.

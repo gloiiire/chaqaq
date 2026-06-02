@@ -55,10 +55,10 @@ impl DocumentRepository for JsonStore {
             if path.extension().and_then(|e| e.to_str()) != Some("json") {
                 continue;
             }
-            if let Ok(json) = std::fs::read_to_string(&path) {
-                if let Ok(meta) = serde_json::from_str::<DocumentMeta>(&json) {
-                    metas.push(meta);
-                }
+            if let Ok(json) = std::fs::read_to_string(&path)
+                && let Ok(meta) = serde_json::from_str::<DocumentMeta>(&json)
+            {
+                metas.push(meta);
             }
         }
         Ok(metas)
