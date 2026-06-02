@@ -463,6 +463,32 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Indents a block — moves it under the previous sibling at the same
+    /// level. Fails with `InvalidOperation` when the block is the first of
+    /// its level (nothing to indent under).
+    pub fn indent_block(
+        &self,
+        doc_id: String,
+        block_id: String,
+    ) -> Result<(), PinkhaError> {
+        let doc_uuid = parse_uuid(&doc_id)?;
+        let block_uuid = parse_uuid(&block_id)?;
+        use_cases::indent_block(&self.docs, doc_uuid, block_uuid).map_err(PinkhaError::from)
+    }
+
+    /// Outdents a block — moves it out of its current parent up to the
+    /// grandparent level, inserted right after the former parent. Fails with
+    /// `InvalidOperation` when the block is already at the document root.
+    pub fn outdent_block(
+        &self,
+        doc_id: String,
+        block_id: String,
+    ) -> Result<(), PinkhaError> {
+        let doc_uuid = parse_uuid(&doc_id)?;
+        let block_uuid = parse_uuid(&block_id)?;
+        use_cases::outdent_block(&self.docs, doc_uuid, block_uuid).map_err(PinkhaError::from)
+    }
+
     /// Searches document titles for `query` (case-insensitive).
     pub fn search_documents(&self, query: String) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
         validate_string(&query, "query")?;

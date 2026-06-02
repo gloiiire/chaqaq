@@ -35,6 +35,11 @@ struct RichTextEditor: UIViewRepresentable {
     var onRedo: (() -> Void)? = nil
     var canUndoProvider: (() -> Bool)? = nil
     var canRedoProvider: (() -> Bool)? = nil
+    /// Indent / outdent the *current block* (whichever owns this editor view).
+    /// The DocumentView owns the block identity, so it wires the closure to
+    /// call the right FFI on the right block. `nil` = button disabled.
+    var onIndent: (() -> Void)? = nil
+    var onOutdent: (() -> Void)? = nil
 
     func makeUIView(context: Context) -> ExpandingTextView {
         let tv = ExpandingTextView()

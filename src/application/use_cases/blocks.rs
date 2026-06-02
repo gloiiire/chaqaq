@@ -147,6 +147,94 @@ pub fn move_block(
     repo.save(&doc)
 }
 
+/// Indents a block: moves it under the previous sibling at the same level
+/// (becomes the last child of that sibling).
+///
+/// Returns `InvalidOperation` when the block is the first in its sibling list
+/// (no previous sibling to attach to) — there's nothing meaningful to indent
+/// it under. Returns `NotFound` if the block is unknown.
+pub fn indent_block(
+    repo: &dyn DocumentRepository,
+    doc_id: Uuid,
+    block_id: Uuid,
+) -> Result<(), PinkhaError> {
+    let mut doc = repo.load(doc_id)?;
+    indent_in_siblings(&mut doc.blocks, block_id)?;
+    repo.save(&doc)
+}
+
+/// Walks the tree looking for `block_id` among siblings (recursively) and
+/// performs the indent in place. Returns `Ok` on success, `NotFound` if not
+/// in this subtree, or `InvalidOperation` when `block_id` is the first child
+/// of its container.
+fn indent_in_siblings(
+    siblings: &mut Vec<Block>,
+    block_id: Uuid,
+) -> Result<(), PinkhaError> {
+    if let Some(pos) = siblings.iter().position(|b| b.id == block_id) {
+        if pos == 0 {
+            return Err(PinkhaError::InvalidOperation(
+                "cannot indent the first block of its level".to_string(),
+            ));
+        }
+        let block = siblings.remove(pos);
+        siblings[pos - 1].children.push(block);
+        return Ok(());
+    }
+    for sibling in siblings.iter_mut() {
+        match indent_in_siblings(&mut sibling.children, block_id) {
+            Ok(()) => return Ok(()),
+            Err(PinkhaError::NotFound(_)) => continue,
+            Err(e) => return Err(e),
+        }
+    }
+    Err(PinkhaError::NotFound(block_id))
+}
+
+/// Outdents a block: moves it out of its current parent to the grandparent
+/// level, inserted right after the former parent (preserving reading order).
+///
+/// Returns `InvalidOperation` when the block is already at the document root
+/// (nothing to outdent into). Returns `NotFound` if the block is unknown.
+pub fn outdent_block(
+    repo: &dyn DocumentRepository,
+    doc_id: Uuid,
+    block_id: Uuid,
+) -> Result<(), PinkhaError> {
+    let mut doc = repo.load(doc_id)?;
+    if doc.blocks.iter().any(|b| b.id == block_id) {
+        return Err(PinkhaError::InvalidOperation(
+            "block is already at the root level".to_string(),
+        ));
+    }
+    if !outdent_in_tree(&mut doc.blocks, block_id) {
+        return Err(PinkhaError::NotFound(block_id));
+    }
+    repo.save(&doc)
+}
+
+/// Recursively searches for `block_id` among the children of any block in
+/// `siblings`. When found, removes it from that child list and reinserts it
+/// in `siblings` directly after the block that owned it. Returns `true` if
+/// the operation succeeded somewhere in this subtree.
+fn outdent_in_tree(siblings: &mut Vec<Block>, block_id: Uuid) -> bool {
+    for parent_pos in 0..siblings.len() {
+        if let Some(child_pos) = siblings[parent_pos]
+            .children
+            .iter()
+            .position(|c| c.id == block_id)
+        {
+            let block = siblings[parent_pos].children.remove(child_pos);
+            siblings.insert(parent_pos + 1, block);
+            return true;
+        }
+        if outdent_in_tree(&mut siblings[parent_pos].children, block_id) {
+            return true;
+        }
+    }
+    false
+}
+
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 fn delete_from_tree(blocks: &mut Vec<Block>, id: Uuid) -> bool {
@@ -363,5 +451,124 @@ mod tests {
         let unknown = Uuid::new_v4();
         let res = set_block_color(&repo, doc.id, unknown, Some("red".into()));
         assert!(matches!(res, Err(PinkhaError::NotFound(_))));
+    }
+
+    // ── indent / outdent ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_indent_moves_block_under_previous_sibling() {
+        let repo = MockRepo::new();
+        let mut doc = Document::new(inline("Test"));
+        let a = text_block("A");
+        let b = text_block("B");
+        let b_id = b.id;
+        doc.blocks.push(a);
+        doc.blocks.push(b);
+        repo.save(&doc).unwrap();
+
+        indent_block(&repo, doc.id, b_id).unwrap();
+
+        let loaded = repo.load(doc.id).unwrap();
+        assert_eq!(loaded.blocks.len(), 1);
+        assert_eq!(loaded.blocks[0].children.len(), 1);
+        assert_eq!(loaded.blocks[0].children[0].id, b_id);
+    }
+
+    #[test]
+    fn test_indent_first_block_fails() {
+        let repo = MockRepo::new();
+        let mut doc = Document::new(inline("Test"));
+        let a = text_block("A");
+        let a_id = a.id;
+        doc.blocks.push(a);
+        repo.save(&doc).unwrap();
+
+        let res = indent_block(&repo, doc.id, a_id);
+        assert!(matches!(res, Err(PinkhaError::InvalidOperation(_))));
+    }
+
+    #[test]
+    fn test_indent_works_inside_nested_subtree() {
+        // [parent]
+        //   ├─ child1
+        //   └─ child2  ← indent child2 under child1
+        let repo = MockRepo::new();
+        let mut doc = Document::new(inline("Test"));
+        let mut parent = text_block("parent");
+        let child1 = text_block("child1");
+        let child2 = text_block("child2");
+        let child2_id = child2.id;
+        parent.children.push(child1);
+        parent.children.push(child2);
+        doc.blocks.push(parent);
+        repo.save(&doc).unwrap();
+
+        indent_block(&repo, doc.id, child2_id).unwrap();
+
+        let loaded = repo.load(doc.id).unwrap();
+        assert_eq!(loaded.blocks[0].children.len(), 1);
+        assert_eq!(loaded.blocks[0].children[0].children[0].id, child2_id);
+    }
+
+    #[test]
+    fn test_outdent_moves_block_to_grandparent_after_parent() {
+        // parent
+        //   └─ child  ← outdent
+        // → parent, child (sibling, right after)
+        let repo = MockRepo::new();
+        let mut doc = Document::new(inline("Test"));
+        let mut parent = text_block("parent");
+        let child = text_block("child");
+        let child_id = child.id;
+        parent.children.push(child);
+        doc.blocks.push(parent);
+        repo.save(&doc).unwrap();
+
+        outdent_block(&repo, doc.id, child_id).unwrap();
+
+        let loaded = repo.load(doc.id).unwrap();
+        assert_eq!(loaded.blocks.len(), 2);
+        assert!(loaded.blocks[0].children.is_empty());
+        assert_eq!(loaded.blocks[1].id, child_id);
+    }
+
+    #[test]
+    fn test_outdent_root_block_fails() {
+        let repo = MockRepo::new();
+        let mut doc = Document::new(inline("Test"));
+        let a = text_block("A");
+        let a_id = a.id;
+        doc.blocks.push(a);
+        repo.save(&doc).unwrap();
+
+        let res = outdent_block(&repo, doc.id, a_id);
+        assert!(matches!(res, Err(PinkhaError::InvalidOperation(_))));
+    }
+
+    #[test]
+    fn test_outdent_keeps_reading_order_with_sibling_after_parent() {
+        // root
+        //   ├─ parent
+        //   │    └─ child  ← outdent
+        //   └─ z
+        // → root.children = [parent, child, z]
+        let repo = MockRepo::new();
+        let mut doc = Document::new(inline("Test"));
+        let mut parent = text_block("parent");
+        let child = text_block("child");
+        let child_id = child.id;
+        parent.children.push(child);
+        let z = text_block("z");
+        let z_id = z.id;
+        doc.blocks.push(parent);
+        doc.blocks.push(z);
+        repo.save(&doc).unwrap();
+
+        outdent_block(&repo, doc.id, child_id).unwrap();
+
+        let loaded = repo.load(doc.id).unwrap();
+        assert_eq!(loaded.blocks.len(), 3);
+        assert_eq!(loaded.blocks[1].id, child_id);
+        assert_eq!(loaded.blocks[2].id, z_id);
     }
 }

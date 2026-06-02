@@ -110,7 +110,9 @@ extension DocumentView {
             onUndo: { vm.undo() },
             onRedo: { vm.redo() },
             canUndoProvider: { vm.canUndo },
-            canRedoProvider: { vm.canRedo }
+            canRedoProvider: { vm.canRedo },
+            onIndent: { vm.indentBlock(id: block.id) },
+            onOutdent: { vm.outdentBlock(id: block.id) }
         )
     }
 }

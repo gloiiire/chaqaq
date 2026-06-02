@@ -605,6 +605,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func importFromNotion(token: String, databaseId: String) throws  -> ImportResultFfi
     
     /**
+     * Indente un bloc : le déplace sous le frère précédent au même niveau.
+     * `InvalidOperation` si le bloc est le premier de son niveau.
+     */
+    func indentBlock(docId: String, blockId: String) throws 
+    
+    /**
      * Liste les métadonnées de toutes les databases actives.
      */
     func listDatabases() throws  -> [DatabaseMetaFfi]
@@ -626,6 +632,13 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func moveDocumentToFolder(docId: String, folderId: String?) throws 
     
     func moveFolderTo(id: String, newParentId: String?) throws 
+    
+    /**
+     * Désindente un bloc : le sort de son parent et le replace au niveau du
+     * grand-parent, juste après l'ancien parent. `InvalidOperation` si le
+     * bloc est déjà à la racine.
+     */
+    func outdentBlock(docId: String, blockId: String) throws 
     
     /**
      * Retourne les entrées filtrées/triées en JSON.
@@ -1105,6 +1118,19 @@ open func importFromNotion(token: String, databaseId: String)throws  -> ImportRe
 }
     
     /**
+     * Indente un bloc : le déplace sous le frère précédent au même niveau.
+     * `InvalidOperation` si le bloc est le premier de son niveau.
+     */
+open func indentBlock(docId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_indent_block(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(docId),
+        FfiConverterString.lower(blockId),$0
+    )
+}
+}
+    
+    /**
      * Liste les métadonnées de toutes les databases actives.
      */
 open func listDatabases()throws  -> [DatabaseMetaFfi]  {
@@ -1170,6 +1196,20 @@ open func moveFolderTo(id: String, newParentId: String?)throws   {try rustCallWi
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
         FfiConverterOptionString.lower(newParentId),$0
+    )
+}
+}
+    
+    /**
+     * Désindente un bloc : le sort de son parent et le replace au niveau du
+     * grand-parent, juste après l'ancien parent. `InvalidOperation` si le
+     * bloc est déjà à la racine.
+     */
+open func outdentBlock(docId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_outdent_block(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(docId),
+        FfiConverterString.lower(blockId),$0
     )
 }
 }
@@ -2075,6 +2115,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion() != 54840) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_indent_block() != 34803) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_databases() != 58802) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -2094,6 +2137,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_move_folder_to() != 28416) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_outdent_block() != 55400) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_query_database_json() != 4012) {
