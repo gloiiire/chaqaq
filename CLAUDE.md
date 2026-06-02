@@ -204,6 +204,18 @@ let id  = try api.creerDocument(titre: "Ma note")
 let json = try api.obtenirDocumentJson(id: id)  // → Codable
 ```
 
+#### Runtime Tokio pour les extractors reqwest
+
+UniFFI 0.31 ship son propre foreign-task executor, **qui n'est pas un runtime Tokio**. Un futur reqwest poll sous cet executor panique avec `there is no reactor running, must be called from the context of a Tokio 1.x runtime` — reqwest enregistre ses IO directement avec Tokio.
+
+Pattern utilisé dans `ffi.rs` pour contourner :
+1. Singleton process-wide via `OnceLock<tokio::runtime::Runtime>` (multi-thread, 2 workers, `enable_all()`)
+2. La méthode FFI est déclarée **synchrone** (pas `async fn`, pas `[Async]` dans le UDL)
+3. À l'intérieur, on `tokio_runtime().block_on(extractor.run(...))`
+4. Swift dispatche depuis `Task.detached(priority: .userInitiated)` pour ne pas geler le main thread
+
+Cf. `import_from_notion` comme référence — les futurs extractors qui font de l'I/O réseau (Google Keep API, Apple Notes export, etc.) doivent suivre ce pattern. Les extractors purement sync (Bear via `rusqlite`, Craft via `realm-codec`) peuvent rester `async fn` UniFFI sans souci, car ils n'attendent rien qui exige un reactor Tokio.
+
 ### `app/Sources/` — Couche UI SwiftUI
 
 **`Models.swift`** — miroirs Swift des types Rust sérialisés par serde :
@@ -312,7 +324,7 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
   - 2 projets Sentry séparés dans l'org `Pinkha-app` : `apple-ios` (app) + `notion-proxy` (backend). `tracesSampleRate` à 1.0 en debug, 0.2 en release.
 - **Pipelines d'extraction** (`src/extractors/`) :
   - Architecture `Extractor` trait (async, `Config` associé, `ImportResult`)
-  - **Notion** : client reqwest rustls-tls, API v1 paginée (database schema → pages → blocs récursifs), mapping complet propriétés/valeurs/blocs, `ImportResultFfi` exposé via UniFFI async
+  - **Notion** : client reqwest rustls-tls, API v1 paginée (database schema → pages → blocs récursifs), mapping complet propriétés/valeurs/blocs. **FFI synchrone** (`block_on` un `tokio::runtime::Runtime` singleton via `OnceLock`) — UniFFI 0.31 n'expose pas de reactor Tokio, mais reqwest en exige un. Swift dispatche via `Task.detached`. Flow OAuth2 + token exchange + import end-to-end validés sur device le 2026-06-02 (token Notion reçu via proxy Railway, import database → SQLite local-first OK).
   - **Bear** : lecteur SQLite read-only, conversion timestamps Core Data, parseur Markdown Bear ligne par ligne
   - Trois nouveaux variants `BlockContent` : `BulletedListItem`, `NumberedListItem`, `Code` — full-fidelity import, rendu read-only + édition dans l'éditeur
   - **Craft** : lecteur Realm v9 binary read-only via `realm-codec` (crate workspace), heuristique `rawProperties.titleEnabled == "true"` pour détecter les pages, 2498 docs / 4224 blocs / 41 skipped sur fichier réel
