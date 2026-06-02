@@ -5,6 +5,14 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 /// A single row in a database.
+///
+/// `document_id` links the row back to a full Pinkha [`Document`] when the
+/// row represents a page (Notion-style — every row IS a page). When set,
+/// orchestration code propagates Title changes from the row to the document
+/// so renaming a row in the DB view also renames the underlying note.
+/// `None` for rows that are pure tabular data without an attached page.
+///
+/// [`Document`]: crate::domain::document::Document
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Entry {
     /// Unique identifier for this entry.
@@ -14,15 +22,34 @@ pub struct Entry {
     pub created_at: String,
     /// Cell values keyed by property ID.
     pub values: HashMap<Uuid, PropertyValue>,
+    /// Optional link to the [`Document`] this row represents. `#[serde(default)]`
+    /// keeps the field backward-compatible with entries serialised before it existed.
+    ///
+    /// [`Document`]: crate::domain::document::Document
+    #[serde(default)]
+    pub document_id: Option<Uuid>,
 }
 
 impl Entry {
-    /// Creates a new entry with a freshly generated UUID and the current UTC timestamp.
+    /// Creates a new standalone entry (no document attached).
     pub fn new(values: HashMap<Uuid, PropertyValue>) -> Self {
         Self {
             id: Uuid::new_v4(),
             created_at: Utc::now().to_rfc3339(),
             values,
+            document_id: None,
+        }
+    }
+
+    /// Creates a new entry linked to an existing document — used by import
+    /// pipelines (Notion, Craft) where every page becomes both a Document and
+    /// a row in its parent database.
+    pub fn with_document(values: HashMap<Uuid, PropertyValue>, document_id: Uuid) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            created_at: Utc::now().to_rfc3339(),
+            values,
+            document_id: Some(document_id),
         }
     }
 }

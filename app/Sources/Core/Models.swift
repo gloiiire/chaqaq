@@ -368,12 +368,23 @@ enum PropertyValueFfi: Codable, Equatable {
 }
 
 /// A database row. Mirrors Rust `Entry`.
+///
+/// `documentId` is set for rows imported from Notion / Craft (where every page
+/// becomes both a Document and a row). When set, renaming the row via the FFI
+/// `updateEntry` call propagates the new title to the underlying note. `nil`
+/// for standalone tabular rows with no attached page.
 struct EntryFfi: Codable, Identifiable {
     let id: String
     let createdAt: String
     var values: [String: PropertyValueFfi]
+    let documentId: String?
 
-    enum CodingKeys: String, CodingKey { case id, createdAt = "created_at", values }
+    enum CodingKeys: String, CodingKey {
+        case id
+        case createdAt = "created_at"
+        case values
+        case documentId = "document_id"
+    }
 }
 
 /// Full database payload returned by `getDatabaseJson`. Mirrors Rust `Database`.

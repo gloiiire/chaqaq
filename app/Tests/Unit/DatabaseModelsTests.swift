@@ -183,6 +183,24 @@ struct EntryFfiTests {
         let entry = try JSONDecoder().decode(EntryFfi.self, from: Data(json.utf8))
         #expect(entry.values[propId] == .checkbox(true))
     }
+
+    /// Legacy entries serialised before `document_id` existed must still
+    /// decode — mirrors the Rust `#[serde(default)]` guarantee.
+    @Test func decodesLegacyEntryWithoutDocumentId() throws {
+        let json = """
+        {"id":"legacy","created_at":"","values":{}}
+        """
+        let entry = try JSONDecoder().decode(EntryFfi.self, from: Data(json.utf8))
+        #expect(entry.documentId == nil)
+    }
+
+    @Test func decodesEntryWithDocumentLink() throws {
+        let json = """
+        {"id":"e3","created_at":"","values":{},"document_id":"doc-123"}
+        """
+        let entry = try JSONDecoder().decode(EntryFfi.self, from: Data(json.utf8))
+        #expect(entry.documentId == "doc-123")
+    }
 }
 
 @Suite("DatabaseFfi — Codable decoding")
