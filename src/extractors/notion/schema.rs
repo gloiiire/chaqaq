@@ -180,6 +180,10 @@ pub struct NotionBlock {
 #[derive(Debug, Deserialize)]
 pub struct RichTextBlock {
     pub rich_text: Vec<NotionRichText>,
+    /// Block-level colour (`"default"`, `"red"`, `"red_background"`, …).
+    /// Mapped to `Block.color` at import — backgrounds are ignored for now.
+    #[serde(default = "default_color")]
+    pub color: String,
 }
 
 /// Callout block — rich text plus an optional icon.
@@ -187,6 +191,8 @@ pub struct RichTextBlock {
 pub struct CalloutBlock {
     pub rich_text: Vec<NotionRichText>,
     pub icon: Option<CalloutIcon>,
+    #[serde(default = "default_color")]
+    pub color: String,
 }
 
 /// Icon attached to a callout.
@@ -202,6 +208,8 @@ pub struct CalloutIcon {
 pub struct TodoBlock {
     pub rich_text: Vec<NotionRichText>,
     pub checked: bool,
+    #[serde(default = "default_color")]
+    pub color: String,
 }
 
 /// Code block — rich text (the code content) plus language hint.
@@ -209,4 +217,6 @@ pub struct TodoBlock {
 pub struct CodeBlock {
     pub rich_text: Vec<NotionRichText>,
     pub language: String,
+    #[serde(default = "default_color")]
+    pub color: String,
 }
