@@ -221,12 +221,263 @@ fn new_format_with_timestamp_column_consumes_two_cluster_slots() {
     assert_eq!(t.get(&t.rows[0], "when").as_timestamp(), 1_700_000_000);
 }
 
-// NOTE: A test for the BackLink zero-slot branch in `cluster_index_for_col`
-// would require nibble code 13 — but `ColumnType::from_u8(13)` returns
-// `LinkList`, so the test data ends up with mismatched typing assertions.
-// The branch IS reachable (Craft files do use it) but exercising it via
-// hand-built bytes would assert on the wrong column type. Skipped here
-// to keep the test set honest.
+#[test]
+fn new_format_with_backlink_column_consumes_zero_cluster_slots() {
+    let mut b = Bldr::new();
+
+    let col0_data = b.write_multiply_strings(&["r"], 8);
+    let int_data = b.write_i64_array(&[99i64]);
+    // BackLink column (nibble code 14, ColumnType::BackLink) occupies 0
+    // cluster slots — the Int column that follows still maps to cluster[2].
+    let cluster_root = b.write_u64_array(&[col0_data as u64, 0, int_data as u64]);
+
+    let types_ref = b.write_nibble_array(&[2, 14, 0]); // String, BackLink, Int
+    let names_ref = b.write_multiply_strings(&["id", "bl", "n"], 32);
+    let spec_ref = b.write_u64_array(&[types_ref as u64, names_ref as u64, 0, 0]);
+    let table_ref = b.write_u64_array(&[spec_ref as u64, cluster_root as u64]);
+
+    let table_refs_ref = b.write_u64_array(&[table_ref as u64]);
+    let names_arr_ref = b.write_multiply_strings(&["T"], 64);
+    let group_ref = b.write_u64_array(&[names_arr_ref as u64, table_refs_ref as u64]);
+
+    let data = b.finalize(group_ref);
+    let realm = RealmFile::from_bytes(&data).expect("parse");
+    let t = realm.table("T").unwrap();
+    assert_eq!(t.rows.len(), 1);
+    assert_eq!(t.get(&t.rows[0], "n").as_int(), 99);
+}
+
+// ── String leaf — compact variant (offsets + concatenated blob) ──────────────
+
+/// WTYPE_IGNORE node containing raw bytes (used for string blobs).
+fn write_ignore_node(b: &mut Bldr, bytes: &[u8]) -> usize {
+    // wtype=2 (IGNORE), width=8 in the encoding still required but reader
+    // doesn't use it for IGNORE — `size` is the byte count.
+    let start = b.write_header(bytes.len(), Bldr::wenc(8), 2, false);
+    b.buf.extend_from_slice(bytes);
+    b.align();
+    start
+}
+
+#[test]
+fn new_format_string_compact_leaf() {
+    let mut b = Bldr::new();
+
+    // Concatenated null-terminated strings.
+    let blob_bytes = b"hello\0world\0";
+    let blob_ref = write_ignore_node(&mut b, blob_bytes);
+    // Offsets: index r points one past the null terminator of string r.
+    //   "hello\0" ends at byte 6, "world\0" ends at byte 12.
+    let offsets_ref = b.write_i64_array(&[6i64, 12]);
+
+    // Compact leaf: WTYPE_BITS, size <= 3, payload = [offsets_ref, blob_ref].
+    let col0_leaf = b.write_u64_array(&[offsets_ref as u64, blob_ref as u64]);
+
+    // PK is this string leaf directly (already cluster[0] = leaf).
+    let cluster_root = b.write_u64_array(&[col0_leaf as u64, 0]);
+
+    let types_ref = b.write_nibble_array(&[2]); // String
+    let names_ref = b.write_multiply_strings(&["id"], 32);
+    let spec_ref = b.write_u64_array(&[types_ref as u64, names_ref as u64, 0, 0]);
+    let table_ref = b.write_u64_array(&[spec_ref as u64, cluster_root as u64]);
+
+    let table_refs_ref = b.write_u64_array(&[table_ref as u64]);
+    let names_arr_ref = b.write_multiply_strings(&["T"], 64);
+    let group_ref = b.write_u64_array(&[names_arr_ref as u64, table_refs_ref as u64]);
+
+    let data = b.finalize(group_ref);
+    let realm = RealmFile::from_bytes(&data).expect("parse");
+    let t = realm.table("T").unwrap();
+    assert_eq!(t.rows.len(), 2);
+    assert_eq!(t.get(&t.rows[0], "id").as_str(), "hello");
+    assert_eq!(t.get(&t.rows[1], "id").as_str(), "world");
+}
+
+#[test]
+fn new_format_string_compact_leaf_with_empty_string() {
+    let mut b = Bldr::new();
+
+    // Empty first string: offsets[0] = 1 (just the null byte), then "x\0" → 3.
+    let blob_bytes = b"\0x\0";
+    let blob_ref = write_ignore_node(&mut b, blob_bytes);
+    let offsets_ref = b.write_i64_array(&[1i64, 3]);
+    let col0_leaf = b.write_u64_array(&[offsets_ref as u64, blob_ref as u64]);
+
+    let cluster_root = b.write_u64_array(&[col0_leaf as u64, 0]);
+    let types_ref = b.write_nibble_array(&[2]);
+    let names_ref = b.write_multiply_strings(&["id"], 32);
+    let spec_ref = b.write_u64_array(&[types_ref as u64, names_ref as u64, 0, 0]);
+    let table_ref = b.write_u64_array(&[spec_ref as u64, cluster_root as u64]);
+
+    let table_refs_ref = b.write_u64_array(&[table_ref as u64]);
+    let names_arr_ref = b.write_multiply_strings(&["T"], 64);
+    let group_ref = b.write_u64_array(&[names_arr_ref as u64, table_refs_ref as u64]);
+
+    let data = b.finalize(group_ref);
+    let realm = RealmFile::from_bytes(&data).expect("parse");
+    let t = realm.table("T").unwrap();
+    assert_eq!(t.get(&t.rows[0], "id").as_str(), "");
+    assert_eq!(t.get(&t.rows[1], "id").as_str(), "x");
+}
+
+#[test]
+fn new_format_string_compact_leaf_rejects_zero_offsets_ref() {
+    let mut b = Bldr::new();
+
+    let blob_bytes = b"hello\0";
+    let blob_ref = write_ignore_node(&mut b, blob_bytes);
+    // Offsets ref = 0 → reader's defensive path returns vec![].
+    let col0_leaf = b.write_u64_array(&[0u64, blob_ref as u64]);
+
+    let cluster_root = b.write_u64_array(&[col0_leaf as u64, 0]);
+    let types_ref = b.write_nibble_array(&[2]);
+    let names_ref = b.write_multiply_strings(&["id"], 32);
+    let spec_ref = b.write_u64_array(&[types_ref as u64, names_ref as u64, 0, 0]);
+    let table_ref = b.write_u64_array(&[spec_ref as u64, cluster_root as u64]);
+
+    let table_refs_ref = b.write_u64_array(&[table_ref as u64]);
+    let names_arr_ref = b.write_multiply_strings(&["T"], 64);
+    let group_ref = b.write_u64_array(&[names_arr_ref as u64, table_refs_ref as u64]);
+
+    let data = b.finalize(group_ref);
+    let realm = RealmFile::from_bytes(&data).expect("parse");
+    let t = realm.table("T").unwrap();
+    assert_eq!(t.rows.len(), 0);
+}
+
+#[test]
+fn new_format_string_compact_leaf_rejects_zero_blob_ref() {
+    let mut b = Bldr::new();
+
+    let offsets_ref = b.write_i64_array(&[6i64]);
+    // Blob ref = 0 → reader's defensive path returns vec![].
+    let col0_leaf = b.write_u64_array(&[offsets_ref as u64, 0u64]);
+
+    let cluster_root = b.write_u64_array(&[col0_leaf as u64, 0]);
+    let types_ref = b.write_nibble_array(&[2]);
+    let names_ref = b.write_multiply_strings(&["id"], 32);
+    let spec_ref = b.write_u64_array(&[types_ref as u64, names_ref as u64, 0, 0]);
+    let table_ref = b.write_u64_array(&[spec_ref as u64, cluster_root as u64]);
+
+    let table_refs_ref = b.write_u64_array(&[table_ref as u64]);
+    let names_arr_ref = b.write_multiply_strings(&["T"], 64);
+    let group_ref = b.write_u64_array(&[names_arr_ref as u64, table_refs_ref as u64]);
+
+    let data = b.finalize(group_ref);
+    let realm = RealmFile::from_bytes(&data).expect("parse");
+    let t = realm.table("T").unwrap();
+    assert_eq!(t.rows.len(), 0);
+}
+
+#[test]
+fn new_format_string_compact_leaf_rejects_non_ignore_blob() {
+    let mut b = Bldr::new();
+
+    // Blob is a u64 array (wtype=0), not WTYPE_IGNORE → reader returns vec![].
+    let bogus_blob = b.write_u64_array(&[0u64, 0]);
+    let offsets_ref = b.write_i64_array(&[6i64]);
+    let col0_leaf = b.write_u64_array(&[offsets_ref as u64, bogus_blob as u64]);
+
+    let cluster_root = b.write_u64_array(&[col0_leaf as u64, 0]);
+    let types_ref = b.write_nibble_array(&[2]);
+    let names_ref = b.write_multiply_strings(&["id"], 32);
+    let spec_ref = b.write_u64_array(&[types_ref as u64, names_ref as u64, 0, 0]);
+    let table_ref = b.write_u64_array(&[spec_ref as u64, cluster_root as u64]);
+
+    let table_refs_ref = b.write_u64_array(&[table_ref as u64]);
+    let names_arr_ref = b.write_multiply_strings(&["T"], 64);
+    let group_ref = b.write_u64_array(&[names_arr_ref as u64, table_refs_ref as u64]);
+
+    let data = b.finalize(group_ref);
+    let realm = RealmFile::from_bytes(&data).expect("parse");
+    let t = realm.table("T").unwrap();
+    assert_eq!(t.rows.len(), 0);
+}
+
+// ── String leaf — per-row refs variant ───────────────────────────────────────
+
+#[test]
+fn new_format_string_per_row_refs_leaf() {
+    let mut b = Bldr::new();
+
+    // Each cell is a separate wtype=2 node holding the UTF-8 bytes (null-terminated).
+    let s0 = write_ignore_node(&mut b, b"first\0");
+    let s1 = write_ignore_node(&mut b, b"second\0");
+    let s2 = write_ignore_node(&mut b, b"third\0");
+    let s3 = write_ignore_node(&mut b, b"fourth\0");
+    // The leaf is a u64 array (width=64 ≥ 16, size > 3) of refs.
+    let col0_leaf = b.write_u64_array(&[s0 as u64, s1 as u64, s2 as u64, s3 as u64]);
+
+    let cluster_root = b.write_u64_array(&[col0_leaf as u64, 0]);
+    let types_ref = b.write_nibble_array(&[2]);
+    let names_ref = b.write_multiply_strings(&["id"], 32);
+    let spec_ref = b.write_u64_array(&[types_ref as u64, names_ref as u64, 0, 0]);
+    let table_ref = b.write_u64_array(&[spec_ref as u64, cluster_root as u64]);
+
+    let table_refs_ref = b.write_u64_array(&[table_ref as u64]);
+    let names_arr_ref = b.write_multiply_strings(&["T"], 64);
+    let group_ref = b.write_u64_array(&[names_arr_ref as u64, table_refs_ref as u64]);
+
+    let data = b.finalize(group_ref);
+    let realm = RealmFile::from_bytes(&data).expect("parse");
+    let t = realm.table("T").unwrap();
+    let strs: Vec<&str> = t.rows.iter().map(|r| t.get(r, "id").as_str()).collect();
+    assert_eq!(strs, vec!["first", "second", "third", "fourth"]);
+}
+
+#[test]
+fn new_format_string_per_row_refs_with_zero_and_misaligned() {
+    let mut b = Bldr::new();
+
+    let s0 = write_ignore_node(&mut b, b"ok\0");
+    let s2 = write_ignore_node(&mut b, b"good\0");
+    let s3 = write_ignore_node(&mut b, b"yes\0");
+    // refs: [valid, 0 → empty, misaligned (3) → empty, valid]
+    let col0_leaf = b.write_u64_array(&[s0 as u64, 0, 3, s2 as u64, s3 as u64]);
+
+    let cluster_root = b.write_u64_array(&[col0_leaf as u64, 0]);
+    let types_ref = b.write_nibble_array(&[2]);
+    let names_ref = b.write_multiply_strings(&["id"], 32);
+    let spec_ref = b.write_u64_array(&[types_ref as u64, names_ref as u64, 0, 0]);
+    let table_ref = b.write_u64_array(&[spec_ref as u64, cluster_root as u64]);
+
+    let table_refs_ref = b.write_u64_array(&[table_ref as u64]);
+    let names_arr_ref = b.write_multiply_strings(&["T"], 64);
+    let group_ref = b.write_u64_array(&[names_arr_ref as u64, table_refs_ref as u64]);
+
+    let data = b.finalize(group_ref);
+    let realm = RealmFile::from_bytes(&data).expect("parse");
+    let t = realm.table("T").unwrap();
+    let strs: Vec<&str> = t.rows.iter().map(|r| t.get(r, "id").as_str()).collect();
+    assert_eq!(strs, vec!["ok", "", "", "good", "yes"]);
+}
+
+#[test]
+fn new_format_string_per_row_refs_non_ignore_node_yields_empty() {
+    let mut b = Bldr::new();
+
+    // The per-row ref points to a wtype=0 node (not WTYPE_IGNORE) — reader
+    // returns an empty string via read_wtype2_string's defensive path.
+    let bogus = b.write_u64_array(&[0u64]);
+    let col0_leaf = b.write_u64_array(&[bogus as u64, bogus as u64, bogus as u64, bogus as u64]);
+
+    let cluster_root = b.write_u64_array(&[col0_leaf as u64, 0]);
+    let types_ref = b.write_nibble_array(&[2]);
+    let names_ref = b.write_multiply_strings(&["id"], 32);
+    let spec_ref = b.write_u64_array(&[types_ref as u64, names_ref as u64, 0, 0]);
+    let table_ref = b.write_u64_array(&[spec_ref as u64, cluster_root as u64]);
+
+    let table_refs_ref = b.write_u64_array(&[table_ref as u64]);
+    let names_arr_ref = b.write_multiply_strings(&["T"], 64);
+    let group_ref = b.write_u64_array(&[names_arr_ref as u64, table_refs_ref as u64]);
+
+    let data = b.finalize(group_ref);
+    let realm = RealmFile::from_bytes(&data).expect("parse");
+    let t = realm.table("T").unwrap();
+    for row in &t.rows {
+        assert_eq!(t.get(row, "id").as_str(), "");
+    }
+}
 
 #[test]
 fn new_format_with_linklist_column() {
