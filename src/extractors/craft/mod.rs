@@ -129,11 +129,11 @@ impl Extractor for CraftExtractor {
             let entry = doc_map.entry(doc_id).or_insert((None, vec![], 0));
 
             // Title: first "text" block with non-empty content, first line only.
-            if entry.0.is_none() {
-                if let Some(t) = title_candidate(&content, block_type) {
-                    entry.0 = Some(t);
-                    continue; // consumed as title, don't duplicate in content
-                }
+            if entry.0.is_none()
+                && let Some(t) = title_candidate(&content, block_type)
+            {
+                entry.0 = Some(t);
+                continue; // consumed as title, don't duplicate in content
             }
 
             let color = color_idx

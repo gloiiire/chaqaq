@@ -341,10 +341,10 @@ async fn import_page(
 
     // Notion properties → Pinkha property values.
     for (notion_name, pinkha_id) in prop_map {
-        if let Some(notion_val) = page.properties.get(notion_name) {
-            if let Some(pinkha_val) = map_property_value(notion_val) {
-                values.insert(*pinkha_id, pinkha_val);
-            }
+        if let Some(notion_val) = page.properties.get(notion_name)
+            && let Some(pinkha_val) = map_property_value(notion_val)
+        {
+            values.insert(*pinkha_id, pinkha_val);
         }
     }
 
@@ -560,11 +560,11 @@ fn rewrite_inlines_in_content(
     if let Some(spans) = inlines {
         for span in spans.iter_mut() {
             for style in span.styles.iter_mut() {
-                if let chaqaq::InlineStyle::Link(url) = style {
-                    if let Some(new_url) = rewrite_url(url, notion_to_pinkha) {
-                        *url = new_url;
-                        *rewrote = true;
-                    }
+                if let chaqaq::InlineStyle::Link(url) = style
+                    && let Some(new_url) = rewrite_url(url, notion_to_pinkha)
+                {
+                    *url = new_url;
+                    *rewrote = true;
                 }
             }
         }

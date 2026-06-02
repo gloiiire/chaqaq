@@ -506,7 +506,7 @@ fn test_journal_intime_dates_mixtes() {
     assert!(
         dates[3].is_none() || dates[3] == Some(&PropertyValue::Empty) || {
             // no manual date, so sorted by created_at
-            resultats[3].created_at > "2021".to_string()
+            resultats[3].created_at.as_str() > "2021"
         }
     );
 }

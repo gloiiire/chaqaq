@@ -1039,7 +1039,7 @@ impl PinkhaApi {
         extractor
             .run(config, &self.docs, &self.dbs, &self.folders)
             .await
-            .map(|r| ffi_import_result(r))
+            .map(ffi_import_result)
             .map_err(extractor_err_to_ffi)
     }
 
@@ -1056,7 +1056,7 @@ impl PinkhaApi {
         extractor
             .run(config, &self.docs, &self.dbs, &self.folders)
             .await
-            .map(|r| ffi_import_result(r))
+            .map(ffi_import_result)
             .map_err(extractor_err_to_ffi)
     }
 
@@ -1076,7 +1076,7 @@ impl PinkhaApi {
         extractor
             .run(config, &self.docs, &self.dbs, &self.folders)
             .await
-            .map(|r| ffi_import_result(r))
+            .map(ffi_import_result)
             .map_err(extractor_err_to_ffi)
     }
 

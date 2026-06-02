@@ -509,9 +509,9 @@ mod tests {
     fn value_accessors_hit() {
         assert_eq!(Value::String("hi".into()).as_str(), "hi");
         assert_eq!(Value::Int(42).as_int(), 42);
-        assert_eq!(Value::Bool(true).as_bool(), true);
+        assert!(Value::Bool(true).as_bool());
         assert_eq!(Value::Timestamp(100).as_timestamp(), 100);
-        assert!((Value::Float(3.14).as_float() - 3.14).abs() < 1e-9);
+        assert_eq!(Value::Float(2.5).as_float(), 2.5);
         assert_eq!(Value::LinkList(vec![1, 2, 3]).as_link_list(), &[1u32, 2, 3]);
     }
 
@@ -519,7 +519,7 @@ mod tests {
     fn value_accessors_miss() {
         assert_eq!(Value::Null.as_str(), "");
         assert_eq!(Value::Null.as_int(), 0);
-        assert_eq!(Value::Null.as_bool(), false);
+        assert!(!Value::Null.as_bool());
         assert_eq!(Value::Null.as_timestamp(), 0);
         assert_eq!(Value::Null.as_float(), 0.0);
         assert_eq!(Value::Null.as_link_list(), &[] as &[u32]);

@@ -346,7 +346,7 @@ fn craft_inspect_document_model() {
                 raw.contains("\"titleEnabled\":\"true\"") || raw.contains("\"titleEnabled\":true");
             let lsb = row.get(lsb_col).as_str().to_lowercase();
             let ct = row.get(content_col).as_str();
-            let same = &lsb == &did;
+            let same = lsb == did;
             println!("  documentId={did:?} lsb={lsb:?} same={same} titleEnabled={te} type={:?} content={:?}",
                 row.get(type_col).as_str(),
                 &ct[..ct.len().min(60)]);

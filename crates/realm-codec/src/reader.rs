@@ -253,7 +253,7 @@ fn cluster_index_for_col(col_idx: usize, col_type_ints: &[u64]) -> usize {
 /// — element 0 is always the offsets-tracking node (skip).
 /// — garbage refs (misaligned addresses) are detected and skipped.
 fn collect_strings_new(data: &[u8], col_ref: usize) -> Vec<String> {
-    if col_ref == 0 || col_ref % 8 != 0 {
+    if col_ref == 0 || !col_ref.is_multiple_of(8) {
         return vec![];
     }
     let hdr = match read_node_header(data, col_ref) {
@@ -273,7 +273,10 @@ fn collect_strings_new(data: &[u8], col_ref: usize) -> Vec<String> {
             }
             let child_ref = child_u64 as usize;
             // Realm nodes are always 8-byte aligned; misaligned = garbage
-            if child_ref == 0 || child_ref % 8 != 0 || child_ref + NODE_HEADER_SIZE > data.len() {
+            if child_ref == 0
+                || !child_ref.is_multiple_of(8)
+                || child_ref + NODE_HEADER_SIZE > data.len()
+            {
                 continue;
             }
             result.extend(collect_strings_new(data, child_ref));
@@ -369,7 +372,8 @@ fn read_perrow_string_refs(data: &[u8], leaf_ref: usize) -> Vec<String> {
     refs.into_iter()
         .map(|str_ref_u64| {
             let str_ref = str_ref_u64 as usize;
-            if str_ref == 0 || str_ref % 8 != 0 || str_ref + NODE_HEADER_SIZE > data.len() {
+            if str_ref == 0 || !str_ref.is_multiple_of(8) || str_ref + NODE_HEADER_SIZE > data.len()
+            {
                 return String::new();
             }
             read_wtype2_string(data, str_ref).unwrap_or_default()
@@ -400,7 +404,7 @@ fn read_wtype2_string(data: &[u8], str_ref: usize) -> Result<String> {
 /// Same inner-node layout as for strings: skip element 0 (offsets-tracking),
 /// filter garbage children by alignment.
 fn collect_ints_new(data: &[u8], col_ref: usize) -> Vec<u64> {
-    if col_ref == 0 || col_ref % 8 != 0 {
+    if col_ref == 0 || !col_ref.is_multiple_of(8) {
         return vec![];
     }
     let hdr = match read_node_header(data, col_ref) {
@@ -419,7 +423,10 @@ fn collect_ints_new(data: &[u8], col_ref: usize) -> Vec<u64> {
                 continue;
             }
             let child_ref = child_u64 as usize;
-            if child_ref == 0 || child_ref % 8 != 0 || child_ref + NODE_HEADER_SIZE > data.len() {
+            if child_ref == 0
+                || !child_ref.is_multiple_of(8)
+                || child_ref + NODE_HEADER_SIZE > data.len()
+            {
                 continue;
             }
             result.extend(collect_ints_new(data, child_ref));
@@ -441,7 +448,7 @@ fn collect_ints_new(data: &[u8], col_ref: usize) -> Vec<u64> {
 /// Each leaf element is either 0 (empty list) or a reference to a sub-array
 /// containing the ordered row indices.
 fn collect_linklists_new(data: &[u8], col_ref: usize) -> Vec<Vec<u32>> {
-    if col_ref == 0 || col_ref % 8 != 0 {
+    if col_ref == 0 || !col_ref.is_multiple_of(8) {
         return vec![];
     }
     let hdr = match read_node_header(data, col_ref) {
@@ -460,7 +467,10 @@ fn collect_linklists_new(data: &[u8], col_ref: usize) -> Vec<Vec<u32>> {
                 continue; // offsets-tracking ref
             }
             let child_ref = child_u64 as usize;
-            if child_ref == 0 || child_ref % 8 != 0 || child_ref + NODE_HEADER_SIZE > data.len() {
+            if child_ref == 0
+                || !child_ref.is_multiple_of(8)
+                || child_ref + NODE_HEADER_SIZE > data.len()
+            {
                 continue;
             }
             result.extend(collect_linklists_new(data, child_ref));
@@ -477,7 +487,10 @@ fn collect_linklists_new(data: &[u8], col_ref: usize) -> Vec<Vec<u32>> {
         .into_iter()
         .map(|ptr_u64| {
             let list_ref = ptr_u64 as usize;
-            if list_ref == 0 || list_ref % 8 != 0 || list_ref + NODE_HEADER_SIZE > data.len() {
+            if list_ref == 0
+                || !list_ref.is_multiple_of(8)
+                || list_ref + NODE_HEADER_SIZE > data.len()
+            {
                 return vec![];
             }
             collect_ints_new(data, list_ref)

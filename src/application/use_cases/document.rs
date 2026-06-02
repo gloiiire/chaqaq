@@ -136,7 +136,7 @@ pub fn save_edited_block(
 
 // ── Internal tree helpers (shared with blocks module) ─────────────────────────
 
-pub(super) fn find_block_mut(blocks: &mut Vec<Block>, id: Uuid) -> Option<&mut Block> {
+pub(super) fn find_block_mut(blocks: &mut [Block], id: Uuid) -> Option<&mut Block> {
     // first pass: search at the current level
     if let Some(pos) = blocks.iter().position(|b| b.id == id) {
         return Some(&mut blocks[pos]);

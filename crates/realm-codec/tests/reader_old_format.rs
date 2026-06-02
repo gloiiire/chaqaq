@@ -22,7 +22,7 @@ impl Bldr {
     }
 
     fn align(&mut self) {
-        while self.buf.len() % 8 != 0 {
+        while !self.buf.len().is_multiple_of(8) {
             self.buf.push(0);
         }
     }
@@ -182,7 +182,7 @@ fn old_format_inner_btree_with_zero_size_branch_yields_zero_rows() {
         b.align();
         let start = b.buf.len();
         // wtype=0 BITS, wenc=7 (64-bit), is_inner=1, size=0
-        let h4 = 0x80 | (0 << 3) | 7;
+        let h4 = 0x80 | 7;
         b.buf.extend_from_slice(&[0, 0, 0, 0, h4, 0, 0, 0]);
         b.align();
         start
@@ -240,7 +240,7 @@ fn old_format_float_column_32bit() {
         b.align();
         let s = b.buf.len();
         // size = 2, width_enc = 6 (32-bit), wtype = 0
-        let h4 = 0 | 6;
+        let h4 = 6;
         b.buf.extend_from_slice(&[0, 0, 0, 0, h4, 0, 0, 2]);
         let f0: f32 = 1.5;
         let f1: f32 = -2.25;
@@ -264,7 +264,7 @@ fn old_format_double_column_64bit() {
     let start = {
         b.align();
         let s = b.buf.len();
-        let h4 = 0 | 7;
+        let h4 = 7;
         b.buf.extend_from_slice(&[0, 0, 0, 0, h4, 0, 0, 1]);
         let d: f64 = std::f64::consts::PI;
         b.buf.extend_from_slice(&d.to_bits().to_le_bytes());

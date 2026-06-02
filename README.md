@@ -186,7 +186,7 @@ After cloning, run these two scripts once to wire up the local git environment:
 ./scripts/install-hooks.sh   # installs the pre-commit hook (fmt)
 ```
 
-The **pre-commit hook** runs `cargo fmt --all --check` whenever a commit touches a `.rs` file. Commits with no Rust changes are skipped instantly. Clippy is **not** in the hook yet — the legacy code still has unaddressed `-D warnings` violations that will be cleaned up in a follow-up PR; once green, clippy will be added to the hook.
+The **pre-commit hook** runs `cargo fmt --all --check` + `cargo clippy --workspace --all-targets -- -D warnings` whenever a commit touches a `.rs` file. Mirrors what CI enforces, so most red builds are caught locally before push. Commits with no Rust changes are skipped instantly.
 
 Hook sources live in [`scripts/hooks/`](scripts/hooks) and are symlinked into `.git/hooks/`, so editing them in-place takes effect immediately. Emergency bypass: `git commit --no-verify` — but the repo rule is to fix the root cause instead.
 
