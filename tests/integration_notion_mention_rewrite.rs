@@ -31,10 +31,18 @@ fn rewrite_replaces_notion_url_with_pinkha_doc_link() {
     let store = store_temp();
 
     // The "target" page that the link points to — already imported.
-    let target_doc = create_document(&store, "Target page").unwrap();
+    let target_doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Target page",
+    )
+    .unwrap();
 
     // The "source" page that links to the target.
-    let mut source_doc = create_document(&store, "Source page").unwrap();
+    let mut source_doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Source page",
+    )
+    .unwrap();
     let notion_target_id = "abc123def456abc123def456abc123de"; // 32 hex
     let notion_url = format!("https://www.notion.so/My-Workspace/Target-page-{notion_target_id}");
     source_doc.blocks.push(Block::new(BlockContent::Text(vec![
@@ -55,7 +63,11 @@ fn rewrite_replaces_notion_url_with_pinkha_doc_link() {
     rewrite_notion_mentions(&store, source_doc.id, &map).unwrap();
 
     // The link URL should now point at the target Pinkha doc.
-    let reloaded = pinkha::application::use_cases::get_document(&store, source_doc.id).unwrap();
+    let reloaded = pinkha::application::use_cases::get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        source_doc.id,
+    )
+    .unwrap();
     if let BlockContent::Text(spans) = &reloaded.blocks[0].content {
         let link_span = &spans[1];
         let Some(InlineStyle::Link(url)) = link_span.styles.first() else {
@@ -70,7 +82,11 @@ fn rewrite_replaces_notion_url_with_pinkha_doc_link() {
 #[test]
 fn rewrite_leaves_unknown_links_alone() {
     let store = store_temp();
-    let mut doc = create_document(&store, "Page").unwrap();
+    let mut doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Page",
+    )
+    .unwrap();
     let foreign_url = "https://example.com/article";
     doc.blocks
         .push(Block::new(BlockContent::Text(vec![span_with_link(
@@ -82,7 +98,11 @@ fn rewrite_leaves_unknown_links_alone() {
 
     rewrite_notion_mentions(&store, doc.id, &HashMap::new()).unwrap();
 
-    let reloaded = pinkha::application::use_cases::get_document(&store, doc.id).unwrap();
+    let reloaded = pinkha::application::use_cases::get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    )
+    .unwrap();
     if let BlockContent::Text(spans) = &reloaded.blocks[0].content {
         if let Some(InlineStyle::Link(url)) = spans[0].styles.first() {
             assert_eq!(url, foreign_url);

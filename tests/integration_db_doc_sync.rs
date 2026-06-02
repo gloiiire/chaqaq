@@ -41,25 +41,50 @@ fn renaming_a_linked_row_renames_the_underlying_document() {
     let dbs = db_store();
 
     // Seed a document.
-    let doc = create_document(&docs, "Old name").unwrap();
+    let doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&docs),
+        "Old name",
+    )
+    .unwrap();
 
     // Seed a database with a Title property.
     let title_prop = Property::new("Name", PropertyType::Title);
     let title_prop_id = title_prop.id;
-    let db = create_database(&dbs, span("Notes"), vec![title_prop]).unwrap();
+    let db = create_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&dbs),
+        span("Notes"),
+        vec![title_prop],
+    )
+    .unwrap();
 
     // Link the row to the document.
     let initial: HashMap<Uuid, PropertyValue> =
         HashMap::from([(title_prop_id, PropertyValue::Title(span("Old name")))]);
-    let entry = add_entry_with_document(&dbs, db.id, initial, doc.id).unwrap();
+    let entry = add_entry_with_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&dbs),
+        db.id,
+        initial,
+        doc.id,
+    )
+    .unwrap();
 
     // Rename via the orchestration use case.
     let renamed: HashMap<Uuid, PropertyValue> =
         HashMap::from([(title_prop_id, PropertyValue::Title(span("New name")))]);
-    update_entry_propagating_title(&docs, &dbs, db.id, entry.id, renamed).unwrap();
+    update_entry_propagating_title(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs_dbs(&docs, &dbs),
+        db.id,
+        entry.id,
+        renamed,
+    )
+    .unwrap();
 
     // Both the row AND the document reflect the new name.
-    let db = get_database(&dbs, db.id).unwrap();
+    let db = get_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&dbs),
+        db.id,
+    )
+    .unwrap();
     match &db.entries[0].values[&title_prop_id] {
         PropertyValue::Title(spans) => {
             let plain: String = spans.iter().map(|s| s.content.as_str()).collect();
@@ -68,7 +93,11 @@ fn renaming_a_linked_row_renames_the_underlying_document() {
         other => panic!("expected Title, got {other:?}"),
     }
 
-    let doc = get_document(&docs, doc.id).unwrap();
+    let doc = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&docs),
+        doc.id,
+    )
+    .unwrap();
     let plain: String = doc.title.iter().map(|s| s.content.as_str()).collect();
     assert_eq!(plain, "New name");
 }
@@ -79,23 +108,47 @@ fn renaming_an_unlinked_row_does_not_touch_unrelated_documents() {
     let dbs = db_store();
 
     // A document that exists but is NOT linked to any row.
-    let bystander = create_document(&docs, "Should stay").unwrap();
+    let bystander = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&docs),
+        "Should stay",
+    )
+    .unwrap();
 
     let title_prop = Property::new("Name", PropertyType::Title);
     let title_prop_id = title_prop.id;
-    let db = create_database(&dbs, span("DB"), vec![title_prop]).unwrap();
+    let db = create_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&dbs),
+        span("DB"),
+        vec![title_prop],
+    )
+    .unwrap();
 
     // Standalone row.
     let initial: HashMap<Uuid, PropertyValue> =
         HashMap::from([(title_prop_id, PropertyValue::Title(span("Row A")))]);
-    let entry = add_entry(&dbs, db.id, initial).unwrap();
+    let entry = add_entry(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&dbs),
+        db.id,
+        initial,
+    )
+    .unwrap();
 
     let renamed: HashMap<Uuid, PropertyValue> =
         HashMap::from([(title_prop_id, PropertyValue::Title(span("Row A renamed")))]);
-    update_entry_propagating_title(&docs, &dbs, db.id, entry.id, renamed).unwrap();
+    update_entry_propagating_title(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs_dbs(&docs, &dbs),
+        db.id,
+        entry.id,
+        renamed,
+    )
+    .unwrap();
 
     // Bystander document untouched.
-    let doc = get_document(&docs, bystander.id).unwrap();
+    let doc = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&docs),
+        bystander.id,
+    )
+    .unwrap();
     let plain: String = doc.title.iter().map(|s| s.content.as_str()).collect();
     assert_eq!(plain, "Should stay");
 }

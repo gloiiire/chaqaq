@@ -21,7 +21,11 @@ fn test_editer_title_puis_sauvegarder() {
     let (store, dir) = store_temp();
 
     // create the document
-    let mut doc = create_document(&store, "Titre").unwrap();
+    let mut doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Titre",
+    )
+    .unwrap();
 
     // edit the title via the editor
     let mut state = EditorState::new(RichText::from(&doc.title));
@@ -35,7 +39,11 @@ fn test_editer_title_puis_sauvegarder() {
     store.save(&doc).unwrap();
 
     // reload and verify
-    let recharge = get_document(&store, doc.id).unwrap();
+    let recharge = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    )
+    .unwrap();
     assert_eq!(recharge.title[0].content, "Titre!");
 
     std::fs::remove_dir_all(dir).unwrap();
@@ -45,7 +53,11 @@ fn test_editer_title_puis_sauvegarder() {
 fn test_style_persisté_apres_sauvegarde() {
     let (store, dir) = store_temp();
 
-    let mut doc = create_document(&store, "Notes").unwrap();
+    let mut doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Notes",
+    )
+    .unwrap();
 
     let mut state = EditorState::new(RichText::from(&doc.title));
     let mut hist = History::default();
@@ -58,7 +70,11 @@ fn test_style_persisté_apres_sauvegarde() {
     doc.title = Vec::from(&state.text);
     store.save(&doc).unwrap();
 
-    let recharge = get_document(&store, doc.id).unwrap();
+    let recharge = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    )
+    .unwrap();
     assert!(
         recharge
             .title
@@ -73,7 +89,11 @@ fn test_style_persisté_apres_sauvegarde() {
 fn test_undo_avant_sauvegarde() {
     let (store, dir) = store_temp();
 
-    let mut doc = create_document(&store, "Brouillon").unwrap();
+    let mut doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Brouillon",
+    )
+    .unwrap();
 
     let mut state = EditorState::new(RichText::from(&doc.title));
     let mut hist = History::default();
@@ -88,7 +108,11 @@ fn test_undo_avant_sauvegarde() {
     doc.title = Vec::from(&state.text);
     store.save(&doc).unwrap();
 
-    let recharge = get_document(&store, doc.id).unwrap();
+    let recharge = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    )
+    .unwrap();
     assert_eq!(recharge.title[0].content, "Brouillon");
 
     std::fs::remove_dir_all(dir).unwrap();

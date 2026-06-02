@@ -32,6 +32,7 @@ use crate::domain::database::{
 use crate::domain::document::{Block, BlockContent, DocumentMeta};
 use crate::domain::folder::FolderMeta;
 use crate::domain::parser::parse_inline;
+use crate::infrastructure::no_op_unit_of_work::NoOpUnitOfWork;
 use crate::infrastructure::sqlite_database_store::SqliteDatabaseStore;
 use crate::infrastructure::sqlite_document_store::SqliteDocumentStore;
 use crate::infrastructure::sqlite_folder_store::SqliteFolderStore;
@@ -307,20 +308,29 @@ impl PinkhaApi {
         Ok(Self { docs, dbs, folders })
     }
 
+    /// Opens a non-transactional unit of work that borrows the three
+    /// repositories. Use cases consume `&dyn UnitOfWork`; this is the bridge
+    /// that wires the composition root to each call. The returned UoW's
+    /// `commit()` is a no-op (the underlying stores write through their own
+    /// SQLite connections); a future transactional impl will swap in here.
+    fn uow(&self) -> NoOpUnitOfWork<'_> {
+        NoOpUnitOfWork::new(&self.docs, &self.dbs, &self.folders)
+    }
+
     // ── Documents ─────────────────────────────────────────────
 
     /// Creates a new document with the given plain-text title.
     /// Returns the UUID string of the created document.
     pub fn create_document(&self, title: String) -> Result<String, PinkhaError> {
         validate_string(&title, "title")?;
-        let doc = use_cases::create_document(&self.docs, &title).map_err(PinkhaError::from)?;
+        let doc = use_cases::create_document(&self.uow(), &title).map_err(PinkhaError::from)?;
         Ok(doc.id.to_string())
     }
 
     /// Returns the full document as a JSON string (decodable as `DocumentFfi` in Swift).
     pub fn get_document_json(&self, id: String) -> Result<String, PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        let doc = use_cases::get_document(&self.docs, uuid).map_err(PinkhaError::from)?;
+        let doc = use_cases::get_document(&self.uow(), uuid).map_err(PinkhaError::from)?;
         serde_json::to_string(&doc).map_err(|e| PinkhaError::Storage {
             detail: e.to_string(),
         })
@@ -328,22 +338,22 @@ impl PinkhaApi {
 
     /// Returns lightweight metadata for all non-deleted documents.
     pub fn list_documents(&self) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
-        let metas = use_cases::list_documents(&self.docs).map_err(PinkhaError::from)?;
+        let metas = use_cases::list_documents(&self.uow()).map_err(PinkhaError::from)?;
         Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
     }
 
     /// Soft-deletes the document identified by `id`.
     pub fn delete_document(&self, id: String) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        use_cases::delete_document(&self.docs, uuid).map_err(PinkhaError::from)
+        use_cases::delete_document(&self.uow(), uuid).map_err(PinkhaError::from)
     }
 
     /// Soft-deletes every document. Returns the number of documents deleted.
     pub fn delete_all_documents(&self) -> Result<u32, PinkhaError> {
-        let metas = use_cases::list_documents(&self.docs).map_err(PinkhaError::from)?;
+        let metas = use_cases::list_documents(&self.uow()).map_err(PinkhaError::from)?;
         let count = metas.len() as u32;
         for meta in metas {
-            use_cases::delete_document(&self.docs, meta.id).map_err(PinkhaError::from)?;
+            use_cases::delete_document(&self.uow(), meta.id).map_err(PinkhaError::from)?;
         }
         Ok(count)
     }
@@ -352,7 +362,7 @@ impl PinkhaApi {
     pub fn update_document_title(&self, id: String, new_title: String) -> Result<(), PinkhaError> {
         validate_string(&new_title, "new_title")?;
         let uuid = parse_uuid(&id)?;
-        use_cases::update_document_title(&self.docs, uuid, &new_title).map_err(PinkhaError::from)
+        use_cases::update_document_title(&self.uow(), uuid, &new_title).map_err(PinkhaError::from)
     }
 
     /// Sets or clears the cover of a document.
@@ -362,7 +372,7 @@ impl PinkhaApi {
         cover: Option<String>,
     ) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        use_cases::update_document_cover(&self.docs, uuid, cover).map_err(PinkhaError::from)
+        use_cases::update_document_cover(&self.uow(), uuid, cover).map_err(PinkhaError::from)
     }
 
     /// Sets or clears the page icon. Accepts an emoji, a local cover-dir
@@ -376,7 +386,7 @@ impl PinkhaApi {
             validate_string(i, "icon")?;
         }
         let uuid = parse_uuid(&id)?;
-        use_cases::update_document_icon(&self.docs, uuid, icon).map_err(PinkhaError::from)
+        use_cases::update_document_icon(&self.uow(), uuid, icon).map_err(PinkhaError::from)
     }
 
     /// Appends a block to a document. `block_content_json` must be a JSON-encoded
@@ -388,7 +398,7 @@ impl PinkhaApi {
     ) -> Result<String, PinkhaError> {
         let uuid = parse_uuid(&doc_id)?;
         let content: BlockContent = parse_json(&block_content_json)?;
-        let doc = use_cases::add_block(&self.docs, uuid, content).map_err(PinkhaError::from)?;
+        let doc = use_cases::add_block(&self.uow(), uuid, content).map_err(PinkhaError::from)?;
         doc.blocks
             .last()
             .map(|b| b.id.to_string())
@@ -408,7 +418,7 @@ impl PinkhaApi {
         let doc_uuid = parse_uuid(&doc_id)?;
         let block_uuid = parse_uuid(&block_id)?;
         let content: BlockContent = parse_json(&content_json)?;
-        use_cases::update_block(&self.docs, doc_uuid, block_uuid, content)
+        use_cases::update_block(&self.uow(), doc_uuid, block_uuid, content)
             .map_err(PinkhaError::from)
     }
 
@@ -428,7 +438,7 @@ impl PinkhaApi {
         }
         let doc_uuid = parse_uuid(&doc_id)?;
         let block_uuid = parse_uuid(&block_id)?;
-        use_cases::set_block_color(&self.docs, doc_uuid, block_uuid, color)
+        use_cases::set_block_color(&self.uow(), doc_uuid, block_uuid, color)
             .map_err(PinkhaError::from)
     }
 
@@ -436,7 +446,7 @@ impl PinkhaApi {
     pub fn delete_block(&self, doc_id: String, block_id: String) -> Result<(), PinkhaError> {
         let doc_uuid = parse_uuid(&doc_id)?;
         let block_uuid = parse_uuid(&block_id)?;
-        use_cases::delete_block(&self.docs, doc_uuid, block_uuid).map_err(PinkhaError::from)
+        use_cases::delete_block(&self.uow(), doc_uuid, block_uuid).map_err(PinkhaError::from)
     }
 
     /// Reorders the root-level blocks of a document according to `order`.
@@ -444,7 +454,7 @@ impl PinkhaApi {
     pub fn reorder_blocks(&self, doc_id: String, order: Vec<String>) -> Result<(), PinkhaError> {
         let doc_uuid = parse_uuid(&doc_id)?;
         let uuids = parse_uuids(order)?;
-        use_cases::reorder_blocks(&self.docs, doc_uuid, uuids).map_err(PinkhaError::from)
+        use_cases::reorder_blocks(&self.uow(), doc_uuid, uuids).map_err(PinkhaError::from)
     }
 
     /// Appends a child block under `parent_id`. Returns the new block UUID string.
@@ -457,7 +467,7 @@ impl PinkhaApi {
         let doc_uuid = parse_uuid(&doc_id)?;
         let parent_uuid = parse_uuid(&parent_id)?;
         let content: BlockContent = parse_json(&block_content_json)?;
-        use_cases::add_child_block(&self.docs, doc_uuid, parent_uuid, content)
+        use_cases::add_child_block(&self.uow(), doc_uuid, parent_uuid, content)
             .map(get_block_id)
             .map_err(PinkhaError::from)
     }
@@ -472,7 +482,7 @@ impl PinkhaApi {
         let doc_uuid = parse_uuid(&doc_id)?;
         let parent_uuid = parse_uuid(&parent_id)?;
         let uuids = parse_uuids(order)?;
-        use_cases::reorder_child_blocks(&self.docs, doc_uuid, parent_uuid, uuids)
+        use_cases::reorder_child_blocks(&self.uow(), doc_uuid, parent_uuid, uuids)
             .map_err(PinkhaError::from)
     }
 
@@ -487,7 +497,7 @@ impl PinkhaApi {
         let doc_uuid = parse_uuid(&doc_id)?;
         let block_uuid = parse_uuid(&block_id)?;
         let parent_uuid = new_parent_id.as_deref().map(parse_uuid).transpose()?;
-        use_cases::move_block(&self.docs, doc_uuid, block_uuid, parent_uuid)
+        use_cases::move_block(&self.uow(), doc_uuid, block_uuid, parent_uuid)
             .map_err(PinkhaError::from)
     }
 
@@ -497,7 +507,7 @@ impl PinkhaApi {
     pub fn indent_block(&self, doc_id: String, block_id: String) -> Result<(), PinkhaError> {
         let doc_uuid = parse_uuid(&doc_id)?;
         let block_uuid = parse_uuid(&block_id)?;
-        use_cases::indent_block(&self.docs, doc_uuid, block_uuid).map_err(PinkhaError::from)
+        use_cases::indent_block(&self.uow(), doc_uuid, block_uuid).map_err(PinkhaError::from)
     }
 
     /// Outdents a block — moves it out of its current parent up to the
@@ -506,20 +516,20 @@ impl PinkhaApi {
     pub fn outdent_block(&self, doc_id: String, block_id: String) -> Result<(), PinkhaError> {
         let doc_uuid = parse_uuid(&doc_id)?;
         let block_uuid = parse_uuid(&block_id)?;
-        use_cases::outdent_block(&self.docs, doc_uuid, block_uuid).map_err(PinkhaError::from)
+        use_cases::outdent_block(&self.uow(), doc_uuid, block_uuid).map_err(PinkhaError::from)
     }
 
     /// Searches document titles for `query` (case-insensitive).
     pub fn search_documents(&self, query: String) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
         validate_string(&query, "query")?;
-        let metas = use_cases::search_documents(&self.docs, &query).map_err(PinkhaError::from)?;
+        let metas = use_cases::search_documents(&self.uow(), &query).map_err(PinkhaError::from)?;
         Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
     }
 
     /// Full-text search across all block content in all documents (case-insensitive).
     pub fn search_in_blocks(&self, query: String) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
         validate_string(&query, "query")?;
-        let metas = use_cases::search_in_blocks(&self.docs, &query).map_err(PinkhaError::from)?;
+        let metas = use_cases::search_in_blocks(&self.uow(), &query).map_err(PinkhaError::from)?;
         Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
     }
 }
@@ -531,7 +541,7 @@ impl PinkhaApi {
     /// Returns the UUID string of the created database.
     pub fn create_database(&self, title: String) -> Result<String, PinkhaError> {
         validate_string(&title, "title")?;
-        let db = database_use_cases::create_database(&self.dbs, parse_inline(&title), vec![])
+        let db = database_use_cases::create_database(&self.uow(), parse_inline(&title), vec![])
             .map_err(PinkhaError::from)?;
         Ok(db.id.to_string())
     }
@@ -539,7 +549,7 @@ impl PinkhaApi {
     /// Returns the full database as a JSON string.
     pub fn get_database_json(&self, id: String) -> Result<String, PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        let db = database_use_cases::get_database(&self.dbs, uuid).map_err(PinkhaError::from)?;
+        let db = database_use_cases::get_database(&self.uow(), uuid).map_err(PinkhaError::from)?;
         serde_json::to_string(&db).map_err(|e| PinkhaError::Storage {
             detail: e.to_string(),
         })
@@ -547,22 +557,22 @@ impl PinkhaApi {
 
     /// Returns lightweight metadata for all non-deleted databases.
     pub fn list_databases(&self) -> Result<Vec<DatabaseMetaFfi>, PinkhaError> {
-        let metas = database_use_cases::list_databases(&self.dbs).map_err(PinkhaError::from)?;
+        let metas = database_use_cases::list_databases(&self.uow()).map_err(PinkhaError::from)?;
         Ok(metas.into_iter().map(db_meta_to_ffi).collect())
     }
 
     /// Soft-deletes the database identified by `id`.
     pub fn delete_database(&self, id: String) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        database_use_cases::delete_database(&self.dbs, uuid).map_err(PinkhaError::from)
+        database_use_cases::delete_database(&self.uow(), uuid).map_err(PinkhaError::from)
     }
 
     /// Soft-deletes every database. Returns the number deleted.
     pub fn delete_all_databases(&self) -> Result<u32, PinkhaError> {
-        let metas = database_use_cases::list_databases(&self.dbs).map_err(PinkhaError::from)?;
+        let metas = database_use_cases::list_databases(&self.uow()).map_err(PinkhaError::from)?;
         let count = metas.len() as u32;
         for meta in metas {
-            database_use_cases::delete_database(&self.dbs, meta.id).map_err(PinkhaError::from)?;
+            database_use_cases::delete_database(&self.uow(), meta.id).map_err(PinkhaError::from)?;
         }
         Ok(count)
     }
@@ -572,8 +582,8 @@ impl PinkhaApi {
     pub fn add_entry(&self, db_id: String, values_json: String) -> Result<String, PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
         let values: HashMap<Uuid, PropertyValue> = parse_json(&values_json)?;
-        let entry =
-            database_use_cases::add_entry(&self.dbs, db_uuid, values).map_err(PinkhaError::from)?;
+        let entry = database_use_cases::add_entry(&self.uow(), db_uuid, values)
+            .map_err(PinkhaError::from)?;
         Ok(entry.id.to_string())
     }
 
@@ -590,17 +600,16 @@ impl PinkhaApi {
         let db_uuid = parse_uuid(&db_id)?;
         let entry_uuid = parse_uuid(&entry_id)?;
         let values: HashMap<Uuid, PropertyValue> = parse_json(&values_json)?;
-        use_cases::update_entry_propagating_title(
-            &self.docs, &self.dbs, db_uuid, entry_uuid, values,
-        )
-        .map_err(PinkhaError::from)
+        use_cases::update_entry_propagating_title(&self.uow(), db_uuid, entry_uuid, values)
+            .map_err(PinkhaError::from)
     }
 
     /// Removes an entry from a database.
     pub fn delete_entry(&self, db_id: String, entry_id: String) -> Result<(), PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
         let entry_uuid = parse_uuid(&entry_id)?;
-        database_use_cases::delete_entry(&self.dbs, db_uuid, entry_uuid).map_err(PinkhaError::from)
+        database_use_cases::delete_entry(&self.uow(), db_uuid, entry_uuid)
+            .map_err(PinkhaError::from)
     }
 
     /// Adds a property to an existing database. `property_json` must be a
@@ -608,7 +617,7 @@ impl PinkhaApi {
     pub fn add_property(&self, db_id: String, property_json: String) -> Result<(), PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
         let property: Property = parse_json(&property_json)?;
-        database_use_cases::add_property(&self.dbs, db_uuid, property).map_err(PinkhaError::from)
+        database_use_cases::add_property(&self.uow(), db_uuid, property).map_err(PinkhaError::from)
     }
 
     /// Renames a property in an existing database.
@@ -621,7 +630,7 @@ impl PinkhaApi {
         validate_string(&new_name, "new_name")?;
         let db_uuid = parse_uuid(&db_id)?;
         let prop_uuid = parse_uuid(&property_id)?;
-        database_use_cases::rename_property(&self.dbs, db_uuid, prop_uuid, &new_name)
+        database_use_cases::rename_property(&self.uow(), db_uuid, prop_uuid, &new_name)
             .map_err(PinkhaError::from)
     }
 
@@ -629,7 +638,7 @@ impl PinkhaApi {
     pub fn delete_property(&self, db_id: String, property_id: String) -> Result<(), PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
         let prop_uuid = parse_uuid(&property_id)?;
-        database_use_cases::delete_property(&self.dbs, db_uuid, prop_uuid)
+        database_use_cases::delete_property(&self.uow(), db_uuid, prop_uuid)
             .map_err(PinkhaError::from)
     }
 
@@ -639,7 +648,7 @@ impl PinkhaApi {
         let db_uuid = parse_uuid(&db_id)?;
         let view: View = parse_json(&view_json)?;
         let view =
-            database_use_cases::add_view(&self.dbs, db_uuid, view).map_err(PinkhaError::from)?;
+            database_use_cases::add_view(&self.uow(), db_uuid, view).map_err(PinkhaError::from)?;
         Ok(view.id.to_string())
     }
 
@@ -655,7 +664,7 @@ impl PinkhaApi {
         let view_uuid = parse_uuid(&view_id)?;
         let filters: Vec<Filter> = parse_json(&filters_json)?;
         let sorts: Vec<Sort> = parse_json(&sorts_json)?;
-        database_use_cases::update_view(&self.dbs, db_uuid, view_uuid, filters, sorts)
+        database_use_cases::update_view(&self.uow(), db_uuid, view_uuid, filters, sorts)
             .map_err(PinkhaError::from)
     }
 
@@ -674,7 +683,11 @@ impl PinkhaApi {
         let view_uuid = parse_uuid(&view_id)?;
         let prop_uuid = property_id.as_deref().map(parse_uuid).transpose()?;
         database_use_cases::set_view_single_sort(
-            &self.dbs, db_uuid, view_uuid, prop_uuid, ascending,
+            &self.uow(),
+            db_uuid,
+            view_uuid,
+            prop_uuid,
+            ascending,
         )
         .map_err(PinkhaError::from)
     }
@@ -683,7 +696,7 @@ impl PinkhaApi {
     pub fn delete_view(&self, db_id: String, view_id: String) -> Result<(), PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
         let view_uuid = parse_uuid(&view_id)?;
-        database_use_cases::delete_view(&self.dbs, db_uuid, view_uuid).map_err(PinkhaError::from)
+        database_use_cases::delete_view(&self.uow(), db_uuid, view_uuid).map_err(PinkhaError::from)
     }
 
     /// Runs the filters and sorts defined on a view and returns matching entries
@@ -695,8 +708,8 @@ impl PinkhaApi {
     ) -> Result<String, PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;
         let view_uuid = parse_uuid(&view_id)?;
-        let entries: Vec<Entry> =
-            database_use_cases::query(&self.dbs, db_uuid, view_uuid).map_err(PinkhaError::from)?;
+        let entries: Vec<Entry> = database_use_cases::query(&self.uow(), db_uuid, view_uuid)
+            .map_err(PinkhaError::from)?;
         to_json(&entries)
     }
 
@@ -710,7 +723,7 @@ impl PinkhaApi {
         let db_uuid = parse_uuid(&db_id)?;
         let view_uuid = parse_uuid(&view_id)?;
         let entries: Vec<Entry> =
-            database_use_cases::query_with_rollups(&self.dbs, db_uuid, view_uuid)
+            database_use_cases::query_with_rollups(&self.uow(), db_uuid, view_uuid)
                 .map_err(PinkhaError::from)?;
         to_json(&entries)
     }
@@ -725,7 +738,7 @@ impl PinkhaApi {
         let db_uuid = parse_uuid(&db_id)?;
         let view_uuid = parse_uuid(&view_id)?;
         let prop_uuid = parse_uuid(&group_by)?;
-        let groups = database_use_cases::grouped_query(&self.dbs, db_uuid, view_uuid, prop_uuid)
+        let groups = database_use_cases::grouped_query(&self.uow(), db_uuid, view_uuid, prop_uuid)
             .map_err(PinkhaError::from)?;
         to_json(&groups)
     }
@@ -741,8 +754,9 @@ impl PinkhaApi {
         let db_uuid = parse_uuid(&db_id)?;
         let prop_uuid = parse_uuid(&property_id)?;
         let aggregate: Aggregate = parse_json(&aggregate_json)?;
-        let value = database_use_cases::column_aggregate(&self.dbs, db_uuid, prop_uuid, aggregate)
-            .map_err(PinkhaError::from)?;
+        let value =
+            database_use_cases::column_aggregate(&self.uow(), db_uuid, prop_uuid, aggregate)
+                .map_err(PinkhaError::from)?;
         to_json(&value)
     }
 
@@ -755,7 +769,7 @@ impl PinkhaApi {
     ) -> Result<String, PinkhaError> {
         validate_string(&query, "query")?;
         let db_uuid = parse_uuid(&db_id)?;
-        let entries = database_use_cases::search_entries(&self.dbs, db_uuid, &query)
+        let entries = database_use_cases::search_entries(&self.uow(), db_uuid, &query)
             .map_err(PinkhaError::from)?;
         to_json(&entries)
     }
@@ -769,20 +783,19 @@ impl PinkhaApi {
     ) -> Result<FolderMetaFfi, PinkhaError> {
         validate_string(&name, "name")?;
         let pid = parent_id.as_deref().map(parse_uuid).transpose()?;
-        let folder = folder_use_cases::create_folder(&self.folders, &name, pid)
-            .map_err(PinkhaError::from)?;
+        let folder =
+            folder_use_cases::create_folder(&self.uow(), &name, pid).map_err(PinkhaError::from)?;
         Ok(folder_meta_to_ffi((&folder).into()))
     }
 
     pub fn get_folder(&self, id: String) -> Result<FolderMetaFfi, PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        let folder =
-            folder_use_cases::get_folder(&self.folders, uuid).map_err(PinkhaError::from)?;
+        let folder = folder_use_cases::get_folder(&self.uow(), uuid).map_err(PinkhaError::from)?;
         Ok(folder_meta_to_ffi((&folder).into()))
     }
 
     pub fn list_folders(&self) -> Result<Vec<FolderMetaFfi>, PinkhaError> {
-        folder_use_cases::list_folders(&self.folders)
+        folder_use_cases::list_folders(&self.uow())
             .map(|v| v.into_iter().map(folder_meta_to_ffi).collect())
             .map_err(PinkhaError::from)
     }
@@ -790,12 +803,12 @@ impl PinkhaApi {
     pub fn rename_folder(&self, id: String, new_name: String) -> Result<(), PinkhaError> {
         validate_string(&new_name, "new_name")?;
         let uuid = parse_uuid(&id)?;
-        folder_use_cases::rename_folder(&self.folders, uuid, &new_name).map_err(PinkhaError::from)
+        folder_use_cases::rename_folder(&self.uow(), uuid, &new_name).map_err(PinkhaError::from)
     }
 
     pub fn delete_folder(&self, id: String) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        folder_use_cases::delete_folder(&self.folders, uuid).map_err(PinkhaError::from)
+        folder_use_cases::delete_folder(&self.uow(), uuid).map_err(PinkhaError::from)
     }
 
     pub fn move_folder_to(
@@ -805,7 +818,7 @@ impl PinkhaApi {
     ) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
         let pid = new_parent_id.as_deref().map(parse_uuid).transpose()?;
-        folder_use_cases::move_folder(&self.folders, uuid, pid).map_err(PinkhaError::from)
+        folder_use_cases::move_folder(&self.uow(), uuid, pid).map_err(PinkhaError::from)
     }
 
     pub fn move_document_to_folder(
@@ -815,7 +828,7 @@ impl PinkhaApi {
     ) -> Result<(), PinkhaError> {
         let doc_uuid = parse_uuid(&doc_id)?;
         let fid = folder_id.as_deref().map(parse_uuid).transpose()?;
-        use_cases::move_document_to_folder(&self.docs, doc_uuid, fid).map_err(PinkhaError::from)
+        use_cases::move_document_to_folder(&self.uow(), doc_uuid, fid).map_err(PinkhaError::from)
     }
 
     pub fn list_documents_in_folder(
@@ -823,7 +836,7 @@ impl PinkhaApi {
         folder_id: Option<String>,
     ) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
         let fid = folder_id.as_deref().map(parse_uuid).transpose()?;
-        use_cases::list_documents_in_folder(&self.docs, fid)
+        use_cases::list_documents_in_folder(&self.uow(), fid)
             .map(|v| v.into_iter().map(doc_meta_to_ffi).collect())
             .map_err(PinkhaError::from)
     }

@@ -23,6 +23,7 @@ use crate::domain::database::{Property, PropertyType, PropertyValue};
 use crate::domain::document::InlineText;
 use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
+use crate::infrastructure::no_op_unit_of_work::NoOpUnitOfWork;
 
 use self::client::NotionClient;
 use self::mapper::{
@@ -173,7 +174,10 @@ impl Extractor for NotionExtractor {
             content: db_title,
             styles: vec![],
         }];
-        let pinkha_db = database_use_cases::create_database(dbs, title_inlines, all_properties)?;
+        let pinkha_db = {
+            let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
+            database_use_cases::create_database(&uow, title_inlines, all_properties)?
+        };
         let pinkha_db_id = pinkha_db.id;
 
         // 6. Paginate through all Notion pages (rows) and import each one.
@@ -279,7 +283,8 @@ async fn import_page(
         .unwrap_or_else(|| "Untitled".to_string());
 
     // Create the Pinkha document.
-    let doc = use_cases::create_document(docs, &plain_title)?;
+    let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
+    let doc = use_cases::create_document(&uow, &plain_title)?;
     let doc_id = doc.id;
 
     // Carry the Notion cover over to the new Pinkha document. When a covers
@@ -295,7 +300,7 @@ async fn import_page(
         } else {
             url.to_string()
         };
-        use_cases::update_document_cover(docs, doc_id, Some(stored))?;
+        use_cases::update_document_cover(&uow, doc_id, Some(stored))?;
     }
 
     // Icons are independent of covers in Notion (a page can have both, one,
@@ -314,7 +319,7 @@ async fn import_page(
             schema::NotionPageIcon::Unknown => None,
         };
         if let Some(value) = stored {
-            use_cases::update_document_icon(docs, doc_id, Some(value))?;
+            use_cases::update_document_icon(&uow, doc_id, Some(value))?;
         }
     }
 
@@ -343,7 +348,7 @@ async fn import_page(
         }
     }
 
-    database_use_cases::add_entry_with_document(dbs, pinkha_db_id, values, doc_id)?;
+    database_use_cases::add_entry_with_document(&uow, pinkha_db_id, values, doc_id)?;
 
     Ok((block_count, skipped_count, doc_id))
 }

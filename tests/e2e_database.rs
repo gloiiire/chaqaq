@@ -39,7 +39,12 @@ fn test_flux_complet_database() {
     let nom_id = prop_nom.id;
     let score_id = prop_score.id;
 
-    let db = create_database(&db_store, title("Classement"), vec![prop_nom, prop_score]).unwrap();
+    let db = create_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        title("Classement"),
+        vec![prop_nom, prop_score],
+    )
+    .unwrap();
 
     // add entries
     let mut v1 = HashMap::new();
@@ -54,17 +59,42 @@ fn test_flux_complet_database() {
     v3.insert(nom_id, PropertyValue::Title(title("Charlie")));
     v3.insert(score_id, PropertyValue::Number(88.0));
 
-    add_entry(&db_store, db.id, v1).unwrap();
-    add_entry(&db_store, db.id, v2).unwrap();
-    add_entry(&db_store, db.id, v3).unwrap();
+    add_entry(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db.id,
+        v1,
+    )
+    .unwrap();
+    add_entry(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db.id,
+        v2,
+    )
+    .unwrap();
+    add_entry(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db.id,
+        v3,
+    )
+    .unwrap();
 
     // view sorted by score descending
     let mut vue = View::new("Top scores", ViewType::Table);
     vue.sorts
         .push(Sort::by_property(score_id, Order::Descending));
-    let vue = add_view(&db_store, db.id, vue).unwrap();
+    let vue = add_view(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db.id,
+        vue,
+    )
+    .unwrap();
 
-    let resultats = query(&db_store, db.id, vue.id).unwrap();
+    let resultats = query(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db.id,
+        vue.id,
+    )
+    .unwrap();
     assert_eq!(resultats.len(), 3);
     assert_eq!(resultats[0].values[&score_id], PropertyValue::Number(95.0));
 }
@@ -73,10 +103,19 @@ fn test_flux_complet_database() {
 fn test_database_liee_a_document() {
     let (doc_store, db_store) = store_temp();
 
-    let db = create_database(&db_store, title("Tâches"), vec![]).unwrap();
+    let db = create_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        title("Tâches"),
+        vec![],
+    )
+    .unwrap();
 
     // document referencing the database via a block
-    let mut doc = create_document(&doc_store, "Mon projet").unwrap();
+    let mut doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&doc_store),
+        "Mon projet",
+    )
+    .unwrap();
     doc.add_block(BlockContent::Database { id: db.id });
     doc_store.save(&doc).unwrap();
 
@@ -97,7 +136,7 @@ fn test_vue_avec_filtre_et_tri_combines() {
     let priorite_id = prop_priorite.id;
 
     let db = create_database(
-        &db_store,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
         title("Backlog"),
         vec![prop_statut, prop_priorite],
     )
@@ -113,7 +152,12 @@ fn test_vue_avec_filtre_et_tri_combines() {
         let mut v = HashMap::new();
         v.insert(statut_id, PropertyValue::Text(s.to_string()));
         v.insert(priorite_id, PropertyValue::Number(p));
-        add_entry(&db_store, db.id, v).unwrap();
+        add_entry(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+            db.id,
+            v,
+        )
+        .unwrap();
     }
 
     let mut vue = View::new("En cours par priorité", ViewType::Table);
@@ -123,9 +167,19 @@ fn test_vue_avec_filtre_et_tri_combines() {
     });
     vue.sorts
         .push(Sort::by_property(priorite_id, Order::Ascending));
-    let vue = add_view(&db_store, db.id, vue).unwrap();
+    let vue = add_view(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db.id,
+        vue,
+    )
+    .unwrap();
 
-    let resultats = query(&db_store, db.id, vue.id).unwrap();
+    let resultats = query(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db.id,
+        vue.id,
+    )
+    .unwrap();
     assert_eq!(resultats.len(), 2);
     assert_eq!(
         resultats[0].values[&priorite_id],
@@ -136,11 +190,39 @@ fn test_vue_avec_filtre_et_tri_combines() {
 #[test]
 fn test_add_property_a_database_existante() {
     let (_doc_store, db_store) = store_temp();
-    let db = create_database(&db_store, title("Notes"), vec![]).unwrap();
-    assert_eq!(get_database(&db_store, db.id).unwrap().properties.len(), 0);
+    let db = create_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        title("Notes"),
+        vec![],
+    )
+    .unwrap();
+    assert_eq!(
+        get_database(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+            db.id
+        )
+        .unwrap()
+        .properties
+        .len(),
+        0
+    );
 
-    add_property(&db_store, db.id, Property::new("Date", PropertyType::Date)).unwrap();
-    assert_eq!(get_database(&db_store, db.id).unwrap().properties.len(), 1);
+    add_property(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db.id,
+        Property::new("Date", PropertyType::Date),
+    )
+    .unwrap();
+    assert_eq!(
+        get_database(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+            db.id
+        )
+        .unwrap()
+        .properties
+        .len(),
+        1
+    );
 }
 
 // ── E2E Relations & Rollups ──────────────────────────────────────────────────
@@ -152,14 +234,29 @@ fn test_flux_rollup_entre_deux_databases() {
     // Sprints (source database for relations)
     let prop_points = Property::new("Points", PropertyType::Number);
     let points_id = prop_points.id;
-    let db_sprints = create_database(&db_store, title("Sprints"), vec![prop_points]).unwrap();
+    let db_sprints = create_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        title("Sprints"),
+        vec![prop_points],
+    )
+    .unwrap();
 
     let mut s1 = HashMap::new();
     s1.insert(points_id, PropertyValue::Number(8.0));
     let mut s2 = HashMap::new();
     s2.insert(points_id, PropertyValue::Number(13.0));
-    let sprint1 = add_entry(&db_store, db_sprints.id, s1).unwrap();
-    let sprint2 = add_entry(&db_store, db_sprints.id, s2).unwrap();
+    let sprint1 = add_entry(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db_sprints.id,
+        s1,
+    )
+    .unwrap();
+    let sprint2 = add_entry(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db_sprints.id,
+        s2,
+    )
+    .unwrap();
 
     // Projects with Relation → Sprints + Rollup (Sum of points)
     let prop_rel = Property::new(
@@ -178,18 +275,36 @@ fn test_flux_rollup_entre_deux_databases() {
     );
     let total_id = prop_total.id;
     let rel_id = prop_rel.id;
-    let db_projets =
-        create_database(&db_store, title("Projets"), vec![prop_rel, prop_total]).unwrap();
+    let db_projets = create_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        title("Projets"),
+        vec![prop_rel, prop_total],
+    )
+    .unwrap();
 
     let mut vp = HashMap::new();
     vp.insert(
         rel_id,
         PropertyValue::Relation(vec![sprint1.id, sprint2.id]),
     );
-    let projet = add_entry(&db_store, db_projets.id, vp).unwrap();
+    let projet = add_entry(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db_projets.id,
+        vp,
+    )
+    .unwrap();
 
-    let db = get_database(&db_store, db_projets.id).unwrap();
-    let enrichies = evaluate_rollups(&db_store, &db, vec![projet]).unwrap();
+    let db = get_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db_projets.id,
+    )
+    .unwrap();
+    let enrichies = evaluate_rollups(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &db,
+        vec![projet],
+    )
+    .unwrap();
 
     assert_eq!(enrichies[0].values[&total_id], PropertyValue::Number(21.0));
 }
@@ -205,7 +320,12 @@ fn test_flux_kanban_complet() {
         PropertyType::Selection(vec!["Todo".into(), "En cours".into(), "Terminé".into()]),
     );
     let statut_id = prop_statut.id;
-    let db = create_database(&db_store, title("Backlog"), vec![prop_statut]).unwrap();
+    let db = create_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        title("Backlog"),
+        vec![prop_statut],
+    )
+    .unwrap();
 
     // Kanban view grouped by status
     let vue_kanban = View::new(
@@ -214,7 +334,12 @@ fn test_flux_kanban_complet() {
             group_by: statut_id,
         },
     );
-    let vue_kanban = add_view(&db_store, db.id, vue_kanban).unwrap();
+    let vue_kanban = add_view(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db.id,
+        vue_kanban,
+    )
+    .unwrap();
 
     let tickets = [("Todo", 3), ("En cours", 2), ("Terminé", 1)];
     for (statut, n) in tickets {
@@ -224,11 +349,22 @@ fn test_flux_kanban_complet() {
                 statut_id,
                 PropertyValue::Selection(Some(statut.to_string())),
             );
-            add_entry(&db_store, db.id, v).unwrap();
+            add_entry(
+                &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+                db.id,
+                v,
+            )
+            .unwrap();
         }
     }
 
-    let groups = grouped_query(&db_store, db.id, vue_kanban.id, statut_id).unwrap();
+    let groups = grouped_query(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db.id,
+        vue_kanban.id,
+        statut_id,
+    )
+    .unwrap();
     assert_eq!(groups.len(), 3);
     let total: usize = groups.iter().map(|g| g.entries.len()).sum();
     assert_eq!(total, 6);
@@ -242,16 +378,38 @@ fn test_aggregate_min_max_colonne() {
 
     let prop = Property::new("Durée", PropertyType::Number);
     let prop_id = prop.id;
-    let db = create_database(&db_store, title("Tâches"), vec![prop]).unwrap();
+    let db = create_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        title("Tâches"),
+        vec![prop],
+    )
+    .unwrap();
 
     for n in [5.0, 1.0, 9.0, 3.0] {
         let mut v = HashMap::new();
         v.insert(prop_id, PropertyValue::Number(n));
-        add_entry(&db_store, db.id, v).unwrap();
+        add_entry(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+            db.id,
+            v,
+        )
+        .unwrap();
     }
 
-    let min = column_aggregate(&db_store, db.id, prop_id, Aggregate::Min).unwrap();
-    let max = column_aggregate(&db_store, db.id, prop_id, Aggregate::Max).unwrap();
+    let min = column_aggregate(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db.id,
+        prop_id,
+        Aggregate::Min,
+    )
+    .unwrap();
+    let max = column_aggregate(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db.id,
+        prop_id,
+        Aggregate::Max,
+    )
+    .unwrap();
 
     assert_eq!(min, PropertyValue::Number(1.0));
     assert_eq!(max, PropertyValue::Number(9.0));
@@ -271,7 +429,12 @@ fn test_journal_intime_dates_mixtes() {
     let date_id = prop_date.id;
     let content_id = prop_content.id;
 
-    let db = create_database(&db_store, title("Journal"), vec![prop_date, prop_content]).unwrap();
+    let db = create_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        title("Journal"),
+        vec![prop_date, prop_content],
+    )
+    .unwrap();
 
     // Old imported notes: manual date filled in, created_at = now
     let notes_anciennes = [
@@ -283,7 +446,12 @@ fn test_journal_intime_dates_mixtes() {
         let mut v = HashMap::new();
         v.insert(date_id, PropertyValue::Date(date.to_string()));
         v.insert(content_id, PropertyValue::Text(texte.to_string()));
-        add_entry(&db_store, db.id, v).unwrap();
+        add_entry(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+            db.id,
+            v,
+        )
+        .unwrap();
     }
 
     // New notes: no manual date, created_at auto-set to today (approx. 2024+)
@@ -291,16 +459,31 @@ fn test_journal_intime_dates_mixtes() {
     for texte in notes_news {
         let mut v = HashMap::new();
         v.insert(content_id, PropertyValue::Text(texte.to_string()));
-        add_entry(&db_store, db.id, v).unwrap();
+        add_entry(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+            db.id,
+            v,
+        )
+        .unwrap();
     }
 
     // Chronological view: ManualThenCreated ascending
     let mut vue = View::new("Chronologique", ViewType::Table);
     vue.sorts
         .push(Sort::manual_then_creation(date_id, Order::Ascending));
-    let vue = add_view(&db_store, db.id, vue).unwrap();
+    let vue = add_view(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db.id,
+        vue,
+    )
+    .unwrap();
 
-    let resultats = query(&db_store, db.id, vue.id).unwrap();
+    let resultats = query(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        db.id,
+        vue.id,
+    )
+    .unwrap();
     assert_eq!(resultats.len(), 5);
 
     // The first 3 must be the old notes in chronological order

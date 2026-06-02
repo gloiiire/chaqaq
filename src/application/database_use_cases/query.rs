@@ -1,5 +1,5 @@
-use crate::application::database_repository::DatabaseRepository;
 use crate::application::error::PinkhaError;
+use crate::application::unit_of_work::UnitOfWork;
 use crate::domain::database::{
     Entry, Filter, FilterCondition, Group, Order, PropertyValue, SortSource,
 };
@@ -8,12 +8,8 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 /// Returns the entries visible in a view after applying its filters and sorts.
-pub fn query(
-    repo: &dyn DatabaseRepository,
-    db_id: Uuid,
-    view_id: Uuid,
-) -> Result<Vec<Entry>, PinkhaError> {
-    let db = repo.load(db_id)?;
+pub fn query(uow: &dyn UnitOfWork, db_id: Uuid, view_id: Uuid) -> Result<Vec<Entry>, PinkhaError> {
+    let db = uow.databases().load(db_id)?;
     let view = db
         .views
         .iter()
@@ -67,35 +63,35 @@ pub fn query(
 
 /// Runs `query` then enriches the result with computed Rollup values.
 pub fn query_with_rollups(
-    repo: &dyn DatabaseRepository,
+    uow: &dyn UnitOfWork,
     db_id: Uuid,
     view_id: Uuid,
 ) -> Result<Vec<Entry>, PinkhaError> {
-    let db = repo.load(db_id)?;
-    let entries = query(repo, db_id, view_id)?;
-    crate::application::database_use_cases::evaluate_rollups(repo, &db, entries)
+    let db = uow.databases().load(db_id)?;
+    let entries = query(uow, db_id, view_id)?;
+    crate::application::database_use_cases::evaluate_rollups(uow, &db, entries)
 }
 
 /// Aggregates all values of a numeric column across every entry in the database.
 pub fn column_aggregate(
-    repo: &dyn DatabaseRepository,
+    uow: &dyn UnitOfWork,
     db_id: Uuid,
     prop_id: Uuid,
     aggregate: crate::domain::database::Aggregate,
 ) -> Result<PropertyValue, PinkhaError> {
-    let db = repo.load(db_id)?;
+    let db = uow.databases().load(db_id)?;
     let refs: Vec<&Entry> = db.entries.iter().collect();
     Ok(calculate_aggregate(&refs, prop_id, &aggregate))
 }
 
 /// Groups the entries of a view by the value of a given property.
 pub fn grouped_query(
-    repo: &dyn DatabaseRepository,
+    uow: &dyn UnitOfWork,
     db_id: Uuid,
     view_id: Uuid,
     group_by: Uuid,
 ) -> Result<Vec<Group>, PinkhaError> {
-    let entries = query(repo, db_id, view_id)?;
+    let entries = query(uow, db_id, view_id)?;
     let mut map: HashMap<String, Group> = HashMap::new();
 
     for entry in entries {
