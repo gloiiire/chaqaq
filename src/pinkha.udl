@@ -56,6 +56,15 @@ dictionary ImportResultFfi {
     u32 textbundle_only;
 };
 
+/// Résumé d'une database Notion retournée par `list_notion_databases` pour
+/// le picker UI.
+dictionary NotionDatabaseSummaryFfi {
+    string id;
+    string title;
+    string? icon_emoji;
+    string last_edited;
+};
+
 // ── Façade principale ─────────────────────────────────────────────────────────
 
 interface PinkhaApi {
@@ -266,6 +275,11 @@ interface PinkhaApi {
     /// expirent au bout d'~1h.
     [Throws=PinkhaError]
     ImportResultFfi import_from_notion(string token, string database_id, string? covers_dir);
+
+    /// Liste les databases Notion accessibles avec le token donné. Utilisé
+    /// par le picker côté Swift pour éviter à l'utilisateur de coller des URLs.
+    [Throws=PinkhaError]
+    sequence<NotionDatabaseSummaryFfi> list_notion_databases(string token);
 
     /// Importe les notes Bear depuis la SQLite locale de Bear.
     /// `db_path` est le chemin absolu vers `database.sqlite` de Bear.

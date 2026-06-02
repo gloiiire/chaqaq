@@ -653,6 +653,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func listFolders() throws  -> [FolderMetaFfi]
     
     /**
+     * Liste les databases Notion accessibles avec le token donné. Utilisé
+     * par le picker côté Swift pour éviter à l'utilisateur de coller des URLs.
+     */
+    func listNotionDatabases(token: String) throws  -> [NotionDatabaseSummaryFfi]
+    
+    /**
      * Déplace un bloc vers un parent ou vers la racine si `new_parent_id` est nul.
      */
     func moveBlock(docId: String, blockId: String, newParentId: String?) throws 
@@ -1209,6 +1215,19 @@ open func listFolders()throws  -> [FolderMetaFfi]  {
     return try  FfiConverterSequenceTypeFolderMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_list_folders(
             self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Liste les databases Notion accessibles avec le token donné. Utilisé
+     * par le picker côté Swift pour éviter à l'utilisateur de coller des URLs.
+     */
+open func listNotionDatabases(token: String)throws  -> [NotionDatabaseSummaryFfi]  {
+    return try  FfiConverterSequenceTypeNotionDatabaseSummaryFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_notion_databases(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),$0
     )
 })
 }
@@ -1825,6 +1844,72 @@ public func FfiConverterTypeImportResultFfi_lower(_ value: ImportResultFfi) -> R
 }
 
 
+/**
+ * Résumé d'une database Notion retournée par `list_notion_databases` pour
+ * le picker UI.
+ */
+public struct NotionDatabaseSummaryFfi: Equatable, Hashable {
+    public var id: String
+    public var title: String
+    public var iconEmoji: String?
+    public var lastEdited: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, title: String, iconEmoji: String?, lastEdited: String) {
+        self.id = id
+        self.title = title
+        self.iconEmoji = iconEmoji
+        self.lastEdited = lastEdited
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NotionDatabaseSummaryFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNotionDatabaseSummaryFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NotionDatabaseSummaryFfi {
+        return
+            try NotionDatabaseSummaryFfi(
+                id: FfiConverterString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                iconEmoji: FfiConverterOptionString.read(from: &buf), 
+                lastEdited: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NotionDatabaseSummaryFfi, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterOptionString.write(value.iconEmoji, into: &buf)
+        FfiConverterString.write(value.lastEdited, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNotionDatabaseSummaryFfi_lift(_ buf: RustBuffer) throws -> NotionDatabaseSummaryFfi {
+    return try FfiConverterTypeNotionDatabaseSummaryFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNotionDatabaseSummaryFfi_lower(_ value: NotionDatabaseSummaryFfi) -> RustBuffer {
+    return FfiConverterTypeNotionDatabaseSummaryFfi.lower(value)
+}
+
+
 public enum PinkhaError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
@@ -2041,6 +2126,31 @@ fileprivate struct FfiConverterSequenceTypeFolderMetaFfi: FfiConverterRustBuffer
         return seq
     }
 }
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeNotionDatabaseSummaryFfi: FfiConverterRustBuffer {
+    typealias SwiftType = [NotionDatabaseSummaryFfi]
+
+    public static func write(_ value: [NotionDatabaseSummaryFfi], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeNotionDatabaseSummaryFfi.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [NotionDatabaseSummaryFfi] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [NotionDatabaseSummaryFfi]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeNotionDatabaseSummaryFfi.read(from: &buf))
+        }
+        return seq
+    }
+}
 private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
 private let UNIFFI_RUST_FUTURE_POLL_WAKE: Int8 = 1
 
@@ -2199,6 +2309,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_folders() != 40736) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases() != 31016) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_move_block() != 56333) {

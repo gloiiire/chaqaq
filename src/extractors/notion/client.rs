@@ -3,7 +3,7 @@
 // Thin reqwest wrapper that handles auth headers and error extraction.
 // Rate-limit retry is left to a future iteration.
 
-use super::schema::{NotionBlocksResponse, NotionDatabaseSchema, NotionQueryResponse};
+use super::schema::{NotionBlocksResponse, NotionDatabaseSchema, NotionQueryResponse, NotionSearchResponse};
 use crate::extractors::ExtractorError;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 
@@ -70,6 +70,44 @@ impl NotionClient {
         let bytes = self.extract_ok(resp).await?;
         let result: NotionQueryResponse = serde_json::from_slice(&bytes)?;
         Ok(result)
+    }
+
+    /// Lists every database the current integration has been granted access
+    /// to, across all authorised workspaces. Uses Notion's `POST /v1/search`
+    /// with a filter restricting results to the `database` object type.
+    ///
+    /// Paginates internally and returns the fully concatenated list — the
+    /// caller doesn't deal with cursors. A user with a fresh OAuth grant on
+    /// 3 workspaces with ~10 databases each fits comfortably in a single
+    /// page; pagination is only there to honour the API contract.
+    pub async fn list_accessible_databases(
+        &self,
+    ) -> Result<Vec<super::schema::NotionDatabaseSearchHit>, ExtractorError> {
+        let url = "https://api.notion.com/v1/search";
+        let mut results: Vec<super::schema::NotionDatabaseSearchHit> = Vec::new();
+        let mut cursor: Option<String> = None;
+        loop {
+            let body = match cursor.as_deref() {
+                None => serde_json::json!({
+                    "filter": { "property": "object", "value": "database" },
+                    "page_size": 100,
+                }),
+                Some(c) => serde_json::json!({
+                    "filter": { "property": "object", "value": "database" },
+                    "page_size": 100,
+                    "start_cursor": c,
+                }),
+            };
+            let response = self.client.post(url).json(&body).send().await?;
+            let bytes = self.extract_ok(response).await?;
+            let parsed: NotionSearchResponse = serde_json::from_slice(&bytes)?;
+            results.extend(parsed.results);
+            if !parsed.has_more {
+                break;
+            }
+            cursor = parsed.next_cursor;
+        }
+        Ok(results)
     }
 
     /// Fetches the children blocks of a page, 100 at a time.
