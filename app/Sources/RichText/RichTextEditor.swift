@@ -105,7 +105,10 @@ struct RichTextEditor: UIViewRepresentable {
         // Skip recomputation when spans have not changed: SwiftUI re-renders
         // the whole ForEach on every keystroke (typically for a single block); no need
         // to rebuild NSAttributedString for the N-1 other unchanged blocks.
-        if coord.lastSyncedSpans != spans {
+        // We also recompute when `blockColor` flips — else the user would
+        // have to leave the note and come back to see the new colour, because
+        // the spans-equality check would skip the `spansToAttributed` rebuild.
+        if coord.lastSyncedSpans != spans || coord.lastSyncedBlockColor != blockColor {
             // Do not reassign tv.font during editing: UITextView.font reapplies
             // the font to ALL the text and would erase per-character bold/italic.
             let editingText: NSAttributedString = spans.isEmpty
@@ -124,6 +127,7 @@ struct RichTextEditor: UIViewRepresentable {
                 tv.selectedRange = NSRange(location: editingText.length, length: 0)
             }
             coord.lastSyncedSpans = spans
+            coord.lastSyncedBlockColor = blockColor
         }
 
         if isFocused && !tv.isFirstResponder {
