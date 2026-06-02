@@ -814,7 +814,11 @@ fn import_from_notion_with_empty_token_or_db_id_does_not_panic() {
     let a = api();
     // Network call will fail fast; we just want to make sure validation
     // wrapping does not panic and that an error is returned.
-    let result = a.import_from_notion("invalid_token".to_string(), "00000000-0000-0000-0000-000000000000".to_string());
+    let result = a.import_from_notion(
+        "invalid_token".to_string(),
+        "00000000-0000-0000-0000-000000000000".to_string(),
+        None,
+    );
     assert!(result.is_err());
 }
 
@@ -822,7 +826,7 @@ fn import_from_notion_with_empty_token_or_db_id_does_not_panic() {
 fn import_from_notion_token_too_large_fails() {
     let a = api();
     let huge = "a".repeat(70 * 1024);
-    let err = a.import_from_notion(huge, "db".to_string()).unwrap_err();
+    let err = a.import_from_notion(huge, "db".to_string(), None).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
@@ -831,7 +835,7 @@ fn import_from_notion_db_id_too_large_fails() {
     let a = api();
     let huge = "a".repeat(70 * 1024);
     let err = a
-        .import_from_notion("tok".to_string(), huge)
+        .import_from_notion("tok".to_string(), huge, None)
         .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
