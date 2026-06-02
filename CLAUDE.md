@@ -299,7 +299,9 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
   - **Recherche** : `searchable` SwiftUI + `api.searchDocuments(query:)` FFI, résultats en temps réel
   - Éditeur de document : blocs Text, Heading (×3), Quote, Callout (Quote + emoji), Todo, Divider
   - Texte riche : gras, italique, souligné, barré, 9 couleurs (rouge, rose, orange, jaune, vert, cyan, bleu, violet, marron)
-  - Toolbar pill (style Notes.app) glass effect : Coller / Aa (B/I/U/S) / Highlighter / Undo / Redo / Return / Dismiss — hide-on-menu façon Notes
+  - Toolbar pill (style Notes.app) glass effect : Coller / Aa (B/I/U/S) / Highlighter / ¶ (block color) / Undo / Redo / Outdent / Indent / Return / Dismiss — hide-on-menu façon Notes
+  - **Block color** : `Block.color: Option<String>` côté Rust, palette ¶ dans la toolbar (même palette que le highlighter), priorité inline > block au render (un span sans inline color hérite, un span avec inline color override) — toute la chaîne validée Rust + UI + import Notion + best-effort Craft
+  - **Indent / outdent** : boutons `increase.quotelevel` / `decrease.quotelevel` dans la pill, FFI Rust dédié (`indent_block` / `outdent_block`) qui gère le positionnement (outdent place le bloc juste après l'ancien parent, pas en fin de liste)
   - Raccourcis markdown : `# `, `## `, `### `, `> `, `!! ` (callout), `[ ] `, `---`
   - Enter → nouveau bloc, Shift+Enter / Return toolbar → saut de ligne dans le bloc, drag & drop, swipe-to-delete, dismiss clavier par swipe
   - Focus automatique sur le bloc créé OU réinséré via undo
@@ -324,7 +326,7 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
   - 2 projets Sentry séparés dans l'org `Pinkha-app` : `apple-ios` (app) + `notion-proxy` (backend). `tracesSampleRate` à 1.0 en debug, 0.2 en release.
 - **Pipelines d'extraction** (`src/extractors/`) :
   - Architecture `Extractor` trait (async, `Config` associé, `ImportResult`)
-  - **Notion** : client reqwest rustls-tls, API v1 paginée (database schema → pages → blocs récursifs), mapping complet propriétés/valeurs/blocs. **FFI synchrone** (`block_on` un `tokio::runtime::Runtime` singleton via `OnceLock`) — UniFFI 0.31 n'expose pas de reactor Tokio, mais reqwest en exige un. Swift dispatche via `Task.detached`. Flow OAuth2 + token exchange + import end-to-end validés sur device le 2026-06-02 (token Notion reçu via proxy Railway, import database → SQLite local-first OK).
+  - **Notion** : client reqwest rustls-tls, API v1 paginée (database schema → pages → blocs récursifs), mapping complet propriétés/valeurs/blocs. **FFI synchrone** (`block_on` un `tokio::runtime::Runtime` singleton via `OnceLock`) — UniFFI 0.31 n'expose pas de reactor Tokio, mais reqwest en exige un. Swift dispatche via `Task.detached`. Flow OAuth2 + token exchange + import end-to-end validés sur device le 2026-06-02 (token Notion reçu via proxy Railway, import database → SQLite local-first OK). Block colors mappées via `map_block_color`. **2-pass mention rewriting** : un map `NotionPageId → PinkhaDocId` est construit pendant l'import, puis chaque doc est revisité pour remplacer les `https://notion.so/...{page_id}` en `pinkha://doc/{uuid}` (les mentions internes pointent désormais sur les notes pinkha importées, plus sur Notion).
   - **Bear** : lecteur SQLite read-only, conversion timestamps Core Data, parseur Markdown Bear ligne par ligne
   - Trois nouveaux variants `BlockContent` : `BulletedListItem`, `NumberedListItem`, `Code` — full-fidelity import, rendu read-only + édition dans l'éditeur
   - **Craft** : lecteur Realm v9 binary read-only via `realm-codec` (crate workspace), heuristique `rawProperties.titleEnabled == "true"` pour détecter les pages, 2498 docs / 4224 blocs / 41 skipped sur fichier réel
@@ -332,10 +334,17 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
   - FAB menu : "Import from Notion" + "Import from Bear" + "Import from Craft"
 
 Ce qui **reste** à construire :
-1. UI Databases — tab "Bases" est un placeholder, backend Notion complet existe
-2. Vue iPad / Mac (NavigationSplitView)
-3. Sync entre appareils (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
-4. Réactiver Swift CI quand Xcode 26 sera dispo sur les runners GitHub Actions
+1. **UI Databases** — vue table + sort par colonne (PR #100), mais manque : filtres UI, switch entre views (Kanban/Calendar/Gallery), tri multi-colonnes, link picker pour Relation. Cf. `docs/UI-AUDIT.md`.
+2. **Vue iPad / Mac** (NavigationSplitView)
+3. **Sync entre appareils** (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
+4. **Réactiver Swift CI** quand Xcode 26 sera dispo sur les runners GitHub Actions
+5. **Import fidelity** — cover/icon Notion, image/file blocks, mapping views/filters Notion. Audit complet dans `docs/IMPORT-AUDIT.md`.
+
+### Cross-domain orchestration (`application/use_cases/db_doc_sync.rs`)
+Quand une opération doit toucher plusieurs domaines (Document + Database), le module `db_doc_sync` est le bon endroit — il dépend de `&dyn DocumentRepository` ET `&dyn DatabaseRepository` sans coupler les domaines entre eux. Exemple en place : `update_entry_propagating_title(docs, dbs, db_id, entry_id, values)` qui renomme un document quand on rename une row de DB (`Entry.document_id` est le lien).
+
+### `Entry.document_id: Option<Uuid>`
+Lie une row de DB au document qui la sous-tend (Notion-style : row = page). Set par les imports (`add_entry_with_document`), `None` pour les rows tabulaires purs. Le FFI `update_entry` route désormais vers `update_entry_propagating_title` — la propagation du Title vers le doc est transparente côté Swift.
 
 ## Git workflow
 

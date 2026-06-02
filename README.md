@@ -284,6 +284,12 @@ End users never touch any of this.
 - [x] Refactor Rust identifiers → English (open-source prerequisite)
 - [x] **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0** — core rich text editor published on crates.io (MIT OR Apache-2.0)
 - [x] **OAuth2 Notion end-to-end** — multi-tenant, proxy Railway, HMAC-signed token exchange, Keychain-persisted access token, validated on device 2026-06-02
+- [x] **Block-level colour** — `Block.color` field, FFI `set_block_color`, toolbar ¶ palette with inline-over-block priority at render time
+- [x] **Toolbar indent / outdent** — `increase.quotelevel` / `decrease.quotelevel` buttons backed by dedicated `indent_block` / `outdent_block` Rust use cases
+- [x] **DB row rename propagates to document title** — `Entry.document_id` + `update_entry_propagating_title` orchestration use case fixes the long-standing UX bug
+- [x] **DB column sort** — tap header to cycle asc/desc/none, arrow indicator, Rust-first via dedicated `set_view_sort` FFI
+- [x] **Notion mention rewriting** — 2-pass import rewrites `notion.so/...` links inside imported docs to `pinkha://doc/{uuid}` internal links
+- [x] **Import fidelity — block colours** — Notion `block.color` field + Craft best-effort column probe both mapped to `Block.color`
 
 ### Still to build
 - [ ] Databases UI (Table view, Kanban — full backend exists)
