@@ -108,6 +108,13 @@ extension RichTextEditorCoordinator {
         addButton(bRedo); btnRedo = bRedo
         updateUndoRedoButtons()
 
+        // Indent / outdent — nests / unnests the current block, calling the
+        // FFI `indent_block` / `outdent_block` via closures owned by the
+        // DocumentViewModel (which knows the block identity).
+        separator()
+        addButton(symbolButton("decrease.quotelevel", action: #selector(toolbarOutdent)))
+        addButton(symbolButton("increase.quotelevel", action: #selector(toolbarIndent)))
+
         separator()
         addButton(symbolButton("return", action: #selector(toolbarLineBreak)))
         separator()
@@ -161,6 +168,16 @@ extension RichTextEditorCoordinator {
     @objc func toolbarRedo() {
         toolbarActionInProgress = false
         parent.onRedo?()
+    }
+
+    @objc func toolbarIndent() {
+        toolbarActionInProgress = false
+        parent.onIndent?()
+    }
+
+    @objc func toolbarOutdent() {
+        toolbarActionInProgress = false
+        parent.onOutdent?()
     }
 
     /// Updates the undo/redo button visuals via the live state from

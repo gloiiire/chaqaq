@@ -57,6 +57,11 @@ struct BlockCallbacks {
     var onRedo: (() -> Void)? = nil
     var canUndoProvider: (() -> Bool)? = nil
     var canRedoProvider: (() -> Bool)? = nil
+    /// Wired to FFI `indent_block` / `outdent_block` via the VM. `nil` keeps
+    /// the toolbar button visible but inert — the FFI call will still throw
+    /// `InvalidOperation` if the block can't move (first in level / at root).
+    var onIndent: (() -> Void)? = nil
+    var onOutdent: (() -> Void)? = nil
 }
 
 // ── Shared text editor for all blocks ────────────────────────────────────────
@@ -97,7 +102,9 @@ struct BlockTextEditor: View {
             onUndo: cb.onUndo,
             onRedo: cb.onRedo,
             canUndoProvider: cb.canUndoProvider,
-            canRedoProvider: cb.canRedoProvider)
+            canRedoProvider: cb.canRedoProvider,
+            onIndent: cb.onIndent,
+            onOutdent: cb.onOutdent)
         .autoFocusIfNeeded(blockId: block.id, autoFocusId: $autoFocusId,
                               autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
         .onChange(of: focused) { _, f in if f { cb.onFocus?() } }

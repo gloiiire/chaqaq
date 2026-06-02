@@ -125,6 +125,17 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void move_block(string doc_id, string block_id, string? new_parent_id);
 
+    /// Indente un bloc : le déplace sous le frère précédent au même niveau.
+    /// `InvalidOperation` si le bloc est le premier de son niveau.
+    [Throws=PinkhaError]
+    void indent_block(string doc_id, string block_id);
+
+    /// Désindente un bloc : le sort de son parent et le replace au niveau du
+    /// grand-parent, juste après l'ancien parent. `InvalidOperation` si le
+    /// bloc est déjà à la racine.
+    [Throws=PinkhaError]
+    void outdent_block(string doc_id, string block_id);
+
     /// Recherche insensible à la casse dans les titles.
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> search_documents(string query);

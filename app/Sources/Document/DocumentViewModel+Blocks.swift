@@ -186,4 +186,50 @@ extension DocumentViewModel {
         try? api.reorderBlocks(docId: docId, order: order)
         undoMgr.registerUndo(withTarget: self) { vm in vm.applyBlockOrder(oldOrder) }
     }
+
+    /// Indents the given block — moves it under the previous sibling at the
+    /// same level. The tree shape changes (not just the order), so we reload
+    /// the full document from SQLite afterwards.
+    ///
+    /// `InvalidOperation` from the FFI (block is the first of its level —
+    /// nothing to indent under) surfaces via `errorMessage` like any other
+    /// error; the UI uses `.errorAlert` to show it.
+    func indentBlock(id: String) {
+        flushAllBursts()
+        do {
+            try api.indentBlock(docId: docId, blockId: id)
+            reloadBlocksAfterStructuralChange()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Outdents the given block — moves it up to its grandparent level,
+    /// inserted right after the former parent. Same reload semantics as
+    /// `indentBlock`.
+    func outdentBlock(id: String) {
+        flushAllBursts()
+        do {
+            try api.outdentBlock(docId: docId, blockId: id)
+            reloadBlocksAfterStructuralChange()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Reloads the full document from SQLite after a structural mutation
+    /// (indent / outdent). Index-based bookkeeping is no longer enough once
+    /// the tree changes shape.
+    private func reloadBlocksAfterStructuralChange() {
+        guard let json = try? api.getDocumentJson(id: docId),
+              let data = json.data(using: .utf8),
+              let doc = try? JSONDecoder().decode(DocumentFfi.self, from: data) else {
+            return
+        }
+        blocks = doc.blocks.map {
+            EditableBlock(id: $0.id, content: $0.content,
+                          spans: $0.content.spansOrEmpty,
+                          done:  $0.content.isTodoDone)
+        }
+    }
 }

@@ -393,6 +393,11 @@ uint64_t uniffi_pinkha_fn_method_pinkhaapi_import_from_craft_textbundle(uint64_t
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(uint64_t ptr, RustBuffer token, RustBuffer database_id, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_INDENT_BLOCK
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_INDENT_BLOCK
+void uniffi_pinkha_fn_method_pinkhaapi_indent_block(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DATABASES
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DATABASES
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_databases(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -426,6 +431,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_move_document_to_folder(uint64_t ptr, Rus
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_MOVE_FOLDER_TO
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_MOVE_FOLDER_TO
 void uniffi_pinkha_fn_method_pinkhaapi_move_folder_to(uint64_t ptr, RustBuffer id, RustBuffer new_parent_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_OUTDENT_BLOCK
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_OUTDENT_BLOCK
+void uniffi_pinkha_fn_method_pinkhaapi_outdent_block(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_QUERY_DATABASE_JSON
@@ -925,6 +935,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_INDENT_BLOCK
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_INDENT_BLOCK
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_indent_block(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_DATABASES
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_DATABASES
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_databases(void
@@ -964,6 +980,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_move_document_to_folder(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_MOVE_FOLDER_TO
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_MOVE_FOLDER_TO
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_move_folder_to(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_OUTDENT_BLOCK
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_OUTDENT_BLOCK
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_outdent_block(void
     
 );
 #endif
