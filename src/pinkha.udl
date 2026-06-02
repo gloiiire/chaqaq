@@ -100,6 +100,12 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void update_block(string doc_id, string block_id, string content_json);
 
+    /// Pose ou retire la couleur d'un bloc (texte). `color` est un nom de
+    /// couleur (`"red"`, `"blue"`, etc.) ou `null` pour revenir au thème.
+    /// Les couleurs inline sur les spans ont toujours priorité.
+    [Throws=PinkhaError]
+    void set_block_color(string doc_id, string block_id, string? color);
+
     [Throws=PinkhaError]
     void delete_block(string doc_id, string block_id);
 

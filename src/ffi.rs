@@ -384,6 +384,26 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Sets the block-level text color, or clears it when `color` is `None`.
+    ///
+    /// Color is a color name like `"red"` / `"blue"` / `"green"` etc. — the
+    /// rendering layer maps the name to a concrete value. Inline color styles
+    /// on individual spans always override the block color.
+    pub fn set_block_color(
+        &self,
+        doc_id: String,
+        block_id: String,
+        color: Option<String>,
+    ) -> Result<(), PinkhaError> {
+        if let Some(c) = color.as_deref() {
+            validate_string(c, "color")?;
+        }
+        let doc_uuid = parse_uuid(&doc_id)?;
+        let block_uuid = parse_uuid(&block_id)?;
+        use_cases::set_block_color(&self.docs, doc_uuid, block_uuid, color)
+            .map_err(PinkhaError::from)
+    }
+
     /// Removes a block (and all its children) from a document.
     pub fn delete_block(&self, doc_id: String, block_id: String) -> Result<(), PinkhaError> {
         let doc_uuid = parse_uuid(&doc_id)?;

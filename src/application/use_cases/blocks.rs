@@ -30,6 +30,24 @@ pub fn update_block(
     repo.save(&doc)
 }
 
+/// Sets (or clears with `None`) the block-level text color and persists.
+///
+/// The color is a color name (e.g. `"red"`, `"blue"`) and applies at render
+/// time to every span that has no inline color of its own — inline colors
+/// always win over the block color.
+pub fn set_block_color(
+    repo: &dyn DocumentRepository,
+    doc_id: Uuid,
+    block_id: Uuid,
+    color: Option<String>,
+) -> Result<(), PinkhaError> {
+    let mut doc = repo.load(doc_id)?;
+    let block =
+        find_block_mut(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
+    block.color = color;
+    repo.save(&doc)
+}
+
 /// Deletes a block (and all its descendants) from the document tree and persists.
 pub fn delete_block(
     repo: &dyn DocumentRepository,
@@ -299,5 +317,51 @@ mod tests {
 
         let res = move_block(&repo, doc.id, block_id, Some(block_id));
         assert!(matches!(res, Err(PinkhaError::InvalidOperation(_))));
+    }
+
+    #[test]
+    fn test_set_block_color_set_and_clear() {
+        let repo = MockRepo::new();
+        let mut doc = Document::new(inline("Test"));
+        let block = text_block("bloc");
+        let block_id = block.id;
+        doc.blocks.push(block);
+        repo.save(&doc).unwrap();
+
+        set_block_color(&repo, doc.id, block_id, Some("red".into())).unwrap();
+        let loaded = repo.load(doc.id).unwrap();
+        assert_eq!(loaded.blocks[0].color.as_deref(), Some("red"));
+
+        set_block_color(&repo, doc.id, block_id, None).unwrap();
+        let loaded = repo.load(doc.id).unwrap();
+        assert!(loaded.blocks[0].color.is_none());
+    }
+
+    #[test]
+    fn test_set_block_color_on_nested_child() {
+        let repo = MockRepo::new();
+        let mut doc = Document::new(inline("Test"));
+        let mut parent = text_block("parent");
+        let child = text_block("enfant");
+        let child_id = child.id;
+        parent.children.push(child);
+        doc.blocks.push(parent);
+        repo.save(&doc).unwrap();
+
+        set_block_color(&repo, doc.id, child_id, Some("blue".into())).unwrap();
+        let loaded = repo.load(doc.id).unwrap();
+        assert_eq!(loaded.blocks[0].children[0].color.as_deref(), Some("blue"));
+        // The parent itself is untouched.
+        assert!(loaded.blocks[0].color.is_none());
+    }
+
+    #[test]
+    fn test_set_block_color_unknown_block_returns_not_found() {
+        let repo = MockRepo::new();
+        let doc = Document::new(inline("Test"));
+        repo.save(&doc).unwrap();
+        let unknown = Uuid::new_v4();
+        let res = set_block_color(&repo, doc.id, unknown, Some("red".into()));
+        assert!(matches!(res, Err(PinkhaError::NotFound(_))));
     }
 }

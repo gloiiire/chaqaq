@@ -294,6 +294,7 @@ async fn fetch_blocks_recursive(
                         id: uuid::Uuid::new_v4(),
                         content,
                         children,
+                        color: None,
                     });
                 }
                 None => {
