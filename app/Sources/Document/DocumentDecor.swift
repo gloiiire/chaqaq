@@ -161,6 +161,30 @@ struct DocumentDecorView: View {
                 .resizable()
                 .scaledToFill()
                 .clipped()
+        } else if id.hasPrefix("http://") || id.hasPrefix("https://"),
+                  let url = URL(string: id) {
+            // Remote cover (typical case: Notion imports preserve the original
+            // cover URL — Notion-hosted URLs expire after ~1h so a future
+            // PR should download them locally at import time; for now we
+            // resolve them on display).
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .empty:
+                    Color.secondary.opacity(0.1)
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .clipped()
+                case .failure:
+                    // URL is dead (expired Notion-hosted file, network
+                    // error, etc.) — show the same default gradient as
+                    // when no cover is set, so the doc stays usable.
+                    Color.secondary.opacity(0.15)
+                @unknown default:
+                    Color.secondary.opacity(0.1)
+                }
+            }
         } else {
             switch id {
             case "cover.aurora":

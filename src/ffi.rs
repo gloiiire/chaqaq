@@ -857,13 +857,17 @@ impl PinkhaApi {
         &self,
         token: String,
         database_id: String,
+        covers_dir: Option<String>,
     ) -> Result<ImportResultFfi, PinkhaError> {
         use crate::extractors::notion::{NotionExtractor, NotionConfig};
         use crate::extractors::traits::Extractor;
         validate_string(&token, "token")?;
         validate_string(&database_id, "database_id")?;
+        if let Some(dir) = covers_dir.as_deref() {
+            validate_string(dir, "covers_dir")?;
+        }
         let extractor = NotionExtractor::new();
-        let config = NotionConfig { token, database_id };
+        let config = NotionConfig { token, database_id, covers_dir };
         tokio_runtime()
             .block_on(extractor.run(
                 config,

@@ -201,9 +201,17 @@ struct NotionImportView: View {
         // Tokio runtime internally because reqwest needs one and UniFFI's
         // executor isn't Tokio). Dispatch off the main thread via a detached
         // task so the call doesn't freeze the UI during the import.
+        // Pre-compute the covers directory off the main thread — `try?` so a
+        // file-system error just skips the local download (Rust then falls
+        // back to storing the raw URL).
+        let coversDir = try? DocumentViewModel.coversDirectory().path
         Task.detached(priority: .userInitiated) {
             do {
-                let result = try api.importFromNotion(token: t, databaseId: url)
+                let result = try api.importFromNotion(
+                    token: t,
+                    databaseId: url,
+                    coversDir: coversDir
+                )
                 // Re-confirm the token in the Keychain after a successful
                 // import — the OAuth flow already persisted it on receipt,
                 // but a manually-typed token also gets saved here.
