@@ -118,6 +118,28 @@ fn map_notion_color(c: &str) -> Option<&'static str> {
 
 // ── Block mapping ─────────────────────────────────────────────────────────────
 
+/// Extracts the block-level colour (mapped to a Pinkha colour name) when the
+/// Notion block carries one. Returns `None` for `"default"`, unknown colour
+/// names, and background variants (`*_background`) — background colours are
+/// not yet a first-class concept on `Block`, so we ignore them rather than
+/// dropping data into the wrong field.
+pub fn map_block_color(block: &NotionBlock) -> Option<String> {
+    let raw: &str = match block.type_.as_str() {
+        "paragraph"          => block.paragraph.as_ref().map(|b| b.color.as_str()),
+        "heading_1"          => block.heading_1.as_ref().map(|b| b.color.as_str()),
+        "heading_2"          => block.heading_2.as_ref().map(|b| b.color.as_str()),
+        "heading_3"          => block.heading_3.as_ref().map(|b| b.color.as_str()),
+        "callout"            => block.callout.as_ref().map(|b| b.color.as_str()),
+        "quote"              => block.quote.as_ref().map(|b| b.color.as_str()),
+        "to_do"              => block.to_do.as_ref().map(|b| b.color.as_str()),
+        "bulleted_list_item" => block.bulleted_list_item.as_ref().map(|b| b.color.as_str()),
+        "numbered_list_item" => block.numbered_list_item.as_ref().map(|b| b.color.as_str()),
+        "code"               => block.code.as_ref().map(|b| b.color.as_str()),
+        _ => None,
+    }?;
+    map_notion_color(raw).map(str::to_owned)
+}
+
 /// Converts a Notion block to a Pinkha `BlockContent`.
 ///
 /// Returns `None` for block types that have no Pinkha equivalent (e.g. images,
@@ -345,6 +367,7 @@ mod tests {
     fn rt_block(text: &str) -> super::super::schema::RichTextBlock {
         use super::super::schema::RichTextBlock;
         RichTextBlock {
+            color: "default".into(),
             rich_text: vec![NotionRichText {
                 plain_text: text.to_string(),
                 annotations: NotionAnnotations::default(),
@@ -423,6 +446,7 @@ mod tests {
             code: Some(CodeBlock {
                 rich_text: vec![rt],
                 language: "rust".to_string(),
+                color: "default".into(),
             }),
         };
         let result = map_block(&block);
@@ -491,7 +515,7 @@ mod tests {
             heading_3: None,
             callout: None,
             quote: None,
-            to_do: Some(TodoBlock { rich_text: vec![rt], checked: true }),
+            to_do: Some(TodoBlock { rich_text: vec![rt], checked: true, color: "default".into() }),
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
@@ -521,7 +545,7 @@ mod tests {
             heading_3: None,
             callout: None,
             quote: None,
-            to_do: Some(TodoBlock { rich_text: vec![rt], checked: false }),
+            to_do: Some(TodoBlock { rich_text: vec![rt], checked: false, color: "default".into() }),
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
@@ -555,6 +579,7 @@ mod tests {
                     type_: "emoji".to_string(),
                     emoji: Some("🔥".to_string()),
                 }),
+                color: "default".into(),
             }),
             quote: None,
             to_do: None,
@@ -590,6 +615,7 @@ mod tests {
             callout: Some(CalloutBlock {
                 rich_text: vec![rt],
                 icon: None,
+                color: "default".into(),
             }),
             quote: None,
             to_do: None,
@@ -625,6 +651,7 @@ mod tests {
                     annotations: NotionAnnotations::default(),
                     href: None,
                 }],
+                color: "default".into(),
             }),
             to_do: None,
             bulleted_list_item: None,
@@ -761,5 +788,69 @@ mod tests {
             "https://www.notion.so/myworkspace/Title-abc123def456abc123def456abc123de";
         let id = extract_database_id(url);
         assert_eq!(id, "abc123def456abc123def456abc123de");
+    }
+
+    // ── map_block_color ──────────────────────────────────────────────────────
+
+    fn paragraph_block_with_color(color: &str) -> NotionBlock {
+        use super::super::schema::RichTextBlock;
+        NotionBlock {
+            id: "b1".into(),
+            type_: "paragraph".into(),
+            has_children: false,
+            paragraph: Some(RichTextBlock {
+                rich_text: vec![],
+                color: color.into(),
+            }),
+            heading_1: None,
+            heading_2: None,
+            heading_3: None,
+            callout: None,
+            quote: None,
+            to_do: None,
+            bulleted_list_item: None,
+            numbered_list_item: None,
+            code: None,
+        }
+    }
+
+    #[test]
+    fn map_block_color_extracts_red_from_paragraph() {
+        let block = paragraph_block_with_color("red");
+        assert_eq!(map_block_color(&block).as_deref(), Some("red"));
+    }
+
+    #[test]
+    fn map_block_color_returns_none_for_default() {
+        let block = paragraph_block_with_color("default");
+        assert!(map_block_color(&block).is_none());
+    }
+
+    #[test]
+    fn map_block_color_ignores_background_variants() {
+        // Backgrounds aren't yet a first-class concept on Block.color — we
+        // deliberately drop them rather than misclassify as text colour.
+        let block = paragraph_block_with_color("red_background");
+        assert!(map_block_color(&block).is_none());
+    }
+
+    #[test]
+    fn map_block_color_returns_none_for_unsupported_block_type() {
+        let block = NotionBlock {
+            id: "b1".into(),
+            type_: "unsupported_type".into(),
+            has_children: false,
+            paragraph: None,
+            heading_1: None,
+            heading_2: None,
+            heading_3: None,
+            callout: None,
+            quote: None,
+            to_do: None,
+            bulleted_list_item: None,
+            numbered_list_item: None,
+            code: None,
+        };
+        assert!(map_block_color(&block).is_none());
     }
 }

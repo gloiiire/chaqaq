@@ -25,7 +25,7 @@ use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
 
 use self::client::NotionClient;
-use self::mapper::{extract_database_id, map_block, map_property_type, map_property_value};
+use self::mapper::{extract_database_id, map_block, map_block_color, map_property_type, map_property_value};
 use self::schema::NotionPagePropValue;
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -294,7 +294,7 @@ async fn fetch_blocks_recursive(
                         id: uuid::Uuid::new_v4(),
                         content,
                         children,
-                        color: None,
+                        color: map_block_color(notion_block),
                     });
                 }
                 None => {
