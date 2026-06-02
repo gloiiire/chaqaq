@@ -24,4 +24,28 @@ pub trait DocumentRepository: Send + Sync {
 
     /// Lists metadata for documents in a specific folder (None = root-level only).
     fn list_by_folder(&self, folder_id: Option<Uuid>) -> Result<Vec<DocumentMeta>, PinkhaError>;
+
+    /// Returns metadata for documents that have been soft-deleted (in the trash).
+    /// Sorted newest-deleted first. Empty default impl so existing in-memory
+    /// mocks compile without change; production stores override.
+    fn list_deleted(&self) -> Result<Vec<DocumentMeta>, PinkhaError> {
+        Ok(vec![])
+    }
+
+    /// Restores a soft-deleted document by clearing its `deleted_at`. Returns
+    /// `NotFound` when the id doesn't match a soft-deleted document.
+    fn restore(&self, _id: Uuid) -> Result<(), PinkhaError> {
+        Err(PinkhaError::InvalidOperation(
+            "restore not supported by this repository".into(),
+        ))
+    }
+
+    /// Permanently removes a soft-deleted document — hard delete after this.
+    /// Implementations should refuse when the document is still live
+    /// (`deleted_at IS NULL`) to prevent accidental data loss.
+    fn purge(&self, _id: Uuid) -> Result<(), PinkhaError> {
+        Err(PinkhaError::InvalidOperation(
+            "purge not supported by this repository".into(),
+        ))
+    }
 }

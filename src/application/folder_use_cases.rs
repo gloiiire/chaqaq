@@ -34,3 +34,18 @@ pub fn move_folder(
 ) -> Result<(), PinkhaError> {
     uow.folders().move_folder(id, new_parent_id)
 }
+
+/// Lists soft-deleted folders (newest-deleted first).
+pub fn list_deleted_folders(uow: &dyn UnitOfWork) -> Result<Vec<FolderMeta>, PinkhaError> {
+    uow.folders().list_deleted()
+}
+
+/// Restores a soft-deleted folder.
+pub fn restore_folder(uow: &dyn UnitOfWork, id: Uuid) -> Result<(), PinkhaError> {
+    uow.folders().restore(id)
+}
+
+/// Permanently deletes a soft-deleted folder (hard delete).
+pub fn purge_folder(uow: &dyn UnitOfWork, id: Uuid) -> Result<(), PinkhaError> {
+    uow.folders().purge(id)
+}

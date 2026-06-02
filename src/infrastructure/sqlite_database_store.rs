@@ -134,6 +134,79 @@ impl DatabaseRepository for SqliteDatabaseStore {
             Ok(())
         })
     }
+
+    fn list_deleted(&self) -> Result<Vec<DatabaseMeta>, PinkhaError> {
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let mut stmt = conn
+                .prepare(
+                    "SELECT id, title_json, updated_at, created_at FROM databases
+                     WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC",
+                )
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            let rows = stmt
+                .query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                    ))
+                })
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            let mut metas = Vec::new();
+            for row in rows {
+                let (id_str, title_json, updated_at, created_at) =
+                    row.map_err(|e| PinkhaError::Db(e.to_string()))?;
+                let id = Uuid::parse_str(&id_str).map_err(|_| {
+                    PinkhaError::InvalidOperation(format!("UUID invalide : {id_str}"))
+                })?;
+                let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
+                metas.push(DatabaseMeta {
+                    id,
+                    title,
+                    updated_at,
+                    created_at,
+                });
+            }
+            Ok(metas)
+        })
+    }
+
+    fn restore(&self, id: Uuid) -> Result<(), PinkhaError> {
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let affected = conn
+                .execute(
+                    "UPDATE databases SET deleted_at = NULL, updated_at = ?1
+                     WHERE id = ?2 AND deleted_at IS NOT NULL",
+                    params![chrono::Utc::now().to_rfc3339(), id.to_string()],
+                )
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            if affected == 0 {
+                return Err(PinkhaError::NotFound(id));
+            }
+            Ok(())
+        })
+    }
+
+    fn purge(&self, id: Uuid) -> Result<(), PinkhaError> {
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let affected = conn
+                .execute(
+                    "DELETE FROM databases WHERE id = ?1 AND deleted_at IS NOT NULL",
+                    params![id.to_string()],
+                )
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            if affected == 0 {
+                return Err(PinkhaError::InvalidOperation(format!(
+                    "database {id} must be soft-deleted before it can be purged"
+                )));
+            }
+            Ok(())
+        })
+    }
 }
 
 #[cfg(test)]

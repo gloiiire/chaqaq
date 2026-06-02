@@ -235,7 +235,10 @@ fn test_modifier_et_delete_entry() {
         db.id,
     )
     .unwrap();
-    assert!(db_finale.entries.is_empty());
+    // Soft delete: the row stays but is marked deleted_at. Use `is_deleted()`
+    // to assert it's hidden from active views without losing the data.
+    assert_eq!(db_finale.entries.len(), 1);
+    assert!(db_finale.entries[0].is_deleted());
 }
 
 #[test]

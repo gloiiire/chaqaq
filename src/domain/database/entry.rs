@@ -28,6 +28,13 @@ pub struct Entry {
     /// [`Document`]: crate::domain::document::Document
     #[serde(default)]
     pub document_id: Option<Uuid>,
+    /// Soft-delete timestamp. `None` when the entry is live; `Some(iso8601)`
+    /// when it has been deleted but is still recoverable. Soft-deleted entries
+    /// are filtered out of `query` / `query_with_rollups` / `search_entries` /
+    /// `grouped_query` and don't appear in normal views. `#[serde(default)]`
+    /// keeps the field backward-compatible with pre-soft-delete entries.
+    #[serde(default)]
+    pub deleted_at: Option<String>,
 }
 
 impl Entry {
@@ -38,6 +45,7 @@ impl Entry {
             created_at: Utc::now().to_rfc3339(),
             values,
             document_id: None,
+            deleted_at: None,
         }
     }
 
@@ -50,7 +58,13 @@ impl Entry {
             created_at: Utc::now().to_rfc3339(),
             values,
             document_id: Some(document_id),
+            deleted_at: None,
         }
+    }
+
+    /// `true` when this entry has been soft-deleted.
+    pub fn is_deleted(&self) -> bool {
+        self.deleted_at.is_some()
     }
 }
 

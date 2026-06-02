@@ -19,6 +19,7 @@ pub fn query(uow: &dyn UnitOfWork, db_id: Uuid, view_id: Uuid) -> Result<Vec<Ent
     let mut entries: Vec<Entry> = db
         .entries
         .iter()
+        .filter(|e| !e.is_deleted())
         .filter(|e| view.filters.iter().all(|f| apply_filter(e, f)))
         .cloned()
         .collect();
@@ -80,7 +81,7 @@ pub fn column_aggregate(
     aggregate: crate::domain::database::Aggregate,
 ) -> Result<PropertyValue, PinkhaError> {
     let db = uow.databases().load(db_id)?;
-    let refs: Vec<&Entry> = db.entries.iter().collect();
+    let refs: Vec<&Entry> = db.entries.iter().filter(|e| !e.is_deleted()).collect();
     Ok(calculate_aggregate(&refs, prop_id, &aggregate))
 }
 
