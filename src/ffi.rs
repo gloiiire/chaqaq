@@ -87,6 +87,7 @@ impl From<CoreError> for PinkhaError {
 ///
 /// Carries pre-computed plain-text and JSON representations of the title so
 /// that Swift does not need to decode the full document to display a list item.
+#[derive(Debug, Clone)]
 pub struct DocumentMetaFfi {
     /// UUID string of the document.
     pub id: String,
@@ -105,6 +106,7 @@ pub struct DocumentMetaFfi {
 }
 
 /// Lightweight folder metadata passed across the FFI boundary.
+#[derive(Debug, Clone)]
 pub struct FolderMetaFfi {
     /// UUID string of the folder.
     pub id: String,
@@ -119,6 +121,7 @@ pub struct FolderMetaFfi {
 }
 
 /// Summary of a completed import operation, returned to Swift.
+#[derive(Debug, Clone)]
 pub struct ImportResultFfi {
     /// Human-readable name of the source application (e.g. `"Notion"`, `"Bear"`).
     pub app: String,
@@ -142,6 +145,7 @@ pub struct ImportResultFfi {
 }
 
 /// Lightweight database metadata passed across the FFI boundary.
+#[derive(Debug, Clone)]
 pub struct DatabaseMetaFfi {
     /// UUID string of the database.
     pub id: String,
