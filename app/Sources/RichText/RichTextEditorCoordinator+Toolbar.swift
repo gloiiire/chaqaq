@@ -101,6 +101,19 @@ extension RichTextEditorCoordinator {
             .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal), for: .normal)
         addButton(bColor); btnColor = bColor
 
+        // Block color (¶) — applies a colour to the whole block. Inline
+        // `.color(...)` on individual spans still wins at render time.
+        let bBlockColor = MenuButton(type: .custom)
+        bBlockColor.showsMenuAsPrimaryAction = true
+        bBlockColor.menu = blockColorMenu(current: parent.blockColor)
+        bBlockColor.onMenuWillEnd = { [weak self] in
+            self?.menuPresentingUntil = nil
+            self?.setToolbarHidden(false)
+        }
+        bBlockColor.setImage(UIImage(systemName: "paragraphsign", withConfiguration: cfgH)?
+            .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal), for: .normal)
+        addButton(bBlockColor); btnBlockColor = bBlockColor
+
         separator()
         let bUndo = symbolButton("arrow.uturn.backward", action: #selector(toolbarUndo))
         addButton(bUndo); btnUndo = bUndo

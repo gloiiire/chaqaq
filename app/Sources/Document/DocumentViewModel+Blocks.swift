@@ -217,6 +217,26 @@ extension DocumentViewModel {
         }
     }
 
+    /// Applies (or clears with `nil`) the block-level text colour. Mutates
+    /// the in-memory `EditableBlock` so the re-render picks up the new
+    /// default foreground immediately, then persists via the FFI. Registers
+    /// the inverse on the UndoManager so cmd-Z restores the previous colour.
+    func setBlockColor(id: String, color: String?) {
+        guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
+        let previous = blocks[idx].color
+        guard previous != color else { return }
+        blocks[idx].color = color
+        do {
+            try api.setBlockColor(docId: docId, blockId: id, color: color)
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+        undoMgr.registerUndo(withTarget: self) { vm in
+            vm.setBlockColor(id: id, color: previous)
+        }
+    }
+
     /// Reloads the full document from SQLite after a structural mutation
     /// (indent / outdent). Index-based bookkeeping is no longer enough once
     /// the tree changes shape.
@@ -229,7 +249,8 @@ extension DocumentViewModel {
         blocks = doc.blocks.map {
             EditableBlock(id: $0.id, content: $0.content,
                           spans: $0.content.spansOrEmpty,
-                          done:  $0.content.isTodoDone)
+                          done:  $0.content.isTodoDone,
+                          color: $0.color)
         }
     }
 }

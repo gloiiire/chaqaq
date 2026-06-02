@@ -96,7 +96,8 @@ extension DocumentViewModel {
             blocks = doc.blocks.map {
                 EditableBlock(id: $0.id, content: $0.content,
                               spans: $0.content.spansOrEmpty,
-                              done:  $0.content.isTodoDone)
+                              done:  $0.content.isTodoDone,
+                              color: $0.color)
             }
             // Initialise stable snapshots for burst undo tracking.
             blockSnapshots = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, snapshotOf($0)) })

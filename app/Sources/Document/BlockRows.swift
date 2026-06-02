@@ -62,6 +62,10 @@ struct BlockCallbacks {
     /// `InvalidOperation` if the block can't move (first in level / at root).
     var onIndent: (() -> Void)? = nil
     var onOutdent: (() -> Void)? = nil
+    /// Block-level colour pipeline: provider reads the current value so the
+    /// toolbar's ¶ button can highlight the active colour, and the closure
+    /// applies a new one (nil = clear back to default) via the VM.
+    var onSetBlockColor: ((String?) -> Void)? = nil
 }
 
 // ── Shared text editor for all blocks ────────────────────────────────────────
@@ -104,7 +108,9 @@ struct BlockTextEditor: View {
             canUndoProvider: cb.canUndoProvider,
             canRedoProvider: cb.canRedoProvider,
             onIndent: cb.onIndent,
-            onOutdent: cb.onOutdent)
+            onOutdent: cb.onOutdent,
+            blockColor: block.color,
+            onSetBlockColor: cb.onSetBlockColor)
         .autoFocusIfNeeded(blockId: block.id, autoFocusId: $autoFocusId,
                               autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
         .onChange(of: focused) { _, f in if f { cb.onFocus?() } }

@@ -9,6 +9,9 @@ struct EditableBlock: Identifiable, Equatable {
     var content: BlockContentFfi
     var spans: [InlineTextFfi]
     var done: Bool
+    /// Block-level text color (matches Rust `Block.color`). When set, applies
+    /// to every span that has no inline `.color(...)` override.
+    var color: String? = nil
     var plainText: String { spans.map(\.content).joined() }
 }
 

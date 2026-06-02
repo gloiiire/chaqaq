@@ -112,7 +112,8 @@ extension DocumentView {
             canUndoProvider: { vm.canUndo },
             canRedoProvider: { vm.canRedo },
             onIndent: { vm.indentBlock(id: block.id) },
-            onOutdent: { vm.outdentBlock(id: block.id) }
+            onOutdent: { vm.outdentBlock(id: block.id) },
+            onSetBlockColor: { color in vm.setBlockColor(id: block.id, color: color) }
         )
     }
 }
