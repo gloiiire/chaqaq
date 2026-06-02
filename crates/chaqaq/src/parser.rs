@@ -95,16 +95,17 @@ pub fn parse_inline(input: &str) -> Vec<InlineText> {
                 }
             }
             '}' if color.is_some() => {
-                match color.take() {
-                    Some(ColorState::Text(color_name, mut text)) => {
+                // The `color.is_some()` guard ensures the unwrap is safe.
+                let state = color.take().unwrap();
+                match state {
+                    ColorState::Text(color_name, mut text) => {
                         flush(&mut block, &mut text, vec![InlineStyle::Color(color_name)]);
                     }
-                    Some(ColorState::ColorName(name)) => {
+                    ColorState::ColorName(name) => {
                         current_text.push('{');
                         current_text.push_str(&name);
                         current_text.push('}');
                     }
-                    None => unreachable!(),
                 }
             }
 
@@ -269,5 +270,19 @@ mod tests {
             parse_inline("**_combiné_**"),
             vec![bold_italic("combiné")]
         );
+    }
+
+    #[test]
+    fn single_tilde_is_literal_when_not_followed_by_another() {
+        // Covers the `'~' if link.is_none() && color.is_none() =>
+        // current_text.push('~')` branch — single ~ outside any context.
+        assert_eq!(parse_inline("a ~ b"), vec![text("a ~ b")]);
+    }
+
+    #[test]
+    fn unclosed_color_brace_falls_back_to_literal_braces() {
+        // `{red:hello}` is parsed as color, but `{red}` (no `:`) closes
+        // back to literal braces — exercises the ColorName fallback path.
+        assert_eq!(parse_inline("{red}"), vec![text("{red}")]);
     }
 }
