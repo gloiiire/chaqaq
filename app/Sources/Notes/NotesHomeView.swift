@@ -12,6 +12,7 @@ struct NotesHomeView: View {
     @State private var showingCraftCombinedImport = false
     @State private var showingDeleteAllConfirm = false
     @State private var showingDeleteAllConfirm2 = false
+    @State private var showingTrash = false
     @State private var newTitle = ""
     @State private var createMode: CreateMode = .note
 
@@ -76,15 +77,28 @@ struct NotesHomeView: View {
                 .navigationTitle(greeting)
                 .navigationBarTitleDisplayMode(.large)
                 .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            showingTrash = true
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .accessibilityLabel("Corbeille")
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         if !store.items.isEmpty {
                             Button(role: .destructive) {
                                 showingDeleteAllConfirm = true
                             } label: {
-                                Image(systemName: "trash")
+                                Image(systemName: "trash.slash")
                             }
+                            .accessibilityLabel("Tout supprimer")
                         }
                     }
+                }
+                .sheet(isPresented: $showingTrash) {
+                    TrashView()
+                        .environmentObject(store)
                 }
                 // ── FAB ───────────────────────────────────────────────────
                 Menu {
