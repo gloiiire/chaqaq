@@ -83,7 +83,7 @@ struct ImportIntegrationTests {
         // 70_000 chars > MAX_STRING_BYTES (64 KB) — validate_string returns InvalidOperation.
         let hugeToken = String(repeating: "x", count: 70_000)
         do {
-            _ = try await api.importFromNotion(token: hugeToken, databaseId: "abc")
+            _ = try api.importFromNotion(token: hugeToken, databaseId: "abc")
             Issue.record("Expected PinkhaError.InvalidOperation for oversized token")
         } catch PinkhaError.InvalidOperation {
             #expect(Bool(true))
@@ -97,7 +97,7 @@ struct ImportIntegrationTests {
 
         let hugeId = String(repeating: "y", count: 70_000)
         do {
-            _ = try await api.importFromNotion(token: "secret_test", databaseId: hugeId)
+            _ = try api.importFromNotion(token: "secret_test", databaseId: hugeId)
             Issue.record("Expected PinkhaError.InvalidOperation for oversized databaseId")
         } catch PinkhaError.InvalidOperation {
             #expect(Bool(true))
@@ -113,7 +113,7 @@ struct ImportIntegrationTests {
         // The test verifies no crash and that a typed PinkhaError is returned.
         var caught = false
         do {
-            _ = try await api.importFromNotion(token: "", databaseId: "abc")
+            _ = try api.importFromNotion(token: "", databaseId: "abc")
             Issue.record("Expected PinkhaError for an empty token, got success")
         } catch is PinkhaError {
             caught = true
@@ -130,7 +130,7 @@ struct ImportIntegrationTests {
         let hugeToken = String(repeating: "z", count: 70_000)
         var wasInvalidOperation = false
         do {
-            _ = try await api.importFromNotion(token: hugeToken, databaseId: "test")
+            _ = try api.importFromNotion(token: hugeToken, databaseId: "test")
         } catch PinkhaError.InvalidOperation {
             wasInvalidOperation = true
         } catch {
