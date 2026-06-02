@@ -393,4 +393,30 @@ struct DatabaseFfi: Codable {
     let title: [InlineTextFfi]
     let properties: [PropertyFfi]
     var entries: [EntryFfi]
+    /// At least one view is always present (Rust `Database::new` seeds a
+    /// default "Table" view). `#[serde(default)]` would keep us safe against
+    /// older payloads — Codable's Optional support gives the same guarantee.
+    let views: [ViewFfi]?
+}
+
+/// Swift mirror of Rust `View`. Only the fields the UI consumes today.
+struct ViewFfi: Codable, Identifiable {
+    let id: String
+    let name: String
+    let sorts: [SortFfi]
+}
+
+/// Swift mirror of Rust `Sort`. `order` is `"Ascending"` / `"Descending"`,
+/// `source` is `"Property"` / `"Created"` / `"ManualThenCreated"` — match the
+/// serde externally-tagged enum encoding.
+struct SortFfi: Codable, Equatable {
+    let propertyId: String
+    let order: String
+    let source: String
+
+    enum CodingKeys: String, CodingKey {
+        case propertyId = "property_id"
+        case order
+        case source
+    }
 }

@@ -105,8 +105,12 @@ struct DatabaseView: View {
                     icon: prop.propertyType.icon,
                     width: columnWidth(for: prop.propertyType),
                     isDeletable: !(prop.propertyType == .title),
+                    sortDirection: vm.activeSort?.propertyId == prop.id
+                        ? (vm.activeSort!.ascending ? .ascending : .descending)
+                        : nil,
                     onRename: { vm.renameProperty(id: prop.id, newName: $0) },
-                    onDelete: { vm.deleteProperty(id: prop.id) }
+                    onDelete: { vm.deleteProperty(id: prop.id) },
+                    onTapSort: { vm.cycleSort(propertyId: prop.id) }
                 )
             }
             // Add-column button
@@ -172,29 +176,48 @@ struct DatabaseView: View {
 // ── Column header ─────────────────────────────────────────────────────────────
 
 private struct PropertyHeaderCell: View {
+    enum SortDirection { case ascending, descending }
+
     let name: String
     let icon: String
     let width: CGFloat
     let isDeletable: Bool
+    /// `nil` = no sort on this column. Drives the arrow indicator on the
+    /// right side of the cell.
+    let sortDirection: SortDirection?
     let onRename: (String) -> Void
     let onDelete: () -> Void
+    /// Tap on the cell body (outside the context menu / rename popover)
+    /// cycles the sort on this column via the VM.
+    let onTapSort: () -> Void
 
     @State private var showRename = false
     @State private var renameDraft = ""
 
     var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            Text(name)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            Spacer(minLength: 0)
+        Button(action: onTapSort) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(name)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                if let dir = sortDirection {
+                    Image(systemName: dir == .ascending
+                          ? "arrow.up"
+                          : "arrow.down")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.accentColor)
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(width: width, height: 40, alignment: .leading)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 10)
-        .frame(width: width, height: 40, alignment: .leading)
+        .buttonStyle(.plain)
         .overlay(alignment: .trailing) {
             Rectangle().frame(width: 0.5).foregroundStyle(.separator)
         }

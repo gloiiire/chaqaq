@@ -663,6 +663,24 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Sets a single sort on a view, replacing previous sorts. `property_id`
+    /// = `None` clears the sort. Used by the DB view column-header tap
+    /// gesture — callers don't have to know the `Sort`/`SortSource` JSON
+    /// shape, the orchestration lives in Rust.
+    pub fn set_view_sort(
+        &self,
+        db_id: String,
+        view_id: String,
+        property_id: Option<String>,
+        ascending: bool,
+    ) -> Result<(), PinkhaError> {
+        let db_uuid = parse_uuid(&db_id)?;
+        let view_uuid = parse_uuid(&view_id)?;
+        let prop_uuid = property_id.as_deref().map(parse_uuid).transpose()?;
+        database_use_cases::set_view_single_sort(&self.dbs, db_uuid, view_uuid, prop_uuid, ascending)
+            .map_err(PinkhaError::from)
+    }
+
     /// Removes a view from a database. Fails if it is the last view.
     pub fn delete_view(&self, db_id: String, view_id: String) -> Result<(), PinkhaError> {
         let db_uuid = parse_uuid(&db_id)?;

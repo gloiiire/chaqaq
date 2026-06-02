@@ -435,6 +435,30 @@ fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterBool : FfiConverter {
+    typealias FfiType = Int8
+    typealias SwiftType = Bool
+
+    public static func lift(_ value: Int8) throws -> Bool {
+        return value != 0
+    }
+
+    public static func lower(_ value: Bool) -> Int8 {
+        return value ? 1 : 0
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bool {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Bool, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
@@ -685,6 +709,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Les couleurs inline sur les spans ont toujours priorité.
      */
     func setBlockColor(docId: String, blockId: String, color: String?) throws 
+    
+    /**
+     * Pose un tri unique sur une vue, en remplaçant ceux qui existent.
+     * `property_id = null` retire le tri.
+     */
+    func setViewSort(dbId: String, viewId: String, propertyId: String?, ascending: Bool) throws 
     
     /**
      * Remplace le contenu d'un bloc existant (JSON de BlockContent).
@@ -1332,6 +1362,21 @@ open func setBlockColor(docId: String, blockId: String, color: String?)throws   
         FfiConverterString.lower(docId),
         FfiConverterString.lower(blockId),
         FfiConverterOptionString.lower(color),$0
+    )
+}
+}
+    
+    /**
+     * Pose un tri unique sur une vue, en remplaçant ceux qui existent.
+     * `property_id = null` retire le tri.
+     */
+open func setViewSort(dbId: String, viewId: String, propertyId: String?, ascending: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_set_view_sort(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(viewId),
+        FfiConverterOptionString.lower(propertyId),
+        FfiConverterBool.lower(ascending),$0
     )
 }
 }
@@ -2170,6 +2215,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_color() != 56489) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_sort() != 45579) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_block() != 49420) {

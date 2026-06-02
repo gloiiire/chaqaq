@@ -488,6 +488,11 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_search_in_blocks(uint64_t ptr, Rust
 void uniffi_pinkha_fn_method_pinkhaapi_set_block_color(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustBuffer color, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_VIEW_SORT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_VIEW_SORT
+void uniffi_pinkha_fn_method_pinkhaapi_set_view_sort(uint64_t ptr, RustBuffer db_id, RustBuffer view_id, RustBuffer property_id, int8_t ascending, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_BLOCK
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_BLOCK
 void uniffi_pinkha_fn_method_pinkhaapi_update_block(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustBuffer content_json, RustCallStatus *_Nonnull out_status
@@ -1046,6 +1051,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_BLOCK_COLOR
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_BLOCK_COLOR
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_block_color(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_VIEW_SORT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_VIEW_SORT
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_view_sort(void
     
 );
 #endif

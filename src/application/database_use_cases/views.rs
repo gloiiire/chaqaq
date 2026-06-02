@@ -1,6 +1,6 @@
 use crate::application::database_repository::DatabaseRepository;
 use crate::application::error::PinkhaError;
-use crate::domain::database::{Filter, Sort, View};
+use crate::domain::database::{Filter, Order, Sort, SortSource, View};
 use uuid::Uuid;
 
 /// Adds a new view to the database and persists.
@@ -31,6 +31,35 @@ pub fn update_view(
         .ok_or(PinkhaError::NotFound(view_id))?;
     view.filters = filters;
     view.sorts = sorts;
+    repo.save(&db)
+}
+
+/// Sets a single sort on a view, replacing whatever sorts were previously
+/// configured. When `property_id` is `None`, all sorts are cleared.
+///
+/// This is the UX-facing entry point for "tap a column header to sort" —
+/// callers don't need to know about `Sort`, `SortSource`, or filter shapes.
+pub fn set_view_single_sort(
+    repo: &dyn DatabaseRepository,
+    db_id: Uuid,
+    view_id: Uuid,
+    property_id: Option<Uuid>,
+    ascending: bool,
+) -> Result<(), PinkhaError> {
+    let mut db = repo.load(db_id)?;
+    let view = db
+        .views
+        .iter_mut()
+        .find(|v| v.id == view_id)
+        .ok_or(PinkhaError::NotFound(view_id))?;
+    view.sorts = match property_id {
+        None => Vec::new(),
+        Some(pid) => vec![Sort {
+            property_id: pid,
+            order: if ascending { Order::Ascending } else { Order::Descending },
+            source: SortSource::Property,
+        }],
+    };
     repo.save(&db)
 }
 
@@ -166,6 +195,72 @@ mod tests {
         repo.save(&db).unwrap();
 
         let res = delete_view(&repo, db.id, Uuid::new_v4());
+        assert!(matches!(res, Err(PinkhaError::NotFound(_))));
+    }
+
+    // ── set_view_single_sort ─────────────────────────────────────────────────
+
+    #[test]
+    fn set_view_single_sort_replaces_previous_sorts() {
+        let repo = MockDbRepo::new();
+        let title_prop = Property::new("Name", PropertyType::Title);
+        let title_id = title_prop.id;
+        let date_prop = Property::new("Date", PropertyType::Date);
+        let date_id = date_prop.id;
+        let db = Database::new(
+            vec![InlineText { content: "Tasks".into(), styles: vec![] }],
+            vec![title_prop, date_prop],
+        );
+        let db_id = db.id;
+        let view_id = db.views[0].id;
+        repo.save(&db).unwrap();
+
+        // First sort: title ascending.
+        set_view_single_sort(&repo, db_id, view_id, Some(title_id), true).unwrap();
+        let after_first = repo.load(db_id).unwrap();
+        assert_eq!(after_first.views[0].sorts.len(), 1);
+        assert_eq!(after_first.views[0].sorts[0].property_id, title_id);
+        assert_eq!(after_first.views[0].sorts[0].order, Order::Ascending);
+
+        // Replace with date descending — previous sort is gone, not stacked.
+        set_view_single_sort(&repo, db_id, view_id, Some(date_id), false).unwrap();
+        let after_second = repo.load(db_id).unwrap();
+        assert_eq!(after_second.views[0].sorts.len(), 1);
+        assert_eq!(after_second.views[0].sorts[0].property_id, date_id);
+        assert_eq!(after_second.views[0].sorts[0].order, Order::Descending);
+    }
+
+    #[test]
+    fn set_view_single_sort_with_none_clears_sorts() {
+        let repo = MockDbRepo::new();
+        let prop = Property::new("Name", PropertyType::Title);
+        let prop_id = prop.id;
+        let db = Database::new(
+            vec![InlineText { content: "Tasks".into(), styles: vec![] }],
+            vec![prop],
+        );
+        let db_id = db.id;
+        let view_id = db.views[0].id;
+        repo.save(&db).unwrap();
+
+        set_view_single_sort(&repo, db_id, view_id, Some(prop_id), true).unwrap();
+        set_view_single_sort(&repo, db_id, view_id, None, true).unwrap();
+
+        let loaded = repo.load(db_id).unwrap();
+        assert!(loaded.views[0].sorts.is_empty());
+    }
+
+    #[test]
+    fn set_view_single_sort_unknown_view_returns_not_found() {
+        let repo = MockDbRepo::new();
+        let db = Database::new(
+            vec![InlineText { content: "x".into(), styles: vec![] }],
+            vec![],
+        );
+        let db_id = db.id;
+        repo.save(&db).unwrap();
+
+        let res = set_view_single_sort(&repo, db_id, Uuid::new_v4(), None, true);
         assert!(matches!(res, Err(PinkhaError::NotFound(_))));
     }
 }
