@@ -77,23 +77,28 @@ struct NotesHomeView: View {
                 .navigationTitle(greeting)
                 .navigationBarTitleDisplayMode(.large)
                 .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            showingTrash = true
-                        } label: {
-                            Image(systemName: "trash")
-                        }
-                        .accessibilityLabel("Corbeille")
-                    }
+                    // Overflow menu : consolide les actions secondaires (corbeille,
+                    // suppression totale) qui flottaient avant en boutons orphelins
+                    // de chaque côté de la nav bar. Pattern Notes/Mail iOS.
                     ToolbarItem(placement: .topBarTrailing) {
-                        if !store.items.isEmpty {
-                            Button(role: .destructive) {
-                                showingDeleteAllConfirm = true
+                        Menu {
+                            Button {
+                                showingTrash = true
                             } label: {
-                                Image(systemName: "trash.slash")
+                                Label("Corbeille", systemImage: "trash")
                             }
-                            .accessibilityLabel("Tout supprimer")
+                            if !store.items.isEmpty {
+                                Divider()
+                                Button(role: .destructive) {
+                                    showingDeleteAllConfirm = true
+                                } label: {
+                                    Label("Tout supprimer", systemImage: "trash.slash")
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
                         }
+                        .accessibilityLabel("Plus d'actions")
                     }
                 }
                 .sheet(isPresented: $showingTrash) {
