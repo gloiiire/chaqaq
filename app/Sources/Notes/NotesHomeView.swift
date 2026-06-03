@@ -3,238 +3,66 @@ import SwiftUI
 // ── Tab 1: Notes (unified workspace) ──────────────────────────────────────────
 
 /// Home screen for the Notes tab — shows notes and databases in a unified list.
+/// All creation / import / trash actions live in the global CreateBubble
+/// hosted by `ContentView.tabViewBottomAccessory`, so this view focuses on
+/// presenting the workspace content.
 struct NotesHomeView: View {
     @ObservedObject var store: PinkhaStore
-    @State private var showingCreate = false
-    @State private var showingImport = false
-    @State private var showingBearImport = false
-    @State private var showingCraftTextBundleImport = false
-    @State private var showingCraftCombinedImport = false
-    @State private var showingDeleteAllConfirm = false
-    @State private var showingDeleteAllConfirm2 = false
-    @State private var showingTrash = false
-    @State private var showingNewFolder = false
-    @State private var newFolderName = ""
-    @State private var newTitle = ""
-    @State private var createMode: CreateMode = .note
-
-    enum CreateMode { case note, database }
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottomTrailing) {
-                List {
-                    // ── Recent strip (only when items exist) ──────────────
-                    if !store.items.isEmpty {
-                        Section {
-                            RecentStrip(items: store.recentItems, api: store.api) {
-                                store.load()
-                            }
+            List {
+                if !store.items.isEmpty {
+                    Section {
+                        RecentStrip(items: store.recentItems, api: store.api) {
+                            store.load()
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets())
+                    } header: {
+                        SectionHeader(title: "Recent")
+                    }
+                }
+
+                if !store.listFolders().isEmpty {
+                    FoldersSectionView(store: store)
+                }
+
+                if store.items.isEmpty {
+                    Section {
+                        NotesEmptyState()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 48)
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets())
-                        } header: {
-                            SectionHeader(title: "Recent")
-                        }
                     }
-
-                    // ── Folders ───────────────────────────────────────────
-                    if !store.listFolders().isEmpty {
-                        FoldersSectionView(store: store)
-                    }
-
-                    // ── All items ─────────────────────────────────────────
-                    if store.items.isEmpty {
-                        Section {
-                            NotesEmptyState()
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 48)
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                        }
-                    } else {
-                        Section {
-                            if let api = store.api {
-                                ForEach(store.items) { item in
-                                    itemRow(item, api: api)
-                                }
-                                .onDelete { indexSet in
-                                    for i in indexSet {
-                                        let item = store.items[i]
-                                        switch item {
-                                        case .note(let d):      store.delete(id: d.id)
-                                        case .database(let db): store.deleteDatabase(id: db.id)
-                                        }
+                } else {
+                    Section {
+                        if let api = store.api {
+                            ForEach(store.items) { item in
+                                itemRow(item, api: api)
+                            }
+                            .onDelete { indexSet in
+                                for i in indexSet {
+                                    let item = store.items[i]
+                                    switch item {
+                                    case .note(let d):      store.delete(id: d.id)
+                                    case .database(let db): store.deleteDatabase(id: db.id)
                                     }
                                 }
-                            } else {
-                                ProgressView()
                             }
-                        } header: {
-                            SectionHeader(title: "All")
+                        } else {
+                            ProgressView()
                         }
+                    } header: {
+                        SectionHeader(title: "All")
                     }
                 }
-                .listStyle(.insetGrouped)
-                .navigationTitle(greeting)
-                .navigationBarTitleDisplayMode(.large)
-                .toolbar {
-                    // Overflow menu : consolide les actions secondaires (corbeille,
-                    // suppression totale) qui flottaient avant en boutons orphelins
-                    // de chaque côté de la nav bar. Pattern Notes/Mail iOS.
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Menu {
-                            Button {
-                                showingTrash = true
-                            } label: {
-                                Label("Corbeille", systemImage: "trash")
-                            }
-                            if !store.items.isEmpty {
-                                Divider()
-                                Button(role: .destructive) {
-                                    showingDeleteAllConfirm = true
-                                } label: {
-                                    Label("Tout supprimer", systemImage: "trash.slash")
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
-                        }
-                        .accessibilityLabel("Plus d'actions")
-                    }
-                }
-                .sheet(isPresented: $showingTrash) {
-                    TrashView()
-                        .environmentObject(store)
-                }
-                // ── FAB ───────────────────────────────────────────────────
-                Menu {
-                    Button {
-                        createMode = .note
-                        newTitle = ""
-                        showingCreate = true
-                    } label: {
-                        Label("New note", systemImage: "doc.text")
-                    }
-                    Button {
-                        createMode = .database
-                        newTitle = ""
-                        showingCreate = true
-                    } label: {
-                        Label("New database", systemImage: "tablecells")
-                    }
-                    Button {
-                        newFolderName = ""
-                        showingNewFolder = true
-                    } label: {
-                        Label("New folder", systemImage: "folder.badge.plus")
-                    }
-                    Divider()
-                    // Sous-menu Import : regroupe les 4 sources sous une entrée
-                    // unique pour désencombrer le FAB. Les actions primaires
-                    // (New note / database / folder) restent au 1er niveau.
-                    Menu {
-                        Button {
-                            showingImport = true
-                        } label: {
-                            Label("Notion", systemImage: "arrow.down.doc")
-                        }
-                        Button {
-                            showingBearImport = true
-                        } label: {
-                            Label("Bear", systemImage: "pencil.and.list.clipboard")
-                        }
-                        Button {
-                            showingCraftTextBundleImport = true
-                        } label: {
-                            Label("Craft (TextBundle)", systemImage: "doc.zipper")
-                        }
-                        Button {
-                            showingCraftCombinedImport = true
-                        } label: {
-                            Label("Craft (Combined)", systemImage: "arrow.triangle.merge")
-                        }
-                    } label: {
-                        Label("Import from…", systemImage: "square.and.arrow.down")
-                    }
-                } label: {
-                    FloatingButton(icon: "square.and.pencil") {}
-                }
-                .accessibilityIdentifier("createFAB")
-                .padding(.trailing, 24)
-                .padding(.bottom, 32)
             }
-            .sheet(isPresented: $showingImport) {
-                NotionImportView(api: store.api) {
-                    store.load()
-                }
-            }
-            .sheet(isPresented: $showingBearImport) {
-                BearImportView(api: store.api) {
-                    store.load()
-                }
-            }
-            .sheet(isPresented: $showingCraftTextBundleImport) {
-                CraftTextBundleImportView(api: store.api) {
-                    store.load()
-                }
-            }
-            .sheet(isPresented: $showingCraftCombinedImport) {
-                CraftCombinedImportView(api: store.api) {
-                    store.load()
-                }
-            }
-            .sheet(isPresented: $showingCreate) {
-                CreateDocumentSheet(
-                    title: $newTitle,
-                    prompt: createMode == .note ? "Note title" : "Database title"
-                ) {
-                    switch createMode {
-                    case .note:     store.create(title: newTitle)
-                    case .database: store.createDatabase(title: newTitle)
-                    }
-                    newTitle = ""
-                    showingCreate = false
-                } onCancel: {
-                    newTitle = ""
-                    showingCreate = false
-                }
-            }
-        }
-        .alert("New folder", isPresented: $showingNewFolder) {
-            TextField("Name", text: $newFolderName)
-            Button("Create") {
-                let trimmed = newFolderName.trimmingCharacters(in: .whitespaces)
-                guard !trimmed.isEmpty else { return }
-                store.createFolder(name: trimmed)
-                store.load()
-                newFolderName = ""
-            }
-            Button("Cancel", role: .cancel) { newFolderName = "" }
-        }
-        .alert("Delete all \(store.items.count) notes?", isPresented: $showingDeleteAllConfirm) {
-            Button("Delete All", role: .destructive) {
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(300))
-                    showingDeleteAllConfirm2 = true
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will remove all your notes.")
-        }
-        .alert("Are you sure?", isPresented: $showingDeleteAllConfirm2) {
-            Button("Yes, delete everything", role: .destructive) {
-                // Wipe everything the workspace exposes — notes, databases AND
-                // folders. Without the folder sweep, the user would still see
-                // empty folder rows after a "Tout supprimer" which feels broken.
-                store.deleteAll()
-                store.deleteAllDatabases()
-                store.deleteAllFolders()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This cannot be undone.")
+            .listStyle(.insetGrouped)
+            .navigationTitle(greeting)
+            .navigationBarTitleDisplayMode(.large)
         }
     }
 

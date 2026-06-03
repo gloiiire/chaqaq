@@ -25,6 +25,11 @@ final class PinkhaStore: ObservableObject {
     @Published var documents: [DocumentMetaFfi] = []
     @Published var databases: [DatabaseMetaFfi] = []
     @Published var errorMessage: String?
+    /// `true` when the Inbox tab has at least one item awaiting the user's
+    /// attention — flips the tab icon to `tray.badge.fill`. Wired manually
+    /// for now (no real notification source yet); future imports / shared
+    /// items / sync events can flip this.
+    @Published var hasInboxNotification: Bool = false
 
     private(set) var api: PinkhaApi?
 
