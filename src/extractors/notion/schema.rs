@@ -270,6 +270,18 @@ pub struct NotionBlock {
     pub bulleted_list_item: Option<RichTextBlock>,
     pub numbered_list_item: Option<RichTextBlock>,
     pub code: Option<CodeBlock>,
+    /// Child-page block payload — present when `type_ == "child_page"`. The
+    /// block's `id` doubles as the embedded child page's Notion id, fetched
+    /// separately during import to materialise the child document.
+    pub child_page: Option<ChildPageBlock>,
+}
+
+/// Body of a `child_page` block — only carries the static title shown inline.
+/// The actual page content lives at the URL formed from the parent block's
+/// id, which the importer fetches recursively.
+#[derive(Debug, Deserialize)]
+pub struct ChildPageBlock {
+    pub title: String,
 }
 
 /// Block content that carries only a rich-text array (paragraph, headings, quote, list items).

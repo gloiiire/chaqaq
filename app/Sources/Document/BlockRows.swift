@@ -70,6 +70,11 @@ struct BlockCallbacks {
     /// parent navigates to that document. Set by `DocumentView` and read by
     /// `RichTextEditor`.
     var onOpenInternalDoc: ((String) -> Void)? = nil
+    /// Resolves a child-page block to a display title + optional icon. Used
+    /// by `ChildPageRowView` to surface the embedded page's name without
+    /// loading the entire child document. Returns `nil` for a deleted or
+    /// missing child page.
+    var resolveChildPage: ((String) -> (title: String, icon: String?)?)? = nil
 }
 
 // ── Shared text editor for all blocks ────────────────────────────────────────
@@ -154,6 +159,8 @@ struct BlockRowView: View {
                 NumberedListItemRowView(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
             case .code(let language, let text):
                 CodeBlockEditorView(block: $block, language: language, text: text, cb: cb)
+            case .page(let id):
+                ChildPageRowView(childDocId: id, cb: cb)
             default:
                 EmptyView()
             }
@@ -302,5 +309,43 @@ private struct CodeBlockEditorView: View {
                 .onChange(of: editedText) { _, _ in save() }
         }
         .padding(.vertical, 4)
+    }
+}
+
+// ── Child page row ────────────────────────────────────────────────────────────
+
+/// Inline reference to a child pinkha document — mirrors Notion's child_page
+/// block. Tapping the row pushes the child document onto the surrounding
+/// `NavigationStack` via the parent's `onOpenInternalDoc` callback.
+struct ChildPageRowView: View {
+    let childDocId: String
+    let cb: BlockCallbacks
+
+    @State private var resolved: (title: String, icon: String?)? = nil
+
+    var body: some View {
+        Button {
+            cb.onOpenInternalDoc?(childDocId)
+        } label: {
+            HStack(spacing: 8) {
+                if let icon = resolved?.icon, !icon.isEmpty {
+                    Text(icon).font(.body)
+                } else {
+                    Image(systemName: "doc.text")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                }
+                Text(resolved?.title.isEmpty == false ? resolved!.title : "Untitled")
+                    .font(.body.weight(.medium))
+                    .underline()
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Spacer()
+            }
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onAppear { resolved = cb.resolveChildPage?(childDocId) }
     }
 }

@@ -110,6 +110,68 @@ pub fn list_documents_in_folder(
     uow.documents().list_by_folder(folder_id)
 }
 
+/// Sets the parent document for Notion-style page-in-page hierarchy. Pass
+/// `None` to promote `doc_id` back to root. Rejects cycles (refuses to make
+/// `doc_id` a descendant of itself) so the hierarchy stays acyclic — without
+/// this, the breadcrumbs would loop and a depth-first render would recurse
+/// forever.
+pub fn update_document_parent(
+    uow: &dyn UnitOfWork,
+    doc_id: Uuid,
+    new_parent_doc_id: Option<Uuid>,
+) -> Result<(), PinkhaError> {
+    if let Some(new_parent) = new_parent_doc_id {
+        if new_parent == doc_id {
+            return Err(PinkhaError::InvalidOperation(
+                "a document cannot be its own parent".into(),
+            ));
+        }
+        // Walk up from the prospective new parent: if we ever reach `doc_id`,
+        // the move would create a cycle.
+        let repo = uow.documents();
+        let mut cursor = Some(new_parent);
+        while let Some(id) = cursor {
+            let ancestor = repo.load(id)?;
+            if ancestor.parent_doc_id == Some(doc_id) {
+                return Err(PinkhaError::InvalidOperation(
+                    "moving here would create a parent/child cycle".into(),
+                ));
+            }
+            cursor = ancestor.parent_doc_id;
+        }
+    }
+    let repo = uow.documents();
+    let mut doc = repo.load(doc_id)?;
+    doc.parent_doc_id = new_parent_doc_id;
+    repo.save(&doc)
+}
+
+/// Returns lightweight metadata for documents at the root of the page tree
+/// (no parent document). Drives the home view, which only surfaces top-level
+/// pages — child pages are reached by tapping their parent.
+pub fn list_root_documents(uow: &dyn UnitOfWork) -> Result<Vec<DocumentMeta>, PinkhaError> {
+    Ok(uow
+        .documents()
+        .list()?
+        .into_iter()
+        .filter(|m| m.parent_doc_id.is_none())
+        .collect())
+}
+
+/// Returns lightweight metadata for the direct children of `parent_doc_id`.
+/// Used by the breadcrumbs / child-page section of the document view.
+pub fn list_child_documents(
+    uow: &dyn UnitOfWork,
+    parent_doc_id: Uuid,
+) -> Result<Vec<DocumentMeta>, PinkhaError> {
+    Ok(uow
+        .documents()
+        .list()?
+        .into_iter()
+        .filter(|m| m.parent_doc_id == Some(parent_doc_id))
+        .collect())
+}
+
 /// Applies the editor state to a text-bearing block and persists the document.
 ///
 /// Returns `InvalidOperation` when the target block does not carry editable text

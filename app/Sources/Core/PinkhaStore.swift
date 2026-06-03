@@ -59,13 +59,32 @@ final class PinkhaStore: ObservableObject {
     }
 
     /// Refreshes documents and databases from the SQLite store.
+    /// Only root pages (no `parentDocId`) are surfaced — child pages are
+    /// reached by tapping their parent's inline `Page` block.
     func load() {
-        if let docs = tryCatch(into: &errorMessage, { try api?.listDocuments() ?? [] }) {
+        if let docs = tryCatch(into: &errorMessage, { try api?.listRootDocuments() ?? [] }) {
             documents = docs
         }
         if let dbs = tryCatch(into: &errorMessage, { try api?.listDatabases() ?? [] }) {
             databases = dbs
         }
+    }
+
+    /// Direct child pages of a given parent document. Used by the document
+    /// view to surface sub-pages even when they aren't placed inline as
+    /// `BlockContent::Page` blocks yet.
+    func childDocuments(of parentDocId: String) -> [DocumentMetaFfi] {
+        guard let api else { return [] }
+        return (try? api.listChildDocuments(parentDocId: parentDocId)) ?? []
+    }
+
+    /// Moves a document under another parent document, or to root when
+    /// `newParentDocId` is `nil`.
+    func moveDocumentToParent(docId: String, newParentDocId: String?) {
+        tryCatch(into: &errorMessage) {
+            try api?.updateDocumentParent(docId: docId, newParentDocId: newParentDocId)
+        }
+        load()
     }
 
     /// Creates a new note and reloads.

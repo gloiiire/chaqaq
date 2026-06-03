@@ -122,7 +122,20 @@ extension DocumentView {
             onIndent: { vm.indentBlock(id: block.id) },
             onOutdent: { vm.outdentBlock(id: block.id) },
             onSetBlockColor: { color in vm.setBlockColor(id: block.id, color: color) },
-            onOpenInternalDoc: { docId in pushedDocId = docId }
+            onOpenInternalDoc: { docId in pushedDocId = docId },
+            resolveChildPage: { childId in
+                // The child-page row needs a title + optional icon. We load
+                // the document JSON synchronously off the SQLite store —
+                // cheap on local disk, and the call is gated by `.onAppear`
+                // in `ChildPageRowView` so we hit the store at most once
+                // per child block surfaced.
+                guard let json = try? vm.api.getDocumentJson(id: childId),
+                      let data = json.data(using: .utf8),
+                      let doc = try? JSONDecoder().decode(DocumentFfi.self, from: data)
+                else { return nil }
+                let title = doc.title.map(\.content).joined()
+                return (title: title, icon: doc.icon)
+            }
         )
     }
 }

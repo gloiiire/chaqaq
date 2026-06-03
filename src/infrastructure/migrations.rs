@@ -43,7 +43,11 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
     add_column_if_missing(conn, "documents", "created_at", "TEXT NOT NULL DEFAULT ''")?;
     add_column_if_missing(conn, "databases", "created_at", "TEXT NOT NULL DEFAULT ''")?;
     add_column_if_missing(conn, "documents", "folder_id", "TEXT")?;
-    conn.pragma_update(None, "user_version", 5)
+    // Parent document for Notion-style page-in-page hierarchy.
+    // Indexed so `list_root_documents` and `list_child_documents` can scan
+    // by this column without parsing every row's JSON `data` blob.
+    add_column_if_missing(conn, "documents", "parent_doc_id", "TEXT")?;
+    conn.pragma_update(None, "user_version", 6)
         .map_err(|e| PinkhaError::Db(e.to_string()))?;
     Ok(())
 }

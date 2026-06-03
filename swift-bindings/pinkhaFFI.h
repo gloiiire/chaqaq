@@ -403,6 +403,11 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(uint64_t ptr, Ru
 void uniffi_pinkha_fn_method_pinkhaapi_indent_block(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_CHILD_DOCUMENTS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_CHILD_DOCUMENTS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_child_documents(uint64_t ptr, RustBuffer parent_doc_id, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DATABASES
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DATABASES
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_databases(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -446,6 +451,11 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_folders(uint64_t ptr, RustCall
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_NOTION_DATABASES
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_NOTION_DATABASES
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_notion_databases(uint64_t ptr, RustBuffer token, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_ROOT_DOCUMENTS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_ROOT_DOCUMENTS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_root_documents(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_MOVE_BLOCK
@@ -581,6 +591,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_update_document_icon(uint64_t ptr, RustBu
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_LOCKED
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_LOCKED
 void uniffi_pinkha_fn_method_pinkhaapi_update_document_locked(uint64_t ptr, RustBuffer id, int8_t locked, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_PARENT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_PARENT
+void uniffi_pinkha_fn_method_pinkhaapi_update_document_parent(uint64_t ptr, RustBuffer doc_id, RustBuffer new_parent_doc_id, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_TITLE
@@ -1032,6 +1047,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_indent_block(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_CHILD_DOCUMENTS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_CHILD_DOCUMENTS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_child_documents(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_DATABASES
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_DATABASES
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_databases(void
@@ -1083,6 +1104,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_folders(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_NOTION_DATABASES
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_NOTION_DATABASES
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_ROOT_DOCUMENTS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_ROOT_DOCUMENTS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_root_documents(void
     
 );
 #endif
@@ -1245,6 +1272,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_icon(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_LOCKED
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_LOCKED
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_locked(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_PARENT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_PARENT
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_parent(void
     
 );
 #endif

@@ -49,6 +49,14 @@ pub enum BlockContent {
         /// Raw source code — no inline styles, whitespace preserved.
         text: String,
     },
+    /// Reference to a child page (Notion-style "child_page" block).
+    /// Renders as a clickable row pointing to another Document. The child
+    /// document remains autonomous (its own title, blocks, color, …); this
+    /// block only places it inline at a chosen position in the parent.
+    Page {
+        /// ID of the referenced child `Document`.
+        id: Uuid,
+    },
 }
 
 /// A node in a document's block tree — may contain nested child blocks.
@@ -104,6 +112,12 @@ pub struct DocumentMeta {
     /// Folder this document belongs to. None = root level.
     #[serde(default)]
     pub folder_id: Option<Uuid>,
+    /// Parent document for Notion-style page-in-page hierarchy. `None` means
+    /// the document is a root page; otherwise it is a child page reachable
+    /// either by tapping its [`BlockContent::Page`] block inside the parent,
+    /// or by navigating through the breadcrumbs from any descendant.
+    #[serde(default)]
+    pub parent_doc_id: Option<Uuid>,
 }
 
 impl From<&Document> for DocumentMeta {
@@ -115,6 +129,7 @@ impl From<&Document> for DocumentMeta {
             updated_at: String::new(),
             created_at: String::new(),
             folder_id: doc.folder_id,
+            parent_doc_id: doc.parent_doc_id,
         }
     }
 }
@@ -140,6 +155,11 @@ pub struct Document {
     /// Folder this document belongs to. None = root level.
     #[serde(default)]
     pub folder_id: Option<Uuid>,
+    /// Parent document for Notion-style page-in-page hierarchy. `None` means
+    /// the document is a root page; otherwise it is a child page placed
+    /// inside its parent via a [`BlockContent::Page`] block.
+    #[serde(default)]
+    pub parent_doc_id: Option<Uuid>,
     /// Read-only flag. When `true`, the editor disables every interactive
     /// element (blocks become non-editable, the keyboard accessory hides,
     /// the FAB and "+New block" footer go away). Used by data-extract
@@ -161,6 +181,7 @@ impl Document {
             icon: None,
             blocks: vec![],
             folder_id: None,
+            parent_doc_id: None,
             locked: false,
         }
     }

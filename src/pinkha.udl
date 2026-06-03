@@ -20,6 +20,7 @@ dictionary DocumentMetaFfi {
     string updated_at;
     string created_at;
     string? folder_id;
+    string? parent_doc_id;
 };
 
 /// Métadonnées légères d'un dossier.
@@ -316,6 +317,19 @@ interface PinkhaApi {
 
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> list_documents_in_folder(string? folder_id);
+
+    /// Définit le document parent (page imbriquée à la Notion). `None` pour
+    /// repromouvoir le document à la racine. Rejette les cycles.
+    [Throws=PinkhaError]
+    void update_document_parent(string doc_id, string? new_parent_doc_id);
+
+    /// Liste les pages racine (documents sans parent). Alimente la home.
+    [Throws=PinkhaError]
+    sequence<DocumentMetaFfi> list_root_documents();
+
+    /// Liste les enfants directs d'un document parent (page-in-page).
+    [Throws=PinkhaError]
+    sequence<DocumentMetaFfi> list_child_documents(string parent_doc_id);
 
     // ── Imports ───────────────────────────────────────────────
 

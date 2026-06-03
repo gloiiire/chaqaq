@@ -422,6 +422,7 @@ mod tests {
                 None
             },
             code: None,
+            child_page: None,
         }
     }
 
@@ -476,6 +477,7 @@ mod tests {
             to_do: None,
             bulleted_list_item: None,
             numbered_list_item: None,
+            child_page: None,
             code: Some(CodeBlock {
                 rich_text: vec![rt],
                 language: "rust".to_string(),
@@ -508,6 +510,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         assert!(map_block(&block).is_none());
     }
@@ -556,6 +559,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         assert!(matches!(
@@ -590,6 +594,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         assert!(matches!(
@@ -627,6 +632,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         match result {
@@ -663,6 +669,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         match result {
@@ -698,6 +705,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         match result {
@@ -726,6 +734,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         assert!(matches!(
@@ -870,6 +879,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         }
     }
 
@@ -909,6 +919,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         assert!(map_block_color(&block).is_none());
     }

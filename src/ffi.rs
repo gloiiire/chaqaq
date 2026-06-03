@@ -104,6 +104,9 @@ pub struct DocumentMetaFfi {
     pub created_at: String,
     /// UUID of the folder this document belongs to, or `None` for root.
     pub folder_id: Option<String>,
+    /// UUID of the parent document (Notion-style page-in-page), or `None`
+    /// when this is a root page.
+    pub parent_doc_id: Option<String>,
 }
 
 /// Lightweight folder metadata passed across the FFI boundary.
@@ -193,6 +196,7 @@ fn doc_meta_to_ffi(m: DocumentMeta) -> DocumentMetaFfi {
         updated_at: m.updated_at,
         created_at: m.created_at,
         folder_id: m.folder_id.map(|id| id.to_string()),
+        parent_doc_id: m.parent_doc_id.map(|id| id.to_string()),
     }
 }
 
@@ -943,6 +947,40 @@ impl PinkhaApi {
     ) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
         let fid = folder_id.as_deref().map(parse_uuid).transpose()?;
         use_cases::list_documents_in_folder(&self.uow(), fid)
+            .map(|v| v.into_iter().map(doc_meta_to_ffi).collect())
+            .map_err(PinkhaError::from)
+    }
+
+    /// Sets the parent document for page-in-page hierarchy. Pass `None`
+    /// to promote the document back to root. Rejects cycles.
+    pub fn update_document_parent(
+        &self,
+        doc_id: String,
+        new_parent_doc_id: Option<String>,
+    ) -> Result<(), PinkhaError> {
+        let doc_uuid = parse_uuid(&doc_id)?;
+        let parent = new_parent_doc_id
+            .as_deref()
+            .map(parse_uuid)
+            .transpose()?;
+        use_cases::update_document_parent(&self.uow(), doc_uuid, parent).map_err(PinkhaError::from)
+    }
+
+    /// Lists root pages (documents with no parent). Drives the home view.
+    pub fn list_root_documents(&self) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
+        use_cases::list_root_documents(&self.uow())
+            .map(|v| v.into_iter().map(doc_meta_to_ffi).collect())
+            .map_err(PinkhaError::from)
+    }
+
+    /// Lists direct children of a parent document. Used by the child-pages
+    /// section in the document view and by the breadcrumbs picker.
+    pub fn list_child_documents(
+        &self,
+        parent_doc_id: String,
+    ) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
+        let parent = parse_uuid(&parent_doc_id)?;
+        use_cases::list_child_documents(&self.uow(), parent)
             .map(|v| v.into_iter().map(doc_meta_to_ffi).collect())
             .map_err(PinkhaError::from)
     }

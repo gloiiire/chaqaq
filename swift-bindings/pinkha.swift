@@ -641,6 +641,11 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func indentBlock(docId: String, blockId: String) throws 
     
     /**
+     * Liste les enfants directs d'un document parent (page-in-page).
+     */
+    func listChildDocuments(parentDocId: String) throws  -> [DocumentMetaFfi]
+    
+    /**
      * Liste les métadonnées de toutes les databases actives.
      */
     func listDatabases() throws  -> [DatabaseMetaFfi]
@@ -679,6 +684,11 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * par le picker côté Swift pour éviter à l'utilisateur de coller des URLs.
      */
     func listNotionDatabases(token: String) throws  -> [NotionDatabaseSummaryFfi]
+    
+    /**
+     * Liste les pages racine (documents sans parent). Alimente la home.
+     */
+    func listRootDocuments() throws  -> [DocumentMetaFfi]
     
     /**
      * Déplace un bloc vers un parent ou vers la racine si `new_parent_id` est nul.
@@ -806,6 +816,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * `locked = true` à la création.
      */
     func updateDocumentLocked(id: String, locked: Bool) throws 
+    
+    /**
+     * Définit le document parent (page imbriquée à la Notion). `None` pour
+     * repromouvoir le document à la racine. Rejette les cycles.
+     */
+    func updateDocumentParent(docId: String, newParentDocId: String?) throws 
     
     func updateDocumentTitle(id: String, newTitle: String) throws 
     
@@ -1258,6 +1274,18 @@ open func indentBlock(docId: String, blockId: String)throws   {try rustCallWithE
 }
     
     /**
+     * Liste les enfants directs d'un document parent (page-in-page).
+     */
+open func listChildDocuments(parentDocId: String)throws  -> [DocumentMetaFfi]  {
+    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_child_documents(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(parentDocId),$0
+    )
+})
+}
+    
+    /**
      * Liste les métadonnées de toutes les databases actives.
      */
 open func listDatabases()throws  -> [DatabaseMetaFfi]  {
@@ -1350,6 +1378,17 @@ open func listNotionDatabases(token: String)throws  -> [NotionDatabaseSummaryFfi
     uniffi_pinkha_fn_method_pinkhaapi_list_notion_databases(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(token),$0
+    )
+})
+}
+    
+    /**
+     * Liste les pages racine (documents sans parent). Alimente la home.
+     */
+open func listRootDocuments()throws  -> [DocumentMetaFfi]  {
+    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_root_documents(
+            self.uniffiCloneHandle(),$0
     )
 })
 }
@@ -1674,6 +1713,19 @@ open func updateDocumentLocked(id: String, locked: Bool)throws   {try rustCallWi
 }
 }
     
+    /**
+     * Définit le document parent (page imbriquée à la Notion). `None` pour
+     * repromouvoir le document à la racine. Rejette les cycles.
+     */
+open func updateDocumentParent(docId: String, newParentDocId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_document_parent(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(docId),
+        FfiConverterOptionString.lower(newParentDocId),$0
+    )
+}
+}
+    
 open func updateDocumentTitle(id: String, newTitle: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_document_title(
             self.uniffiCloneHandle(),
@@ -1832,10 +1884,11 @@ public struct DocumentMetaFfi: Equatable, Hashable {
     public var updatedAt: String
     public var createdAt: String
     public var folderId: String?
+    public var parentDocId: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, titlePlain: String, titleJson: String, cover: String?, updatedAt: String, createdAt: String, folderId: String?) {
+    public init(id: String, titlePlain: String, titleJson: String, cover: String?, updatedAt: String, createdAt: String, folderId: String?, parentDocId: String?) {
         self.id = id
         self.titlePlain = titlePlain
         self.titleJson = titleJson
@@ -1843,6 +1896,7 @@ public struct DocumentMetaFfi: Equatable, Hashable {
         self.updatedAt = updatedAt
         self.createdAt = createdAt
         self.folderId = folderId
+        self.parentDocId = parentDocId
     }
 
     
@@ -1867,7 +1921,8 @@ public struct FfiConverterTypeDocumentMetaFfi: FfiConverterRustBuffer {
                 cover: FfiConverterOptionString.read(from: &buf), 
                 updatedAt: FfiConverterString.read(from: &buf), 
                 createdAt: FfiConverterString.read(from: &buf), 
-                folderId: FfiConverterOptionString.read(from: &buf)
+                folderId: FfiConverterOptionString.read(from: &buf), 
+                parentDocId: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -1879,6 +1934,7 @@ public struct FfiConverterTypeDocumentMetaFfi: FfiConverterRustBuffer {
         FfiConverterString.write(value.updatedAt, into: &buf)
         FfiConverterString.write(value.createdAt, into: &buf)
         FfiConverterOptionString.write(value.folderId, into: &buf)
+        FfiConverterOptionString.write(value.parentDocId, into: &buf)
     }
 }
 
@@ -2528,6 +2584,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_indent_block() != 34803) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_child_documents() != 23819) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_databases() != 58802) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -2553,6 +2612,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases() != 31016) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_root_documents() != 63012) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_move_block() != 56333) {
@@ -2634,6 +2696,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_locked() != 6614) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_parent() != 28850) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_title() != 35631) {
