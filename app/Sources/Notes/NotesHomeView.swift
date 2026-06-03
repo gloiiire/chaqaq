@@ -130,25 +130,32 @@ struct NotesHomeView: View {
                         Label("New folder", systemImage: "folder.badge.plus")
                     }
                     Divider()
-                    Button {
-                        showingImport = true
+                    // Sous-menu Import : regroupe les 4 sources sous une entrée
+                    // unique pour désencombrer le FAB. Les actions primaires
+                    // (New note / database / folder) restent au 1er niveau.
+                    Menu {
+                        Button {
+                            showingImport = true
+                        } label: {
+                            Label("Notion", systemImage: "arrow.down.doc")
+                        }
+                        Button {
+                            showingBearImport = true
+                        } label: {
+                            Label("Bear", systemImage: "pencil.and.list.clipboard")
+                        }
+                        Button {
+                            showingCraftTextBundleImport = true
+                        } label: {
+                            Label("Craft (TextBundle)", systemImage: "doc.zipper")
+                        }
+                        Button {
+                            showingCraftCombinedImport = true
+                        } label: {
+                            Label("Craft (Combined)", systemImage: "arrow.triangle.merge")
+                        }
                     } label: {
-                        Label("Import from Notion", systemImage: "arrow.down.doc")
-                    }
-                    Button {
-                        showingBearImport = true
-                    } label: {
-                        Label("Import from Bear", systemImage: "pencil.and.list.clipboard")
-                    }
-                    Button {
-                        showingCraftTextBundleImport = true
-                    } label: {
-                        Label("Import from Craft (TextBundle)", systemImage: "doc.zipper")
-                    }
-                    Button {
-                        showingCraftCombinedImport = true
-                    } label: {
-                        Label("Import from Craft (Combined)", systemImage: "arrow.triangle.merge")
+                        Label("Import from…", systemImage: "square.and.arrow.down")
                     }
                 } label: {
                     FloatingButton(icon: "square.and.pencil") {}
