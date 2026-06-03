@@ -555,6 +555,8 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      */
     func deleteAllDocuments() throws  -> UInt32
     
+    func deleteAllFolders() throws  -> UInt32
+    
     func deleteBlock(docId: String, blockId: String) throws 
     
     /**
@@ -1007,6 +1009,14 @@ open func deleteAllDatabases()throws  -> UInt32  {
 open func deleteAllDocuments()throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_delete_all_documents(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func deleteAllFolders()throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_all_folders(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -2462,6 +2472,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_documents() != 3995) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_folders() != 2097) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_block() != 14109) {

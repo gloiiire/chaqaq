@@ -10,12 +10,18 @@ import SwiftUI
 struct DatabaseView: View {
     @StateObject private var vm: DatabaseViewModel
     let api: PinkhaApi
+    /// Called when the view leaves the screen. Used by the parent home view
+    /// to refresh its list after a deletion that happened inside the DB.
+    var onDisappear: (() -> Void)? = nil
 
     @State private var showAddColumn = false
+    @State private var showDeleteConfirm = false
+    @Environment(\.dismiss) private var dismiss
 
-    init(dbId: String, api: PinkhaApi) {
+    init(dbId: String, api: PinkhaApi, onDisappear: (() -> Void)? = nil) {
         _vm  = StateObject(wrappedValue: DatabaseViewModel(dbId: dbId, api: api))
         self.api = api
+        self.onDisappear = onDisappear
     }
 
     // ── Column widths ─────────────────────────────────────────────────────────
@@ -54,6 +60,30 @@ struct DatabaseView: View {
                     Label("Add column", systemImage: "plus.rectangle")
                 }
             }
+            // Overflow menu mirroring `NotesHomeView` — keeps the primary
+            // "Add column" action visible and tucks destructive ops behind
+            // the ellipsis. Same pattern as Notes/Mail iOS.
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button(role: .destructive) {
+                        showDeleteConfirm = true
+                    } label: {
+                        Label("Supprimer la base", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .accessibilityLabel("Plus d'actions")
+            }
+        }
+        .alert("Supprimer cette base ?", isPresented: $showDeleteConfirm) {
+            Button("Supprimer", role: .destructive) {
+                tryCatch(into: &vm.errorMessage) { try api.deleteDatabase(id: vm.dbId) }
+                dismiss()
+            }
+            Button("Annuler", role: .cancel) {}
+        } message: {
+            Text("Toutes les lignes seront déplacées vers la corbeille.")
         }
         .sheet(isPresented: $showAddColumn) {
             AddColumnSheet { name, type in
@@ -64,6 +94,7 @@ struct DatabaseView: View {
             }
         }
         .onAppear { vm.load() }
+        .onDisappear { onDisappear?() }
         .errorAlert(message: $vm.errorMessage, onRetry: vm.load)
     }
 

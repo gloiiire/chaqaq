@@ -13,6 +13,8 @@ struct NotesHomeView: View {
     @State private var showingDeleteAllConfirm = false
     @State private var showingDeleteAllConfirm2 = false
     @State private var showingTrash = false
+    @State private var showingNewFolder = false
+    @State private var newFolderName = ""
     @State private var newTitle = ""
     @State private var createMode: CreateMode = .note
 
@@ -121,6 +123,12 @@ struct NotesHomeView: View {
                     } label: {
                         Label("New database", systemImage: "tablecells")
                     }
+                    Button {
+                        newFolderName = ""
+                        showingNewFolder = true
+                    } label: {
+                        Label("New folder", systemImage: "folder.badge.plus")
+                    }
                     Divider()
                     Button {
                         showingImport = true
@@ -186,6 +194,17 @@ struct NotesHomeView: View {
                 }
             }
         }
+        .alert("New folder", isPresented: $showingNewFolder) {
+            TextField("Name", text: $newFolderName)
+            Button("Create") {
+                let trimmed = newFolderName.trimmingCharacters(in: .whitespaces)
+                guard !trimmed.isEmpty else { return }
+                store.createFolder(name: trimmed)
+                store.load()
+                newFolderName = ""
+            }
+            Button("Cancel", role: .cancel) { newFolderName = "" }
+        }
         .alert("Delete all \(store.items.count) notes?", isPresented: $showingDeleteAllConfirm) {
             Button("Delete All", role: .destructive) {
                 Task { @MainActor in
@@ -198,7 +217,14 @@ struct NotesHomeView: View {
             Text("This will remove all your notes.")
         }
         .alert("Are you sure?", isPresented: $showingDeleteAllConfirm2) {
-            Button("Yes, delete everything", role: .destructive) { store.deleteAll() }
+            Button("Yes, delete everything", role: .destructive) {
+                // Wipe everything the workspace exposes — notes, databases AND
+                // folders. Without the folder sweep, the user would still see
+                // empty folder rows after a "Tout supprimer" which feels broken.
+                store.deleteAll()
+                store.deleteAllDatabases()
+                store.deleteAllFolders()
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This cannot be undone.")
@@ -216,7 +242,8 @@ struct NotesHomeView: View {
                 WorkspaceRow(item: item)
             }
         case .database(let db):
-            NavigationLink(destination: DatabaseView(dbId: db.id, api: api)) {
+            NavigationLink(destination: DatabaseView(dbId: db.id, api: api,
+                                                    onDisappear: store.load)) {
                 WorkspaceRow(item: item)
             }
         }
@@ -254,7 +281,8 @@ struct RecentStrip: View {
                             }
                             .buttonStyle(.plain)
                         case .database(let db):
-                            NavigationLink(destination: DatabaseView(dbId: db.id, api: api)) {
+                            NavigationLink(destination: DatabaseView(dbId: db.id, api: api,
+                                                                    onDisappear: onDisappear)) {
                                 RecentCard(item: item)
                             }
                             .buttonStyle(.plain)

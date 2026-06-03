@@ -313,6 +313,11 @@ uint32_t uniffi_pinkha_fn_method_pinkhaapi_delete_all_databases(uint64_t ptr, Ru
 uint32_t uniffi_pinkha_fn_method_pinkhaapi_delete_all_documents(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_ALL_FOLDERS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_ALL_FOLDERS
+uint32_t uniffi_pinkha_fn_method_pinkhaapi_delete_all_folders(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_BLOCK
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_BLOCK
 void uniffi_pinkha_fn_method_pinkhaapi_delete_block(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustCallStatus *_Nonnull out_status
@@ -916,6 +921,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_all_databases(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ALL_DOCUMENTS
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ALL_DOCUMENTS
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_all_documents(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ALL_FOLDERS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ALL_FOLDERS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_all_folders(void
     
 );
 #endif

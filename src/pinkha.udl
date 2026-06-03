@@ -293,6 +293,9 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void delete_folder(string id);
 
+    [Throws=PinkhaError]
+    u32 delete_all_folders();
+
     /// Liste les dossiers en corbeille (soft-deleted), du plus récemment supprimé en premier.
     [Throws=PinkhaError]
     sequence<FolderMetaFfi> list_deleted_folders();

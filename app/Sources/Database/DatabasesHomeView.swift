@@ -27,7 +27,8 @@ struct DatabasesHomeView: View {
                         Section {
                             if let api = store.api {
                                 ForEach(store.databases, id: \.id) { db in
-                                    NavigationLink(destination: DatabaseView(dbId: db.id, api: api)) {
+                                    NavigationLink(destination: DatabaseView(dbId: db.id, api: api,
+                                                                            onDisappear: store.load)) {
                                         DatabaseRow(db: db)
                                     }
                                 }

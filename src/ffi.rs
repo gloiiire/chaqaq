@@ -886,6 +886,18 @@ impl PinkhaApi {
         folder_use_cases::delete_folder(&self.uow(), uuid).map_err(PinkhaError::from)
     }
 
+    /// Soft-deletes every folder. Documents and databases that lived inside
+    /// are orphaned to the root (the `delete_folder` use case handles that).
+    /// Returns the number of folders deleted.
+    pub fn delete_all_folders(&self) -> Result<u32, PinkhaError> {
+        let metas = folder_use_cases::list_folders(&self.uow()).map_err(PinkhaError::from)?;
+        let count = metas.len() as u32;
+        for meta in metas {
+            folder_use_cases::delete_folder(&self.uow(), meta.id).map_err(PinkhaError::from)?;
+        }
+        Ok(count)
+    }
+
     /// Lists soft-deleted folders (the trash). Newest-deleted first.
     pub fn list_deleted_folders(&self) -> Result<Vec<FolderMetaFfi>, PinkhaError> {
         folder_use_cases::list_deleted_folders(&self.uow())

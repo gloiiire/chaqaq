@@ -103,6 +103,14 @@ final class PinkhaStore: ObservableObject {
         }
     }
 
+    /// Soft-deletes all folders (orphan contents fall back to root).
+    /// Used by the "Tout supprimer" flow so a clean wipe includes folders.
+    func deleteAllFolders() {
+        if tryCatch(into: &errorMessage, { try api?.deleteAllFolders() }) != nil {
+            load()
+        }
+    }
+
     /// Soft-deletes a database by id and reloads.
     func deleteDatabase(id: String) {
         if tryCatch(into: &errorMessage, { try api?.deleteDatabase(id: id) }) != nil {
