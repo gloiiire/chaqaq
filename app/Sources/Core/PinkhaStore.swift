@@ -158,6 +158,18 @@ final class PinkhaStore: ObservableObject {
         load()
     }
 
+    /// Moves a folder under another folder (or to root when `newParentId` is nil)
+    /// and reloads. Used by the folder-in-folder UI.
+    func moveFolder(id: String, newParentId: String?) {
+        tryCatch(into: &errorMessage) { try api?.moveFolderTo(id: id, newParentId: newParentId) }
+        load()
+    }
+
+    /// Returns the direct children of `parentId` (`nil` = root-level folders).
+    func childFolders(of parentId: String?) -> [FolderMetaFfi] {
+        listFolders().filter { $0.parentId == parentId }
+    }
+
     /// Returns documents in the given folder (`nil` = root level).
     func documentsInFolder(folderId: String?) -> [DocumentMetaFfi] {
         guard let api else { return [] }
