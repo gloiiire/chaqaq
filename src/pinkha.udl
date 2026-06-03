@@ -104,6 +104,12 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void update_document_icon(string id, string? icon);
 
+    /// Active ou désactive le verrou lecture seule sur un document.
+    /// Les imports (Notion/Bear/Craft) appellent automatiquement avec
+    /// `locked = true` à la création.
+    [Throws=PinkhaError]
+    void update_document_locked(string id, boolean locked);
+
     /// Ajoute un bloc ; le contenu est passé en JSON (BlockContent sérialisé).
     /// Retourne le document mis à jour en JSON.
     [Throws=PinkhaError]

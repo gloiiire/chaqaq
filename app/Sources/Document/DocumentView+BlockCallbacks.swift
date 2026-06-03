@@ -24,8 +24,8 @@ extension DocumentView {
                 autoFocusOffset: $vm.autoFocusOffset,
                 cb: blockCallbacks(for: b)
             )
-            .disabled(documentLocked || editMode == .active)
-            .allowsHitTesting(!documentLocked && editMode != .active)
+            .disabled(vm.locked || editMode == .active)
+            .allowsHitTesting(!vm.locked && editMode != .active)
         }
         .contentShape(Rectangle())
         .onTapGesture {
@@ -40,7 +40,7 @@ extension DocumentView {
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
         .swipeActions(edge: .trailing) {
-            if !documentLocked && editMode != .active {
+            if !vm.locked && editMode != .active {
                 Button(role: .destructive) { vm.deleteBlock(id: b.id) } label: {
                     Label("Delete", systemImage: "trash")
                 }

@@ -798,6 +798,13 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      */
     func updateDocumentIcon(id: String, icon: String?) throws 
     
+    /**
+     * Active ou désactive le verrou lecture seule sur un document.
+     * Les imports (Notion/Bear/Craft) appellent automatiquement avec
+     * `locked = true` à la création.
+     */
+    func updateDocumentLocked(id: String, locked: Bool) throws 
+    
     func updateDocumentTitle(id: String, newTitle: String) throws 
     
     func updateEntry(dbId: String, entryId: String, valuesJson: String) throws 
@@ -1639,6 +1646,20 @@ open func updateDocumentIcon(id: String, icon: String?)throws   {try rustCallWit
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
         FfiConverterOptionString.lower(icon),$0
+    )
+}
+}
+    
+    /**
+     * Active ou désactive le verrou lecture seule sur un document.
+     * Les imports (Notion/Bear/Craft) appellent automatiquement avec
+     * `locked = true` à la création.
+     */
+open func updateDocumentLocked(id: String, locked: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_document_locked(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterBool.lower(locked),$0
     )
 }
 }
@@ -2597,6 +2618,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_icon() != 32890) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_locked() != 6614) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_title() != 35631) {

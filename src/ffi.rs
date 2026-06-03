@@ -389,6 +389,19 @@ impl PinkhaApi {
         use_cases::update_document_icon(&self.uow(), uuid, icon).map_err(PinkhaError::from)
     }
 
+    /// Sets the read-only lock on a document. Used by the editor toggle and
+    /// auto-applied by data-extract imports (Notion/Bear/Craft) which lock
+    /// new documents by default — the user reads first, unlocks before
+    /// editing imported content.
+    pub fn update_document_locked(
+        &self,
+        id: String,
+        locked: bool,
+    ) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        use_cases::update_document_locked(&self.uow(), uuid, locked).map_err(PinkhaError::from)
+    }
+
     /// Appends a block to a document. `block_content_json` must be a JSON-encoded
     /// [`BlockContent`]. Returns the UUID string of the newly created block.
     pub fn add_block(

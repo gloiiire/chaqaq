@@ -79,6 +79,20 @@ pub fn update_document_icon(
     repo.save(&doc)
 }
 
+/// Toggles the read-only lock on a document and persists. Imports default
+/// new documents to `locked = true` so the user reads the extracted content
+/// before editing it.
+pub fn update_document_locked(
+    uow: &dyn UnitOfWork,
+    doc_id: Uuid,
+    locked: bool,
+) -> Result<(), PinkhaError> {
+    let repo = uow.documents();
+    let mut doc = repo.load(doc_id)?;
+    doc.locked = locked;
+    repo.save(&doc)
+}
+
 /// Moves a document to a folder (or to the root when `folder_id` is `None`).
 pub fn move_document_to_folder(
     uow: &dyn UnitOfWork,

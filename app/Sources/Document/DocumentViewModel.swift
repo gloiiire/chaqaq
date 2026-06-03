@@ -11,6 +11,9 @@ final class DocumentViewModel: ObservableObject {
     /// Page icon — emoji or filename in the covers directory. Mirrors
     /// `Document.icon` from Rust, sync via `saveIcon`.
     @Published var icon: String?
+    /// Read-only lock. Mirrors `Document.locked` from Rust. Imports default
+    /// to `true`; the toolbar toggles via `saveLocked(_:)`.
+    @Published var locked: Bool = false
     @Published var blocks: [EditableBlock] = []
     @Published var errorMessage: String?
     @Published var autoFocusId: String?

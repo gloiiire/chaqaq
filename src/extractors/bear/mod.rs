@@ -85,6 +85,11 @@ impl Extractor for BearExtractor {
 
             let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
             let mut doc = use_cases::create_document(&uow, title)?;
+            // Imports default to locked = true so the user reads the
+            // extracted content before editing. Set in-memory before the
+            // save below so it's persisted in one write rather than a
+            // round-trip via `update_document_locked`.
+            doc.locked = true;
             let parsed_blocks = parse_note_blocks(&note.text);
             let block_count = parsed_blocks.len();
 

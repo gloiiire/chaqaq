@@ -287,6 +287,11 @@ async fn import_page(
     let doc = use_cases::create_document(&uow, &plain_title)?;
     let doc_id = doc.id;
 
+    // Imports default to locked = true so the user reads the extracted
+    // content (which they didn't write themselves) before editing it.
+    // They can unlock from the toolbar.
+    use_cases::update_document_locked(&uow, doc_id, true)?;
+
     // Carry the Notion cover over to the new Pinkha document. When a covers
     // directory is provided, the image is downloaded and stored locally —
     // critical for Notion-hosted URLs which expire after ~1h. Otherwise we

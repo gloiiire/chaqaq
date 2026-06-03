@@ -223,6 +223,11 @@ pub fn flush_document(
 ) -> Result<(), ExtractorError> {
     let uow = NoOpUnitOfWork::with_docs(docs);
     let mut doc = use_cases::create_document(&uow, title)?;
+    // Imports default to locked = true so the user reads the extracted
+    // content (which they didn't write themselves) before editing. Set
+    // in-memory so it's persisted with the rest of the doc in a single
+    // write below.
+    doc.locked = true;
     for parsed in blocks {
         let mut block = Block::new(parsed.content);
         block.color = parsed.color;

@@ -13,6 +13,10 @@ struct DocumentFfi: Codable {
     let icon: String?
     let title: [InlineTextFfi]
     let blocks: [BlockFfi]
+    /// Read-only flag. `true` for documents created by imports (Notion/
+    /// Bear/Craft default to locked) — the user unlocks before editing.
+    /// Decoded as false for legacy documents (Rust uses `#[serde(default)]`).
+    let locked: Bool?
 }
 
 /// Swift mirror of a `Block` node. Blocks are recursive (children).
