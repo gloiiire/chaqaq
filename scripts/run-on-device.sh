@@ -17,16 +17,28 @@ cd "$(dirname "$0")/.."
 # (hardware-serial-derived). They look identical at a glance but aren't
 # interchangeable.
 
-DEVICE_ID="${DEVICE_ID:-$(xcrun devicectl list devices 2>/dev/null \
-    | awk '/iPhone.*connected /{print $(NF-3); exit}')}"
+DEVICE_ID="${DEVICE_ID:-$(xcrun devicectl list devices --json-output - 2>/dev/null \
+    | jq -r '.result.devices[]
+        | select(.connectionProperties.tunnelState == "connected"
+                 and (.hardwareProperties.productType // "" | startswith("iPhone")))
+        | .identifier' \
+    | head -1)}"
 if [[ -z "$DEVICE_ID" ]]; then
     echo "✗ No connected iPhone found (xcrun devicectl)." >&2
     exit 1
 fi
 
+# xcodebuild -showdestinations prints `id:UUID` somewhere in each line. We
+# match the iOS-platform line that does NOT mention Simulator/Placeholder/
+# Designed for (the latter is the "Mac Designed for iPad" variant) and pull
+# the UUID with a strict regex — pure regex avoids field-count issues caused
+# by emojis in device names.
 XCODE_DEVICE_ID="${XCODE_DEVICE_ID:-$(xcodebuild -project app/Pinkha.xcodeproj \
     -scheme Pinkha -showdestinations 2>/dev/null \
-    | awk -F'id:' '/platform:iOS,.*name:iPhone/ && !/Simulator|Placeholder/ {split($2,a,","); gsub(/[ ]/,"",a[1]); print a[1]; exit}')}"
+    | grep 'platform:iOS,' \
+    | grep -v -E 'Simulator|Placeholder|Designed for' \
+    | head -1 \
+    | sed -nE 's/.*id:([0-9A-Fa-f-]+).*/\1/p')}"
 if [[ -z "$XCODE_DEVICE_ID" ]]; then
     echo "✗ No xcodebuild-side iPhone destination found." >&2
     exit 1
@@ -35,7 +47,7 @@ fi
 echo "→ Regenerating Pinkha.xcodeproj (xcodegen)…"
 (cd app && xcodegen generate >/dev/null)
 
-echo "→ Building for device $XCODE_DEVICE_ID…"
+echo "→ Building for device ${XCODE_DEVICE_ID}…"
 xcodebuild build -quiet \
     -project app/Pinkha.xcodeproj \
     -scheme Pinkha \
@@ -48,7 +60,7 @@ if [[ -z "$APP_PATH" ]]; then
     exit 1
 fi
 
-echo "→ Installing on device $DEVICE_ID…"
+echo "→ Installing on device ${DEVICE_ID}…"
 xcrun devicectl device install app --device "$DEVICE_ID" "$APP_PATH" >/dev/null
 
 echo "→ Launching com.gloiiire.pinkha…"
