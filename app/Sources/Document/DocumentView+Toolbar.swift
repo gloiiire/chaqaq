@@ -13,7 +13,7 @@ extension DocumentView {
                 .offset(y: titleInNavBar ? 0 : 8)
                 .animation(.easeOut(duration: 0.2), value: titleInNavBar)
         }
-        if editMode == .active && !selectedBlocks.isEmpty && !documentLocked {
+        if editMode == .active && !selectedBlocks.isEmpty && !vm.locked {
             ToolbarItem(placement: .primaryAction) {
                 Button(role: .destructive) { deleteSelectedBlocks() } label: {
                     Image(systemName: "trash")
@@ -23,20 +23,24 @@ extension DocumentView {
         }
         ToolbarItem(placement: .primaryAction) {
             Button {
-                let newLocked = !documentLocked
+                let newLocked = !vm.locked
                 withAnimation(.easeInOut(duration: 0.15)) {
-                    documentLocked = newLocked
-                    if documentLocked {
+                    // Apply UI side-effects of locking *before* the save
+                    // round-trip — they only depend on `newLocked` and would
+                    // race the @Published change otherwise.
+                    if newLocked {
                         editMode = .inactive; selectedBlocks.removeAll()
                         focusTitle = false; showingBlockPicker = false
                         vm.stopNavigationRepeat()
                     }
+                    // VM is the source of truth for the lock flag now —
+                    // persists to SQLite via the FFI + registers undo.
+                    vm.saveLocked(newLocked)
                 }
-                UserDefaults.standard.set(newLocked, forKey: lockKey)
             } label: {
-                Image(systemName: documentLocked ? "lock.fill" : "lock.open.fill")
+                Image(systemName: vm.locked ? "lock.fill" : "lock.open.fill")
             }
-            .accessibilityLabel(documentLocked ? "Unlock document" : "Lock document")
+            .accessibilityLabel(vm.locked ? "Unlock document" : "Lock document")
         }
         ToolbarItem(placement: .primaryAction) {
             Button {
@@ -47,19 +51,19 @@ extension DocumentView {
             } label: {
                 Image(systemName: editMode == .active ? "checkmark" : "arrow.up.arrow.down")
             }
-            .disabled(documentLocked)
+            .disabled(vm.locked)
         }
     }
 
     @ViewBuilder
     var overlayButtons: some View {
-        if !documentLocked && editMode == .inactive && !keyboardVisible {
+        if !vm.locked && editMode == .inactive && !keyboardVisible {
             FloatingButton(icon: "pencil.and.outline") { showingBlockPicker = true }
                 .padding(.trailing, 24)
                 .padding(.bottom, 32)
                 .transition(.scale.combined(with: .opacity))
         }
-        if !documentLocked && editMode == .inactive && !keyboardVisible {
+        if !vm.locked && editMode == .inactive && !keyboardVisible {
             UndoRedoPill(canUndo: vm.canUndo, canRedo: vm.canRedo,
                          onUndo: { vm.undo() }, onRedo: { vm.redo() })
                 .padding(.leading, 24)

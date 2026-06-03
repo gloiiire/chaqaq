@@ -10,7 +10,6 @@ struct DocumentView: View {
     @State var focusTitle = false
     @State var titleFocusOffset: Int? = nil
     @State var titleInNavBar = false
-    @State var documentLocked: Bool
     @State var documentIcon: String?
     @State var recentEmojis: [String]
     @State var selectedBlocks: Set<String> = []
@@ -20,6 +19,8 @@ struct DocumentView: View {
     /// `DocumentView` whenever this becomes non-nil — the mention link
     /// resolves to an internal navigation rather than an external URL open.
     @State var pushedDocId: String? = nil
+    /// Legacy UserDefaults key for the lock state, retained for the one-shot
+    /// migration in `onAppear` — the canonical store is now `vm.locked`.
     let lockKey: String
     let iconKey: String
 
@@ -29,7 +30,6 @@ struct DocumentView: View {
         let lockKey = Self.lockKeyFor(docId: docId)
         let iconKey = Self.iconKeyFor(docId: docId)
         _vm = StateObject(wrappedValue: DocumentViewModel(docId: docId, api: api))
-        _documentLocked = State(initialValue: UserDefaults.standard.bool(forKey: lockKey))
         _documentIcon = State(initialValue: UserDefaults.standard.string(forKey: iconKey))
         _recentEmojis = State(initialValue: loadRecentEmojis())
         self.lockKey = lockKey
@@ -50,7 +50,7 @@ struct DocumentView: View {
         List {
             DocumentDecorView(
                 cover: vm.cover, icone: vm.icon, recentEmojis: recentEmojis,
-                verrouille: documentLocked,
+                verrouille: vm.locked,
                 onCouverture: { vm.saveCover($0) },
                 onImageData: { data in vm.saveCoverImage(data: data) },
                 onImageFichier: { url in vm.saveCoverImageFromFile(url) },
@@ -76,12 +76,12 @@ struct DocumentView: View {
                                   let spans = tail.isEmpty ? [] : [InlineTextFfi(content: tail, styles: [])]
                                   vm.addBlock(type: .text, initialSpans: spans, atStart: true)
                               })
-                .disabled(documentLocked)
+                .disabled(vm.locked)
                 .listRowBackground(Color.clear).listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 8, trailing: 20))
                 .moveDisabled(true).deleteDisabled(true)
 
-            if vm.blocks.isEmpty && !documentLocked {
+            if vm.blocks.isEmpty && !vm.locked {
                 EmptyEditorState { vm.addBlock(type: .text) }
                     .listRowBackground(Color.clear).listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
@@ -91,7 +91,7 @@ struct DocumentView: View {
             ForEach($vm.blocks) { $block in blockListRow($block) }
                 .onMove(perform: vm.moveBlock)
 
-            if !documentLocked {
+            if !vm.locked {
                 AddBlockButton { showingBlockPicker = true }
                     .listRowBackground(Color.clear).listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 40, trailing: 20))
@@ -128,6 +128,15 @@ struct DocumentView: View {
                let legacy = UserDefaults.standard.string(forKey: iconKey) {
                 vm.saveIcon(legacy)
                 UserDefaults.standard.removeObject(forKey: iconKey)
+            }
+            // Same migration for the lock flag — was in UserDefaults, now
+            // lives on Document.locked. Only migrate when the loaded doc is
+            // NOT already locked (avoids clobbering imports which default to
+            // locked = true on the Rust side).
+            if !vm.locked, UserDefaults.standard.object(forKey: lockKey) != nil {
+                let legacyLocked = UserDefaults.standard.bool(forKey: lockKey)
+                if legacyLocked { vm.saveLocked(true) }
+                UserDefaults.standard.removeObject(forKey: lockKey)
             }
         }
         .onDisappear { vm.flushAllBursts(); vm.saveTitle(); onDisappear?() }
@@ -169,7 +178,7 @@ struct DocumentView: View {
     }
 
     func selectFromLongPress(_ id: String) {
-        guard !documentLocked else { return }
+        guard !vm.locked else { return }
         withAnimation(.easeInOut(duration: 0.18)) {
             editMode = .active; selectedBlocks.insert(id)
             focusTitle = false; vm.stopNavigationRepeat()

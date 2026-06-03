@@ -140,6 +140,15 @@ pub struct Document {
     /// Folder this document belongs to. None = root level.
     #[serde(default)]
     pub folder_id: Option<Uuid>,
+    /// Read-only flag. When `true`, the editor disables every interactive
+    /// element (blocks become non-editable, the keyboard accessory hides,
+    /// the FAB and "+New block" footer go away). Used by data-extract
+    /// imports (Notion/Bear/Craft) to default new documents to a safe view
+    /// mode so the user reads first and unlocks before editing imported
+    /// content. `#[serde(default)]` keeps backward compat with documents
+    /// saved before this field existed.
+    #[serde(default)]
+    pub locked: bool,
 }
 
 impl Document {
@@ -152,6 +161,7 @@ impl Document {
             icon: None,
             blocks: vec![],
             folder_id: None,
+            locked: false,
         }
     }
 
