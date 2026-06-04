@@ -114,6 +114,9 @@ pub mod test_support {
         fn move_folder(&self, _: uuid::Uuid, _: Option<uuid::Uuid>) -> Result<(), PinkhaError> {
             unreachable!("folders repo not provided to this MockUnitOfWork");
         }
+        fn update_icon(&self, _: uuid::Uuid, _: Option<&str>) -> Result<(), PinkhaError> {
+            unreachable!("folders repo not provided to this MockUnitOfWork");
+        }
     }
 
     /// A `UnitOfWork` for tests that selectively provides each repository.

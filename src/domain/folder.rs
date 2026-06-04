@@ -10,6 +10,9 @@ pub struct Folder {
     pub parent_id: Option<Uuid>,
     pub created_at: String,
     pub updated_at: String,
+    /// Optional emoji icon, mirrors `Document.icon`.
+    #[serde(default)]
+    pub icon: Option<String>,
 }
 
 /// Lightweight folder descriptor for list operations.
@@ -20,6 +23,8 @@ pub struct FolderMeta {
     pub parent_id: Option<Uuid>,
     pub updated_at: String,
     pub created_at: String,
+    #[serde(default)]
+    pub icon: Option<String>,
 }
 
 impl Folder {
@@ -31,6 +36,7 @@ impl Folder {
             parent_id,
             created_at: now.clone(),
             updated_at: now,
+            icon: None,
         }
     }
 }
@@ -43,6 +49,7 @@ impl From<&Folder> for FolderMeta {
             parent_id: f.parent_id,
             updated_at: f.updated_at.clone(),
             created_at: f.created_at.clone(),
+            icon: f.icon.clone(),
         }
     }
 }

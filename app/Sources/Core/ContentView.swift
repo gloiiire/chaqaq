@@ -35,6 +35,11 @@ struct ContentView: View {
         // reappears on scroll-up. Search (role: .search) automatically
         // detaches into its own glass bubble on the right.
         .tabBarMinimizeBehavior(.onScrollDown)
+        // Inject the Composer so deep navigation destinations
+        // (FolderView, DocumentView) can flip the creation context
+        // when they appear / disappear without having to be passed
+        // through every NavigationLink call site.
+        .environmentObject(composer)
         // Create bubble : single glass accessory hosting the four primary
         // entry points — new note, new database, new folder and an
         // overflow menu (trash + imports). Stays visible across all tabs
@@ -60,8 +65,23 @@ struct ContentView: View {
                 navigationTitle: composer.createMode == .note ? "New Document" : "New Database"
             ) {
                 switch composer.createMode {
-                case .note:     store.create(title: composer.newTitle)
-                case .database: store.createDatabase(title: composer.newTitle)
+                case .note:
+                    let newId = store.createNote(title: composer.newTitle,
+                                                 in: composer.currentContext)
+                    // For `.document` context, the active editor's VM owns
+                    // the in-memory blocks. Signal it via the composer so
+                    // *it* performs the `addBlock` for the Page reference —
+                    // doing it from here behind the VM's back would race
+                    // with the next burst flush and get overwritten.
+                    if case .document(let parentId) = composer.currentContext,
+                       let newId {
+                        composer.pendingChildPage = Composer.PendingChildPage(
+                            parentDocId: parentId,
+                            childDocId: newId
+                        )
+                    }
+                case .database:
+                    store.createDatabase(title: composer.newTitle, in: composer.currentContext)
                 }
                 composer.newTitle = ""
                 composer.showingCreateDoc = false
@@ -90,8 +110,7 @@ struct ContentView: View {
             Button("Create") {
                 let trimmed = composer.newFolderName.trimmingCharacters(in: .whitespaces)
                 guard !trimmed.isEmpty else { return }
-                store.createFolder(name: trimmed)
-                store.load()
+                store.createFolder(name: trimmed, in: composer.currentContext)
                 composer.newFolderName = ""
             }
             Button("Cancel", role: .cancel) { composer.newFolderName = "" }

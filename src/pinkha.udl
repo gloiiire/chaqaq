@@ -31,6 +31,7 @@ dictionary FolderMetaFfi {
     string? parent_id;
     string created_at;
     string updated_at;
+    string? icon;
 };
 
 /// Métadonnées légères d'une database (sans entrées).
@@ -291,6 +292,9 @@ interface PinkhaApi {
 
     [Throws=PinkhaError]
     void rename_folder(string id, string new_name);
+
+    [Throws=PinkhaError]
+    void update_folder_icon(string id, string? icon);
 
     [Throws=PinkhaError]
     void delete_folder(string id);

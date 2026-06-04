@@ -124,6 +124,8 @@ pub struct FolderMetaFfi {
     pub created_at: String,
     /// RFC 3339 last-update timestamp.
     pub updated_at: String,
+    /// Optional emoji icon.
+    pub icon: Option<String>,
 }
 
 /// Summary of a completed import operation, returned to Swift.
@@ -211,6 +213,7 @@ fn folder_meta_to_ffi(m: FolderMeta) -> FolderMetaFfi {
         parent_id: m.parent_id.map(|id| id.to_string()),
         created_at: m.created_at,
         updated_at: m.updated_at,
+        icon: m.icon,
     }
 }
 
@@ -886,6 +889,17 @@ impl PinkhaApi {
         validate_string(&new_name, "new_name")?;
         let uuid = parse_uuid(&id)?;
         folder_use_cases::rename_folder(&self.uow(), uuid, &new_name).map_err(PinkhaError::from)
+    }
+
+    /// Sets or clears a folder's emoji icon. Pass `None` to remove.
+    pub fn update_folder_icon(
+        &self,
+        id: String,
+        icon: Option<String>,
+    ) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        folder_use_cases::update_folder_icon(&self.uow(), uuid, icon.as_deref())
+            .map_err(PinkhaError::from)
     }
 
     pub fn delete_folder(&self, id: String) -> Result<(), PinkhaError> {

@@ -5,6 +5,11 @@ import SwiftUI
 /// Full-screen document editor: cover + icon, title, block list, FAB, undo/redo pill.
 struct DocumentView: View {
     @StateObject var vm: DocumentViewModel
+    /// Injected by `ContentView` so we can flip the global creation
+    /// context to this document while it's on screen — `New …` from
+    /// the bubble then creates child pages or embedded databases inside
+    /// this doc, à la Notion.
+    @EnvironmentObject private var composer: Composer
     @State var showingBlockPicker = false
     @State var editMode: EditMode = .inactive
     @State var focusTitle = false
@@ -120,6 +125,7 @@ struct DocumentView: View {
         }
         .onAppear {
             vm.load()
+            composer.currentContext = .document(id: vm.docId)
             // One-shot migration: documents created before the icon moved
             // to the Rust domain stored their emoji in UserDefaults. Carry
             // it over to the freshly-loaded document, then clear the legacy
@@ -139,7 +145,22 @@ struct DocumentView: View {
                 UserDefaults.standard.removeObject(forKey: lockKey)
             }
         }
-        .onDisappear { vm.flushAllBursts(); vm.saveTitle(); onDisappear?() }
+        .onDisappear {
+            vm.flushAllBursts()
+            vm.saveTitle()
+            composer.currentContext = .root
+            onDisappear?()
+        }
+        // When the bubble creates a child page from inside this doc, the
+        // composer signals here. We flush pending edits, insert the Page
+        // block via the VM (keeps blocks/snapshots in sync) and consume
+        // the signal so it doesn't fire twice.
+        .onChange(of: composer.pendingChildPage) { _, pending in
+            guard let pending, pending.parentDocId == vm.docId else { return }
+            vm.flushAllBursts()
+            vm.addChildPageBlock(childDocId: pending.childDocId)
+            composer.pendingChildPage = nil
+        }
         .sheet(isPresented: $showingBlockPicker) {
             BlockPickerSheet { type in vm.addBlock(type: type, afterId: vm.activeBlockId) }
         }

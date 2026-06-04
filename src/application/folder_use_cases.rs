@@ -35,6 +35,15 @@ pub fn move_folder(
     uow.folders().move_folder(id, new_parent_id)
 }
 
+/// Sets or clears the folder's emoji icon.
+pub fn update_folder_icon(
+    uow: &dyn UnitOfWork,
+    id: Uuid,
+    icon: Option<&str>,
+) -> Result<(), PinkhaError> {
+    uow.folders().update_icon(id, icon)
+}
+
 /// Lists soft-deleted folders (newest-deleted first).
 pub fn list_deleted_folders(uow: &dyn UnitOfWork) -> Result<Vec<FolderMeta>, PinkhaError> {
     uow.folders().list_deleted()

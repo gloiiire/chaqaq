@@ -827,6 +827,8 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     
     func updateEntry(dbId: String, entryId: String, valuesJson: String) throws 
     
+    func updateFolderIcon(id: String, icon: String?) throws 
+    
     func updateView(dbId: String, viewId: String, filtersJson: String, sortsJson: String) throws 
     
 }
@@ -1745,6 +1747,15 @@ open func updateEntry(dbId: String, entryId: String, valuesJson: String)throws  
 }
 }
     
+open func updateFolderIcon(id: String, icon: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_folder_icon(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(icon),$0
+    )
+}
+}
+    
 open func updateView(dbId: String, viewId: String, filtersJson: String, sortsJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_view(
             self.uniffiCloneHandle(),
@@ -1967,15 +1978,17 @@ public struct FolderMetaFfi: Equatable, Hashable {
     public var parentId: String?
     public var createdAt: String
     public var updatedAt: String
+    public var icon: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, name: String, parentId: String?, createdAt: String, updatedAt: String) {
+    public init(id: String, name: String, parentId: String?, createdAt: String, updatedAt: String, icon: String?) {
         self.id = id
         self.name = name
         self.parentId = parentId
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.icon = icon
     }
 
     
@@ -1998,7 +2011,8 @@ public struct FfiConverterTypeFolderMetaFfi: FfiConverterRustBuffer {
                 name: FfiConverterString.read(from: &buf), 
                 parentId: FfiConverterOptionString.read(from: &buf), 
                 createdAt: FfiConverterString.read(from: &buf), 
-                updatedAt: FfiConverterString.read(from: &buf)
+                updatedAt: FfiConverterString.read(from: &buf), 
+                icon: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -2008,6 +2022,7 @@ public struct FfiConverterTypeFolderMetaFfi: FfiConverterRustBuffer {
         FfiConverterOptionString.write(value.parentId, into: &buf)
         FfiConverterString.write(value.createdAt, into: &buf)
         FfiConverterString.write(value.updatedAt, into: &buf)
+        FfiConverterOptionString.write(value.icon, into: &buf)
     }
 }
 
@@ -2709,6 +2724,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_entry() != 34034) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_folder_icon() != 31954) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_view() != 6165) {

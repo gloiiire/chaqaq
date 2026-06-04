@@ -608,6 +608,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_update_document_title(uint64_t ptr, RustB
 void uniffi_pinkha_fn_method_pinkhaapi_update_entry(uint64_t ptr, RustBuffer db_id, RustBuffer entry_id, RustBuffer values_json, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_FOLDER_ICON
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_FOLDER_ICON
+void uniffi_pinkha_fn_method_pinkhaapi_update_folder_icon(uint64_t ptr, RustBuffer id, RustBuffer icon, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_VIEW
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_VIEW
 void uniffi_pinkha_fn_method_pinkhaapi_update_view(uint64_t ptr, RustBuffer db_id, RustBuffer view_id, RustBuffer filters_json, RustBuffer sorts_json, RustCallStatus *_Nonnull out_status
@@ -1290,6 +1295,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_title(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_ENTRY
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_ENTRY
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_entry(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_FOLDER_ICON
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_FOLDER_ICON
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_folder_icon(void
     
 );
 #endif

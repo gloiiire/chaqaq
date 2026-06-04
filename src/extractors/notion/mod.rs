@@ -337,7 +337,7 @@ async fn import_page(
     // Child_page blocks encountered along the way materialise as nested
     // pinkha documents linked to this one via `parent_doc_id`.
     let (block_count, skipped_count, child_doc_count) =
-        fetch_and_add_blocks(client, &page.id, doc_id, docs, notion_to_pinkha).await?;
+        fetch_and_add_blocks(client, &page.id, doc_id, docs, notion_to_pinkha, covers_dir).await?;
 
     // Build the database entry values.
     let mut values: HashMap<Uuid, PropertyValue> = HashMap::new();
@@ -615,9 +615,11 @@ async fn fetch_and_add_blocks(
     doc_id: Uuid,
     docs: &(dyn DocumentRepository + Send + Sync),
     notion_to_pinkha: &mut HashMap<String, Uuid>,
+    covers_dir: Option<&str>,
 ) -> Result<(usize, usize, usize), ExtractorError> {
     let (root_blocks, skipped, child_docs) =
-        fetch_blocks_recursive(client, page_id, doc_id, docs, notion_to_pinkha).await?;
+        fetch_blocks_recursive(client, page_id, doc_id, docs, notion_to_pinkha, covers_dir)
+            .await?;
 
     let count = count_blocks_recursive(&root_blocks);
 
@@ -645,6 +647,7 @@ async fn fetch_blocks_recursive(
     owning_doc_id: Uuid,
     docs: &(dyn DocumentRepository + Send + Sync),
     notion_to_pinkha: &mut HashMap<String, Uuid>,
+    covers_dir: Option<&str>,
 ) -> Result<(Vec<crate::domain::document::Block>, usize, usize), ExtractorError> {
     use crate::domain::document::{Block, BlockContent};
 
@@ -674,6 +677,7 @@ async fn fetch_blocks_recursive(
                     owning_doc_id,
                     docs,
                     notion_to_pinkha,
+                    covers_dir,
                 )
                 .await?;
                 child_docs_created += 1;
@@ -702,6 +706,7 @@ async fn fetch_blocks_recursive(
                                 owning_doc_id,
                                 docs,
                                 notion_to_pinkha,
+                                covers_dir,
                             ))
                             .await?;
                         total_skipped += child_skipped;
@@ -746,6 +751,7 @@ async fn import_child_page(
     parent_doc_id: Uuid,
     docs: &(dyn DocumentRepository + Send + Sync),
     notion_to_pinkha: &mut HashMap<String, Uuid>,
+    covers_dir: Option<&str>,
 ) -> Result<Uuid, ExtractorError> {
     use crate::domain::document::{Document, InlineText};
 
@@ -764,6 +770,45 @@ async fn import_child_page(
     docs.save(&child)?;
     notion_to_pinkha.insert(normalize_notion_id(notion_id), child_id);
 
+    // Fetch the page metadata to recover the icon and cover, which the
+    // `child_page` block payload doesn't carry. A failed fetch shouldn't
+    // abort the whole import — we just skip the decoration in that case.
+    if let Ok(meta) = client.get_page(notion_id).await {
+        // Cover: same download path as `import_page` so Notion-hosted
+        // covers don't expire on us.
+        if let Some(url) = meta.cover.as_ref().and_then(|c| c.url()) {
+            let stored = if let Some(dir) = covers_dir {
+                download_cover(client, url, dir, child_id)
+                    .await
+                    .unwrap_or_else(|_| url.to_string())
+            } else {
+                url.to_string()
+            };
+            let mut decorated = docs.load(child_id)?;
+            decorated.cover = Some(stored);
+            docs.save(&decorated)?;
+        }
+        // Icon: emoji is kept as-is, image icons are downloaded next to
+        // the cover (suffixed `_icon`) when a covers_dir is provided.
+        if let Some(icon) = meta.icon.as_ref() {
+            let stored = match icon {
+                schema::NotionPageIcon::Emoji { emoji } => Some(emoji.clone()),
+                schema::NotionPageIcon::External { external } => {
+                    Some(download_or_keep_icon(client, &external.url, covers_dir, child_id).await)
+                }
+                schema::NotionPageIcon::File { file } => {
+                    Some(download_or_keep_icon(client, &file.url, covers_dir, child_id).await)
+                }
+                schema::NotionPageIcon::Unknown => None,
+            };
+            if let Some(value) = stored {
+                let mut decorated = docs.load(child_id)?;
+                decorated.icon = Some(value);
+                docs.save(&decorated)?;
+            }
+        }
+    }
+
     // Fetch the child's content. The recursion threads through the same
     // `notion_to_pinkha` map so deeper child_pages register too.
     let (child_blocks, _skipped, _grand_child_count) = Box::pin(fetch_blocks_recursive(
@@ -772,6 +817,7 @@ async fn import_child_page(
         child_id,
         docs,
         notion_to_pinkha,
+        covers_dir,
     ))
     .await?;
 

@@ -40,6 +40,24 @@ extension DocumentViewModel {
         } catch { errorMessage = error.localizedDescription }
     }
 
+    /// Inserts a `Page` block at the end of the document — used when a
+    /// child page has been created from the bubble while this doc was on
+    /// screen. Going through this method (instead of a direct FFI call)
+    /// keeps `blocks`, `blockSnapshots` and the undo stack in sync, so
+    /// the next burst flush doesn't overwrite the new block.
+    func addChildPageBlock(childDocId: String) {
+        do {
+            let content = BlockContentFfi.page(id: childDocId)
+            let data    = try JSONEncoder().encode(content)
+            let newId   = try api.addBlock(docId: docId,
+                                           blockContentJson: String(decoding: data, as: UTF8.self))
+            let newBlock = EditableBlock(id: newId, content: content, spans: [], done: false)
+            blocks.append(newBlock)
+            blockSnapshots[newId] = snapshotOf(newBlock)
+            undoMgr.registerUndo(withTarget: self) { vm in vm.deleteBlock(id: newId) }
+        } catch { errorMessage = error.localizedDescription }
+    }
+
     func deleteBlock(id: String) {
         flushBurst(blockId: id)
         guard let block = blocks.first(where: { $0.id == id }),

@@ -94,16 +94,74 @@ final class PinkhaStore: ObservableObject {
 
     /// Creates a new note and reloads.
     func create(title: String) {
-        if tryCatch(into: &errorMessage, { try api?.createDocument(title: title) }) != nil {
-            load()
-        }
+        createNote(title: title, in: .root)
     }
 
     /// Creates a new database and reloads.
     func createDatabase(title: String) {
-        if tryCatch(into: &errorMessage, { try api?.createDatabase(title: title) }) != nil {
+        createDatabase(title: title, in: .root)
+    }
+
+    /// Context-aware note creation. Lands the new document in `context`
+    /// after creation — moved into a folder, parented under another
+    /// document, or left at the root. Returns the new document id so
+    /// callers can chain follow-up work (e.g. signalling a Page block
+    /// insertion to the active editor's view-model for `.document`
+    /// context — done by the bubble's sheet handler, *not* here, to
+    /// avoid racing with the editor's in-memory blocks array).
+    @discardableResult
+    func createNote(title: String, in context: Composer.CreationContext) -> String? {
+        guard let api else { return nil }
+        do {
+            let docId = try api.createDocument(title: title)
+            switch context {
+            case .root:
+                break
+            case .folder(let folderId):
+                try api.moveDocumentToFolder(docId: docId, folderId: folderId)
+            case .document(let parentDocId):
+                try api.updateDocumentParent(docId: docId, newParentDocId: parentDocId)
+            }
             load()
+            return docId
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
         }
+    }
+
+    /// Context-aware database creation. In `.document` context the new
+    /// database is embedded in the parent doc via a `Database` block so
+    /// it shows up inline. Folders aren't supported on databases yet —
+    /// the database lands at the workspace root in that case.
+    func createDatabase(title: String, in context: Composer.CreationContext) {
+        guard let api else { return }
+        do {
+            let dbId = try api.createDatabase(title: title)
+            if case .document(let parentDocId) = context {
+                let dbBlock = BlockContentFfi.database(id: dbId)
+                if let json = try? JSONEncoder().encode(dbBlock),
+                   let payload = String(data: json, encoding: .utf8) {
+                    _ = try? api.addBlock(docId: parentDocId, blockContentJson: payload)
+                }
+            }
+            load()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Context-aware folder creation. Honours folder nesting (parent
+    /// folder = current folder); falls back to the root in `.document`
+    /// context (folders can't live inside a document).
+    func createFolder(name: String, in context: Composer.CreationContext) {
+        let parentId: String?
+        switch context {
+        case .root, .document:    parentId = nil
+        case .folder(let id):     parentId = id
+        }
+        _ = createFolder(name: name, parentId: parentId)
+        load()
     }
 
     /// Soft-deletes a note by id and reloads.
@@ -167,6 +225,12 @@ final class PinkhaStore: ObservableObject {
     /// Renames a folder and reloads.
     func renameFolder(id: String, newName: String) {
         tryCatch(into: &errorMessage) { try api?.renameFolder(id: id, newName: newName) }
+        load()
+    }
+
+    /// Sets or clears a folder's emoji icon and reloads.
+    func updateFolderIcon(id: String, icon: String?) {
+        tryCatch(into: &errorMessage) { try api?.updateFolderIcon(id: id, icon: icon) }
         load()
     }
 

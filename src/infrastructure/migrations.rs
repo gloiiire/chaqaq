@@ -63,7 +63,10 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
         [],
     )
     .map_err(|e| PinkhaError::Db(e.to_string()))?;
-    conn.pragma_update(None, "user_version", 7)
+    // Folder icon (emoji). Folders share the same icon affordance as
+    // documents in the Notion-style sidebar.
+    add_column_if_missing(conn, "folders", "icon", "TEXT")?;
+    conn.pragma_update(None, "user_version", 8)
         .map_err(|e| PinkhaError::Db(e.to_string()))?;
     Ok(())
 }
