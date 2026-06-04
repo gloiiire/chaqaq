@@ -585,13 +585,12 @@ pub fn rewrite_notion_mentions_logged(
 /// but failed promotion. Picked up by the next iteration so we can
 /// learn what the Notion data actually looks like.
 fn dump_unpromoted_links(blocks: &[crate::domain::document::Block], dir: &str) {
-    use std::io::Write;
     let Ok(mut f) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(format!("{dir}/notion-debug.log"))
     else { return };
-    walk_dump(&blocks, &mut f);
+    walk_dump(blocks, &mut f);
 }
 
 fn walk_dump<W: std::io::Write>(blocks: &[crate::domain::document::Block], f: &mut W) {
