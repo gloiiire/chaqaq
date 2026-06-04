@@ -234,7 +234,12 @@ impl Extractor for NotionExtractor {
         //    point to pages later in the same database — we need the full
         //    map before rewriting any document.
         for pinkha_doc_id in notion_to_pinkha.values() {
-            rewrite_notion_mentions(docs, *pinkha_doc_id, &notion_to_pinkha)?;
+            rewrite_notion_mentions_logged(
+                docs,
+                *pinkha_doc_id,
+                &notion_to_pinkha,
+                config.covers_dir.as_deref(),
+            )?;
         }
 
         Ok(ImportResult {
@@ -519,6 +524,18 @@ pub fn rewrite_notion_mentions(
     doc_id: Uuid,
     notion_to_pinkha: &HashMap<String, Uuid>,
 ) -> Result<(), ExtractorError> {
+    rewrite_notion_mentions_logged(docs, doc_id, notion_to_pinkha, None)
+}
+
+/// Logging variant — same behaviour as `rewrite_notion_mentions` but
+/// appends a one-line summary to `<covers_dir>/notion-debug.log` so the
+/// app can later report on link rewrites and Page-block promotions.
+pub fn rewrite_notion_mentions_logged(
+    docs: &(dyn DocumentRepository + Send + Sync),
+    doc_id: Uuid,
+    notion_to_pinkha: &HashMap<String, Uuid>,
+    covers_dir: Option<&str>,
+) -> Result<(), ExtractorError> {
     use crate::application::error::PinkhaError;
     let mut doc = docs.load(doc_id).map_err(|e: PinkhaError| match e {
         PinkhaError::NotFound(_) => ExtractorError::Parse(format!("doc {doc_id} not found")),
@@ -528,11 +545,144 @@ pub fn rewrite_notion_mentions(
     for block in doc.blocks.iter_mut() {
         rewrite_block_links(block, notion_to_pinkha, &mut rewrote);
     }
-    if rewrote {
+    // Second sub-pass : promote paragraphs that contain *only* a single
+    // `pinkha://doc/{uuid}` link to a first-class `Page` block. Notion
+    // never returns these references as `child_page` blocks (they're
+    // page mentions inside paragraphs), so without this promotion the
+    // imported docs render their sub-page references as inline links
+    // instead of the chunky tappable rows users expect.
+    let mut promoted_count = 0;
+    promote_page_link_paragraphs(&mut doc.blocks, &mut promoted_count);
+    if let Some(dir) = covers_dir {
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(format!("{dir}/notion-debug.log"))
+        {
+            let _ = writeln!(
+                f,
+                "[rewrite] doc={doc_id} links_rewritten={rewrote} promotions={promoted_count}"
+            );
+            // Also dump non-promoted paragraphs that carry a pinkha link
+            // so we can iterate on the promotion criterion. We re-walk
+            // the just-updated tree; a no-op when everything promoted.
+            dump_unpromoted_links(&doc.blocks, dir);
+        }
+    }
+    if rewrote || promoted_count > 0 {
         docs.save(&doc)
             .map_err(|e| ExtractorError::Parse(e.to_string()))?;
     }
     Ok(())
+}
+
+/// Recursively walks the block tree and replaces paragraphs whose entire
+/// content is a single `pinkha://doc/{uuid}` link with the dedicated
+/// `BlockContent::Page { id }` block. Sets `*promoted = true` when at
+/// least one block changes so the caller can skip a no-op save.
+/// Writes the raw span shape of every paragraph that survived rewrite
+/// but failed promotion. Picked up by the next iteration so we can
+/// learn what the Notion data actually looks like.
+fn dump_unpromoted_links(blocks: &[crate::domain::document::Block], dir: &str) {
+    use std::io::Write;
+    let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(format!("{dir}/notion-debug.log"))
+    else { return };
+    walk_dump(&blocks, &mut f);
+}
+
+fn walk_dump<W: std::io::Write>(blocks: &[crate::domain::document::Block], f: &mut W) {
+    use crate::domain::document::BlockContent;
+    for block in blocks {
+        if let BlockContent::Text(spans) = &block.content {
+            let has_pinkha_link = spans.iter().any(|s| {
+                s.styles.iter().any(|st| {
+                    matches!(st, chaqaq::InlineStyle::Link(url) if url.starts_with("pinkha://doc/"))
+                })
+            });
+            if has_pinkha_link {
+                let _ = writeln!(
+                    f,
+                    "[promote skip] {} spans: {}",
+                    spans.len(),
+                    spans
+                        .iter()
+                        .map(|s| {
+                            let link = s.styles.iter().find_map(|st| {
+                                if let chaqaq::InlineStyle::Link(u) = st {
+                                    Some(u.as_str())
+                                } else {
+                                    None
+                                }
+                            });
+                            format!("({:?}, link={:?})", s.content, link)
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" | ")
+                );
+            }
+        }
+        walk_dump(&block.children, f);
+    }
+}
+
+fn promote_page_link_paragraphs(
+    blocks: &mut [crate::domain::document::Block],
+    promoted: &mut usize,
+) {
+    use crate::domain::document::BlockContent;
+    for block in blocks.iter_mut() {
+        if let BlockContent::Text(spans) = &block.content
+            && let Some(child_id) = sole_pinkha_doc_link(spans)
+        {
+            block.content = BlockContent::Page { id: child_id };
+            *promoted += 1;
+        }
+        promote_page_link_paragraphs(&mut block.children, promoted);
+    }
+}
+
+/// Returns the doc UUID if `spans` collectively encode a single
+/// `pinkha://doc/{uuid}` link — the signature of a Notion page mention
+/// sitting alone on its line. Whitespace-only runs (Notion likes to
+/// pad mentions with empty/blank runs) are ignored. Any non-link
+/// substantive text, or multiple distinct link targets, bail out so
+/// "see also: [link]" or "[a] and [b]" stay as inline paragraphs.
+fn sole_pinkha_doc_link(spans: &[chaqaq::InlineText]) -> Option<Uuid> {
+    let mut target: Option<Uuid> = None;
+    for run in spans {
+        let mut run_link: Option<&str> = None;
+        for style in &run.styles {
+            if let chaqaq::InlineStyle::Link(url) = style {
+                if run_link.is_some() {
+                    return None; // more than one link in the same run
+                }
+                run_link = Some(url.as_str());
+            }
+        }
+        match run_link {
+            Some(url) => {
+                let suffix = url.strip_prefix("pinkha://doc/")?;
+                let id = Uuid::parse_str(suffix).ok()?;
+                match target {
+                    Some(existing) if existing != id => return None,
+                    _ => target = Some(id),
+                }
+            }
+            None => {
+                // No link on this run — only accept it as filler if it's
+                // pure whitespace; any real text means the paragraph is
+                // mixed content and we leave it alone.
+                if !run.content.trim().is_empty() {
+                    return None;
+                }
+            }
+        }
+    }
+    target
 }
 
 /// Recursively rewrites links in `block` and its descendants. Sets
@@ -660,6 +810,9 @@ async fn fetch_blocks_recursive(
         let response = client.get_page_blocks(parent_id, cursor.as_deref()).await?;
 
         for notion_block in &response.results {
+            // Trace every block type Notion hands us so we can prove whether
+            // the early-match on "child_page" actually fires.
+            log_block_type(covers_dir, parent_id, &notion_block.type_);
             // Child-page block — materialise a nested pinkha document and
             // emit a `Page { id }` block in the parent that references it.
             // The child page's own content is fetched immediately so
@@ -773,7 +926,32 @@ async fn import_child_page(
     // Fetch the page metadata to recover the icon and cover, which the
     // `child_page` block payload doesn't carry. A failed fetch shouldn't
     // abort the whole import — we just skip the decoration in that case.
-    if let Ok(meta) = client.get_page(notion_id).await {
+    let get_page_result = client.get_page(notion_id).await;
+    let log_line = match &get_page_result {
+        Ok(meta) => format!(
+            "OK '{}' (id={}): icon={:?} cover={}\n",
+            title,
+            notion_id,
+            meta.icon,
+            meta.cover.is_some()
+        ),
+        Err(err) => format!(
+            "FAIL '{}' (id={}): {err:?}\n",
+            title, notion_id
+        ),
+    };
+    eprintln!("[notion import] {}", log_line.trim_end());
+    if let Some(dir) = covers_dir {
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(format!("{dir}/notion-debug.log"))
+        {
+            let _ = f.write_all(log_line.as_bytes());
+        }
+    }
+    if let Ok(meta) = get_page_result {
         // Cover: same download path as `import_page` so Notion-hosted
         // covers don't expire on us.
         if let Some(url) = meta.cover.as_ref().and_then(|c| c.url()) {
@@ -826,6 +1004,24 @@ async fn import_child_page(
     docs.save(&child)?;
 
     Ok(child_id)
+}
+
+/// Diagnostic helper — appends one line per Notion block to a debug log
+/// in the covers directory. Used to verify which block types Notion
+/// actually returns (in particular whether `child_page` shows up at all
+/// from `get_page_blocks`).
+fn log_block_type(covers_dir: Option<&str>, parent_id: &str, block_type: &str) {
+    eprintln!("[notion blocks] parent={parent_id} type={block_type}");
+    if let Some(dir) = covers_dir {
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(format!("{dir}/notion-debug.log"))
+        {
+            let _ = writeln!(f, "[blocks] parent={parent_id} type={block_type}");
+        }
+    }
 }
 
 /// Counts blocks at all levels of the tree (recursive).

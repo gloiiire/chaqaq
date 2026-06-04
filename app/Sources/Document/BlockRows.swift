@@ -324,28 +324,29 @@ struct ChildPageRowView: View {
     @State private var resolved: (title: String, icon: String?)? = nil
 
     var body: some View {
-        Button {
-            cb.onOpenInternalDoc?(childDocId)
-        } label: {
-            HStack(spacing: 8) {
-                if let icon = resolved?.icon, !icon.isEmpty {
-                    Text(icon).font(.body)
-                } else {
-                    Image(systemName: "doc.text")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                }
-                Text(resolved?.title.isEmpty == false ? resolved!.title : "Untitled")
-                    .font(.body.weight(.medium))
-                    .underline()
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Spacer()
+        HStack(spacing: 8) {
+            if let icon = resolved?.icon, !icon.isEmpty {
+                Text(icon).font(.body)
+            } else {
+                Image(systemName: "doc.text")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
             }
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
+            Text(resolved?.title.isEmpty == false ? resolved!.title : "Untitled")
+                .font(.body.weight(.medium))
+                .underline()
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+            Spacer()
         }
-        .buttonStyle(.plain)
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
+        // High-priority gesture wins over any inherited .disabled or
+        // gesture recogniser higher up the view tree (the locked doc's
+        // .disabled wrapper, the row's selection tap, etc.) — page-
+        // reference blocks are pure navigation targets and should fire
+        // their tap regardless of editing state.
+        .highPriorityGesture(TapGesture().onEnded { cb.onOpenInternalDoc?(childDocId) })
         .onAppear { resolved = cb.resolveChildPage?(childDocId) }
     }
 }

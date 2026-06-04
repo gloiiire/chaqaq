@@ -2,6 +2,24 @@ import SwiftUI
 
 // ── Building callbacks and block rows ────────────────────────────────────────
 
+/// Installs the selection-mode tap-to-toggle recogniser when active.
+/// Off, the modifier is a no-op so taps fall through to inner Buttons
+/// (notably the navigation Button in `ChildPageRowView`).
+private struct SelectionTapModifier: ViewModifier {
+    let active: Bool
+    let onTap: () -> Void
+
+    func body(content: Content) -> some View {
+        if active {
+            content
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onTap)
+        } else {
+            content
+        }
+    }
+}
+
 extension DocumentView {
 
     /// Builds the full row for a block in the List: selection HStack + content + gestures.
@@ -24,15 +42,24 @@ extension DocumentView {
                 autoFocusOffset: $vm.autoFocusOffset,
                 cb: blockCallbacks(for: b)
             )
-            .disabled(vm.locked || editMode == .active)
-            .allowsHitTesting(!vm.locked && editMode != .active)
+            // Lock disables editing, NOT navigation. Page-reference
+            // blocks are pure navigation targets (tap = push child doc)
+            // so we keep them tappable even on a locked / selection-mode
+            // parent — otherwise an imported, locked Notion page would
+            // trap the user with no way to drill into its sub-pages.
+            .disabled((vm.locked || editMode == .active) && !b.content.isPageReference)
+            .allowsHitTesting((!vm.locked && editMode != .active) || b.content.isPageReference)
         }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if editMode == .active {
-                withAnimation(.easeInOut(duration: 0.15)) { toggleSelection(b.id) }
-            }
-        }
+        // contentShape + onTapGesture used to be unconditional, which
+        // installed an HStack-level tap recogniser that swallowed taps
+        // before they could reach inner controls (notably the Button
+        // inside ChildPageRowView, killing navigation on locked docs).
+        // We now only install the tap-to-toggle handler in selection
+        // mode, where the behaviour is actually wanted.
+        .modifier(SelectionTapModifier(active: editMode == .active,
+                                       onTap: {
+            withAnimation(.easeInOut(duration: 0.15)) { toggleSelection(b.id) }
+        }))
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.35).onEnded { _ in selectFromLongPress(b.id) }
         )

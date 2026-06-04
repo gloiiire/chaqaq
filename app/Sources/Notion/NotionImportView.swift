@@ -423,6 +423,21 @@ struct NotionImportView: View {
             }
             // All imports succeeded — persist the token for future runs.
             Keychain.save(t, for: KeychainKey.notionToken)
+            // Copy the Rust-side debug log into Documents/ so it shows up
+            // in Files.app for inspection. Best-effort — we silently swallow
+            // file-system errors because the visible import shouldn't fail
+            // for a missing log file.
+            if let coversDir {
+                let src = URL(fileURLWithPath: coversDir).appendingPathComponent("notion-debug.log")
+                if let docs = try? FileManager.default.url(for: .documentDirectory,
+                                                            in: .userDomainMask,
+                                                            appropriateFor: nil,
+                                                            create: true) {
+                    let dst = docs.appendingPathComponent("notion-debug.log")
+                    try? FileManager.default.removeItem(at: dst)
+                    try? FileManager.default.copyItem(at: src, to: dst)
+                }
+            }
             await MainActor.run { state = .done(aggregated: totals) }
         }
     }

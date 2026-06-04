@@ -105,6 +105,24 @@ struct ContentView: View {
         .sheet(isPresented: $composer.showingCraftCombinedImport) {
             CraftCombinedImportView(api: store.api) { store.load() }
         }
+        // Belt-and-braces refresh : the import sheets each call store.load()
+        // when the user taps Done, but they can also be dismissed by a
+        // swipe-down or Cancel — paths where the existing completion
+        // callback doesn't fire. We listen on each `isPresented` falling
+        // edge to guarantee the home picks up whatever the importer
+        // committed to SQLite before the dismiss.
+        .onChange(of: composer.showingNotionImport) { _, isShowing in
+            if !isShowing { store.load() }
+        }
+        .onChange(of: composer.showingBearImport) { _, isShowing in
+            if !isShowing { store.load() }
+        }
+        .onChange(of: composer.showingCraftTextBundleImport) { _, isShowing in
+            if !isShowing { store.load() }
+        }
+        .onChange(of: composer.showingCraftCombinedImport) { _, isShowing in
+            if !isShowing { store.load() }
+        }
         .alert("New folder", isPresented: $composer.showingNewFolder) {
             TextField("Name", text: $composer.newFolderName)
             Button("Create") {

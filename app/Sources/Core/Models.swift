@@ -185,6 +185,10 @@ enum BlockContentFfi: Codable, Equatable {
     var isTodo: Bool { if case .todo = self { return true }; return false }
     /// `true` if this is a `.todo` block with `done == true`.
     var isTodoDone: Bool { if case .todo(let d, _) = self { return d }; return false }
+    /// `true` if this is a `.page` block (Notion-style child page link).
+    /// The editor keeps these tappable even on a locked document since
+    /// they're navigation targets, not editable content.
+    var isPageReference: Bool { if case .page = self { return true }; return false }
 
     /// Returns a copy of the block with its text replaced by a single unstyled span.
     func withText(_ newText: String, done: Bool = false) -> BlockContentFfi {

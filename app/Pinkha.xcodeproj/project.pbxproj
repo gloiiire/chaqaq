@@ -14,7 +14,6 @@
 		0770B209E6B5A6EE212698D0 /* CraftTextBundleImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D0670D69D6088BD905593C8 /* CraftTextBundleImportView.swift */; };
 		080E62AC634C6662AE03D666 /* SharedComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED135BF384902D45638398A9 /* SharedComponents.swift */; };
 		0D09EEB6D1A6381EEA6CF030 /* AttributedRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EF8382835124C808B432EB7 /* AttributedRoundTripTests.swift */; };
-		0DEC13380BAFBDEFF5A66299 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = F2734BFBE63863199C2CF5A9 /* Pinkha.icon */; };
 		155B0A7C57DD6BC320421DBB /* ImportIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A87F59E8025954E2D6046E5 /* ImportIntegrationTests.swift */; };
 		16243F8C7FD79BEBE5E8B475 /* EdgeCasesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9368C19C4C76886E6A03917 /* EdgeCasesTests.swift */; };
 		19181B7A8D26043528ED2B5F /* BlockRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83E0FB7D965F04D00AF14428 /* BlockRows.swift */; };
@@ -46,6 +45,7 @@
 		57155F8A05B7C7EA1ED129AF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F0C5E1D7104E176374A94957 /* Assets.xcassets */; };
 		5898D72B50B77D1D3DBB9008 /* ObservabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EF086F9F0458E7ADBD9C439 /* ObservabilityTests.swift */; };
 		599105D6197DADEB981F1275 /* SwipeDeleteUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB8BDD53EA02FC1A56928B5 /* SwipeDeleteUITests.swift */; };
+		5A29867D5A5994876B37A975 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 41639E4DEAD4B47938D9B645 /* Pinkha.icon */; };
 		5B18786280FD41AB25892C2B /* DocumentViewModel+TitleCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AFC0FE415F63FAB0758C26A /* DocumentViewModel+TitleCover.swift */; };
 		5C5C57DA676A6B53F43953B1 /* DocumentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F03150360836B39486A73949 /* DocumentViewModel.swift */; };
 		6037AF533565A18E60760F2C /* ConcurrencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83C7E5FB163EC0BCAADD90F1 /* ConcurrencyTests.swift */; };
@@ -143,6 +143,7 @@
 		37543D1D1AAFB9CE1F61603F /* ResilienceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilienceTests.swift; sourceTree = "<group>"; };
 		39AA1D529D7B370CED6DFCA3 /* DocumentDecor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentDecor.swift; sourceTree = "<group>"; };
 		3A60A4A6A8B2EE03385292F9 /* PinkhaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinkhaStore.swift; sourceTree = "<group>"; };
+		41639E4DEAD4B47938D9B645 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		48A52E3CBA4FFBC642AFD763 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		4A87F59E8025954E2D6046E5 /* ImportIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportIntegrationTests.swift; sourceTree = "<group>"; };
 		4E13ECEFE18B72D0CB681C2F /* RichTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextEditor.swift; sourceTree = "<group>"; };
@@ -213,7 +214,6 @@
 		F03150360836B39486A73949 /* DocumentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentViewModel.swift; sourceTree = "<group>"; };
 		F0C5E1D7104E176374A94957 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F1504954F244A2CFBF4FAC30 /* DocumentViewModel+Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DocumentViewModel+Persistence.swift"; sourceTree = "<group>"; };
-		F2734BFBE63863199C2CF5A9 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		F2993E55B338F853D7618589 /* PersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceTests.swift; sourceTree = "<group>"; };
 		F2D794592BEC81AB2CB5E99B /* CodableRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableRoundTripTests.swift; sourceTree = "<group>"; };
 		F8FFF93EEDC254780485D651 /* PerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceTests.swift; sourceTree = "<group>"; };
@@ -381,14 +381,6 @@
 			path = Database;
 			sourceTree = "<group>";
 		};
-		66F0EBD238B3010850387E03 /* app */ = {
-			isa = PBXGroup;
-			children = (
-				F2734BFBE63863199C2CF5A9 /* Pinkha.icon */,
-			);
-			name = app;
-			sourceTree = "<group>";
-		};
 		7459E38DDB42FA0567FB08BE /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -447,6 +439,14 @@
 			path = Document;
 			sourceTree = "<group>";
 		};
+		E6C423EFD4C9C6213C076AAA /* app */ = {
+			isa = PBXGroup;
+			children = (
+				41639E4DEAD4B47938D9B645 /* Pinkha.icon */,
+			);
+			name = app;
+			sourceTree = "<group>";
+		};
 		F122F2A1952EFD55C6F7E411 = {
 			isa = PBXGroup;
 			children = (
@@ -456,7 +456,7 @@
 				7CE19974FB0E7C2FE24CED36 /* Tests */,
 				4494D74BA7F514A78EB8D8AC /* Frameworks */,
 				7459E38DDB42FA0567FB08BE /* Products */,
-				66F0EBD238B3010850387E03 /* app */,
+				E6C423EFD4C9C6213C076AAA /* app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -595,7 +595,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				57155F8A05B7C7EA1ED129AF /* Assets.xcassets in Resources */,
-				0DEC13380BAFBDEFF5A66299 /* Pinkha.icon in Resources */,
+				5A29867D5A5994876B37A975 /* Pinkha.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
