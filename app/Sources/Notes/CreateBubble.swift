@@ -87,33 +87,46 @@ struct CreateBubble: View {
 
     /// Overflow menu — consolidates the secondary actions (trash, imports,
     /// destructive wipe) so the navbar can drop its own ellipsis.
+    ///
+    /// Source-order note : iOS lays out a bottom-anchored Menu from its
+    /// trigger upwards, so the first source item ends up visually closest
+    /// to the button (i.e. at the bottom of the deployed menu) and the
+    /// last item floats at the top. We reverse the natural reading order
+    /// here so the visual order is Trash → Import → Delete all.
     private var overflowMenu: some View {
         Menu {
+            if hasItemsForDeleteAll {
+                Button(role: .destructive) { onDeleteAll() } label: {
+                    Label("Delete all", systemImage: "trash.slash")
+                }
+                Divider()
+            }
             Button { onShowTrash() } label: {
                 Label("Trash", systemImage: "trash")
             }
             Divider()
             Menu {
-                Button { onImportNotion() } label: {
-                    Label("Notion", systemImage: "arrow.down.doc")
-                }
+                // Same inversion trick as the parent overflow menu —
+                // source order reads bottom-up so the visual layout from
+                // top to bottom is Notion → Craft → Bear.
                 Button { onImportBear() } label: {
                     Label("Bear", systemImage: "pencil.and.list.clipboard")
                 }
-                Button { onImportCraftTextBundle() } label: {
-                    Label("Craft (TextBundle)", systemImage: "doc.zipper")
+                Menu {
+                    Button { onImportCraftCombined() } label: {
+                        Label("TextBundle + Realm", systemImage: "arrow.triangle.merge")
+                    }
+                    Button { onImportCraftTextBundle() } label: {
+                        Label("TextBundle", systemImage: "doc.zipper")
+                    }
+                } label: {
+                    Label("Craft", systemImage: "paintpalette")
                 }
-                Button { onImportCraftCombined() } label: {
-                    Label("Craft (Combined)", systemImage: "arrow.triangle.merge")
+                Button { onImportNotion() } label: {
+                    Label("Notion", systemImage: "arrow.down.doc")
                 }
             } label: {
                 Label("Import from…", systemImage: "square.and.arrow.down")
-            }
-            if hasItemsForDeleteAll {
-                Divider()
-                Button(role: .destructive) { onDeleteAll() } label: {
-                    Label("Delete all", systemImage: "trash.slash")
-                }
             }
         } label: {
             VStack(spacing: 4) {
