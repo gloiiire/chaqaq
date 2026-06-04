@@ -21,6 +21,7 @@ dictionary DocumentMetaFfi {
     string created_at;
     string? folder_id;
     string? parent_doc_id;
+    string? icon;
 };
 
 /// Métadonnées légères d'un dossier.

@@ -162,7 +162,7 @@ struct RecentCard: View {
     private var itemIcon: some View {
         switch item {
         case .note(let doc):
-            if let icon = UserDefaults.standard.string(forKey: "document.icon.\(doc.id)"), !icon.isEmpty {
+            if let icon = doc.icon, !icon.isEmpty {
                 Text(icon).font(.title)
             } else {
                 Image(systemName: "doc.text").font(.title2).foregroundStyle(.secondary)
@@ -204,7 +204,7 @@ struct WorkspaceRow: View {
     private var itemIcon: some View {
         switch item {
         case .note(let doc):
-            if let icon = UserDefaults.standard.string(forKey: "document.icon.\(doc.id)"), !icon.isEmpty {
+            if let icon = doc.icon, !icon.isEmpty {
                 Text(icon).font(.title2).frame(width: 34, height: 34)
             } else {
                 Image(systemName: "doc.text")

@@ -47,7 +47,23 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
     // Indexed so `list_root_documents` and `list_child_documents` can scan
     // by this column without parsing every row's JSON `data` blob.
     add_column_if_missing(conn, "documents", "parent_doc_id", "TEXT")?;
-    conn.pragma_update(None, "user_version", 6)
+    // Page icon (emoji or filename). Indexed so list_documents can return
+    // it without parsing the JSON `data` blob — the home view uses this
+    // to render the doc's chosen icon in rows and recent cards.
+    add_column_if_missing(conn, "documents", "icon", "TEXT")?;
+    // Backfill the icon column from the existing JSON `data` blob for
+    // documents saved before the column existed. Without this, pre-7
+    // documents would show the default fallback icon even though they
+    // already carried an emoji inside their data.
+    conn.execute(
+        "UPDATE documents
+            SET icon = json_extract(data, '$.icon')
+          WHERE icon IS NULL
+            AND json_extract(data, '$.icon') IS NOT NULL",
+        [],
+    )
+    .map_err(|e| PinkhaError::Db(e.to_string()))?;
+    conn.pragma_update(None, "user_version", 7)
         .map_err(|e| PinkhaError::Db(e.to_string()))?;
     Ok(())
 }

@@ -99,6 +99,9 @@ pub struct DocumentMeta {
     pub id: Uuid,
     /// Optional cover image URL or emoji.
     pub cover: Option<String>,
+    /// Optional page icon (emoji or filename). Mirrors `Document.icon`.
+    #[serde(default)]
+    pub icon: Option<String>,
     /// Rich-text title.
     pub title: Vec<InlineText>,
     /// ISO 8601 timestamp of the last modification, managed by the infrastructure layer.
@@ -125,6 +128,7 @@ impl From<&Document> for DocumentMeta {
         Self {
             id: doc.id,
             cover: doc.cover.clone(),
+            icon: doc.icon.clone(),
             title: doc.title.clone(),
             updated_at: String::new(),
             created_at: String::new(),

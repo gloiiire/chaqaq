@@ -1885,10 +1885,11 @@ public struct DocumentMetaFfi: Equatable, Hashable {
     public var createdAt: String
     public var folderId: String?
     public var parentDocId: String?
+    public var icon: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, titlePlain: String, titleJson: String, cover: String?, updatedAt: String, createdAt: String, folderId: String?, parentDocId: String?) {
+    public init(id: String, titlePlain: String, titleJson: String, cover: String?, updatedAt: String, createdAt: String, folderId: String?, parentDocId: String?, icon: String?) {
         self.id = id
         self.titlePlain = titlePlain
         self.titleJson = titleJson
@@ -1897,6 +1898,7 @@ public struct DocumentMetaFfi: Equatable, Hashable {
         self.createdAt = createdAt
         self.folderId = folderId
         self.parentDocId = parentDocId
+        self.icon = icon
     }
 
     
@@ -1922,7 +1924,8 @@ public struct FfiConverterTypeDocumentMetaFfi: FfiConverterRustBuffer {
                 updatedAt: FfiConverterString.read(from: &buf), 
                 createdAt: FfiConverterString.read(from: &buf), 
                 folderId: FfiConverterOptionString.read(from: &buf), 
-                parentDocId: FfiConverterOptionString.read(from: &buf)
+                parentDocId: FfiConverterOptionString.read(from: &buf), 
+                icon: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -1935,6 +1938,7 @@ public struct FfiConverterTypeDocumentMetaFfi: FfiConverterRustBuffer {
         FfiConverterString.write(value.createdAt, into: &buf)
         FfiConverterOptionString.write(value.folderId, into: &buf)
         FfiConverterOptionString.write(value.parentDocId, into: &buf)
+        FfiConverterOptionString.write(value.icon, into: &buf)
     }
 }
 

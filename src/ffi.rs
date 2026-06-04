@@ -107,6 +107,8 @@ pub struct DocumentMetaFfi {
     /// UUID of the parent document (Notion-style page-in-page), or `None`
     /// when this is a root page.
     pub parent_doc_id: Option<String>,
+    /// Optional page icon — emoji or filename. Mirrors `Document.icon`.
+    pub icon: Option<String>,
 }
 
 /// Lightweight folder metadata passed across the FFI boundary.
@@ -197,6 +199,7 @@ fn doc_meta_to_ffi(m: DocumentMeta) -> DocumentMetaFfi {
         created_at: m.created_at,
         folder_id: m.folder_id.map(|id| id.to_string()),
         parent_doc_id: m.parent_doc_id.map(|id| id.to_string()),
+        icon: m.icon,
     }
 }
 
