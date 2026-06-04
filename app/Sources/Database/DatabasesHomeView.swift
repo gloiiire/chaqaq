@@ -84,7 +84,8 @@ struct DatabasesHomeView: View {
             .sheet(isPresented: $showingCreate) {
                 CreateDocumentSheet(
                     title: $newTitle,
-                    prompt: "Database title"
+                    prompt: "Database title",
+                    navigationTitle: "New Database"
                 ) {
                     store.createDatabase(title: newTitle)
                     newTitle = ""

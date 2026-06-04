@@ -56,7 +56,8 @@ struct ContentView: View {
         .sheet(isPresented: $composer.showingCreateDoc) {
             CreateDocumentSheet(
                 title: $composer.newTitle,
-                prompt: composer.createMode == .note ? "Note title" : "Database title"
+                prompt: composer.createMode == .note ? "Note title" : "Database title",
+                navigationTitle: composer.createMode == .note ? "New Document" : "New Database"
             ) {
                 switch composer.createMode {
                 case .note:     store.create(title: composer.newTitle)

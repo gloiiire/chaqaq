@@ -49,7 +49,7 @@ struct CreateBubble: View {
 								 font: .system(size: 21),
 								 labelSpacing: 0,
 								 action: onNewNote)
-						.offset(y:-2)
+						.offset(y:isInline ? 2.1 : -1)
             icon(systemImage: "tablecells",
                  label: "Database",
                  action: onNewDatabase)
@@ -90,7 +90,7 @@ struct CreateBubble: View {
     private var overflowMenu: some View {
         Menu {
             Button { onShowTrash() } label: {
-                Label("Corbeille", systemImage: "trash")
+                Label("Trash", systemImage: "trash")
             }
             Divider()
             Menu {
@@ -112,7 +112,7 @@ struct CreateBubble: View {
             if hasItemsForDeleteAll {
                 Divider()
                 Button(role: .destructive) { onDeleteAll() } label: {
-                    Label("Tout supprimer", systemImage: "trash.slash")
+                    Label("Delete all", systemImage: "trash.slash")
                 }
             }
         } label: {
@@ -145,6 +145,6 @@ struct CreateBubble: View {
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
-        .accessibilityLabel("Plus d'actions")
+        .accessibilityLabel("More actions")
     }
 }

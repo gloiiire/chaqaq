@@ -128,7 +128,7 @@ final class PinkhaStore: ObservableObject {
     }
 
     /// Soft-deletes all folders (orphan contents fall back to root).
-    /// Used by the "Tout supprimer" flow so a clean wipe includes folders.
+    /// Used by the "Delete all" flow so a clean wipe includes folders.
     func deleteAllFolders() {
         if tryCatch(into: &errorMessage, { try api?.deleteAllFolders() }) != nil {
             load()

@@ -99,6 +99,10 @@ private struct FloatingButtonStyle: ButtonStyle {
 struct CreateDocumentSheet: View {
     @Binding var title: String
     var prompt: String = "Document title"
+    /// Navigation title — defaults to "New" but each call site sets a
+    /// more descriptive label (e.g. "New Document", "New Database") so the
+    /// user knows what they're creating before they type.
+    var navigationTitle: String = "New"
     let onCreate: () -> Void
     let onCancel: () -> Void
     @FocusState private var focused: Bool
@@ -116,7 +120,7 @@ struct CreateDocumentSheet: View {
                         }
                 }
             }
-            .navigationTitle("New")
+            .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

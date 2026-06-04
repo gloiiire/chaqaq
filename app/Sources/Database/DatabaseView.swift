@@ -68,22 +68,22 @@ struct DatabaseView: View {
                     Button(role: .destructive) {
                         showDeleteConfirm = true
                     } label: {
-                        Label("Supprimer la base", systemImage: "trash")
+                        Label("Delete database", systemImage: "trash")
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
-                .accessibilityLabel("Plus d'actions")
+                .accessibilityLabel("More actions")
             }
         }
-        .alert("Supprimer cette base ?", isPresented: $showDeleteConfirm) {
-            Button("Supprimer", role: .destructive) {
+        .alert("Delete this database?", isPresented: $showDeleteConfirm) {
+            Button("Delete", role: .destructive) {
                 tryCatch(into: &vm.errorMessage) { try api.deleteDatabase(id: vm.dbId) }
                 dismiss()
             }
-            Button("Annuler", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Toutes les lignes seront déplacées vers la corbeille.")
+            Text("All rows will be moved to the trash.")
         }
         .sheet(isPresented: $showAddColumn) {
             AddColumnSheet { name, type in

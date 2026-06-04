@@ -27,6 +27,7 @@
 		32A58C6A3B2306C8C71716E2 /* FontHelpersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97AAE4ED1A7A8EFFA0FFB26F /* FontHelpersTests.swift */; };
 		32C8426F08A11B36F8D34425 /* ColorPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0242538C571C77BB05443CB /* ColorPersistenceTests.swift */; };
 		35790178FC28CBE4BBC07EB3 /* Resilience.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56806548C25A65F2BB6E2671 /* Resilience.swift */; };
+		359380FDD42550188665A53E /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = E39718DE8F8071C681C936F5 /* Pinkha.icon */; };
 		39EC996E337D7668192E46B0 /* ModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDCE4B4A67B7675CF7E4994 /* ModelsTests.swift */; };
 		3D2EB438F75FBE9267D39944 /* PinkhaStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A60A4A6A8B2EE03385292F9 /* PinkhaStore.swift */; };
 		3EBA03AE2968EAF33B020A89 /* DatabaseViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFA4CB8B18F322F82D34991C /* DatabaseViewModelTests.swift */; };
@@ -207,6 +208,7 @@
 		D9368C19C4C76886E6A03917 /* EdgeCasesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeCasesTests.swift; sourceTree = "<group>"; };
 		DDF836EB2D9E803A6DCC33B3 /* MarkdownShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownShortcuts.swift; sourceTree = "<group>"; };
 		E2C07ADA01E894E83B574ABA /* HomeScreenUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreenUITests.swift; sourceTree = "<group>"; };
+		E39718DE8F8071C681C936F5 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		ED135BF384902D45638398A9 /* SharedComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedComponents.swift; sourceTree = "<group>"; };
 		ED9B1DB1A313487130CA11D1 /* FolderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderView.swift; sourceTree = "<group>"; };
 		F03150360836B39486A73949 /* DocumentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentViewModel.swift; sourceTree = "<group>"; };
@@ -400,6 +402,14 @@
 			path = Tests;
 			sourceTree = "<group>";
 		};
+		7E3708D2F43EDA70000D72DB /* app */ = {
+			isa = PBXGroup;
+			children = (
+				E39718DE8F8071C681C936F5 /* Pinkha.icon */,
+			);
+			name = app;
+			sourceTree = "<group>";
+		};
 		8FB7F1288CD331FA0F093783 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
@@ -446,6 +456,7 @@
 				7CE19974FB0E7C2FE24CED36 /* Tests */,
 				4494D74BA7F514A78EB8D8AC /* Frameworks */,
 				7459E38DDB42FA0567FB08BE /* Products */,
+				7E3708D2F43EDA70000D72DB /* app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -473,8 +484,6 @@
 				927F330555739D9EA6AE32DA /* PBXTargetDependency */,
 			);
 			name = PinkhaIntegrationTests;
-			packageProductDependencies = (
-			);
 			productName = PinkhaIntegrationTests;
 			productReference = 989079D332C7B04FEE02C8BC /* PinkhaIntegrationTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -491,8 +500,6 @@
 				4E6BCB04497B8C41D714F720 /* PBXTargetDependency */,
 			);
 			name = PinkhaUITests;
-			packageProductDependencies = (
-			);
 			productName = PinkhaUITests;
 			productReference = BBCF4EDFC02A470DBC3BA602 /* PinkhaUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -509,8 +516,6 @@
 				BEEC4C3C50F6749665EC95D9 /* PBXTargetDependency */,
 			);
 			name = PinkhaTests;
-			packageProductDependencies = (
-			);
 			productName = PinkhaTests;
 			productReference = 596EB06D81D9723854411FD8 /* PinkhaTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -590,6 +595,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				57155F8A05B7C7EA1ED129AF /* Assets.xcassets in Resources */,
+				359380FDD42550188665A53E /* Pinkha.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -734,7 +740,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BAE708B54C4D296BE09E399D /* Secrets.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Pinkha;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = N49VNC2G57;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
@@ -748,7 +754,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				OTHER_LDFLAGS = "$(inherited) -lc++";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.gloiiire.pinkha;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -780,7 +789,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BAE708B54C4D296BE09E399D /* Secrets.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Pinkha;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = N49VNC2G57;
 				ENABLE_TESTABILITY = YES;
@@ -795,7 +804,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				OTHER_LDFLAGS = "$(inherited) -lc++";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.gloiiire.pinkha;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;

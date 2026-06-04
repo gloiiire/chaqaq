@@ -53,6 +53,9 @@ targets:
           - "**/* [2-9].swift"
       - path: ../swift-bindings/pinkha.swift
     resources:
+      # Sources/Assets.xcassets includes Pinkha.icon (Icon Composer
+      # bundle, Xcode 26) alongside the legacy AppIcon.appiconset.
+      # ASSETCATALOG_COMPILER_APPICON_NAME below points actool at Pinkha.
       - path: Sources/Assets.xcassets
     settings:
       base:
