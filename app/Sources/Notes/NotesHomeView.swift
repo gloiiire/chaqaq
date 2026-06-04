@@ -131,31 +131,64 @@ struct RecentStrip: View {
     }
 }
 
-/// A card in the recent strip — displays icon, title, and relative date.
+/// A card in the recent strip — Notion-style with a cover image
+/// (or fallback gradient) filling the top half, an icon overlapping the
+/// cover/content boundary, and the title plus relative date below.
 struct RecentCard: View {
     let item: WorkspaceItem
 
+    private let cornerRadius: CGFloat = 16
+    private let coverHeight: CGFloat = 80
+    private let iconSize: CGFloat = 32
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            itemIcon.frame(width: 36, height: 36)
-            Spacer()
+        VStack(alignment: .leading, spacing: 0) {
+            CoverImageView(cover: coverValue)
+                .frame(height: coverHeight)
+                .clipped()
+            // The bottom block hosts both the overlapping icon and the
+            // title/date stack. The icon is placed in an overlay so it
+            // can sit half on top of the cover and half on the white
+            // surface below — same trick Notion uses.
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.titlePlain.isEmpty ? "Untitled" : item.titlePlain)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 if let date = formattedDate(item.updatedAt) {
-                    Text(date).font(.caption2).foregroundStyle(.tertiary)
+                    Text(date)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                Spacer(minLength: 0)
+            }
+            // The padding top makes room for the icon that will overlap
+            // from above via the overlay below.
+            .padding(.top, iconSize / 2 + 6)
+            .padding(.horizontal, 12)
+            .padding(.bottom, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .topLeading) {
+                itemIcon
+                    .frame(width: iconSize, height: iconSize)
+                    .padding(.leading, 10)
+                    .offset(y: -iconSize / 2)
             }
         }
-        .padding(14)
-        .frame(width: 150, height: 140)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .frame(width: 165, height: 170, alignment: .leading)
+        .background(.background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .strokeBorder(.separator.opacity(0.5), lineWidth: 0.5)
         )
         .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
+    }
+
+    private var coverValue: String? {
+        if case .note(let doc) = item { return doc.cover }
+        return nil
     }
 
     @ViewBuilder
@@ -163,12 +196,22 @@ struct RecentCard: View {
         switch item {
         case .note(let doc):
             if let icon = doc.icon, !icon.isEmpty {
-                Text(icon).font(.title)
+                Text(icon).font(.title2)
             } else {
-                Image(systemName: "doc.text").font(.title2).foregroundStyle(.secondary)
+                Image(systemName: "doc.text")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: iconSize, height: iconSize)
+                    .background(Color(.systemBackground), in: Circle())
+                    .overlay(Circle().strokeBorder(.separator.opacity(0.6), lineWidth: 0.5))
             }
         case .database:
-            Image(systemName: "tablecells").font(.title2).foregroundStyle(.secondary)
+            Image(systemName: "tablecells")
+                .font(.body.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(width: iconSize, height: iconSize)
+                .background(Color(.systemBackground), in: Circle())
+                .overlay(Circle().strokeBorder(.separator.opacity(0.6), lineWidth: 0.5))
         }
     }
 
