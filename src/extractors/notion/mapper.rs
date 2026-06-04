@@ -62,11 +62,34 @@ pub fn map_rich_text(items: &[NotionRichText]) -> Vec<InlineText> {
     items
         .iter()
         .filter(|r| !r.plain_text.is_empty())
-        .map(|r| InlineText {
-            content: r.plain_text.clone(),
-            styles: map_annotations(&r.annotations, r.href.as_deref()),
+        .map(|r| {
+            // Notion sends page mentions (`@PageName`) as runs with
+            // `type: "mention"` and a null `href`. Recover the page id
+            // from the `mention.page.id` payload and synthesise the
+            // canonical Notion URL so the post-import rewrite pass can
+            // swap it for the matching `pinkha://doc/{uuid}` link.
+            let href = r.href.clone().or_else(|| mention_href(r));
+            InlineText {
+                content: r.plain_text.clone(),
+                styles: map_annotations(&r.annotations, href.as_deref()),
+            }
         })
         .collect()
+}
+
+/// Reconstructs a Notion URL from a `mention` rich-text run when one is
+/// present and points to a page — used to keep `@PageName` references
+/// navigable post-import.
+fn mention_href(run: &NotionRichText) -> Option<String> {
+    if run.run_type != "mention" {
+        return None;
+    }
+    match run.mention.as_ref()? {
+        super::schema::NotionMention::Page { page } => {
+            Some(format!("https://www.notion.so/{}", page.id))
+        }
+        super::schema::NotionMention::Unknown => None,
+    }
 }
 
 /// Converts Notion text annotations to Pinkha inline styles.
@@ -323,11 +346,15 @@ mod tests {
                 plain_text: "".to_string(),
                 annotations: NotionAnnotations::default(),
                 href: None,
+            run_type: "text".to_string(),
+            mention: None,
             },
             NotionRichText {
                 plain_text: "hello".to_string(),
                 annotations: NotionAnnotations::default(),
                 href: None,
+            run_type: "text".to_string(),
+            mention: None,
             },
         ];
         let result = map_rich_text(&items);
@@ -374,6 +401,8 @@ mod tests {
                 plain_text: text.to_string(),
                 annotations: NotionAnnotations::default(),
                 href: None,
+            run_type: "text".to_string(),
+            mention: None,
             }],
         }
     }
@@ -422,6 +451,7 @@ mod tests {
                 None
             },
             code: None,
+            child_page: None,
         }
     }
 
@@ -462,6 +492,8 @@ mod tests {
             plain_text: "fn main() {}".to_string(),
             annotations: NotionAnnotations::default(),
             href: None,
+            run_type: "text".to_string(),
+            mention: None,
         };
         let block = NotionBlock {
             id: "fake-id".to_string(),
@@ -476,6 +508,7 @@ mod tests {
             to_do: None,
             bulleted_list_item: None,
             numbered_list_item: None,
+            child_page: None,
             code: Some(CodeBlock {
                 rich_text: vec![rt],
                 language: "rust".to_string(),
@@ -508,6 +541,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         assert!(map_block(&block).is_none());
     }
@@ -537,6 +571,8 @@ mod tests {
             plain_text: "task".to_string(),
             annotations: NotionAnnotations::default(),
             href: None,
+            run_type: "text".to_string(),
+            mention: None,
         };
         let block = NotionBlock {
             id: "fake-id".to_string(),
@@ -556,6 +592,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         assert!(matches!(
@@ -571,6 +608,8 @@ mod tests {
             plain_text: "task".to_string(),
             annotations: NotionAnnotations::default(),
             href: None,
+            run_type: "text".to_string(),
+            mention: None,
         };
         let block = NotionBlock {
             id: "fake-id".to_string(),
@@ -590,6 +629,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         assert!(matches!(
@@ -605,6 +645,8 @@ mod tests {
             plain_text: "fire".to_string(),
             annotations: NotionAnnotations::default(),
             href: None,
+            run_type: "text".to_string(),
+            mention: None,
         };
         let block = NotionBlock {
             id: "fake-id".to_string(),
@@ -627,6 +669,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         match result {
@@ -644,6 +687,8 @@ mod tests {
             plain_text: "note".to_string(),
             annotations: NotionAnnotations::default(),
             href: None,
+            run_type: "text".to_string(),
+            mention: None,
         };
         let block = NotionBlock {
             id: "fake-id".to_string(),
@@ -663,6 +708,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         match result {
@@ -691,6 +737,8 @@ mod tests {
                     plain_text: "wisdom".to_string(),
                     annotations: NotionAnnotations::default(),
                     href: None,
+            run_type: "text".to_string(),
+            mention: None,
                 }],
                 color: "default".into(),
             }),
@@ -698,6 +746,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         match result {
@@ -726,6 +775,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         assert!(matches!(
@@ -791,6 +841,8 @@ mod tests {
                 ..NotionAnnotations::default()
             },
             href: None,
+            run_type: "text".to_string(),
+            mention: None,
         }];
         let result = map_rich_text(&items);
         assert_eq!(result.len(), 1);
@@ -810,6 +862,8 @@ mod tests {
                 ..NotionAnnotations::default()
             },
             href: None,
+            run_type: "text".to_string(),
+            mention: None,
         }];
         let result = map_rich_text(&items);
         assert_eq!(result.len(), 1);
@@ -829,6 +883,8 @@ mod tests {
             plain_text: "click me".to_string(),
             annotations: NotionAnnotations::default(),
             href: Some(url.to_string()),
+            run_type: "text".to_string(),
+            mention: None,
         }];
         let result = map_rich_text(&items);
         assert_eq!(result.len(), 1);
@@ -870,6 +926,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         }
     }
 
@@ -909,6 +966,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         assert!(map_block_color(&block).is_none());
     }

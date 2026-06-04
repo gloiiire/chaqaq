@@ -1,0 +1,84 @@
+import SwiftUI
+
+// ── Composer state ────────────────────────────────────────────────────────────
+
+/// Owns the presentation state for the global create bubble — sheets,
+/// alerts and the create mode picker. Lives at the `ContentView` level so
+/// the bubble inside `tabViewBottomAccessory` can drive create / trash /
+/// import flows regardless of which tab is currently selected.
+@MainActor
+final class Composer: ObservableObject {
+    /// Whether the document/database title prompt is on screen.
+    @Published var showingCreateDoc = false
+    /// Whether the new-folder alert is on screen.
+    @Published var showingNewFolder = false
+    /// Whether the trash sheet is on screen.
+    @Published var showingTrash = false
+    /// Whether the Notion import sheet is on screen.
+    @Published var showingNotionImport = false
+    /// Whether the Bear import sheet is on screen.
+    @Published var showingBearImport = false
+    /// Whether the Craft TextBundle import sheet is on screen.
+    @Published var showingCraftTextBundleImport = false
+    /// Whether the Craft combined import sheet is on screen.
+    @Published var showingCraftCombinedImport = false
+    /// First-step Delete All confirmation alert.
+    @Published var showingDeleteAllConfirm = false
+    /// Second-step Delete All confirmation alert.
+    @Published var showingDeleteAllConfirm2 = false
+    /// Title draft for the create document sheet.
+    @Published var newTitle = ""
+    /// Name draft for the new-folder alert.
+    @Published var newFolderName = ""
+    /// Which kind of document the create sheet should produce.
+    @Published var createMode: CreateMode = .note
+    /// Where the next `New …` should land. Driven by the navigation
+    /// stack — `FolderView` flips it to `.folder(id)` on appear (and
+    /// back to `.root` on disappear), `DocumentView` flips it to
+    /// `.document(id)`. The home, databases and inbox screens leave the
+    /// default `.root`, so anything created from there lands at the
+    /// top of the workspace.
+    @Published var currentContext: CreationContext = .root
+    /// Signals that a child page has just been created from inside a
+    /// document and needs to be embedded as a `Page` block in the active
+    /// editor. The DocumentView observes this and routes the insertion
+    /// through its VM — otherwise the next burst flush would overwrite
+    /// a block written behind the VM's back via a direct FFI call.
+    @Published var pendingChildPage: PendingChildPage? = nil
+
+    enum CreateMode { case note, database }
+
+    /// Anchor for context-aware creation — the bubble inherits the
+    /// "where am I?" from the foreground view so a new note created
+    /// while looking at folder "K" lands inside "K", not at root.
+    enum CreationContext: Equatable {
+        case root
+        case folder(id: String)
+        case document(id: String)
+    }
+
+    /// Payload of `pendingChildPage`. The parent doc id lets the active
+    /// `DocumentView` filter — only the editor showing `parentDocId`
+    /// should react and consume the signal.
+    struct PendingChildPage: Equatable {
+        let parentDocId: String
+        let childDocId: String
+    }
+
+    func openNewNote() {
+        createMode = .note
+        newTitle = ""
+        showingCreateDoc = true
+    }
+
+    func openNewDatabase() {
+        createMode = .database
+        newTitle = ""
+        showingCreateDoc = true
+    }
+
+    func openNewFolder() {
+        newFolderName = ""
+        showingNewFolder = true
+    }
+}

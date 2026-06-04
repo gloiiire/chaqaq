@@ -47,6 +47,12 @@ fi
 echo "→ Regenerating Pinkha.xcodeproj (xcodegen)…"
 (cd app && xcodegen generate >/dev/null)
 
+# xcodegen doesn't register the .icon bundle with the wrapper.icon file
+# type that actool expects. The Ruby patch redoes that step idempotently.
+if [ -f "scripts/patch-app-icon.rb" ]; then
+    ./scripts/patch-app-icon.rb >/dev/null
+fi
+
 echo "→ Building for device ${XCODE_DEVICE_ID}…"
 xcodebuild build -quiet \
     -project app/Pinkha.xcodeproj \

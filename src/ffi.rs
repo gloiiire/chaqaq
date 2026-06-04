@@ -104,6 +104,11 @@ pub struct DocumentMetaFfi {
     pub created_at: String,
     /// UUID of the folder this document belongs to, or `None` for root.
     pub folder_id: Option<String>,
+    /// UUID of the parent document (Notion-style page-in-page), or `None`
+    /// when this is a root page.
+    pub parent_doc_id: Option<String>,
+    /// Optional page icon — emoji or filename. Mirrors `Document.icon`.
+    pub icon: Option<String>,
 }
 
 /// Lightweight folder metadata passed across the FFI boundary.
@@ -119,6 +124,8 @@ pub struct FolderMetaFfi {
     pub created_at: String,
     /// RFC 3339 last-update timestamp.
     pub updated_at: String,
+    /// Optional emoji icon.
+    pub icon: Option<String>,
 }
 
 /// Summary of a completed import operation, returned to Swift.
@@ -161,6 +168,18 @@ pub struct NotionDatabaseSummaryFfi {
     pub last_edited: String,
 }
 
+/// One match from a block-content search. Carries the document metadata
+/// plus a short snippet of the matching block so the UI can preview
+/// where the hit occurs, Notion-style.
+#[derive(Debug, Clone)]
+pub struct BlockSearchHitFfi {
+    pub doc: DocumentMetaFfi,
+    /// UUID string of the matching block — lets Swift scroll directly
+    /// to it when opening the document from a search result.
+    pub block_id: String,
+    pub snippet: String,
+}
+
 /// Lightweight database metadata passed across the FFI boundary.
 #[derive(Debug, Clone)]
 pub struct DatabaseMetaFfi {
@@ -193,6 +212,8 @@ fn doc_meta_to_ffi(m: DocumentMeta) -> DocumentMetaFfi {
         updated_at: m.updated_at,
         created_at: m.created_at,
         folder_id: m.folder_id.map(|id| id.to_string()),
+        parent_doc_id: m.parent_doc_id.map(|id| id.to_string()),
+        icon: m.icon,
     }
 }
 
@@ -204,6 +225,7 @@ fn folder_meta_to_ffi(m: FolderMeta) -> FolderMetaFfi {
         parent_id: m.parent_id.map(|id| id.to_string()),
         created_at: m.created_at,
         updated_at: m.updated_at,
+        icon: m.icon,
     }
 }
 
@@ -546,6 +568,39 @@ impl PinkhaApi {
         Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
     }
 
+    /// Case-insensitive search across database titles.
+    pub fn search_databases(&self, query: String) -> Result<Vec<DatabaseMetaFfi>, PinkhaError> {
+        validate_string(&query, "query")?;
+        let metas = use_cases::search_databases(&self.uow(), &query).map_err(PinkhaError::from)?;
+        Ok(metas.into_iter().map(db_meta_to_ffi).collect())
+    }
+
+    /// Block-content search returning each match together with a short
+    /// preview snippet (~40 chars before / 80 after the term).
+    pub fn search_in_blocks_with_snippets(
+        &self,
+        query: String,
+    ) -> Result<Vec<BlockSearchHitFfi>, PinkhaError> {
+        validate_string(&query, "query")?;
+        let hits = use_cases::search_in_blocks_with_snippets(&self.uow(), &query)
+            .map_err(PinkhaError::from)?;
+        Ok(hits
+            .into_iter()
+            .map(|h| BlockSearchHitFfi {
+                doc: doc_meta_to_ffi(h.doc),
+                block_id: h.block_id.to_string(),
+                snippet: h.snippet,
+            })
+            .collect())
+    }
+
+    /// Case-insensitive search across folder names.
+    pub fn search_folders(&self, query: String) -> Result<Vec<FolderMetaFfi>, PinkhaError> {
+        validate_string(&query, "query")?;
+        let metas = use_cases::search_folders(&self.uow(), &query).map_err(PinkhaError::from)?;
+        Ok(metas.into_iter().map(folder_meta_to_ffi).collect())
+    }
+
     // ── Trash (soft-deleted documents) ────────────────────────────────────────
 
     /// Lists soft-deleted documents (the trash). Newest-deleted first.
@@ -881,9 +936,32 @@ impl PinkhaApi {
         folder_use_cases::rename_folder(&self.uow(), uuid, &new_name).map_err(PinkhaError::from)
     }
 
+    /// Sets or clears a folder's emoji icon. Pass `None` to remove.
+    pub fn update_folder_icon(
+        &self,
+        id: String,
+        icon: Option<String>,
+    ) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        folder_use_cases::update_folder_icon(&self.uow(), uuid, icon.as_deref())
+            .map_err(PinkhaError::from)
+    }
+
     pub fn delete_folder(&self, id: String) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
         folder_use_cases::delete_folder(&self.uow(), uuid).map_err(PinkhaError::from)
+    }
+
+    /// Soft-deletes every folder. Documents and databases that lived inside
+    /// are orphaned to the root (the `delete_folder` use case handles that).
+    /// Returns the number of folders deleted.
+    pub fn delete_all_folders(&self) -> Result<u32, PinkhaError> {
+        let metas = folder_use_cases::list_folders(&self.uow()).map_err(PinkhaError::from)?;
+        let count = metas.len() as u32;
+        for meta in metas {
+            folder_use_cases::delete_folder(&self.uow(), meta.id).map_err(PinkhaError::from)?;
+        }
+        Ok(count)
     }
 
     /// Lists soft-deleted folders (the trash). Newest-deleted first.
@@ -931,6 +1009,40 @@ impl PinkhaApi {
     ) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
         let fid = folder_id.as_deref().map(parse_uuid).transpose()?;
         use_cases::list_documents_in_folder(&self.uow(), fid)
+            .map(|v| v.into_iter().map(doc_meta_to_ffi).collect())
+            .map_err(PinkhaError::from)
+    }
+
+    /// Sets the parent document for page-in-page hierarchy. Pass `None`
+    /// to promote the document back to root. Rejects cycles.
+    pub fn update_document_parent(
+        &self,
+        doc_id: String,
+        new_parent_doc_id: Option<String>,
+    ) -> Result<(), PinkhaError> {
+        let doc_uuid = parse_uuid(&doc_id)?;
+        let parent = new_parent_doc_id
+            .as_deref()
+            .map(parse_uuid)
+            .transpose()?;
+        use_cases::update_document_parent(&self.uow(), doc_uuid, parent).map_err(PinkhaError::from)
+    }
+
+    /// Lists root pages (documents with no parent). Drives the home view.
+    pub fn list_root_documents(&self) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
+        use_cases::list_root_documents(&self.uow())
+            .map(|v| v.into_iter().map(doc_meta_to_ffi).collect())
+            .map_err(PinkhaError::from)
+    }
+
+    /// Lists direct children of a parent document. Used by the child-pages
+    /// section in the document view and by the breadcrumbs picker.
+    pub fn list_child_documents(
+        &self,
+        parent_doc_id: String,
+    ) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
+        let parent = parse_uuid(&parent_doc_id)?;
+        use_cases::list_child_documents(&self.uow(), parent)
             .map(|v| v.into_iter().map(doc_meta_to_ffi).collect())
             .map_err(PinkhaError::from)
     }

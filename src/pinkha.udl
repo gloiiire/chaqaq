@@ -20,6 +20,8 @@ dictionary DocumentMetaFfi {
     string updated_at;
     string created_at;
     string? folder_id;
+    string? parent_doc_id;
+    string? icon;
 };
 
 /// Métadonnées légères d'un dossier.
@@ -29,6 +31,7 @@ dictionary FolderMetaFfi {
     string? parent_id;
     string created_at;
     string updated_at;
+    string? icon;
 };
 
 /// Métadonnées légères d'une database (sans entrées).
@@ -38,6 +41,14 @@ dictionary DatabaseMetaFfi {
     string title_json;
     string updated_at;
     string created_at;
+};
+
+/// Hit d'une recherche dans le contenu des blocs — métadonnées du doc
+/// plus extrait du bloc qui matche pour preview style Notion.
+dictionary BlockSearchHitFfi {
+    DocumentMetaFfi doc;
+    string block_id;
+    string snippet;
 };
 
 /// Résumé d'une opération d'import retourné à Swift.
@@ -162,6 +173,18 @@ interface PinkhaApi {
     /// Recherche plein texte dans les blocs.
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> search_in_blocks(string query);
+
+    /// Recherche par titre de database.
+    [Throws=PinkhaError]
+    sequence<DatabaseMetaFfi> search_databases(string query);
+
+    /// Recherche plein texte avec extrait (snippet) du bloc qui matche.
+    [Throws=PinkhaError]
+    sequence<BlockSearchHitFfi> search_in_blocks_with_snippets(string query);
+
+    /// Recherche par nom de folder.
+    [Throws=PinkhaError]
+    sequence<FolderMetaFfi> search_folders(string query);
 
     /// Liste les documents en corbeille (soft-deleted), du plus récemment supprimé en premier.
     [Throws=PinkhaError]
@@ -291,7 +314,13 @@ interface PinkhaApi {
     void rename_folder(string id, string new_name);
 
     [Throws=PinkhaError]
+    void update_folder_icon(string id, string? icon);
+
+    [Throws=PinkhaError]
     void delete_folder(string id);
+
+    [Throws=PinkhaError]
+    u32 delete_all_folders();
 
     /// Liste les dossiers en corbeille (soft-deleted), du plus récemment supprimé en premier.
     [Throws=PinkhaError]
@@ -313,6 +342,19 @@ interface PinkhaApi {
 
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> list_documents_in_folder(string? folder_id);
+
+    /// Définit le document parent (page imbriquée à la Notion). `None` pour
+    /// repromouvoir le document à la racine. Rejette les cycles.
+    [Throws=PinkhaError]
+    void update_document_parent(string doc_id, string? new_parent_doc_id);
+
+    /// Liste les pages racine (documents sans parent). Alimente la home.
+    [Throws=PinkhaError]
+    sequence<DocumentMetaFfi> list_root_documents();
+
+    /// Liste les enfants directs d'un document parent (page-in-page).
+    [Throws=PinkhaError]
+    sequence<DocumentMetaFfi> list_child_documents(string parent_doc_id);
 
     // ── Imports ───────────────────────────────────────────────
 

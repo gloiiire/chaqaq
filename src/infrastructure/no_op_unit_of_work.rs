@@ -175,4 +175,7 @@ impl FolderRepository for PanickingFolderRepo {
     fn move_folder(&self, _: uuid::Uuid, _: Option<uuid::Uuid>) -> Result<(), PinkhaError> {
         panic!("folders repo not bound on this NoOpUnitOfWork (constructed via with_docs_dbs)");
     }
+    fn update_icon(&self, _: uuid::Uuid, _: Option<&str>) -> Result<(), PinkhaError> {
+        panic!("folders repo not bound on this NoOpUnitOfWork (constructed via with_docs_dbs)");
+    }
 }

@@ -29,6 +29,10 @@ impl NotionClient {
 
         let client = reqwest::Client::builder()
             .default_headers(headers)
+            // Cap individual requests so a single hung connection doesn't
+            // stall the whole import — Notion will return 429 on rate
+            // limit but never closes the socket itself.
+            .timeout(std::time::Duration::from_secs(30))
             .build()
             .map_err(|e| ExtractorError::Parse(e.to_string()))?;
 
@@ -102,6 +106,22 @@ impl NotionClient {
             cursor = parsed.next_cursor;
         }
         Ok(results)
+    }
+
+    /// Fetches a single page's metadata — properties, icon, cover.
+    /// Used by the child-page import path : when we encounter a
+    /// `child_page` block inside another page, its block payload only
+    /// carries the title, so we hit `/v1/pages/{id}` to materialise the
+    /// icon (and cover, when set) onto the freshly-created pinkha doc.
+    pub async fn get_page(
+        &self,
+        page_id: &str,
+    ) -> Result<super::schema::NotionPageResult, ExtractorError> {
+        let url = format!("https://api.notion.com/v1/pages/{page_id}");
+        let resp = self.client.get(&url).send().await?;
+        let bytes = self.extract_ok(resp).await?;
+        let page: super::schema::NotionPageResult = serde_json::from_slice(&bytes)?;
+        Ok(page)
     }
 
     /// Fetches the children blocks of a page, 100 at a time.

@@ -3,205 +3,80 @@ import SwiftUI
 // ── Tab 1: Notes (unified workspace) ──────────────────────────────────────────
 
 /// Home screen for the Notes tab — shows notes and databases in a unified list.
+/// All creation / import / trash actions live in the global CreateBubble
+/// hosted by `ContentView.tabViewBottomAccessory`, so this view focuses on
+/// presenting the workspace content.
 struct NotesHomeView: View {
     @ObservedObject var store: PinkhaStore
-    @State private var showingCreate = false
-    @State private var showingImport = false
-    @State private var showingBearImport = false
-    @State private var showingCraftTextBundleImport = false
-    @State private var showingCraftCombinedImport = false
-    @State private var showingDeleteAllConfirm = false
-    @State private var showingDeleteAllConfirm2 = false
-    @State private var showingTrash = false
-    @State private var newTitle = ""
-    @State private var createMode: CreateMode = .note
-
-    enum CreateMode { case note, database }
+    @State private var showingSettings = false
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottomTrailing) {
-                List {
-                    // ── Recent strip (only when items exist) ──────────────
-                    if !store.items.isEmpty {
-                        Section {
-                            RecentStrip(items: store.recentItems, api: store.api) {
-                                store.load()
-                            }
+            List {
+                if !store.items.isEmpty {
+                    Section {
+                        RecentStrip(items: store.recentItems, api: store.api) {
+                            store.load()
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets())
+                    } header: {
+                        SectionHeader(title: "Recent")
+                    }
+                }
+
+                if !store.listFolders().isEmpty {
+                    FoldersSectionView(store: store)
+                }
+
+                if store.items.isEmpty {
+                    Section {
+                        NotesEmptyState()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 48)
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets())
-                        } header: {
-                            SectionHeader(title: "Recent")
-                        }
                     }
-
-                    // ── Folders ───────────────────────────────────────────
-                    if !store.listFolders().isEmpty {
-                        FoldersSectionView(store: store)
-                    }
-
-                    // ── All items ─────────────────────────────────────────
-                    if store.items.isEmpty {
-                        Section {
-                            NotesEmptyState()
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 48)
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                        }
-                    } else {
-                        Section {
-                            if let api = store.api {
-                                ForEach(store.items) { item in
-                                    itemRow(item, api: api)
-                                }
-                                .onDelete { indexSet in
-                                    for i in indexSet {
-                                        let item = store.items[i]
-                                        switch item {
-                                        case .note(let d):      store.delete(id: d.id)
-                                        case .database(let db): store.deleteDatabase(id: db.id)
-                                        }
+                } else {
+                    Section {
+                        if let api = store.api {
+                            ForEach(store.items) { item in
+                                itemRow(item, api: api)
+                            }
+                            .onDelete { indexSet in
+                                for i in indexSet {
+                                    let item = store.items[i]
+                                    switch item {
+                                    case .note(let d):      store.delete(id: d.id)
+                                    case .database(let db): store.deleteDatabase(id: db.id)
                                     }
                                 }
-                            } else {
-                                ProgressView()
                             }
-                        } header: {
-                            SectionHeader(title: "All")
+                        } else {
+                            ProgressView()
                         }
+                    } header: {
+                        SectionHeader(title: "All")
                     }
                 }
-                .listStyle(.insetGrouped)
-                .navigationTitle(greeting)
-                .navigationBarTitleDisplayMode(.large)
-                .toolbar {
-                    // Overflow menu : consolide les actions secondaires (corbeille,
-                    // suppression totale) qui flottaient avant en boutons orphelins
-                    // de chaque côté de la nav bar. Pattern Notes/Mail iOS.
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Menu {
-                            Button {
-                                showingTrash = true
-                            } label: {
-                                Label("Corbeille", systemImage: "trash")
-                            }
-                            if !store.items.isEmpty {
-                                Divider()
-                                Button(role: .destructive) {
-                                    showingDeleteAllConfirm = true
-                                } label: {
-                                    Label("Tout supprimer", systemImage: "trash.slash")
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
-                        }
-                        .accessibilityLabel("Plus d'actions")
-                    }
-                }
-                .sheet(isPresented: $showingTrash) {
-                    TrashView()
-                        .environmentObject(store)
-                }
-                // ── FAB ───────────────────────────────────────────────────
-                Menu {
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle(greeting)
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        createMode = .note
-                        newTitle = ""
-                        showingCreate = true
+                        showingSettings = true
                     } label: {
-                        Label("New note", systemImage: "doc.text")
+                        Image(systemName: "ellipsis.circle")
                     }
-                    Button {
-                        createMode = .database
-                        newTitle = ""
-                        showingCreate = true
-                    } label: {
-                        Label("New database", systemImage: "tablecells")
-                    }
-                    Divider()
-                    Button {
-                        showingImport = true
-                    } label: {
-                        Label("Import from Notion", systemImage: "arrow.down.doc")
-                    }
-                    Button {
-                        showingBearImport = true
-                    } label: {
-                        Label("Import from Bear", systemImage: "pencil.and.list.clipboard")
-                    }
-                    Button {
-                        showingCraftTextBundleImport = true
-                    } label: {
-                        Label("Import from Craft (TextBundle)", systemImage: "doc.zipper")
-                    }
-                    Button {
-                        showingCraftCombinedImport = true
-                    } label: {
-                        Label("Import from Craft (Combined)", systemImage: "arrow.triangle.merge")
-                    }
-                } label: {
-                    FloatingButton(icon: "square.and.pencil") {}
-                }
-                .accessibilityIdentifier("createFAB")
-                .padding(.trailing, 24)
-                .padding(.bottom, 32)
-            }
-            .sheet(isPresented: $showingImport) {
-                NotionImportView(api: store.api) {
-                    store.load()
+                    .accessibilityLabel("Settings")
                 }
             }
-            .sheet(isPresented: $showingBearImport) {
-                BearImportView(api: store.api) {
-                    store.load()
-                }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
             }
-            .sheet(isPresented: $showingCraftTextBundleImport) {
-                CraftTextBundleImportView(api: store.api) {
-                    store.load()
-                }
-            }
-            .sheet(isPresented: $showingCraftCombinedImport) {
-                CraftCombinedImportView(api: store.api) {
-                    store.load()
-                }
-            }
-            .sheet(isPresented: $showingCreate) {
-                CreateDocumentSheet(
-                    title: $newTitle,
-                    prompt: createMode == .note ? "Note title" : "Database title"
-                ) {
-                    switch createMode {
-                    case .note:     store.create(title: newTitle)
-                    case .database: store.createDatabase(title: newTitle)
-                    }
-                    newTitle = ""
-                    showingCreate = false
-                } onCancel: {
-                    newTitle = ""
-                    showingCreate = false
-                }
-            }
-        }
-        .alert("Delete all \(store.items.count) notes?", isPresented: $showingDeleteAllConfirm) {
-            Button("Delete All", role: .destructive) {
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(300))
-                    showingDeleteAllConfirm2 = true
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will remove all your notes.")
-        }
-        .alert("Are you sure?", isPresented: $showingDeleteAllConfirm2) {
-            Button("Yes, delete everything", role: .destructive) { store.deleteAll() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This cannot be undone.")
         }
     }
 
@@ -216,7 +91,8 @@ struct NotesHomeView: View {
                 WorkspaceRow(item: item)
             }
         case .database(let db):
-            NavigationLink(destination: DatabaseView(dbId: db.id, api: api)) {
+            NavigationLink(destination: DatabaseView(dbId: db.id, api: api,
+                                                    onDisappear: store.load)) {
                 WorkspaceRow(item: item)
             }
         }
@@ -254,7 +130,8 @@ struct RecentStrip: View {
                             }
                             .buttonStyle(.plain)
                         case .database(let db):
-                            NavigationLink(destination: DatabaseView(dbId: db.id, api: api)) {
+                            NavigationLink(destination: DatabaseView(dbId: db.id, api: api,
+                                                                    onDisappear: onDisappear)) {
                                 RecentCard(item: item)
                             }
                             .buttonStyle(.plain)
@@ -268,44 +145,87 @@ struct RecentStrip: View {
     }
 }
 
-/// A card in the recent strip — displays icon, title, and relative date.
+/// A card in the recent strip — Notion-style with a cover image
+/// (or fallback gradient) filling the top half, an icon overlapping the
+/// cover/content boundary, and the title plus relative date below.
 struct RecentCard: View {
     let item: WorkspaceItem
 
+    private let cornerRadius: CGFloat = 16
+    private let coverHeight: CGFloat = 80
+    private let iconSize: CGFloat = 32
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            itemIcon.frame(width: 36, height: 36)
-            Spacer()
+        VStack(alignment: .leading, spacing: 0) {
+            CoverImageView(cover: coverValue)
+                .frame(height: coverHeight)
+                .clipped()
+            // The bottom block hosts both the overlapping icon and the
+            // title/date stack. The icon is placed in an overlay so it
+            // can sit half on top of the cover and half on the white
+            // surface below — same trick Notion uses.
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.titlePlain.isEmpty ? "Untitled" : item.titlePlain)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 if let date = formattedDate(item.updatedAt) {
-                    Text(date).font(.caption2).foregroundStyle(.tertiary)
+                    Text(date)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                Spacer(minLength: 0)
+            }
+            // The padding top makes room for the icon that will overlap
+            // from above via the overlay below.
+            .padding(.top, iconSize / 2 + 6)
+            .padding(.horizontal, 12)
+            .padding(.bottom, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .topLeading) {
+                itemIcon
+                    .frame(width: iconSize, height: iconSize)
+                    .padding(.leading, 10)
+                    .offset(y: -iconSize / 2)
             }
         }
-        .padding(14)
-        .frame(width: 150, height: 140)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .frame(width: 165, height: 170, alignment: .leading)
+        .background(.background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .strokeBorder(.separator.opacity(0.5), lineWidth: 0.5)
         )
         .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
+    }
+
+    private var coverValue: String? {
+        if case .note(let doc) = item { return doc.cover }
+        return nil
     }
 
     @ViewBuilder
     private var itemIcon: some View {
         switch item {
         case .note(let doc):
-            if let icon = UserDefaults.standard.string(forKey: "document.icon.\(doc.id)"), !icon.isEmpty {
-                Text(icon).font(.title)
+            if let icon = doc.icon, !icon.isEmpty {
+                Text(icon).font(.title2)
             } else {
-                Image(systemName: "doc.text").font(.title2).foregroundStyle(.secondary)
+                Image(systemName: "doc.text")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: iconSize, height: iconSize)
+                    .background(Color(.systemBackground), in: Circle())
+                    .overlay(Circle().strokeBorder(.separator.opacity(0.6), lineWidth: 0.5))
             }
         case .database:
-            Image(systemName: "tablecells").font(.title2).foregroundStyle(.secondary)
+            Image(systemName: "tablecells")
+                .font(.body.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(width: iconSize, height: iconSize)
+                .background(Color(.systemBackground), in: Circle())
+                .overlay(Circle().strokeBorder(.separator.opacity(0.6), lineWidth: 0.5))
         }
     }
 
@@ -341,7 +261,7 @@ struct WorkspaceRow: View {
     private var itemIcon: some View {
         switch item {
         case .note(let doc):
-            if let icon = UserDefaults.standard.string(forKey: "document.icon.\(doc.id)"), !icon.isEmpty {
+            if let icon = doc.icon, !icon.isEmpty {
                 Text(icon).font(.title2).frame(width: 34, height: 34)
             } else {
                 Image(systemName: "doc.text")

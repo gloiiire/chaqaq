@@ -89,15 +89,18 @@ enum BlockContentFfi: Codable, Equatable {
     case divider
     case breadcrumb
     case database(id: String)
+    /// Reference to a child pinkha page. Mirrors Rust `BlockContent::Page`.
+    case page(id: String)
 
     private enum K: String, CodingKey {
-        case Text, Heading, Quote, Todo, BulletedListItem, NumberedListItem, Code, Divider, Breadcrumb, Database
+        case Text, Heading, Quote, Todo, BulletedListItem, NumberedListItem, Code, Divider, Breadcrumb, Database, Page
     }
     private struct PayloadHeading: Codable { let level: Int; let text: [InlineTextFfi] }
     private struct PayloadQuote:   Codable { let icon: String?; let text: [InlineTextFfi] }
     private struct PayloadTodo:    Codable { let done: Bool; let text: [InlineTextFfi] }
     private struct PayloadCode:    Codable { let language: String; let text: String }
     private struct PayloadDb:      Codable { let id: String }
+    private struct PayloadPage:    Codable { let id: String }
 
     init(from decoder: Decoder) throws {
         // Unit variants (Divider, Breadcrumb) are bare strings in serde's externally-tagged format.
@@ -114,6 +117,7 @@ enum BlockContentFfi: Codable, Equatable {
         if let v = try? c.decode([InlineTextFfi].self, forKey: .NumberedListItem) { self = .numberedListItem(v); return }
         if let v = try? c.decode(PayloadCode.self,     forKey: .Code)             { self = .code(language: v.language, text: v.text); return }
         if let v = try? c.decode(PayloadDb.self,       forKey: .Database)         { self = .database(id: v.id); return }
+        if let v = try? c.decode(PayloadPage.self,     forKey: .Page)             { self = .page(id: v.id); return }
         throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown BlockContent"))
     }
 
@@ -144,6 +148,9 @@ enum BlockContentFfi: Codable, Equatable {
         case .database(let id):
             var c = encoder.container(keyedBy: K.self)
             try c.encode(PayloadDb(id: id), forKey: .Database)
+        case .page(let id):
+            var c = encoder.container(keyedBy: K.self)
+            try c.encode(PayloadPage(id: id), forKey: .Page)
         }
     }
 
@@ -178,6 +185,10 @@ enum BlockContentFfi: Codable, Equatable {
     var isTodo: Bool { if case .todo = self { return true }; return false }
     /// `true` if this is a `.todo` block with `done == true`.
     var isTodoDone: Bool { if case .todo(let d, _) = self { return d }; return false }
+    /// `true` if this is a `.page` block (Notion-style child page link).
+    /// The editor keeps these tappable even on a locked document since
+    /// they're navigation targets, not editable content.
+    var isPageReference: Bool { if case .page = self { return true }; return false }
 
     /// Returns a copy of the block with its text replaced by a single unstyled span.
     func withText(_ newText: String, done: Bool = false) -> BlockContentFfi {

@@ -34,8 +34,41 @@ pub struct NotionRichText {
     pub plain_text: String,
     #[serde(default)]
     pub annotations: NotionAnnotations,
-    /// Optional hyperlink applied to the entire run.
+    /// Optional hyperlink applied to the entire run. Notion fills this for
+    /// plain text runs that carry a `[label](url)` link; for mention runs
+    /// the linked page reference lives in the `mention` field instead.
     pub href: Option<String>,
+    /// Run kind — `"text"` or `"mention"`. We use it to recover the page
+    /// id from a `mention.page` payload when href is null (the typical
+    /// shape for an inline `@PageName` reference). Defaults to `"text"`
+    /// so older serialised data (no field) keeps decoding.
+    #[serde(rename = "type", default = "default_run_type")]
+    pub run_type: String,
+    /// Body of a `mention` run. Only the page variant is materialised
+    /// — everything else (`user`, `date`, `database`, …) decodes into
+    /// `Unknown` via `#[serde(other)]`.
+    #[serde(default)]
+    pub mention: Option<NotionMention>,
+}
+
+fn default_run_type() -> String {
+    "text".to_string()
+}
+
+/// Body of a Notion `mention` rich-text run. Only page references are
+/// surfaced — other mention kinds fall through to `Unknown` and are
+/// ignored by the importer (rendered as plain text).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NotionMention {
+    Page { page: NotionMentionPage },
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct NotionMentionPage {
+    pub id: String,
 }
 
 // ── Search response (database picker) ─────────────────────────────────────────
@@ -270,6 +303,18 @@ pub struct NotionBlock {
     pub bulleted_list_item: Option<RichTextBlock>,
     pub numbered_list_item: Option<RichTextBlock>,
     pub code: Option<CodeBlock>,
+    /// Child-page block payload — present when `type_ == "child_page"`. The
+    /// block's `id` doubles as the embedded child page's Notion id, fetched
+    /// separately during import to materialise the child document.
+    pub child_page: Option<ChildPageBlock>,
+}
+
+/// Body of a `child_page` block — only carries the static title shown inline.
+/// The actual page content lives at the URL formed from the parent block's
+/// id, which the importer fetches recursively.
+#[derive(Debug, Deserialize)]
+pub struct ChildPageBlock {
+    pub title: String,
 }
 
 /// Block content that carries only a rich-text array (paragraph, headings, quote, list items).

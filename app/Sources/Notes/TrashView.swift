@@ -26,7 +26,7 @@ struct TrashView: View {
                     list
                 }
             }
-            .navigationTitle("Corbeille")
+            .navigationTitle("Trash")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 if totalCount > 0 {
@@ -34,23 +34,23 @@ struct TrashView: View {
                         Button(role: .destructive) {
                             showEmptyConfirm = true
                         } label: {
-                            Text("Vider")
+                            Text("Empty")
                         }
                     }
                 }
             }
             .confirmationDialog(
-                "Vider la corbeille ?",
+                "Empty the trash?",
                 isPresented: $showEmptyConfirm,
                 titleVisibility: .visible
             ) {
-                Button("Vider définitivement", role: .destructive) {
+                Button("Empty permanently", role: .destructive) {
                     let _ = store.emptyTrash()
                     reload()
                 }
-                Button("Annuler", role: .cancel) {}
+                Button("Cancel", role: .cancel) {}
             } message: {
-                Text("\(totalCount) élément(s) seront supprimés définitivement.")
+                Text("\(totalCount) item(s) will be permanently removed.")
             }
             .onAppear(perform: reload)
         }
@@ -60,9 +60,9 @@ struct TrashView: View {
 
     private var emptyState: some View {
         ContentUnavailableView(
-            "Corbeille vide",
+            "Trash is empty",
             systemImage: "trash",
-            description: Text("Les notes, bases et dossiers supprimés apparaîtront ici.")
+            description: Text("Deleted notes, databases and folders will appear here.")
         )
     }
 
@@ -76,14 +76,14 @@ struct TrashView: View {
                 }
             }
             if !deletedDatabases.isEmpty {
-                Section("Bases") {
+                Section("Databases") {
                     ForEach(deletedDatabases, id: \.id) { db in
                         rowDatabase(db)
                     }
                 }
             }
             if !deletedFolders.isEmpty {
-                Section("Dossiers") {
+                Section("Folders") {
                     ForEach(deletedFolders, id: \.id) { folder in
                         rowFolder(folder)
                     }
@@ -95,7 +95,7 @@ struct TrashView: View {
 
     private func rowDoc(_ doc: DocumentMetaFfi) -> some View {
         TrashRow(
-            title: doc.titlePlain.isEmpty ? "Sans titre" : doc.titlePlain,
+            title: doc.titlePlain.isEmpty ? "Untitled" : doc.titlePlain,
             icon: "doc.text",
             onRestore: {
                 store.restoreDocument(id: doc.id)
@@ -110,7 +110,7 @@ struct TrashView: View {
 
     private func rowDatabase(_ db: DatabaseMetaFfi) -> some View {
         TrashRow(
-            title: db.titlePlain.isEmpty ? "Sans titre" : db.titlePlain,
+            title: db.titlePlain.isEmpty ? "Untitled" : db.titlePlain,
             icon: "tablecells",
             onRestore: {
                 store.restoreDatabase(id: db.id)
@@ -168,12 +168,12 @@ private struct TrashRow: View {
             Button(role: .destructive) {
                 showPurgeConfirm = true
             } label: {
-                Label("Supprimer", systemImage: "trash")
+                Label("Delete", systemImage: "trash")
             }
             Button {
                 onRestore()
             } label: {
-                Label("Restaurer", systemImage: "arrow.uturn.backward")
+                Label("Restore", systemImage: "arrow.uturn.backward")
             }
             .tint(.blue)
         }
@@ -181,25 +181,25 @@ private struct TrashRow: View {
             Button {
                 onRestore()
             } label: {
-                Label("Restaurer", systemImage: "arrow.uturn.backward")
+                Label("Restore", systemImage: "arrow.uturn.backward")
             }
             Button(role: .destructive) {
                 showPurgeConfirm = true
             } label: {
-                Label("Supprimer définitivement", systemImage: "trash")
+                Label("Delete forever", systemImage: "trash")
             }
         }
         .confirmationDialog(
-            "Supprimer définitivement ?",
+            "Delete forever?",
             isPresented: $showPurgeConfirm,
             titleVisibility: .visible
         ) {
-            Button("Supprimer définitivement", role: .destructive) {
+            Button("Delete forever", role: .destructive) {
                 onPurge()
             }
-            Button("Annuler", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Cette action est irréversible.")
+            Text("This action cannot be undone.")
         }
     }
 }

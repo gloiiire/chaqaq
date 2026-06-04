@@ -2,12 +2,39 @@ import SwiftUI
 
 // ── Building callbacks and block rows ────────────────────────────────────────
 
+/// Installs the selection-mode tap-to-toggle recogniser when active.
+/// Off, the modifier is a no-op so taps fall through to inner Buttons
+/// (notably the navigation Button in `ChildPageRowView`).
+private struct SelectionTapModifier: ViewModifier {
+    let active: Bool
+    let onTap: () -> Void
+
+    func body(content: Content) -> some View {
+        if active {
+            content
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onTap)
+        } else {
+            content
+        }
+    }
+}
+
 extension DocumentView {
 
     /// Builds the full row for a block in the List: selection HStack + content + gestures.
     @ViewBuilder
     func blockListRow(_ block: Binding<EditableBlock>) -> some View {
         let b = block.wrappedValue
+        // Bible-Strong-style spotlight: when this doc was opened from a
+        // search hit, the matched block stays crisp while every other
+        // block is blurred and dimmed until the user takes back control
+        // (tap or scroll past the 0.6s grace window). The optional
+        // accent tint behind the focused block is gated by AppSettings
+        // so users can pick blur-only or blur-plus-tint.
+        let isSpotlit = spotlightBlockId == b.id
+        let isDimmed  = spotlightBlockId != nil && !isSpotlit
+        let showTint  = isSpotlit && settings.spotlightTinted
         HStack(alignment: .center, spacing: 10) {
             if editMode == .active { selectionButton(b.id) }
             // Visual indentation for nested blocks. The Rust domain models
@@ -24,18 +51,40 @@ extension DocumentView {
                 autoFocusOffset: $vm.autoFocusOffset,
                 cb: blockCallbacks(for: b)
             )
-            .disabled(vm.locked || editMode == .active)
-            .allowsHitTesting(!vm.locked && editMode != .active)
+            // Lock disables editing, NOT navigation. Page-reference
+            // blocks are pure navigation targets (tap = push child doc)
+            // so we keep them tappable even on a locked / selection-mode
+            // parent — otherwise an imported, locked Notion page would
+            // trap the user with no way to drill into its sub-pages.
+            .disabled((vm.locked || editMode == .active) && !b.content.isPageReference)
+            .allowsHitTesting((!vm.locked && editMode != .active) || b.content.isPageReference)
         }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if editMode == .active {
-                withAnimation(.easeInOut(duration: 0.15)) { toggleSelection(b.id) }
-            }
-        }
+        // contentShape + onTapGesture used to be unconditional, which
+        // installed an HStack-level tap recogniser that swallowed taps
+        // before they could reach inner controls (notably the Button
+        // inside ChildPageRowView, killing navigation on locked docs).
+        // We now only install the tap-to-toggle handler in selection
+        // mode, where the behaviour is actually wanted.
+        .modifier(SelectionTapModifier(active: editMode == .active,
+                                       onTap: {
+            withAnimation(.easeInOut(duration: 0.15)) { toggleSelection(b.id) }
+        }))
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.35).onEnded { _ in selectFromLongPress(b.id) }
         )
+        // Spotlight visuals — the matched block stays sharp while every
+        // other block is blurred + dimmed. An optional accent tint
+        // behind the focused row is shown only when the user opted into
+        // it in Settings — default is blur-only.
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(settings.accentColor.opacity(showTint ? 0.10 : 0))
+                .padding(.horizontal, -8)
+        )
+        .blur(radius: isDimmed ? 3 : 0)
+        .opacity(isDimmed ? 0.45 : 1)
+        .animation(.easeInOut(duration: 0.35), value: isDimmed)
+        .animation(.easeInOut(duration: 0.35), value: showTint)
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
@@ -122,7 +171,20 @@ extension DocumentView {
             onIndent: { vm.indentBlock(id: block.id) },
             onOutdent: { vm.outdentBlock(id: block.id) },
             onSetBlockColor: { color in vm.setBlockColor(id: block.id, color: color) },
-            onOpenInternalDoc: { docId in pushedDocId = docId }
+            onOpenInternalDoc: { docId in pushedDocId = docId },
+            resolveChildPage: { childId in
+                // The child-page row needs a title + optional icon. We load
+                // the document JSON synchronously off the SQLite store —
+                // cheap on local disk, and the call is gated by `.onAppear`
+                // in `ChildPageRowView` so we hit the store at most once
+                // per child block surfaced.
+                guard let json = try? vm.api.getDocumentJson(id: childId),
+                      let data = json.data(using: .utf8),
+                      let doc = try? JSONDecoder().decode(DocumentFfi.self, from: data)
+                else { return nil }
+                let title = doc.title.map(\.content).joined()
+                return (title: title, icon: doc.icon)
+            }
         )
     }
 }
