@@ -61,6 +61,11 @@ struct CreateBubble: View {
         .padding(.horizontal, isInline ? 3 : 12)
         .padding(.vertical, 10)
         .animation(.snappy, value: isInline)
+        // None of the bubble icons are "selected" affordances —
+        // overflow the TabView's accent tint by pinning the whole
+        // subtree (Note / Database / Folder / More + everything in
+        // the More menu) to the neutral material color.
+        .tint(.primary)
     }
 
     private func icon(systemImage: String,

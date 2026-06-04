@@ -99,6 +99,7 @@ struct BlockPickerSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
+                        .tint(.primary)
                         .accessibilityLabel("Cancel")
                 }
             }

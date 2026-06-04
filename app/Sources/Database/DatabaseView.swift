@@ -814,6 +814,7 @@ private struct AddColumnSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button { onCancel() } label: { Image(systemName: "xmark") }
+                        .tint(.primary)
                         .accessibilityLabel("Cancel")
                 }
                 ToolbarItem(placement: .confirmationAction) {

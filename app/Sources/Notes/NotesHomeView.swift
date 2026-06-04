@@ -8,10 +8,15 @@ import SwiftUI
 /// presenting the workspace content.
 struct NotesHomeView: View {
     @ObservedObject var store: PinkhaStore
+    @EnvironmentObject private var composer: Composer
     @State private var showingSettings = false
+    /// Programmatic navigation stack so a freshly-created note can be
+    /// pushed onto the editor right after the create sheet dismisses
+    /// — driven by `composer.pendingOpenDoc`.
+    @State private var path: [String] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 if !store.items.isEmpty {
                     Section {
@@ -71,17 +76,33 @@ struct NotesHomeView: View {
                     } label: {
                         Image(systemName: "gearshape")
                     }
-                    // Override the app-level accent tint with the system
-                    // label color — toolbar Buttons inherit `.tint`
-                    // through the bordered/glass style, so a per-Image
-                    // `.foregroundStyle` would get repainted. `.tint` on
-                    // the Button is the supported escape hatch.
+                    // Settings is neutral chrome — never adopts the
+                    // accent that the TabView spreads through its env.
                     .tint(.primary)
                     .accessibilityLabel("Settings")
                 }
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            // Registered alongside the existing `NavigationLink` rows
+            // so programmatic pushes via `path.append(id)` open the
+            // editor — driven by `composer.pendingOpenDoc` below.
+            .navigationDestination(for: String.self) { docId in
+                if let api = store.api {
+                    DocumentView(docId: docId, api: api, onDisappear: store.load)
+                }
+            }
+        }
+        .onChange(of: composer.pendingOpenDoc) { _, newValue in
+            // Wait for the create sheet to finish dismissing before
+            // pushing, otherwise SwiftUI can race the path update
+            // against the sheet's exit transition and drop the push.
+            guard let docId = newValue else { return }
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(250))
+                path.append(docId)
+                composer.pendingOpenDoc = nil
             }
         }
     }

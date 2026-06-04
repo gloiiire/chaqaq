@@ -23,9 +23,14 @@ struct PinkhaApp: App {
     var body: some Scene {
         WindowGroup {
             ZStack {
+                // Note : no app-level `.tint(...)` — accent is opt-in
+                // per button. `AppSettings.accentColor` is still
+                // available to specific call sites (search spotlight
+                // tint, future explicit-accent buttons) but the
+                // default for every system control is the neutral
+                // material/label color, matching Apple's own apps.
                 ContentView()
                     .environmentObject(settings)
-                    .tint(settings.accentColor)
                 if showingSplash {
                     SplashView(isDismissing: dismissingSplash)
                         // Slow fade-out so the logo doesn't vanish —

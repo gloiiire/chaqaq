@@ -125,6 +125,10 @@ struct CreateDocumentSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(action: onCancel) { Image(systemName: "xmark") }
+                        // Cross / dismiss icons stay neutral — the
+                        // accent is reserved for "selected" / "active"
+                        // affordances, not for closing things.
+                        .tint(.primary)
                         .accessibilityLabel("Cancel")
                 }
                 ToolbarItem(placement: .confirmationAction) {

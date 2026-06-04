@@ -9,6 +9,7 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var store = PinkhaStore()
     @StateObject private var composer = Composer()
+    @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
         TabView {
@@ -35,6 +36,12 @@ struct ContentView: View {
         // reappears on scroll-up. Search (role: .search) automatically
         // detaches into its own glass bubble on the right.
         .tabBarMinimizeBehavior(.onScrollDown)
+        // Tint applied right on the TabView (BEFORE the .alert/.sheet
+        // modifiers below) so only the selected-tab indicator picks up
+        // the accent. Placing it later in the chain would have caused
+        // the alerts/sheets attached afterwards to inherit the orange
+        // env and repaint their default Buttons.
+        .tint(settings.accentColor)
         // Inject the Composer so deep navigation destinations
         // (FolderView, DocumentView) can flip the creation context
         // when they appear / disappear without having to be passed
@@ -68,17 +75,23 @@ struct ContentView: View {
                 case .note:
                     let newId = store.createNote(title: composer.newTitle,
                                                  in: composer.currentContext)
-                    // For `.document` context, the active editor's VM owns
-                    // the in-memory blocks. Signal it via the composer so
-                    // *it* performs the `addBlock` for the Page reference —
-                    // doing it from here behind the VM's back would race
-                    // with the next burst flush and get overwritten.
                     if case .document(let parentId) = composer.currentContext,
                        let newId {
+                        // For `.document` context, the active editor's
+                        // VM owns the in-memory blocks. Signal it via
+                        // the composer so *it* performs the `addBlock`
+                        // for the Page reference — doing it from here
+                        // behind the VM's back would race with the
+                        // next burst flush and get overwritten.
                         composer.pendingChildPage = Composer.PendingChildPage(
                             parentDocId: parentId,
                             childDocId: newId
                         )
+                    } else if let newId {
+                        // Root or folder context — open the doc right
+                        // after the sheet dismisses so the user lands
+                        // in the editor (Apple Notes / Bear pattern).
+                        composer.pendingOpenDoc = newId
                     }
                 case .database:
                     store.createDatabase(title: composer.newTitle, in: composer.currentContext)

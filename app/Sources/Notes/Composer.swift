@@ -45,6 +45,12 @@ final class Composer: ObservableObject {
     /// through its VM — otherwise the next burst flush would overwrite
     /// a block written behind the VM's back via a direct FFI call.
     @Published var pendingChildPage: PendingChildPage? = nil
+    /// Signals that a newly-created note should be pushed onto the
+    /// Notes navigation stack right after the create sheet dismisses,
+    /// so the user lands in the editor instead of back on the home
+    /// list. Only set for `.root` / `.folder` contexts — the
+    /// `.document` context routes through `pendingChildPage` instead.
+    @Published var pendingOpenDoc: String? = nil
 
     enum CreateMode { case note, database }
 

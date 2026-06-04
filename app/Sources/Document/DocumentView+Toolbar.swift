@@ -40,9 +40,9 @@ extension DocumentView {
             } label: {
                 Image(systemName: vm.locked ? "lock.fill" : "lock.open.fill")
             }
-            // Accent only signals the "active / transformed" state: lock
-            // glows in the user's accent when the doc is locked, falls
-            // back to the neutral nav-bar material when unlocked.
+            // Only the locked state earns the accent — the unlocked
+            // open-lock keeps the neutral material color so the rest
+            // of the toolbar reads as quiet chrome.
             .tint(vm.locked ? settings.accentColor : .primary)
             .accessibilityLabel(vm.locked ? "Unlock document" : "Lock document")
         }
@@ -55,10 +55,6 @@ extension DocumentView {
             } label: {
                 Image(systemName: editMode == .active ? "checkmark" : "arrow.up.arrow.down")
             }
-            // Same idle/active treatment as the lock above — neutral when
-            // simply "available to tap", accent only once selection mode
-            // is engaged (the icon flips to a checkmark).
-            .tint(editMode == .active ? settings.accentColor : .primary)
             .disabled(vm.locked)
         }
     }
