@@ -326,4 +326,131 @@ mod tests {
         let results = search_in_blocks(&doc_uow(&repo), "profondeur").unwrap();
         assert_eq!(results.len(), 1);
     }
+
+    // ── Snippet variant ──────────────────────────────────────────────────
+
+    #[test]
+    fn snippets_returns_one_hit_per_matching_block() {
+        let repo = MockRepo::new();
+        let doc = doc_with_blocks(
+            "Doc",
+            vec![
+                text_block("Rust is great"),
+                text_block("Nothing here"),
+                text_block("More Rust love"),
+            ],
+        );
+        repo.save(&doc).unwrap();
+
+        let hits = search_in_blocks_with_snippets(&doc_uow(&repo), "rust").unwrap();
+        // Two block-level hits surface for the same doc, each carrying
+        // its own block_id so the UI can jump straight to the line.
+        assert_eq!(hits.len(), 2);
+        let block_ids: std::collections::HashSet<_> = hits.iter().map(|h| h.block_id).collect();
+        assert_eq!(block_ids.len(), 2);
+        for hit in &hits {
+            assert_eq!(hit.doc.id, doc.id);
+            assert!(hit.snippet.to_lowercase().contains("rust"));
+        }
+    }
+
+    #[test]
+    fn snippets_walk_into_children() {
+        let repo = MockRepo::new();
+        let mut parent = text_block("Parent line that does not match");
+        let child = text_block("the keyword lives here");
+        let child_id = child.id;
+        parent.children.push(child);
+        let doc = doc_with_blocks("Doc", vec![parent]);
+        repo.save(&doc).unwrap();
+
+        let hits = search_in_blocks_with_snippets(&doc_uow(&repo), "keyword").unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].block_id, child_id);
+    }
+
+    #[test]
+    fn snippets_skip_docs_without_match() {
+        let repo = MockRepo::new();
+        let doc = doc_with_blocks("Doc", vec![text_block("nothing relevant")]);
+        repo.save(&doc).unwrap();
+        let hits = search_in_blocks_with_snippets(&doc_uow(&repo), "missing").unwrap();
+        assert!(hits.is_empty());
+    }
+
+    #[test]
+    fn extract_snippet_adds_ellipsis_when_truncated() {
+        // 200-char text — match at offset 100 forces both ends to be
+        // truncated, so both ellipses should appear.
+        let prefix: String = "a".repeat(100);
+        let suffix: String = "b".repeat(100);
+        let text = format!("{prefix}NEEDLE{suffix}");
+        let snippet = extract_snippet(&text, "needle").expect("match expected");
+        assert!(snippet.starts_with('…'));
+        assert!(snippet.ends_with('…'));
+        assert!(snippet.to_lowercase().contains("needle"));
+    }
+
+    #[test]
+    fn extract_snippet_returns_none_when_no_match() {
+        assert!(extract_snippet("hello world", "missing").is_none());
+    }
+
+    #[test]
+    fn extract_snippet_no_ellipsis_when_short_text() {
+        // Short enough to fit entirely in the 40-before / 80-after window.
+        let snippet = extract_snippet("Rust is great", "rust").unwrap();
+        assert!(!snippet.starts_with('…'));
+        assert!(!snippet.ends_with('…'));
+    }
+
+    #[test]
+    fn block_plain_text_handles_every_textual_variant() {
+        use crate::domain::document::BlockContent;
+        let text_inline = inline("plain text");
+        let cases: Vec<(BlockContent, &str)> = vec![
+            (BlockContent::Text(text_inline.clone()), "plain text"),
+            (
+                BlockContent::Heading {
+                    level: 1,
+                    text: text_inline.clone(),
+                },
+                "plain text",
+            ),
+            (
+                BlockContent::Quote {
+                    icon: None,
+                    text: text_inline.clone(),
+                },
+                "plain text",
+            ),
+            (
+                BlockContent::Todo {
+                    done: false,
+                    text: text_inline.clone(),
+                },
+                "plain text",
+            ),
+            (
+                BlockContent::BulletedListItem(text_inline.clone()),
+                "plain text",
+            ),
+            (
+                BlockContent::NumberedListItem(text_inline.clone()),
+                "plain text",
+            ),
+            (
+                BlockContent::Code {
+                    text: "fn main() {}".to_string(),
+                    language: String::new(),
+                },
+                "fn main() {}",
+            ),
+        ];
+        for (content, expected) in cases {
+            assert_eq!(block_plain_text(&content).as_deref(), Some(expected));
+        }
+        // Non-textual variants return None.
+        assert!(block_plain_text(&BlockContent::Divider).is_none());
+    }
 }

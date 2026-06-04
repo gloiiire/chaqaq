@@ -362,6 +362,75 @@ fn search_in_blocks_query_too_large_fails() {
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
+#[test]
+fn search_in_blocks_with_snippets_returns_one_hit_per_block() {
+    let a = api();
+    let doc = a.create_document("Note".to_string()).unwrap();
+    a.add_block(doc.clone(), text_block_json("Rust is great"))
+        .unwrap();
+    a.add_block(doc.clone(), text_block_json("Nothing here"))
+        .unwrap();
+    a.add_block(doc.clone(), text_block_json("More Rust love"))
+        .unwrap();
+    let hits = a
+        .search_in_blocks_with_snippets("rust".to_string())
+        .unwrap();
+    assert_eq!(hits.len(), 2);
+    let unique_blocks: std::collections::HashSet<_> =
+        hits.iter().map(|h| h.block_id.clone()).collect();
+    assert_eq!(unique_blocks.len(), 2);
+    for hit in &hits {
+        assert_eq!(hit.doc.id, doc);
+        assert!(hit.snippet.to_lowercase().contains("rust"));
+        // The exposed block_id is a valid UUID string Swift can parse.
+        assert!(uuid::Uuid::parse_str(&hit.block_id).is_ok());
+    }
+}
+
+#[test]
+fn search_in_blocks_with_snippets_query_too_large_fails() {
+    let a = api();
+    let huge = "a".repeat(70 * 1024);
+    let err = a.search_in_blocks_with_snippets(huge).unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+#[test]
+fn search_databases_by_title() {
+    let a = api();
+    a.create_database("Tasks Tracker".to_string()).unwrap();
+    a.create_database("Recipes".to_string()).unwrap();
+    let hits = a.search_databases("tracker".to_string()).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert!(hits[0].title_plain.contains("Tasks"));
+}
+
+#[test]
+fn search_databases_query_too_large_fails() {
+    let a = api();
+    let huge = "a".repeat(70 * 1024);
+    let err = a.search_databases(huge).unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+#[test]
+fn search_folders_by_name() {
+    let a = api();
+    a.create_folder("Work Notes".to_string(), None).unwrap();
+    a.create_folder("Personal".to_string(), None).unwrap();
+    let hits = a.search_folders("work".to_string()).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].name, "Work Notes");
+}
+
+#[test]
+fn search_folders_query_too_large_fails() {
+    let a = api();
+    let huge = "a".repeat(70 * 1024);
+    let err = a.search_folders(huge).unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
 // ── Databases ───────────────────────────────────────────────────────────────
 
 #[test]
@@ -716,6 +785,108 @@ fn create_folder_with_invalid_parent_uuid_fails() {
     let err = a
         .create_folder("X".to_string(), Some("not-uuid".to_string()))
         .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+#[test]
+fn update_folder_icon_sets_and_clears() {
+    let a = api();
+    let folder = a.create_folder("Work".to_string(), None).unwrap();
+    let id = folder.id.clone();
+    a.update_folder_icon(id.clone(), Some("📁".to_string()))
+        .unwrap();
+    let folders = a.list_folders().unwrap();
+    assert_eq!(
+        folders.iter().find(|f| f.id == id).unwrap().icon.as_deref(),
+        Some("📁")
+    );
+    a.update_folder_icon(id.clone(), None).unwrap();
+    let folders = a.list_folders().unwrap();
+    assert!(folders.iter().find(|f| f.id == id).unwrap().icon.is_none());
+}
+
+#[test]
+fn update_folder_icon_with_invalid_uuid_fails() {
+    let a = api();
+    let err = a
+        .update_folder_icon("not-uuid".to_string(), Some("📁".to_string()))
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+#[test]
+fn delete_all_folders_returns_count_and_clears() {
+    let a = api();
+    a.create_folder("A".to_string(), None).unwrap();
+    a.create_folder("B".to_string(), None).unwrap();
+    a.create_folder("C".to_string(), None).unwrap();
+    let n = a.delete_all_folders().unwrap();
+    assert_eq!(n, 3);
+    assert!(a.list_folders().unwrap().is_empty());
+}
+
+// ── Doc-in-doc hierarchy ────────────────────────────────────────────────────
+
+#[test]
+fn update_document_parent_then_list_root_and_children() {
+    let a = api();
+    let parent = a.create_document("Parent".to_string()).unwrap();
+    let child = a.create_document("Child".to_string()).unwrap();
+    a.update_document_parent(child.clone(), Some(parent.clone()))
+        .unwrap();
+
+    let roots = a.list_root_documents().unwrap();
+    assert!(roots.iter().any(|d| d.id == parent));
+    assert!(!roots.iter().any(|d| d.id == child));
+
+    let children = a.list_child_documents(parent.clone()).unwrap();
+    assert_eq!(children.len(), 1);
+    assert_eq!(children[0].id, child);
+
+    // Promoting the child back to root removes it from the parent's children.
+    a.update_document_parent(child.clone(), None).unwrap();
+    assert!(a.list_child_documents(parent).unwrap().is_empty());
+    assert!(a.list_root_documents().unwrap().iter().any(|d| d.id == child));
+}
+
+#[test]
+fn update_document_parent_rejects_self() {
+    let a = api();
+    let doc = a.create_document("Doc".to_string()).unwrap();
+    let err = a
+        .update_document_parent(doc.clone(), Some(doc))
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+#[test]
+fn update_document_parent_rejects_cycle() {
+    let a = api();
+    let a_id = a.create_document("A".to_string()).unwrap();
+    let b_id = a.create_document("B".to_string()).unwrap();
+    // B is a child of A.
+    a.update_document_parent(b_id.clone(), Some(a_id.clone()))
+        .unwrap();
+    // Trying to make A a child of B would create a cycle.
+    let err = a
+        .update_document_parent(a_id, Some(b_id))
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+#[test]
+fn update_document_parent_with_invalid_uuid_fails() {
+    let a = api();
+    let err = a
+        .update_document_parent("not-uuid".to_string(), None)
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+#[test]
+fn list_child_documents_with_invalid_uuid_fails() {
+    let a = api();
+    let err = a.list_child_documents("not-uuid".to_string()).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
