@@ -215,20 +215,32 @@ private struct SearchView: View {
                         } header: { SectionHeader(title: "Notes") }
                     }
                     if !results.documentsByContent.isEmpty {
-                        Section {
-                            // Group block hits by document so a single
-                            // doc never duplicates as a row — instead it
-                            // shows the doc header once and one snippet
-                            // line per matching block underneath,
-                            // separated by dividers à la home view.
-                            ForEach(groupHits(results.documentsByContent),
-                                    id: \.doc.id) { group in
-                                GroupedBlockHitRow(group: group,
-                                                   query: query,
-                                                   api: api,
-                                                   onDocClose: store.load)
+                        // One Section per doc with the doc title +
+                        // icon as the section header, and one row per
+                        // matching block. Each row owns a single
+                        // NavigationLink — nesting multiple
+                        // NavigationLinks inside the same List row
+                        // confuses iOS's back-stack and causes swipe-
+                        // back to land on the wrong destination.
+                        ForEach(groupHits(results.documentsByContent),
+                                id: \.doc.id) { group in
+                            Section {
+                                ForEach(group.hits, id: \.blockId) { hit in
+                                    NavigationLink(
+                                        destination: DocumentView(
+                                            docId: hit.doc.id,
+                                            api: api,
+                                            onDisappear: store.load,
+                                            scrollToBlockId: hit.blockId
+                                        )
+                                    ) {
+                                        SnippetRow(hit: hit, query: query)
+                                    }
+                                }
+                            } header: {
+                                DocHitSectionHeader(doc: group.doc)
                             }
-                        } header: { SectionHeader(title: "In notes") }
+                        }
                     }
                     if !results.databases.isEmpty {
                         Section {
@@ -290,83 +302,54 @@ private func groupHits(_ hits: [BlockSearchHitFfi]) -> [DocHitGroup] {
     }
 }
 
-// ── Grouped block-content hit row ─────────────────────────────────────────────
+// ── Doc-hit section header ────────────────────────────────────────────────────
 
-/// Row for a "matched in note content" search result. Renders the doc
-/// icon + title once on top, then one snippet preview per matching
-/// block underneath — each preview is its own NavigationLink so tapping
-/// it jumps straight to the corresponding block in the document.
-/// Dividers between previews mirror the home-view list look.
-private struct GroupedBlockHitRow: View {
-    let group: DocHitGroup
-    let query: String
-    let api: PinkhaApi
-    let onDocClose: () -> Void
+/// Non-interactive header for the per-doc grouping of block hits.
+/// Surfaces the doc icon and title above its snippet rows; doesn't
+/// own a NavigationLink because the snippets themselves are the
+/// navigation targets.
+private struct DocHitSectionHeader: View {
+    let doc: DocumentMetaFfi
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Doc header — tapping it opens the doc at the first hit.
-            NavigationLink(
-                destination: DocumentView(docId: group.doc.id,
-                                          api: api,
-                                          onDisappear: onDocClose,
-                                          scrollToBlockId: group.hits.first?.blockId)
-            ) {
-                HStack(spacing: 12) {
-                    if let icon = group.doc.icon, !icon.isEmpty {
-                        Text(icon).font(.title2).frame(width: 34, height: 34)
-                    } else {
-                        Image(systemName: "doc.text")
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 34, height: 34)
-                            .background(.secondary.opacity(0.12),
-                                        in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    }
-                    Text(group.doc.titlePlain.isEmpty ? "Untitled" : group.doc.titlePlain)
-                        .font(.body.weight(.medium))
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
-                }
-                .contentShape(Rectangle())
+        HStack(spacing: 10) {
+            if let icon = doc.icon, !icon.isEmpty {
+                Text(icon).font(.body)
+            } else {
+                Image(systemName: "doc.text")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
             }
-            .buttonStyle(.plain)
-            .padding(.vertical, 4)
-
-            // Snippet previews — each one navigates to its own block.
-            ForEach(Array(group.hits.enumerated()), id: \.element.blockId) { index, hit in
-                if index > 0 {
-                    Divider().padding(.leading, 46)
-                }
-                NavigationLink(
-                    destination: DocumentView(docId: hit.doc.id,
-                                              api: api,
-                                              onDisappear: onDocClose,
-                                              scrollToBlockId: hit.blockId)
-                ) {
-                    HStack(alignment: .top, spacing: 12) {
-                        // Aligned with the doc-header icon column so
-                        // snippets read like indented continuation lines.
-                        Color.clear.frame(width: 34, height: 1)
-                        Text(highlightedSnippet(for: hit))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(3)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .padding(.vertical, 8)
-            }
+            Text(doc.titlePlain.isEmpty ? "Untitled" : doc.titlePlain)
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .kerning(0.5)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
         }
+        .padding(.top, 4)
+    }
+}
+
+// ── Snippet row ───────────────────────────────────────────────────────────────
+
+/// Single snippet row — owns exactly one NavigationLink (set by the
+/// caller) so iOS's back-stack stays unambiguous. The matched tokens
+/// in `hit.snippet` are bolded à la Notion.
+private struct SnippetRow: View {
+    let hit: BlockSearchHitFfi
+    let query: String
+
+    var body: some View {
+        Text(highlightedSnippet)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .lineLimit(3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 2)
     }
 
-    /// Builds an AttributedString from `hit.snippet` with every
-    /// case-insensitive occurrence of each query token rendered bold.
-    /// Empty tokens (extra spaces) are skipped so a trailing space in
-    /// the search bar doesn't bold the entire snippet.
-    private func highlightedSnippet(for hit: BlockSearchHitFfi) -> AttributedString {
+    private var highlightedSnippet: AttributedString {
         var attr = AttributedString(hit.snippet)
         let tokens = query
             .split(whereSeparator: { $0.isWhitespace })

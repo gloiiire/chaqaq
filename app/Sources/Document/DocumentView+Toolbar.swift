@@ -7,11 +7,35 @@ extension DocumentView {
     @ToolbarContentBuilder
     var documentToolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            Text(vm.title.isEmpty ? "Untitled" : vm.title)
-                .font(.headline)
-                .opacity(titleInNavBar ? 1 : 0)
-                .offset(y: titleInNavBar ? 0 : 8)
-                .animation(.easeOut(duration: 0.2), value: titleInNavBar)
+            // Wraps the scrolled-down title in a tappable Liquid Glass
+            // capsule. The Button gives iOS's standard press-down
+            // animation; the action is a placeholder for now (room for
+            // a future title-edit affordance or jump-to-top).
+            Button {
+                // Placeholder — kept tappable so the bubble feels live
+                // even before its real behaviour ships.
+            } label: {
+                Text(vm.title.isEmpty ? "Untitled" : vm.title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 16)
+                    // Matches the ~36-pt diameter of the iOS 26
+                    // toolbar icon buttons next to it (lock, edit)
+                    // so the bubble doesn't read smaller than its
+                    // neighbours.
+                    .frame(minHeight: 36)
+            }
+            .buttonStyle(.plain)
+            .contentShape(Capsule(style: .continuous))
+            // `.interactive()` makes the glass squish and bounce on
+            // press, matching the iOS 26 toolbar buttons right next
+            // to it (lock, edit). Without it the bubble is visually
+            // glass but feels dead when tapped.
+            .glassEffect(.regular.interactive(), in: Capsule(style: .continuous))
+            .opacity(titleInNavBar ? 1 : 0)
+            .offset(y: titleInNavBar ? 0 : 8)
+            .animation(.easeOut(duration: 0.2), value: titleInNavBar)
         }
         if editMode == .active && !selectedBlocks.isEmpty && !vm.locked {
             ToolbarItem(placement: .primaryAction) {
