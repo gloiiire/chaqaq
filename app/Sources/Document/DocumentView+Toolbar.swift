@@ -55,6 +55,9 @@ extension DocumentView {
             } label: {
                 Image(systemName: editMode == .active ? "checkmark" : "arrow.up.arrow.down")
             }
+            // Neutral chrome — override the TabView's accent that
+            // propagates through the env.
+            .tint(.primary)
             .disabled(vm.locked)
         }
     }
