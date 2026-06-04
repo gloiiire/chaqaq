@@ -7,15 +7,47 @@ struct PinkhaApp: App {
     /// propagate to every view in the hierarchy via the environment.
     @StateObject private var settings = AppSettings()
 
+    /// Two-stage splash state. `showingSplash` removes the view from
+    /// the tree once dissolve completes; `dismissingSplash` is the
+    /// flag the splash itself watches to drive its outgoing scale.
+    /// Splitting the two lets the scale animation begin while the
+    /// opacity fade is still in progress, so the exit reads as one
+    /// continuous motion rather than a hard cut.
+    @State private var showingSplash = true
+    @State private var dismissingSplash = false
+
     init() {
         Observability.start()
     }
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(settings)
-                .tint(settings.accentColor)
+            ZStack {
+                ContentView()
+                    .environmentObject(settings)
+                    .tint(settings.accentColor)
+                if showingSplash {
+                    SplashView(isDismissing: dismissingSplash)
+                        // Slow fade-out so the logo doesn't vanish —
+                        // it lingers as ContentView starts surfacing.
+                        .transition(
+                            .opacity.animation(.easeInOut(duration: 0.7))
+                        )
+                        .zIndex(1)
+                }
+            }
+            .task {
+                // Beat 1 (0.0–0.7s): logo fades + scales in.
+                // Beat 2 (0.7–1.5s): hold — gives the eye time to land.
+                // Beat 3 (1.5–2.2s): scale-up + fade-out into the app.
+                try? await Task.sleep(for: .seconds(1.5))
+                withAnimation(.easeIn(duration: 0.7)) {
+                    dismissingSplash = true
+                }
+                withAnimation(.easeInOut(duration: 0.7)) {
+                    showingSplash = false
+                }
+            }
         }
     }
 }

@@ -7,8 +7,6 @@ import SwiftUI
 /// keeps only the list, the empty state and the destructive overflow.
 struct DatabasesHomeView: View {
     @ObservedObject var store: PinkhaStore
-    @State private var showingDeleteAllConfirm = false
-    @State private var showingDeleteAllConfirm2 = false
 
     var body: some View {
         NavigationStack {
@@ -46,34 +44,6 @@ struct DatabasesHomeView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("Databases")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    if !store.databases.isEmpty {
-                        Button(role: .destructive) {
-                            showingDeleteAllConfirm = true
-                        } label: {
-                            Image(systemName: "trash")
-                        }
-                    }
-                }
-            }
-        }
-        .alert("Delete all \(store.databases.count) databases?", isPresented: $showingDeleteAllConfirm) {
-            Button("Delete All", role: .destructive) {
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(300))
-                    showingDeleteAllConfirm2 = true
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will remove all your databases.")
-        }
-        .alert("Are you sure?", isPresented: $showingDeleteAllConfirm2) {
-            Button("Yes, delete everything", role: .destructive) { store.deleteAllDatabases() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This cannot be undone.")
         }
     }
 }

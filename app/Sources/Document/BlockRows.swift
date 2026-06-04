@@ -324,22 +324,40 @@ struct ChildPageRowView: View {
     @State private var resolved: (title: String, icon: String?)? = nil
 
     var body: some View {
-        HStack(spacing: 8) {
-            if let icon = resolved?.icon, !icon.isEmpty {
-                Text(icon).font(.body)
-            } else {
-                Image(systemName: "doc.text")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
+        HStack(spacing: 12) {
+            // Icon slot sized like the home-view row to anchor the eye —
+            // emoji when the child has one, generic doc glyph otherwise.
+            ZStack {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(.secondary.opacity(0.10))
+                    .frame(width: 30, height: 30)
+                if let icon = resolved?.icon, !icon.isEmpty {
+                    Text(icon).font(.title3)
+                } else {
+                    Image(systemName: "doc.text")
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
             }
             Text(resolved?.title.isEmpty == false ? resolved!.title : "Untitled")
                 .font(.body.weight(.medium))
-                .underline()
                 .foregroundStyle(.primary)
                 .lineLimit(1)
-            Spacer()
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
         }
-        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        // Card surface — same quaternary-fill recipe as the inset-grouped
+        // rows in the home view. Replaces the previous underlined-link
+        // look with a self-contained block the eye reads as a target.
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.quaternary.opacity(0.5))
+        )
+        .padding(.vertical, 2)
         .contentShape(Rectangle())
         // High-priority gesture wins over any inherited .disabled or
         // gesture recogniser higher up the view tree (the locked doc's

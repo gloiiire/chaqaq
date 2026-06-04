@@ -83,8 +83,11 @@ extension DocumentView {
         )
         .blur(radius: isDimmed ? 3 : 0)
         .opacity(isDimmed ? 0.45 : 1)
-        .animation(.easeInOut(duration: 0.35), value: isDimmed)
-        .animation(.easeInOut(duration: 0.35), value: showTint)
+        // Single animation modifier on the shared source of truth.
+        // Stacking one `.animation(...)` per derived flag was creating
+        // extra preference dependencies on every row and helped trigger
+        // the AttributeGraph recursion logged in Sentry (APPLE-IOS-7).
+        .animation(.easeInOut(duration: 0.35), value: spotlightBlockId)
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))

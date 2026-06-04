@@ -15,7 +15,6 @@ struct DatabaseView: View {
     var onDisappear: (() -> Void)? = nil
 
     @State private var showAddColumn = false
-    @State private var showDeleteConfirm = false
     @Environment(\.dismiss) private var dismiss
 
     init(dbId: String, api: PinkhaApi, onDisappear: (() -> Void)? = nil) {
@@ -60,30 +59,10 @@ struct DatabaseView: View {
                     Label("Add column", systemImage: "plus.rectangle")
                 }
             }
-            // Overflow menu mirroring `NotesHomeView` — keeps the primary
-            // "Add column" action visible and tucks destructive ops behind
-            // the ellipsis. Same pattern as Notes/Mail iOS.
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button(role: .destructive) {
-                        showDeleteConfirm = true
-                    } label: {
-                        Label("Delete database", systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-                .accessibilityLabel("More actions")
-            }
-        }
-        .alert("Delete this database?", isPresented: $showDeleteConfirm) {
-            Button("Delete", role: .destructive) {
-                tryCatch(into: &vm.errorMessage) { try api.deleteDatabase(id: vm.dbId) }
-                dismiss()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("All rows will be moved to the trash.")
+            // Database deletion lives on the Notes home (swipe-to-delete
+            // on the row + the global "Delete all" overflow). Keeping a
+            // single-item overflow menu here was redundant chrome — see
+            // the user's request to remove the orphan top-right entry.
         }
         .sheet(isPresented: $showAddColumn) {
             AddColumnSheet { name, type in

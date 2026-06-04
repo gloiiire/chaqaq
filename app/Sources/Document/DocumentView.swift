@@ -64,40 +64,43 @@ struct DocumentView: View {
     }
 
     var body: some View {
-        // ScrollViewReader so a search hit can scroll directly to its
-        // matching block on first appearance. The proxy reaches into the
-        // List below — each block row is registered under its block id
-        // via ForEach($vm.blocks)'s Identifiable conformance.
+        // ScrollViewReader gives us `proxy.scrollTo(id:)` for search
+        // hits, but it doubles as a SwiftUI preference container —
+        // when a `.toolbar` modifier and per-row `.background` /
+        // `.blur` / `.animation` modifiers all live inside its closure,
+        // mutating any @State during a `withAnimation` triggers an
+        // infinite preference-update loop in AttributeGraph (logged in
+        // Sentry as a recursive `DynamicPreferenceCombiner` chain →
+        // stack overflow).
+        //
+        // Mitigations:
+        //   1. State mutations land on a fresh runloop turn via
+        //      `.task(id:)` instead of `onAppear + asyncAfter`, so
+        //      `spotlightBlockId` is never written during the same
+        //      layout pass that materialises the rows.
+        //   2. The global `.simultaneousGesture(TapGesture)` was
+        //      removed — the scroll-driven `dismissSpotlight()` in
+        //      `documentList.onScrollGeometryChange` is enough to cover
+        //      "user takes back control."
         ScrollViewReader { proxy in
             ZStack(alignment: .bottomTrailing) {
                 documentList
-                    .onAppear {
+                    .task(id: scrollToBlockId) {
                         guard let target = scrollToBlockId else { return }
                         // Defer past the first layout pass so the List
                         // has measured its rows. Without the delay,
                         // scrollTo silently no-ops on a freshly pushed
                         // destination.
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                            withAnimation(.easeOut(duration: 0.25)) {
-                                proxy.scrollTo(target, anchor: .center)
-                            }
-                            // Arm the spotlight slightly after the scroll
-                            // animation starts so the focus state and the
-                            // scroll reveal land at roughly the same time.
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                                withAnimation(.easeInOut(duration: 0.35)) {
-                                    spotlightBlockId = target
-                                    spotlightArmedAt = Date()
-                                }
-                            }
+                        try? await Task.sleep(for: .milliseconds(350))
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            proxy.scrollTo(target, anchor: .center)
+                        }
+                        try? await Task.sleep(for: .milliseconds(150))
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            spotlightBlockId = target
+                            spotlightArmedAt = Date()
                         }
                     }
-                    // First tap anywhere on the doc dismisses the
-                    // spotlight — feels like "taking back control"
-                    // à la Bible Strong's verse highlight.
-                    .simultaneousGesture(
-                        TapGesture().onEnded { dismissSpotlight() }
-                    )
                 overlayButtons
             }
         }

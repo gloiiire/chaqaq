@@ -69,8 +69,14 @@ struct NotesHomeView: View {
                     Button {
                         showingSettings = true
                     } label: {
-                        Image(systemName: "ellipsis.circle")
+                        Image(systemName: "gearshape")
                     }
+                    // Override the app-level accent tint with the system
+                    // label color — toolbar Buttons inherit `.tint`
+                    // through the bordered/glass style, so a per-Image
+                    // `.foregroundStyle` would get repainted. `.tint` on
+                    // the Button is the supported escape hatch.
+                    .tint(.primary)
                     .accessibilityLabel("Settings")
                 }
             }
