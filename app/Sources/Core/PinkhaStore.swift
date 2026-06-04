@@ -206,6 +206,58 @@ final class PinkhaStore: ObservableObject {
         return (try? api.searchDocuments(query: query)) ?? []
     }
 
+    /// Runs all available search axes in a single call : titles + block
+    /// content for documents, plus database titles and folder names. The
+    /// document axis is deduplicated — a doc matching both title and
+    /// content shows up once in the title hits and is hidden from the
+    /// content hits.
+    func superSearch(query: String) -> SuperSearchResults {
+        guard !query.isEmpty, let api else { return .empty }
+        let titles = (try? api.searchDocuments(query: query)) ?? []
+        // Use the snippets variant so the UI can show a Notion-style
+        // preview of where the match landed in the doc's content.
+        let blockHits = (try? api.searchInBlocksWithSnippets(query: query)) ?? []
+        let dbs = (try? api.searchDatabases(query: query)) ?? []
+        let folders = (try? api.searchFolders(query: query)) ?? []
+        // A doc matching by title shows up in the title section once;
+        // its block-level hits are still kept so the user can jump to a
+        // specific occurrence inside the body — multiple snippet rows
+        // per doc are intentional now that the Rust side returns every
+        // matching block, not just the first one.
+        let titleIds = Set(titles.map(\.id))
+        let contentOnly = blockHits.filter { !titleIds.contains($0.doc.id) }
+        return SuperSearchResults(
+            documentsByTitle: titles,
+            documentsByContent: contentOnly,
+            databases: dbs,
+            folders: folders
+        )
+    }
+
+    /// Bundle of search results across every workspace surface. Empty
+    /// arrays mean "no match in that category" — callers use the per-
+    /// section count to decide whether to render the section.
+    struct SuperSearchResults {
+        let documentsByTitle: [DocumentMetaFfi]
+        let documentsByContent: [BlockSearchHitFfi]
+        let databases: [DatabaseMetaFfi]
+        let folders: [FolderMetaFfi]
+
+        var isEmpty: Bool {
+            documentsByTitle.isEmpty
+                && documentsByContent.isEmpty
+                && databases.isEmpty
+                && folders.isEmpty
+        }
+
+        static let empty = SuperSearchResults(
+            documentsByTitle: [],
+            documentsByContent: [],
+            databases: [],
+            folders: []
+        )
+    }
+
     // ── Folders ───────────────────────────────────────────────────────────────
 
     /// Returns all folders sorted by name.

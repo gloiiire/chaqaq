@@ -168,6 +168,18 @@ pub struct NotionDatabaseSummaryFfi {
     pub last_edited: String,
 }
 
+/// One match from a block-content search. Carries the document metadata
+/// plus a short snippet of the matching block so the UI can preview
+/// where the hit occurs, Notion-style.
+#[derive(Debug, Clone)]
+pub struct BlockSearchHitFfi {
+    pub doc: DocumentMetaFfi,
+    /// UUID string of the matching block — lets Swift scroll directly
+    /// to it when opening the document from a search result.
+    pub block_id: String,
+    pub snippet: String,
+}
+
 /// Lightweight database metadata passed across the FFI boundary.
 #[derive(Debug, Clone)]
 pub struct DatabaseMetaFfi {
@@ -554,6 +566,39 @@ impl PinkhaApi {
         validate_string(&query, "query")?;
         let metas = use_cases::search_in_blocks(&self.uow(), &query).map_err(PinkhaError::from)?;
         Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
+    }
+
+    /// Case-insensitive search across database titles.
+    pub fn search_databases(&self, query: String) -> Result<Vec<DatabaseMetaFfi>, PinkhaError> {
+        validate_string(&query, "query")?;
+        let metas = use_cases::search_databases(&self.uow(), &query).map_err(PinkhaError::from)?;
+        Ok(metas.into_iter().map(db_meta_to_ffi).collect())
+    }
+
+    /// Block-content search returning each match together with a short
+    /// preview snippet (~40 chars before / 80 after the term).
+    pub fn search_in_blocks_with_snippets(
+        &self,
+        query: String,
+    ) -> Result<Vec<BlockSearchHitFfi>, PinkhaError> {
+        validate_string(&query, "query")?;
+        let hits = use_cases::search_in_blocks_with_snippets(&self.uow(), &query)
+            .map_err(PinkhaError::from)?;
+        Ok(hits
+            .into_iter()
+            .map(|h| BlockSearchHitFfi {
+                doc: doc_meta_to_ffi(h.doc),
+                block_id: h.block_id.to_string(),
+                snippet: h.snippet,
+            })
+            .collect())
+    }
+
+    /// Case-insensitive search across folder names.
+    pub fn search_folders(&self, query: String) -> Result<Vec<FolderMetaFfi>, PinkhaError> {
+        validate_string(&query, "query")?;
+        let metas = use_cases::search_folders(&self.uow(), &query).map_err(PinkhaError::from)?;
+        Ok(metas.into_iter().map(folder_meta_to_ffi).collect())
     }
 
     // ── Trash (soft-deleted documents) ────────────────────────────────────────

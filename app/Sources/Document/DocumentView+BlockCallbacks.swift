@@ -26,6 +26,15 @@ extension DocumentView {
     @ViewBuilder
     func blockListRow(_ block: Binding<EditableBlock>) -> some View {
         let b = block.wrappedValue
+        // Bible-Strong-style spotlight: when this doc was opened from a
+        // search hit, the matched block stays crisp while every other
+        // block is blurred and dimmed until the user takes back control
+        // (tap or scroll past the 0.6s grace window). The optional
+        // accent tint behind the focused block is gated by AppSettings
+        // so users can pick blur-only or blur-plus-tint.
+        let isSpotlit = spotlightBlockId == b.id
+        let isDimmed  = spotlightBlockId != nil && !isSpotlit
+        let showTint  = isSpotlit && settings.spotlightTinted
         HStack(alignment: .center, spacing: 10) {
             if editMode == .active { selectionButton(b.id) }
             // Visual indentation for nested blocks. The Rust domain models
@@ -63,6 +72,19 @@ extension DocumentView {
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.35).onEnded { _ in selectFromLongPress(b.id) }
         )
+        // Spotlight visuals — the matched block stays sharp while every
+        // other block is blurred + dimmed. An optional accent tint
+        // behind the focused row is shown only when the user opted into
+        // it in Settings — default is blur-only.
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(settings.accentColor.opacity(showTint ? 0.10 : 0))
+                .padding(.horizontal, -8)
+        )
+        .blur(radius: isDimmed ? 3 : 0)
+        .opacity(isDimmed ? 0.45 : 1)
+        .animation(.easeInOut(duration: 0.35), value: isDimmed)
+        .animation(.easeInOut(duration: 0.35), value: showTint)
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))

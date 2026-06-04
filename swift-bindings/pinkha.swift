@@ -776,14 +776,29 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func searchDatabaseEntriesJson(dbId: String, query: String) throws  -> String
     
     /**
+     * Recherche par titre de database.
+     */
+    func searchDatabases(query: String) throws  -> [DatabaseMetaFfi]
+    
+    /**
      * Recherche insensible à la casse dans les titles.
      */
     func searchDocuments(query: String) throws  -> [DocumentMetaFfi]
     
     /**
+     * Recherche par nom de folder.
+     */
+    func searchFolders(query: String) throws  -> [FolderMetaFfi]
+    
+    /**
      * Recherche plein texte dans les blocs.
      */
     func searchInBlocks(query: String) throws  -> [DocumentMetaFfi]
+    
+    /**
+     * Recherche plein texte avec extrait (snippet) du bloc qui matche.
+     */
+    func searchInBlocksWithSnippets(query: String) throws  -> [BlockSearchHitFfi]
     
     /**
      * Pose ou retire la couleur d'un bloc (texte). `color` est un nom de
@@ -1614,6 +1629,18 @@ open func searchDatabaseEntriesJson(dbId: String, query: String)throws  -> Strin
 }
     
     /**
+     * Recherche par titre de database.
+     */
+open func searchDatabases(query: String)throws  -> [DatabaseMetaFfi]  {
+    return try  FfiConverterSequenceTypeDatabaseMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_search_databases(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(query),$0
+    )
+})
+}
+    
+    /**
      * Recherche insensible à la casse dans les titles.
      */
 open func searchDocuments(query: String)throws  -> [DocumentMetaFfi]  {
@@ -1626,11 +1653,35 @@ open func searchDocuments(query: String)throws  -> [DocumentMetaFfi]  {
 }
     
     /**
+     * Recherche par nom de folder.
+     */
+open func searchFolders(query: String)throws  -> [FolderMetaFfi]  {
+    return try  FfiConverterSequenceTypeFolderMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_search_folders(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(query),$0
+    )
+})
+}
+    
+    /**
      * Recherche plein texte dans les blocs.
      */
 open func searchInBlocks(query: String)throws  -> [DocumentMetaFfi]  {
     return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_search_in_blocks(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(query),$0
+    )
+})
+}
+    
+    /**
+     * Recherche plein texte avec extrait (snippet) du bloc qui matche.
+     */
+open func searchInBlocksWithSnippets(query: String)throws  -> [BlockSearchHitFfi]  {
+    return try  FfiConverterSequenceTypeBlockSearchHitFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_search_in_blocks_with_snippets(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(query),$0
     )
@@ -1813,6 +1864,68 @@ public func FfiConverterTypePinkhaApi_lower(_ value: PinkhaApi) -> UInt64 {
 }
 
 
+
+
+/**
+ * Hit d'une recherche dans le contenu des blocs — métadonnées du doc
+ * plus extrait du bloc qui matche pour preview style Notion.
+ */
+public struct BlockSearchHitFfi: Equatable, Hashable {
+    public var doc: DocumentMetaFfi
+    public var blockId: String
+    public var snippet: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(doc: DocumentMetaFfi, blockId: String, snippet: String) {
+        self.doc = doc
+        self.blockId = blockId
+        self.snippet = snippet
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BlockSearchHitFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBlockSearchHitFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BlockSearchHitFfi {
+        return
+            try BlockSearchHitFfi(
+                doc: FfiConverterTypeDocumentMetaFfi.read(from: &buf), 
+                blockId: FfiConverterString.read(from: &buf), 
+                snippet: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BlockSearchHitFfi, into buf: inout [UInt8]) {
+        FfiConverterTypeDocumentMetaFfi.write(value.doc, into: &buf)
+        FfiConverterString.write(value.blockId, into: &buf)
+        FfiConverterString.write(value.snippet, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBlockSearchHitFfi_lift(_ buf: RustBuffer) throws -> BlockSearchHitFfi {
+    return try FfiConverterTypeBlockSearchHitFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBlockSearchHitFfi_lower(_ value: BlockSearchHitFfi) -> RustBuffer {
+    return FfiConverterTypeBlockSearchHitFfi.lower(value)
+}
 
 
 /**
@@ -2356,6 +2469,31 @@ fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeBlockSearchHitFfi: FfiConverterRustBuffer {
+    typealias SwiftType = [BlockSearchHitFfi]
+
+    public static func write(_ value: [BlockSearchHitFfi], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBlockSearchHitFfi.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BlockSearchHitFfi] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BlockSearchHitFfi]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBlockSearchHitFfi.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeDatabaseMetaFfi: FfiConverterRustBuffer {
     typealias SwiftType = [DatabaseMetaFfi]
 
@@ -2693,10 +2831,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_search_database_entries_json() != 53101) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_databases() != 59051) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_search_documents() != 4353) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_folders() != 50429) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks() != 65038) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks_with_snippets() != 57833) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_color() != 56489) {

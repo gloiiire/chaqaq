@@ -96,9 +96,13 @@ struct CreateBubble: View {
     private var overflowMenu: some View {
         Menu {
             if hasItemsForDeleteAll {
+                // Pin the destructive action to system red — the app-level
+                // `.tint(...)` would otherwise repaint the icon in the
+                // user's accent color, weakening the danger signal.
                 Button(role: .destructive) { onDeleteAll() } label: {
                     Label("Delete all", systemImage: "trash.slash")
                 }
+                .tint(.red)
                 Divider()
             }
             Button { onShowTrash() } label: {

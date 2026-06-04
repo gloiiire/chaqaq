@@ -40,6 +40,146 @@ pub fn search_in_blocks(
     Ok(results)
 }
 
+/// Case-insensitive search across database titles.
+pub fn search_databases(
+    uow: &dyn UnitOfWork,
+    query: &str,
+) -> Result<Vec<crate::domain::database::DatabaseMeta>, PinkhaError> {
+    let q = query.to_lowercase();
+    Ok(uow
+        .databases()
+        .list_meta()?
+        .into_iter()
+        .filter(|m| {
+            m.title
+                .iter()
+                .any(|t| t.content.to_lowercase().contains(&q))
+        })
+        .collect())
+}
+
+/// A single hit from a block-content search — the document metadata
+/// plus a short snippet of the matching block, ready to surface in the
+/// UI alongside a Notion-style highlight.
+#[derive(Debug, Clone)]
+pub struct BlockSearchHit {
+    pub doc: DocumentMeta,
+    /// UUID of the block where the snippet was extracted. Lets the UI
+    /// scroll directly to the match when opening the document.
+    pub block_id: uuid::Uuid,
+    pub snippet: String,
+}
+
+/// Same scope as [`search_in_blocks`] but additionally extracts a small
+/// preview window (~40 chars before the match, ~80 after) so the UI can
+/// show context like Notion does.
+pub fn search_in_blocks_with_snippets(
+    uow: &dyn UnitOfWork,
+    query: &str,
+) -> Result<Vec<BlockSearchHit>, PinkhaError> {
+    let repo = uow.documents();
+    let q = query.to_lowercase();
+    let metas = repo.list()?;
+    let mut hits = Vec::new();
+    for meta in metas {
+        let doc = repo.load(meta.id)?;
+        let mut matches = Vec::new();
+        collect_block_snippets(&doc.blocks, &q, &mut matches);
+        for (block_id, snippet) in matches {
+            hits.push(BlockSearchHit {
+                doc: meta.clone(),
+                block_id,
+                snippet,
+            });
+        }
+    }
+    Ok(hits)
+}
+
+/// Walks the block tree depth-first and appends `(block_id, snippet)` for
+/// every block whose plain text contains `query`. Used to surface one
+/// preview row per match so the user can pick the specific occurrence
+/// they meant in a doc that contains the term more than once.
+fn collect_block_snippets(
+    blocks: &[Block],
+    query: &str,
+    out: &mut Vec<(uuid::Uuid, String)>,
+) {
+    for block in blocks {
+        if let Some(text) = block_plain_text(&block.content)
+            && let Some(snippet) = extract_snippet(&text, query)
+        {
+            out.push((block.id, snippet));
+        }
+        collect_block_snippets(&block.children, query, out);
+    }
+}
+
+fn block_plain_text(content: &BlockContent) -> Option<String> {
+    match content {
+        BlockContent::Text(inlines)
+        | BlockContent::Heading { text: inlines, .. }
+        | BlockContent::Quote { text: inlines, .. }
+        | BlockContent::Todo { text: inlines, .. }
+        | BlockContent::BulletedListItem(inlines)
+        | BlockContent::NumberedListItem(inlines) => Some(
+            inlines
+                .iter()
+                .map(|i| i.content.as_str())
+                .collect::<Vec<_>>()
+                .join(""),
+        ),
+        BlockContent::Code { text, .. } => Some(text.clone()),
+        _ => None,
+    }
+}
+
+/// Returns a Unicode-safe window around the first case-insensitive
+/// occurrence of `query_lower` in `text`. Adds an ellipsis at each end
+/// that was truncated so the user sees the cut explicitly.
+fn extract_snippet(text: &str, query_lower: &str) -> Option<String> {
+    let lower = text.to_lowercase();
+    let byte_idx = lower.find(query_lower)?;
+    // Walk chars to find the char index matching `byte_idx`.
+    let chars: Vec<char> = text.chars().collect();
+    let mut char_idx = 0;
+    let mut byte_acc = 0;
+    for (i, c) in chars.iter().enumerate() {
+        if byte_acc >= byte_idx {
+            char_idx = i;
+            break;
+        }
+        byte_acc += c.len_utf8();
+        char_idx = i + 1;
+    }
+    let query_chars = query_lower.chars().count();
+    let start = char_idx.saturating_sub(40);
+    let end = (char_idx + query_chars + 80).min(chars.len());
+    let mut snippet = String::new();
+    if start > 0 {
+        snippet.push('…');
+    }
+    snippet.extend(chars[start..end].iter());
+    if end < chars.len() {
+        snippet.push('…');
+    }
+    Some(snippet)
+}
+
+/// Case-insensitive search across folder names.
+pub fn search_folders(
+    uow: &dyn UnitOfWork,
+    query: &str,
+) -> Result<Vec<crate::domain::folder::FolderMeta>, PinkhaError> {
+    let q = query.to_lowercase();
+    Ok(uow
+        .folders()
+        .list()?
+        .into_iter()
+        .filter(|m| m.name.to_lowercase().contains(&q))
+        .collect())
+}
+
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 fn blocks_contain(blocks: &[Block], query: &str) -> bool {

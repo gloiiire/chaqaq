@@ -8,6 +8,7 @@ import SwiftUI
 /// presenting the workspace content.
 struct NotesHomeView: View {
     @ObservedObject var store: PinkhaStore
+    @State private var showingSettings = false
 
     var body: some View {
         NavigationStack {
@@ -63,6 +64,19 @@ struct NotesHomeView: View {
             .listStyle(.insetGrouped)
             .navigationTitle(greeting)
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .accessibilityLabel("Settings")
+                }
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
         }
     }
 

@@ -43,6 +43,14 @@ dictionary DatabaseMetaFfi {
     string created_at;
 };
 
+/// Hit d'une recherche dans le contenu des blocs — métadonnées du doc
+/// plus extrait du bloc qui matche pour preview style Notion.
+dictionary BlockSearchHitFfi {
+    DocumentMetaFfi doc;
+    string block_id;
+    string snippet;
+};
+
 /// Résumé d'une opération d'import retourné à Swift.
 dictionary ImportResultFfi {
     string app;
@@ -165,6 +173,18 @@ interface PinkhaApi {
     /// Recherche plein texte dans les blocs.
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> search_in_blocks(string query);
+
+    /// Recherche par titre de database.
+    [Throws=PinkhaError]
+    sequence<DatabaseMetaFfi> search_databases(string query);
+
+    /// Recherche plein texte avec extrait (snippet) du bloc qui matche.
+    [Throws=PinkhaError]
+    sequence<BlockSearchHitFfi> search_in_blocks_with_snippets(string query);
+
+    /// Recherche par nom de folder.
+    [Throws=PinkhaError]
+    sequence<FolderMetaFfi> search_folders(string query);
 
     /// Liste les documents en corbeille (soft-deleted), du plus récemment supprimé en premier.
     [Throws=PinkhaError]

@@ -553,14 +553,29 @@ void uniffi_pinkha_fn_method_pinkhaapi_restore_folder(uint64_t ptr, RustBuffer i
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_search_database_entries_json(uint64_t ptr, RustBuffer db_id, RustBuffer query, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_DATABASES
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_DATABASES
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_search_databases(uint64_t ptr, RustBuffer query, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_DOCUMENTS
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_DOCUMENTS
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_search_documents(uint64_t ptr, RustBuffer query, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_FOLDERS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_FOLDERS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_search_folders(uint64_t ptr, RustBuffer query, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_IN_BLOCKS
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_IN_BLOCKS
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_search_in_blocks(uint64_t ptr, RustBuffer query, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_IN_BLOCKS_WITH_SNIPPETS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_IN_BLOCKS_WITH_SNIPPETS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_search_in_blocks_with_snippets(uint64_t ptr, RustBuffer query, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_BLOCK_COLOR
@@ -1232,15 +1247,33 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_search_database_entries_json(vo
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_DATABASES
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_DATABASES
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_search_databases(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_DOCUMENTS
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_DOCUMENTS
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_search_documents(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_FOLDERS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_FOLDERS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_search_folders(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_IN_BLOCKS
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_IN_BLOCKS
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_IN_BLOCKS_WITH_SNIPPETS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_IN_BLOCKS_WITH_SNIPPETS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks_with_snippets(void
     
 );
 #endif

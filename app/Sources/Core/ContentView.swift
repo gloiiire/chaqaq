@@ -162,13 +162,15 @@ struct ContentView: View {
 
 // ── Tab 2: Search ─────────────────────────────────────────────────────────────
 
-/// Search tab — owns its own .searchable so it does not bleed into other tabs.
+/// Search tab — full-workspace super search. Hits four axes in parallel
+/// (note titles, note content, database titles, folder names) and groups
+/// the matches in sections. Each section is hidden when empty.
 private struct SearchView: View {
     @ObservedObject var store: PinkhaStore
     @State private var query = ""
 
-    private var results: [DocumentMetaFfi] {
-        query.isEmpty ? [] : store.search(query: query)
+    private var results: PinkhaStore.SuperSearchResults {
+        query.isEmpty ? .empty : store.superSearch(query: query)
     }
 
     var body: some View {
@@ -188,23 +190,190 @@ private struct SearchView: View {
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                         .padding(.top, 32)
-                } else {
-                    if let api = store.api {
-                        ForEach(results, id: \.id) { doc in
-                            NavigationLink(
-                                destination: DocumentView(docId: doc.id, api: api,
-                                                          onDisappear: store.load)
-                            ) {
-                                WorkspaceRow(item: .note(doc))
+                } else if let api = store.api {
+                    if !results.documentsByTitle.isEmpty {
+                        Section {
+                            ForEach(results.documentsByTitle, id: \.id) { doc in
+                                NavigationLink(
+                                    destination: DocumentView(docId: doc.id, api: api,
+                                                              onDisappear: store.load)
+                                ) { WorkspaceRow(item: .note(doc)) }
                             }
-                        }
+                        } header: { SectionHeader(title: "Notes") }
+                    }
+                    if !results.documentsByContent.isEmpty {
+                        Section {
+                            // Group block hits by document so a single
+                            // doc never duplicates as a row — instead it
+                            // shows the doc header once and one snippet
+                            // line per matching block underneath,
+                            // separated by dividers à la home view.
+                            ForEach(groupHits(results.documentsByContent),
+                                    id: \.doc.id) { group in
+                                GroupedBlockHitRow(group: group,
+                                                   query: query,
+                                                   api: api,
+                                                   onDocClose: store.load)
+                            }
+                        } header: { SectionHeader(title: "In notes") }
+                    }
+                    if !results.databases.isEmpty {
+                        Section {
+                            ForEach(results.databases, id: \.id) { db in
+                                NavigationLink(
+                                    destination: DatabaseView(dbId: db.id, api: api,
+                                                              onDisappear: store.load)
+                                ) { WorkspaceRow(item: .database(db)) }
+                            }
+                        } header: { SectionHeader(title: "Databases") }
+                    }
+                    if !results.folders.isEmpty {
+                        Section {
+                            ForEach(results.folders, id: \.id) { folder in
+                                NavigationLink(
+                                    destination: FolderView(store: store, folder: folder)
+                                ) { FolderRow(folder: folder) }
+                            }
+                        } header: { SectionHeader(title: "Folders") }
                     }
                 }
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Search")
-            .searchable(text: $query, prompt: "Note titles…")
+            .searchable(text: $query, prompt: "Search notes, content, databases, folders…")
             .autocorrectionDisabled()
+        }
+    }
+}
+
+// ── Search hit grouping ───────────────────────────────────────────────────────
+
+/// One document plus every block-level hit that matched in it. Lets the
+/// search UI show a single header per doc with multiple snippet previews
+/// nested underneath instead of duplicating the doc row N times.
+private struct DocHitGroup {
+    let doc: DocumentMetaFfi
+    let hits: [BlockSearchHitFfi]
+}
+
+/// Preserves first-seen order while grouping hits by `doc.id`. The Rust
+/// backend returns hits document-by-document, depth-first within each
+/// doc — keeping that order means the topmost match in the doc is the
+/// first snippet shown.
+private func groupHits(_ hits: [BlockSearchHitFfi]) -> [DocHitGroup] {
+    var order: [String] = []
+    var bucket: [String: [BlockSearchHitFfi]] = [:]
+    var docs: [String: DocumentMetaFfi] = [:]
+    for hit in hits {
+        if bucket[hit.doc.id] == nil {
+            order.append(hit.doc.id)
+            docs[hit.doc.id] = hit.doc
+        }
+        bucket[hit.doc.id, default: []].append(hit)
+    }
+    return order.compactMap { id in
+        guard let doc = docs[id], let arr = bucket[id] else { return nil }
+        return DocHitGroup(doc: doc, hits: arr)
+    }
+}
+
+// ── Grouped block-content hit row ─────────────────────────────────────────────
+
+/// Row for a "matched in note content" search result. Renders the doc
+/// icon + title once on top, then one snippet preview per matching
+/// block underneath — each preview is its own NavigationLink so tapping
+/// it jumps straight to the corresponding block in the document.
+/// Dividers between previews mirror the home-view list look.
+private struct GroupedBlockHitRow: View {
+    let group: DocHitGroup
+    let query: String
+    let api: PinkhaApi
+    let onDocClose: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Doc header — tapping it opens the doc at the first hit.
+            NavigationLink(
+                destination: DocumentView(docId: group.doc.id,
+                                          api: api,
+                                          onDisappear: onDocClose,
+                                          scrollToBlockId: group.hits.first?.blockId)
+            ) {
+                HStack(spacing: 12) {
+                    if let icon = group.doc.icon, !icon.isEmpty {
+                        Text(icon).font(.title2).frame(width: 34, height: 34)
+                    } else {
+                        Image(systemName: "doc.text")
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 34, height: 34)
+                            .background(.secondary.opacity(0.12),
+                                        in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    }
+                    Text(group.doc.titlePlain.isEmpty ? "Untitled" : group.doc.titlePlain)
+                        .font(.body.weight(.medium))
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.vertical, 4)
+
+            // Snippet previews — each one navigates to its own block.
+            ForEach(Array(group.hits.enumerated()), id: \.element.blockId) { index, hit in
+                if index > 0 {
+                    Divider().padding(.leading, 46)
+                }
+                NavigationLink(
+                    destination: DocumentView(docId: hit.doc.id,
+                                              api: api,
+                                              onDisappear: onDocClose,
+                                              scrollToBlockId: hit.blockId)
+                ) {
+                    HStack(alignment: .top, spacing: 12) {
+                        // Aligned with the doc-header icon column so
+                        // snippets read like indented continuation lines.
+                        Color.clear.frame(width: 34, height: 1)
+                        Text(highlightedSnippet(for: hit))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(3)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.vertical, 8)
+            }
+        }
+    }
+
+    /// Builds an AttributedString from `hit.snippet` with every
+    /// case-insensitive occurrence of each query token rendered bold.
+    /// Empty tokens (extra spaces) are skipped so a trailing space in
+    /// the search bar doesn't bold the entire snippet.
+    private func highlightedSnippet(for hit: BlockSearchHitFfi) -> AttributedString {
+        var attr = AttributedString(hit.snippet)
+        let tokens = query
+            .split(whereSeparator: { $0.isWhitespace })
+            .map(String.init)
+            .filter { !$0.isEmpty }
+        for token in tokens {
+            highlight(token, in: &attr)
+        }
+        return attr
+    }
+
+    private func highlight(_ token: String, in attr: inout AttributedString) {
+        var cursor = attr.startIndex
+        let needle = token.lowercased()
+        while cursor < attr.endIndex,
+              let range = attr[cursor...].range(of: needle,
+                                                options: .caseInsensitive) {
+            attr[range].font = .subheadline.bold()
+            attr[range].foregroundColor = .primary
+            cursor = range.upperBound
         }
     }
 }
