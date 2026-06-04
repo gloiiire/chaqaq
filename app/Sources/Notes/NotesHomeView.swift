@@ -14,10 +14,28 @@ struct NotesHomeView: View {
     /// pushed onto the editor right after the create sheet dismisses
     /// — driven by `composer.pendingOpenDoc`.
     @State private var path: [String] = []
+    /// Multi-select state for bulk delete. `editMode` flips between
+    /// `.inactive` and `.active` via the toolbar Select button; the
+    /// List binds `selection:` to `selectedIds` so the standard iOS
+    /// circle UI appears next to each row when active.
+    @State private var editMode: EditMode = .inactive
+    @State private var selectedIds: Set<String> = []
+    @State private var showingBulkDeleteConfirm = false
 
     var body: some View {
         NavigationStack(path: $path) {
-            List {
+            // Conditional selection binding — we only let the List
+            // track selection while edit mode is active. Outside of
+            // it, `selectedIds` is forced to empty (writes are
+            // dropped), which prevents the iOS 26 default behaviour
+            // of leaving a NavigationLink-pushed row visually "focused"
+            // after the user pops back.
+            List(selection: Binding(
+                get: { editMode == .active ? selectedIds : [] },
+                set: { newValue in
+                    if editMode == .active { selectedIds = newValue }
+                }
+            )) {
                 if !store.items.isEmpty {
                     Section {
                         RecentStrip(items: store.recentItems, api: store.api) {
@@ -67,23 +85,69 @@ struct NotesHomeView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .environment(\.editMode, $editMode)
             .navigationTitle(greeting)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
+                ToolbarItem(placement: .topBarLeading) {
+                    if !store.items.isEmpty {
+                        Button(editMode == .active ? "Done" : "Select") {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                if editMode == .active {
+                                    editMode = .inactive
+                                    selectedIds.removeAll()
+                                } else {
+                                    editMode = .active
+                                }
+                            }
+                        }
+                        .tint(.primary)
                     }
-                    // Settings is neutral chrome — never adopts the
-                    // accent that the TabView spreads through its env.
-                    .tint(.primary)
-                    .accessibilityLabel("Settings")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if editMode == .active {
+                        // In edit mode the trailing slot becomes the
+                        // primary bulk-delete action. Bottom-bar
+                        // placement collides with the TabView's search
+                        // bubble, so we surface the action up here.
+                        Button(role: .destructive) {
+                            showingBulkDeleteConfirm = true
+                        } label: {
+                            Label(
+                                selectedIds.isEmpty ? "Delete" : "Delete (\(selectedIds.count))",
+                                systemImage: "trash"
+                            )
+                        }
+                        .tint(.red)
+                        .disabled(selectedIds.isEmpty)
+                    } else {
+                        Button {
+                            showingSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
+                        }
+                        // Settings is neutral chrome — never adopts the
+                        // accent that the TabView spreads through its env.
+                        .tint(.primary)
+                        .accessibilityLabel("Settings")
+                    }
                 }
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            // Native confirmation dialog before the bulk delete fires —
+            // matches the Apple Notes / Mail pattern (slide-up sheet
+            // anchored to the row that triggered it).
+            .confirmationDialog(
+                "Delete \(selectedIds.count) item\(selectedIds.count == 1 ? "" : "s")?",
+                isPresented: $showingBulkDeleteConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) { deleteSelected() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("They'll move to the trash.")
             }
             // Registered alongside the existing `NavigationLink` rows
             // so programmatic pushes via `path.append(id)` open the
@@ -103,6 +167,50 @@ struct NotesHomeView: View {
                 try? await Task.sleep(for: .milliseconds(250))
                 path.append(docId)
                 composer.pendingOpenDoc = nil
+            }
+        }
+        .onChange(of: path) { _, newPath in
+            // When the user pops back to the home, drop any selection
+            // SwiftUI's List might have carried over from the programmatic
+            // push — otherwise the row that was just navigated to stays
+            // visually "focused" (lighter background) until the next
+            // unrelated tap.
+            if newPath.isEmpty && editMode != .active && !selectedIds.isEmpty {
+                selectedIds.removeAll()
+            }
+        }
+        // Belt-and-braces: clear any lingering selection every time
+        // the home reappears (covers pops, tab switches, sheet
+        // dismissals). The onChange above only fires when `path`
+        // transitions; this catches the cases where SwiftUI rebuilt
+        // the home with a non-empty selection already.
+        .task {
+            if editMode != .active && !selectedIds.isEmpty {
+                selectedIds.removeAll()
+            }
+        }
+    }
+
+    /// Bulk delete every selected workspace item. Routes notes through
+    /// `store.delete(id:)` and databases through `deleteDatabase(id:)`
+    /// so each goes via its proper SQLite soft-delete path.
+    ///
+    /// Important : selection is cleared BEFORE we mutate the store.
+    /// UICollectionView (under SwiftUI's List) refuses to coalesce an
+    /// update where the selection set still references rows that just
+    /// disappeared — that's the `NSInternalInconsistencyException` we
+    /// saw on Sentry (APPLE-IOS-8). Clearing first lets the diff
+    /// settle on the store changes alone.
+    private func deleteSelected() {
+        let toDelete = store.items.filter { selectedIds.contains($0.id) }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            selectedIds.removeAll()
+            editMode = .inactive
+        }
+        for item in toDelete {
+            switch item {
+            case .note(let d):      store.delete(id: d.id)
+            case .database(let db): store.deleteDatabase(id: db.id)
             }
         }
     }

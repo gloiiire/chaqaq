@@ -12,6 +12,13 @@ struct TrashView: View {
     @State private var deletedDatabases: [DatabaseMetaFfi] = []
     @State private var deletedFolders: [FolderMetaFfi] = []
     @State private var showEmptyConfirm = false
+    /// Multi-select state. `editMode` toggles via the Select button;
+    /// `selectedIds` collects the chosen rows across all three sections
+    /// — the id-space is unified at the FFI level so a single Set is
+    /// enough to drive both Restore and Delete-Forever in bulk.
+    @State private var editMode: EditMode = .inactive
+    @State private var selectedIds: Set<String> = []
+    @State private var showBulkPurgeConfirm = false
 
     private var totalCount: Int {
         deletedDocs.count + deletedDatabases.count + deletedFolders.count
@@ -28,14 +35,62 @@ struct TrashView: View {
             }
             .navigationTitle("Trash")
             .navigationBarTitleDisplayMode(.large)
+            .environment(\.editMode, $editMode)
             .toolbar {
-                if totalCount > 0 {
+                if totalCount > 0 && editMode != .active {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Select") {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                editMode = .active
+                            }
+                        }
+                        .tint(.primary)
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(role: .destructive) {
                             showEmptyConfirm = true
                         } label: {
                             Text("Empty")
                         }
+                    }
+                }
+                if editMode == .active {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Done") {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                editMode = .inactive
+                                selectedIds.removeAll()
+                            }
+                        }
+                        .tint(.primary)
+                    }
+                    // Restore on the trailing side (the recoverable
+                    // action), Delete-forever on the bottom-bar's
+                    // safer-feeling secondary slot.
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            restoreSelected()
+                        } label: {
+                            Label(
+                                selectedIds.isEmpty ? "Restore" : "Restore (\(selectedIds.count))",
+                                systemImage: "arrow.uturn.backward"
+                            )
+                        }
+                        .tint(.primary)
+                        .disabled(selectedIds.isEmpty)
+                    }
+                    ToolbarItemGroup(placement: .bottomBar) {
+                        Spacer()
+                        Button(role: .destructive) {
+                            showBulkPurgeConfirm = true
+                        } label: {
+                            Label(
+                                selectedIds.isEmpty ? "Delete forever" : "Delete forever (\(selectedIds.count))",
+                                systemImage: "trash"
+                            )
+                        }
+                        .tint(.red)
+                        .disabled(selectedIds.isEmpty)
                     }
                 }
             }
@@ -52,6 +107,18 @@ struct TrashView: View {
             } message: {
                 Text("\(totalCount) item(s) will be permanently removed.")
             }
+            // Confirmation guards the bulk Delete-forever — restore
+            // is non-destructive so it acts immediately without prompt.
+            .confirmationDialog(
+                "Delete \(selectedIds.count) item\(selectedIds.count == 1 ? "" : "s") forever?",
+                isPresented: $showBulkPurgeConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Delete forever", role: .destructive) { purgeSelected() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This action cannot be undone.")
+            }
             .onAppear(perform: reload)
         }
     }
@@ -67,7 +134,7 @@ struct TrashView: View {
     }
 
     private var list: some View {
-        List {
+        List(selection: $selectedIds) {
             if !deletedDocs.isEmpty {
                 Section("Notes") {
                     ForEach(deletedDocs, id: \.id) { doc in
@@ -142,6 +209,45 @@ struct TrashView: View {
         deletedDocs = store.listDeletedDocuments()
         deletedDatabases = store.listDeletedDatabases()
         deletedFolders = store.listDeletedFolders()
+    }
+
+    /// Bulk restore — partitions `selectedIds` by which list they
+    /// belong to (docs / databases / folders) and routes each through
+    /// its matching FFI call. Selection is cleared BEFORE the FFI
+    /// calls so SwiftUI's List doesn't try to diff an update where
+    /// the selection still references rows about to disappear (avoids
+    /// the same `NSInternalInconsistencyException` family as APPLE-
+    /// IOS-8 on the home view).
+    private func restoreSelected() {
+        let docIds = deletedDocs.map(\.id).filter(selectedIds.contains)
+        let dbIds  = deletedDatabases.map(\.id).filter(selectedIds.contains)
+        let fIds   = deletedFolders.map(\.id).filter(selectedIds.contains)
+        clearSelectionAndExitEdit()
+        for id in docIds { store.restoreDocument(id: id) }
+        for id in dbIds  { store.restoreDatabase(id: id) }
+        for id in fIds   { store.restoreFolder(id: id) }
+        reload()
+    }
+
+    /// Bulk permanent delete — same partition + clear-before-mutate
+    /// strategy as restore. Guarded by the confirmationDialog above;
+    /// never called directly from the toolbar tap.
+    private func purgeSelected() {
+        let docIds = deletedDocs.map(\.id).filter(selectedIds.contains)
+        let dbIds  = deletedDatabases.map(\.id).filter(selectedIds.contains)
+        let fIds   = deletedFolders.map(\.id).filter(selectedIds.contains)
+        clearSelectionAndExitEdit()
+        for id in docIds { store.purgeDocument(id: id) }
+        for id in dbIds  { store.purgeDatabase(id: id) }
+        for id in fIds   { store.purgeFolder(id: id) }
+        reload()
+    }
+
+    private func clearSelectionAndExitEdit() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            selectedIds.removeAll()
+            editMode = .inactive
+        }
     }
 }
 
