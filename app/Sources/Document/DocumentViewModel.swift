@@ -8,11 +8,20 @@ final class DocumentViewModel: ObservableObject {
     let docId: String
     @Published var title: String = ""
     @Published var cover: String?
+    /// Page icon — emoji or filename in the covers directory. Mirrors
+    /// `Document.icon` from Rust, sync via `saveIcon`.
+    @Published var icon: String?
+    /// Read-only lock. Mirrors `Document.locked` from Rust. Imports default
+    /// to `true`; the toolbar toggles via `saveLocked(_:)`.
+    @Published var locked: Bool = false
     @Published var blocks: [EditableBlock] = []
     @Published var errorMessage: String?
     @Published var autoFocusId: String?
     @Published var autoFocusOffset: Int? = nil
-    var activeBlockId: String? = nil
+    // @Published so DocumentView can observe focus changes and
+    // scroll the freshly-focused block to a comfortable position
+    // (well above the keyboard, not just barely clearing it).
+    @Published var activeBlockId: String? = nil
     var focusedBlockId: String? = nil
     let repeater = ActionRepeater()
     var isNavigating: Bool { repeater.active }

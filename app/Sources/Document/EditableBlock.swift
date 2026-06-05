@@ -9,6 +9,16 @@ struct EditableBlock: Identifiable, Equatable {
     var content: BlockContentFfi
     var spans: [InlineTextFfi]
     var done: Bool
+    /// Block-level text color (matches Rust `Block.color`). When set, applies
+    /// to every span that has no inline `.color(...)` override.
+    var color: String? = nil
+    /// Nesting depth (0 = top-level). The Rust domain models nesting as a
+    /// recursive `Block.children` tree, but the editor UI renders a flat
+    /// list — we flatten the tree at load time and use this depth to apply a
+    /// left-padding so indented blocks appear indented. Indent/outdent then
+    /// mutate the underlying tree on the Rust side; the next reload produces
+    /// the same flat list with the updated depths.
+    var depth: Int = 0
     var plainText: String { spans.map(\.content).joined() }
 }
 

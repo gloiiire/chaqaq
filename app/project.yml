@@ -5,6 +5,19 @@ options:
     iOS: "26.0"
   createIntermediateGroups: true
 
+# Project-wide build settings. Apply to every target unless overridden.
+settings:
+  base:
+    # Apple Silicon Macs run iOS Simulator natively (arm64). Excluding x86_64
+    # avoids dragging in a slice the toolchain can't link against — and keeps
+    # the test targets in lockstep with the main app.
+    EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
+
+packages:
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    from: "8.49.0"
+
 schemes:
   Pinkha:
     build:
@@ -29,10 +42,20 @@ targets:
     type: application
     platform: iOS
     deploymentTarget: "26.0"
+    configFiles:
+      Debug: Config/Secrets.xcconfig
+      Release: Config/Secrets.xcconfig
     sources:
       - path: Sources
+        excludes:
+          # iCloud Drive conflict copies ("Foo 2.swift", "Foo 3.swift") must
+          # never enter the build — they're not real source files.
+          - "**/* [2-9].swift"
       - path: ../swift-bindings/pinkha.swift
     resources:
+      # Sources/Assets.xcassets includes Pinkha.icon (Icon Composer
+      # bundle, Xcode 26) alongside the legacy AppIcon.appiconset.
+      # ASSETCATALOG_COMPILER_APPICON_NAME below points actool at Pinkha.
       - path: Sources/Assets.xcassets
     settings:
       base:
@@ -42,9 +65,15 @@ targets:
         EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
         OTHER_LDFLAGS: "$(inherited) -lc++"
         DEVELOPMENT_TEAM: N49VNC2G57
+      configs:
+        Debug:
+          # Required so test targets can `@testable import Pinkha`.
+          ENABLE_TESTABILITY: YES
     dependencies:
       - framework: ../pinkha.xcframework
         embed: false
+      - package: Sentry
+        product: Sentry
 
   # Tests unitaires : code Swift pur (modèles Codable, helpers, extensions).
   PinkhaTests:

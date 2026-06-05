@@ -40,6 +40,24 @@ extension DocumentViewModel {
         } catch { errorMessage = error.localizedDescription }
     }
 
+    /// Inserts a `Page` block at the end of the document — used when a
+    /// child page has been created from the bubble while this doc was on
+    /// screen. Going through this method (instead of a direct FFI call)
+    /// keeps `blocks`, `blockSnapshots` and the undo stack in sync, so
+    /// the next burst flush doesn't overwrite the new block.
+    func addChildPageBlock(childDocId: String) {
+        do {
+            let content = BlockContentFfi.page(id: childDocId)
+            let data    = try JSONEncoder().encode(content)
+            let newId   = try api.addBlock(docId: docId,
+                                           blockContentJson: String(decoding: data, as: UTF8.self))
+            let newBlock = EditableBlock(id: newId, content: content, spans: [], done: false)
+            blocks.append(newBlock)
+            blockSnapshots[newId] = snapshotOf(newBlock)
+            undoMgr.registerUndo(withTarget: self) { vm in vm.deleteBlock(id: newId) }
+        } catch { errorMessage = error.localizedDescription }
+    }
+
     func deleteBlock(id: String) {
         flushBurst(blockId: id)
         guard let block = blocks.first(where: { $0.id == id }),
@@ -129,7 +147,12 @@ extension DocumentViewModel {
         let oldSpans = blocks[idx].spans
         let oldDone = blocks[idx].done
         blocks[idx].content = newContent
-        blocks[idx].spans = []
+        // Carry over the spans embedded in `newContent` so a "Change
+        // to" conversion from the context menu keeps the user's text.
+        // Markdown shortcuts pass spans=[] here too (the coordinator
+        // builds the new content with the stripped text), so this
+        // matches both call sites.
+        blocks[idx].spans = newContent.spansOrEmpty
         blocks[idx].done = false
         persistBlock(blocks[idx])
         undoMgr.registerUndo(withTarget: self) { vm in
@@ -185,5 +208,69 @@ extension DocumentViewModel {
         blocks = order.compactMap { lookup[$0] }
         try? api.reorderBlocks(docId: docId, order: order)
         undoMgr.registerUndo(withTarget: self) { vm in vm.applyBlockOrder(oldOrder) }
+    }
+
+    /// Indents the given block — moves it under the previous sibling at the
+    /// same level. The tree shape changes (not just the order), so we reload
+    /// the full document from SQLite afterwards.
+    ///
+    /// `InvalidOperation` from the FFI (block is the first of its level —
+    /// nothing to indent under) surfaces via `errorMessage` like any other
+    /// error; the UI uses `.errorAlert` to show it.
+    func indentBlock(id: String) {
+        flushAllBursts()
+        do {
+            try api.indentBlock(docId: docId, blockId: id)
+            reloadBlocksAfterStructuralChange()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Outdents the given block — moves it up to its grandparent level,
+    /// inserted right after the former parent. Same reload semantics as
+    /// `indentBlock`.
+    func outdentBlock(id: String) {
+        flushAllBursts()
+        do {
+            try api.outdentBlock(docId: docId, blockId: id)
+            reloadBlocksAfterStructuralChange()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Applies (or clears with `nil`) the block-level text colour. Mutates
+    /// the in-memory `EditableBlock` so the re-render picks up the new
+    /// default foreground immediately, then persists via the FFI. Registers
+    /// the inverse on the UndoManager so cmd-Z restores the previous colour.
+    func setBlockColor(id: String, color: String?) {
+        guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
+        let previous = blocks[idx].color
+        guard previous != color else { return }
+        blocks[idx].color = color
+        do {
+            try api.setBlockColor(docId: docId, blockId: id, color: color)
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+        undoMgr.registerUndo(withTarget: self) { vm in
+            vm.setBlockColor(id: id, color: previous)
+        }
+    }
+
+    /// Reloads the full document from SQLite after a structural mutation
+    /// (indent / outdent). Index-based bookkeeping is no longer enough once
+    /// the tree changes shape — we use the same DFS-flatten as `load()` so
+    /// the visible block list mirrors the Rust tree, with `depth` driving
+    /// the visual indentation in the row view.
+    private func reloadBlocksAfterStructuralChange() {
+        guard let json = try? api.getDocumentJson(id: docId),
+              let data = json.data(using: .utf8),
+              let doc = try? JSONDecoder().decode(DocumentFfi.self, from: data) else {
+            return
+        }
+        blocks = DocumentViewModel.flattenBlocks(doc.blocks, depth: 0)
     }
 }

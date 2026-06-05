@@ -26,7 +26,9 @@ async fn craft_full_run() {
     let folder_store = SqliteFolderStore::in_memory().expect("folder store");
 
     let extractor = CraftExtractor::new();
-    let config = CraftConfig { db_path: CRAFT_REALM.to_string() };
+    let config = CraftConfig {
+        db_path: CRAFT_REALM.to_string(),
+    };
 
     let result = extractor
         .run(config, &doc_store, &db_store, &folder_store)
@@ -40,8 +42,16 @@ async fn craft_full_run() {
     println!("  skipped   = {}", result.skipped);
 
     // The Craft realm file has ~2498 title-enabled blocks (pages).
-    assert!(result.documents > 100, "expected many documents, got {}", result.documents);
-    assert!(result.blocks > 1000, "expected many blocks, got {}", result.blocks);
+    assert!(
+        result.documents > 100,
+        "expected many documents, got {}",
+        result.documents
+    );
+    assert!(
+        result.blocks > 1000,
+        "expected many blocks, got {}",
+        result.blocks
+    );
     assert_eq!(result.app, "Craft");
     assert_eq!(result.database_id, None);
 

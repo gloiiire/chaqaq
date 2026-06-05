@@ -2,19 +2,15 @@ import SwiftUI
 
 // ── Tab 2: Databases ──────────────────────────────────────────────────────────
 
-/// Home screen for the Databases tab — lists all databases with create/delete/import.
+/// Home screen for the Databases tab — lists all databases. Creation is
+/// global, hosted by `ContentView`'s create bubble accessory; this view
+/// keeps only the list, the empty state and the destructive overflow.
 struct DatabasesHomeView: View {
     @ObservedObject var store: PinkhaStore
-    @State private var showingCreate = false
-    @State private var showingImport = false
-    @State private var showingDeleteAllConfirm = false
-    @State private var showingDeleteAllConfirm2 = false
-    @State private var newTitle = ""
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottomTrailing) {
-                List {
+            List {
                     if store.databases.isEmpty {
                         Section {
                             DatabasesEmptyState()
@@ -27,13 +23,17 @@ struct DatabasesHomeView: View {
                         Section {
                             if let api = store.api {
                                 ForEach(store.databases, id: \.id) { db in
-                                    NavigationLink(destination: DatabaseView(dbId: db.id, api: api)) {
+                                    NavigationLink(destination: DatabaseView(dbId: db.id, api: api,
+                                                                            onDisappear: store.load)) {
                                         DatabaseRow(db: db)
                                     }
-                                }
-                                .onDelete { indexSet in
-                                    for i in indexSet {
-                                        store.deleteDatabase(id: store.databases[i].id)
+                                    .swipeActions(edge: .trailing) {
+                                        Button(role: .destructive) {
+                                            store.deleteDatabase(id: db.id)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                        .tint(.red)
                                     }
                                 }
                             } else {
@@ -44,77 +44,9 @@ struct DatabasesHomeView: View {
                         }
                     }
                 }
-                .listStyle(.insetGrouped)
-                .navigationTitle("Databases")
-                .navigationBarTitleDisplayMode(.large)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        if !store.databases.isEmpty {
-                            Button(role: .destructive) {
-                                showingDeleteAllConfirm = true
-                            } label: {
-                                Image(systemName: "trash")
-                            }
-                        }
-                    }
-                }
-
-                // ── FAB ───────────────────────────────────────────────────
-                Menu {
-                    Button {
-                        newTitle = ""
-                        showingCreate = true
-                    } label: {
-                        Label("New database", systemImage: "tablecells.badge.ellipsis")
-                    }
-                    Divider()
-                    Button {
-                        showingImport = true
-                    } label: {
-                        Label("Import from Notion", systemImage: "arrow.down.doc")
-                    }
-                } label: {
-                    FloatingButton(icon: "tablecells.badge.ellipsis") {}
-                }
-                .accessibilityIdentifier("createDatabaseFAB")
-                .padding(.trailing, 24)
-                .padding(.bottom, 32)
-            }
-            .sheet(isPresented: $showingCreate) {
-                CreateDocumentSheet(
-                    title: $newTitle,
-                    prompt: "Database title"
-                ) {
-                    store.createDatabase(title: newTitle)
-                    newTitle = ""
-                    showingCreate = false
-                } onCancel: {
-                    newTitle = ""
-                    showingCreate = false
-                }
-            }
-            .sheet(isPresented: $showingImport) {
-                NotionImportView(api: store.api) {
-                    store.load()
-                }
-            }
-        }
-        .alert("Delete all \(store.databases.count) databases?", isPresented: $showingDeleteAllConfirm) {
-            Button("Delete All", role: .destructive) {
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(300))
-                    showingDeleteAllConfirm2 = true
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will remove all your databases.")
-        }
-        .alert("Are you sure?", isPresented: $showingDeleteAllConfirm2) {
-            Button("Yes, delete everything", role: .destructive) { store.deleteAllDatabases() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This cannot be undone.")
+            .listStyle(.insetGrouped)
+            .navigationTitle("Databases")
+            .navigationBarTitleDisplayMode(.large)
         }
     }
 }

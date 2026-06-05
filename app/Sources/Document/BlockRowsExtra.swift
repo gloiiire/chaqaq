@@ -37,17 +37,23 @@ struct CalloutRowView: View {
     @State private var recentEmojis = loadRecentEmojis()
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        // First-text-baseline alignment so the emoji sits right next
+        // to the text's first line regardless of how many lines the
+        // user types — icon stays "fixed" near the top, text grows
+        // downwards on its own.
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
             Button {
                 emojiPickerOpen = true
             } label: {
                 Text(icon)
-                    .font(.system(size: 28))
-                    .frame(width: 40, height: 40)
+                    .font(.system(size: 24))
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .padding(.top, 8)
+            // Reserve a fixed width so the text wrapping doesn't
+            // jitter when the emoji glyph changes width (emojis vary
+            // ~20-36 pt).
+            .frame(width: 32, alignment: .center)
 
             BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
                            placeholder: "Callout…", baseFont: .preferredFont(forTextStyle: .body), cb: cb)

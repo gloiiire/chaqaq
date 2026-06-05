@@ -19,10 +19,47 @@ jobs:
       - uses: actions/checkout@v6
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
-      - name: cargo test
-        run: cargo test --verbose
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: cargo clippy (warnings as errors)
+        # Mirrors the pre-commit hook so contributors can catch the same
+        # lints locally before push. Both gates are kept in lockstep — any
+        # tightening here should be applied to scripts/hooks/pre-commit too.
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: cargo test + coverage gate (90%)
+        # Fails the build if line coverage drops below 90% (ratchet — never
+        # go down). Tightening to 95/98% is planned as test debt is paid.
+        # Excluded paths (cannot be unit-tested without external fixtures
+        # or live network):
+        #   - binary entry points (main, bin/)
+        #   - Notion HTTP client + serde-only schema types
+        #   - Notion extractor pipeline (needs a live api.notion.com)
+        #   - Craft extractors (need real `.realm` / `.textbundle` files)
+        #   - Bear extractor pipeline (needs Bear's SQLite database)
+        run: |
+          cargo llvm-cov --workspace --summary-only --fail-under-lines 90 \
+            --ignore-filename-regex '(src/main\.rs|src/bin/.*|src/extractors/mod\.rs|src/extractors/notion/.*|src/extractors/craft/.*|src/extractors/craft_combined/.*|src/extractors/craft_textbundle/.*|src/extractors/bear/mod\.rs|src/extractors/bear/reader\.rs)'
+
+  audit:
+    name: Cargo audit (CVE scan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+      - name: Install cargo-audit
+        run: cargo install --locked cargo-audit
+      - name: Run cargo audit
+        # Fails the build if any known vulnerability is found in the dependency
+        # tree. Dependabot covers GitHub-side scanning; this catches CVEs at PR
+        # time before merge.
+        run: cargo audit --deny warnings
 
   # Job Swift désactivé temporairement : le code utilise `UIGlassEffect` /
   # `.glassEffect()` (iOS 26) et un deployment target iOS 26.0, alors que les

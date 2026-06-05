@@ -13,8 +13,14 @@ extension PinkhaError {
             return "This item could not be found. It may have been deleted."
         case .InvalidOperation(let detail):
             return "Invalid operation: \(detail)"
-        case .Storage:
-            return "A storage error occurred. Please try again in a moment."
+        case .Storage(let detail):
+            // Detail messages from the Rust side are typically user-friendly
+            // for import errors (e.g. "textbundle root does not exist: ...")
+            // and informative even when technical. Surfacing the detail beats
+            // a generic message that hides what actually went wrong.
+            return detail.isEmpty
+                ? "A storage error occurred. Please try again in a moment."
+                : detail
         }
     }
 
@@ -30,13 +36,21 @@ extension PinkhaError {
 /// Executes `work`, returns its value on success, or writes a user-readable error
 /// message into `errorMessage` and returns `nil` on failure.
 /// Idiomatic pattern for view models that expose a `@Published errorMessage`.
+///
+/// Side effect: unexpected failures (transient storage errors, anything not a
+/// `PinkhaError`) are forwarded to Sentry. `NotFound` and `InvalidOperation`
+/// are user-facing expected states and stay silent to avoid alert fatigue.
 @discardableResult
 func tryCatch<T>(into errorMessage: inout String?, _ work: () throws -> T) -> T? {
     do {
         return try work()
     } catch let err as PinkhaError {
+        if case .Storage = err {
+            Observability.capture(err)
+        }
         errorMessage = err.userMessage
     } catch {
+        Observability.capture(error)
         errorMessage = error.localizedDescription
     }
     return nil

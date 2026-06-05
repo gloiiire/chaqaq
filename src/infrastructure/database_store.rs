@@ -60,10 +60,10 @@ impl DatabaseRepository for DatabaseStore {
             if p.extension().and_then(|e| e.to_str()) != Some("json") {
                 continue;
             }
-            if let Ok(content) = fs::read_to_string(&p) {
-                if let Ok(db) = serde_json::from_str::<Database>(&content) {
-                    metas.push(db.meta());
-                }
+            if let Ok(content) = fs::read_to_string(&p)
+                && let Ok(db) = serde_json::from_str::<Database>(&content)
+            {
+                metas.push(db.meta());
             }
         }
         Ok(metas)

@@ -1,20 +1,21 @@
-use crate::application::database_repository::DatabaseRepository;
 use crate::application::database_use_cases::query::calculate_aggregate;
 use crate::application::error::PinkhaError;
+use crate::application::unit_of_work::UnitOfWork;
 use crate::domain::database::{Aggregate, Database, Entry, PropertyType, PropertyValue};
 use uuid::Uuid;
 
 /// Case-insensitive search across all text-bearing property values of a database's entries.
 pub fn search_entries(
-    repo: &dyn DatabaseRepository,
+    uow: &dyn UnitOfWork,
     db_id: Uuid,
     query: &str,
 ) -> Result<Vec<Entry>, PinkhaError> {
-    let db = repo.load(db_id)?;
+    let db = uow.databases().load(db_id)?;
     let q = query.to_lowercase();
     Ok(db
         .entries
         .into_iter()
+        .filter(|e| !e.is_deleted())
         .filter(|e| entry_matches(e, &q))
         .collect())
 }
@@ -28,9 +29,7 @@ fn value_contains(v: &PropertyValue, query: &str) -> bool {
         PropertyValue::Text(s) => s.to_lowercase().contains(query),
         PropertyValue::Url(s) => s.to_lowercase().contains(query),
         PropertyValue::Selection(Some(s)) => s.to_lowercase().contains(query),
-        PropertyValue::SelectionMultiple(vs) => {
-            vs.iter().any(|s| s.to_lowercase().contains(query))
-        }
+        PropertyValue::SelectionMultiple(vs) => vs.iter().any(|s| s.to_lowercase().contains(query)),
         PropertyValue::Title(inlines) => inlines
             .iter()
             .any(|i| i.content.to_lowercase().contains(query)),
@@ -42,7 +41,7 @@ fn value_contains(v: &PropertyValue, query: &str) -> bool {
 ///
 /// Rollup values are not persisted — they are recalculated at read time.
 pub fn evaluate_rollups(
-    repo: &dyn DatabaseRepository,
+    uow: &dyn UnitOfWork,
     db: &Database,
     mut entries: Vec<Entry>,
 ) -> Result<Vec<Entry>, PinkhaError> {
@@ -74,7 +73,7 @@ pub fn evaluate_rollups(
             })
             .ok_or(PinkhaError::NotFound(relation_prop_id))?;
 
-        let linked_db = repo.load(linked_db_id)?;
+        let linked_db = uow.databases().load(linked_db_id)?;
 
         for entry in &mut entries {
             let linked_ids = match entry.values.get(&relation_prop_id) {
@@ -84,11 +83,13 @@ pub fn evaluate_rollups(
             let linked_entries: Vec<&Entry> = linked_db
                 .entries
                 .iter()
+                .filter(|e| !e.is_deleted())
                 .filter(|e| linked_ids.contains(&e.id))
                 .collect();
-            entry
-                .values
-                .insert(rollup_id, calculate_aggregate(&linked_entries, target_prop_id, &aggregate));
+            entry.values.insert(
+                rollup_id,
+                calculate_aggregate(&linked_entries, target_prop_id, &aggregate),
+            );
         }
     }
 
@@ -98,41 +99,51 @@ pub fn evaluate_rollups(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::application::database_repository::DatabaseRepository;
     use crate::application::error::PinkhaError;
+    use crate::application::unit_of_work::test_support::MockUnitOfWork;
     use crate::domain::database::{Database, DatabaseMeta};
-    use std::cell::RefCell;
+
     use uuid::Uuid;
 
     struct MockDbRepo {
-        dbs: RefCell<std::collections::HashMap<Uuid, Database>>,
+        dbs: std::sync::Mutex<std::collections::HashMap<Uuid, Database>>,
     }
 
     impl MockDbRepo {
         fn new() -> Self {
             Self {
-                dbs: RefCell::new(std::collections::HashMap::new()),
+                dbs: std::sync::Mutex::new(std::collections::HashMap::new()),
             }
         }
     }
 
     impl DatabaseRepository for MockDbRepo {
         fn save(&self, db: &Database) -> Result<(), PinkhaError> {
-            self.dbs.borrow_mut().insert(db.id, db.clone());
+            self.dbs.lock().unwrap().insert(db.id, db.clone());
             Ok(())
         }
         fn load(&self, id: Uuid) -> Result<Database, PinkhaError> {
             self.dbs
-                .borrow()
+                .lock()
+                .unwrap()
                 .get(&id)
                 .cloned()
                 .ok_or(PinkhaError::NotFound(id))
         }
         fn list_meta(&self) -> Result<Vec<DatabaseMeta>, PinkhaError> {
-            Ok(self.dbs.borrow().values().map(|db| db.meta()).collect())
+            Ok(self
+                .dbs
+                .lock()
+                .unwrap()
+                .values()
+                .map(|db| db.meta())
+                .collect())
         }
         fn delete(&self, id: Uuid) -> Result<(), PinkhaError> {
             self.dbs
-                .borrow_mut()
+                .lock()
+                .unwrap()
                 .remove(&id)
                 .map(|_| ())
                 .ok_or(PinkhaError::NotFound(id))
@@ -170,12 +181,16 @@ mod tests {
         use crate::domain::document::InlineText;
         let repo = MockDbRepo::new();
         let db = Database::new(
-            vec![InlineText { content: "DB".to_string(), styles: vec![] }],
+            vec![InlineText {
+                content: "DB".to_string(),
+                styles: vec![],
+            }],
             vec![],
         );
         repo.save(&db).unwrap();
 
-        let results = search_entries(&repo, db.id, "test").unwrap();
+        let uow = MockUnitOfWork::with_dbs(&repo);
+        let results = search_entries(&uow, db.id, "test").unwrap();
         assert!(results.is_empty());
     }
 }

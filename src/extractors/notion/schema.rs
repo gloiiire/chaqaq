@@ -34,8 +34,76 @@ pub struct NotionRichText {
     pub plain_text: String,
     #[serde(default)]
     pub annotations: NotionAnnotations,
-    /// Optional hyperlink applied to the entire run.
+    /// Optional hyperlink applied to the entire run. Notion fills this for
+    /// plain text runs that carry a `[label](url)` link; for mention runs
+    /// the linked page reference lives in the `mention` field instead.
     pub href: Option<String>,
+    /// Run kind — `"text"` or `"mention"`. We use it to recover the page
+    /// id from a `mention.page` payload when href is null (the typical
+    /// shape for an inline `@PageName` reference). Defaults to `"text"`
+    /// so older serialised data (no field) keeps decoding.
+    #[serde(rename = "type", default = "default_run_type")]
+    pub run_type: String,
+    /// Body of a `mention` run. Only the page variant is materialised
+    /// — everything else (`user`, `date`, `database`, …) decodes into
+    /// `Unknown` via `#[serde(other)]`.
+    #[serde(default)]
+    pub mention: Option<NotionMention>,
+}
+
+fn default_run_type() -> String {
+    "text".to_string()
+}
+
+/// Body of a Notion `mention` rich-text run. Only page references are
+/// surfaced — other mention kinds fall through to `Unknown` and are
+/// ignored by the importer (rendered as plain text).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NotionMention {
+    Page { page: NotionMentionPage },
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct NotionMentionPage {
+    pub id: String,
+}
+
+// ── Search response (database picker) ─────────────────────────────────────────
+
+/// Paginated response from `POST /v1/search` filtered to databases. Only the
+/// fields the picker UI needs are deserialised — the actual database schema
+/// is fetched lazily by the existing per-import flow.
+#[derive(Debug, Deserialize)]
+pub struct NotionSearchResponse {
+    pub results: Vec<NotionDatabaseSearchHit>,
+    pub has_more: bool,
+    pub next_cursor: Option<String>,
+}
+
+/// A single database returned by the search endpoint. Carries enough data for
+/// the picker to render a row (title + icon + freshness) without doing extra
+/// API calls.
+#[derive(Debug, Deserialize)]
+pub struct NotionDatabaseSearchHit {
+    pub id: String,
+    /// Rich-text title runs. Concatenate `plain_text` for display.
+    #[serde(default)]
+    pub title: Vec<NotionRichText>,
+    /// Page icon (emoji or image). `None` when the user didn't set one.
+    #[serde(default)]
+    pub icon: Option<NotionPageIcon>,
+    /// ISO 8601 timestamp of the last edit. Used to sort recent-first in the
+    /// picker. `#[serde(default)]` keeps things resilient against API
+    /// variations.
+    #[serde(default)]
+    pub last_edited_time: String,
+    /// URL inside notion.so. Useful for "open in Notion" links from the
+    /// picker, though we don't surface that yet.
+    #[serde(default)]
+    pub url: String,
 }
 
 // ── Database schema ───────────────────────────────────────────────────────────
@@ -93,6 +161,67 @@ pub struct NotionQueryResponse {
 pub struct NotionPageResult {
     pub id: String,
     pub properties: HashMap<String, NotionPagePropValue>,
+    /// Cover image of the page. `None` when the user didn't pick one.
+    #[serde(default)]
+    pub cover: Option<NotionPageCover>,
+    /// Page icon (emoji or external image). `None` when not set.
+    #[serde(default)]
+    pub icon: Option<NotionPageIcon>,
+}
+
+/// Cover image returned by the Notion API. Two variants depending on the
+/// source (Notion-hosted file vs external URL); we only care about the URL.
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NotionPageCover {
+    External {
+        external: NotionExternalFile,
+    },
+    File {
+        file: NotionHostedFile,
+    },
+    #[serde(other)]
+    Unknown,
+}
+
+impl NotionPageCover {
+    /// Returns the URL pointing at the cover image, regardless of where it is
+    /// hosted. `None` for the catch-all `Unknown` variant.
+    pub fn url(&self) -> Option<&str> {
+        match self {
+            Self::External { external } => Some(&external.url),
+            Self::File { file } => Some(&file.url),
+            Self::Unknown => None,
+        }
+    }
+}
+
+/// Page icon — the Notion API returns either an emoji or an image (external
+/// URL or Notion-hosted file).
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NotionPageIcon {
+    Emoji {
+        emoji: String,
+    },
+    External {
+        external: NotionExternalFile,
+    },
+    File {
+        file: NotionHostedFile,
+    },
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NotionExternalFile {
+    pub url: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NotionHostedFile {
+    pub url: String,
 }
 
 /// Property value variants returned inside a page result.
@@ -174,12 +303,28 @@ pub struct NotionBlock {
     pub bulleted_list_item: Option<RichTextBlock>,
     pub numbered_list_item: Option<RichTextBlock>,
     pub code: Option<CodeBlock>,
+    /// Child-page block payload — present when `type_ == "child_page"`. The
+    /// block's `id` doubles as the embedded child page's Notion id, fetched
+    /// separately during import to materialise the child document.
+    pub child_page: Option<ChildPageBlock>,
+}
+
+/// Body of a `child_page` block — only carries the static title shown inline.
+/// The actual page content lives at the URL formed from the parent block's
+/// id, which the importer fetches recursively.
+#[derive(Debug, Deserialize)]
+pub struct ChildPageBlock {
+    pub title: String,
 }
 
 /// Block content that carries only a rich-text array (paragraph, headings, quote, list items).
 #[derive(Debug, Deserialize)]
 pub struct RichTextBlock {
     pub rich_text: Vec<NotionRichText>,
+    /// Block-level colour (`"default"`, `"red"`, `"red_background"`, …).
+    /// Mapped to `Block.color` at import — backgrounds are ignored for now.
+    #[serde(default = "default_color")]
+    pub color: String,
 }
 
 /// Callout block — rich text plus an optional icon.
@@ -187,6 +332,8 @@ pub struct RichTextBlock {
 pub struct CalloutBlock {
     pub rich_text: Vec<NotionRichText>,
     pub icon: Option<CalloutIcon>,
+    #[serde(default = "default_color")]
+    pub color: String,
 }
 
 /// Icon attached to a callout.
@@ -202,6 +349,8 @@ pub struct CalloutIcon {
 pub struct TodoBlock {
     pub rich_text: Vec<NotionRichText>,
     pub checked: bool,
+    #[serde(default = "default_color")]
+    pub color: String,
 }
 
 /// Code block — rich text (the code content) plus language hint.
@@ -209,4 +358,6 @@ pub struct TodoBlock {
 pub struct CodeBlock {
     pub rich_text: Vec<NotionRichText>,
     pub language: String,
+    #[serde(default = "default_color")]
+    pub color: String,
 }

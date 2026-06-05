@@ -89,7 +89,9 @@ impl ApplyStyle {
 
 impl Command for ApplyStyle {
     fn execute(&self, state: &mut EditorState) {
-        state.text.toggle_style(self.range.clone(), self.style.clone());
+        state
+            .text
+            .toggle_style(self.range.clone(), self.style.clone());
     }
     fn undo(&self, state: &mut EditorState) {
         state.text.restore_spans(self.before_spans.clone());

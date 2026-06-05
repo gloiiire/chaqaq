@@ -3,9 +3,11 @@
 // Thin reqwest wrapper that handles auth headers and error extraction.
 // Rate-limit retry is left to a future iteration.
 
-use super::schema::{NotionBlocksResponse, NotionDatabaseSchema, NotionQueryResponse};
+use super::schema::{
+    NotionBlocksResponse, NotionDatabaseSchema, NotionQueryResponse, NotionSearchResponse,
+};
 use crate::extractors::ExtractorError;
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
+use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 
 /// Reusable HTTP client for the Notion API v1.
 pub struct NotionClient {
@@ -18,18 +20,19 @@ impl NotionClient {
         let mut headers = HeaderMap::new();
 
         let auth_value = format!("Bearer {token}");
-        let mut auth_header = HeaderValue::from_str(&auth_value)
-            .map_err(|e| ExtractorError::Auth(e.to_string()))?;
+        let mut auth_header =
+            HeaderValue::from_str(&auth_value).map_err(|e| ExtractorError::Auth(e.to_string()))?;
         auth_header.set_sensitive(true);
         headers.insert(AUTHORIZATION, auth_header);
 
-        headers.insert(
-            "Notion-Version",
-            HeaderValue::from_static("2022-06-28"),
-        );
+        headers.insert("Notion-Version", HeaderValue::from_static("2022-06-28"));
 
         let client = reqwest::Client::builder()
             .default_headers(headers)
+            // Cap individual requests so a single hung connection doesn't
+            // stall the whole import — Notion will return 429 on rate
+            // limit but never closes the socket itself.
+            .timeout(std::time::Duration::from_secs(30))
             .build()
             .map_err(|e| ExtractorError::Parse(e.to_string()))?;
 
@@ -61,15 +64,64 @@ impl NotionClient {
             serde_json::json!({})
         };
 
-        let resp = self
-            .client
-            .post(&url)
-            .json(&body)
-            .send()
-            .await?;
+        let resp = self.client.post(&url).json(&body).send().await?;
         let bytes = self.extract_ok(resp).await?;
         let result: NotionQueryResponse = serde_json::from_slice(&bytes)?;
         Ok(result)
+    }
+
+    /// Lists every database the current integration has been granted access
+    /// to, across all authorised workspaces. Uses Notion's `POST /v1/search`
+    /// with a filter restricting results to the `database` object type.
+    ///
+    /// Paginates internally and returns the fully concatenated list — the
+    /// caller doesn't deal with cursors. A user with a fresh OAuth grant on
+    /// 3 workspaces with ~10 databases each fits comfortably in a single
+    /// page; pagination is only there to honour the API contract.
+    pub async fn list_accessible_databases(
+        &self,
+    ) -> Result<Vec<super::schema::NotionDatabaseSearchHit>, ExtractorError> {
+        let url = "https://api.notion.com/v1/search";
+        let mut results: Vec<super::schema::NotionDatabaseSearchHit> = Vec::new();
+        let mut cursor: Option<String> = None;
+        loop {
+            let body = match cursor.as_deref() {
+                None => serde_json::json!({
+                    "filter": { "property": "object", "value": "database" },
+                    "page_size": 100,
+                }),
+                Some(c) => serde_json::json!({
+                    "filter": { "property": "object", "value": "database" },
+                    "page_size": 100,
+                    "start_cursor": c,
+                }),
+            };
+            let response = self.client.post(url).json(&body).send().await?;
+            let bytes = self.extract_ok(response).await?;
+            let parsed: NotionSearchResponse = serde_json::from_slice(&bytes)?;
+            results.extend(parsed.results);
+            if !parsed.has_more {
+                break;
+            }
+            cursor = parsed.next_cursor;
+        }
+        Ok(results)
+    }
+
+    /// Fetches a single page's metadata — properties, icon, cover.
+    /// Used by the child-page import path : when we encounter a
+    /// `child_page` block inside another page, its block payload only
+    /// carries the title, so we hit `/v1/pages/{id}` to materialise the
+    /// icon (and cover, when set) onto the freshly-created pinkha doc.
+    pub async fn get_page(
+        &self,
+        page_id: &str,
+    ) -> Result<super::schema::NotionPageResult, ExtractorError> {
+        let url = format!("https://api.notion.com/v1/pages/{page_id}");
+        let resp = self.client.get(&url).send().await?;
+        let bytes = self.extract_ok(resp).await?;
+        let page: super::schema::NotionPageResult = serde_json::from_slice(&bytes)?;
+        Ok(page)
     }
 
     /// Fetches the children blocks of a page, 100 at a time.
@@ -78,9 +130,7 @@ impl NotionClient {
         page_id: &str,
         cursor: Option<&str>,
     ) -> Result<NotionBlocksResponse, ExtractorError> {
-        let mut url = format!(
-            "https://api.notion.com/v1/blocks/{page_id}/children?page_size=100"
-        );
+        let mut url = format!("https://api.notion.com/v1/blocks/{page_id}/children?page_size=100");
         if let Some(c) = cursor {
             url.push_str("&start_cursor=");
             url.push_str(c);
@@ -93,10 +143,7 @@ impl NotionClient {
     }
 
     /// Reads the response bytes; on non-2xx status, extracts the API error message.
-    async fn extract_ok(
-        &self,
-        resp: reqwest::Response,
-    ) -> Result<Vec<u8>, ExtractorError> {
+    async fn extract_ok(&self, resp: reqwest::Response) -> Result<Vec<u8>, ExtractorError> {
         let status = resp.status();
         let bytes = resp.bytes().await.map(|b| b.to_vec())?;
 

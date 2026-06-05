@@ -1,5 +1,5 @@
 /// Integration tests for rich-text editing operations performed in sequence.
-use pinkha::domain::commandes::{ApplyStyle, History, Insert, Delete};
+use pinkha::domain::commandes::{ApplyStyle, Delete, History, Insert};
 use pinkha::domain::document::{InlineStyle, InlineText};
 use pinkha::domain::editor::EditorState;
 use pinkha::domain::rich_text::RichText;

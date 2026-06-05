@@ -14,11 +14,17 @@ extension RichTextEditorCoordinator {
     func clearColor() {
         defer { toolbarActionInProgress = false }
         guard let tv, let attr = tv.attributedText else { return }
+        // Falling back to UIColor.label hardcoded would erase the block-level
+        // colour applied via the ¶ palette. The fallback foreground must be
+        // the current `blockColor` when one is set, so removing an inline
+        // colour reveals the block colour underneath — matches the
+        // domain rule "inline color overrides block color".
+        let fallback: UIColor = parent.blockColor.map(uiColorFromName) ?? .label
         let range = selectionForToolbar(currentSelection: tv.selectedRange, length: attr.length)
         guard range.length > 0 else {
             var attrs = tv.typingAttributes
             attrs.removeValue(forKey: .pinkhaColor)
-            attrs[.foregroundColor] = UIColor.label
+            attrs[.foregroundColor] = fallback
             tv.typingAttributes = attrs
             pendingColor = nil
             updateToolbar()
@@ -28,7 +34,7 @@ extension RichTextEditorCoordinator {
         }
         let m = NSMutableAttributedString(attributedString: attr)
         m.removeAttribute(.pinkhaColor, range: range)
-        m.addAttribute(.foregroundColor, value: UIColor.label, range: range)
+        m.addAttribute(.foregroundColor, value: fallback, range: range)
         tv.textStorage.beginEditing()
         tv.textStorage.setAttributedString(m)
         tv.textStorage.endEditing()

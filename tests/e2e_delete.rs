@@ -1,9 +1,9 @@
 use pinkha::application::database_use_cases::{
-    add_entry, create_database, list_databases, get_database, delete_database,
+    add_entry, create_database, delete_database, get_database, list_databases,
 };
 use pinkha::application::error::PinkhaError;
 use pinkha::application::use_cases::{
-    add_block, create_document, list_documents, get_document, delete_document,
+    add_block, create_document, delete_document, get_document, list_documents,
 };
 use pinkha::domain::database::{Property, PropertyType, PropertyValue};
 use pinkha::domain::document::{BlockContent, InlineText};
@@ -35,33 +35,65 @@ fn inlines(s: &str) -> Vec<InlineText> {
 fn test_flux_suppression_document() {
     let store = doc_store_temp();
 
-    let doc_a = create_document(&store, "Projet Alpha").unwrap();
-    let doc_b = create_document(&store, "Projet Beta").unwrap();
-    let doc_c = create_document(&store, "Projet Gamma").unwrap();
+    let doc_a = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Projet Alpha",
+    )
+    .unwrap();
+    let doc_b = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Projet Beta",
+    )
+    .unwrap();
+    let doc_c = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Projet Gamma",
+    )
+    .unwrap();
 
     // Add blocks to A to ensure deleting A does not affect B/C
     add_block(
-        &store,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
         doc_a.id,
         BlockContent::Text(inlines("Note interne")),
     )
     .unwrap();
 
-    delete_document(&store, doc_b.id).unwrap();
+    delete_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc_b.id,
+    )
+    .unwrap();
 
     // B is inaccessible
     assert!(matches!(
-        get_document(&store, doc_b.id),
+        get_document(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+            doc_b.id
+        ),
         Err(PinkhaError::NotFound(_))
     ));
 
     // A and C are intact
-    let a = get_document(&store, doc_a.id).unwrap();
+    let a = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc_a.id,
+    )
+    .unwrap();
     assert_eq!(a.blocks.len(), 1);
-    assert!(get_document(&store, doc_c.id).is_ok());
+    assert!(
+        get_document(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+            doc_c.id
+        )
+        .is_ok()
+    );
 
     // The listing no longer contains B
-    let liste = list_documents(&store).unwrap();
+    let liste = list_documents(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    )
+    .unwrap();
     assert_eq!(liste.len(), 2);
     assert!(!liste.iter().any(|m| m.id == doc_b.id));
 }
@@ -74,27 +106,58 @@ fn test_flux_suppression_database() {
     let prop = Property::new("Nom", PropertyType::Text);
     let prop_id = prop.id;
 
-    let db_a = create_database(&store, inlines("Archive"), vec![prop]).unwrap();
-    let db_b = create_database(&store, inlines("Active"), vec![]).unwrap();
+    let db_a = create_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        inlines("Archive"),
+        vec![prop],
+    )
+    .unwrap();
+    let db_b = create_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        inlines("Active"),
+        vec![],
+    )
+    .unwrap();
 
     // Add an entry to Archive
     let mut v = HashMap::new();
     v.insert(prop_id, PropertyValue::Text("Ancienne note".to_string()));
-    add_entry(&store, db_a.id, v).unwrap();
+    add_entry(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        db_a.id,
+        v,
+    )
+    .unwrap();
 
-    delete_database(&store, db_a.id).unwrap();
+    delete_database(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        db_a.id,
+    )
+    .unwrap();
 
     // Archive is inaccessible
     assert!(matches!(
-        get_database(&store, db_a.id),
+        get_database(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+            db_a.id
+        ),
         Err(PinkhaError::NotFound(_))
     ));
 
     // Active remains intact
-    assert!(get_database(&store, db_b.id).is_ok());
+    assert!(
+        get_database(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+            db_b.id
+        )
+        .is_ok()
+    );
 
     // The listing no longer contains Archive
-    let liste = list_databases(&store).unwrap();
+    let liste = list_databases(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    )
+    .unwrap();
     assert_eq!(liste.len(), 1);
     assert_eq!(liste[0].id, db_b.id);
 }
@@ -103,9 +166,20 @@ fn test_flux_suppression_database() {
 #[test]
 fn test_double_suppression_retourne_erreur() {
     let store = doc_store_temp();
-    let doc = create_document(&store, "Unique").unwrap();
+    let doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Unique",
+    )
+    .unwrap();
 
-    delete_document(&store, doc.id).unwrap();
-    let result = delete_document(&store, doc.id);
+    delete_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    )
+    .unwrap();
+    let result = delete_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    );
     assert!(matches!(result, Err(PinkhaError::NotFound(_))));
 }

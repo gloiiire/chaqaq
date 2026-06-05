@@ -101,12 +101,32 @@ extension RichTextEditorCoordinator {
             .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal), for: .normal)
         addButton(bColor); btnColor = bColor
 
+        // Block color (¶) — applies a colour to the whole block. Inline
+        // `.color(...)` on individual spans still wins at render time.
+        let bBlockColor = MenuButton(type: .custom)
+        bBlockColor.showsMenuAsPrimaryAction = true
+        bBlockColor.menu = blockColorMenu(current: parent.blockColor)
+        bBlockColor.onMenuWillEnd = { [weak self] in
+            self?.menuPresentingUntil = nil
+            self?.setToolbarHidden(false)
+        }
+        bBlockColor.setImage(UIImage(systemName: "paragraphsign", withConfiguration: cfgH)?
+            .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal), for: .normal)
+        addButton(bBlockColor); btnBlockColor = bBlockColor
+
         separator()
         let bUndo = symbolButton("arrow.uturn.backward", action: #selector(toolbarUndo))
         addButton(bUndo); btnUndo = bUndo
         let bRedo = symbolButton("arrow.uturn.forward", action: #selector(toolbarRedo))
         addButton(bRedo); btnRedo = bRedo
         updateUndoRedoButtons()
+
+        // Indent / outdent — nests / unnests the current block, calling the
+        // FFI `indent_block` / `outdent_block` via closures owned by the
+        // DocumentViewModel (which knows the block identity).
+        separator()
+        addButton(symbolButton("decrease.quotelevel", action: #selector(toolbarOutdent)))
+        addButton(symbolButton("increase.quotelevel", action: #selector(toolbarIndent)))
 
         separator()
         addButton(symbolButton("return", action: #selector(toolbarLineBreak)))
@@ -161,6 +181,16 @@ extension RichTextEditorCoordinator {
     @objc func toolbarRedo() {
         toolbarActionInProgress = false
         parent.onRedo?()
+    }
+
+    @objc func toolbarIndent() {
+        toolbarActionInProgress = false
+        parent.onIndent?()
+    }
+
+    @objc func toolbarOutdent() {
+        toolbarActionInProgress = false
+        parent.onOutdent?()
     }
 
     /// Updates the undo/redo button visuals via the live state from

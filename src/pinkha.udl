@@ -20,6 +20,8 @@ dictionary DocumentMetaFfi {
     string updated_at;
     string created_at;
     string? folder_id;
+    string? parent_doc_id;
+    string? icon;
 };
 
 /// Métadonnées légères d'un dossier.
@@ -29,6 +31,7 @@ dictionary FolderMetaFfi {
     string? parent_id;
     string created_at;
     string updated_at;
+    string? icon;
 };
 
 /// Métadonnées légères d'une database (sans entrées).
@@ -38,6 +41,14 @@ dictionary DatabaseMetaFfi {
     string title_json;
     string updated_at;
     string created_at;
+};
+
+/// Hit d'une recherche dans le contenu des blocs — métadonnées du doc
+/// plus extrait du bloc qui matche pour preview style Notion.
+dictionary BlockSearchHitFfi {
+    DocumentMetaFfi doc;
+    string block_id;
+    string snippet;
 };
 
 /// Résumé d'une opération d'import retourné à Swift.
@@ -54,6 +65,15 @@ dictionary ImportResultFfi {
     u32 realm_fallback;
     /// Combined importer only: textbundles with no matching realm page (0 otherwise).
     u32 textbundle_only;
+};
+
+/// Résumé d'une database Notion retournée par `list_notion_databases` pour
+/// le picker UI.
+dictionary NotionDatabaseSummaryFfi {
+    string id;
+    string title;
+    string? icon_emoji;
+    string last_edited;
 };
 
 // ── Façade principale ─────────────────────────────────────────────────────────
@@ -91,6 +111,16 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void update_document_cover(string id, string? cover);
 
+    /// Pose ou retire l'icône d'un document (emoji, filename local, ou URL).
+    [Throws=PinkhaError]
+    void update_document_icon(string id, string? icon);
+
+    /// Active ou désactive le verrou lecture seule sur un document.
+    /// Les imports (Notion/Bear/Craft) appellent automatiquement avec
+    /// `locked = true` à la création.
+    [Throws=PinkhaError]
+    void update_document_locked(string id, boolean locked);
+
     /// Ajoute un bloc ; le contenu est passé en JSON (BlockContent sérialisé).
     /// Retourne le document mis à jour en JSON.
     [Throws=PinkhaError]
@@ -99,6 +129,12 @@ interface PinkhaApi {
     /// Remplace le contenu d'un bloc existant (JSON de BlockContent).
     [Throws=PinkhaError]
     void update_block(string doc_id, string block_id, string content_json);
+
+    /// Pose ou retire la couleur d'un bloc (texte). `color` est un nom de
+    /// couleur (`"red"`, `"blue"`, etc.) ou `null` pour revenir au thème.
+    /// Les couleurs inline sur les spans ont toujours priorité.
+    [Throws=PinkhaError]
+    void set_block_color(string doc_id, string block_id, string? color);
 
     [Throws=PinkhaError]
     void delete_block(string doc_id, string block_id);
@@ -119,6 +155,17 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void move_block(string doc_id, string block_id, string? new_parent_id);
 
+    /// Indente un bloc : le déplace sous le frère précédent au même niveau.
+    /// `InvalidOperation` si le bloc est le premier de son niveau.
+    [Throws=PinkhaError]
+    void indent_block(string doc_id, string block_id);
+
+    /// Désindente un bloc : le sort de son parent et le replace au niveau du
+    /// grand-parent, juste après l'ancien parent. `InvalidOperation` si le
+    /// bloc est déjà à la racine.
+    [Throws=PinkhaError]
+    void outdent_block(string doc_id, string block_id);
+
     /// Recherche insensible à la casse dans les titles.
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> search_documents(string query);
@@ -126,6 +173,30 @@ interface PinkhaApi {
     /// Recherche plein texte dans les blocs.
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> search_in_blocks(string query);
+
+    /// Recherche par titre de database.
+    [Throws=PinkhaError]
+    sequence<DatabaseMetaFfi> search_databases(string query);
+
+    /// Recherche plein texte avec extrait (snippet) du bloc qui matche.
+    [Throws=PinkhaError]
+    sequence<BlockSearchHitFfi> search_in_blocks_with_snippets(string query);
+
+    /// Recherche par nom de folder.
+    [Throws=PinkhaError]
+    sequence<FolderMetaFfi> search_folders(string query);
+
+    /// Liste les documents en corbeille (soft-deleted), du plus récemment supprimé en premier.
+    [Throws=PinkhaError]
+    sequence<DocumentMetaFfi> list_deleted_documents();
+
+    /// Restaure un document depuis la corbeille.
+    [Throws=PinkhaError]
+    void restore_document(string id);
+
+    /// Supprime définitivement un document de la corbeille (hard delete).
+    [Throws=PinkhaError]
+    void purge_document(string id);
 
     // ── Databases ─────────────────────────────────────────────
 
@@ -159,6 +230,30 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void delete_entry(string db_id, string entry_id);
 
+    /// Restaure une entry depuis la corbeille de sa database.
+    [Throws=PinkhaError]
+    void restore_entry(string db_id, string entry_id);
+
+    /// Supprime définitivement une entry soft-deleted (hard delete).
+    [Throws=PinkhaError]
+    void purge_entry(string db_id, string entry_id);
+
+    /// Liste les entries soft-deleted d'une database (JSON array).
+    [Throws=PinkhaError]
+    string list_deleted_entries_json(string db_id);
+
+    /// Liste les databases en corbeille (soft-deleted), du plus récemment supprimé en premier.
+    [Throws=PinkhaError]
+    sequence<DatabaseMetaFfi> list_deleted_databases();
+
+    /// Restaure une database depuis la corbeille.
+    [Throws=PinkhaError]
+    void restore_database(string id);
+
+    /// Supprime définitivement une database de la corbeille (hard delete).
+    [Throws=PinkhaError]
+    void purge_database(string id);
+
     /// Ajoute une propriété sérialisée en JSON.
     [Throws=PinkhaError]
     void add_property(string db_id, string property_json);
@@ -175,6 +270,11 @@ interface PinkhaApi {
 
     [Throws=PinkhaError]
     void update_view(string db_id, string view_id, string filters_json, string sorts_json);
+
+    /// Pose un tri unique sur une vue, en remplaçant ceux qui existent.
+    /// `property_id = null` retire le tri.
+    [Throws=PinkhaError]
+    void set_view_sort(string db_id, string view_id, string? property_id, boolean ascending);
 
     [Throws=PinkhaError]
     void delete_view(string db_id, string view_id);
@@ -214,7 +314,25 @@ interface PinkhaApi {
     void rename_folder(string id, string new_name);
 
     [Throws=PinkhaError]
+    void update_folder_icon(string id, string? icon);
+
+    [Throws=PinkhaError]
     void delete_folder(string id);
+
+    [Throws=PinkhaError]
+    u32 delete_all_folders();
+
+    /// Liste les dossiers en corbeille (soft-deleted), du plus récemment supprimé en premier.
+    [Throws=PinkhaError]
+    sequence<FolderMetaFfi> list_deleted_folders();
+
+    /// Restaure un dossier depuis la corbeille.
+    [Throws=PinkhaError]
+    void restore_folder(string id);
+
+    /// Supprime définitivement un dossier de la corbeille (hard delete).
+    [Throws=PinkhaError]
+    void purge_folder(string id);
 
     [Throws=PinkhaError]
     void move_folder_to(string id, string? new_parent_id);
@@ -225,13 +343,39 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> list_documents_in_folder(string? folder_id);
 
+    /// Définit le document parent (page imbriquée à la Notion). `None` pour
+    /// repromouvoir le document à la racine. Rejette les cycles.
+    [Throws=PinkhaError]
+    void update_document_parent(string doc_id, string? new_parent_doc_id);
+
+    /// Liste les pages racine (documents sans parent). Alimente la home.
+    [Throws=PinkhaError]
+    sequence<DocumentMetaFfi> list_root_documents();
+
+    /// Liste les enfants directs d'un document parent (page-in-page).
+    [Throws=PinkhaError]
+    sequence<DocumentMetaFfi> list_child_documents(string parent_doc_id);
+
     // ── Imports ───────────────────────────────────────────────
 
     /// Importe une database Notion complète (schéma + pages + blocs).
     /// `token` est un bearer token OAuth2 ou private integration token.
     /// `database_id` est un UUID 32-char hex ou l'URL complète Notion.
-    [Async, Throws=PinkhaError]
-    ImportResultFfi import_from_notion(string token, string database_id);
+    ///
+    /// Synchrone côté FFI : Notion utilise `reqwest`, qui exige un runtime
+    /// Tokio absent de l'executor UniFFI. On `block_on` côté Rust, donc Swift
+    /// doit appeler depuis `Task.detached` pour ne pas bloquer le main thread.
+    /// `covers_dir` est un chemin absolu vers un dossier existant où les
+    /// images de cover sont téléchargées. Quand null, on stocke seulement
+    /// l'URL — OK pour les covers externes mais celles hébergées par Notion
+    /// expirent au bout d'~1h.
+    [Throws=PinkhaError]
+    ImportResultFfi import_from_notion(string token, string database_id, string? covers_dir);
+
+    /// Liste les databases Notion accessibles avec le token donné. Utilisé
+    /// par le picker côté Swift pour éviter à l'utilisateur de coller des URLs.
+    [Throws=PinkhaError]
+    sequence<NotionDatabaseSummaryFfi> list_notion_databases(string token);
 
     /// Importe les notes Bear depuis la SQLite locale de Bear.
     /// `db_path` est le chemin absolu vers `database.sqlite` de Bear.

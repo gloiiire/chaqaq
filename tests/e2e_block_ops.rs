@@ -1,7 +1,6 @@
 use pinkha::application::use_cases::{
-    add_block, add_child_block, create_document, update_block, update_document_cover,
-    update_document_title, get_document, reorder_blocks, save_edited_block,
-    delete_block,
+    add_block, add_child_block, create_document, delete_block, get_document, reorder_blocks,
+    save_edited_block, set_block_color, update_block, update_document_cover, update_document_title,
 };
 use pinkha::domain::document::{BlockContent, InlineStyle, InlineText};
 use pinkha::domain::editor::EditorState;
@@ -28,9 +27,13 @@ fn test_flux_edition_complete() {
     let store = store_temp();
 
     // Create a document with several block types
-    let doc = create_document(&store, "Ma page").unwrap();
+    let doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Ma page",
+    )
+    .unwrap();
     let doc = add_block(
-        &store,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
         doc.id,
         BlockContent::Heading {
             text: inlines("Introduction"),
@@ -39,13 +42,13 @@ fn test_flux_edition_complete() {
     )
     .unwrap();
     let doc = add_block(
-        &store,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
         doc.id,
         BlockContent::Text(inlines("Premier paragraphe")),
     )
     .unwrap();
     let doc = add_block(
-        &store,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
         doc.id,
         BlockContent::Todo {
             text: inlines("Relire"),
@@ -60,7 +63,13 @@ fn test_flux_edition_complete() {
 
     // Edit the heading via EditorState
     let rt = RichText::from(&inlines("Introduction révisée"));
-    save_edited_block(&store, doc.id, id_heading, &EditorState::new(rt)).unwrap();
+    save_edited_block(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        id_heading,
+        &EditorState::new(rt),
+    )
+    .unwrap();
 
     // Edit the paragraph with bold style
     let inlines_gras = vec![InlineText {
@@ -68,11 +77,17 @@ fn test_flux_edition_complete() {
         styles: vec![InlineStyle::Bold],
     }];
     let rt = RichText::from(&inlines_gras);
-    save_edited_block(&store, doc.id, id_para, &EditorState::new(rt)).unwrap();
+    save_edited_block(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        id_para,
+        &EditorState::new(rt),
+    )
+    .unwrap();
 
     // Toggle the todo
     update_block(
-        &store,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
         doc.id,
         id_todo,
         BlockContent::Todo {
@@ -83,7 +98,11 @@ fn test_flux_edition_complete() {
     .unwrap();
 
     // Reload and verify everything
-    let recharge = get_document(&store, doc.id).unwrap();
+    let recharge = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    )
+    .unwrap();
     assert_eq!(recharge.blocks.len(), 3);
 
     assert!(matches!(
@@ -105,11 +124,35 @@ fn test_flux_edition_complete() {
 fn test_flux_reordonnement_et_suppression() {
     let store = store_temp();
 
-    let doc = create_document(&store, "Flux").unwrap();
-    let doc = add_block(&store, doc.id, BlockContent::Text(inlines("Alpha"))).unwrap();
-    let doc = add_block(&store, doc.id, BlockContent::Text(inlines("Beta"))).unwrap();
-    let doc = add_block(&store, doc.id, BlockContent::Text(inlines("Gamma"))).unwrap();
-    let doc = add_block(&store, doc.id, BlockContent::Divider).unwrap();
+    let doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Flux",
+    )
+    .unwrap();
+    let doc = add_block(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        BlockContent::Text(inlines("Alpha")),
+    )
+    .unwrap();
+    let doc = add_block(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        BlockContent::Text(inlines("Beta")),
+    )
+    .unwrap();
+    let doc = add_block(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        BlockContent::Text(inlines("Gamma")),
+    )
+    .unwrap();
+    let doc = add_block(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        BlockContent::Divider,
+    )
+    .unwrap();
 
     let id_alpha = doc.blocks[0].id;
     let id_beta = doc.blocks[1].id;
@@ -117,16 +160,34 @@ fn test_flux_reordonnement_et_suppression() {
     let id_div = doc.blocks[3].id;
 
     // Reorder: Divider, Gamma, Alpha, Beta
-    reorder_blocks(&store, doc.id, vec![id_div, id_gamma, id_alpha, id_beta]).unwrap();
+    reorder_blocks(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        vec![id_div, id_gamma, id_alpha, id_beta],
+    )
+    .unwrap();
 
-    let apres_reorder = get_document(&store, doc.id).unwrap();
+    let apres_reorder = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    )
+    .unwrap();
     assert_eq!(apres_reorder.blocks[0].id, id_div);
     assert_eq!(apres_reorder.blocks[1].id, id_gamma);
 
     // Delete Divider
-    delete_block(&store, doc.id, id_div).unwrap();
+    delete_block(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        id_div,
+    )
+    .unwrap();
 
-    let final_doc = get_document(&store, doc.id).unwrap();
+    let final_doc = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    )
+    .unwrap();
     assert_eq!(final_doc.blocks.len(), 3);
     assert_eq!(final_doc.blocks[0].id, id_gamma);
 }
@@ -146,15 +207,34 @@ fn test_styles_preserves_apres_sauvegarde_bloc() {
             styles: vec![InlineStyle::Italic],
         },
     ];
-    let doc = create_document(&store, "Style").unwrap();
-    let doc = add_block(&store, doc.id, BlockContent::Text(inlines_styled.clone())).unwrap();
+    let doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Style",
+    )
+    .unwrap();
+    let doc = add_block(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        BlockContent::Text(inlines_styled.clone()),
+    )
+    .unwrap();
     let block_id = doc.blocks[0].id;
 
     // Save via EditorState (round-trip RichText → Vec<InlineText>)
     let rt = RichText::from(&inlines_styled);
-    save_edited_block(&store, doc.id, block_id, &EditorState::new(rt)).unwrap();
+    save_edited_block(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        block_id,
+        &EditorState::new(rt),
+    )
+    .unwrap();
 
-    let recharge = get_document(&store, doc.id).unwrap();
+    let recharge = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    )
+    .unwrap();
     if let BlockContent::Text(t) = &recharge.blocks[0].content {
         let styles_concat: Vec<&InlineStyle> = t.iter().flat_map(|i| &i.styles).collect();
         assert!(styles_concat.contains(&&InlineStyle::Italic));
@@ -168,15 +248,29 @@ fn test_styles_preserves_apres_sauvegarde_bloc() {
 fn test_flux_page_complete() {
     let store = store_temp();
 
-    let doc = create_document(&store, "Brouillon").unwrap();
+    let doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Brouillon",
+    )
+    .unwrap();
 
     // Rename and add a cover
-    update_document_title(&store, doc.id, "Mon projet 2025").unwrap();
-    update_document_cover(&store, doc.id, Some("🚀".to_string())).unwrap();
+    update_document_title(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        "Mon projet 2025",
+    )
+    .unwrap();
+    update_document_cover(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        Some("🚀".to_string()),
+    )
+    .unwrap();
 
     // Structure: Heading with nested paragraphs
     let doc = add_block(
-        &store,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
         doc.id,
         BlockContent::Heading {
             text: inlines("Objectifs"),
@@ -187,7 +281,7 @@ fn test_flux_page_complete() {
     let heading_id = doc.blocks[0].id;
 
     add_child_block(
-        &store,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
         doc.id,
         heading_id,
         BlockContent::Todo {
@@ -197,7 +291,7 @@ fn test_flux_page_complete() {
     )
     .unwrap();
     add_child_block(
-        &store,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
         doc.id,
         heading_id,
         BlockContent::Todo {
@@ -208,7 +302,11 @@ fn test_flux_page_complete() {
     .unwrap();
 
     // Reload and verify everything
-    let page = get_document(&store, doc.id).unwrap();
+    let page = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    )
+    .unwrap();
     assert_eq!(page.title[0].content, "Mon projet 2025");
     assert_eq!(page.cover, Some("🚀".to_string()));
     assert_eq!(page.blocks[0].children.len(), 2);
@@ -220,4 +318,61 @@ fn test_flux_page_complete() {
         &page.blocks[0].children[1].content,
         BlockContent::Todo { done: false, .. }
     ));
+}
+
+/// Block color: set → reload from disk → still there → clear → reload → gone.
+/// Exercises the JsonStore round-trip on the new `Block.color` field.
+#[test]
+fn test_block_color_persists_round_trip() {
+    let store = store_temp();
+    let doc = create_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        "Color test",
+    )
+    .unwrap();
+    let block_id = add_block(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        BlockContent::Text(inlines("hello")),
+    )
+    .unwrap();
+    let block_uuid = block_id.blocks.last().unwrap().id;
+
+    // No color by default.
+    let reloaded = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    )
+    .unwrap();
+    assert!(reloaded.blocks[0].color.is_none());
+
+    // Apply a color and verify it survives a reload from disk.
+    set_block_color(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        block_uuid,
+        Some("purple".into()),
+    )
+    .unwrap();
+    let reloaded = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    )
+    .unwrap();
+    assert_eq!(reloaded.blocks[0].color.as_deref(), Some("purple"));
+
+    // Clear the color and verify it disappears.
+    set_block_color(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+        block_uuid,
+        None,
+    )
+    .unwrap();
+    let reloaded = get_document(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        doc.id,
+    )
+    .unwrap();
+    assert!(reloaded.blocks[0].color.is_none());
 }

@@ -163,6 +163,8 @@ struct CraftTextBundleImportView: View {
             do {
                 let result = try await api.importFromCraftTextbundle(rootDir: path)
                 importState = .done(result)
+            } catch let err as PinkhaError {
+                importState = .failed(err.userMessage)
             } catch {
                 importState = .failed(error.localizedDescription)
             }

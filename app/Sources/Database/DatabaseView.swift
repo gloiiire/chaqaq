@@ -10,12 +10,17 @@ import SwiftUI
 struct DatabaseView: View {
     @StateObject private var vm: DatabaseViewModel
     let api: PinkhaApi
+    /// Called when the view leaves the screen. Used by the parent home view
+    /// to refresh its list after a deletion that happened inside the DB.
+    var onDisappear: (() -> Void)? = nil
 
     @State private var showAddColumn = false
+    @Environment(\.dismiss) private var dismiss
 
-    init(dbId: String, api: PinkhaApi) {
+    init(dbId: String, api: PinkhaApi, onDisappear: (() -> Void)? = nil) {
         _vm  = StateObject(wrappedValue: DatabaseViewModel(dbId: dbId, api: api))
         self.api = api
+        self.onDisappear = onDisappear
     }
 
     // ── Column widths ─────────────────────────────────────────────────────────
@@ -54,6 +59,10 @@ struct DatabaseView: View {
                     Label("Add column", systemImage: "plus.rectangle")
                 }
             }
+            // Database deletion lives on the Notes home (swipe-to-delete
+            // on the row + the global "Delete all" overflow). Keeping a
+            // single-item overflow menu here was redundant chrome — see
+            // the user's request to remove the orphan top-right entry.
         }
         .sheet(isPresented: $showAddColumn) {
             AddColumnSheet { name, type in
@@ -64,6 +73,7 @@ struct DatabaseView: View {
             }
         }
         .onAppear { vm.load() }
+        .onDisappear { onDisappear?() }
         .errorAlert(message: $vm.errorMessage, onRetry: vm.load)
     }
 
@@ -105,8 +115,12 @@ struct DatabaseView: View {
                     icon: prop.propertyType.icon,
                     width: columnWidth(for: prop.propertyType),
                     isDeletable: !(prop.propertyType == .title),
+                    sortDirection: vm.activeSort?.propertyId == prop.id
+                        ? (vm.activeSort!.ascending ? .ascending : .descending)
+                        : nil,
                     onRename: { vm.renameProperty(id: prop.id, newName: $0) },
-                    onDelete: { vm.deleteProperty(id: prop.id) }
+                    onDelete: { vm.deleteProperty(id: prop.id) },
+                    onTapSort: { vm.cycleSort(propertyId: prop.id) }
                 )
             }
             // Add-column button
@@ -172,29 +186,48 @@ struct DatabaseView: View {
 // ── Column header ─────────────────────────────────────────────────────────────
 
 private struct PropertyHeaderCell: View {
+    enum SortDirection { case ascending, descending }
+
     let name: String
     let icon: String
     let width: CGFloat
     let isDeletable: Bool
+    /// `nil` = no sort on this column. Drives the arrow indicator on the
+    /// right side of the cell.
+    let sortDirection: SortDirection?
     let onRename: (String) -> Void
     let onDelete: () -> Void
+    /// Tap on the cell body (outside the context menu / rename popover)
+    /// cycles the sort on this column via the VM.
+    let onTapSort: () -> Void
 
     @State private var showRename = false
     @State private var renameDraft = ""
 
     var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            Text(name)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            Spacer(minLength: 0)
+        Button(action: onTapSort) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(name)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                if let dir = sortDirection {
+                    Image(systemName: dir == .ascending
+                          ? "arrow.up"
+                          : "arrow.down")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(width: width, height: 40, alignment: .leading)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 10)
-        .frame(width: width, height: 40, alignment: .leading)
+        .buttonStyle(.plain)
         .overlay(alignment: .trailing) {
             Rectangle().frame(width: 0.5).foregroundStyle(.separator)
         }
@@ -781,6 +814,7 @@ private struct AddColumnSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button { onCancel() } label: { Image(systemName: "xmark") }
+                        .tint(.primary)
                         .accessibilityLabel("Cancel")
                 }
                 ToolbarItem(placement: .confirmationAction) {

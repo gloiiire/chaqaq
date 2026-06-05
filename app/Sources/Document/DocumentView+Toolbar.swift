@@ -7,13 +7,37 @@ extension DocumentView {
     @ToolbarContentBuilder
     var documentToolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            Text(vm.title.isEmpty ? "Untitled" : vm.title)
-                .font(.headline)
-                .opacity(titleInNavBar ? 1 : 0)
-                .offset(y: titleInNavBar ? 0 : 8)
-                .animation(.easeOut(duration: 0.2), value: titleInNavBar)
+            // Wraps the scrolled-down title in a tappable Liquid Glass
+            // capsule. The Button gives iOS's standard press-down
+            // animation; the action is a placeholder for now (room for
+            // a future title-edit affordance or jump-to-top).
+            Button {
+                // Placeholder — kept tappable so the bubble feels live
+                // even before its real behaviour ships.
+            } label: {
+                Text(vm.title.isEmpty ? "Untitled" : vm.title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 16)
+                    // Matches the ~36-pt diameter of the iOS 26
+                    // toolbar icon buttons next to it (lock, edit)
+                    // so the bubble doesn't read smaller than its
+                    // neighbours.
+                    .frame(minHeight: 36)
+            }
+            .buttonStyle(.plain)
+            .contentShape(Capsule(style: .continuous))
+            // `.interactive()` makes the glass squish and bounce on
+            // press, matching the iOS 26 toolbar buttons right next
+            // to it (lock, edit). Without it the bubble is visually
+            // glass but feels dead when tapped.
+            .glassEffect(.regular.interactive(), in: Capsule(style: .continuous))
+            .opacity(titleInNavBar ? 1 : 0)
+            .offset(y: titleInNavBar ? 0 : 8)
+            .animation(.easeOut(duration: 0.2), value: titleInNavBar)
         }
-        if editMode == .active && !selectedBlocks.isEmpty && !documentLocked {
+        if editMode == .active && !selectedBlocks.isEmpty && !vm.locked {
             ToolbarItem(placement: .primaryAction) {
                 Button(role: .destructive) { deleteSelectedBlocks() } label: {
                     Image(systemName: "trash")
@@ -23,20 +47,28 @@ extension DocumentView {
         }
         ToolbarItem(placement: .primaryAction) {
             Button {
-                let newLocked = !documentLocked
+                let newLocked = !vm.locked
                 withAnimation(.easeInOut(duration: 0.15)) {
-                    documentLocked = newLocked
-                    if documentLocked {
+                    // Apply UI side-effects of locking *before* the save
+                    // round-trip — they only depend on `newLocked` and would
+                    // race the @Published change otherwise.
+                    if newLocked {
                         editMode = .inactive; selectedBlocks.removeAll()
                         focusTitle = false; showingBlockPicker = false
                         vm.stopNavigationRepeat()
                     }
+                    // VM is the source of truth for the lock flag now —
+                    // persists to SQLite via the FFI + registers undo.
+                    vm.saveLocked(newLocked)
                 }
-                UserDefaults.standard.set(newLocked, forKey: lockKey)
             } label: {
-                Image(systemName: documentLocked ? "lock.fill" : "lock.open.fill")
+                Image(systemName: vm.locked ? "lock.fill" : "lock.open.fill")
             }
-            .accessibilityLabel(documentLocked ? "Unlock document" : "Lock document")
+            // Only the locked state earns the accent — the unlocked
+            // open-lock keeps the neutral material color so the rest
+            // of the toolbar reads as quiet chrome.
+            .tint(vm.locked ? settings.accentColor : .primary)
+            .accessibilityLabel(vm.locked ? "Unlock document" : "Lock document")
         }
         ToolbarItem(placement: .primaryAction) {
             Button {
@@ -47,23 +79,33 @@ extension DocumentView {
             } label: {
                 Image(systemName: editMode == .active ? "checkmark" : "arrow.up.arrow.down")
             }
-            .disabled(documentLocked)
+            // Neutral chrome — override the TabView's accent that
+            // propagates through the env.
+            .tint(.primary)
+            .disabled(vm.locked)
         }
     }
 
     @ViewBuilder
     var overlayButtons: some View {
-        if !documentLocked && editMode == .inactive && !keyboardVisible {
-            FloatingButton(icon: "pencil.and.outline") { showingBlockPicker = true }
-                .padding(.trailing, 24)
-                .padding(.bottom, 32)
-                .transition(.scale.combined(with: .opacity))
+        if !vm.locked && editMode == .inactive && !keyboardVisible {
+            ExpandingBlockFAB(
+                isExpanded: $blockFABExpanded,
+                onSelect: { type in vm.addBlock(type: type, afterId: vm.activeBlockId) },
+                onOpenFullPicker: { showingBlockPicker = true }
+            )
+            .padding(.trailing, 24)
+            .padding(.bottom, accessoryPlacement == .inline ? -70 : 8)
+            .transition(.scale.combined(with: .opacity))
         }
-        if !documentLocked && editMode == .inactive && !keyboardVisible {
+        // UndoRedoPill steps aside while the right FAB is morphed
+        // into its expanded capsule, so the two floating chunks
+        // don't visually fight for space.
+        if !vm.locked && editMode == .inactive && !keyboardVisible && !blockFABExpanded {
             UndoRedoPill(canUndo: vm.canUndo, canRedo: vm.canRedo,
                          onUndo: { vm.undo() }, onRedo: { vm.redo() })
                 .padding(.leading, 24)
-                .padding(.bottom, 32)
+                .padding(.bottom, accessoryPlacement == .inline ? -70 : 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .transition(.scale.combined(with: .opacity))
         }

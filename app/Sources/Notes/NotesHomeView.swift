@@ -3,186 +3,221 @@ import SwiftUI
 // ── Tab 1: Notes (unified workspace) ──────────────────────────────────────────
 
 /// Home screen for the Notes tab — shows notes and databases in a unified list.
+/// All creation / import / trash actions live in the global CreateBubble
+/// hosted by `ContentView.tabViewBottomAccessory`, so this view focuses on
+/// presenting the workspace content.
 struct NotesHomeView: View {
     @ObservedObject var store: PinkhaStore
-    @State private var showingCreate = false
-    @State private var showingImport = false
-    @State private var showingBearImport = false
-    @State private var showingCraftTextBundleImport = false
-    @State private var showingCraftCombinedImport = false
-    @State private var showingDeleteAllConfirm = false
-    @State private var showingDeleteAllConfirm2 = false
-    @State private var newTitle = ""
-    @State private var createMode: CreateMode = .note
-
-    enum CreateMode { case note, database }
+    @EnvironmentObject private var composer: Composer
+    @State private var showingSettings = false
+    /// Programmatic navigation stack so a freshly-created note can be
+    /// pushed onto the editor right after the create sheet dismisses
+    /// — driven by `composer.pendingOpenDoc`.
+    @State private var path: [String] = []
+    /// Multi-select state for bulk delete. `editMode` flips between
+    /// `.inactive` and `.active` via the toolbar Select button; the
+    /// List binds `selection:` to `selectedIds` so the standard iOS
+    /// circle UI appears next to each row when active.
+    @State private var editMode: EditMode = .inactive
+    @State private var selectedIds: Set<String> = []
+    @State private var showingBulkDeleteConfirm = false
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .bottomTrailing) {
-                List {
-                    // ── Recent strip (only when items exist) ──────────────
-                    if !store.items.isEmpty {
-                        Section {
-                            RecentStrip(items: store.recentItems, api: store.api) {
-                                store.load()
-                            }
+        NavigationStack(path: $path) {
+            // Conditional selection binding — we only let the List
+            // track selection while edit mode is active. Outside of
+            // it, `selectedIds` is forced to empty (writes are
+            // dropped), which prevents the iOS 26 default behaviour
+            // of leaving a NavigationLink-pushed row visually "focused"
+            // after the user pops back.
+            List(selection: Binding(
+                get: { editMode == .active ? selectedIds : [] },
+                set: { newValue in
+                    if editMode == .active { selectedIds = newValue }
+                }
+            )) {
+                if !store.items.isEmpty {
+                    Section {
+                        RecentStrip(items: store.recentItems, api: store.api) {
+                            store.load()
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets())
+                    } header: {
+                        SectionHeader(title: "Recent")
+                    }
+                }
+
+                if !store.listFolders().isEmpty {
+                    FoldersSectionView(store: store)
+                }
+
+                if store.items.isEmpty {
+                    Section {
+                        NotesEmptyState()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 48)
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets())
-                        } header: {
-                            SectionHeader(title: "Recent")
-                        }
                     }
-
-                    // ── Folders ───────────────────────────────────────────
-                    if !store.listFolders().isEmpty {
-                        FoldersSectionView(store: store)
-                    }
-
-                    // ── All items ─────────────────────────────────────────
-                    if store.items.isEmpty {
-                        Section {
-                            NotesEmptyState()
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 48)
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                        }
-                    } else {
-                        Section {
-                            if let api = store.api {
-                                ForEach(store.items) { item in
-                                    itemRow(item, api: api)
-                                }
-                                .onDelete { indexSet in
-                                    for i in indexSet {
-                                        let item = store.items[i]
-                                        switch item {
-                                        case .note(let d):      store.delete(id: d.id)
-                                        case .database(let db): store.deleteDatabase(id: db.id)
+                } else {
+                    Section {
+                        if let api = store.api {
+                            ForEach(store.items) { item in
+                                itemRow(item, api: api)
+                                    // Explicit swipeActions (not
+                                    // `.onDelete`) so the trash icon +
+                                    // label match every other swipe
+                                    // delete in the app.
+                                    .swipeActions(edge: .trailing) {
+                                        Button(role: .destructive) {
+                                            switch item {
+                                            case .note(let d):      store.delete(id: d.id)
+                                            case .database(let db): store.deleteDatabase(id: db.id)
+                                            }
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
                                         }
+                                        .tint(.red)
                                     }
+                            }
+                        } else {
+                            ProgressView()
+                        }
+                    } header: {
+                        SectionHeader(title: "All")
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .environment(\.editMode, $editMode)
+            .navigationTitle(greeting)
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if !store.items.isEmpty {
+                        Button(editMode == .active ? "Done" : "Select") {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                if editMode == .active {
+                                    editMode = .inactive
+                                    selectedIds.removeAll()
+                                } else {
+                                    editMode = .active
                                 }
-                            } else {
-                                ProgressView()
-                            }
-                        } header: {
-                            SectionHeader(title: "All")
-                        }
-                    }
-                }
-                .listStyle(.insetGrouped)
-                .navigationTitle(greeting)
-                .navigationBarTitleDisplayMode(.large)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        if !store.items.isEmpty {
-                            Button(role: .destructive) {
-                                showingDeleteAllConfirm = true
-                            } label: {
-                                Image(systemName: "trash")
                             }
                         }
+                        .tint(.primary)
                     }
                 }
-                // ── FAB ───────────────────────────────────────────────────
-                Menu {
-                    Button {
-                        createMode = .note
-                        newTitle = ""
-                        showingCreate = true
-                    } label: {
-                        Label("New note", systemImage: "doc.text")
+                ToolbarItem(placement: .topBarTrailing) {
+                    if editMode == .active {
+                        // In edit mode the trailing slot becomes the
+                        // primary bulk-delete action. Bottom-bar
+                        // placement collides with the TabView's search
+                        // bubble, so we surface the action up here.
+                        Button(role: .destructive) {
+                            showingBulkDeleteConfirm = true
+                        } label: {
+                            Label(
+                                selectedIds.isEmpty ? "Delete" : "Delete (\(selectedIds.count))",
+                                systemImage: "trash"
+                            )
+                        }
+                        .tint(.red)
+                        .disabled(selectedIds.isEmpty)
+                    } else {
+                        Button {
+                            showingSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
+                        }
+                        // Settings is neutral chrome — never adopts the
+                        // accent that the TabView spreads through its env.
+                        .tint(.primary)
+                        .accessibilityLabel("Settings")
                     }
-                    Button {
-                        createMode = .database
-                        newTitle = ""
-                        showingCreate = true
-                    } label: {
-                        Label("New database", systemImage: "tablecells")
-                    }
-                    Divider()
-                    Button {
-                        showingImport = true
-                    } label: {
-                        Label("Import from Notion", systemImage: "arrow.down.doc")
-                    }
-                    Button {
-                        showingBearImport = true
-                    } label: {
-                        Label("Import from Bear", systemImage: "pencil.and.list.clipboard")
-                    }
-                    Button {
-                        showingCraftTextBundleImport = true
-                    } label: {
-                        Label("Import from Craft (TextBundle)", systemImage: "doc.zipper")
-                    }
-                    Button {
-                        showingCraftCombinedImport = true
-                    } label: {
-                        Label("Import from Craft (Combined)", systemImage: "arrow.triangle.merge")
-                    }
-                } label: {
-                    FloatingButton(icon: "square.and.pencil") {}
-                }
-                .accessibilityIdentifier("createFAB")
-                .padding(.trailing, 24)
-                .padding(.bottom, 32)
-            }
-            .sheet(isPresented: $showingImport) {
-                NotionImportView(api: store.api) {
-                    store.load()
                 }
             }
-            .sheet(isPresented: $showingBearImport) {
-                BearImportView(api: store.api) {
-                    store.load()
-                }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
             }
-            .sheet(isPresented: $showingCraftTextBundleImport) {
-                CraftTextBundleImportView(api: store.api) {
-                    store.load()
-                }
+            // Native confirmation dialog before the bulk delete fires —
+            // matches the Apple Notes / Mail pattern (slide-up sheet
+            // anchored to the row that triggered it).
+            .confirmationDialog(
+                "Delete \(selectedIds.count) item\(selectedIds.count == 1 ? "" : "s")?",
+                isPresented: $showingBulkDeleteConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) { deleteSelected() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("They'll move to the trash.")
             }
-            .sheet(isPresented: $showingCraftCombinedImport) {
-                CraftCombinedImportView(api: store.api) {
-                    store.load()
-                }
-            }
-            .sheet(isPresented: $showingCreate) {
-                CreateDocumentSheet(
-                    title: $newTitle,
-                    prompt: createMode == .note ? "Note title" : "Database title"
-                ) {
-                    switch createMode {
-                    case .note:     store.create(title: newTitle)
-                    case .database: store.createDatabase(title: newTitle)
-                    }
-                    newTitle = ""
-                    showingCreate = false
-                } onCancel: {
-                    newTitle = ""
-                    showingCreate = false
+            // Registered alongside the existing `NavigationLink` rows
+            // so programmatic pushes via `path.append(id)` open the
+            // editor — driven by `composer.pendingOpenDoc` below.
+            .navigationDestination(for: String.self) { docId in
+                if let api = store.api {
+                    DocumentView(docId: docId, api: api, onDisappear: store.load)
                 }
             }
         }
-        .alert("Delete all \(store.items.count) notes?", isPresented: $showingDeleteAllConfirm) {
-            Button("Delete All", role: .destructive) {
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(300))
-                    showingDeleteAllConfirm2 = true
-                }
+        .onChange(of: composer.pendingOpenDoc) { _, newValue in
+            // Wait for the create sheet to finish dismissing before
+            // pushing, otherwise SwiftUI can race the path update
+            // against the sheet's exit transition and drop the push.
+            guard let docId = newValue else { return }
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(250))
+                path.append(docId)
+                composer.pendingOpenDoc = nil
             }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will remove all your notes.")
         }
-        .alert("Are you sure?", isPresented: $showingDeleteAllConfirm2) {
-            Button("Yes, delete everything", role: .destructive) { store.deleteAll() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This cannot be undone.")
+        .onChange(of: path) { _, newPath in
+            // When the user pops back to the home, drop any selection
+            // SwiftUI's List might have carried over from the programmatic
+            // push — otherwise the row that was just navigated to stays
+            // visually "focused" (lighter background) until the next
+            // unrelated tap.
+            if newPath.isEmpty && editMode != .active && !selectedIds.isEmpty {
+                selectedIds.removeAll()
+            }
+        }
+        // Belt-and-braces: clear any lingering selection every time
+        // the home reappears (covers pops, tab switches, sheet
+        // dismissals). The onChange above only fires when `path`
+        // transitions; this catches the cases where SwiftUI rebuilt
+        // the home with a non-empty selection already.
+        .task {
+            if editMode != .active && !selectedIds.isEmpty {
+                selectedIds.removeAll()
+            }
+        }
+    }
+
+    /// Bulk delete every selected workspace item. Routes notes through
+    /// `store.delete(id:)` and databases through `deleteDatabase(id:)`
+    /// so each goes via its proper SQLite soft-delete path.
+    ///
+    /// Important : selection is cleared BEFORE we mutate the store.
+    /// UICollectionView (under SwiftUI's List) refuses to coalesce an
+    /// update where the selection set still references rows that just
+    /// disappeared — that's the `NSInternalInconsistencyException` we
+    /// saw on Sentry (APPLE-IOS-8). Clearing first lets the diff
+    /// settle on the store changes alone.
+    private func deleteSelected() {
+        let toDelete = store.items.filter { selectedIds.contains($0.id) }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            selectedIds.removeAll()
+            editMode = .inactive
+        }
+        for item in toDelete {
+            switch item {
+            case .note(let d):      store.delete(id: d.id)
+            case .database(let db): store.deleteDatabase(id: db.id)
+            }
         }
     }
 
@@ -197,7 +232,8 @@ struct NotesHomeView: View {
                 WorkspaceRow(item: item)
             }
         case .database(let db):
-            NavigationLink(destination: DatabaseView(dbId: db.id, api: api)) {
+            NavigationLink(destination: DatabaseView(dbId: db.id, api: api,
+                                                    onDisappear: store.load)) {
                 WorkspaceRow(item: item)
             }
         }
@@ -235,7 +271,8 @@ struct RecentStrip: View {
                             }
                             .buttonStyle(.plain)
                         case .database(let db):
-                            NavigationLink(destination: DatabaseView(dbId: db.id, api: api)) {
+                            NavigationLink(destination: DatabaseView(dbId: db.id, api: api,
+                                                                    onDisappear: onDisappear)) {
                                 RecentCard(item: item)
                             }
                             .buttonStyle(.plain)
@@ -249,44 +286,87 @@ struct RecentStrip: View {
     }
 }
 
-/// A card in the recent strip — displays icon, title, and relative date.
+/// A card in the recent strip — Notion-style with a cover image
+/// (or fallback gradient) filling the top half, an icon overlapping the
+/// cover/content boundary, and the title plus relative date below.
 struct RecentCard: View {
     let item: WorkspaceItem
 
+    private let cornerRadius: CGFloat = 16
+    private let coverHeight: CGFloat = 80
+    private let iconSize: CGFloat = 32
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            itemIcon.frame(width: 36, height: 36)
-            Spacer()
+        VStack(alignment: .leading, spacing: 0) {
+            CoverImageView(cover: coverValue)
+                .frame(height: coverHeight)
+                .clipped()
+            // The bottom block hosts both the overlapping icon and the
+            // title/date stack. The icon is placed in an overlay so it
+            // can sit half on top of the cover and half on the white
+            // surface below — same trick Notion uses.
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.titlePlain.isEmpty ? "Untitled" : item.titlePlain)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 if let date = formattedDate(item.updatedAt) {
-                    Text(date).font(.caption2).foregroundStyle(.tertiary)
+                    Text(date)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                Spacer(minLength: 0)
+            }
+            // The padding top makes room for the icon that will overlap
+            // from above via the overlay below.
+            .padding(.top, iconSize / 2 + 6)
+            .padding(.horizontal, 12)
+            .padding(.bottom, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .topLeading) {
+                itemIcon
+                    .frame(width: iconSize, height: iconSize)
+                    .padding(.leading, 10)
+                    .offset(y: -iconSize / 2)
             }
         }
-        .padding(14)
-        .frame(width: 150, height: 140)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .frame(width: 165, height: 170, alignment: .leading)
+        .background(.background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .strokeBorder(.separator.opacity(0.5), lineWidth: 0.5)
         )
         .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
+    }
+
+    private var coverValue: String? {
+        if case .note(let doc) = item { return doc.cover }
+        return nil
     }
 
     @ViewBuilder
     private var itemIcon: some View {
         switch item {
         case .note(let doc):
-            if let icon = UserDefaults.standard.string(forKey: "document.icon.\(doc.id)"), !icon.isEmpty {
-                Text(icon).font(.title)
+            if let icon = doc.icon, !icon.isEmpty {
+                Text(icon).font(.title2)
             } else {
-                Image(systemName: "doc.text").font(.title2).foregroundStyle(.secondary)
+                Image(systemName: "doc.text")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: iconSize, height: iconSize)
+                    .background(Color(.systemBackground), in: Circle())
+                    .overlay(Circle().strokeBorder(.separator.opacity(0.6), lineWidth: 0.5))
             }
         case .database:
-            Image(systemName: "tablecells").font(.title2).foregroundStyle(.secondary)
+            Image(systemName: "tablecells")
+                .font(.body.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(width: iconSize, height: iconSize)
+                .background(Color(.systemBackground), in: Circle())
+                .overlay(Circle().strokeBorder(.separator.opacity(0.6), lineWidth: 0.5))
         }
     }
 
@@ -322,7 +402,7 @@ struct WorkspaceRow: View {
     private var itemIcon: some View {
         switch item {
         case .note(let doc):
-            if let icon = UserDefaults.standard.string(forKey: "document.icon.\(doc.id)"), !icon.isEmpty {
+            if let icon = doc.icon, !icon.isEmpty {
                 Text(icon).font(.title2).frame(width: 34, height: 34)
             } else {
                 Image(systemName: "doc.text")

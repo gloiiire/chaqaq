@@ -12,9 +12,22 @@ final class DatabaseViewModel: ObservableObject {
     @Published var properties: [PropertyFfi] = []
     @Published var entries: [EntryFfi] = []
     @Published var errorMessage: String?
+    /// Currently active sort. `nil` means no column is sorted — display
+    /// entries in their natural insertion order.
+    @Published private(set) var activeSort: ActiveSort? = nil
+
+    /// (propertyId, ascending) snapshot used to drive both the header arrow
+    /// indicator and the cycling logic on tap.
+    struct ActiveSort: Equatable {
+        let propertyId: String
+        let ascending: Bool
+    }
 
     /// ID of the hidden system property storing each entry's linked document ID.
     private(set) var pagePropertyId: String? = nil
+    /// ID of the database's primary (default "Table") view — `set_view_sort`
+    /// targets this one.
+    private var primaryViewId: String? = nil
 
     private let pagePropName = "__pinkha_page__"
     private let namePropName = "Name"
@@ -68,7 +81,7 @@ final class DatabaseViewModel: ObservableObject {
               let entryId = tryCatch(into: &errorMessage, { try api.addEntry(dbId: dbId, valuesJson: vJson) })
         else { return }
 
-        entries.append(EntryFfi(id: entryId, createdAt: "", values: initial))
+        entries.append(EntryFfi(id: entryId, createdAt: "", values: initial, documentId: docId))
     }
 
     /// Deletes the entry and its linked document.
@@ -138,6 +151,17 @@ final class DatabaseViewModel: ObservableObject {
     private func applyDB(_ db: DatabaseFfi) {
         titlePlain    = db.title.map(\.content).joined()
         pagePropertyId = db.properties.first(where: { $0.name == pagePropName })?.id
+        let views = db.views ?? []
+        primaryViewId  = views.first?.id
+        // Reflect the currently persisted sort, if any. The "Property" source
+        // is the only one we drive from the column header tap — other
+        // source values (e.g. Created) belong to richer sort UIs we don't
+        // surface yet.
+        if let view = views.first, let s = view.sorts.first, s.source == "Property" {
+            activeSort = ActiveSort(propertyId: s.propertyId, ascending: s.order == "Ascending")
+        } else {
+            activeSort = nil
+        }
 
         var visible = db.properties.filter { $0.name != pagePropName }
         // Title property always first.
@@ -148,6 +172,59 @@ final class DatabaseViewModel: ObservableObject {
         }
         properties = visible
         entries    = db.entries
+
+        // Apply server-side sort to the in-memory entries.
+        refreshSortedEntries()
+    }
+
+    // ── Sort ──────────────────────────────────────────────────────────────────
+
+    /// Cycles the sort on a column header: none → asc → desc → none.
+    /// Sorting another column resets to that column's asc.
+    func cycleSort(propertyId: String) {
+        let next: ActiveSort?
+        if let current = activeSort, current.propertyId == propertyId {
+            // Same column — advance through the cycle.
+            next = current.ascending
+                ? ActiveSort(propertyId: propertyId, ascending: false)
+                : nil
+        } else {
+            // Different column (or no active sort) — start ascending.
+            next = ActiveSort(propertyId: propertyId, ascending: true)
+        }
+        applySort(next)
+    }
+
+    /// Persists `next` to the primary view via the FFI and refreshes
+    /// `entries` from a fresh query result. No client-side sorting — the
+    /// Rust query honours the sort and returns the right order.
+    private func applySort(_ next: ActiveSort?) {
+        guard let viewId = primaryViewId else { return }
+        let result: ()? = tryCatch(into: &errorMessage) {
+            try api.setViewSort(
+                dbId: dbId,
+                viewId: viewId,
+                propertyId: next?.propertyId,
+                ascending: next?.ascending ?? true,
+            )
+        }
+        guard result != nil else { return }
+        activeSort = next
+        refreshSortedEntries()
+    }
+
+    /// Re-queries the primary view and replaces `entries` with the sorted
+    /// result. Falls back to the unsorted in-memory list on failure so the
+    /// UI never goes blank.
+    private func refreshSortedEntries() {
+        guard let viewId = primaryViewId,
+              let json = tryCatch(into: &errorMessage, {
+                  try api.queryDatabaseJson(dbId: dbId, viewId: viewId)
+              }),
+              let data = json.data(using: .utf8),
+              let sorted = try? JSONDecoder().decode([EntryFfi].self, from: data)
+        else { return }
+        entries = sorted
     }
 
     private func createSystemProp(_ prop: PropertyFfi) {

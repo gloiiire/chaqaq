@@ -1,7 +1,7 @@
 //! High-level Realm file reader: Group → Tables → Rows.
 
 use crate::format::{
-    decode_short_string, multiply_elem_bytes, parse_file_header, read_bits_elem,
+    decode_short_string, multiply_elem_bytes, parse_file_header, read_bits_elem, read_node_header,
     NodeHeader, NODE_HEADER_SIZE, WTYPE_BITS, WTYPE_IGNORE, WTYPE_MULTIPLY,
 };
 use crate::{ColumnType, RealmError, RealmTable, Result, Row, Value};
@@ -40,12 +40,7 @@ pub(crate) fn read_tables(data: &[u8]) -> Result<Vec<RealmTable>> {
 
 /// Parse the array at `offset` and return its elements as `Vec<u64>`.
 fn read_array(data: &[u8], offset: usize) -> Result<Vec<u64>> {
-    if offset + NODE_HEADER_SIZE > data.len() {
-        return Err(RealmError::InvalidFormat(format!(
-            "array offset {offset:#x} out of bounds"
-        )));
-    }
-    let hdr = NodeHeader::parse(data[offset..offset + 8].try_into().unwrap());
+    let hdr = read_node_header(data, offset)?;
     let payload = &data[offset + NODE_HEADER_SIZE..];
 
     let mut elems = Vec::with_capacity(hdr.size);
@@ -74,12 +69,7 @@ fn read_array(data: &[u8], offset: usize) -> Result<Vec<u64>> {
 }
 
 fn read_string_array_multiply(data: &[u8], offset: usize, slot_width: u8) -> Result<Vec<String>> {
-    if offset + NODE_HEADER_SIZE > data.len() {
-        return Err(RealmError::InvalidFormat(format!(
-            "string array offset {offset:#x} out of bounds"
-        )));
-    }
-    let hdr = NodeHeader::parse(data[offset..offset + 8].try_into().unwrap());
+    let hdr = read_node_header(data, offset)?;
     let payload = &data[offset + NODE_HEADER_SIZE..];
     let mut result = Vec::with_capacity(hdr.size);
     for i in 0..hdr.size {
@@ -94,13 +84,17 @@ fn read_string_array_multiply(data: &[u8], offset: usize, slot_width: u8) -> Res
 fn read_table(data: &[u8], name: &str, table_ref: usize) -> Result<RealmTable> {
     let table_arr = read_array(data, table_ref)?;
     if table_arr.is_empty() {
-        return Err(RealmError::InvalidFormat(format!("table '{name}' array empty")));
+        return Err(RealmError::InvalidFormat(format!(
+            "table '{name}' array empty"
+        )));
     }
 
     let spec_ref = table_arr[0] as usize;
     let spec_arr = read_array(data, spec_ref)?;
     if spec_arr.len() < 2 {
-        return Err(RealmError::InvalidFormat(format!("table '{name}' spec too small")));
+        return Err(RealmError::InvalidFormat(format!(
+            "table '{name}' spec too small"
+        )));
     }
 
     let col_names = read_string_array_multiply(data, spec_arr[1] as usize, 32)?;
@@ -151,7 +145,11 @@ fn read_table(data: &[u8], name: &str, table_ref: usize) -> Result<RealmTable> {
         rows.push(Row { values });
     }
 
-    Ok(RealmTable { name: name.to_string(), columns, rows })
+    Ok(RealmTable {
+        name: name.to_string(),
+        columns,
+        rows,
+    })
 }
 
 // ── New-format (cluster tree) table reader ────────────────────────────────────
@@ -217,14 +215,19 @@ fn read_table_new(
         rows.push(Row { values });
     }
 
-    Ok(RealmTable { name: name.to_string(), columns: columns.to_vec(), rows })
+    Ok(RealmTable {
+        name: name.to_string(),
+        columns: columns.to_vec(),
+        rows,
+    })
 }
 
 /// Map a column index to its position in the cluster root array.
 ///
 /// col[0] → cluster[0]; pk_index at cluster[1] is skipped.
 /// For col[k ≥ 1]: start at cluster[2] and account for multi-slot types
-/// encountered in cols 1..k-1 (type 8 = 2 slots, type 13 = 0 slots).
+/// encountered in cols 1..k-1 (Realm spec nibble codes: 8 = Timestamp,
+/// 2 slots; 14 = BackLink, virtual / 0 slots).
 fn cluster_index_for_col(col_idx: usize, col_type_ints: &[u64]) -> usize {
     if col_idx == 0 {
         return 0;
@@ -234,8 +237,8 @@ fn cluster_index_for_col(col_idx: usize, col_type_ints: &[u64]) -> usize {
     for k in 1..col_idx {
         let ct = col_type_ints.get(k).copied().unwrap_or(0) as u8;
         match ct {
-            8 => ci += 2,  // Timestamp: seconds + fractionals = 2 cluster slots
-            13 => {}       // BackLink: virtual, 0 cluster slots
+            8 => ci += 2, // Timestamp: seconds + fractionals = 2 cluster slots
+            14 => {}      // BackLink: virtual, 0 cluster slots
             _ => ci += 1,
         }
     }
@@ -250,10 +253,13 @@ fn cluster_index_for_col(col_idx: usize, col_type_ints: &[u64]) -> usize {
 /// — element 0 is always the offsets-tracking node (skip).
 /// — garbage refs (misaligned addresses) are detected and skipped.
 fn collect_strings_new(data: &[u8], col_ref: usize) -> Vec<String> {
-    if col_ref == 0 || col_ref % 8 != 0 || col_ref + NODE_HEADER_SIZE > data.len() {
+    if col_ref == 0 || !col_ref.is_multiple_of(8) {
         return vec![];
     }
-    let hdr = NodeHeader::parse(data[col_ref..col_ref + 8].try_into().unwrap());
+    let hdr = match read_node_header(data, col_ref) {
+        Ok(h) => h,
+        Err(_) => return vec![],
+    };
 
     if hdr.is_inner {
         let children = match read_array(data, col_ref) {
@@ -267,7 +273,10 @@ fn collect_strings_new(data: &[u8], col_ref: usize) -> Vec<String> {
             }
             let child_ref = child_u64 as usize;
             // Realm nodes are always 8-byte aligned; misaligned = garbage
-            if child_ref == 0 || child_ref % 8 != 0 || child_ref + NODE_HEADER_SIZE > data.len() {
+            if child_ref == 0
+                || !child_ref.is_multiple_of(8)
+                || child_ref + NODE_HEADER_SIZE > data.len()
+            {
                 continue;
             }
             result.extend(collect_strings_new(data, child_ref));
@@ -330,7 +339,7 @@ fn read_compact_string_leaf(data: &[u8], leaf_ref: usize) -> Result<Vec<String>>
         return Ok(vec![]);
     }
 
-    let blob_hdr = NodeHeader::parse(data[blob_ref..blob_ref + 8].try_into().unwrap());
+    let blob_hdr = read_node_header(data, blob_ref)?;
     if blob_hdr.wtype != WTYPE_IGNORE {
         return Ok(vec![]);
     }
@@ -343,7 +352,11 @@ fn read_compact_string_leaf(data: &[u8], leaf_ref: usize) -> Result<Vec<String>>
         let start = if r == 0 { 0 } else { offsets[r - 1] as usize };
         // offsets[r] points one past the null terminator; subtract 1 for the string end
         let raw_end = offsets[r] as usize;
-        let end = if raw_end > 0 { (raw_end - 1).min(blob.len()) } else { start };
+        let end = if raw_end > 0 {
+            (raw_end - 1).min(blob.len())
+        } else {
+            start
+        };
         let start = start.min(end);
         strings.push(String::from_utf8_lossy(&blob[start..end]).into_owned());
     }
@@ -359,7 +372,8 @@ fn read_perrow_string_refs(data: &[u8], leaf_ref: usize) -> Vec<String> {
     refs.into_iter()
         .map(|str_ref_u64| {
             let str_ref = str_ref_u64 as usize;
-            if str_ref == 0 || str_ref % 8 != 0 || str_ref + NODE_HEADER_SIZE > data.len() {
+            if str_ref == 0 || !str_ref.is_multiple_of(8) || str_ref + NODE_HEADER_SIZE > data.len()
+            {
                 return String::new();
             }
             read_wtype2_string(data, str_ref).unwrap_or_default()
@@ -369,13 +383,17 @@ fn read_perrow_string_refs(data: &[u8], leaf_ref: usize) -> Vec<String> {
 
 /// Read raw UTF-8 from a wtype=2 (WTYPE_IGNORE) node, stripping a trailing null if present.
 fn read_wtype2_string(data: &[u8], str_ref: usize) -> Result<String> {
-    let hdr = NodeHeader::parse(data[str_ref..str_ref + 8].try_into().unwrap());
+    let hdr = read_node_header(data, str_ref)?;
     if hdr.wtype != WTYPE_IGNORE {
         return Ok(String::new());
     }
     let payload = &data[str_ref + NODE_HEADER_SIZE..];
     let len = hdr.size.min(payload.len());
-    let end = if len > 0 && payload[len - 1] == 0 { len - 1 } else { len };
+    let end = if len > 0 && payload[len - 1] == 0 {
+        len - 1
+    } else {
+        len
+    };
     Ok(String::from_utf8_lossy(&payload[..end]).into_owned())
 }
 
@@ -386,10 +404,13 @@ fn read_wtype2_string(data: &[u8], str_ref: usize) -> Result<String> {
 /// Same inner-node layout as for strings: skip element 0 (offsets-tracking),
 /// filter garbage children by alignment.
 fn collect_ints_new(data: &[u8], col_ref: usize) -> Vec<u64> {
-    if col_ref == 0 || col_ref % 8 != 0 || col_ref + NODE_HEADER_SIZE > data.len() {
+    if col_ref == 0 || !col_ref.is_multiple_of(8) {
         return vec![];
     }
-    let hdr = NodeHeader::parse(data[col_ref..col_ref + 8].try_into().unwrap());
+    let hdr = match read_node_header(data, col_ref) {
+        Ok(h) => h,
+        Err(_) => return vec![],
+    };
 
     if hdr.is_inner {
         let children = match read_array(data, col_ref) {
@@ -402,7 +423,10 @@ fn collect_ints_new(data: &[u8], col_ref: usize) -> Vec<u64> {
                 continue;
             }
             let child_ref = child_u64 as usize;
-            if child_ref == 0 || child_ref % 8 != 0 || child_ref + NODE_HEADER_SIZE > data.len() {
+            if child_ref == 0
+                || !child_ref.is_multiple_of(8)
+                || child_ref + NODE_HEADER_SIZE > data.len()
+            {
                 continue;
             }
             result.extend(collect_ints_new(data, child_ref));
@@ -424,10 +448,13 @@ fn collect_ints_new(data: &[u8], col_ref: usize) -> Vec<u64> {
 /// Each leaf element is either 0 (empty list) or a reference to a sub-array
 /// containing the ordered row indices.
 fn collect_linklists_new(data: &[u8], col_ref: usize) -> Vec<Vec<u32>> {
-    if col_ref == 0 || col_ref % 8 != 0 || col_ref + NODE_HEADER_SIZE > data.len() {
+    if col_ref == 0 || !col_ref.is_multiple_of(8) {
         return vec![];
     }
-    let hdr = NodeHeader::parse(data[col_ref..col_ref + 8].try_into().unwrap());
+    let hdr = match read_node_header(data, col_ref) {
+        Ok(h) => h,
+        Err(_) => return vec![],
+    };
 
     if hdr.is_inner {
         let children = match read_array(data, col_ref) {
@@ -440,7 +467,10 @@ fn collect_linklists_new(data: &[u8], col_ref: usize) -> Vec<Vec<u32>> {
                 continue; // offsets-tracking ref
             }
             let child_ref = child_u64 as usize;
-            if child_ref == 0 || child_ref % 8 != 0 || child_ref + NODE_HEADER_SIZE > data.len() {
+            if child_ref == 0
+                || !child_ref.is_multiple_of(8)
+                || child_ref + NODE_HEADER_SIZE > data.len()
+            {
                 continue;
             }
             result.extend(collect_linklists_new(data, child_ref));
@@ -457,10 +487,16 @@ fn collect_linklists_new(data: &[u8], col_ref: usize) -> Vec<Vec<u32>> {
         .into_iter()
         .map(|ptr_u64| {
             let list_ref = ptr_u64 as usize;
-            if list_ref == 0 || list_ref % 8 != 0 || list_ref + NODE_HEADER_SIZE > data.len() {
+            if list_ref == 0
+                || !list_ref.is_multiple_of(8)
+                || list_ref + NODE_HEADER_SIZE > data.len()
+            {
                 return vec![];
             }
-            collect_ints_new(data, list_ref).into_iter().map(|v| v as u32).collect()
+            collect_ints_new(data, list_ref)
+                .into_iter()
+                .map(|v| v as u32)
+                .collect()
         })
         .collect()
 }
@@ -469,10 +505,10 @@ fn collect_linklists_new(data: &[u8], col_ref: usize) -> Vec<Vec<u32>> {
 
 /// Count rows in a column node, traversing B-tree inner nodes if needed.
 fn count_node_rows(data: &[u8], node_ref: usize) -> usize {
-    if node_ref + NODE_HEADER_SIZE > data.len() {
-        return 0;
-    }
-    let hdr = NodeHeader::parse(data[node_ref..node_ref + 8].try_into().unwrap());
+    let hdr = match read_node_header(data, node_ref) {
+        Ok(h) => h,
+        Err(_) => return 0,
+    };
     if !hdr.is_inner {
         return hdr.size;
     }
@@ -489,10 +525,10 @@ fn count_node_rows(data: &[u8], node_ref: usize) -> usize {
 }
 
 fn read_cell(data: &[u8], col_ref: usize, row_idx: usize, col_type: ColumnType) -> Result<Value> {
-    if col_ref + NODE_HEADER_SIZE > data.len() {
-        return Ok(Value::Null);
-    }
-    let hdr = NodeHeader::parse(data[col_ref..col_ref + 8].try_into().unwrap());
+    let hdr = match read_node_header(data, col_ref) {
+        Ok(h) => h,
+        Err(_) => return Ok(Value::Null),
+    };
 
     if hdr.is_inner {
         return read_cell_btree(data, col_ref, row_idx, col_type);
@@ -505,14 +541,18 @@ fn read_cell(data: &[u8], col_ref: usize, row_idx: usize, col_type: ColumnType) 
     let payload = &data[col_ref + NODE_HEADER_SIZE..];
 
     match col_type {
-        ColumnType::Bool => Ok(Value::Bool(read_bits_elem(payload, row_idx, hdr.width) != 0)),
-        ColumnType::Int => Ok(Value::Int(read_bits_elem(payload, row_idx, hdr.width) as i64)),
-        ColumnType::Timestamp => {
-            Ok(Value::Timestamp(read_bits_elem(payload, row_idx, hdr.width) as i64))
-        }
-        ColumnType::Link | ColumnType::LinkList | ColumnType::BackLink => {
-            Ok(Value::Link(read_bits_elem(payload, row_idx, hdr.width) as usize))
-        }
+        ColumnType::Bool => Ok(Value::Bool(
+            read_bits_elem(payload, row_idx, hdr.width) != 0,
+        )),
+        ColumnType::Int => Ok(Value::Int(
+            read_bits_elem(payload, row_idx, hdr.width) as i64
+        )),
+        ColumnType::Timestamp => Ok(Value::Timestamp(
+            read_bits_elem(payload, row_idx, hdr.width) as i64,
+        )),
+        ColumnType::Link | ColumnType::LinkList | ColumnType::BackLink => Ok(Value::Link(
+            read_bits_elem(payload, row_idx, hdr.width) as usize,
+        )),
         ColumnType::Float if hdr.width == 32 => {
             let off = row_idx * 4;
             let f = f32::from_le_bytes(payload[off..off + 4].try_into().unwrap_or([0; 4]));
@@ -551,10 +591,10 @@ fn read_cell_btree(
     row_idx: usize,
     col_type: ColumnType,
 ) -> Result<Value> {
-    if node_ref + NODE_HEADER_SIZE > data.len() {
-        return Ok(Value::Null);
-    }
-    let hdr = NodeHeader::parse(data[node_ref..node_ref + 8].try_into().unwrap());
+    let hdr = match read_node_header(data, node_ref) {
+        Ok(h) => h,
+        Err(_) => return Ok(Value::Null),
+    };
 
     if !hdr.is_inner {
         return read_cell(data, node_ref, row_idx, col_type);
@@ -583,10 +623,10 @@ fn read_cell_btree(
 }
 
 fn read_leaf_string(data: &[u8], str_ref: usize) -> Result<String> {
-    if str_ref + NODE_HEADER_SIZE > data.len() {
-        return Ok(String::new());
-    }
-    let hdr = NodeHeader::parse(data[str_ref..str_ref + 8].try_into().unwrap());
+    let hdr = match read_node_header(data, str_ref) {
+        Ok(h) => h,
+        Err(_) => return Ok(String::new()),
+    };
     let payload = &data[str_ref + NODE_HEADER_SIZE..];
 
     if hdr.wtype == WTYPE_MULTIPLY && hdr.width > 0 {

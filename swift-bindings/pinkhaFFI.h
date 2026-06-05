@@ -303,9 +303,19 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_create_document(uint64_t ptr, RustB
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_create_folder(uint64_t ptr, RustBuffer name, RustBuffer parent_id, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_ALL_DATABASES
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_ALL_DATABASES
+uint32_t uniffi_pinkha_fn_method_pinkhaapi_delete_all_databases(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_ALL_DOCUMENTS
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_ALL_DOCUMENTS
 uint32_t uniffi_pinkha_fn_method_pinkhaapi_delete_all_documents(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_ALL_FOLDERS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_ALL_FOLDERS
+uint32_t uniffi_pinkha_fn_method_pinkhaapi_delete_all_folders(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_BLOCK
@@ -385,12 +395,42 @@ uint64_t uniffi_pinkha_fn_method_pinkhaapi_import_from_craft_textbundle(uint64_t
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_IMPORT_FROM_NOTION
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_IMPORT_FROM_NOTION
-uint64_t uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(uint64_t ptr, RustBuffer token, RustBuffer database_id
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(uint64_t ptr, RustBuffer token, RustBuffer database_id, RustBuffer covers_dir, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_INDENT_BLOCK
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_INDENT_BLOCK
+void uniffi_pinkha_fn_method_pinkhaapi_indent_block(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_CHILD_DOCUMENTS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_CHILD_DOCUMENTS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_child_documents(uint64_t ptr, RustBuffer parent_doc_id, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DATABASES
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DATABASES
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_databases(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DELETED_DATABASES
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DELETED_DATABASES
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_deleted_databases(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DELETED_DOCUMENTS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DELETED_DOCUMENTS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_deleted_documents(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DELETED_ENTRIES_JSON
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DELETED_ENTRIES_JSON
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_deleted_entries_json(uint64_t ptr, RustBuffer db_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DELETED_FOLDERS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DELETED_FOLDERS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_deleted_folders(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_DOCUMENTS
@@ -408,6 +448,16 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_documents_in_folder(uint64_t p
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_folders(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_NOTION_DATABASES
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_NOTION_DATABASES
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_notion_databases(uint64_t ptr, RustBuffer token, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_ROOT_DOCUMENTS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_ROOT_DOCUMENTS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_root_documents(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_MOVE_BLOCK
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_MOVE_BLOCK
 void uniffi_pinkha_fn_method_pinkhaapi_move_block(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustBuffer new_parent_id, RustCallStatus *_Nonnull out_status
@@ -421,6 +471,31 @@ void uniffi_pinkha_fn_method_pinkhaapi_move_document_to_folder(uint64_t ptr, Rus
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_MOVE_FOLDER_TO
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_MOVE_FOLDER_TO
 void uniffi_pinkha_fn_method_pinkhaapi_move_folder_to(uint64_t ptr, RustBuffer id, RustBuffer new_parent_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_OUTDENT_BLOCK
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_OUTDENT_BLOCK
+void uniffi_pinkha_fn_method_pinkhaapi_outdent_block(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_DATABASE
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_DATABASE
+void uniffi_pinkha_fn_method_pinkhaapi_purge_database(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_DOCUMENT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_DOCUMENT
+void uniffi_pinkha_fn_method_pinkhaapi_purge_document(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_ENTRY
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_ENTRY
+void uniffi_pinkha_fn_method_pinkhaapi_purge_entry(uint64_t ptr, RustBuffer db_id, RustBuffer entry_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_FOLDER
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_FOLDER
+void uniffi_pinkha_fn_method_pinkhaapi_purge_folder(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_QUERY_DATABASE_JSON
@@ -453,9 +528,34 @@ void uniffi_pinkha_fn_method_pinkhaapi_reorder_blocks(uint64_t ptr, RustBuffer d
 void uniffi_pinkha_fn_method_pinkhaapi_reorder_child_blocks(uint64_t ptr, RustBuffer doc_id, RustBuffer parent_id, RustBuffer order, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_DATABASE
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_DATABASE
+void uniffi_pinkha_fn_method_pinkhaapi_restore_database(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_DOCUMENT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_DOCUMENT
+void uniffi_pinkha_fn_method_pinkhaapi_restore_document(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_ENTRY
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_ENTRY
+void uniffi_pinkha_fn_method_pinkhaapi_restore_entry(uint64_t ptr, RustBuffer db_id, RustBuffer entry_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_FOLDER
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_FOLDER
+void uniffi_pinkha_fn_method_pinkhaapi_restore_folder(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_DATABASE_ENTRIES_JSON
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_DATABASE_ENTRIES_JSON
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_search_database_entries_json(uint64_t ptr, RustBuffer db_id, RustBuffer query, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_DATABASES
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_DATABASES
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_search_databases(uint64_t ptr, RustBuffer query, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_DOCUMENTS
@@ -463,9 +563,29 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_search_database_entries_json(uint64
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_search_documents(uint64_t ptr, RustBuffer query, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_FOLDERS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_FOLDERS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_search_folders(uint64_t ptr, RustBuffer query, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_IN_BLOCKS
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_IN_BLOCKS
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_search_in_blocks(uint64_t ptr, RustBuffer query, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_IN_BLOCKS_WITH_SNIPPETS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SEARCH_IN_BLOCKS_WITH_SNIPPETS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_search_in_blocks_with_snippets(uint64_t ptr, RustBuffer query, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_BLOCK_COLOR
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_BLOCK_COLOR
+void uniffi_pinkha_fn_method_pinkhaapi_set_block_color(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustBuffer color, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_VIEW_SORT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_VIEW_SORT
+void uniffi_pinkha_fn_method_pinkhaapi_set_view_sort(uint64_t ptr, RustBuffer db_id, RustBuffer view_id, RustBuffer property_id, int8_t ascending, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_BLOCK
@@ -478,6 +598,21 @@ void uniffi_pinkha_fn_method_pinkhaapi_update_block(uint64_t ptr, RustBuffer doc
 void uniffi_pinkha_fn_method_pinkhaapi_update_document_cover(uint64_t ptr, RustBuffer id, RustBuffer cover, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_ICON
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_ICON
+void uniffi_pinkha_fn_method_pinkhaapi_update_document_icon(uint64_t ptr, RustBuffer id, RustBuffer icon, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_LOCKED
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_LOCKED
+void uniffi_pinkha_fn_method_pinkhaapi_update_document_locked(uint64_t ptr, RustBuffer id, int8_t locked, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_PARENT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_PARENT
+void uniffi_pinkha_fn_method_pinkhaapi_update_document_parent(uint64_t ptr, RustBuffer doc_id, RustBuffer new_parent_doc_id, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_TITLE
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_TITLE
 void uniffi_pinkha_fn_method_pinkhaapi_update_document_title(uint64_t ptr, RustBuffer id, RustBuffer new_title, RustCallStatus *_Nonnull out_status
@@ -486,6 +621,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_update_document_title(uint64_t ptr, RustB
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_ENTRY
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_ENTRY
 void uniffi_pinkha_fn_method_pinkhaapi_update_entry(uint64_t ptr, RustBuffer db_id, RustBuffer entry_id, RustBuffer values_json, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_FOLDER_ICON
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_FOLDER_ICON
+void uniffi_pinkha_fn_method_pinkhaapi_update_folder_icon(uint64_t ptr, RustBuffer id, RustBuffer icon, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_VIEW
@@ -807,9 +947,21 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_create_folder(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ALL_DATABASES
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ALL_DATABASES
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_all_databases(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ALL_DOCUMENTS
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ALL_DOCUMENTS
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_all_documents(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ALL_FOLDERS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ALL_FOLDERS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_all_folders(void
     
 );
 #endif
@@ -909,9 +1061,45 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_INDENT_BLOCK
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_INDENT_BLOCK
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_indent_block(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_CHILD_DOCUMENTS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_CHILD_DOCUMENTS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_child_documents(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_DATABASES
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_DATABASES
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_databases(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_DELETED_DATABASES
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_DELETED_DATABASES
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_databases(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_DELETED_DOCUMENTS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_DELETED_DOCUMENTS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_documents(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_DELETED_ENTRIES_JSON
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_DELETED_ENTRIES_JSON
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_entries_json(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_DELETED_FOLDERS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_DELETED_FOLDERS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_folders(void
     
 );
 #endif
@@ -933,6 +1121,18 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_folders(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_NOTION_DATABASES
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_NOTION_DATABASES
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_ROOT_DOCUMENTS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_ROOT_DOCUMENTS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_root_documents(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_MOVE_BLOCK
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_MOVE_BLOCK
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_move_block(void
@@ -948,6 +1148,36 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_move_document_to_folder(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_MOVE_FOLDER_TO
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_MOVE_FOLDER_TO
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_move_folder_to(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_OUTDENT_BLOCK
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_OUTDENT_BLOCK
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_outdent_block(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_PURGE_DATABASE
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_PURGE_DATABASE
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_purge_database(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_PURGE_DOCUMENT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_PURGE_DOCUMENT
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_purge_document(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_PURGE_ENTRY
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_PURGE_ENTRY
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_purge_entry(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_PURGE_FOLDER
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_PURGE_FOLDER
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_purge_folder(void
     
 );
 #endif
@@ -987,9 +1217,39 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_reorder_child_blocks(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_DATABASE
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_DATABASE
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_restore_database(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_DOCUMENT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_DOCUMENT
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_restore_document(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_ENTRY
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_ENTRY
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_restore_entry(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_FOLDER
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_FOLDER
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_restore_folder(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_DATABASE_ENTRIES_JSON
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_DATABASE_ENTRIES_JSON
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_search_database_entries_json(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_DATABASES
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_DATABASES
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_search_databases(void
     
 );
 #endif
@@ -999,9 +1259,33 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_search_documents(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_FOLDERS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_FOLDERS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_search_folders(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_IN_BLOCKS
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_IN_BLOCKS
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_IN_BLOCKS_WITH_SNIPPETS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SEARCH_IN_BLOCKS_WITH_SNIPPETS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks_with_snippets(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_BLOCK_COLOR
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_BLOCK_COLOR
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_block_color(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_VIEW_SORT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_VIEW_SORT
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_view_sort(void
     
 );
 #endif
@@ -1017,6 +1301,24 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_cover(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_ICON
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_ICON
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_icon(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_LOCKED
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_LOCKED
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_locked(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_PARENT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_PARENT
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_parent(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_TITLE
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_TITLE
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_title(void
@@ -1026,6 +1328,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_title(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_ENTRY
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_ENTRY
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_entry(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_FOLDER_ICON
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_FOLDER_ICON
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_folder_icon(void
     
 );
 #endif
