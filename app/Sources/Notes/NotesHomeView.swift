@@ -66,15 +66,21 @@ struct NotesHomeView: View {
                         if let api = store.api {
                             ForEach(store.items) { item in
                                 itemRow(item, api: api)
-                            }
-                            .onDelete { indexSet in
-                                for i in indexSet {
-                                    let item = store.items[i]
-                                    switch item {
-                                    case .note(let d):      store.delete(id: d.id)
-                                    case .database(let db): store.deleteDatabase(id: db.id)
+                                    // Explicit swipeActions (not
+                                    // `.onDelete`) so the trash icon +
+                                    // label match every other swipe
+                                    // delete in the app.
+                                    .swipeActions(edge: .trailing) {
+                                        Button(role: .destructive) {
+                                            switch item {
+                                            case .note(let d):      store.delete(id: d.id)
+                                            case .database(let db): store.deleteDatabase(id: db.id)
+                                            }
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                        .tint(.red)
                                     }
-                                }
                             }
                         } else {
                             ProgressView()

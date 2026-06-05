@@ -18,7 +18,10 @@ final class DocumentViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var autoFocusId: String?
     @Published var autoFocusOffset: Int? = nil
-    var activeBlockId: String? = nil
+    // @Published so DocumentView can observe focus changes and
+    // scroll the freshly-focused block to a comfortable position
+    // (well above the keyboard, not just barely clearing it).
+    @Published var activeBlockId: String? = nil
     var focusedBlockId: String? = nil
     let repeater = ActionRepeater()
     var isNavigating: Bool { repeater.active }

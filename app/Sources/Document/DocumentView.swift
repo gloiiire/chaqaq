@@ -14,6 +14,11 @@ struct DocumentView: View {
     /// `blockListRow`. The setting is owned at the app level so every
     /// document picks the same look without having to re-fetch it.
     @EnvironmentObject var settings: AppSettings
+    /// Tracks whether the iOS 26 bottom accessory is rendered inline
+    /// (collapsed into the tab bar) or expanded above it. Drives the
+    /// floating-button bottom padding so the visual gap to the
+    /// accessory bar stays consistent in both modes.
+    @Environment(\.tabViewBottomAccessoryPlacement) var accessoryPlacement
     @State var showingBlockPicker = false
     @State var editMode: EditMode = .inactive
     @State var focusTitle = false
@@ -28,6 +33,11 @@ struct DocumentView: View {
     /// `DocumentView` whenever this becomes non-nil — the mention link
     /// resolves to an internal navigation rather than an external URL open.
     @State var pushedDocId: String? = nil
+    /// Drives the morphing block FAB on the right. When true, the
+    /// pencil button has stretched into the quick-insert capsule;
+    /// the UndoRedoPill on the left hides itself to give the morph
+    /// room to breathe.
+    @State var blockFABExpanded: Bool = false
     /// Bible-Strong-style spotlight: when the doc is opened from a search
     /// hit, the matched block stays sharp while the rest of the page is
     /// blurred + dimmed. Cleared on the first user interaction (tap or
@@ -85,6 +95,21 @@ struct DocumentView: View {
         ScrollViewReader { proxy in
             ZStack(alignment: .bottomTrailing) {
                 documentList
+                    // Focus → wait for iOS keyboard avoidance to settle
+                    // (≈ 400 ms keyboard animation), then anchor the
+                    // focused block at the bottom of the visible area
+                    // (y = 1.0 — clamped if larger). Keeps the just-
+                    // tapped block close to the keyboard top so the
+                    // user sees max prior context above it.
+                    .onChange(of: vm.activeBlockId) { _, newId in
+                        guard let id = newId else { return }
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(420))
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                proxy.scrollTo(id, anchor: UnitPoint(x: 0.5, y: 0.9))
+                            }
+                        }
+                    }
                     .task(id: scrollToBlockId) {
                         guard let target = scrollToBlockId else { return }
                         // Defer past the first layout pass so the List
@@ -156,7 +181,10 @@ struct DocumentView: View {
             if !vm.locked {
                 AddBlockButton { showingBlockPicker = true }
                     .listRowBackground(Color.clear).listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 40, trailing: 20))
+                    // Extra bottom inset so the "+ New block" sits well
+                    // above the floating undo/redo + FAB buttons below
+                    // and isn't half-hidden behind them.
+                    .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 70, trailing: 20))
                     .moveDisabled(true).deleteDisabled(true)
             }
         }

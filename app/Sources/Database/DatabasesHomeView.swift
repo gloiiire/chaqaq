@@ -27,10 +27,13 @@ struct DatabasesHomeView: View {
                                                                             onDisappear: store.load)) {
                                         DatabaseRow(db: db)
                                     }
-                                }
-                                .onDelete { indexSet in
-                                    for i in indexSet {
-                                        store.deleteDatabase(id: store.databases[i].id)
+                                    .swipeActions(edge: .trailing) {
+                                        Button(role: .destructive) {
+                                            store.deleteDatabase(id: db.id)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                        .tint(.red)
                                     }
                                 }
                             } else {

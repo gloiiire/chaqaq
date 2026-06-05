@@ -39,9 +39,14 @@ struct FolderView: View {
                     NavigationLink(destination: FolderView(store: store, folder: sub)) {
                         FolderRow(folder: sub)
                     }
-                }
-                .onDelete { indexSet in
-                    for i in indexSet { store.deleteFolder(id: subFolders[i].id) }
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            store.deleteFolder(id: sub.id)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        .tint(.red)
+                    }
                 }
 
                 Button {
@@ -70,9 +75,14 @@ struct FolderView: View {
                                                                   onDisappear: store.load)) {
                             WorkspaceRow(item: .note(doc))
                         }
-                    }
-                    .onDelete { indexSet in
-                        for i in indexSet { store.delete(id: docs[i].id) }
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                store.delete(id: doc.id)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            .tint(.red)
+                        }
                     }
                 }
             } header: {
@@ -190,9 +200,14 @@ struct FoldersSectionView: View {
                 NavigationLink(destination: FolderView(store: store, folder: folder)) {
                     FolderRow(folder: folder)
                 }
-            }
-            .onDelete { indexSet in
-                for i in indexSet { store.deleteFolder(id: folders[i].id) }
+                .swipeActions(edge: .trailing) {
+                    Button(role: .destructive) {
+                        store.deleteFolder(id: folder.id)
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                    .tint(.red)
+                }
             }
 
             Button {

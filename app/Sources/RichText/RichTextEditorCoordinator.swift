@@ -212,14 +212,18 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
     func textViewDidChange(_ tv: UITextView) {
         let text = tv.text ?? ""
 
-        if let shortcut = markdownShortcut(for: text) {
+        // Extract styled spans up front so the shortcut path can keep
+        // bold/italic on the trailing content (e.g. `# **Hello**` →
+        // H1 with the bold preserved).
+        let currentSpans = attributedToSpans(tv.attributedText, police: parent.baseFont)
+        if let shortcut = markdownShortcut(for: text, spans: currentSpans) {
             parent.onConvert?(shortcut)
             return
         }
 
         // save() = update parent.spans + call onSaveSpans → vm.saveBlock → capture the burst anchor for undo.
         // Called on every keystroke so that canUndo is true from the first character.
-        save(attributedToSpans(tv.attributedText, police: parent.baseFont))
+        save(currentSpans)
         if tv.selectedRange.length == 0 { clearRememberedSelection() }
         tv.invalidateIntrinsicContentSize()
         updateUndoRedoButtons()

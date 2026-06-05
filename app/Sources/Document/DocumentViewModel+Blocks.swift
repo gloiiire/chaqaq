@@ -147,7 +147,12 @@ extension DocumentViewModel {
         let oldSpans = blocks[idx].spans
         let oldDone = blocks[idx].done
         blocks[idx].content = newContent
-        blocks[idx].spans = []
+        // Carry over the spans embedded in `newContent` so a "Change
+        // to" conversion from the context menu keeps the user's text.
+        // Markdown shortcuts pass spans=[] here too (the coordinator
+        // builds the new content with the stripped text), so this
+        // matches both call sites.
+        blocks[idx].spans = newContent.spansOrEmpty
         blocks[idx].done = false
         persistBlock(blocks[idx])
         undoMgr.registerUndo(withTarget: self) { vm in

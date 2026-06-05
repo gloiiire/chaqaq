@@ -173,6 +173,22 @@ struct ContentView: View {
     }
 }
 
+// ── Preview ───────────────────────────────────────────────────────────────────
+
+#if DEBUG
+/// Single root preview that mirrors `PinkhaApp.body` — wraps the
+/// whole app so the Xcode Canvas can iterate on it without a full
+/// build/install round-trip. Note that the iOS 26 `TabView` chrome
+/// (tab bar + bottom accessory) and any layout that depends on it
+/// still need a simulator/device to render properly; the Canvas is
+/// best for in-view edits (typography, spacing inside content, etc.).
+#Preview {
+    ContentView()
+        .environmentObject(AppSettings())
+        .tint(AppSettings().accentColor)
+}
+#endif
+
 // ── Tab 2: Search ─────────────────────────────────────────────────────────────
 
 /// Search tab — full-workspace super search. Hits four axes in parallel

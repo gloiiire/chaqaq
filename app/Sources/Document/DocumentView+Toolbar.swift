@@ -89,16 +89,23 @@ extension DocumentView {
     @ViewBuilder
     var overlayButtons: some View {
         if !vm.locked && editMode == .inactive && !keyboardVisible {
-            FloatingButton(icon: "pencil.and.outline") { showingBlockPicker = true }
-                .padding(.trailing, 24)
-                .padding(.bottom, 32)
-                .transition(.scale.combined(with: .opacity))
+            ExpandingBlockFAB(
+                isExpanded: $blockFABExpanded,
+                onSelect: { type in vm.addBlock(type: type, afterId: vm.activeBlockId) },
+                onOpenFullPicker: { showingBlockPicker = true }
+            )
+            .padding(.trailing, 24)
+            .padding(.bottom, accessoryPlacement == .inline ? -70 : 8)
+            .transition(.scale.combined(with: .opacity))
         }
-        if !vm.locked && editMode == .inactive && !keyboardVisible {
+        // UndoRedoPill steps aside while the right FAB is morphed
+        // into its expanded capsule, so the two floating chunks
+        // don't visually fight for space.
+        if !vm.locked && editMode == .inactive && !keyboardVisible && !blockFABExpanded {
             UndoRedoPill(canUndo: vm.canUndo, canRedo: vm.canRedo,
                          onUndo: { vm.undo() }, onRedo: { vm.redo() })
                 .padding(.leading, 24)
-                .padding(.bottom, 32)
+                .padding(.bottom, accessoryPlacement == .inline ? -70 : 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .transition(.scale.combined(with: .opacity))
         }

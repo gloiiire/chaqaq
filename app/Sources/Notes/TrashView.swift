@@ -276,6 +276,7 @@ private struct TrashRow: View {
             } label: {
                 Label("Delete", systemImage: "trash")
             }
+            .tint(.red)
             Button {
                 onRestore()
             } label: {

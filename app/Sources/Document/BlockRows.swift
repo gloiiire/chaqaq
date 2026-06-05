@@ -127,6 +127,26 @@ struct BlockTextEditor: View {
     }
 }
 
+// ── Block content factory ─────────────────────────────────────────────────────
+
+/// Builds a `BlockContentFfi` for the given `NewBlockType`, carrying
+/// over the supplied spans (inline text + styles) so a "Change to"
+/// conversion keeps what the user already wrote. `.divider` ignores
+/// the spans by definition.
+func blockContent(for type: NewBlockType,
+                  preserving spans: [InlineTextFfi]) -> BlockContentFfi {
+    switch type {
+    case .text:    return .text(spans)
+    case .title1:  return .heading(level: 1, text: spans)
+    case .title2:  return .heading(level: 2, text: spans)
+    case .title3:  return .heading(level: 3, text: spans)
+    case .quote:   return .quote(icon: "", text: spans)
+    case .callout: return .quote(icon: "💡", text: spans)
+    case .todo:    return .todo(done: false, text: spans)
+    case .divider: return .divider
+    }
+}
+
 // ── Block row dispatcher ──────────────────────────────────────────────────────
 
 /// Routes each block to its dedicated row view based on the content type.
@@ -152,7 +172,15 @@ struct BlockRowView: View {
             case .todo:
                 TodoRowView(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
             case .divider:
-                Divider().padding(.vertical, 12)
+                // `Divider()` orients itself based on its parent stack
+                // — the surrounding HStack would render it as a vertical
+                // line. Use an explicit horizontal hairline matching the
+                // iOS native separator colour + standard 1 pt thickness.
+                Rectangle()
+                    .fill(Color(uiColor: .separator))
+                    .frame(height: 1)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
             case .bulletedListItem:
                 BulletedListItemRowView(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
             case .numberedListItem:
@@ -166,6 +194,22 @@ struct BlockRowView: View {
             }
         }
         .contextMenu {
+            // "Change to" — convert the existing block to another
+            // type while preserving its inline content (text spans).
+            // Routes through the same FFI as markdown shortcuts.
+            Menu {
+                ForEach(NewBlockType.allCases) { type in
+                    Button {
+                        cb.onConvertContent?(
+                            blockContent(for: type, preserving: block.spans)
+                        )
+                    } label: {
+                        Label(type.rawValue, systemImage: type.icone)
+                    }
+                }
+            } label: {
+                Label("Change to", systemImage: "arrow.triangle.2.circlepath")
+            }
             Button(role: .destructive, action: cb.onDelete) {
                 Label("Delete block", systemImage: "trash")
             }

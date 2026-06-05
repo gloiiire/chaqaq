@@ -69,9 +69,10 @@ extension DocumentView {
                                        onTap: {
             withAnimation(.easeInOut(duration: 0.15)) { toggleSelection(b.id) }
         }))
-        .simultaneousGesture(
-            LongPressGesture(minimumDuration: 0.35).onEnded { _ in selectFromLongPress(b.id) }
-        )
+        // Long-press is now reserved for the row's `.contextMenu`
+        // (Change to / Delete). Reorganize mode is reachable via the
+        // "Select" toolbar button at the top — keeping a competing
+        // long-press here would steal the gesture and block the menu.
         // Spotlight visuals — the matched block stays sharp while every
         // other block is blurred + dimmed. An optional accent tint
         // behind the focused row is shown only when the user opted into
@@ -96,6 +97,7 @@ extension DocumentView {
                 Button(role: .destructive) { vm.deleteBlock(id: b.id) } label: {
                     Label("Delete", systemImage: "trash")
                 }
+                .tint(.red)
             }
         }
     }
