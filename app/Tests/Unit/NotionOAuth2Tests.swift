@@ -64,4 +64,38 @@ struct NotionOAuth2Tests {
         let url = NotionOAuth2.authorizationUrl(clientId: "test", redirectUri: "pinkha://callback")
         #expect(url != nil)
     }
+
+    // MARK: - HMAC signing
+
+    @Test func signRequest_returns_64_char_hex_signature() {
+        // SHA-256 output is 32 bytes = 64 hex chars regardless of input length.
+        let (_, _, sig) = NotionOAuth2.signRequest(body: Data("payload".utf8))
+        #expect(sig.count == 64)
+        #expect(sig.allSatisfy { $0.isHexDigit })
+    }
+
+    @Test func signRequest_timestamp_is_unix_seconds() {
+        let fixedDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let (ts, _, _) = NotionOAuth2.signRequest(body: Data(), now: fixedDate)
+        #expect(ts == "1700000000")
+    }
+
+    @Test func signRequest_is_deterministic_for_same_inputs() {
+        // Same body + same nonce + same timestamp → same signature.
+        // Proves the proxy can verify what we sent.
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        let nonce = "fixed-nonce-uuid"
+        let body = Data(#"{"code":"abc"}"#.utf8)
+        let (_, _, sig1) = NotionOAuth2.signRequest(body: body, now: date, nonce: nonce)
+        let (_, _, sig2) = NotionOAuth2.signRequest(body: body, now: date, nonce: nonce)
+        #expect(sig1 == sig2)
+    }
+
+    @Test func signRequest_different_body_yields_different_signature() {
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        let nonce = "fixed-nonce-uuid"
+        let (_, _, sig1) = NotionOAuth2.signRequest(body: Data("body1".utf8), now: date, nonce: nonce)
+        let (_, _, sig2) = NotionOAuth2.signRequest(body: Data("body2".utf8), now: date, nonce: nonce)
+        #expect(sig1 != sig2)
+    }
 }

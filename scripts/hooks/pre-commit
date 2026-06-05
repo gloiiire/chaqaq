@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Hook pre-commit : vérifie le formatage Rust et lance clippy avant chaque commit.
+#
+# Stratégie : rapide par défaut.
+#   - Skip total si aucun fichier .rs n'est staged (commit docs/swift/config).
+#   - cargo fmt --all --check : ~0.5 s, attrape les divergences de style.
+#   - cargo clippy --workspace --all-targets -- -D warnings : 5-20 s selon
+#     le cache, attrape la majorité des fails CI rouge avant push.
+#
+# Pas de cargo test ici (trop lent pour un hook). La CI s'en charge.
+#
+# Bypass d'urgence : `git commit --no-verify` (à n'utiliser qu'en dernier
+# recours — la règle du repo est de ne jamais skip les hooks sauf
+# instruction explicite, cf. CLAUDE.md).
+
+set -euo pipefail
+
+# 1) Skip si aucun .rs staged.
+if ! git diff --cached --name-only --diff-filter=ACM | grep -qE '\.rs$'; then
+    exit 0
+fi
+
+# 2) Vérifie que cargo est dispo (contributeur qui clone sans toolchain).
+if ! command -v cargo > /dev/null 2>&1; then
+    echo "pre-commit : cargo introuvable dans le PATH."
+    echo "Installe Rust depuis https://rustup.rs/ puis re-essaie."
+    exit 1
+fi
+
+# 3) Format.
+echo "→ cargo fmt --all --check"
+if ! cargo fmt --all --check; then
+    echo ""
+    echo "Code non formaté. Lance :"
+    echo "    cargo fmt --all"
+    echo "puis re-stage les fichiers et re-commit."
+    exit 1
+fi
+
+# 4) Clippy (warnings → erreurs, comme en CI).
+echo "→ cargo clippy --workspace --all-targets -- -D warnings"
+if ! cargo clippy --workspace --all-targets --quiet -- -D warnings; then
+    echo ""
+    echo "Clippy a remonté des avertissements (traités en erreurs)."
+    echo "Corrige-les puis re-commit."
+    exit 1
+fi
+
+echo "✓ pre-commit OK"

@@ -30,8 +30,7 @@ pub fn extract_database_id(input: &str) -> String {
     // Take the last path component.
     let last_segment = without_query
         .split('/')
-        .filter(|s| !s.is_empty())
-        .last()
+        .rfind(|s| !s.is_empty())
         .unwrap_or(without_query);
 
     // Find the trailing 32-char hex sequence (UUID without dashes after the last `-`).
@@ -63,11 +62,34 @@ pub fn map_rich_text(items: &[NotionRichText]) -> Vec<InlineText> {
     items
         .iter()
         .filter(|r| !r.plain_text.is_empty())
-        .map(|r| InlineText {
-            content: r.plain_text.clone(),
-            styles: map_annotations(&r.annotations, r.href.as_deref()),
+        .map(|r| {
+            // Notion sends page mentions (`@PageName`) as runs with
+            // `type: "mention"` and a null `href`. Recover the page id
+            // from the `mention.page.id` payload and synthesise the
+            // canonical Notion URL so the post-import rewrite pass can
+            // swap it for the matching `pinkha://doc/{uuid}` link.
+            let href = r.href.clone().or_else(|| mention_href(r));
+            InlineText {
+                content: r.plain_text.clone(),
+                styles: map_annotations(&r.annotations, href.as_deref()),
+            }
         })
         .collect()
+}
+
+/// Reconstructs a Notion URL from a `mention` rich-text run when one is
+/// present and points to a page — used to keep `@PageName` references
+/// navigable post-import.
+fn mention_href(run: &NotionRichText) -> Option<String> {
+    if run.run_type != "mention" {
+        return None;
+    }
+    match run.mention.as_ref()? {
+        super::schema::NotionMention::Page { page } => {
+            Some(format!("https://www.notion.so/{}", page.id))
+        }
+        super::schema::NotionMention::Unknown => None,
+    }
 }
 
 /// Converts Notion text annotations to Pinkha inline styles.
@@ -118,6 +140,28 @@ fn map_notion_color(c: &str) -> Option<&'static str> {
 
 // ── Block mapping ─────────────────────────────────────────────────────────────
 
+/// Extracts the block-level colour (mapped to a Pinkha colour name) when the
+/// Notion block carries one. Returns `None` for `"default"`, unknown colour
+/// names, and background variants (`*_background`) — background colours are
+/// not yet a first-class concept on `Block`, so we ignore them rather than
+/// dropping data into the wrong field.
+pub fn map_block_color(block: &NotionBlock) -> Option<String> {
+    let raw: &str = match block.type_.as_str() {
+        "paragraph" => block.paragraph.as_ref().map(|b| b.color.as_str()),
+        "heading_1" => block.heading_1.as_ref().map(|b| b.color.as_str()),
+        "heading_2" => block.heading_2.as_ref().map(|b| b.color.as_str()),
+        "heading_3" => block.heading_3.as_ref().map(|b| b.color.as_str()),
+        "callout" => block.callout.as_ref().map(|b| b.color.as_str()),
+        "quote" => block.quote.as_ref().map(|b| b.color.as_str()),
+        "to_do" => block.to_do.as_ref().map(|b| b.color.as_str()),
+        "bulleted_list_item" => block.bulleted_list_item.as_ref().map(|b| b.color.as_str()),
+        "numbered_list_item" => block.numbered_list_item.as_ref().map(|b| b.color.as_str()),
+        "code" => block.code.as_ref().map(|b| b.color.as_str()),
+        _ => None,
+    }?;
+    map_notion_color(raw).map(str::to_owned)
+}
+
 /// Converts a Notion block to a Pinkha `BlockContent`.
 ///
 /// Returns `None` for block types that have no Pinkha equivalent (e.g. images,
@@ -151,10 +195,13 @@ pub fn map_block(block: &NotionBlock) -> Option<BlockContent> {
         }
         "callout" => {
             let cb = block.callout.as_ref()?;
-            let icon = cb
-                .icon
-                .as_ref()
-                .and_then(|i| if i.type_ == "emoji" { i.emoji.clone() } else { None });
+            let icon = cb.icon.as_ref().and_then(|i| {
+                if i.type_ == "emoji" {
+                    i.emoji.clone()
+                } else {
+                    None
+                }
+            });
             Some(BlockContent::Quote {
                 icon,
                 text: map_rich_text(&cb.rich_text),
@@ -236,9 +283,7 @@ pub fn map_property_type(def: &NotionPropertyDef) -> PropertyType {
 /// Returns `None` for `Unknown` variants (property types not yet modelled).
 pub fn map_property_value(val: &NotionPagePropValue) -> Option<PropertyValue> {
     match val {
-        NotionPagePropValue::Title { title } => {
-            Some(PropertyValue::Title(map_rich_text(title)))
-        }
+        NotionPagePropValue::Title { title } => Some(PropertyValue::Title(map_rich_text(title))),
         NotionPagePropValue::RichText { rich_text } => {
             let text: String = rich_text.iter().map(|r| r.plain_text.as_str()).collect();
             Some(PropertyValue::Text(text))
@@ -246,9 +291,9 @@ pub fn map_property_value(val: &NotionPagePropValue) -> Option<PropertyValue> {
         NotionPagePropValue::Number { number } => {
             Some(PropertyValue::Number(number.unwrap_or(0.0)))
         }
-        NotionPagePropValue::Select { select } => {
-            Some(PropertyValue::Selection(select.as_ref().map(|s| s.name.clone())))
-        }
+        NotionPagePropValue::Select { select } => Some(PropertyValue::Selection(
+            select.as_ref().map(|s| s.name.clone()),
+        )),
         NotionPagePropValue::MultiSelect { multi_select } => {
             let names = multi_select.iter().map(|s| s.name.clone()).collect();
             Some(PropertyValue::SelectionMultiple(names))
@@ -257,9 +302,7 @@ pub fn map_property_value(val: &NotionPagePropValue) -> Option<PropertyValue> {
             let s = date.as_ref().map(|d| d.start.clone()).unwrap_or_default();
             Some(PropertyValue::Date(s))
         }
-        NotionPagePropValue::Checkbox { checkbox } => {
-            Some(PropertyValue::Checkbox(*checkbox))
-        }
+        NotionPagePropValue::Checkbox { checkbox } => Some(PropertyValue::Checkbox(*checkbox)),
         NotionPagePropValue::Url { url } => {
             Some(PropertyValue::Url(url.clone().unwrap_or_default()))
         }
@@ -278,7 +321,8 @@ mod tests {
 
     #[test]
     fn test_extract_database_id_from_url() {
-        let url = "https://www.notion.so/workspace/My-Page-Title-1234567890abcdef1234567890abcdef?pvs=4";
+        let url =
+            "https://www.notion.so/workspace/My-Page-Title-1234567890abcdef1234567890abcdef?pvs=4";
         let id = extract_database_id(url);
         assert_eq!(id, "1234567890abcdef1234567890abcdef");
     }
@@ -302,11 +346,15 @@ mod tests {
                 plain_text: "".to_string(),
                 annotations: NotionAnnotations::default(),
                 href: None,
+            run_type: "text".to_string(),
+            mention: None,
             },
             NotionRichText {
                 plain_text: "hello".to_string(),
                 annotations: NotionAnnotations::default(),
                 href: None,
+            run_type: "text".to_string(),
+            mention: None,
             },
         ];
         let result = map_rich_text(&items);
@@ -330,7 +378,10 @@ mod tests {
     #[test]
     fn test_map_property_value_checkbox() {
         let val = NotionPagePropValue::Checkbox { checkbox: true };
-        assert_eq!(map_property_value(&val), Some(PropertyValue::Checkbox(true)));
+        assert_eq!(
+            map_property_value(&val),
+            Some(PropertyValue::Checkbox(true))
+        );
     }
 
     #[test]
@@ -345,10 +396,13 @@ mod tests {
     fn rt_block(text: &str) -> super::super::schema::RichTextBlock {
         use super::super::schema::RichTextBlock;
         RichTextBlock {
+            color: "default".into(),
             rich_text: vec![NotionRichText {
                 plain_text: text.to_string(),
                 annotations: NotionAnnotations::default(),
                 href: None,
+            run_type: "text".to_string(),
+            mention: None,
             }],
         }
     }
@@ -359,16 +413,45 @@ mod tests {
             id: "fake-id".to_string(),
             type_: type_.to_string(),
             has_children: false,
-            paragraph: if type_ == "paragraph" { Some(rt_block("hello")) } else { None },
-            heading_1: if type_ == "heading_1" { Some(rt_block("hello")) } else { None },
-            heading_2: if type_ == "heading_2" { Some(rt_block("hello")) } else { None },
-            heading_3: if type_ == "heading_3" { Some(rt_block("hello")) } else { None },
+            paragraph: if type_ == "paragraph" {
+                Some(rt_block("hello"))
+            } else {
+                None
+            },
+            heading_1: if type_ == "heading_1" {
+                Some(rt_block("hello"))
+            } else {
+                None
+            },
+            heading_2: if type_ == "heading_2" {
+                Some(rt_block("hello"))
+            } else {
+                None
+            },
+            heading_3: if type_ == "heading_3" {
+                Some(rt_block("hello"))
+            } else {
+                None
+            },
             callout: None,
-            quote: if type_ == "quote" { Some(rt_block("hello")) } else { None },
+            quote: if type_ == "quote" {
+                Some(rt_block("hello"))
+            } else {
+                None
+            },
             to_do: None,
-            bulleted_list_item: if type_ == "bulleted_list_item" { Some(rt_block("hello")) } else { None },
-            numbered_list_item: if type_ == "numbered_list_item" { Some(rt_block("hello")) } else { None },
+            bulleted_list_item: if type_ == "bulleted_list_item" {
+                Some(rt_block("hello"))
+            } else {
+                None
+            },
+            numbered_list_item: if type_ == "numbered_list_item" {
+                Some(rt_block("hello"))
+            } else {
+                None
+            },
             code: None,
+            child_page: None,
         }
     }
 
@@ -376,7 +459,10 @@ mod tests {
     fn test_map_block_paragraph() {
         let block = make_rt_block("paragraph");
         let result = map_block(&block);
-        assert!(matches!(result, Some(crate::domain::document::BlockContent::Text(_))));
+        assert!(matches!(
+            result,
+            Some(crate::domain::document::BlockContent::Text(_))
+        ));
     }
 
     #[test]
@@ -406,6 +492,8 @@ mod tests {
             plain_text: "fn main() {}".to_string(),
             annotations: NotionAnnotations::default(),
             href: None,
+            run_type: "text".to_string(),
+            mention: None,
         };
         let block = NotionBlock {
             id: "fake-id".to_string(),
@@ -420,9 +508,11 @@ mod tests {
             to_do: None,
             bulleted_list_item: None,
             numbered_list_item: None,
+            child_page: None,
             code: Some(CodeBlock {
                 rich_text: vec![rt],
                 language: "rust".to_string(),
+                color: "default".into(),
             }),
         };
         let result = map_block(&block);
@@ -451,6 +541,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         assert!(map_block(&block).is_none());
     }
@@ -459,8 +550,8 @@ mod tests {
 
     #[test]
     fn test_map_property_type_number() {
-        use crate::domain::database::PropertyType;
         use super::super::schema::NotionPropertyDef;
+        use crate::domain::database::PropertyType;
         let def = NotionPropertyDef {
             id: "abc".to_string(),
             name: "Score".to_string(),
@@ -480,6 +571,8 @@ mod tests {
             plain_text: "task".to_string(),
             annotations: NotionAnnotations::default(),
             href: None,
+            run_type: "text".to_string(),
+            mention: None,
         };
         let block = NotionBlock {
             id: "fake-id".to_string(),
@@ -491,10 +584,15 @@ mod tests {
             heading_3: None,
             callout: None,
             quote: None,
-            to_do: Some(TodoBlock { rich_text: vec![rt], checked: true }),
+            to_do: Some(TodoBlock {
+                rich_text: vec![rt],
+                checked: true,
+                color: "default".into(),
+            }),
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         assert!(matches!(
@@ -510,6 +608,8 @@ mod tests {
             plain_text: "task".to_string(),
             annotations: NotionAnnotations::default(),
             href: None,
+            run_type: "text".to_string(),
+            mention: None,
         };
         let block = NotionBlock {
             id: "fake-id".to_string(),
@@ -521,10 +621,15 @@ mod tests {
             heading_3: None,
             callout: None,
             quote: None,
-            to_do: Some(TodoBlock { rich_text: vec![rt], checked: false }),
+            to_do: Some(TodoBlock {
+                rich_text: vec![rt],
+                checked: false,
+                color: "default".into(),
+            }),
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         assert!(matches!(
@@ -540,6 +645,8 @@ mod tests {
             plain_text: "fire".to_string(),
             annotations: NotionAnnotations::default(),
             href: None,
+            run_type: "text".to_string(),
+            mention: None,
         };
         let block = NotionBlock {
             id: "fake-id".to_string(),
@@ -555,12 +662,14 @@ mod tests {
                     type_: "emoji".to_string(),
                     emoji: Some("🔥".to_string()),
                 }),
+                color: "default".into(),
             }),
             quote: None,
             to_do: None,
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         match result {
@@ -578,6 +687,8 @@ mod tests {
             plain_text: "note".to_string(),
             annotations: NotionAnnotations::default(),
             href: None,
+            run_type: "text".to_string(),
+            mention: None,
         };
         let block = NotionBlock {
             id: "fake-id".to_string(),
@@ -590,12 +701,14 @@ mod tests {
             callout: Some(CalloutBlock {
                 rich_text: vec![rt],
                 icon: None,
+                color: "default".into(),
             }),
             quote: None,
             to_do: None,
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         match result {
@@ -624,12 +737,16 @@ mod tests {
                     plain_text: "wisdom".to_string(),
                     annotations: NotionAnnotations::default(),
                     href: None,
+            run_type: "text".to_string(),
+            mention: None,
                 }],
+                color: "default".into(),
             }),
             to_do: None,
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
         match result {
@@ -658,9 +775,13 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             code: None,
+            child_page: None,
         };
         let result = map_block(&block);
-        assert!(matches!(result, Some(crate::domain::document::BlockContent::Divider)));
+        assert!(matches!(
+            result,
+            Some(crate::domain::document::BlockContent::Divider)
+        ));
     }
 
     // ── Additional property value tests ───────────────────────────────────────
@@ -680,8 +801,12 @@ mod tests {
         use super::super::schema::SelectValue;
         let val = NotionPagePropValue::MultiSelect {
             multi_select: vec![
-                SelectValue { name: "a".to_string() },
-                SelectValue { name: "b".to_string() },
+                SelectValue {
+                    name: "a".to_string(),
+                },
+                SelectValue {
+                    name: "b".to_string(),
+                },
             ],
         };
         match map_property_value(&val) {
@@ -699,7 +824,9 @@ mod tests {
         };
         assert_eq!(
             map_property_value(&val),
-            Some(crate::domain::database::PropertyValue::Url("https://example.com".to_string()))
+            Some(crate::domain::database::PropertyValue::Url(
+                "https://example.com".to_string()
+            ))
         );
     }
 
@@ -714,10 +841,16 @@ mod tests {
                 ..NotionAnnotations::default()
             },
             href: None,
+            run_type: "text".to_string(),
+            mention: None,
         }];
         let result = map_rich_text(&items);
         assert_eq!(result.len(), 1);
-        assert!(result[0].styles.contains(&crate::domain::document::InlineStyle::Bold));
+        assert!(
+            result[0]
+                .styles
+                .contains(&crate::domain::document::InlineStyle::Bold)
+        );
     }
 
     #[test]
@@ -729,12 +862,18 @@ mod tests {
                 ..NotionAnnotations::default()
             },
             href: None,
+            run_type: "text".to_string(),
+            mention: None,
         }];
         let result = map_rich_text(&items);
         assert_eq!(result.len(), 1);
-        assert!(result[0]
-            .styles
-            .contains(&crate::domain::document::InlineStyle::Color("red".to_string())));
+        assert!(
+            result[0]
+                .styles
+                .contains(&crate::domain::document::InlineStyle::Color(
+                    "red".to_string()
+                ))
+        );
     }
 
     #[test]
@@ -744,12 +883,16 @@ mod tests {
             plain_text: "click me".to_string(),
             annotations: NotionAnnotations::default(),
             href: Some(url.to_string()),
+            run_type: "text".to_string(),
+            mention: None,
         }];
         let result = map_rich_text(&items);
         assert_eq!(result.len(), 1);
-        assert!(result[0]
-            .styles
-            .contains(&crate::domain::document::InlineStyle::Link(url.to_string())));
+        assert!(
+            result[0]
+                .styles
+                .contains(&crate::domain::document::InlineStyle::Link(url.to_string()))
+        );
     }
 
     // ── extract_database_id with workspace slug ───────────────────────────────
@@ -757,9 +900,74 @@ mod tests {
     #[test]
     fn test_extract_database_id_with_workspace() {
         // URL format: notion.so/myworkspace/Title-{32hexchars}
-        let url =
-            "https://www.notion.so/myworkspace/Title-abc123def456abc123def456abc123de";
+        let url = "https://www.notion.so/myworkspace/Title-abc123def456abc123def456abc123de";
         let id = extract_database_id(url);
         assert_eq!(id, "abc123def456abc123def456abc123de");
+    }
+
+    // ── map_block_color ──────────────────────────────────────────────────────
+
+    fn paragraph_block_with_color(color: &str) -> NotionBlock {
+        use super::super::schema::RichTextBlock;
+        NotionBlock {
+            id: "b1".into(),
+            type_: "paragraph".into(),
+            has_children: false,
+            paragraph: Some(RichTextBlock {
+                rich_text: vec![],
+                color: color.into(),
+            }),
+            heading_1: None,
+            heading_2: None,
+            heading_3: None,
+            callout: None,
+            quote: None,
+            to_do: None,
+            bulleted_list_item: None,
+            numbered_list_item: None,
+            code: None,
+            child_page: None,
+        }
+    }
+
+    #[test]
+    fn map_block_color_extracts_red_from_paragraph() {
+        let block = paragraph_block_with_color("red");
+        assert_eq!(map_block_color(&block).as_deref(), Some("red"));
+    }
+
+    #[test]
+    fn map_block_color_returns_none_for_default() {
+        let block = paragraph_block_with_color("default");
+        assert!(map_block_color(&block).is_none());
+    }
+
+    #[test]
+    fn map_block_color_ignores_background_variants() {
+        // Backgrounds aren't yet a first-class concept on Block.color — we
+        // deliberately drop them rather than misclassify as text colour.
+        let block = paragraph_block_with_color("red_background");
+        assert!(map_block_color(&block).is_none());
+    }
+
+    #[test]
+    fn map_block_color_returns_none_for_unsupported_block_type() {
+        let block = NotionBlock {
+            id: "b1".into(),
+            type_: "unsupported_type".into(),
+            has_children: false,
+            paragraph: None,
+            heading_1: None,
+            heading_2: None,
+            heading_3: None,
+            callout: None,
+            quote: None,
+            to_do: None,
+            bulleted_list_item: None,
+            numbered_list_item: None,
+            code: None,
+            child_page: None,
+        };
+        assert!(map_block_color(&block).is_none());
     }
 }

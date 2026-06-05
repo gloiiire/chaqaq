@@ -16,8 +16,8 @@ pub(crate) const WTYPE_IGNORE: u8 = 2; // raw bytes; `size` field = byte count
 #[derive(Debug, Clone)]
 pub(crate) struct NodeHeader {
     pub(crate) size: usize,
-    pub(crate) width: u8,    // element width in bits: 0,1,2,4,8,16,32,64
-    pub(crate) wtype: u8,    // WTYPE_BITS / WTYPE_MULTIPLY / WTYPE_IGNORE
+    pub(crate) width: u8, // element width in bits: 0,1,2,4,8,16,32,64
+    pub(crate) wtype: u8, // WTYPE_BITS / WTYPE_MULTIPLY / WTYPE_IGNORE
     pub(crate) is_inner: bool,
 }
 
@@ -28,9 +28,18 @@ impl NodeHeader {
         let wtype = (flags & 0x18) >> 3;
         // width_enc 0..7 → actual width: 0,1,2,4,8,16,32,64
         let width_enc = flags & 0x07;
-        let width: u8 = if width_enc == 0 { 0 } else { 1u8 << (width_enc - 1) };
+        let width: u8 = if width_enc == 0 {
+            0
+        } else {
+            1u8 << (width_enc - 1)
+        };
         let size = ((h[5] as usize) << 16) | ((h[6] as usize) << 8) | (h[7] as usize);
-        NodeHeader { size, width, wtype, is_inner }
+        NodeHeader {
+            size,
+            width,
+            wtype,
+            is_inner,
+        }
     }
 }
 
@@ -39,11 +48,15 @@ pub(crate) fn parse_file_header(data: &[u8]) -> crate::Result<(usize, u32)> {
     if data.len() < FILE_HEADER_SIZE {
         return Err(crate::RealmError::InvalidFormat("file too small".into()));
     }
-    let top_ref = u64::from_le_bytes(data[0..8].try_into().unwrap()) as usize;
+    let top_ref_bytes: [u8; 8] = data[0..8]
+        .try_into()
+        .map_err(|_| crate::RealmError::InvalidFormat("top_ref slice".into()))?;
+    let top_ref = u64::from_le_bytes(top_ref_bytes) as usize;
     if &data[16..20] != MAGIC {
-        return Err(crate::RealmError::InvalidFormat(
-            format!("bad magic: {:?}", &data[16..20]),
-        ));
+        return Err(crate::RealmError::InvalidFormat(format!(
+            "bad magic: {:?}",
+            &data[16..20]
+        )));
     }
     // Byte 20 is the file-format version (u8). Bytes 21-23 are history-type and
     // history-schema-version fields that vary by Realm feature set — ignore them.
@@ -52,6 +65,26 @@ pub(crate) fn parse_file_header(data: &[u8]) -> crate::Result<(usize, u32)> {
         return Err(crate::RealmError::UnsupportedVersion(version));
     }
     Ok((top_ref, version))
+}
+
+/// Bounds-checked NodeHeader read at `offset`.
+///
+/// Returns [`RealmError::InvalidFormat`] if the 8-byte header would extend past
+/// the end of `data`. Used everywhere a `NodeHeader` is decoded from a raw ref —
+/// replaces the older `try_into().unwrap()` pattern which would panic on a
+/// truncated file.
+pub(crate) fn read_node_header(data: &[u8], offset: usize) -> crate::Result<NodeHeader> {
+    let slice = data
+        .get(offset..offset.saturating_add(NODE_HEADER_SIZE))
+        .ok_or_else(|| {
+            crate::RealmError::InvalidFormat(format!(
+                "node header offset {offset:#x} out of bounds"
+            ))
+        })?;
+    let bytes: &[u8; NODE_HEADER_SIZE] = slice
+        .try_into()
+        .map_err(|_| crate::RealmError::InvalidFormat("node header slice".into()))?;
+    Ok(NodeHeader::parse(bytes))
 }
 
 /// Read a single element from a WTYPE_BITS array at index `i`.
@@ -65,15 +98,15 @@ pub(crate) fn read_bits_elem(payload: &[u8], i: usize, width: u8) -> u64 {
         8 => payload[i] as u64,
         16 => {
             let off = i * 2;
-            u16::from_le_bytes(payload[off..off + 2].try_into().unwrap()) as u64
+            u16::from_le_bytes(payload[off..off + 2].try_into().unwrap_or([0; 2])) as u64
         }
         32 => {
             let off = i * 4;
-            u32::from_le_bytes(payload[off..off + 4].try_into().unwrap()) as u64
+            u32::from_le_bytes(payload[off..off + 4].try_into().unwrap_or([0; 4])) as u64
         }
         64 => {
             let off = i * 8;
-            u64::from_le_bytes(payload[off..off + 8].try_into().unwrap())
+            u64::from_le_bytes(payload[off..off + 8].try_into().unwrap_or([0; 8]))
         }
         _ => 0,
     }

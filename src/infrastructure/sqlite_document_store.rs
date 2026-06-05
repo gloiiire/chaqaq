@@ -53,20 +53,24 @@ impl DocumentRepository for SqliteDocumentStore {
         let cover = doc.cover.clone();
 
         let folder_id = doc.folder_id.map(|u| u.to_string());
+        let parent_doc_id = doc.parent_doc_id.map(|u| u.to_string());
+        let icon = doc.icon.clone();
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             conn.execute(
-                "INSERT INTO documents (id, title_text, title_json, cover, updated_at, created_at, folder_id, data)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6, ?7)
+                "INSERT INTO documents (id, title_text, title_json, cover, updated_at, created_at, folder_id, parent_doc_id, icon, data)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6, ?7, ?8, ?9)
                  ON CONFLICT(id) DO UPDATE SET
-                    title_text = excluded.title_text,
-                    title_json = excluded.title_json,
-                    cover      = excluded.cover,
-                    updated_at = excluded.updated_at,
-                    folder_id  = excluded.folder_id,
-                    data       = excluded.data,
-                    deleted_at = NULL",
-                params![id, title_text, title_json, cover, now, folder_id, data],
+                    title_text    = excluded.title_text,
+                    title_json    = excluded.title_json,
+                    cover         = excluded.cover,
+                    updated_at    = excluded.updated_at,
+                    folder_id     = excluded.folder_id,
+                    parent_doc_id = excluded.parent_doc_id,
+                    icon          = excluded.icon,
+                    data          = excluded.data,
+                    deleted_at    = NULL",
+                params![id, title_text, title_json, cover, now, folder_id, parent_doc_id, icon, data],
             )
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
             Ok(())
@@ -131,6 +135,88 @@ impl DocumentRepository for SqliteDocumentStore {
             Ok(())
         })
     }
+
+    fn list_deleted(&self) -> Result<Vec<DocumentMeta>, PinkhaError> {
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let mut stmt = conn
+                .prepare(
+                    "SELECT id, title_json, cover, updated_at, created_at, folder_id, parent_doc_id, icon
+                     FROM documents WHERE deleted_at IS NOT NULL
+                     ORDER BY deleted_at DESC",
+                )
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            let rows = stmt
+                .query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, Option<String>>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, Option<String>>(5)?,
+                        row.get::<_, Option<String>>(6)?,
+                        row.get::<_, Option<String>>(7)?,
+                    ))
+                })
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            let mut metas = Vec::new();
+            for row in rows {
+                let (id_str, title_json, cover, updated_at, created_at, fid, pdid, icon) =
+                    row.map_err(|e| PinkhaError::Db(e.to_string()))?;
+                let id = Uuid::parse_str(&id_str).map_err(|_| {
+                    PinkhaError::InvalidOperation(format!("UUID invalide : {id_str}"))
+                })?;
+                let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
+                metas.push(DocumentMeta {
+                    id,
+                    title,
+                    cover,
+                    icon,
+                    updated_at,
+                    created_at,
+                    folder_id: fid.and_then(|s| Uuid::parse_str(&s).ok()),
+                    parent_doc_id: pdid.and_then(|s| Uuid::parse_str(&s).ok()),
+                });
+            }
+            Ok(metas)
+        })
+    }
+
+    fn restore(&self, id: Uuid) -> Result<(), PinkhaError> {
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let affected = conn
+                .execute(
+                    "UPDATE documents SET deleted_at = NULL, updated_at = ?1
+                     WHERE id = ?2 AND deleted_at IS NOT NULL",
+                    params![chrono::Utc::now().to_rfc3339(), id.to_string()],
+                )
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            if affected == 0 {
+                return Err(PinkhaError::NotFound(id));
+            }
+            Ok(())
+        })
+    }
+
+    fn purge(&self, id: Uuid) -> Result<(), PinkhaError> {
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let affected = conn
+                .execute(
+                    "DELETE FROM documents WHERE id = ?1 AND deleted_at IS NOT NULL",
+                    params![id.to_string()],
+                )
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            if affected == 0 {
+                return Err(PinkhaError::InvalidOperation(format!(
+                    "document {id} must be soft-deleted before it can be purged"
+                )));
+            }
+            Ok(())
+        })
+    }
 }
 
 impl SqliteDocumentStore {
@@ -143,21 +229,23 @@ impl SqliteDocumentStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let sql = if filter {
                 if folder_id.is_some() {
-                    "SELECT id, title_json, cover, updated_at, created_at, folder_id
+                    "SELECT id, title_json, cover, updated_at, created_at, folder_id, parent_doc_id, icon
                      FROM documents WHERE deleted_at IS NULL AND folder_id = ?1
                      ORDER BY updated_at DESC"
                 } else {
-                    "SELECT id, title_json, cover, updated_at, created_at, folder_id
+                    "SELECT id, title_json, cover, updated_at, created_at, folder_id, parent_doc_id, icon
                      FROM documents WHERE deleted_at IS NULL AND folder_id IS NULL
                      ORDER BY updated_at DESC"
                 }
             } else {
-                "SELECT id, title_json, cover, updated_at, created_at, folder_id
+                "SELECT id, title_json, cover, updated_at, created_at, folder_id, parent_doc_id, icon
                  FROM documents WHERE deleted_at IS NULL
                  ORDER BY updated_at DESC"
             };
             let fid_str = folder_id.map(|u| u.to_string());
-            let mut stmt = conn.prepare(sql).map_err(|e| PinkhaError::Db(e.to_string()))?;
+            let mut stmt = conn
+                .prepare(sql)
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let mapper = |row: &rusqlite::Row<'_>| {
                 Ok((
                     row.get::<_, String>(0)?,
@@ -166,6 +254,8 @@ impl SqliteDocumentStore {
                     row.get::<_, String>(3)?,
                     row.get::<_, String>(4)?,
                     row.get::<_, Option<String>>(5)?,
+                    row.get::<_, Option<String>>(6)?,
+                    row.get::<_, Option<String>>(7)?,
                 ))
             };
             let rows = if filter && folder_id.is_some() {
@@ -176,15 +266,21 @@ impl SqliteDocumentStore {
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let mut metas = Vec::new();
             for row in rows {
-                let (id_str, title_json, cover, updated_at, created_at, fid) =
+                let (id_str, title_json, cover, updated_at, created_at, fid, pdid, icon) =
                     row.map_err(|e| PinkhaError::Db(e.to_string()))?;
                 let id = Uuid::parse_str(&id_str).map_err(|_| {
                     PinkhaError::InvalidOperation(format!("UUID invalide : {id_str}"))
                 })?;
                 let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
                 metas.push(DocumentMeta {
-                    id, title, cover, updated_at, created_at,
+                    id,
+                    title,
+                    cover,
+                    icon,
+                    updated_at,
+                    created_at,
                     folder_id: fid.and_then(|s| Uuid::parse_str(&s).ok()),
+                    parent_doc_id: pdid.and_then(|s| Uuid::parse_str(&s).ok()),
                 });
             }
             Ok(metas)

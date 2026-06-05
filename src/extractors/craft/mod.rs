@@ -22,6 +22,7 @@ use crate::domain::document::{Block, BlockContent};
 use crate::extractors::bear::mapper::ParsedBlock;
 use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
+use crate::infrastructure::no_op_unit_of_work::NoOpUnitOfWork;
 use chaqaq::InlineText;
 use uuid::Uuid;
 
@@ -97,6 +98,20 @@ impl Extractor for CraftExtractor {
         let lsb_idx = block_table
             .column_index("lastSyncedBlockIds")
             .ok_or_else(|| ExtractorError::Parse("lastSyncedBlockIds column missing".into()))?;
+        // Best-effort block colour column. Craft's exact schema is not fully
+        // documented from the outside, so we probe a handful of plausible
+        // names and pick the first that exists. `None` means the column wasn't
+        // found in this Craft version — import keeps working, just without
+        // colour fidelity. Add candidates here as the real schema is mapped.
+        let color_idx = [
+            "highlightColor",
+            "textColor",
+            "colorName",
+            "color",
+            "blockColor",
+        ]
+        .iter()
+        .find_map(|name| block_table.column_index(name));
 
         // doc_id → (title, content_blocks, skipped_count)
         let mut doc_map: HashMap<String, (Option<String>, Vec<ParsedBlock>, usize)> =
@@ -114,15 +129,24 @@ impl Extractor for CraftExtractor {
             let entry = doc_map.entry(doc_id).or_insert((None, vec![], 0));
 
             // Title: first "text" block with non-empty content, first line only.
-            if entry.0.is_none() {
-                if let Some(t) = title_candidate(&content, block_type) {
-                    entry.0 = Some(t);
-                    continue; // consumed as title, don't duplicate in content
-                }
+            if entry.0.is_none()
+                && let Some(t) = title_candidate(&content, block_type)
+            {
+                entry.0 = Some(t);
+                continue; // consumed as title, don't duplicate in content
             }
 
+            let color = color_idx
+                .map(|idx| row.get(idx).as_str())
+                .filter(|s| !s.is_empty())
+                .and_then(craft_color_name_to_pinkha);
+
             match map_block(&content, block_type) {
-                Some(bc) => entry.1.push(ParsedBlock { content: bc, children: vec![] }),
+                Some(bc) => entry.1.push(ParsedBlock {
+                    content: bc,
+                    children: vec![],
+                    color,
+                }),
                 None => entry.2 += 1,
             }
         }
@@ -160,7 +184,11 @@ pub fn title_candidate(content: &str, block_type: &str) -> Option<String> {
         return None;
     }
     let line = content.lines().next().unwrap_or("").trim();
-    if line.is_empty() { None } else { Some(line.to_string()) }
+    if line.is_empty() {
+        None
+    } else {
+        Some(line.to_string())
+    }
 }
 
 pub fn map_block(content: &str, block_type: &str) -> Option<BlockContent> {
@@ -170,7 +198,10 @@ pub fn map_block(content: &str, block_type: &str) -> Option<BlockContent> {
             if content.is_empty() {
                 return None;
             }
-            Some(BlockContent::Code { language: String::new(), text: content.to_string() })
+            Some(BlockContent::Code {
+                language: String::new(),
+                text: content.to_string(),
+            })
         }
         "line" => Some(BlockContent::Divider),
         _ => None,
@@ -178,7 +209,10 @@ pub fn map_block(content: &str, block_type: &str) -> Option<BlockContent> {
 }
 
 pub fn plain(s: &str) -> Vec<InlineText> {
-    vec![InlineText { content: s.to_string(), styles: vec![] }]
+    vec![InlineText {
+        content: s.to_string(),
+        styles: vec![],
+    }]
 }
 
 pub fn flush_document(
@@ -187,9 +221,16 @@ pub fn flush_document(
     blocks: Vec<ParsedBlock>,
     folder_id: Option<Uuid>,
 ) -> Result<(), ExtractorError> {
-    let mut doc = use_cases::create_document(docs, title)?;
+    let uow = NoOpUnitOfWork::with_docs(docs);
+    let mut doc = use_cases::create_document(&uow, title)?;
+    // Imports default to locked = true so the user reads the extracted
+    // content (which they didn't write themselves) before editing. Set
+    // in-memory so it's persisted with the rest of the doc in a single
+    // write below.
+    doc.locked = true;
     for parsed in blocks {
         let mut block = Block::new(parsed.content);
+        block.color = parsed.color;
         for child_content in parsed.children {
             block.children.push(Block::new(child_content));
         }
@@ -200,6 +241,29 @@ pub fn flush_document(
     }
     docs.save(&doc)?;
     Ok(())
+}
+
+/// Maps a Craft colour string (whatever encoding the realm column uses) to a
+/// Pinkha colour name. Returns `None` for unknown values so we never
+/// misclassify — better to lose colour fidelity than paint a block the wrong
+/// hue.
+///
+/// Best-effort: the actual values shipped by Craft are not fully documented
+/// externally. This mapping covers the obvious case (English colour names,
+/// case-insensitive). Extend as new observed values surface in real imports.
+pub fn craft_color_name_to_pinkha(raw: &str) -> Option<String> {
+    match raw.to_ascii_lowercase().as_str() {
+        "red" => Some("red".into()),
+        "pink" => Some("pink".into()),
+        "orange" => Some("orange".into()),
+        "yellow" => Some("yellow".into()),
+        "green" => Some("green".into()),
+        "cyan" | "teal" => Some("cyan".into()),
+        "blue" => Some("blue".into()),
+        "purple" | "violet" => Some("purple".into()),
+        "brown" => Some("brown".into()),
+        _ => None,
+    }
 }
 
 // ── Unit tests ────────────────────────────────────────────────────────────────
@@ -254,12 +318,18 @@ mod tests {
 
     #[test]
     fn title_candidate_text_returns_first_line() {
-        assert_eq!(title_candidate("Hello\nworld", "text").as_deref(), Some("Hello"));
+        assert_eq!(
+            title_candidate("Hello\nworld", "text").as_deref(),
+            Some("Hello")
+        );
     }
 
     #[test]
     fn title_candidate_text_trims_whitespace() {
-        assert_eq!(title_candidate("  Hello  \nworld", "text").as_deref(), Some("Hello"));
+        assert_eq!(
+            title_candidate("  Hello  \nworld", "text").as_deref(),
+            Some("Hello")
+        );
     }
 
     #[test]
@@ -280,5 +350,33 @@ mod tests {
     #[test]
     fn title_candidate_whitespace_only_skipped() {
         assert!(title_candidate("   \n  text", "text").is_none());
+    }
+
+    // ── craft_color_name_to_pinkha ───────────────────────────────────────────
+
+    #[test]
+    fn craft_color_red_maps_to_pinkha_red() {
+        assert_eq!(craft_color_name_to_pinkha("red").as_deref(), Some("red"));
+        // Case-insensitive.
+        assert_eq!(craft_color_name_to_pinkha("RED").as_deref(), Some("red"));
+        assert_eq!(craft_color_name_to_pinkha("Red").as_deref(), Some("red"));
+    }
+
+    #[test]
+    fn craft_color_synonyms_collapse_correctly() {
+        assert_eq!(craft_color_name_to_pinkha("teal").as_deref(), Some("cyan"));
+        assert_eq!(
+            craft_color_name_to_pinkha("violet").as_deref(),
+            Some("purple")
+        );
+    }
+
+    #[test]
+    fn craft_color_unknown_returns_none() {
+        // Unknown values must not be silently misclassified — better to lose
+        // colour fidelity than to paint a block the wrong hue.
+        assert!(craft_color_name_to_pinkha("").is_none());
+        assert!(craft_color_name_to_pinkha("highlight-yellow-2").is_none());
+        assert!(craft_color_name_to_pinkha("#FF0000").is_none());
     }
 }

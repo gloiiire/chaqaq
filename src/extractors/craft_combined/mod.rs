@@ -27,7 +27,7 @@ use realm_codec::RealmFile;
 use crate::application::database_repository::DatabaseRepository;
 use crate::application::folder_repository::FolderRepository;
 use crate::application::repository::DocumentRepository;
-use crate::extractors::bear::mapper::{parse_note_blocks, ParsedBlock};
+use crate::extractors::bear::mapper::{ParsedBlock, parse_note_blocks};
 use crate::extractors::craft::{flush_document, map_block, title_candidate};
 use crate::extractors::craft_textbundle::{
     find_textbundles, relative_folder_components, textbundle_title,
@@ -78,6 +78,18 @@ impl CraftCombinedExtractor {
 
         // ── Step 1: index textbundles by normalized title ─────────────────────
         let tb_root = Path::new(&config.textbundle_root);
+        if !tb_root.exists() {
+            return Err(ExtractorError::Parse(format!(
+                "textbundle root does not exist: {}",
+                config.textbundle_root
+            )));
+        }
+        if !tb_root.is_dir() {
+            return Err(ExtractorError::Parse(format!(
+                "textbundle root is not a directory: {}",
+                config.textbundle_root
+            )));
+        }
         let bundles = find_textbundles(tb_root);
 
         // normalized_title → (display_title, bundle_path)
@@ -138,14 +150,22 @@ impl CraftCombinedExtractor {
             let block_type = row.get(type_idx).as_str();
             let entry = doc_map.entry(doc_id).or_insert((None, vec![], 0));
 
-            if entry.0.is_none() {
-                if let Some(t) = title_candidate(&content, block_type) {
-                    entry.0 = Some(t);
-                    continue;
-                }
+            if entry.0.is_none()
+                && let Some(t) = title_candidate(&content, block_type)
+            {
+                entry.0 = Some(t);
+                continue;
             }
             match map_block(&content, block_type) {
-                Some(bc) => entry.1.push(ParsedBlock { content: bc, children: vec![] }),
+                // craft_combined doesn't yet probe the colour column —
+                // colour fidelity here is a future iteration once textbundle
+                // parsing also exposes block colours. See `craft::run` for
+                // the per-block colour probing pattern.
+                Some(bc) => entry.1.push(ParsedBlock {
+                    content: bc,
+                    children: vec![],
+                    color: None,
+                }),
                 None => entry.2 += 1,
             }
         }
@@ -162,8 +182,8 @@ impl CraftCombinedExtractor {
             let key = normalize(&realm_title);
 
             if let Some((tb_title, bundle_path)) = tb_map.get(&key) {
-                let md = std::fs::read_to_string(bundle_path.join("text.markdown"))
-                    .unwrap_or_default();
+                let md =
+                    std::fs::read_to_string(bundle_path.join("text.markdown")).unwrap_or_default();
                 let blocks = parse_note_blocks(&md);
                 block_count += blocks.len();
                 let components = relative_folder_components(bundle_path, tb_root);
@@ -234,7 +254,9 @@ impl Extractor for CraftCombinedExtractor {
         dbs: &(dyn DatabaseRepository + Send + Sync),
         folders: &(dyn FolderRepository + Send + Sync),
     ) -> Result<ImportResult, ExtractorError> {
-        self.run_detailed(config, docs, dbs, folders).await.map(|(r, _)| r)
+        self.run_detailed(config, docs, dbs, folders)
+            .await
+            .map(|(r, _)| r)
     }
 }
 

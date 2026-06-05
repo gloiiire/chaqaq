@@ -435,6 +435,30 @@ fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterBool : FfiConverter {
+    typealias FfiType = Int8
+    typealias SwiftType = Bool
+
+    public static func lift(_ value: Int8) throws -> Bool {
+        return value != 0
+    }
+
+    public static func lower(_ value: Bool) -> Int8 {
+        return value ? 1 : 0
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bool {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Bool, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
@@ -522,9 +546,16 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func createFolder(name: String, parentId: String?) throws  -> FolderMetaFfi
     
     /**
+     * Soft-deletes every database. Returns the number deleted.
+     */
+    func deleteAllDatabases() throws  -> UInt32
+    
+    /**
      * Soft-delete de tous les documents. Retourne le nombre supprimé.
      */
     func deleteAllDocuments() throws  -> UInt32
+    
+    func deleteAllFolders() throws  -> UInt32
     
     func deleteBlock(docId: String, blockId: String) throws 
     
@@ -592,13 +623,52 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Importe une database Notion complète (schéma + pages + blocs).
      * `token` est un bearer token OAuth2 ou private integration token.
      * `database_id` est un UUID 32-char hex ou l'URL complète Notion.
+     *
+     * Synchrone côté FFI : Notion utilise `reqwest`, qui exige un runtime
+     * Tokio absent de l'executor UniFFI. On `block_on` côté Rust, donc Swift
+     * doit appeler depuis `Task.detached` pour ne pas bloquer le main thread.
+     * `covers_dir` est un chemin absolu vers un dossier existant où les
+     * images de cover sont téléchargées. Quand null, on stocke seulement
+     * l'URL — OK pour les covers externes mais celles hébergées par Notion
+     * expirent au bout d'~1h.
      */
-    func importFromNotion(token: String, databaseId: String) async throws  -> ImportResultFfi
+    func importFromNotion(token: String, databaseId: String, coversDir: String?) throws  -> ImportResultFfi
+    
+    /**
+     * Indente un bloc : le déplace sous le frère précédent au même niveau.
+     * `InvalidOperation` si le bloc est le premier de son niveau.
+     */
+    func indentBlock(docId: String, blockId: String) throws 
+    
+    /**
+     * Liste les enfants directs d'un document parent (page-in-page).
+     */
+    func listChildDocuments(parentDocId: String) throws  -> [DocumentMetaFfi]
     
     /**
      * Liste les métadonnées de toutes les databases actives.
      */
     func listDatabases() throws  -> [DatabaseMetaFfi]
+    
+    /**
+     * Liste les databases en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     */
+    func listDeletedDatabases() throws  -> [DatabaseMetaFfi]
+    
+    /**
+     * Liste les documents en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     */
+    func listDeletedDocuments() throws  -> [DocumentMetaFfi]
+    
+    /**
+     * Liste les entries soft-deleted d'une database (JSON array).
+     */
+    func listDeletedEntriesJson(dbId: String) throws  -> String
+    
+    /**
+     * Liste les dossiers en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     */
+    func listDeletedFolders() throws  -> [FolderMetaFfi]
     
     /**
      * Liste les métadonnées de tous les documents actifs.
@@ -610,6 +680,17 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func listFolders() throws  -> [FolderMetaFfi]
     
     /**
+     * Liste les databases Notion accessibles avec le token donné. Utilisé
+     * par le picker côté Swift pour éviter à l'utilisateur de coller des URLs.
+     */
+    func listNotionDatabases(token: String) throws  -> [NotionDatabaseSummaryFfi]
+    
+    /**
+     * Liste les pages racine (documents sans parent). Alimente la home.
+     */
+    func listRootDocuments() throws  -> [DocumentMetaFfi]
+    
+    /**
      * Déplace un bloc vers un parent ou vers la racine si `new_parent_id` est nul.
      */
     func moveBlock(docId: String, blockId: String, newParentId: String?) throws 
@@ -617,6 +698,33 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func moveDocumentToFolder(docId: String, folderId: String?) throws 
     
     func moveFolderTo(id: String, newParentId: String?) throws 
+    
+    /**
+     * Désindente un bloc : le sort de son parent et le replace au niveau du
+     * grand-parent, juste après l'ancien parent. `InvalidOperation` si le
+     * bloc est déjà à la racine.
+     */
+    func outdentBlock(docId: String, blockId: String) throws 
+    
+    /**
+     * Supprime définitivement une database de la corbeille (hard delete).
+     */
+    func purgeDatabase(id: String) throws 
+    
+    /**
+     * Supprime définitivement un document de la corbeille (hard delete).
+     */
+    func purgeDocument(id: String) throws 
+    
+    /**
+     * Supprime définitivement une entry soft-deleted (hard delete).
+     */
+    func purgeEntry(dbId: String, entryId: String) throws 
+    
+    /**
+     * Supprime définitivement un dossier de la corbeille (hard delete).
+     */
+    func purgeFolder(id: String) throws 
     
     /**
      * Retourne les entrées filtrées/triées en JSON.
@@ -643,9 +751,34 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func reorderChildBlocks(docId: String, parentId: String, order: [String]) throws 
     
     /**
+     * Restaure une database depuis la corbeille.
+     */
+    func restoreDatabase(id: String) throws 
+    
+    /**
+     * Restaure un document depuis la corbeille.
+     */
+    func restoreDocument(id: String) throws 
+    
+    /**
+     * Restaure une entry depuis la corbeille de sa database.
+     */
+    func restoreEntry(dbId: String, entryId: String) throws 
+    
+    /**
+     * Restaure un dossier depuis la corbeille.
+     */
+    func restoreFolder(id: String) throws 
+    
+    /**
      * Retourne les entrées correspondant à la recherche en JSON.
      */
     func searchDatabaseEntriesJson(dbId: String, query: String) throws  -> String
+    
+    /**
+     * Recherche par titre de database.
+     */
+    func searchDatabases(query: String) throws  -> [DatabaseMetaFfi]
     
     /**
      * Recherche insensible à la casse dans les titles.
@@ -653,9 +786,32 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func searchDocuments(query: String) throws  -> [DocumentMetaFfi]
     
     /**
+     * Recherche par nom de folder.
+     */
+    func searchFolders(query: String) throws  -> [FolderMetaFfi]
+    
+    /**
      * Recherche plein texte dans les blocs.
      */
     func searchInBlocks(query: String) throws  -> [DocumentMetaFfi]
+    
+    /**
+     * Recherche plein texte avec extrait (snippet) du bloc qui matche.
+     */
+    func searchInBlocksWithSnippets(query: String) throws  -> [BlockSearchHitFfi]
+    
+    /**
+     * Pose ou retire la couleur d'un bloc (texte). `color` est un nom de
+     * couleur (`"red"`, `"blue"`, etc.) ou `null` pour revenir au thème.
+     * Les couleurs inline sur les spans ont toujours priorité.
+     */
+    func setBlockColor(docId: String, blockId: String, color: String?) throws 
+    
+    /**
+     * Pose un tri unique sur une vue, en remplaçant ceux qui existent.
+     * `property_id = null` retire le tri.
+     */
+    func setViewSort(dbId: String, viewId: String, propertyId: String?, ascending: Bool) throws 
     
     /**
      * Remplace le contenu d'un bloc existant (JSON de BlockContent).
@@ -664,9 +820,29 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     
     func updateDocumentCover(id: String, cover: String?) throws 
     
+    /**
+     * Pose ou retire l'icône d'un document (emoji, filename local, ou URL).
+     */
+    func updateDocumentIcon(id: String, icon: String?) throws 
+    
+    /**
+     * Active ou désactive le verrou lecture seule sur un document.
+     * Les imports (Notion/Bear/Craft) appellent automatiquement avec
+     * `locked = true` à la création.
+     */
+    func updateDocumentLocked(id: String, locked: Bool) throws 
+    
+    /**
+     * Définit le document parent (page imbriquée à la Notion). `None` pour
+     * repromouvoir le document à la racine. Rejette les cycles.
+     */
+    func updateDocumentParent(docId: String, newParentDocId: String?) throws 
+    
     func updateDocumentTitle(id: String, newTitle: String) throws 
     
     func updateEntry(dbId: String, entryId: String, valuesJson: String) throws 
+    
+    func updateFolderIcon(id: String, icon: String?) throws 
     
     func updateView(dbId: String, viewId: String, filtersJson: String, sortsJson: String) throws 
     
@@ -850,11 +1026,30 @@ open func createFolder(name: String, parentId: String?)throws  -> FolderMetaFfi 
 }
     
     /**
+     * Soft-deletes every database. Returns the number deleted.
+     */
+open func deleteAllDatabases()throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_all_databases(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
      * Soft-delete de tous les documents. Retourne le nombre supprimé.
      */
 open func deleteAllDocuments()throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_delete_all_documents(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func deleteAllFolders()throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_all_folders(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -1062,22 +1257,49 @@ open func importFromCraftTextbundle(rootDir: String)async throws  -> ImportResul
      * Importe une database Notion complète (schéma + pages + blocs).
      * `token` est un bearer token OAuth2 ou private integration token.
      * `database_id` est un UUID 32-char hex ou l'URL complète Notion.
+     *
+     * Synchrone côté FFI : Notion utilise `reqwest`, qui exige un runtime
+     * Tokio absent de l'executor UniFFI. On `block_on` côté Rust, donc Swift
+     * doit appeler depuis `Task.detached` pour ne pas bloquer le main thread.
+     * `covers_dir` est un chemin absolu vers un dossier existant où les
+     * images de cover sont téléchargées. Quand null, on stocke seulement
+     * l'URL — OK pour les covers externes mais celles hébergées par Notion
+     * expirent au bout d'~1h.
      */
-open func importFromNotion(token: String, databaseId: String)async throws  -> ImportResultFfi  {
-    return
-        try  await uniffiRustCallAsync(
-            rustFutureFunc: {
-                uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(
-                    self.uniffiCloneHandle(),
-                    FfiConverterString.lower(token),FfiConverterString.lower(databaseId)
-                )
-            },
-            pollFunc: ffi_pinkha_rust_future_poll_rust_buffer,
-            completeFunc: ffi_pinkha_rust_future_complete_rust_buffer,
-            freeFunc: ffi_pinkha_rust_future_free_rust_buffer,
-            liftFunc: FfiConverterTypeImportResultFfi_lift,
-            errorHandler: FfiConverterTypePinkhaError_lift
-        )
+open func importFromNotion(token: String, databaseId: String, coversDir: String?)throws  -> ImportResultFfi  {
+    return try  FfiConverterTypeImportResultFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),
+        FfiConverterString.lower(databaseId),
+        FfiConverterOptionString.lower(coversDir),$0
+    )
+})
+}
+    
+    /**
+     * Indente un bloc : le déplace sous le frère précédent au même niveau.
+     * `InvalidOperation` si le bloc est le premier de son niveau.
+     */
+open func indentBlock(docId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_indent_block(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(docId),
+        FfiConverterString.lower(blockId),$0
+    )
+}
+}
+    
+    /**
+     * Liste les enfants directs d'un document parent (page-in-page).
+     */
+open func listChildDocuments(parentDocId: String)throws  -> [DocumentMetaFfi]  {
+    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_child_documents(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(parentDocId),$0
+    )
+})
 }
     
     /**
@@ -1086,6 +1308,51 @@ open func importFromNotion(token: String, databaseId: String)async throws  -> Im
 open func listDatabases()throws  -> [DatabaseMetaFfi]  {
     return try  FfiConverterSequenceTypeDatabaseMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_list_databases(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Liste les databases en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     */
+open func listDeletedDatabases()throws  -> [DatabaseMetaFfi]  {
+    return try  FfiConverterSequenceTypeDatabaseMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_deleted_databases(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Liste les documents en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     */
+open func listDeletedDocuments()throws  -> [DocumentMetaFfi]  {
+    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_deleted_documents(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Liste les entries soft-deleted d'une database (JSON array).
+     */
+open func listDeletedEntriesJson(dbId: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_deleted_entries_json(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dbId),$0
+    )
+})
+}
+    
+    /**
+     * Liste les dossiers en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     */
+open func listDeletedFolders()throws  -> [FolderMetaFfi]  {
+    return try  FfiConverterSequenceTypeFolderMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_deleted_folders(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -1120,6 +1387,30 @@ open func listFolders()throws  -> [FolderMetaFfi]  {
 }
     
     /**
+     * Liste les databases Notion accessibles avec le token donné. Utilisé
+     * par le picker côté Swift pour éviter à l'utilisateur de coller des URLs.
+     */
+open func listNotionDatabases(token: String)throws  -> [NotionDatabaseSummaryFfi]  {
+    return try  FfiConverterSequenceTypeNotionDatabaseSummaryFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_notion_databases(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),$0
+    )
+})
+}
+    
+    /**
+     * Liste les pages racine (documents sans parent). Alimente la home.
+     */
+open func listRootDocuments()throws  -> [DocumentMetaFfi]  {
+    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_root_documents(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
      * Déplace un bloc vers un parent ou vers la racine si `new_parent_id` est nul.
      */
 open func moveBlock(docId: String, blockId: String, newParentId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1146,6 +1437,65 @@ open func moveFolderTo(id: String, newParentId: String?)throws   {try rustCallWi
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
         FfiConverterOptionString.lower(newParentId),$0
+    )
+}
+}
+    
+    /**
+     * Désindente un bloc : le sort de son parent et le replace au niveau du
+     * grand-parent, juste après l'ancien parent. `InvalidOperation` si le
+     * bloc est déjà à la racine.
+     */
+open func outdentBlock(docId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_outdent_block(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(docId),
+        FfiConverterString.lower(blockId),$0
+    )
+}
+}
+    
+    /**
+     * Supprime définitivement une database de la corbeille (hard delete).
+     */
+open func purgeDatabase(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_purge_database(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+    /**
+     * Supprime définitivement un document de la corbeille (hard delete).
+     */
+open func purgeDocument(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_purge_document(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+    /**
+     * Supprime définitivement une entry soft-deleted (hard delete).
+     */
+open func purgeEntry(dbId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_purge_entry(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(entryId),$0
+    )
+}
+}
+    
+    /**
+     * Supprime définitivement un dossier de la corbeille (hard delete).
+     */
+open func purgeFolder(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_purge_folder(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
     )
 }
 }
@@ -1221,6 +1571,51 @@ open func reorderChildBlocks(docId: String, parentId: String, order: [String])th
 }
     
     /**
+     * Restaure une database depuis la corbeille.
+     */
+open func restoreDatabase(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_restore_database(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+    /**
+     * Restaure un document depuis la corbeille.
+     */
+open func restoreDocument(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_restore_document(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+    /**
+     * Restaure une entry depuis la corbeille de sa database.
+     */
+open func restoreEntry(dbId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_restore_entry(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(entryId),$0
+    )
+}
+}
+    
+    /**
+     * Restaure un dossier depuis la corbeille.
+     */
+open func restoreFolder(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_restore_folder(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+    /**
      * Retourne les entrées correspondant à la recherche en JSON.
      */
 open func searchDatabaseEntriesJson(dbId: String, query: String)throws  -> String  {
@@ -1228,6 +1623,18 @@ open func searchDatabaseEntriesJson(dbId: String, query: String)throws  -> Strin
     uniffi_pinkha_fn_method_pinkhaapi_search_database_entries_json(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(dbId),
+        FfiConverterString.lower(query),$0
+    )
+})
+}
+    
+    /**
+     * Recherche par titre de database.
+     */
+open func searchDatabases(query: String)throws  -> [DatabaseMetaFfi]  {
+    return try  FfiConverterSequenceTypeDatabaseMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_search_databases(
+            self.uniffiCloneHandle(),
         FfiConverterString.lower(query),$0
     )
 })
@@ -1246,6 +1653,18 @@ open func searchDocuments(query: String)throws  -> [DocumentMetaFfi]  {
 }
     
     /**
+     * Recherche par nom de folder.
+     */
+open func searchFolders(query: String)throws  -> [FolderMetaFfi]  {
+    return try  FfiConverterSequenceTypeFolderMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_search_folders(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(query),$0
+    )
+})
+}
+    
+    /**
      * Recherche plein texte dans les blocs.
      */
 open func searchInBlocks(query: String)throws  -> [DocumentMetaFfi]  {
@@ -1255,6 +1674,48 @@ open func searchInBlocks(query: String)throws  -> [DocumentMetaFfi]  {
         FfiConverterString.lower(query),$0
     )
 })
+}
+    
+    /**
+     * Recherche plein texte avec extrait (snippet) du bloc qui matche.
+     */
+open func searchInBlocksWithSnippets(query: String)throws  -> [BlockSearchHitFfi]  {
+    return try  FfiConverterSequenceTypeBlockSearchHitFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_search_in_blocks_with_snippets(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(query),$0
+    )
+})
+}
+    
+    /**
+     * Pose ou retire la couleur d'un bloc (texte). `color` est un nom de
+     * couleur (`"red"`, `"blue"`, etc.) ou `null` pour revenir au thème.
+     * Les couleurs inline sur les spans ont toujours priorité.
+     */
+open func setBlockColor(docId: String, blockId: String, color: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_set_block_color(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(docId),
+        FfiConverterString.lower(blockId),
+        FfiConverterOptionString.lower(color),$0
+    )
+}
+}
+    
+    /**
+     * Pose un tri unique sur une vue, en remplaçant ceux qui existent.
+     * `property_id = null` retire le tri.
+     */
+open func setViewSort(dbId: String, viewId: String, propertyId: String?, ascending: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_set_view_sort(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(viewId),
+        FfiConverterOptionString.lower(propertyId),
+        FfiConverterBool.lower(ascending),$0
+    )
+}
 }
     
     /**
@@ -1279,6 +1740,45 @@ open func updateDocumentCover(id: String, cover: String?)throws   {try rustCallW
 }
 }
     
+    /**
+     * Pose ou retire l'icône d'un document (emoji, filename local, ou URL).
+     */
+open func updateDocumentIcon(id: String, icon: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_document_icon(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(icon),$0
+    )
+}
+}
+    
+    /**
+     * Active ou désactive le verrou lecture seule sur un document.
+     * Les imports (Notion/Bear/Craft) appellent automatiquement avec
+     * `locked = true` à la création.
+     */
+open func updateDocumentLocked(id: String, locked: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_document_locked(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterBool.lower(locked),$0
+    )
+}
+}
+    
+    /**
+     * Définit le document parent (page imbriquée à la Notion). `None` pour
+     * repromouvoir le document à la racine. Rejette les cycles.
+     */
+open func updateDocumentParent(docId: String, newParentDocId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_document_parent(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(docId),
+        FfiConverterOptionString.lower(newParentDocId),$0
+    )
+}
+}
+    
 open func updateDocumentTitle(id: String, newTitle: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_document_title(
             self.uniffiCloneHandle(),
@@ -1294,6 +1794,15 @@ open func updateEntry(dbId: String, entryId: String, valuesJson: String)throws  
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(entryId),
         FfiConverterString.lower(valuesJson),$0
+    )
+}
+}
+    
+open func updateFolderIcon(id: String, icon: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_folder_icon(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(icon),$0
     )
 }
 }
@@ -1355,6 +1864,68 @@ public func FfiConverterTypePinkhaApi_lower(_ value: PinkhaApi) -> UInt64 {
 }
 
 
+
+
+/**
+ * Hit d'une recherche dans le contenu des blocs — métadonnées du doc
+ * plus extrait du bloc qui matche pour preview style Notion.
+ */
+public struct BlockSearchHitFfi: Equatable, Hashable {
+    public var doc: DocumentMetaFfi
+    public var blockId: String
+    public var snippet: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(doc: DocumentMetaFfi, blockId: String, snippet: String) {
+        self.doc = doc
+        self.blockId = blockId
+        self.snippet = snippet
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BlockSearchHitFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBlockSearchHitFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BlockSearchHitFfi {
+        return
+            try BlockSearchHitFfi(
+                doc: FfiConverterTypeDocumentMetaFfi.read(from: &buf), 
+                blockId: FfiConverterString.read(from: &buf), 
+                snippet: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BlockSearchHitFfi, into buf: inout [UInt8]) {
+        FfiConverterTypeDocumentMetaFfi.write(value.doc, into: &buf)
+        FfiConverterString.write(value.blockId, into: &buf)
+        FfiConverterString.write(value.snippet, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBlockSearchHitFfi_lift(_ buf: RustBuffer) throws -> BlockSearchHitFfi {
+    return try FfiConverterTypeBlockSearchHitFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBlockSearchHitFfi_lower(_ value: BlockSearchHitFfi) -> RustBuffer {
+    return FfiConverterTypeBlockSearchHitFfi.lower(value)
+}
 
 
 /**
@@ -1437,10 +2008,12 @@ public struct DocumentMetaFfi: Equatable, Hashable {
     public var updatedAt: String
     public var createdAt: String
     public var folderId: String?
+    public var parentDocId: String?
+    public var icon: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, titlePlain: String, titleJson: String, cover: String?, updatedAt: String, createdAt: String, folderId: String?) {
+    public init(id: String, titlePlain: String, titleJson: String, cover: String?, updatedAt: String, createdAt: String, folderId: String?, parentDocId: String?, icon: String?) {
         self.id = id
         self.titlePlain = titlePlain
         self.titleJson = titleJson
@@ -1448,6 +2021,8 @@ public struct DocumentMetaFfi: Equatable, Hashable {
         self.updatedAt = updatedAt
         self.createdAt = createdAt
         self.folderId = folderId
+        self.parentDocId = parentDocId
+        self.icon = icon
     }
 
     
@@ -1472,7 +2047,9 @@ public struct FfiConverterTypeDocumentMetaFfi: FfiConverterRustBuffer {
                 cover: FfiConverterOptionString.read(from: &buf), 
                 updatedAt: FfiConverterString.read(from: &buf), 
                 createdAt: FfiConverterString.read(from: &buf), 
-                folderId: FfiConverterOptionString.read(from: &buf)
+                folderId: FfiConverterOptionString.read(from: &buf), 
+                parentDocId: FfiConverterOptionString.read(from: &buf), 
+                icon: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -1484,6 +2061,8 @@ public struct FfiConverterTypeDocumentMetaFfi: FfiConverterRustBuffer {
         FfiConverterString.write(value.updatedAt, into: &buf)
         FfiConverterString.write(value.createdAt, into: &buf)
         FfiConverterOptionString.write(value.folderId, into: &buf)
+        FfiConverterOptionString.write(value.parentDocId, into: &buf)
+        FfiConverterOptionString.write(value.icon, into: &buf)
     }
 }
 
@@ -1512,15 +2091,17 @@ public struct FolderMetaFfi: Equatable, Hashable {
     public var parentId: String?
     public var createdAt: String
     public var updatedAt: String
+    public var icon: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, name: String, parentId: String?, createdAt: String, updatedAt: String) {
+    public init(id: String, name: String, parentId: String?, createdAt: String, updatedAt: String, icon: String?) {
         self.id = id
         self.name = name
         self.parentId = parentId
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.icon = icon
     }
 
     
@@ -1543,7 +2124,8 @@ public struct FfiConverterTypeFolderMetaFfi: FfiConverterRustBuffer {
                 name: FfiConverterString.read(from: &buf), 
                 parentId: FfiConverterOptionString.read(from: &buf), 
                 createdAt: FfiConverterString.read(from: &buf), 
-                updatedAt: FfiConverterString.read(from: &buf)
+                updatedAt: FfiConverterString.read(from: &buf), 
+                icon: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -1553,6 +2135,7 @@ public struct FfiConverterTypeFolderMetaFfi: FfiConverterRustBuffer {
         FfiConverterOptionString.write(value.parentId, into: &buf)
         FfiConverterString.write(value.createdAt, into: &buf)
         FfiConverterString.write(value.updatedAt, into: &buf)
+        FfiConverterOptionString.write(value.icon, into: &buf)
     }
 }
 
@@ -1672,6 +2255,72 @@ public func FfiConverterTypeImportResultFfi_lift(_ buf: RustBuffer) throws -> Im
 #endif
 public func FfiConverterTypeImportResultFfi_lower(_ value: ImportResultFfi) -> RustBuffer {
     return FfiConverterTypeImportResultFfi.lower(value)
+}
+
+
+/**
+ * Résumé d'une database Notion retournée par `list_notion_databases` pour
+ * le picker UI.
+ */
+public struct NotionDatabaseSummaryFfi: Equatable, Hashable {
+    public var id: String
+    public var title: String
+    public var iconEmoji: String?
+    public var lastEdited: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, title: String, iconEmoji: String?, lastEdited: String) {
+        self.id = id
+        self.title = title
+        self.iconEmoji = iconEmoji
+        self.lastEdited = lastEdited
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NotionDatabaseSummaryFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNotionDatabaseSummaryFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NotionDatabaseSummaryFfi {
+        return
+            try NotionDatabaseSummaryFfi(
+                id: FfiConverterString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                iconEmoji: FfiConverterOptionString.read(from: &buf), 
+                lastEdited: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NotionDatabaseSummaryFfi, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterOptionString.write(value.iconEmoji, into: &buf)
+        FfiConverterString.write(value.lastEdited, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNotionDatabaseSummaryFfi_lift(_ buf: RustBuffer) throws -> NotionDatabaseSummaryFfi {
+    return try FfiConverterTypeNotionDatabaseSummaryFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNotionDatabaseSummaryFfi_lower(_ value: NotionDatabaseSummaryFfi) -> RustBuffer {
+    return FfiConverterTypeNotionDatabaseSummaryFfi.lower(value)
 }
 
 
@@ -1820,6 +2469,31 @@ fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeBlockSearchHitFfi: FfiConverterRustBuffer {
+    typealias SwiftType = [BlockSearchHitFfi]
+
+    public static func write(_ value: [BlockSearchHitFfi], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBlockSearchHitFfi.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BlockSearchHitFfi] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BlockSearchHitFfi]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBlockSearchHitFfi.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeDatabaseMetaFfi: FfiConverterRustBuffer {
     typealias SwiftType = [DatabaseMetaFfi]
 
@@ -1887,6 +2561,31 @@ fileprivate struct FfiConverterSequenceTypeFolderMetaFfi: FfiConverterRustBuffer
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeFolderMetaFfi.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeNotionDatabaseSummaryFfi: FfiConverterRustBuffer {
+    typealias SwiftType = [NotionDatabaseSummaryFfi]
+
+    public static func write(_ value: [NotionDatabaseSummaryFfi], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeNotionDatabaseSummaryFfi.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [NotionDatabaseSummaryFfi] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [NotionDatabaseSummaryFfi]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeNotionDatabaseSummaryFfi.read(from: &buf))
         }
         return seq
     }
@@ -1982,7 +2681,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_create_folder() != 49423) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_databases() != 61257) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_documents() != 3995) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_folders() != 2097) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_block() != 14109) {
@@ -2030,10 +2735,28 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_craft_textbundle() != 42783) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion() != 39297) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion() != 18771) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_indent_block() != 34803) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_child_documents() != 23819) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_databases() != 58802) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_databases() != 23880) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_documents() != 36222) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_entries_json() != 45731) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_folders() != 33419) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_documents() != 62408) {
@@ -2045,6 +2768,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_folders() != 40736) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases() != 31016) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_root_documents() != 63012) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_move_block() != 56333) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -2052,6 +2781,21 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_move_folder_to() != 28416) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_outdent_block() != 55400) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_database() != 13513) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_document() != 62109) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_entry() != 63480) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_folder() != 8367) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_query_database_json() != 4012) {
@@ -2072,13 +2816,40 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_reorder_child_blocks() != 60852) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_database() != 9191) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_document() != 33151) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_entry() != 19357) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_folder() != 11915) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_search_database_entries_json() != 53101) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_databases() != 59051) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_search_documents() != 4353) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_folders() != 50429) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks() != 65038) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks_with_snippets() != 57833) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_color() != 56489) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_sort() != 45579) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_block() != 49420) {
@@ -2087,10 +2858,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_cover() != 31520) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_icon() != 32890) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_locked() != 6614) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_parent() != 28850) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_title() != 35631) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_entry() != 34034) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_folder_icon() != 31954) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_view() != 6165) {

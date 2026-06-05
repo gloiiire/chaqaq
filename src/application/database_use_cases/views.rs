@@ -1,14 +1,11 @@
-use crate::application::database_repository::DatabaseRepository;
 use crate::application::error::PinkhaError;
-use crate::domain::database::{Filter, Sort, View};
+use crate::application::unit_of_work::UnitOfWork;
+use crate::domain::database::{Filter, Order, Sort, SortSource, View};
 use uuid::Uuid;
 
 /// Adds a new view to the database and persists.
-pub fn add_view(
-    repo: &dyn DatabaseRepository,
-    db_id: Uuid,
-    view: View,
-) -> Result<View, PinkhaError> {
+pub fn add_view(uow: &dyn UnitOfWork, db_id: Uuid, view: View) -> Result<View, PinkhaError> {
+    let repo = uow.databases();
     let mut db = repo.load(db_id)?;
     db.views.push(view.clone());
     repo.save(&db)?;
@@ -17,12 +14,13 @@ pub fn add_view(
 
 /// Replaces the filters and sorts of an existing view and persists.
 pub fn update_view(
-    repo: &dyn DatabaseRepository,
+    uow: &dyn UnitOfWork,
     db_id: Uuid,
     view_id: Uuid,
     filters: Vec<Filter>,
     sorts: Vec<Sort>,
 ) -> Result<(), PinkhaError> {
+    let repo = uow.databases();
     let mut db = repo.load(db_id)?;
     let view = db
         .views
@@ -34,14 +32,45 @@ pub fn update_view(
     repo.save(&db)
 }
 
+/// Sets a single sort on a view, replacing whatever sorts were previously
+/// configured. When `property_id` is `None`, all sorts are cleared.
+///
+/// This is the UX-facing entry point for "tap a column header to sort" —
+/// callers don't need to know about `Sort`, `SortSource`, or filter shapes.
+pub fn set_view_single_sort(
+    uow: &dyn UnitOfWork,
+    db_id: Uuid,
+    view_id: Uuid,
+    property_id: Option<Uuid>,
+    ascending: bool,
+) -> Result<(), PinkhaError> {
+    let repo = uow.databases();
+    let mut db = repo.load(db_id)?;
+    let view = db
+        .views
+        .iter_mut()
+        .find(|v| v.id == view_id)
+        .ok_or(PinkhaError::NotFound(view_id))?;
+    view.sorts = match property_id {
+        None => Vec::new(),
+        Some(pid) => vec![Sort {
+            property_id: pid,
+            order: if ascending {
+                Order::Ascending
+            } else {
+                Order::Descending
+            },
+            source: SortSource::Property,
+        }],
+    };
+    repo.save(&db)
+}
+
 /// Removes a view and persists.
 ///
 /// Returns `InvalidOperation` when attempting to delete the last remaining view.
-pub fn delete_view(
-    repo: &dyn DatabaseRepository,
-    db_id: Uuid,
-    view_id: Uuid,
-) -> Result<(), PinkhaError> {
+pub fn delete_view(uow: &dyn UnitOfWork, db_id: Uuid, view_id: Uuid) -> Result<(), PinkhaError> {
+    let repo = uow.databases();
     let mut db = repo.load(db_id)?;
     if db.views.len() <= 1 {
         return Err(PinkhaError::InvalidOperation(
@@ -59,44 +88,58 @@ pub fn delete_view(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::application::database_repository::DatabaseRepository;
     use crate::application::error::PinkhaError;
+    use crate::application::unit_of_work::test_support::MockUnitOfWork;
     use crate::domain::database::{
         Database, DatabaseMeta, FilterCondition, Order, Property, PropertyType, ViewType,
     };
     use crate::domain::document::InlineText;
-    use std::cell::RefCell;
+
     use uuid::Uuid;
 
+    fn db_uow(repo: &MockDbRepo) -> MockUnitOfWork<'_> {
+        MockUnitOfWork::with_dbs(repo)
+    }
+
     struct MockDbRepo {
-        dbs: RefCell<std::collections::HashMap<Uuid, Database>>,
+        dbs: std::sync::Mutex<std::collections::HashMap<Uuid, Database>>,
     }
 
     impl MockDbRepo {
         fn new() -> Self {
             Self {
-                dbs: RefCell::new(std::collections::HashMap::new()),
+                dbs: std::sync::Mutex::new(std::collections::HashMap::new()),
             }
         }
     }
 
     impl DatabaseRepository for MockDbRepo {
         fn save(&self, db: &Database) -> Result<(), PinkhaError> {
-            self.dbs.borrow_mut().insert(db.id, db.clone());
+            self.dbs.lock().unwrap().insert(db.id, db.clone());
             Ok(())
         }
         fn load(&self, id: Uuid) -> Result<Database, PinkhaError> {
             self.dbs
-                .borrow()
+                .lock()
+                .unwrap()
                 .get(&id)
                 .cloned()
                 .ok_or(PinkhaError::NotFound(id))
         }
         fn list_meta(&self) -> Result<Vec<DatabaseMeta>, PinkhaError> {
-            Ok(self.dbs.borrow().values().map(|db| db.meta()).collect())
+            Ok(self
+                .dbs
+                .lock()
+                .unwrap()
+                .values()
+                .map(|db| db.meta())
+                .collect())
         }
         fn delete(&self, id: Uuid) -> Result<(), PinkhaError> {
             self.dbs
-                .borrow_mut()
+                .lock()
+                .unwrap()
                 .remove(&id)
                 .map(|_| ())
                 .ok_or(PinkhaError::NotFound(id))
@@ -124,7 +167,7 @@ mod tests {
             condition: FilterCondition::IsFilled,
         };
         let sort = Sort::by_property(prop_id, Order::Descending);
-        update_view(&repo, db.id, view_id, vec![filter], vec![sort]).unwrap();
+        update_view(&db_uow(&repo), db.id, view_id, vec![filter], vec![sort]).unwrap();
 
         let db = repo.load(db.id).unwrap();
         assert_eq!(db.views[0].filters.len(), 1);
@@ -140,7 +183,7 @@ mod tests {
         db.views.push(view2);
         repo.save(&db).unwrap();
 
-        delete_view(&repo, db.id, view2_id).unwrap();
+        delete_view(&db_uow(&repo), db.id, view2_id).unwrap();
 
         let db = repo.load(db.id).unwrap();
         assert_eq!(db.views.len(), 1);
@@ -154,7 +197,7 @@ mod tests {
         let view_id = db.views[0].id;
         repo.save(&db).unwrap();
 
-        let res = delete_view(&repo, db.id, view_id);
+        let res = delete_view(&db_uow(&repo), db.id, view_id);
         assert!(matches!(res, Err(PinkhaError::InvalidOperation(_))));
     }
 
@@ -165,7 +208,82 @@ mod tests {
         db.views.push(View::new("Extra", ViewType::Gallery));
         repo.save(&db).unwrap();
 
-        let res = delete_view(&repo, db.id, Uuid::new_v4());
+        let res = delete_view(&db_uow(&repo), db.id, Uuid::new_v4());
+        assert!(matches!(res, Err(PinkhaError::NotFound(_))));
+    }
+
+    // ── set_view_single_sort ─────────────────────────────────────────────────
+
+    #[test]
+    fn set_view_single_sort_replaces_previous_sorts() {
+        let repo = MockDbRepo::new();
+        let title_prop = Property::new("Name", PropertyType::Title);
+        let title_id = title_prop.id;
+        let date_prop = Property::new("Date", PropertyType::Date);
+        let date_id = date_prop.id;
+        let db = Database::new(
+            vec![InlineText {
+                content: "Tasks".into(),
+                styles: vec![],
+            }],
+            vec![title_prop, date_prop],
+        );
+        let db_id = db.id;
+        let view_id = db.views[0].id;
+        repo.save(&db).unwrap();
+
+        // First sort: title ascending.
+        set_view_single_sort(&db_uow(&repo), db_id, view_id, Some(title_id), true).unwrap();
+        let after_first = repo.load(db_id).unwrap();
+        assert_eq!(after_first.views[0].sorts.len(), 1);
+        assert_eq!(after_first.views[0].sorts[0].property_id, title_id);
+        assert_eq!(after_first.views[0].sorts[0].order, Order::Ascending);
+
+        // Replace with date descending — previous sort is gone, not stacked.
+        set_view_single_sort(&db_uow(&repo), db_id, view_id, Some(date_id), false).unwrap();
+        let after_second = repo.load(db_id).unwrap();
+        assert_eq!(after_second.views[0].sorts.len(), 1);
+        assert_eq!(after_second.views[0].sorts[0].property_id, date_id);
+        assert_eq!(after_second.views[0].sorts[0].order, Order::Descending);
+    }
+
+    #[test]
+    fn set_view_single_sort_with_none_clears_sorts() {
+        let repo = MockDbRepo::new();
+        let prop = Property::new("Name", PropertyType::Title);
+        let prop_id = prop.id;
+        let db = Database::new(
+            vec![InlineText {
+                content: "Tasks".into(),
+                styles: vec![],
+            }],
+            vec![prop],
+        );
+        let db_id = db.id;
+        let view_id = db.views[0].id;
+        repo.save(&db).unwrap();
+
+        set_view_single_sort(&db_uow(&repo), db_id, view_id, Some(prop_id), true).unwrap();
+        set_view_single_sort(&db_uow(&repo), db_id, view_id, None, true).unwrap();
+
+        let loaded = repo.load(db_id).unwrap();
+        assert!(loaded.views[0].sorts.is_empty());
+    }
+
+    #[test]
+    fn set_view_single_sort_unknown_view_returns_not_found() {
+        let repo = MockDbRepo::new();
+        let db = Database::new(
+            vec![InlineText {
+                content: "x".into(),
+                styles: vec![],
+            }],
+            vec![],
+        );
+        let db_id = db.id;
+        repo.save(&db).unwrap();
+
+        let res = set_view_single_sort(&db_uow(&repo), db_id, Uuid::new_v4(), None, true);
         assert!(matches!(res, Err(PinkhaError::NotFound(_))));
     }
 }

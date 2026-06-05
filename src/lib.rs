@@ -4,6 +4,9 @@ pub mod extractors;
 pub mod ffi;
 pub mod infrastructure;
 
-pub use ffi::{PinkhaApi, PinkhaError, DatabaseMetaFfi, DocumentMetaFfi, FolderMetaFfi, ImportResultFfi};
+pub use ffi::{
+    BlockSearchHitFfi, DatabaseMetaFfi, DocumentMetaFfi, FolderMetaFfi, ImportResultFfi,
+    NotionDatabaseSummaryFfi, PinkhaApi, PinkhaError,
+};
 
 uniffi::include_scaffolding!("pinkha");

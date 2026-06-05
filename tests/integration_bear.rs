@@ -50,8 +50,7 @@ struct TempFile {
 
 impl TempFile {
     fn new() -> Self {
-        let path = std::env::temp_dir()
-            .join(format!("pinkha_bear_test_{}.sqlite", Uuid::new_v4()));
+        let path = std::env::temp_dir().join(format!("pinkha_bear_test_{}.sqlite", Uuid::new_v4()));
         Self { path }
     }
 }
@@ -70,11 +69,7 @@ fn test_bear_reader_skips_trashed_notes() -> Result<(), Box<dyn std::error::Erro
 
     create_bear_db(&tmp.path).map_err(|e| format!("schema setup failed: {e}"))?;
 
-    let reader = BearReader::new(
-        tmp.path
-            .to_str()
-            .ok_or("non-UTF-8 path")?,
-    )?;
+    let reader = BearReader::new(tmp.path.to_str().ok_or("non-UTF-8 path")?)?;
 
     let notes = reader.fetch_notes()?;
 
@@ -99,7 +94,10 @@ fn test_bear_reader_note_fields() -> Result<(), Box<dyn std::error::Error>> {
 
     let note = &notes[0];
     assert_eq!(note.id, 1);
-    assert!(note.text.contains("Body text."), "note body should contain text");
+    assert!(
+        note.text.contains("Body text."),
+        "note body should contain text"
+    );
     assert_eq!(note.creation_date, 0.0);
     assert_eq!(note.modification_date, 1.0);
 

@@ -5,7 +5,7 @@ A personal note-taking app combining the fluidity of Craft with the structure of
 [![CI](https://github.com/gloiiire/pinkha/actions/workflows/ci.yml/badge.svg)](https://github.com/gloiiire/pinkha/actions/workflows/ci.yml)
 [![chaqaq on crates.io](https://img.shields.io/crates/v/chaqaq.svg)](https://crates.io/crates/chaqaq)
 
-> Status: **complete Rust backend** (208+ tests) · **functional SwiftUI UI** (rich text, undo/redo, toolbar pill, drag & drop) · **import pipelines Notion + Bear** · **compiled XCFramework** iOS + Mac · **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0 published on crates.io**
+> Status: **complete Rust backend** (208+ tests) · **functional SwiftUI UI** (rich text, undo/redo, toolbar pill, drag & drop) · **import pipelines Notion + Bear + Craft** · **OAuth2 Notion end-to-end** (proxy Railway, multi-tenant) · **compiled XCFramework** iOS + Mac · **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0 published on crates.io**
 
 ---
 
@@ -177,6 +177,19 @@ xcodebuild test -project app/Pinkha.xcodeproj -scheme Pinkha \
 cd crates/chaqaq && cargo publish
 ```
 
+### Contributor setup
+
+After cloning, run these two scripts once to wire up the local git environment:
+
+```bash
+./scripts/setup-aliases.sh   # git new-feature / new-fix / promote-staging / …
+./scripts/install-hooks.sh   # installs the pre-commit hook (fmt)
+```
+
+The **pre-commit hook** runs `cargo fmt --all --check` + `cargo clippy --workspace --all-targets -- -D warnings` whenever a commit touches a `.rs` file. Mirrors what CI enforces, so most red builds are caught locally before push. Commits with no Rust changes are skipped instantly.
+
+Hook sources live in [`scripts/hooks/`](scripts/hooks) and are symlinked into `.git/hooks/`, so editing them in-place takes effect immediately. Emergency bypass: `git commit --no-verify` — but the repo rule is to fix the root cause instead.
+
 ---
 
 ## Git workflow
@@ -193,6 +206,63 @@ perf/**    ─┘
 3 permanent branches: `master` (prod), `staging` (QA), `dev` (integration). Ephemeral branches are created from `dev` and deleted after merge.
 
 See the "Git workflow" section of [CLAUDE.md](CLAUDE.md) for detailed rules.
+
+---
+
+## OAuth2 architecture (Notion)
+
+The Notion import uses a standard OAuth2 *authorization code* flow with one important constraint: **the Notion `client_secret` must never live in the iOS binary**. Anyone can decompile an IPA and extract a hardcoded secret, so all token exchanges go through a small backend proxy.
+
+### The two kinds of credentials
+
+OAuth2 distinguishes between two layers that are easy to conflate:
+
+| Credential | Identifies | Where it lives | How many |
+|---|---|---|---|
+| `client_id` + `client_secret` | The **pinkha app itself** | Notion dashboard → Railway env vars (proxy only) | **One pair for the whole app** |
+| `access_token` | An **individual user's grant** to pinkha | Returned per user, stored in iOS Keychain | **One per user** |
+
+Your Notion credentials say "I am the pinkha app" — exactly like Spotify has one `client_id` with Google, even though millions of different Google users sign in.
+
+### Per-user flow on the App Store
+
+When Alice taps "Import from Notion" inside the published app:
+
+```
+ 1. App opens Notion's authorize URL with YOUR client_id and
+    redirect_uri = https://<proxy>/oauth/callback
+ 2. Alice logs in with HER own Notion account
+ 3. Notion asks her "Authorize pinkha to access your workspace?"
+ 4. Alice taps "Allow"
+ 5. Notion redirects the browser to https://<proxy>/oauth/callback?code=...
+ 6. The proxy answers a 302 → pinkha://oauth/notion?code=...
+ 7. iOS's ASWebAuthenticationSession catches the `pinkha://` scheme
+    and returns the URL to the app
+ 8. App POSTs `code` → https://<proxy>/oauth/token (signed with HMAC)
+ 9. Proxy combines `code` + your client_secret → asks Notion
+10. Notion returns an `access_token` scoped to Alice's workspace
+11. Proxy returns the token to the app
+12. App stores it in Keychain (per-device, never iCloud-synced) and uses
+    it to read Alice's pages
+```
+
+Bob doing the same gets his **own** distinct `access_token`. Neither user has to know anything about your Notion credentials — they only ever see Notion's own consent screen.
+
+#### Why the HTTPS bridge (steps 5 → 6)
+
+Notion stopped accepting custom URL schemes as redirect URIs in 2024 — only HTTPS URLs are allowed. Apple still allows custom schemes for native auth flows, so the proxy exposes a tiny `GET /oauth/callback` endpoint that immediately bounces the browser to `pinkha://oauth/notion?code=...`. The endpoint has no HMAC because it's browser-initiated and the Notion `code` is single-use and short-lived.
+
+### Setup checklist before App Store release
+
+1. Create a **Public** integration (not Internal) at https://www.notion.so/my-integrations
+   - Type: `Public`
+   - Redirect URI: `https://<your-proxy>.up.railway.app/oauth/callback` (HTTPS, Notion rejects custom schemes)
+   - Notion gives you **one** `client_id` + `client_secret` for the entire app
+2. Add `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET`, `PROXY_HMAC_SECRET`, `SENTRY_DSN` as Railway env vars on the `pinkha-app/notion-proxy` service
+3. Fill `NOTION_PROXY_URL` in `app/Config/Secrets.xcconfig` (gitignored) with the Railway public URL — the app derives both `/oauth/callback` and `/oauth/token` from this single base URL
+4. The same `PROXY_HMAC_SECRET` value must also be in `app/Config/Secrets.xcconfig` (matches the proxy's env var) so the iOS build can sign token-exchange requests
+
+End users never touch any of this.
 
 ---
 
@@ -226,6 +296,13 @@ See the "Git workflow" section of [CLAUDE.md](CLAUDE.md) for detailed rules.
 - [x] Rust CI, branch protection, Dependabot, Secret Scanning
 - [x] Refactor Rust identifiers → English (open-source prerequisite)
 - [x] **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0** — core rich text editor published on crates.io (MIT OR Apache-2.0)
+- [x] **OAuth2 Notion end-to-end** — multi-tenant, proxy Railway, HMAC-signed token exchange, Keychain-persisted access token, validated on device 2026-06-02
+- [x] **Block-level colour** — `Block.color` field, FFI `set_block_color`, toolbar ¶ palette with inline-over-block priority at render time
+- [x] **Toolbar indent / outdent** — `increase.quotelevel` / `decrease.quotelevel` buttons backed by dedicated `indent_block` / `outdent_block` Rust use cases
+- [x] **DB row rename propagates to document title** — `Entry.document_id` + `update_entry_propagating_title` orchestration use case fixes the long-standing UX bug
+- [x] **DB column sort** — tap header to cycle asc/desc/none, arrow indicator, Rust-first via dedicated `set_view_sort` FFI
+- [x] **Notion mention rewriting** — 2-pass import rewrites `notion.so/...` links inside imported docs to `pinkha://doc/{uuid}` internal links
+- [x] **Import fidelity — block colours** — Notion `block.color` field + Craft best-effort column probe both mapped to `Block.color`
 
 ### Still to build
 - [ ] Databases UI (Table view, Kanban — full backend exists)

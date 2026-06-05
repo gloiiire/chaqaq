@@ -35,6 +35,26 @@ struct RichTextEditor: UIViewRepresentable {
     var onRedo: (() -> Void)? = nil
     var canUndoProvider: (() -> Bool)? = nil
     var canRedoProvider: (() -> Bool)? = nil
+    /// Indent / outdent the *current block* (whichever owns this editor view).
+    /// The DocumentView owns the block identity, so it wires the closure to
+    /// call the right FFI on the right block. `nil` = button disabled.
+    var onIndent: (() -> Void)? = nil
+    var onOutdent: (() -> Void)? = nil
+    /// Block-level text color name (matches the Rust `Block.color` field).
+    /// `spansToAttributed` uses it as the default foreground when a span has
+    /// no inline `.color(...)` override — implements the "inline wins over
+    /// block" priority rule from the domain.
+    var blockColor: String? = nil
+    /// Called when the user picks a colour from the ¶ menu (or "None" to
+    /// clear). Goes through the VM which calls the FFI `set_block_color`.
+    var onSetBlockColor: ((String?) -> Void)? = nil
+    /// Called when the user taps a `pinkha://doc/{uuid}` link in the
+    /// editor — the value is the destination document UUID. The parent
+    /// view (DocumentView) navigates to that document instead of opening
+    /// the URL in Safari. Notion mentions rewritten at import time
+    /// (`feat: 2-pass Notion mention rewrite`) are the main producer of
+    /// these URLs.
+    var onOpenInternalDoc: ((String) -> Void)? = nil
 
     func makeUIView(context: Context) -> ExpandingTextView {
         let tv = ExpandingTextView()
@@ -72,7 +92,7 @@ struct RichTextEditor: UIViewRepresentable {
         longPress.delegate = context.coordinator
         tv.addGestureRecognizer(longPress)
         if spans.isEmpty { tv.attributedText = context.coordinator.placeholder() }
-        else { tv.attributedText = withExtras(spansToAttributed(spans, police: baseFont)) }
+        else { tv.attributedText = withExtras(spansToAttributed(spans, police: baseFont, blockColor: blockColor)) }
         return tv
     }
 
@@ -80,6 +100,7 @@ struct RichTextEditor: UIViewRepresentable {
         let coord = context.coordinator
         coord.parent = self
         coord.updateUndoRedoButtons()
+        coord.updateBlockColorButton(blockColor)
         tv.tintColor = pinkhaSelectionTint
         tv.isEditable = isEnabled
         tv.isSelectable = isEnabled
@@ -91,25 +112,52 @@ struct RichTextEditor: UIViewRepresentable {
         // Skip recomputation when spans have not changed: SwiftUI re-renders
         // the whole ForEach on every keystroke (typically for a single block); no need
         // to rebuild NSAttributedString for the N-1 other unchanged blocks.
-        if coord.lastSyncedSpans != spans {
+        // We also recompute when `blockColor` flips — else the user would
+        // have to leave the note and come back to see the new colour, because
+        // the spans-equality check would skip the `spansToAttributed` rebuild.
+        if coord.lastSyncedSpans != spans
+            || coord.lastSyncedBlockColor != blockColor
+            || coord.lastSyncedIsEnabled != isEnabled {
             // Do not reassign tv.font during editing: UITextView.font reapplies
             // the font to ALL the text and would erase per-character bold/italic.
             let editingText: NSAttributedString = spans.isEmpty
                 ? NSAttributedString(string: "",
                                       attributes: [.font: baseFont, .foregroundColor: UIColor.label])
-                : withExtras(spansToAttributed(spans, police: baseFont))
+                : withExtras(spansToAttributed(spans, police: baseFont, blockColor: blockColor))
             if !coord.isEditing {
                 tv.font = baseFont
                 tv.attributedText = spans.isEmpty ? coord.placeholder() : editingText
-            } else if tv.attributedText.string != editingText.string {
-                // Undo/redo during editing: the VM changed spans without going through
-                // the keyboard. Restore the cursor to the end of the restored text.
-                let savedTyping = tv.typingAttributes
+            } else if tv.attributedText.string != editingText.string
+                        || coord.lastSyncedBlockColor != blockColor {
+                // Two reasons to refresh during editing:
+                //  - Text string changed (undo/redo applied via the VM).
+                //  - Block colour changed: the string is identical but the
+                //    default foreground attribute differs. Without this branch
+                //    the ¶ palette wouldn't take effect until the user left
+                //    and re-entered the note.
+                // Preserve the cursor position when only attributes changed;
+                // jump to the end on a string-level edit (undo/redo).
+                var savedTyping = tv.typingAttributes
+                // When the block colour just flipped AND the user has no
+                // pending inline colour active, update the default foreground
+                // in `typingAttributes` so the *next* keystroke inherits the
+                // new block colour instead of staying on the previous value
+                // (typically UIColor.label = white in dark mode).
+                if coord.lastSyncedBlockColor != blockColor && coord.pendingColor == nil
+                    && savedTyping[.pinkhaColor] == nil {
+                    savedTyping[.foregroundColor] = blockColor.map(uiColorFromName) ?? UIColor.label
+                }
+                let savedSelection = tv.selectedRange
+                let stringChanged = tv.attributedText.string != editingText.string
                 tv.attributedText = editingText
                 tv.typingAttributes = savedTyping
-                tv.selectedRange = NSRange(location: editingText.length, length: 0)
+                tv.selectedRange = stringChanged
+                    ? NSRange(location: editingText.length, length: 0)
+                    : savedSelection
             }
             coord.lastSyncedSpans = spans
+            coord.lastSyncedBlockColor = blockColor
+            coord.lastSyncedIsEnabled = isEnabled
         }
 
         if isFocused && !tv.isFirstResponder {

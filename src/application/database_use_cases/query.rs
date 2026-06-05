@@ -1,5 +1,5 @@
-use crate::application::database_repository::DatabaseRepository;
 use crate::application::error::PinkhaError;
+use crate::application::unit_of_work::UnitOfWork;
 use crate::domain::database::{
     Entry, Filter, FilterCondition, Group, Order, PropertyValue, SortSource,
 };
@@ -8,12 +8,8 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 /// Returns the entries visible in a view after applying its filters and sorts.
-pub fn query(
-    repo: &dyn DatabaseRepository,
-    db_id: Uuid,
-    view_id: Uuid,
-) -> Result<Vec<Entry>, PinkhaError> {
-    let db = repo.load(db_id)?;
+pub fn query(uow: &dyn UnitOfWork, db_id: Uuid, view_id: Uuid) -> Result<Vec<Entry>, PinkhaError> {
+    let db = uow.databases().load(db_id)?;
     let view = db
         .views
         .iter()
@@ -23,6 +19,7 @@ pub fn query(
     let mut entries: Vec<Entry> = db
         .entries
         .iter()
+        .filter(|e| !e.is_deleted())
         .filter(|e| view.filters.iter().all(|f| apply_filter(e, f)))
         .cloned()
         .collect();
@@ -67,35 +64,35 @@ pub fn query(
 
 /// Runs `query` then enriches the result with computed Rollup values.
 pub fn query_with_rollups(
-    repo: &dyn DatabaseRepository,
+    uow: &dyn UnitOfWork,
     db_id: Uuid,
     view_id: Uuid,
 ) -> Result<Vec<Entry>, PinkhaError> {
-    let db = repo.load(db_id)?;
-    let entries = query(repo, db_id, view_id)?;
-    crate::application::database_use_cases::evaluate_rollups(repo, &db, entries)
+    let db = uow.databases().load(db_id)?;
+    let entries = query(uow, db_id, view_id)?;
+    crate::application::database_use_cases::evaluate_rollups(uow, &db, entries)
 }
 
 /// Aggregates all values of a numeric column across every entry in the database.
 pub fn column_aggregate(
-    repo: &dyn DatabaseRepository,
+    uow: &dyn UnitOfWork,
     db_id: Uuid,
     prop_id: Uuid,
     aggregate: crate::domain::database::Aggregate,
 ) -> Result<PropertyValue, PinkhaError> {
-    let db = repo.load(db_id)?;
-    let refs: Vec<&Entry> = db.entries.iter().collect();
+    let db = uow.databases().load(db_id)?;
+    let refs: Vec<&Entry> = db.entries.iter().filter(|e| !e.is_deleted()).collect();
     Ok(calculate_aggregate(&refs, prop_id, &aggregate))
 }
 
 /// Groups the entries of a view by the value of a given property.
 pub fn grouped_query(
-    repo: &dyn DatabaseRepository,
+    uow: &dyn UnitOfWork,
     db_id: Uuid,
     view_id: Uuid,
     group_by: Uuid,
 ) -> Result<Vec<Group>, PinkhaError> {
-    let entries = query(repo, db_id, view_id)?;
+    let entries = query(uow, db_id, view_id)?;
     let mut map: HashMap<String, Group> = HashMap::new();
 
     for entry in entries {
@@ -162,14 +159,14 @@ pub(super) fn calculate_aggregate(
                 PropertyValue::Empty
             } else {
                 PropertyValue::Number(nums.iter().cloned().fold(f64::INFINITY, f64::min))
-            }
+            };
         }
         Aggregate::Max => {
             return if nums.is_empty() {
                 PropertyValue::Empty
             } else {
                 PropertyValue::Number(nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max))
-            }
+            };
         }
     };
     PropertyValue::Number(r)
@@ -198,9 +195,7 @@ pub(super) fn apply_filter(entry: &Entry, filter: &Filter) -> bool {
         FilterCondition::Contains(s) => match value {
             PropertyValue::Text(t) => t.contains(s.as_str()),
             PropertyValue::Url(u) => u.contains(s.as_str()),
-            PropertyValue::Title(inlines) => {
-                inlines.iter().any(|i| i.content.contains(s.as_str()))
-            }
+            PropertyValue::Title(inlines) => inlines.iter().any(|i| i.content.contains(s.as_str())),
             _ => false,
         },
     }
@@ -301,7 +296,7 @@ mod tests {
     fn test_calculer_aggregate_somme() {
         use crate::domain::database::Aggregate;
         let prop_id = Uuid::new_v4();
-        let entries = vec![
+        let entries = [
             entry_with_number(prop_id, 10.0),
             entry_with_number(prop_id, 20.0),
             entry_with_number(prop_id, 30.0),
@@ -330,7 +325,7 @@ mod tests {
     fn test_calculer_aggregate_moyenne() {
         use crate::domain::database::Aggregate;
         let prop_id = Uuid::new_v4();
-        let entries = vec![
+        let entries = [
             entry_with_number(prop_id, 10.0),
             entry_with_number(prop_id, 20.0),
         ];

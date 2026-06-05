@@ -49,6 +49,14 @@ pub enum BlockContent {
         /// Raw source code — no inline styles, whitespace preserved.
         text: String,
     },
+    /// Reference to a child page (Notion-style "child_page" block).
+    /// Renders as a clickable row pointing to another Document. The child
+    /// document remains autonomous (its own title, blocks, color, …); this
+    /// block only places it inline at a chosen position in the parent.
+    Page {
+        /// ID of the referenced child `Document`.
+        id: Uuid,
+    },
 }
 
 /// A node in a document's block tree — may contain nested child blocks.
@@ -60,15 +68,26 @@ pub struct Block {
     pub content: BlockContent,
     /// Nested child blocks (recursive structure).
     pub children: Vec<Block>,
+    /// Block-level text color name (e.g. `"red"`, `"blue"`). When set, applies
+    /// to every span that does NOT carry its own [`InlineStyle::Color`] —
+    /// inline color overrides block color at render time. `None` means the
+    /// block inherits the default theme color.
+    ///
+    /// `#[serde(default)]` keeps the field backward-compatible with documents
+    /// serialised before this field existed (they decode as `None`).
+    #[serde(default)]
+    pub color: Option<String>,
 }
 
 impl Block {
-    /// Creates a new leaf block with no children and a freshly generated UUID.
+    /// Creates a new leaf block with no children, no color, and a freshly
+    /// generated UUID.
     pub fn new(content: BlockContent) -> Self {
         Block {
             id: Uuid::new_v4(),
             content,
             children: vec![],
+            color: None,
         }
     }
 }
@@ -80,6 +99,9 @@ pub struct DocumentMeta {
     pub id: Uuid,
     /// Optional cover image URL or emoji.
     pub cover: Option<String>,
+    /// Optional page icon (emoji or filename). Mirrors `Document.icon`.
+    #[serde(default)]
+    pub icon: Option<String>,
     /// Rich-text title.
     pub title: Vec<InlineText>,
     /// ISO 8601 timestamp of the last modification, managed by the infrastructure layer.
@@ -93,6 +115,12 @@ pub struct DocumentMeta {
     /// Folder this document belongs to. None = root level.
     #[serde(default)]
     pub folder_id: Option<Uuid>,
+    /// Parent document for Notion-style page-in-page hierarchy. `None` means
+    /// the document is a root page; otherwise it is a child page reachable
+    /// either by tapping its [`BlockContent::Page`] block inside the parent,
+    /// or by navigating through the breadcrumbs from any descendant.
+    #[serde(default)]
+    pub parent_doc_id: Option<Uuid>,
 }
 
 impl From<&Document> for DocumentMeta {
@@ -100,10 +128,12 @@ impl From<&Document> for DocumentMeta {
         Self {
             id: doc.id,
             cover: doc.cover.clone(),
+            icon: doc.icon.clone(),
             title: doc.title.clone(),
             updated_at: String::new(),
             created_at: String::new(),
             folder_id: doc.folder_id,
+            parent_doc_id: doc.parent_doc_id,
         }
     }
 }
@@ -115,6 +145,13 @@ pub struct Document {
     pub id: Uuid,
     /// Optional cover image URL or emoji.
     pub cover: Option<String>,
+    /// Page icon. Small visual identifier shown next to the title — an emoji
+    /// (`"📕"`), a local filename inside the covers directory, or a remote
+    /// URL. Distinct from `cover` which is the big banner image at the top.
+    /// `#[serde(default)]` keeps backward compatibility with documents
+    /// serialised before this field existed.
+    #[serde(default)]
+    pub icon: Option<String>,
     /// Rich-text title.
     pub title: Vec<InlineText>,
     /// Top-level blocks (each may have nested children).
@@ -122,6 +159,20 @@ pub struct Document {
     /// Folder this document belongs to. None = root level.
     #[serde(default)]
     pub folder_id: Option<Uuid>,
+    /// Parent document for Notion-style page-in-page hierarchy. `None` means
+    /// the document is a root page; otherwise it is a child page placed
+    /// inside its parent via a [`BlockContent::Page`] block.
+    #[serde(default)]
+    pub parent_doc_id: Option<Uuid>,
+    /// Read-only flag. When `true`, the editor disables every interactive
+    /// element (blocks become non-editable, the keyboard accessory hides,
+    /// the FAB and "+New block" footer go away). Used by data-extract
+    /// imports (Notion/Bear/Craft) to default new documents to a safe view
+    /// mode so the user reads first and unlocks before editing imported
+    /// content. `#[serde(default)]` keeps backward compat with documents
+    /// saved before this field existed.
+    #[serde(default)]
+    pub locked: bool,
 }
 
 impl Document {
@@ -131,13 +182,51 @@ impl Document {
             id: Uuid::new_v4(),
             title,
             cover: None,
+            icon: None,
             blocks: vec![],
             folder_id: None,
+            parent_doc_id: None,
+            locked: false,
         }
     }
 
     /// Appends a new block at the end of the top-level block list.
     pub fn add_block(&mut self, content: BlockContent) {
         self.blocks.push(Block::new(content));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn block_new_starts_without_color() {
+        let block = Block::new(BlockContent::Divider);
+        assert!(block.color.is_none());
+    }
+
+    #[test]
+    fn block_serde_round_trip_preserves_color() {
+        let mut block = Block::new(BlockContent::Divider);
+        block.color = Some("orange".into());
+        let json = serde_json::to_string(&block).unwrap();
+        let decoded: Block = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.color.as_deref(), Some("orange"));
+        assert_eq!(decoded.id, block.id);
+    }
+
+    /// Documents serialised before the `color` field existed must still decode
+    /// — `#[serde(default)]` on the new field makes the absence equivalent to
+    /// `None`. Regression guard: removing the attribute would break every
+    /// existing user's data file.
+    #[test]
+    fn block_decodes_legacy_json_without_color_field() {
+        let id = Uuid::new_v4();
+        let legacy_json = format!(r#"{{"id":"{id}","content":"Divider","children":[]}}"#);
+        let decoded: Block = serde_json::from_str(&legacy_json).unwrap();
+        assert_eq!(decoded.id, id);
+        assert!(decoded.color.is_none());
+        assert!(decoded.children.is_empty());
     }
 }

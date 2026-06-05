@@ -5,10 +5,10 @@
 // Not intended for `dyn` dispatch — use concrete generic bounds (`E: Extractor`)
 // or call concrete types directly from the FFI layer.
 
+use super::{ExtractorError, ImportResult};
 use crate::application::database_repository::DatabaseRepository;
 use crate::application::folder_repository::FolderRepository;
 use crate::application::repository::DocumentRepository;
-use super::{ExtractorError, ImportResult};
 
 /// Common interface for all import pipelines.
 ///

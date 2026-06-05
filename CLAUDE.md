@@ -204,6 +204,18 @@ let id  = try api.creerDocument(titre: "Ma note")
 let json = try api.obtenirDocumentJson(id: id)  // → Codable
 ```
 
+#### Runtime Tokio pour les extractors reqwest
+
+UniFFI 0.31 ship son propre foreign-task executor, **qui n'est pas un runtime Tokio**. Un futur reqwest poll sous cet executor panique avec `there is no reactor running, must be called from the context of a Tokio 1.x runtime` — reqwest enregistre ses IO directement avec Tokio.
+
+Pattern utilisé dans `ffi.rs` pour contourner :
+1. Singleton process-wide via `OnceLock<tokio::runtime::Runtime>` (multi-thread, 2 workers, `enable_all()`)
+2. La méthode FFI est déclarée **synchrone** (pas `async fn`, pas `[Async]` dans le UDL)
+3. À l'intérieur, on `tokio_runtime().block_on(extractor.run(...))`
+4. Swift dispatche depuis `Task.detached(priority: .userInitiated)` pour ne pas geler le main thread
+
+Cf. `import_from_notion` comme référence — les futurs extractors qui font de l'I/O réseau (Google Keep API, Apple Notes export, etc.) doivent suivre ce pattern. Les extractors purement sync (Bear via `rusqlite`, Craft via `realm-codec`) peuvent rester `async fn` UniFFI sans souci, car ils n'attendent rien qui exige un reactor Tokio.
+
 ### `app/Sources/` — Couche UI SwiftUI
 
 **`Models.swift`** — miroirs Swift des types Rust sérialisés par serde :
@@ -287,17 +299,34 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
   - **Recherche** : `searchable` SwiftUI + `api.searchDocuments(query:)` FFI, résultats en temps réel
   - Éditeur de document : blocs Text, Heading (×3), Quote, Callout (Quote + emoji), Todo, Divider
   - Texte riche : gras, italique, souligné, barré, 9 couleurs (rouge, rose, orange, jaune, vert, cyan, bleu, violet, marron)
-  - Toolbar pill (style Notes.app) glass effect : Coller / Aa (B/I/U/S) / Highlighter / Undo / Redo / Return / Dismiss — hide-on-menu façon Notes
+  - Toolbar pill (style Notes.app) glass effect : Coller / Aa (B/I/U/S) / Highlighter / ¶ (block color) / Undo / Redo / Outdent / Indent / Return / Dismiss — hide-on-menu façon Notes
+  - **Block color** : `Block.color: Option<String>` côté Rust, palette ¶ dans la toolbar (même palette que le highlighter), priorité inline > block au render (un span sans inline color hérite, un span avec inline color override) — toute la chaîne validée Rust + UI + import Notion + best-effort Craft
+  - **Indent / outdent** : boutons `increase.quotelevel` / `decrease.quotelevel` dans la pill, FFI Rust dédié (`indent_block` / `outdent_block`) qui gère le positionnement (outdent place le bloc juste après l'ancien parent, pas en fin de liste)
   - Raccourcis markdown : `# `, `## `, `### `, `> `, `!! ` (callout), `[ ] `, `---`
   - Enter → nouveau bloc, Shift+Enter / Return toolbar → saut de ligne dans le bloc, drag & drop, swipe-to-delete, dismiss clavier par swipe
   - Focus automatique sur le bloc créé OU réinséré via undo
   - Undo/redo unifié (1000 niveaux) : pill bas-gauche + boutons toolbar, burst typing 300 ms style Notes, focus auto sur block réinséré
   - Perf : persist SQLite différé au flush burst, cache spans par bloc, cache état boutons undo
 - **CI** : GitHub Actions `cargo test` sur push/PR vers master/staging/dev (`macos-15`). Swift job suspendu en attendant Xcode 26 sur les runners
-- **Sécurité repo** : branches protégées (PR obligatoire, force-push bloqué, suppression bloquée, Rust CI requise), Secret Scanning + Push Protection, Dependabot Alerts + Security Updates, Dependabot config mensuelle pour Cargo + Actions
+- **Sécurité repo** : branches protégées (PR obligatoire, force-push bloqué, suppression bloquée, Rust CI requise), Secret Scanning + Push Protection, Dependabot Alerts + Security Updates, Dependabot config mensuelle pour Cargo + Actions, job CI `cargo-audit --deny warnings` (scan CVE à chaque PR)
+- **Stockage secrets** : `Keychain.swift` (wrapper minimal `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, jamais synchronisé iCloud) pour les tokens d'API. Token Notion persisté après import réussi seulement. OAuth2 client secret JAMAIS embarqué dans le binaire iOS — `NotionOAuth2.tokenProxyUrl` pointe vers un backend proxy qui détient le secret.
+- **Architecture OAuth2 Notion** (multi-tenant) — modèle "1 paire de credentials d'app, N tokens utilisateurs" :
+  - Credentials de l'app (`NOTION_CLIENT_ID` + `NOTION_CLIENT_SECRET`) = identifient l'app pinkha auprès de Notion. **Une seule paire pour toute l'app, jamais dans le binaire iOS, jamais dans le repo.** Vit uniquement dans les env vars Railway du proxy (et dans `notion-proxy/.env` gitignored en local).
+  - Access token utilisateur = scoped à un workspace Notion donné. Généré au runtime via le flow authorization-code, retourné par le proxy à l'app, stocké dans le Keychain iOS (par-device, jamais sync iCloud).
+  - **HTTPS callback bridge** : Notion rejette les custom URL schemes en redirect URI depuis 2024. Le `redirectUri` envoyé à Notion pointe sur `https://<proxy>/oauth/callback` ; cette route fait un `302` vers `pinkha://oauth/notion?code=...` que `ASWebAuthenticationSession` (`callbackURLScheme: "pinkha"`) capture pour revenir dans l'app. Pas de HMAC sur ce GET (browser-initiated, `code` Notion single-use et short-lived).
+  - Flow concret par user (Alice ouvre l'app distribuée App Store) : (1) `ASWebAuthenticationSession` ouvre `api.notion.com/v1/oauth/authorize?client_id=...&redirect_uri=https://proxy/oauth/callback` (2) Alice login avec son compte Notion → consent screen "Authorize pinkha?" (3) Notion redirige le browser vers `https://proxy/oauth/callback?code=...` (4) le proxy renvoie un `302 pinkha://oauth/notion?code=...` (5) iOS rouvre l'app via le custom scheme (6) app POST `code` à `https://proxy/oauth/token` avec HMAC (7) proxy combine `code` + `client_secret` → `api.notion.com/v1/oauth/token` (8) Notion retourne un `access_token` propre à Alice (9) proxy renvoie le token, app le persiste en Keychain.
+  - Bob fait pareil → token distinct. Les users n'ont jamais à connaître les credentials de l'app.
+  - **Configuration côté Swift** : une seule clé Info.plist `NOTION_PROXY_URL` (injectée depuis `app/Config/Secrets.xcconfig`) configure le base URL ; `redirectUri` = `\(base)/oauth/callback`, `tokenProxyUrl` = `\(base)/oauth/token`. `NotionOAuth2.proxyBaseUrl` lit la valeur au runtime.
+  - **Setup release App Store** : créer une Notion integration **Public** (pas Internal), ajouter `https://<railway-host>/oauth/callback` comme redirect URI (HTTPS obligatoire), configurer les 4 env vars Railway (`NOTION_CLIENT_ID`/`SECRET`, `PROXY_HMAC_SECRET`, `SENTRY_DSN`), mettre l'URL Railway dans `NOTION_PROXY_URL` du `Secrets.xcconfig`. Tout user public est ensuite supporté sans config additionnelle.
+- **Observabilité (Sentry)** : crash reporting + tracing distribué via [sentry-cocoa](https://github.com/getsentry/sentry-cocoa) 8.49+ (SPM).
+  - DSN dans `app/Config/Secrets.xcconfig` (gitignored) + `Secrets.xcconfig.example` (template commit), injecté dans `Info.plist` via build setting. `https://` doit être échappé en `https:/$()/` (xcconfig interprète `//` comme commentaire).
+  - Wrapper `app/Sources/Core/Observability.swift` — `start()` no-op silencieux quand DSN absent ou placeholder, `capture(_:)` / `capture(message:)` safe pré-init.
+  - Init au démarrage dans `PinkhaApp.init()`. Hook `tryCatch(into:)` dans `Resilience.swift` capture les `PinkhaError.Storage` (transient) + toutes les erreurs non-typées. `NotFound` / `InvalidOperation` restent silencieux (états utilisateur attendus, pas des bugs).
+  - **Distributed tracing** : `enableAutoPerformanceTracing` propage automatiquement le header `sentry-trace` sur les requêtes URLSession (vers `notion-proxy` notamment). Aucun code custom requis dans `NotionOAuth2.swift`.
+  - 2 projets Sentry séparés dans l'org `Pinkha-app` : `apple-ios` (app) + `notion-proxy` (backend). `tracesSampleRate` à 1.0 en debug, 0.2 en release.
 - **Pipelines d'extraction** (`src/extractors/`) :
   - Architecture `Extractor` trait (async, `Config` associé, `ImportResult`)
-  - **Notion** : client reqwest rustls-tls, API v1 paginée (database schema → pages → blocs récursifs), mapping complet propriétés/valeurs/blocs, `ImportResultFfi` exposé via UniFFI async
+  - **Notion** : client reqwest rustls-tls, API v1 paginée (database schema → pages → blocs récursifs), mapping complet propriétés/valeurs/blocs. **FFI synchrone** (`block_on` un `tokio::runtime::Runtime` singleton via `OnceLock`) — UniFFI 0.31 n'expose pas de reactor Tokio, mais reqwest en exige un. Swift dispatche via `Task.detached`. Flow OAuth2 + token exchange + import end-to-end validés sur device le 2026-06-02 (token Notion reçu via proxy Railway, import database → SQLite local-first OK). Block colors mappées via `map_block_color`. **2-pass mention rewriting** : un map `NotionPageId → PinkhaDocId` est construit pendant l'import, puis chaque doc est revisité pour remplacer les `https://notion.so/...{page_id}` en `pinkha://doc/{uuid}` (les mentions internes pointent désormais sur les notes pinkha importées, plus sur Notion).
   - **Bear** : lecteur SQLite read-only, conversion timestamps Core Data, parseur Markdown Bear ligne par ligne
   - Trois nouveaux variants `BlockContent` : `BulletedListItem`, `NumberedListItem`, `Code` — full-fidelity import, rendu read-only + édition dans l'éditeur
   - **Craft** : lecteur Realm v9 binary read-only via `realm-codec` (crate workspace), heuristique `rawProperties.titleEnabled == "true"` pour détecter les pages, 2498 docs / 4224 blocs / 41 skipped sur fichier réel
@@ -305,10 +334,17 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
   - FAB menu : "Import from Notion" + "Import from Bear" + "Import from Craft"
 
 Ce qui **reste** à construire :
-1. UI Databases — tab "Bases" est un placeholder, backend Notion complet existe
-2. Vue iPad / Mac (NavigationSplitView)
-3. Sync entre appareils (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
-4. Réactiver Swift CI quand Xcode 26 sera dispo sur les runners GitHub Actions
+1. **UI Databases** — vue table + sort par colonne (PR #100), mais manque : filtres UI, switch entre views (Kanban/Calendar/Gallery), tri multi-colonnes, link picker pour Relation. Cf. `docs/UI-AUDIT.md`.
+2. **Vue iPad / Mac** (NavigationSplitView)
+3. **Sync entre appareils** (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
+4. **Réactiver Swift CI** quand Xcode 26 sera dispo sur les runners GitHub Actions
+5. **Import fidelity** — cover/icon Notion, image/file blocks, mapping views/filters Notion. Audit complet dans `docs/IMPORT-AUDIT.md`.
+
+### Cross-domain orchestration (`application/use_cases/db_doc_sync.rs`)
+Quand une opération doit toucher plusieurs domaines (Document + Database), le module `db_doc_sync` est le bon endroit — il dépend de `&dyn DocumentRepository` ET `&dyn DatabaseRepository` sans coupler les domaines entre eux. Exemple en place : `update_entry_propagating_title(docs, dbs, db_id, entry_id, values)` qui renomme un document quand on rename une row de DB (`Entry.document_id` est le lien).
+
+### `Entry.document_id: Option<Uuid>`
+Lie une row de DB au document qui la sous-tend (Notion-style : row = page). Set par les imports (`add_entry_with_document`), `None` pour les rows tabulaires purs. Le FFI `update_entry` route désormais vers `update_entry_propagating_title` — la propagation du Title vers le doc est transparente côté Swift.
 
 ## Git workflow
 
@@ -434,8 +470,16 @@ Ces points sont **acceptables en l'état actuel** (projet solo, 208 tests Rust +
   - ✅ Rust : `cargo test` sur push/PR vers master/staging/dev (`macos-15` runner).
   - ⏸ Swift `xcodebuild test` désactivé temporairement — les runners ont Xcode 16.4 / iOS 18.5 SDK, alors que le projet target iOS 26.0 et utilise `UIGlassEffect` / `.glassEffect()`. À réactiver soit (a) quand Xcode 26 stable arrive sur les runners post-WWDC 2026, soit (b) en backportant avec `if #available(iOS 26.0, *)` + fallback `UIBlurEffect`. Voir `.github/workflows/ci.yml` (job `swift-placeholder`).
 - **Branch protection** : `master`, `staging`, `dev` protégées — PR obligatoire, pas de force-push, pas de suppression. Status checks (CI requise pour merge) à ajouter quand la CI Swift sera réactivée.
-- **Code coverage** : `xcodebuild -enableCodeCoverage YES` (Swift) + `cargo-llvm-cov` (Rust). On compte les tests mais on ne connaît pas leur couverture réelle (peut être 30% ou 90%).
+- **Code coverage** : Rust gaté à **90% de lignes** en CI (ratchet — on ne descend plus ; tightening progressif vers 95/98% prévu) via `cargo llvm-cov --workspace --fail-under-lines 90 --summary-only` avec exclusions sur les paths intestables unitairement (entry points, Notion HTTP, extractors Craft/Bear nécessitant fixtures externes). Couverture mesurée 2026-06-02 (après vague 1 + reader.rs complet) : **91.40% lines / 88.98% functions / 93.22% regions**. Tests :
+  - 90 dans `tests/integration_ffi.rs` (PinkhaApi : docs, blocs, databases, properties, views, queries, folders, validation)
+  - 20 dans `tests/integration_folder_store.rs` (CRUD/move/delete folder store)
+  - in-module `src/domain/folder.rs`
+  - 26 dans `crates/realm-codec/tests/reader_new_format.rs` — bytes new-format cluster-tree construits à la main pour exercer `read_table_new` / `collect_strings_new` (3 variantes leaf : inline-multiply, compact-string, per-row refs) / `collect_ints_new` / `collect_linklists_new` / `cluster_index_for_col` (Timestamp 2-slots + BackLink 0-slot après fix du bug code 13/14) + paths défensifs. `reader.rs` passé de **31.48% → 79.44%**. Reste 20% non couverts = old-format B-tree (`read_cell_btree`, `count_node_rows` inner), probablement code mort en prod Craft cluster-tree.
+  - Pour atteindre 98% : ~934 lignes restantes (ffi.rs imports HTTP non-mockables, retry paths SQLite, use_cases/blocks + db_doc_sync, database_use_cases/query).
+  - Swift : `xcodebuild -enableCodeCoverage YES` à mesurer quand le job Swift sera réactivé.
 - **Workflow contributeur** : ✅ branches `feature/**`, `fix/**`, `refactor/**`, `docs/**`, `chore/**`, `perf/**` depuis `dev` ; promotion `dev` → `staging` → `master`. Cf. section "Git workflow" plus haut.
+- **Pre-commit hook** : ✅ `scripts/hooks/pre-commit` versionné, installé via `./scripts/install-hooks.sh` (symlinks dans `.git/hooks/`). Tourne `cargo fmt --all --check` + `cargo clippy --workspace --all-targets -- -D warnings` quand au moins un fichier `.rs` est staged. Skip silencieux pour les commits docs/Swift-only. Bypass d'urgence via `git commit --no-verify` mais la règle reste : corriger plutôt que skip.
+- **Clippy strict dans la CI** : ✅ `cargo clippy --workspace --all-targets -- -D warnings` est lancé avant les tests dans `.github/workflows/ci.yml` (job `rust`). Mirror du hook pre-commit — toute modification doit être appliquée aux deux gates pour rester synchronisés.
 
 ### Tests à renforcer
 - **Coordinator class** (`RichTextEditor.Coordinator`) : selection memory (`rememberSelection`/`selectionForToolbar`), toolbar state updates (`updateToolbar`), color application chain — tout n'est testé qu'**en bout-en-bout** via le VM. Un bug subtil dans cette logique passerait. Extraire en helpers libres ou exposer pour tests.
@@ -448,6 +492,8 @@ Ces points sont **acceptables en l'état actuel** (projet solo, 208 tests Rust +
 ### Limitations connues à résoudre
 - **`typeText` flaky sur simulateur iOS 26** : bypass actuel via launch args `--ui-test-data`/`--ui-test-clean`. **Blocage** : impossible de tester E2E les flows demandant vraie saisie utilisateur (édition de titre dans la sheet de création, recherche). Pistes : `UIPasteboard` + long-press + Coller, `app.keys["X"].tap()` sur le clavier software, custom URL scheme pour pré-remplir.
 - ~~**`xcframework` métadonnées trackées**~~ ✅ résolu mai 2026 : tout `pinkha.xcframework/` est désormais gitignored, reconstruit via `./build-xcframework.sh`.
+- **OAuth Notion — custom URL scheme `pinkha://`** : le flow utilise un scheme custom déclaré dans `Info.plist` (`CFBundleURLSchemes = ["pinkha"]`) comme dernier saut du redirect (proxy → app). C'est exploitable en théorie : iOS ne valide pas l'unicité des custom schemes, une app malveillante installée après pinkha pourrait revendiquer `pinkha://` et intercepter le `code` Notion lors d'un consent. **Mitigation actuelle** : (a) `ASWebAuthenticationSession` ne livre le scheme qu'à l'app qui a démarré la session (pas un universel `openURL`), (b) le `code` Notion est single-use et expire en 10 min, (c) l'attaquant devrait persuader l'utilisateur d'installer son app *avant* de tenter un import. Risque résiduel faible mais réel. **Solution propre** : migrer vers **Universal Links** quand un domaine perso sera dispo : (a) acheter un domaine (ex. `pinkha.app`), (b) servir `https://pinkha.app/.well-known/apple-app-site-association` qui prouve l'association app↔domaine, (c) ajouter l'entitlement `applinks:pinkha.app` dans xcodegen, (d) remplacer `redirectUri` et `callbackScheme` par l'URL HTTPS du domaine. Le scheme `pinkha://` et le bridge `/oauth/callback` du proxy peuvent alors disparaître.
+- **`realm-codec/src/reader.rs` à 79.44%** : les 20% restants sont uniquement du code **old-format B-tree inner node** (`count_node_rows` avec `is_inner = true`, `read_cell_btree`) qui n'est probablement jamais exercé en prod — Craft est 100% cluster-tree (SDK 5+), donc ces chemins sont **probablement morts**. Candidat à la suppression plutôt qu'aux tests si une revue confirme qu'aucun fichier `.realm` réel ne déclenche `read_cell_btree`. Bug BackLink **corrigé 2026-06-02** : `cluster_index_for_col` traitait à tort le nibble code 13 (LinkList) comme zero-slot ; corrigé en code 14 (BackLink) conformément au format Realm SDK 5+ et au mapping `ColumnType::from_u8`. Toutes les 3 variantes de string leaf désormais testées (inline-multiply, compact-string `[offsets_ref, blob_ref]`, per-row refs vers wtype=2 nodes).
 
 ### Features prioritaires (par valeur perçue)
 1. **UI Databases** — backend full testé, manque juste les vues SwiftUI. Énorme impact, faisabilité élevée (réutiliser `BlockTextEditor`/`BlockCallbacks` patterns).

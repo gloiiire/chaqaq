@@ -12,9 +12,9 @@
 //   → parse Bear's Markdown subset → Pinkha BlockContent list
 //   → persist as Pinkha documents
 
+pub mod mapper;
 pub mod reader;
 pub mod schema;
-pub mod mapper;
 
 use crate::application::database_repository::DatabaseRepository;
 use crate::application::folder_repository::FolderRepository;
@@ -23,6 +23,7 @@ use crate::application::use_cases;
 use crate::domain::document::Block;
 use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
+use crate::infrastructure::no_op_unit_of_work::NoOpUnitOfWork;
 
 use self::mapper::parse_note_blocks;
 use self::reader::BearReader;
@@ -76,9 +77,19 @@ impl Extractor for BearExtractor {
         let mut total_blocks: usize = 0;
 
         for note in &notes {
-            let title = if note.title.is_empty() { "Untitled" } else { &note.title };
+            let title = if note.title.is_empty() {
+                "Untitled"
+            } else {
+                &note.title
+            };
 
-            let mut doc = use_cases::create_document(docs, title)?;
+            let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
+            let mut doc = use_cases::create_document(&uow, title)?;
+            // Imports default to locked = true so the user reads the
+            // extracted content before editing. Set in-memory before the
+            // save below so it's persisted in one write rather than a
+            // round-trip via `update_document_locked`.
+            doc.locked = true;
             let parsed_blocks = parse_note_blocks(&note.text);
             let block_count = parsed_blocks.len();
 

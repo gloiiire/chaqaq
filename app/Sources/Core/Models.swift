@@ -7,15 +7,30 @@ import SwiftUI
 struct DocumentFfi: Codable {
     let id: String
     let cover: String?
+    /// Page icon — emoji (`"📕"`), filename inside `coversDirectory()`, or
+    /// remote URL. Decoded as nil for documents created before the field
+    /// existed (Rust uses `#[serde(default)]`).
+    let icon: String?
     let title: [InlineTextFfi]
     let blocks: [BlockFfi]
+    /// Read-only flag. `true` for documents created by imports (Notion/
+    /// Bear/Craft default to locked) — the user unlocks before editing.
+    /// Decoded as false for legacy documents (Rust uses `#[serde(default)]`).
+    let locked: Bool?
 }
 
 /// Swift mirror of a `Block` node. Blocks are recursive (children).
+///
+/// `color` is the block-level text color name (e.g. `"red"`). When present
+/// it applies to every span that doesn't carry its own inline color —
+/// inline color always wins over block color at render time. `nil` means
+/// the block inherits the default theme color.
 struct BlockFfi: Codable, Identifiable {
     let id: String
     let content: BlockContentFfi
     let children: [BlockFfi]
+    /// Decoded as nil for documents serialised before this field existed.
+    let color: String?
 }
 
 /// A run of text with zero or more inline styles applied to it.
@@ -74,15 +89,18 @@ enum BlockContentFfi: Codable, Equatable {
     case divider
     case breadcrumb
     case database(id: String)
+    /// Reference to a child pinkha page. Mirrors Rust `BlockContent::Page`.
+    case page(id: String)
 
     private enum K: String, CodingKey {
-        case Text, Heading, Quote, Todo, BulletedListItem, NumberedListItem, Code, Divider, Breadcrumb, Database
+        case Text, Heading, Quote, Todo, BulletedListItem, NumberedListItem, Code, Divider, Breadcrumb, Database, Page
     }
     private struct PayloadHeading: Codable { let level: Int; let text: [InlineTextFfi] }
     private struct PayloadQuote:   Codable { let icon: String?; let text: [InlineTextFfi] }
     private struct PayloadTodo:    Codable { let done: Bool; let text: [InlineTextFfi] }
     private struct PayloadCode:    Codable { let language: String; let text: String }
     private struct PayloadDb:      Codable { let id: String }
+    private struct PayloadPage:    Codable { let id: String }
 
     init(from decoder: Decoder) throws {
         // Unit variants (Divider, Breadcrumb) are bare strings in serde's externally-tagged format.
@@ -99,6 +117,7 @@ enum BlockContentFfi: Codable, Equatable {
         if let v = try? c.decode([InlineTextFfi].self, forKey: .NumberedListItem) { self = .numberedListItem(v); return }
         if let v = try? c.decode(PayloadCode.self,     forKey: .Code)             { self = .code(language: v.language, text: v.text); return }
         if let v = try? c.decode(PayloadDb.self,       forKey: .Database)         { self = .database(id: v.id); return }
+        if let v = try? c.decode(PayloadPage.self,     forKey: .Page)             { self = .page(id: v.id); return }
         throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown BlockContent"))
     }
 
@@ -129,6 +148,9 @@ enum BlockContentFfi: Codable, Equatable {
         case .database(let id):
             var c = encoder.container(keyedBy: K.self)
             try c.encode(PayloadDb(id: id), forKey: .Database)
+        case .page(let id):
+            var c = encoder.container(keyedBy: K.self)
+            try c.encode(PayloadPage(id: id), forKey: .Page)
         }
     }
 
@@ -163,6 +185,10 @@ enum BlockContentFfi: Codable, Equatable {
     var isTodo: Bool { if case .todo = self { return true }; return false }
     /// `true` if this is a `.todo` block with `done == true`.
     var isTodoDone: Bool { if case .todo(let d, _) = self { return d }; return false }
+    /// `true` if this is a `.page` block (Notion-style child page link).
+    /// The editor keeps these tappable even on a locked document since
+    /// they're navigation targets, not editable content.
+    var isPageReference: Bool { if case .page = self { return true }; return false }
 
     /// Returns a copy of the block with its text replaced by a single unstyled span.
     func withText(_ newText: String, done: Bool = false) -> BlockContentFfi {
@@ -361,12 +387,23 @@ enum PropertyValueFfi: Codable, Equatable {
 }
 
 /// A database row. Mirrors Rust `Entry`.
+///
+/// `documentId` is set for rows imported from Notion / Craft (where every page
+/// becomes both a Document and a row). When set, renaming the row via the FFI
+/// `updateEntry` call propagates the new title to the underlying note. `nil`
+/// for standalone tabular rows with no attached page.
 struct EntryFfi: Codable, Identifiable {
     let id: String
     let createdAt: String
     var values: [String: PropertyValueFfi]
+    let documentId: String?
 
-    enum CodingKeys: String, CodingKey { case id, createdAt = "created_at", values }
+    enum CodingKeys: String, CodingKey {
+        case id
+        case createdAt = "created_at"
+        case values
+        case documentId = "document_id"
+    }
 }
 
 /// Full database payload returned by `getDatabaseJson`. Mirrors Rust `Database`.
@@ -375,4 +412,30 @@ struct DatabaseFfi: Codable {
     let title: [InlineTextFfi]
     let properties: [PropertyFfi]
     var entries: [EntryFfi]
+    /// At least one view is always present (Rust `Database::new` seeds a
+    /// default "Table" view). `#[serde(default)]` would keep us safe against
+    /// older payloads — Codable's Optional support gives the same guarantee.
+    let views: [ViewFfi]?
+}
+
+/// Swift mirror of Rust `View`. Only the fields the UI consumes today.
+struct ViewFfi: Codable, Identifiable {
+    let id: String
+    let name: String
+    let sorts: [SortFfi]
+}
+
+/// Swift mirror of Rust `Sort`. `order` is `"Ascending"` / `"Descending"`,
+/// `source` is `"Property"` / `"Created"` / `"ManualThenCreated"` — match the
+/// serde externally-tagged enum encoding.
+struct SortFfi: Codable, Equatable {
+    let propertyId: String
+    let order: String
+    let source: String
+
+    enum CodingKeys: String, CodingKey {
+        case propertyId = "property_id"
+        case order
+        case source
+    }
 }

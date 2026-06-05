@@ -16,15 +16,22 @@ const CORE_DATA_EPOCH_OFFSET: f64 = 978_307_200.0;
 ///
 /// `children` carry `BlockContent` values that become `Block::children` in the
 /// domain model — one level of nesting, matching Pinkha's recursive `Block` type.
+/// `color` becomes `Block.color` — populated by importers that capture
+/// block-level text colour (Craft currently; Bear leaves it `None`).
 #[derive(Debug)]
 pub struct ParsedBlock {
     pub content: BlockContent,
     pub children: Vec<BlockContent>,
+    pub color: Option<String>,
 }
 
 impl ParsedBlock {
     fn leaf(content: BlockContent) -> Self {
-        Self { content, children: vec![] }
+        Self {
+            content,
+            children: vec![],
+            color: None,
+        }
     }
 }
 
@@ -50,10 +57,10 @@ pub fn parse_note_blocks(text: &str) -> Vec<ParsedBlock> {
     let mut lines = text.lines().peekable();
 
     // Skip the leading `# Title` line if present.
-    if let Some(first) = lines.peek() {
-        if first.starts_with("# ") {
-            lines.next();
-        }
+    if let Some(first) = lines.peek()
+        && first.starts_with("# ")
+    {
+        lines.next();
     }
 
     let mut in_code_block = false;
@@ -137,7 +144,10 @@ pub fn parse_note_blocks(text: &str) -> Vec<ParsedBlock> {
             }));
             continue;
         }
-        if let Some(rest) = line.strip_prefix("- [x] ").or_else(|| line.strip_prefix("- [X] ")) {
+        if let Some(rest) = line
+            .strip_prefix("- [x] ")
+            .or_else(|| line.strip_prefix("- [X] "))
+        {
             blocks.push(ParsedBlock::leaf(BlockContent::Todo {
                 done: true,
                 text: parse_inline_text(rest),
@@ -174,7 +184,9 @@ pub fn parse_note_blocks(text: &str) -> Vec<ParsedBlock> {
         }
 
         // ── Default: rich text paragraph ──────────────────────────────────────
-        blocks.push(ParsedBlock::leaf(BlockContent::Text(parse_inline_text(line))));
+        blocks.push(ParsedBlock::leaf(BlockContent::Text(parse_inline_text(
+            line,
+        ))));
     }
 
     // If the file ended inside a code block, flush what we have.
@@ -237,8 +249,14 @@ mod tests {
         let text = "## Section\n### Sub";
         let blocks = parse_note_blocks(text);
         assert_eq!(blocks.len(), 2);
-        assert!(matches!(&blocks[0].content, BlockContent::Heading { level: 2, .. }));
-        assert!(matches!(&blocks[1].content, BlockContent::Heading { level: 3, .. }));
+        assert!(matches!(
+            &blocks[0].content,
+            BlockContent::Heading { level: 2, .. }
+        ));
+        assert!(matches!(
+            &blocks[1].content,
+            BlockContent::Heading { level: 3, .. }
+        ));
     }
 
     #[test]
@@ -246,8 +264,14 @@ mod tests {
         let text = "- [ ] Undone\n- [x] Done";
         let blocks = parse_note_blocks(text);
         assert_eq!(blocks.len(), 2);
-        assert!(matches!(&blocks[0].content, BlockContent::Todo { done: false, .. }));
-        assert!(matches!(&blocks[1].content, BlockContent::Todo { done: true, .. }));
+        assert!(matches!(
+            &blocks[0].content,
+            BlockContent::Todo { done: false, .. }
+        ));
+        assert!(matches!(
+            &blocks[1].content,
+            BlockContent::Todo { done: true, .. }
+        ));
     }
 
     #[test]
@@ -276,8 +300,14 @@ mod tests {
         let text = "- item one\n* item two";
         let blocks = parse_note_blocks(text);
         assert_eq!(blocks.len(), 2);
-        assert!(matches!(&blocks[0].content, BlockContent::BulletedListItem(_)));
-        assert!(matches!(&blocks[1].content, BlockContent::BulletedListItem(_)));
+        assert!(matches!(
+            &blocks[0].content,
+            BlockContent::BulletedListItem(_)
+        ));
+        assert!(matches!(
+            &blocks[1].content,
+            BlockContent::BulletedListItem(_)
+        ));
     }
 
     #[test]
@@ -285,7 +315,10 @@ mod tests {
         let text = "1. first\n2. second";
         let blocks = parse_note_blocks(text);
         assert_eq!(blocks.len(), 2);
-        assert!(matches!(&blocks[0].content, BlockContent::NumberedListItem(_)));
+        assert!(matches!(
+            &blocks[0].content,
+            BlockContent::NumberedListItem(_)
+        ));
     }
 
     #[test]
@@ -316,28 +349,40 @@ mod tests {
     fn test_parse_heading2() {
         let blocks = parse_note_blocks("## H2");
         assert_eq!(blocks.len(), 1);
-        assert!(matches!(&blocks[0].content, BlockContent::Heading { level: 2, .. }));
+        assert!(matches!(
+            &blocks[0].content,
+            BlockContent::Heading { level: 2, .. }
+        ));
     }
 
     #[test]
     fn test_parse_todo_unchecked() {
         let blocks = parse_note_blocks("- [ ] tâche");
         assert_eq!(blocks.len(), 1);
-        assert!(matches!(&blocks[0].content, BlockContent::Todo { done: false, .. }));
+        assert!(matches!(
+            &blocks[0].content,
+            BlockContent::Todo { done: false, .. }
+        ));
     }
 
     #[test]
     fn test_parse_todo_checked() {
         let blocks = parse_note_blocks("- [x] tâche");
         assert_eq!(blocks.len(), 1);
-        assert!(matches!(&blocks[0].content, BlockContent::Todo { done: true, .. }));
+        assert!(matches!(
+            &blocks[0].content,
+            BlockContent::Todo { done: true, .. }
+        ));
     }
 
     #[test]
     fn test_parse_bullet() {
         let blocks = parse_note_blocks("- item");
         assert_eq!(blocks.len(), 1);
-        assert!(matches!(&blocks[0].content, BlockContent::BulletedListItem(_)));
+        assert!(matches!(
+            &blocks[0].content,
+            BlockContent::BulletedListItem(_)
+        ));
     }
 
     #[test]
@@ -372,9 +417,10 @@ mod tests {
         assert_eq!(blocks.len(), 1);
         if let BlockContent::Text(spans) = &blocks[0].content {
             assert!(!spans.is_empty(), "expected at least one span");
-            let has_bold = spans
-                .iter()
-                .any(|s| s.styles.contains(&crate::domain::document::InlineStyle::Bold));
+            let has_bold = spans.iter().any(|s| {
+                s.styles
+                    .contains(&crate::domain::document::InlineStyle::Bold)
+            });
             assert!(has_bold, "expected Bold style in spans");
         } else {
             panic!("expected Text block");
@@ -398,10 +444,20 @@ mod tests {
     fn test_indented_bullet_becomes_child() {
         let text = "- parent\n    - child";
         let blocks = parse_note_blocks(text);
-        assert_eq!(blocks.len(), 1, "indented item should not create a top-level block");
-        assert!(matches!(&blocks[0].content, BlockContent::BulletedListItem(_)));
+        assert_eq!(
+            blocks.len(),
+            1,
+            "indented item should not create a top-level block"
+        );
+        assert!(matches!(
+            &blocks[0].content,
+            BlockContent::BulletedListItem(_)
+        ));
         assert_eq!(blocks[0].children.len(), 1);
-        assert!(matches!(&blocks[0].children[0], BlockContent::BulletedListItem(_)));
+        assert!(matches!(
+            &blocks[0].children[0],
+            BlockContent::BulletedListItem(_)
+        ));
     }
 
     #[test]
@@ -425,7 +481,10 @@ mod tests {
         let text = "    - orphan child";
         let blocks = parse_note_blocks(text);
         assert_eq!(blocks.len(), 1);
-        assert!(matches!(&blocks[0].content, BlockContent::BulletedListItem(_)));
+        assert!(matches!(
+            &blocks[0].content,
+            BlockContent::BulletedListItem(_)
+        ));
     }
 
     #[test]

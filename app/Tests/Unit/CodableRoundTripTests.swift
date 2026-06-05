@@ -35,7 +35,7 @@ struct DocumentFfiTests {
 
     @Test func emptyDocumentRoundTrips() throws {
         let id = UUID().uuidString
-        let doc = DocumentFfi(id: id, cover: nil, title: [], blocks: [])
+        let doc = DocumentFfi(id: id, cover: nil, icon: nil, title: [], blocks: [], locked: nil)
         let data = try JSONEncoder().encode(doc)
         let decoded = try JSONDecoder().decode(DocumentFfi.self, from: data)
         #expect(decoded.id == id)
@@ -45,7 +45,7 @@ struct DocumentFfiTests {
     }
 
     @Test func documentWithCoverEncodes() throws {
-        let doc = DocumentFfi(id: "x", cover: "aurora.jpg", title: [], blocks: [])
+        let doc = DocumentFfi(id: "x", cover: "aurora.jpg", icon: nil, title: [], blocks: [], locked: nil)
         let data = try JSONEncoder().encode(doc)
         let decoded = try JSONDecoder().decode(DocumentFfi.self, from: data)
         #expect(decoded.cover == "aurora.jpg")
@@ -55,11 +55,12 @@ struct DocumentFfiTests {
         let block = BlockFfi(
             id: "b1",
             content: .text([InlineTextFfi(content: "Hello", styles: [.bold])]),
-            children: []
+            children: [],
+            color: nil
         )
-        let doc = DocumentFfi(id: "d1", cover: nil,
+        let doc = DocumentFfi(id: "d1", cover: nil, icon: nil,
                               title: [InlineTextFfi(content: "Titre", styles: [])],
-                              blocks: [block])
+                              blocks: [block], locked: nil)
         let data = try JSONEncoder().encode(doc)
         let decoded = try JSONDecoder().decode(DocumentFfi.self, from: data)
         #expect(decoded.blocks.count == 1)
@@ -68,13 +69,35 @@ struct DocumentFfiTests {
     }
 
     @Test func nestedChildrenRoundTrip() throws {
-        let child = BlockFfi(id: "c", content: .text([]), children: [])
-        let parent = BlockFfi(id: "p", content: .text([]), children: [child])
-        let doc = DocumentFfi(id: "d", cover: nil, title: [], blocks: [parent])
+        let child = BlockFfi(id: "c", content: .text([]), children: [], color: nil)
+        let parent = BlockFfi(id: "p", content: .text([]), children: [child], color: nil)
+        let doc = DocumentFfi(id: "d", cover: nil, icon: nil, title: [], blocks: [parent], locked: nil)
         let data = try JSONEncoder().encode(doc)
         let decoded = try JSONDecoder().decode(DocumentFfi.self, from: data)
         #expect(decoded.blocks[0].children.count == 1)
         #expect(decoded.blocks[0].children[0].id == "c")
+    }
+
+    @Test func blockColorRoundTrips() throws {
+        let block = BlockFfi(
+            id: "b1",
+            content: .text([InlineTextFfi(content: "Coloured", styles: [])]),
+            children: [],
+            color: "red"
+        )
+        let data = try JSONEncoder().encode(block)
+        let decoded = try JSONDecoder().decode(BlockFfi.self, from: data)
+        #expect(decoded.color == "red")
+    }
+
+    /// Documents serialised before `color` existed must still decode (mirrors
+    /// the Rust `#[serde(default)]` guarantee on `Block.color`).
+    @Test func blockDecodesLegacyJsonWithoutColor() throws {
+        let legacy = #"{"id":"b1","content":"Divider","children":[]}"#
+        let data = legacy.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(BlockFfi.self, from: data)
+        #expect(decoded.id == "b1")
+        #expect(decoded.color == nil)
     }
 }
 
