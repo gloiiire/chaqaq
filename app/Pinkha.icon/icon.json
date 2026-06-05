@@ -4,15 +4,13 @@
     {
       "layers" : [
         {
-          "blend-mode" : "normal",
-          "fill" : "automatic",
-          "image-name" : "bol 2.png",
-          "name" : "bol 2",
+          "image-name" : "bol.png",
+          "name" : "bol",
           "position" : {
-            "scale" : 0.36,
+            "scale" : 0.22,
             "translation-in-points" : [
-              -4.2000000000000455,
-              30.375
+              10.5,
+              39.8515625
             ]
           }
         }
