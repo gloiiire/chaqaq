@@ -20,22 +20,27 @@ extension RichTextEditorCoordinator {
     }
 
     func colorMenuChildren(current: String?) -> [UIMenuElement] {
+        // `UIAction(title:)` takes a raw `String` — UIKit does NOT route
+        // through the `Localizable.xcstrings` catalogue automatically the
+        // way SwiftUI does with `LocalizedStringKey`. We explicitly resolve
+        // each label via `String(localized:)` so the popup speaks the
+        // user's preferred language.
         let palette: [(String, UIColor, String)] = [
-            ("rouge",  .systemRed,    "Red"),
-            ("rose",   .systemPink,   "Pink"),
-            ("orange", .systemOrange, "Orange"),
-            ("jaune",  .systemYellow, "Yellow"),
-            ("vert",   .systemGreen,  "Green"),
-            ("cyan",   .cyan,         "Cyan"),
-            ("bleu",   .systemBlue,   "Blue"),
-            ("violet", .systemPurple, "Purple"),
-            ("marron", .brown,        "Brown"),
+            ("rouge",  .systemRed,    String(localized: "Red")),
+            ("rose",   .systemPink,   String(localized: "Pink")),
+            ("orange", .systemOrange, String(localized: "Orange")),
+            ("jaune",  .systemYellow, String(localized: "Yellow")),
+            ("vert",   .systemGreen,  String(localized: "Green")),
+            ("cyan",   .cyan,         String(localized: "Cyan")),
+            ("bleu",   .systemBlue,   String(localized: "Blue")),
+            ("violet", .systemPurple, String(localized: "Purple")),
+            ("marron", .brown,        String(localized: "Brown")),
         ]
         let cfgDot = UIImage.SymbolConfiguration(pointSize: 12, weight: .regular)
         let cfgX   = UIImage.SymbolConfiguration(pointSize: 12, weight: .medium)
 
         let none = UIAction(
-            title: "None",
+            title: String(localized: "None"),
             image: UIImage(systemName: "xmark", withConfiguration: cfgX)
         ) { [weak self] _ in
             self?.clearColor()
@@ -87,22 +92,24 @@ extension RichTextEditorCoordinator {
     }
 
     func blockColorMenuChildren(current: String?) -> [UIMenuElement] {
+        // Same `String(localized:)` rule as `colorMenuChildren` — UIKit
+        // popups don't auto-localize. See [[localizedstringkey-trap]].
         let palette: [(String, UIColor, String)] = [
-            ("rouge",  .systemRed,    "Red"),
-            ("rose",   .systemPink,   "Pink"),
-            ("orange", .systemOrange, "Orange"),
-            ("jaune",  .systemYellow, "Yellow"),
-            ("vert",   .systemGreen,  "Green"),
-            ("cyan",   .cyan,         "Cyan"),
-            ("bleu",   .systemBlue,   "Blue"),
-            ("violet", .systemPurple, "Purple"),
-            ("marron", .brown,        "Brown"),
+            ("rouge",  .systemRed,    String(localized: "Red")),
+            ("rose",   .systemPink,   String(localized: "Pink")),
+            ("orange", .systemOrange, String(localized: "Orange")),
+            ("jaune",  .systemYellow, String(localized: "Yellow")),
+            ("vert",   .systemGreen,  String(localized: "Green")),
+            ("cyan",   .cyan,         String(localized: "Cyan")),
+            ("bleu",   .systemBlue,   String(localized: "Blue")),
+            ("violet", .systemPurple, String(localized: "Purple")),
+            ("marron", .brown,        String(localized: "Brown")),
         ]
         let cfgDot = UIImage.SymbolConfiguration(pointSize: 12, weight: .regular)
         let cfgX   = UIImage.SymbolConfiguration(pointSize: 12, weight: .medium)
 
         let none = UIAction(
-            title: "Default",
+            title: String(localized: "Default"),
             image: UIImage(systemName: "xmark", withConfiguration: cfgX)
         ) { [weak self] _ in
             self?.parent.onSetBlockColor?(nil)
@@ -161,10 +168,14 @@ extension RichTextEditorCoordinator {
             return action
         }
         return [
-            styleAction(label: "Bold",          symbol: "bold",          active: bold)      { [weak self] in self?.toggleBold() },
-            styleAction(label: "Italic",        symbol: "italic",        active: italic)    { [weak self] in self?.toggleItalic() },
-            styleAction(label: "Underline",     symbol: "underline",     active: underline) { [weak self] in self?.toggleUnderline() },
-            styleAction(label: "Strikethrough", symbol: "strikethrough", active: strike)    { [weak self] in self?.toggleStrike() },
+            styleAction(label: String(localized: "Bold"),
+                        symbol: "bold",          active: bold)      { [weak self] in self?.toggleBold() },
+            styleAction(label: String(localized: "Italic"),
+                        symbol: "italic",        active: italic)    { [weak self] in self?.toggleItalic() },
+            styleAction(label: String(localized: "Underline"),
+                        symbol: "underline",     active: underline) { [weak self] in self?.toggleUnderline() },
+            styleAction(label: String(localized: "Strikethrough"),
+                        symbol: "strikethrough", active: strike)    { [weak self] in self?.toggleStrike() },
         ]
     }
 
