@@ -9,6 +9,7 @@ import SwiftUI
 struct NotesHomeView: View {
     @ObservedObject var store: PinkhaStore
     @EnvironmentObject private var composer: Composer
+    @EnvironmentObject private var settings: AppSettings
     @State private var showingSettings = false
     /// Programmatic navigation stack so a freshly-created note can be
     /// pushed onto the editor right after the create sheet dismisses
@@ -21,6 +22,10 @@ struct NotesHomeView: View {
     @State private var editMode: EditMode = .inactive
     @State private var selectedIds: Set<String> = []
     @State private var showingBulkDeleteConfirm = false
+    /// Doc currently being renamed via the contextMenu — drives the
+    /// rename alert and `renameDraft` TextField below.
+    @State private var renamingDoc: DocumentMetaFfi?
+    @State private var renameDraft: String = ""
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -38,9 +43,21 @@ struct NotesHomeView: View {
             )) {
                 if !store.items.isEmpty {
                     Section {
-                        RecentStrip(items: store.recentItems, api: store.api) {
-                            store.load()
-                        }
+                        RecentStrip(
+                            items: store.recentItems(limit: settings.recentCount),
+                            api: store.api,
+                            onDisappear: { store.load() },
+                            onOpenNote: { docId in
+                                path.append(docId)
+                            },
+                            onRenameNote: { doc in
+                                renameDraft = doc.titlePlain
+                                renamingDoc = doc
+                            },
+                            onDeleteNote: { doc in
+                                store.delete(id: doc.id)
+                            }
+                        )
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets())
@@ -91,6 +108,11 @@ struct NotesHomeView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            // Re-tint the List with the accent so the edit-mode
+            // selection circles stay readable. Without this they'd
+            // inherit the `.tint(.primary)` set just before the
+            // rename alert later in the chain and render white.
+            .tint(settings.accentColor)
             .environment(\.editMode, $editMode)
             .navigationTitle(greeting)
             .navigationBarTitleDisplayMode(.large)
@@ -185,6 +207,28 @@ struct NotesHomeView: View {
                 selectedIds.removeAll()
             }
         }
+        // Rename alert — native iOS style. `.tint(.primary)` is
+        // placed AFTER the `.alert` modifier so it wraps the alert
+        // (env modifiers in SwiftUI flow downward to attached
+        // overlays). Buttons read `.primary` instead of the
+        // TabView's accent.
+        .alert("Rename note", isPresented: Binding(
+            get: { renamingDoc != nil },
+            set: { if !$0 { renamingDoc = nil } }
+        )) {
+            TextField("Title", text: $renameDraft)
+            Button("Rename") {
+                if let doc = renamingDoc {
+                    let trimmed = renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty {
+                        store.renameDocument(id: doc.id, newTitle: trimmed)
+                    }
+                }
+                renamingDoc = nil
+            }
+            Button("Cancel", role: .cancel) { renamingDoc = nil }
+        }
+        .tint(.primary)
         // Belt-and-braces: clear any lingering selection every time
         // the home reappears (covers pops, tab switches, sheet
         // dismissals). The onChange above only fires when `path`
@@ -231,6 +275,26 @@ struct NotesHomeView: View {
                                                      onDisappear: store.load)) {
                 WorkspaceRow(item: item)
             }
+            // Apple Music-style long-press : the row floats as a
+            // detached card preview, with Rename / Delete options
+            // underneath. Tap on the row itself still navigates.
+            .contextMenu {
+                Button {
+                    renameDraft = doc.titlePlain
+                    renamingDoc = doc
+                } label: {
+                    Label("Rename", systemImage: "pencil")
+                }
+                .tint(.primary)
+                Button(role: .destructive) {
+                    store.delete(id: doc.id)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+                .tint(.red)
+            } preview: {
+                NoteCardPreview(doc: doc)
+            }
         case .database(let db):
             NavigationLink(destination: DatabaseView(dbId: db.id, api: api,
                                                     onDisappear: store.load)) {
@@ -250,6 +314,66 @@ struct NotesHomeView: View {
     }
 }
 
+// ── Long-press preview card ───────────────────────────────────────────────────
+
+/// Apple-Music-style floating card shown when the user long-presses
+/// a note row. Larger, more deliberate than the list row — the title
+/// reads loud, the icon anchors the eye. Sits over a frosted
+/// background while the contextMenu's actions slide up underneath.
+private struct NoteCardPreview: View {
+    let doc: DocumentMetaFfi
+
+    private let iconSize: CGFloat = 44
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Cover image (or fallback gradient) on top, exactly
+            // like the RecentCard pattern — Notion-style framing.
+            CoverImageView(cover: doc.cover)
+                .frame(height: 140)
+                .clipped()
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(doc.titlePlain.isEmpty ? "Untitled" : doc.titlePlain)
+                    .font(.title3.weight(.semibold))
+                    .lineLimit(2)
+                if let date = formattedRelativeDate(doc.updatedAt) {
+                    Text(date)
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.top, iconSize / 2 + 10)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .topLeading) {
+                // Icon overlapping the cover/content boundary,
+                // matching the RecentCard treatment.
+                Group {
+                    if let icon = doc.icon, !icon.isEmpty {
+                        Text(icon).font(.system(size: 30))
+                    } else {
+                        Image(systemName: "doc.text")
+                            .font(.title2.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: iconSize, height: iconSize)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                )
+                .padding(.leading, 16)
+                .offset(y: -iconSize / 2)
+            }
+        }
+        .frame(width: 240)
+        .background(Color(uiColor: .secondarySystemGroupedBackground))
+    }
+}
+
 // ── Recent strip ──────────────────────────────────────────────────────────────
 
 /// Horizontal scroll strip displaying the most recently updated workspace items.
@@ -257,25 +381,37 @@ struct RecentStrip: View {
     let items: [WorkspaceItem]
     let api: PinkhaApi?
     let onDisappear: () -> Void
+    /// Programmatic-push handler for note items — wired from the
+    /// parent so each card can use a `Button` instead of
+    /// `NavigationLink`. iOS 26 has a confirmed bug where multiple
+    /// `NavigationLink + .contextMenu` rows inside a horizontal
+    /// `ScrollView` only register the long-press on the first row.
+    let onOpenNote: (String) -> Void
+    var onRenameNote: ((DocumentMetaFfi) -> Void)? = nil
+    var onDeleteNote: ((DocumentMetaFfi) -> Void)? = nil
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 12) {
+            LazyHStack(alignment: .top, spacing: 12) {
                 ForEach(items) { item in
                     if let api {
                         switch item {
                         case .note(let doc):
-                            NavigationLink(destination: DocumentView(docId: doc.id, api: api,
-                                                                     onDisappear: onDisappear)) {
-                                RecentCard(item: item)
-                            }
-                            .buttonStyle(.plain)
+                            RecentNoteCard(
+                                item: item,
+                                doc: doc,
+                                onOpen: { onOpenNote(doc.id) },
+                                onRename: { onRenameNote?(doc) },
+                                onDelete: { onDeleteNote?(doc) }
+                            )
+                            .id(doc.id)
                         case .database(let db):
                             NavigationLink(destination: DatabaseView(dbId: db.id, api: api,
                                                                     onDisappear: onDisappear)) {
                                 RecentCard(item: item)
                             }
                             .buttonStyle(.plain)
+                            .id(db.id)
                         }
                     }
                 }
@@ -283,6 +419,48 @@ struct RecentStrip: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 4)
         }
+    }
+}
+
+/// Per-item wrapper so each card owns an independent `Button` +
+/// `.contextMenu` registration. Pulling this out of `RecentStrip`'s
+/// body fixed the "long-press lifts the whole strip as one" bug on
+/// iOS 26 — SwiftUI registers the gesture recogniser per dedicated
+/// View struct, not per `ForEach` iteration of an inline expression.
+private struct RecentNoteCard: View {
+    let item: WorkspaceItem
+    let doc: DocumentMetaFfi
+    let onOpen: () -> Void
+    let onRename: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        // UIKit-backed context menu — SwiftUI's `.contextMenu` has a
+        // confirmed iOS 26 bug inside horizontal `ScrollView` where
+        // it only registers on the first row. UIKit's
+        // `UIContextMenuInteraction` (which Apple Music uses for the
+        // same UX) doesn't have that quirk.
+        UIKitContextMenu(
+            content: { RecentCard(item: item) },
+            preview: { NoteCardPreview(doc: doc) },
+            menu: {
+                let rename = UIAction(
+                    title: "Rename",
+                    image: UIImage(systemName: "pencil"),
+                    handler: { _ in onRename() }
+                )
+                let delete = UIAction(
+                    title: "Delete",
+                    image: UIImage(systemName: "trash"),
+                    attributes: .destructive,
+                    handler: { _ in onDelete() }
+                )
+                return UIMenu(children: [rename, delete])
+            },
+            onTapPreview: onOpen
+        )
+        .frame(width: 165, height: 170)
+        .onTapGesture(perform: onOpen)
     }
 }
 
@@ -371,12 +549,20 @@ struct RecentCard: View {
     }
 
     private func formattedDate(_ iso: String) -> String? {
-        guard !iso.isEmpty else { return nil }
-        let parser = ISO8601DateFormatter()
-        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = parser.date(from: iso) else { return nil }
-        return date.formatted(.relative(presentation: .named, unitsStyle: .abbreviated))
+        formattedRelativeDate(iso)
     }
+}
+
+/// Shared ISO-to-relative-date helper used by `RecentCard` and
+/// `NoteCardPreview`. Kept at file scope so the preview's UIKit
+/// hosting controller (in `UIKitContextMenu`) can reuse it without
+/// having to instantiate the surrounding struct.
+func formattedRelativeDate(_ iso: String) -> String? {
+    guard !iso.isEmpty else { return nil }
+    let parser = ISO8601DateFormatter()
+    parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    guard let date = parser.date(from: iso) else { return nil }
+    return date.formatted(.relative(presentation: .named, unitsStyle: .abbreviated))
 }
 
 /// A row in the unified workspace list.

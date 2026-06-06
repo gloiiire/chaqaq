@@ -284,7 +284,7 @@ struct DocumentView: View {
         } label: {
             Image(systemName: selectedBlocks.contains(id) ? "checkmark.circle.fill" : "circle")
                 .font(.title3)
-                .foregroundStyle(selectedBlocks.contains(id) ? Color("SelectionTint") : .secondary)
+                .foregroundStyle(selectedBlocks.contains(id) ? settings.accentColor : .secondary)
                 .frame(width: 28, height: 44)
                 .contentShape(Rectangle())
         }

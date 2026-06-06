@@ -31,6 +31,7 @@ private struct TitleEditor: UIViewRepresentable {
     @Binding var isFocused: Bool
     @Binding var cursorOffset: Int?
     @Environment(\.isEnabled) private var isEnabled
+    @EnvironmentObject private var settings: AppSettings
     let onSave: () -> Void
     let onNewBlock: (String) -> Void
 
@@ -41,7 +42,7 @@ private struct TitleEditor: UIViewRepresentable {
         tv.delegate = context.coordinator
         tv.backgroundColor = .clear
         tv.font = police
-        tv.tintColor = pinkhaSelectionTint
+        tv.tintColor = resolvedSelectionTint(settings)
         tv.isEditable = isEnabled
         tv.isSelectable = isEnabled
         tv.isScrollEnabled = false
@@ -56,7 +57,7 @@ private struct TitleEditor: UIViewRepresentable {
 
     func updateUIView(_ tv: ExpandingTextView, context: Context) {
         context.coordinator.parent = self
-        tv.tintColor = pinkhaSelectionTint
+        tv.tintColor = resolvedSelectionTint(settings)
         tv.isEditable = isEnabled
         tv.isSelectable = isEnabled
         if !isEnabled && tv.isFirstResponder {

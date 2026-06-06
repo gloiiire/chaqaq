@@ -1,7 +1,15 @@
+import SwiftUI
 import UIKit
 
-/// Global selection tint (falls back to systemOrange if the asset is missing).
-let pinkhaSelectionTint = UIColor(named: "SelectionTint") ?? .systemOrange
+/// Resolves the cursor + selection tint from the user prefs. UIKit
+/// ties the caret colour to `tintColor` on UITextView (there's no
+/// separate `insertionPointColor` like UITextField has on iOS 18+),
+/// so this toggle paints BOTH the caret and the selection lozenge.
+/// Default on : accent for both ; off : white, Notion-style.
+@MainActor
+func resolvedSelectionTint(_ settings: AppSettings) -> UIColor {
+    settings.cursorFollowsAccent ? UIColor(settings.accentColor) : .white
+}
 
 // ── Custom attribute keys ─────────────────────────────────────────────────────
 

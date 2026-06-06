@@ -448,6 +448,7 @@ struct NotionImportView: View {
 /// Single row in the database picker. Shows emoji icon (or generic glyph),
 /// title, and a checkmark when selected.
 private struct DatabasePickerRow: View {
+    @EnvironmentObject private var settings: AppSettings
     let db: NotionDatabaseSummaryFfi
     let isSelected: Bool
     let onTap: () -> Void
@@ -468,7 +469,7 @@ private struct DatabasePickerRow: View {
                     .lineLimit(1)
                 Spacer()
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(isSelected ? settings.accentColor : Color.secondary)
                     .imageScale(.large)
             }
             .contentShape(Rectangle())

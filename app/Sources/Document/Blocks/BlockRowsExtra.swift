@@ -86,6 +86,7 @@ struct TodoRowView: View {
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     let cb: BlockCallbacks
+    @EnvironmentObject private var settings: AppSettings
 
     /// Extra text attributes applied when the item is checked (strikethrough + secondary color).
     private var checkedAttrs: [NSAttributedString.Key: Any]? {
@@ -102,7 +103,13 @@ struct TodoRowView: View {
             } label: {
                 Image(systemName: block.done ? "checkmark.square.fill" : "square")
                     .font(.body)
-                    .foregroundStyle(block.done ? Color.accentColor : Color.secondary)
+                    // Use the user's chosen accent directly —
+                    // `Color.accentColor` would read the asset
+                    // catalog (`Accent.colorset` = orange) and
+                    // `.foregroundStyle(.tint)` was failing to
+                    // propagate through here, both fell back to
+                    // orange.
+                    .foregroundStyle(block.done ? settings.accentColor : Color.secondary)
             }
             .buttonStyle(.plain)
             .padding(.top, 8)

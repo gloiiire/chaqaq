@@ -210,9 +210,11 @@ struct BlockRowView: View {
             } label: {
                 Label("Change to", systemImage: "arrow.triangle.2.circlepath")
             }
+            .tint(.primary)
             Button(role: .destructive, action: cb.onDelete) {
                 Label("Delete block", systemImage: "trash")
             }
+            .tint(.red)
         }
     }
 }
