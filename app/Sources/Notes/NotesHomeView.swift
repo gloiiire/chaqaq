@@ -304,8 +304,11 @@ struct NotesHomeView: View {
         }
     }
 
-    /// Returns a greeting adapted to the time of day.
-    private var greeting: String {
+    /// Returns a greeting adapted to the time of day. Returns
+    /// `LocalizedStringKey` (not `String`) so `.navigationTitle(_:)`
+    /// picks the localized overload — a raw `String` would render
+    /// verbatim and skip the catalog lookup.
+    private var greeting: LocalizedStringKey {
         let h = Calendar.current.component(.hour, from: .now)
         switch h {
         case 5..<12: return "Good morning."

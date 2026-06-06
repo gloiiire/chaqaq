@@ -69,7 +69,7 @@ struct CreateBubble: View {
     }
 
     private func icon(systemImage: String,
-                      label: String,
+                      label: LocalizedStringKey,
                       font: Font = .title3,
                       labelSpacing: CGFloat = 2,
                       action: @escaping () -> Void) -> some View {
@@ -87,7 +87,7 @@ struct CreateBubble: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(label)
+        .accessibilityLabel(Text(label))
     }
 
     /// Overflow menu — consolidates the secondary actions (trash, imports,

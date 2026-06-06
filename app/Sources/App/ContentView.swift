@@ -136,7 +136,7 @@ struct ContentView: View {
         .onChange(of: composer.showingCraftCombinedImport) { _, isShowing in
             if !isShowing { store.load() }
         }
-        .alert("New folder", isPresented: $composer.showingNewFolder) {
+        .alert("New Folder", isPresented: $composer.showingNewFolder) {
             TextField("Name", text: $composer.newFolderName)
             Button("Create") {
                 let trimmed = composer.newFolderName.trimmingCharacters(in: .whitespaces)
@@ -169,6 +169,7 @@ struct ContentView: View {
             Text("This cannot be undone.")
         }
         .onAppear { store.connect() }
+        .task { composer.bindQuickActions() }
         .errorAlert(message: $store.errorMessage, onRetry: store.load)
     }
 }
