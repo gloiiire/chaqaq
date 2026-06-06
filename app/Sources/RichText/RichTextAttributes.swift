@@ -1,7 +1,14 @@
+import SwiftUI
 import UIKit
 
-/// Global selection tint (falls back to systemOrange if the asset is missing).
-let pinkhaSelectionTint = UIColor(named: "SelectionTint") ?? .systemOrange
+/// Resolves the cursor / selection tint from the user prefs.
+/// Defaults to `.white` (Notion-style) ; switches to the chosen
+/// accent color when the user opted into "cursor follows accent"
+/// in Settings.
+@MainActor
+func resolvedSelectionTint(_ settings: AppSettings) -> UIColor {
+    settings.cursorFollowsAccent ? UIColor(settings.accentColor) : .white
+}
 
 // ── Custom attribute keys ─────────────────────────────────────────────────────
 
