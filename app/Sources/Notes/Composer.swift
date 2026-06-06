@@ -77,6 +77,37 @@ final class Composer: ObservableObject {
         showingCreateDoc = true
     }
 
+    /// Wires Home Screen Quick Actions (long-press the app icon) into
+    /// the composer. Call once on app start — covers both the cold
+    /// launch path (a shortcut tap that woke the app from suspended,
+    /// captured by `AppDelegate.pendingShortcutType`) and the warm
+    /// launch path (Scene-delegate notification while the app is
+    /// already in memory).
+    func bindQuickActions() {
+        // Drain any shortcut captured during cold launch.
+        if let type = AppDelegate.pendingShortcutType {
+            AppDelegate.pendingShortcutType = nil
+            handle(shortcutType: type)
+        }
+        NotificationCenter.default.addObserver(
+            forName: .pinkhaQuickAction,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let type = note.userInfo?["type"] as? String else { return }
+            Task { @MainActor in self?.handle(shortcutType: type) }
+        }
+    }
+
+    private func handle(shortcutType type: String) {
+        switch type {
+        case "com.gloiiire.pinkha.new-note":
+            openNewNote()
+        default:
+            break
+        }
+    }
+
     func openNewDatabase() {
         createMode = .database
         newTitle = ""

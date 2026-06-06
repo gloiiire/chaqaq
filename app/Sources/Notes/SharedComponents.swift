@@ -3,14 +3,21 @@ import SwiftUI
 // ── Shared components ─────────────────────────────────────────────────────────
 
 /// Section header in uppercase with semi-bold caption style.
+///
+/// `title` is a `LocalizedStringKey` so the string is resolved via
+/// `Localizable.xcstrings` (instead of `String`, which SwiftUI treats
+/// as a literal and never localizes). The visual uppercase comes from
+/// `.textCase(.uppercase)` — applying `.uppercased()` to the raw String
+/// would bypass the catalog lookup.
 struct SectionHeader: View {
-    let title: String
+    let title: LocalizedStringKey
 
     var body: some View {
-        Text(title.uppercased())
+        Text(title)
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
             .kerning(0.5)
+            .textCase(.uppercase)
     }
 }
 
@@ -45,13 +52,19 @@ struct NotesEmptyState: View {
 }
 
 /// Sheet for creating a new note or database. Accepts a title and calls `onCreate` or `onCancel`.
+///
+/// `prompt` and `navigationTitle` are `LocalizedStringKey` (not `String`)
+/// so the catalog resolves them — `TextField(_ titleKey:)` and
+/// `navigationTitle(_:)` both pick the localized overload only when the
+/// argument type is a key. With raw `String` SwiftUI displays the
+/// English source verbatim.
 struct CreateDocumentSheet: View {
     @Binding var title: String
-    var prompt: String = "Document title"
+    var prompt: LocalizedStringKey = "Document title"
     /// Navigation title — defaults to "New" but each call site sets a
     /// more descriptive label (e.g. "New Document", "New Database") so the
     /// user knows what they're creating before they type.
-    var navigationTitle: String = "New"
+    var navigationTitle: LocalizedStringKey = "New"
     let onCreate: () -> Void
     let onCancel: () -> Void
     @FocusState private var focused: Bool
