@@ -196,6 +196,7 @@ struct ContentView: View {
 /// the matches in sections. Each section is hidden when empty.
 private struct SearchView: View {
     @ObservedObject var store: PinkhaStore
+    @EnvironmentObject private var settings: AppSettings
     @State private var query = ""
 
     private var results: PinkhaStore.SuperSearchResults {
@@ -283,7 +284,27 @@ private struct SearchView: View {
             .navigationTitle("Search")
             .searchable(text: $query, prompt: "Search notes, content, databases, folders…")
             .autocorrectionDisabled()
+            // `.searchable` is backed by `UISearchTextField` which
+            // ignores SwiftUI's `.tint` env. We push the colour
+            // through the UIKit appearance proxy — applies to search
+            // bars instantiated after this point, which covers the
+            // re-mount that happens when the toggle flips.
+            .onAppear { applySearchBarTint() }
+            .onChange(of: settings.cursorFollowsAccent) { _, _ in
+                applySearchBarTint()
+            }
+            .onChange(of: settings.accentChoice) { _, _ in
+                applySearchBarTint()
+            }
         }
+    }
+
+    @MainActor
+    private func applySearchBarTint() {
+        let color: UIColor = settings.cursorFollowsAccent
+            ? UIColor(settings.accentColor)
+            : .white
+        UISearchTextField.appearance().tintColor = color
     }
 }
 

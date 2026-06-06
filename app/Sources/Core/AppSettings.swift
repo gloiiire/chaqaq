@@ -38,8 +38,33 @@ final class AppSettings: ObservableObject {
         var label: String { rawValue.capitalized }
     }
 
-    private let accentKey    = "pinkha.settings.accentColor"
-    private let spotlightKey = "pinkha.settings.spotlightTinted"
+    private let accentKey         = "pinkha.settings.accentColor"
+    private let spotlightKey      = "pinkha.settings.spotlightTinted"
+    private let recentCountKey    = "pinkha.settings.recentCount"
+    private let cursorAccentKey   = "pinkha.settings.cursorFollowsAccent"
+
+    /// When on, the text-input caret + selection highlight use the
+    /// chosen accent color. Off by default (white, à la Notion) so
+    /// the cursor stays quiet against most block colors.
+    @Published var cursorFollowsAccent: Bool {
+        didSet {
+            UserDefaults.standard.set(cursorFollowsAccent, forKey: cursorAccentKey)
+        }
+    }
+
+    /// How many docs the "Recent" strip on the Notes home shows.
+    /// Bounded 5–20 ; 7 is the default that fits ~2 fully-visible
+    /// cards plus a peek of a third on iPhone 17 Pro.
+    @Published var recentCount: Int {
+        didSet {
+            let clamped = max(5, min(20, recentCount))
+            if clamped != recentCount {
+                recentCount = clamped
+                return
+            }
+            UserDefaults.standard.set(recentCount, forKey: recentCountKey)
+        }
+    }
 
     @Published var accentChoice: AccentChoice {
         didSet {
@@ -55,11 +80,34 @@ final class AppSettings: ObservableObject {
 
     init() {
         let stored = UserDefaults.standard.string(forKey: accentKey)
-        self.accentChoice = AccentChoice(rawValue: stored ?? "") ?? .orange
+        // Apple-ecosystem default — sticks closer to the system blue
+        // most iOS apps use unless the user picks something else.
+        self.accentChoice = AccentChoice(rawValue: stored ?? "") ?? .blue
         // Default off — matches the latest preference. A user that
         // wants the tint flips the toggle in Settings.
         self.spotlightTinted = UserDefaults.standard.bool(forKey: spotlightKey)
+        let storedCount = UserDefaults.standard.integer(forKey: recentCountKey)
+        self.recentCount = (5...20).contains(storedCount) ? storedCount : 7
+        // Default ON — selection lozenge needs the accent tint to be
+        // visible. UIKit ties caret colour to selection tint on
+        // UITextView, so the caret follows along. A user that
+        // prefers white (Notion-style) can flip the toggle off.
+        if UserDefaults.standard.object(forKey: cursorAccentKey) != nil {
+            self.cursorFollowsAccent = UserDefaults.standard.bool(forKey: cursorAccentKey)
+        } else {
+            self.cursorFollowsAccent = true
+        }
     }
 
     var accentColor: Color { accentChoice.color }
+
+    /// Resets every preference back to its factory default —
+    /// accent = orange, spotlight tint off, recent count = 7. Used
+    /// by the floating "Reset" button in `SettingsView`.
+    func resetToDefaults() {
+        accentChoice        = .blue
+        spotlightTinted     = false
+        recentCount         = 7
+        cursorFollowsAccent = true
+    }
 }

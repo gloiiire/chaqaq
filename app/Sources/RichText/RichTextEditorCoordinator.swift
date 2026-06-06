@@ -209,6 +209,31 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
         return true
     }
 
+    /// Disable the system long-press menu on links inside the
+    /// `UITextView`. Tap is already routed through
+    /// `shouldInteractWith` above, so iOS's "Copy link / Open / Share"
+    /// menu adds nothing — and on iOS 26.5 its internal range
+    /// enumeration crashes with `NSRangeException` on certain attributed
+    /// strings (Sentry APPLE-IOS-9). Returning `nil` here skips the
+    /// menu altogether.
+    func textView(_ textView: UITextView,
+                  menuConfigurationFor textItem: UITextItem,
+                  defaultMenu: UIMenu) -> UITextItem.MenuConfiguration? {
+        return nil
+    }
+
+    /// Companion to the menu disable — also opt out of the primary
+    /// "press-and-hold to highlight" preview, which on iOS 26.5
+    /// pre-warms the same attribute-enumeration path that crashes.
+    func textView(_ textView: UITextView,
+                  primaryActionFor textItem: UITextItem,
+                  defaultAction: UIAction) -> UIAction? {
+        // Keep the default tap action — only disable the long-press
+        // hover preview by NOT returning a custom one (returning
+        // nil here lets the default fire normally).
+        return nil
+    }
+
     func textViewDidChange(_ tv: UITextView) {
         let text = tv.text ?? ""
 

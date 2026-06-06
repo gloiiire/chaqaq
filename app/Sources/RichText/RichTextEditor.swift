@@ -12,6 +12,7 @@ struct RichTextEditor: UIViewRepresentable {
     @Binding var spans: [InlineTextFfi]
     @Binding var isFocused: Bool
     @Environment(\.isEnabled) var isEnabled
+    @EnvironmentObject var settings: AppSettings
     var placeholder: String = ""
     var baseFont: UIFont = .preferredFont(forTextStyle: .body)
     var extraAttrs: [NSAttributedString.Key: Any]? = nil
@@ -62,7 +63,7 @@ struct RichTextEditor: UIViewRepresentable {
         tv.backgroundColor = .clear
         tv.font = baseFont
         tv.textColor = .label
-        tv.tintColor = pinkhaSelectionTint
+        tv.tintColor = resolvedSelectionTint(settings)
         tv.isEditable = isEnabled
         tv.isSelectable = isEnabled
         tv.typingAttributes = [.font: baseFont, .foregroundColor: UIColor.label]
@@ -101,7 +102,7 @@ struct RichTextEditor: UIViewRepresentable {
         coord.parent = self
         coord.updateUndoRedoButtons()
         coord.updateBlockColorButton(blockColor)
-        tv.tintColor = pinkhaSelectionTint
+        tv.tintColor = resolvedSelectionTint(settings)
         tv.isEditable = isEnabled
         tv.isSelectable = isEnabled
         if !isEnabled && tv.isFirstResponder {

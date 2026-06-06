@@ -40,8 +40,13 @@ final class PinkhaStore: ObservableObject {
         return (notes + dbs).sorted { $0.updatedAt > $1.updatedAt }
     }
 
-    /// The 5 most recently updated items for the recent strip.
-    var recentItems: [WorkspaceItem] { Array(items.prefix(5)) }
+    /// The N most recently updated items for the recent strip,
+    /// where N is the user's `AppSettings.recentCount` (default 7,
+    /// bounded 5–20). Caller supplies the count so PinkhaStore stays
+    /// independent of `AppSettings`.
+    func recentItems(limit: Int) -> [WorkspaceItem] {
+        Array(items.prefix(limit))
+    }
 
     /// Opens the SQLite database and seeds it when running under UI-test launch arguments.
     func connect() {
@@ -162,6 +167,16 @@ final class PinkhaStore: ObservableObject {
         }
         _ = createFolder(name: name, parentId: parentId)
         load()
+    }
+
+    /// Renames a note (updates its title) and reloads so the home
+    /// list reflects the new value.
+    func renameDocument(id: String, newTitle: String) {
+        if tryCatch(into: &errorMessage, {
+            try api?.updateDocumentTitle(id: id, newTitle: newTitle)
+        }) != nil {
+            load()
+        }
     }
 
     /// Soft-deletes a note by id and reloads.
