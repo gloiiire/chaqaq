@@ -88,9 +88,15 @@ final class AppSettings: ObservableObject {
         self.spotlightTinted = UserDefaults.standard.bool(forKey: spotlightKey)
         let storedCount = UserDefaults.standard.integer(forKey: recentCountKey)
         self.recentCount = (5...20).contains(storedCount) ? storedCount : 7
-        // Default off — cursor stays white like Notion, distinct
-        // from the accent.
-        self.cursorFollowsAccent = UserDefaults.standard.bool(forKey: cursorAccentKey)
+        // Default ON — selection lozenge needs the accent tint to be
+        // visible. UIKit ties caret colour to selection tint on
+        // UITextView, so the caret follows along. A user that
+        // prefers white (Notion-style) can flip the toggle off.
+        if UserDefaults.standard.object(forKey: cursorAccentKey) != nil {
+            self.cursorFollowsAccent = UserDefaults.standard.bool(forKey: cursorAccentKey)
+        } else {
+            self.cursorFollowsAccent = true
+        }
     }
 
     var accentColor: Color { accentChoice.color }
@@ -102,6 +108,6 @@ final class AppSettings: ObservableObject {
         accentChoice        = .blue
         spotlightTinted     = false
         recentCount         = 7
-        cursorFollowsAccent = false
+        cursorFollowsAccent = true
     }
 }

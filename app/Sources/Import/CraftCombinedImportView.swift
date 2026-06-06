@@ -21,6 +21,7 @@ struct CraftCombinedImportView: View {
     @State private var showingFolderPicker = false
     @State private var importState: ImportState = .idle
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var settings: AppSettings
 
     enum ImportState {
         case idle
@@ -106,7 +107,7 @@ struct CraftCombinedImportView: View {
                         Spacer()
                         if realmPath != nil {
                             Image(systemName: realmAutoDetected ? "sparkles" : "checkmark")
-                                .foregroundStyle(realmAutoDetected ? Color.accentColor : Color.green)
+                                .foregroundStyle(realmAutoDetected ? settings.accentColor : Color.green)
                                 .font(.footnote.weight(.semibold))
                         }
                     }
