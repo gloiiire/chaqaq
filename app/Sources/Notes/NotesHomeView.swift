@@ -108,6 +108,11 @@ struct NotesHomeView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            // Re-tint the List with the accent so the edit-mode
+            // selection circles stay readable. Without this they'd
+            // inherit the `.tint(.primary)` set just before the
+            // rename alert later in the chain and render white.
+            .tint(settings.accentColor)
             .environment(\.editMode, $editMode)
             .navigationTitle(greeting)
             .navigationBarTitleDisplayMode(.large)

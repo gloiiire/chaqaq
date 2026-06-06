@@ -55,7 +55,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Text input")
                 } footer: {
-                    Text("Off (default): the caret and selection are white, like Notion. On: they adopt your accent color.")
+                    Text("On (default): the caret and selection use your accent color. Off: white, Notion-style.")
                 }
 
                 Section {

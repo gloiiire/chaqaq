@@ -188,6 +188,7 @@ struct DatabaseView: View {
 private struct PropertyHeaderCell: View {
     enum SortDirection { case ascending, descending }
 
+    @EnvironmentObject private var settings: AppSettings
     let name: String
     let icon: String
     let width: CGFloat
@@ -220,7 +221,7 @@ private struct PropertyHeaderCell: View {
                           ? "arrow.up"
                           : "arrow.down")
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(settings.accentColor)
                 }
             }
             .padding(.horizontal, 10)
