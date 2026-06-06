@@ -38,8 +38,23 @@ final class AppSettings: ObservableObject {
         var label: String { rawValue.capitalized }
     }
 
-    private let accentKey    = "pinkha.settings.accentColor"
-    private let spotlightKey = "pinkha.settings.spotlightTinted"
+    private let accentKey       = "pinkha.settings.accentColor"
+    private let spotlightKey    = "pinkha.settings.spotlightTinted"
+    private let recentCountKey  = "pinkha.settings.recentCount"
+
+    /// How many docs the "Recent" strip on the Notes home shows.
+    /// Bounded 5–20 ; 7 is the default that fits ~2 fully-visible
+    /// cards plus a peek of a third on iPhone 17 Pro.
+    @Published var recentCount: Int {
+        didSet {
+            let clamped = max(5, min(20, recentCount))
+            if clamped != recentCount {
+                recentCount = clamped
+                return
+            }
+            UserDefaults.standard.set(recentCount, forKey: recentCountKey)
+        }
+    }
 
     @Published var accentChoice: AccentChoice {
         didSet {
@@ -59,6 +74,8 @@ final class AppSettings: ObservableObject {
         // Default off — matches the latest preference. A user that
         // wants the tint flips the toggle in Settings.
         self.spotlightTinted = UserDefaults.standard.bool(forKey: spotlightKey)
+        let storedCount = UserDefaults.standard.integer(forKey: recentCountKey)
+        self.recentCount = (5...20).contains(storedCount) ? storedCount : 7
     }
 
     var accentColor: Color { accentChoice.color }

@@ -71,6 +71,7 @@ struct EmojiPickerSheet: View {
                     } label: {
                         Image(systemName: "keyboard")
                     }
+                    .tint(.primary)
                     .accessibilityLabel("Enter an emoji")
                 }
             }

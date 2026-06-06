@@ -19,6 +19,26 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Stepper(
+                        value: $settings.recentCount,
+                        in: 5...20,
+                        step: 1
+                    ) {
+                        HStack {
+                            Text("Recent strip count")
+                            Spacer()
+                            Text("\(settings.recentCount)")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
+                } header: {
+                    Text("Recents")
+                } footer: {
+                    Text("How many notes appear in the horizontal strip at the top of the Notes home. Bounded between 5 and 20.")
+                }
+
+                Section {
                     Toggle("Tint focused block", isOn: $settings.spotlightTinted)
                 } header: {
                     Text("Search spotlight")

@@ -38,7 +38,6 @@
 		436B46EF36AEEC5848161240 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48A52E3CBA4FFBC642AFD763 /* Keychain.swift */; };
 		47F932118B8D0EEDDC83639D /* FolderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED9B1DB1A313487130CA11D1 /* FolderView.swift */; };
 		483EB9F23E121089DB8929AC /* DocumentViewHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E5C44CC8FA2FC915E43ECC /* DocumentViewHelpers.swift */; };
-		4A066EB2007569EE7FBC6B91 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = E99E3FFC1016E99E918BEE50 /* Pinkha.icon */; };
 		4BA75C93F895BE5EE4307A17 /* EmptyStateUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6093527A0945328E7EC8D4F6 /* EmptyStateUITests.swift */; };
 		4C12B1357743781D0D21CDA5 /* BearImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 341793C59FCB240D68152FCD /* BearImportView.swift */; };
 		502AFCE7307680AEC893A42A /* PinkhaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1423EFE3FAFB25613958045E /* PinkhaApp.swift */; };
@@ -50,6 +49,7 @@
 		5B18786280FD41AB25892C2B /* DocumentViewModel+TitleCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AFC0FE415F63FAB0758C26A /* DocumentViewModel+TitleCover.swift */; };
 		5C5C57DA676A6B53F43953B1 /* DocumentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F03150360836B39486A73949 /* DocumentViewModel.swift */; };
 		6037AF533565A18E60760F2C /* ConcurrencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83C7E5FB163EC0BCAADD90F1 /* ConcurrencyTests.swift */; };
+		60A09E44A2C02CD59C1C08BE /* UIKitContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB0F81F0C34049331FECB422 /* UIKitContextMenu.swift */; };
 		62FDB0C4AF1E562971C8A80F /* pinkha.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9E3470806F13B18DD1BDF7AC /* pinkha.xcframework */; };
 		6A61F7F6FC09488712F87FD4 /* DatabaseModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC27E249DFB98A2B03FBBE07 /* DatabaseModelsTests.swift */; };
 		6C2B20DDC3AF374BD0637D13 /* ExpandingBlockFAB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A8D5AC0254DDB63224AF573 /* ExpandingBlockFAB.swift */; };
@@ -89,6 +89,7 @@
 		D030E663D697B3BDBAE36FA4 /* DatabaseViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F3EF0593ACB7C1002859466 /* DatabaseViewModel.swift */; };
 		D30ECD6EF037636E91D118D3 /* RichTextConversion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C6157A2F89654A80442CA7 /* RichTextConversion.swift */; };
 		D94EA417E488B890F0BC3AAA /* VMErrorHandlingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AF590FDF89EC393658B2029 /* VMErrorHandlingTests.swift */; };
+		E07ACB57D841981336CA1971 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = E1D2586C285C5C694D9BD690 /* Pinkha.icon */; };
 		E368FE7BD750360550B347BD /* CoverImageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C90F098980AEF72F3CE8978 /* CoverImageTests.swift */; };
 		E73E1D68271106005E63ABAC /* NotesHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7211340993B3A5D766850FDE /* NotesHomeView.swift */; };
 		E92F562B0BC4BFD440E650AF /* DatabasesHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC6268A543F57BE87AC43F83 /* DatabasesHomeView.swift */; };
@@ -214,9 +215,10 @@
 		D790938BD86DCD84018B0A63 /* DatabaseApiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseApiTests.swift; sourceTree = "<group>"; };
 		D8829AA3035FF94BD0A3EF7B /* NotionOAuth2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionOAuth2Tests.swift; sourceTree = "<group>"; };
 		D9368C19C4C76886E6A03917 /* EdgeCasesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeCasesTests.swift; sourceTree = "<group>"; };
+		DB0F81F0C34049331FECB422 /* UIKitContextMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIKitContextMenu.swift; sourceTree = "<group>"; };
 		DDF836EB2D9E803A6DCC33B3 /* MarkdownShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownShortcuts.swift; sourceTree = "<group>"; };
+		E1D2586C285C5C694D9BD690 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		E2C07ADA01E894E83B574ABA /* HomeScreenUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreenUITests.swift; sourceTree = "<group>"; };
-		E99E3FFC1016E99E918BEE50 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		ED135BF384902D45638398A9 /* SharedComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedComponents.swift; sourceTree = "<group>"; };
 		ED9B1DB1A313487130CA11D1 /* FolderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderView.swift; sourceTree = "<group>"; };
 		F03150360836B39486A73949 /* DocumentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentViewModel.swift; sourceTree = "<group>"; };
@@ -270,6 +272,7 @@
 				7211340993B3A5D766850FDE /* NotesHomeView.swift */,
 				ED135BF384902D45638398A9 /* SharedComponents.swift */,
 				6C7CC1817FC3F8DA6E8AAEE2 /* TrashView.swift */,
+				DB0F81F0C34049331FECB422 /* UIKitContextMenu.swift */,
 			);
 			path = Notes;
 			sourceTree = "<group>";
@@ -382,10 +385,10 @@
 			path = Integration;
 			sourceTree = "<group>";
 		};
-		5BFB6EA6DC306DA2E0241138 /* app */ = {
+		638EF53CDDE45E636E654D85 /* app */ = {
 			isa = PBXGroup;
 			children = (
-				E99E3FFC1016E99E918BEE50 /* Pinkha.icon */,
+				E1D2586C285C5C694D9BD690 /* Pinkha.icon */,
 			);
 			name = app;
 			sourceTree = "<group>";
@@ -468,7 +471,7 @@
 				7CE19974FB0E7C2FE24CED36 /* Tests */,
 				4494D74BA7F514A78EB8D8AC /* Frameworks */,
 				7459E38DDB42FA0567FB08BE /* Products */,
-				5BFB6EA6DC306DA2E0241138 /* app */,
+				638EF53CDDE45E636E654D85 /* app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -607,7 +610,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				57155F8A05B7C7EA1ED129AF /* Assets.xcassets in Resources */,
-				4A066EB2007569EE7FBC6B91 /* Pinkha.icon in Resources */,
+				E07ACB57D841981336CA1971 /* Pinkha.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -668,6 +671,7 @@
 				080E62AC634C6662AE03D666 /* SharedComponents.swift in Sources */,
 				C4F19FF82D200B75C8EEF468 /* SplashView.swift in Sources */,
 				F7F362376754EBFAAE39A6DC /* TrashView.swift in Sources */,
+				60A09E44A2C02CD59C1C08BE /* UIKitContextMenu.swift in Sources */,
 				296FB70CAACBC2BB01F1B402 /* pinkha.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
