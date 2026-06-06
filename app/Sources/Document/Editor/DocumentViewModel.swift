@@ -3,6 +3,9 @@ import SwiftUI
 // ── View Model ────────────────────────────────────────────────────────────────
 
 /// Owns all document editing state: title, cover, blocks, undo/redo and navigation.
+/// The class is intentionally thin — feature-specific behaviour lives in
+/// extensions (`+Blocks`, `+Persistence`, `+TitleCover`, `+Undo`) so each
+/// concern is reviewable in isolation.
 @MainActor
 final class DocumentViewModel: ObservableObject {
     let docId: String
@@ -27,7 +30,9 @@ final class DocumentViewModel: ObservableObject {
     var isNavigating: Bool { repeater.active }
 
     // ── Undo / redo ─────────────────────────────────────────────────────
-    // Capacity aligned with the Rust backend's default (1000).
+    // The mechanism (burst typing, snapshot restore) lives in
+    // `DocumentViewModel+Undo.swift`. Capacity is aligned with the Rust
+    // backend's default (1000).
     let undoMgr = UndoManager()
     /// `canUndo` also reflects pending bursts: if the user triggers undo before the burst
     /// timer fires (`burstInterval`), `vm.undo()` flushes first, then undoes.
@@ -36,18 +41,11 @@ final class DocumentViewModel: ObservableObject {
     /// Snapshot of the last persisted title, used to compute the undo inverse.
     var lastPersistedTitle: String = ""
 
-    // ── Burst undo for typing ────────────────────────────────────────────
-    // Notes style: a continuous burst of saveBlock calls on the same block
-    // counts as a single undo step. A `burstInterval` pause flushes the burst.
-    struct BlockSnapshot: Equatable {
-        let content: BlockContentFfi
-        let spans: [InlineTextFfi]
-        let done: Bool
-    }
-    /// Last known stable state per block (updated at each flush or non-burst mutation).
-    /// Serves as anchor for the next burst.
+    // ── Burst state (owned here so the rest of the VM can read it) ─────
+    /// Last known stable state per block (updated at each flush or
+    /// non-burst mutation). Serves as the anchor for the next burst.
     var blockSnapshots: [String: BlockSnapshot] = [:]
-    /// Pre-burst state captured at the first saveBlock of a burst.
+    /// Pre-burst state captured at the first `saveBlock` of a burst.
     /// This is what undo will restore.
     var blockBurstAnchor: [String: BlockSnapshot] = [:]
     var burstFlushWork: DispatchWorkItem?
@@ -73,29 +71,6 @@ final class DocumentViewModel: ObservableObject {
             DispatchQueue.main.async {
                 self?.objectWillChange.send()
             }
-        }
-    }
-
-    func undo() { flushAllBursts(); undoMgr.undo() }
-    func redo() { flushAllBursts(); undoMgr.redo() }
-
-    func snapshotOf(_ block: EditableBlock) -> BlockSnapshot {
-        BlockSnapshot(content: block.content, spans: block.spans, done: block.done)
-    }
-
-    /// Restores a block to a pre-burst anchor snapshot and re-registers the inverse
-    /// as a redo action (UndoManager pattern: registerUndo during an undo registers redo).
-    func applyBlockSnapshot(blockId: String, snapshot snap: BlockSnapshot) {
-        guard let idx = blocks.firstIndex(where: { $0.id == blockId }) else { return }
-        let previous = snapshotOf(blocks[idx])
-        blocks[idx] = EditableBlock(id: blockId,
-                                    content: snap.content,
-                                    spans: snap.spans,
-                                    done: snap.done)
-        persistBlockRaw(blocks[idx])
-        blockSnapshots[blockId] = snap
-        undoMgr.registerUndo(withTarget: self) { vm in
-            vm.applyBlockSnapshot(blockId: blockId, snapshot: previous)
         }
     }
 }
