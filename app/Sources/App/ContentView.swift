@@ -260,16 +260,11 @@ struct ContentView: View {
         }
     }
 
-    /// Centralised "open the switcher" path. If the user is currently
-    /// inside a document, captures a snapshot of the live window into
-    /// `TabSnapshotCache` keyed by that doc id, so the switcher card
-    /// shows the exact content / scroll position they had — even if
-    /// `viewWillDisappear` doesn't fire on the covered DocumentView
-    /// (Safari-style guarantee).
+    /// Centralised "open the switcher" path. Card thumbnails come from
+    /// `DocumentSnapshotHook`'s `viewWillDisappear` capture, not from
+    /// a live grab — re-opening a doc just shows its top, which is
+    /// what the user prefers over a half-restored scroll mid-page.
     private func openSwitcher() {
-        if case .document(let docId) = composer.currentContext {
-            TabSnapshotCache.shared.captureCurrentWindow(for: docId)
-        }
         composer.showingAllDocs = true
     }
 
@@ -279,18 +274,27 @@ struct ContentView: View {
     /// reasonable time" wall when both were inlined.
     @ViewBuilder
     private var rootTabs: some View {
-        TabView {
-            Tab("Notes", systemImage: "note.text") {
+        TabView(selection: $composer.selectedTab) {
+            Tab("Notes", systemImage: "note.text",
+                value: Composer.TabKind.notes) {
                 NotesHomeView(store: store)
+                    // Bumping `notesHomeKey` from outside (the
+                    // switcher's ✓ when all tabs are closed)
+                    // force-recreates this view with fresh @State —
+                    // the only reliable way to pop a NavigationStack
+                    // whose path mutation didn't take (SwiftUI bug).
+                    .id(composer.notesHomeKey)
             }
-            Tab("Databases", systemImage: "tablecells") {
+            Tab("Databases", systemImage: "tablecells",
+                value: Composer.TabKind.databases) {
                 DatabasesHomeView(store: store)
             }
             Tab("Inbox",
-                systemImage: store.hasInboxNotification ? "tray.badge.fill" : "tray.fill") {
+                systemImage: store.hasInboxNotification ? "tray.badge.fill" : "tray.fill",
+                value: Composer.TabKind.inbox) {
                 InboxView(store: store)
             }
-            Tab(role: .search) {
+            Tab(value: Composer.TabKind.search, role: .search) {
                 SearchView(store: store)
             }
         }

@@ -243,7 +243,18 @@ struct AllDocumentsSwitcher: View {
 
             Spacer()
 
-            Button { dismiss() } label: {
+            Button {
+                if tabManager.openTabs.isEmpty {
+                    // Force the Notes tab + force-recreate the home
+                    // view (.id bump → fresh @State → empty path →
+                    // NavStack at root). This is the only reliable
+                    // way past the SwiftUI bug where external path
+                    // mutations don't always pop the visible stack.
+                    composer.selectedTab = .notes
+                    composer.notesHomeKey += 1
+                }
+                dismiss()
+            } label: {
                 Image(systemName: "checkmark")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(.white)

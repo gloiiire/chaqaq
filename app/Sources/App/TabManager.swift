@@ -57,6 +57,15 @@ final class TabManager: ObservableObject {
     func open(docId: String, api: PinkhaApi) -> DocumentViewModel {
         if let cached = vmCache[docId] { return cached }
         let vm = DocumentViewModel(docId: docId, api: api)
+        // Eager load on first creation. Without this, when `closeAll()`
+        // wipes the cache while a DocumentView is still on the nav
+        // stack, the navigationDestination's next evaluation hands the
+        // editor a fresh empty VM whose `.onAppear` (and thus `load()`)
+        // never refires — the user sees "Untitled" + blank content and
+        // any keystroke saves the EMPTY state back over the real doc,
+        // wiping the original. Loading here keeps the VM consistent
+        // with disk no matter who triggers the (re)creation.
+        vm.load()
         vmCache[docId] = vm
         return vm
     }

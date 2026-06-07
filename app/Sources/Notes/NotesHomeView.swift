@@ -16,6 +16,11 @@ struct NotesHomeView: View {
     /// Programmatic navigation stack so a freshly-created note can be
     /// pushed onto the editor right after the create sheet dismisses
     /// — driven by `composer.pendingOpenDoc`.
+    /// Programmatic navigation stack. Must stay `@State` — using a
+    /// `@Published`-backed binding (e.g. moved to `Composer`) hits a
+    /// SwiftUI bug where `NavigationStack(path: $model.path)` does
+    /// not visibly pop when `path.removeAll()` is called from outside.
+    /// External mutations route through `Composer.popHomeNotification`.
     @State private var path: [String] = []
     /// Multi-select state for bulk delete. `editMode` flips between
     /// `.inactive` and `.active` via the toolbar Select button; the
@@ -200,6 +205,14 @@ struct NotesHomeView: View {
                 composer.pendingOpenDoc = nil
             }
         }
+        .onChange(of: validPathKey) { _, _ in pruneStalePath() }
+        .onReceive(NotificationCenter.default.publisher(
+            for: Composer.popHomeNotification)) { _ in
+            // Switcher's ✓ button posted this after dismissing with
+            // zero tabs left. Direct @State mutation actually pops the
+            // NavigationStack (a $model.path binding wouldn't).
+            path.removeAll()
+        }
         .onChange(of: path) { oldPath, newPath in
             // Mark every newly-pushed doc as "open" in the switcher.
             // We do it here (in response to an explicit path change),
@@ -265,6 +278,29 @@ struct NotesHomeView: View {
     /// disappeared — that's the `NSInternalInconsistencyException` we
     /// saw on Sentry (APPLE-IOS-8). Clearing first lets the diff
     /// settle on the store changes alone.
+    /// Stringified snapshot of the two upstream collections that gate
+    /// path validity. Used as the single `.onChange` trigger to avoid
+    /// the "compiler unable to type-check in reasonable time" wall
+    /// that two separate `.onChange` modifiers in the body hit.
+    private var validPathKey: String {
+        let docs = store.documents.map(\.id).joined(separator: ",")
+        let tabs = tabManager.openTabs.map(\.docId).joined(separator: ",")
+        return "\(docs)|\(tabs)"
+    }
+
+    /// Drops any doc on the nav stack that's either been deleted from
+    /// the store (bulk Delete All) or removed from the open-tabs list
+    /// (switcher's "Close all tabs"). Without this the user stays on a
+    /// DocumentView for a doc they just declared gone — renders as a
+    /// blank "Untitled" because vm.load has nothing to fetch.
+    private func pruneStalePath() {
+        let docs = Set(store.documents.map(\.id))
+        let tabs = Set(tabManager.openTabs.map(\.docId))
+        path = path.filter {
+            docs.contains($0) && tabs.contains($0)
+        }
+    }
+
     private func deleteSelected() {
         let toDelete = store.items.filter { selectedIds.contains($0.id) }
         withAnimation(.easeInOut(duration: 0.2)) {

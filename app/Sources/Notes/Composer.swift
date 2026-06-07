@@ -56,6 +56,38 @@ final class Composer: ObservableObject {
     /// `.document` context routes through `pendingChildPage` instead.
     @Published var pendingOpenDoc: String? = nil
 
+    /// NotificationCenter signal — when the switcher dismisses with
+    /// zero open tabs, posts this so the active `NavigationStack`
+    /// pops to root. Going through `NotificationCenter` instead of an
+    /// `@Published` counter sidesteps the SwiftUI binding propagation
+    /// quirks we hit (`.onChange` not firing reliably while a
+    /// fullScreenCover is dismissing).
+    static let popHomeNotification = Notification.Name("pinkha.popHomeRequest")
+
+    /// Currently-selected pinkha tab. Bound to the root `TabView`
+    /// `selection:` so we can programmatically switch tabs from
+    /// anywhere (e.g. the switcher's ✓ button forcing a return to
+    /// Notes after closing all open docs).
+    @Published var selectedTab: TabKind = .notes
+
+    // NavigationStack path lives back in `NotesHomeView.@State` because
+    // `NavigationStack(path: $model.path)` is buggy in iOS — it doesn't
+    // visibly pop when the binding is mutated, while `@State` does.
+
+    /// Bump this to force-recreate `NotesHomeView` via `.id(notesHomeKey)`.
+    /// Used by the switcher's ✓ button to nuke a stuck NavStack
+    /// (Apple SwiftUI bug : path mutation from outside doesn't always
+    /// visibly pop even when the binding fires). Recreating the view
+    /// instantiates fresh `@State` → path starts at `[]` → home shown.
+    @Published var notesHomeKey: Int = 0
+
+    /// The four pinkha tabs. `rawValue` is stable for `Codable` use if
+    /// we ever persist the last-selected tab; the enum itself is
+    /// `Hashable` so it works as a `TabView` selection binding.
+    enum TabKind: String, Hashable, Codable {
+        case notes, databases, inbox, search
+    }
+
     enum CreateMode { case note, database }
 
     /// Anchor for context-aware creation — the bubble inherits the
