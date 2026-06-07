@@ -43,9 +43,22 @@ final class TabManager: ObservableObject {
     @Published private(set) var recentlyClosed: [String] = []
     private let recentlyClosedCapacity = 10
 
-    private let persistenceKey = "com.pinkha.openTabs.v1"
+    /// MRU list of every docId the user has *opened* this session (or
+    /// across sessions thanks to `persist()`). Unlike `openTabs`, an
+    /// entry stays here after the tab is closed — the home's "Recent"
+    /// strip reads it so the user sees what they actually consulted
+    /// recently, not what was most recently modified.
+    @Published private(set) var recentlyViewed: [String] = []
+    private let recentlyViewedCapacity = 50
 
-    init() {}
+    private let persistenceKey = "com.pinkha.openTabs.v1"
+    private let recentlyViewedKey = "com.pinkha.recentlyViewed.v1"
+
+    init() {
+        if let saved = UserDefaults.standard.array(forKey: recentlyViewedKey) as? [String] {
+            recentlyViewed = saved
+        }
+    }
 
     /// Returns the live VM for `docId`, creating one on first access.
     /// **No side effect on `openTabs`** — call this from view bodies
@@ -80,6 +93,13 @@ final class TabManager: ObservableObject {
         openTabs.removeAll { $0.docId == docId }
         openTabs.insert(DocumentTab(docId: docId,
                                      vm: vmCache[docId]!), at: 0)
+        // Bump to the front of the recently-viewed MRU. Survives
+        // close — the home's "Recent" strip reads from this.
+        recentlyViewed.removeAll { $0 == docId }
+        recentlyViewed.insert(docId, at: 0)
+        if recentlyViewed.count > recentlyViewedCapacity {
+            recentlyViewed.removeLast(recentlyViewed.count - recentlyViewedCapacity)
+        }
         persist()
     }
 
@@ -141,6 +161,7 @@ final class TabManager: ObservableObject {
     private func persist() {
         let ids = openTabs.map(\.docId)
         UserDefaults.standard.set(ids, forKey: persistenceKey)
+        UserDefaults.standard.set(recentlyViewed, forKey: recentlyViewedKey)
     }
 }
 

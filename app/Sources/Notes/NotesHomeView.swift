@@ -48,10 +48,10 @@ struct NotesHomeView: View {
                     if editMode == .active { selectedIds = newValue }
                 }
             )) {
-                if !store.items.isEmpty {
+                if !recentlyViewedItems.isEmpty {
                     Section {
                         RecentStrip(
-                            items: store.recentItems(limit: settings.recentCount),
+                            items: recentlyViewedItems,
                             api: store.api,
                             onDisappear: { store.load() },
                             onOpenNote: { docId in
@@ -278,6 +278,19 @@ struct NotesHomeView: View {
     /// disappeared — that's the `NSInternalInconsistencyException` we
     /// saw on Sentry (APPLE-IOS-8). Clearing first lets the diff
     /// settle on the store changes alone.
+    /// Recent strip items, ordered by **last-opened** (MRU), not by
+    /// `updatedAt`. Reads from `tabManager.recentlyViewed` (kept up to
+    /// date in `markOpened`) and resolves each id against the live
+    /// store metadata. Deleted docs naturally drop out of the strip.
+    /// Capped at the user's recent-count setting.
+    private var recentlyViewedItems: [WorkspaceItem] {
+        let byId = Dictionary(uniqueKeysWithValues: store.items.map { ($0.id, $0) })
+        return tabManager.recentlyViewed
+            .compactMap { byId[$0] }
+            .prefix(settings.recentCount)
+            .map { $0 }
+    }
+
     /// Stringified snapshot of the two upstream collections that gate
     /// path validity. Used as the single `.onChange` trigger to avoid
     /// the "compiler unable to type-check in reasonable time" wall

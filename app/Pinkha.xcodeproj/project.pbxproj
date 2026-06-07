@@ -81,6 +81,7 @@
 		98E9AD73AC0F4AF81E73D662 /* EditableBlockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B033CFC2C8EE318FA058974 /* EditableBlockTests.swift */; };
 		9C56A8C90EE5492F7FD49F24 /* PinkhaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 909E5D4DB1628C93BC5215A1 /* PinkhaApp.swift */; };
 		9E488110AB0BE3931273EEA6 /* PerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8FFF93EEDC254780485D651 /* PerformanceTests.swift */; };
+		9EF2BAA2288F889BCEF5C900 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 8BCECE6835C44B56CAD825A3 /* Pinkha.icon */; };
 		A56785ADE2F127B5EBA0AAB7 /* BlockOpsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 738ECE1D72957495F50518E6 /* BlockOpsTests.swift */; };
 		A7488A14BA5D34A208227E79 /* DocumentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4028AC186A60E09445883F5 /* DocumentView.swift */; };
 		A755F6C957C8FF1627DCCCAA /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EA90C535ED0F61DCB900957 /* AppSettings.swift */; };
@@ -90,7 +91,6 @@
 		B44F29957A1D8A27E587259A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D8D5D391D7106F7C2E577E4 /* AppDelegate.swift */; };
 		B6A52FD0809AE2D7C1F66497 /* DocumentDecor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4B3F017BEB4CF32BDC0BECA /* DocumentDecor.swift */; };
 		B7AEF4E5B121245C5007896B /* RichTextEditorCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87A30B94BE52616D506EF2F5 /* RichTextEditorCoordinator.swift */; };
-		BB79D573FA27DA776ADF0234 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 8DE86602ED40B7AB8D909AC5 /* Pinkha.icon */; };
 		BEA49A960162E98F792D98C6 /* BlockPickerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C31BC0B000B9D4E7321876 /* BlockPickerUITests.swift */; };
 		BF1D1D1F67543A167B0D6C01 /* DocumentTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C24DE7A2835E6F35C04017AA /* DocumentTitle.swift */; };
 		BFCC98038C229872A833776B /* RichTextEditorCoordinator+Style.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FF3FD226E223F8377466121 /* RichTextEditorCoordinator+Style.swift */; };
@@ -202,9 +202,9 @@
 		86B2F3BACE5AB122AEAA8C84 /* Localizable 2.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = "Localizable 2.xcstrings"; sourceTree = "<group>"; };
 		87A30B94BE52616D506EF2F5 /* RichTextEditorCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextEditorCoordinator.swift; sourceTree = "<group>"; };
 		8AA5AD149942C517A93E0631 /* DocumentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentViewModel.swift; sourceTree = "<group>"; };
+		8BCECE6835C44B56CAD825A3 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		8D00712F93440126D5247D83 /* MalformedJSONTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MalformedJSONTests.swift; sourceTree = "<group>"; };
 		8D498BD6A504E837D38568BA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		8DE86602ED40B7AB8D909AC5 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		909E5D4DB1628C93BC5215A1 /* PinkhaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinkhaApp.swift; sourceTree = "<group>"; };
 		94AB645E2E656B62E6D0182C /* ResilienceFFITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilienceFFITests.swift; sourceTree = "<group>"; };
 		97AAE4ED1A7A8EFFA0FFB26F /* FontHelpersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontHelpersTests.swift; sourceTree = "<group>"; };
@@ -285,6 +285,14 @@
 				4904D22DFF5530B867713757 /* ExpandingBlockFAB.swift */,
 			);
 			path = Editor;
+			sourceTree = "<group>";
+		};
+		0B05B76547EF8947AD7B1171 /* app */ = {
+			isa = PBXGroup;
+			children = (
+				8BCECE6835C44B56CAD825A3 /* Pinkha.icon */,
+			);
+			name = app;
 			sourceTree = "<group>";
 		};
 		1A00F97C8C67F1DADFB024A3 /* Unit */ = {
@@ -440,14 +448,6 @@
 			path = Integration;
 			sourceTree = "<group>";
 		};
-		629A4B90B71E8D919E1B8875 /* app */ = {
-			isa = PBXGroup;
-			children = (
-				8DE86602ED40B7AB8D909AC5 /* Pinkha.icon */,
-			);
-			name = app;
-			sourceTree = "<group>";
-		};
 		651EA0FB42E391E774BAC629 /* Database */ = {
 			isa = PBXGroup;
 			children = (
@@ -539,7 +539,7 @@
 				7CE19974FB0E7C2FE24CED36 /* Tests */,
 				4494D74BA7F514A78EB8D8AC /* Frameworks */,
 				7459E38DDB42FA0567FB08BE /* Products */,
-				629A4B90B71E8D919E1B8875 /* app */,
+				0B05B76547EF8947AD7B1171 /* app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -683,7 +683,7 @@
 				1687C7C9610D2298A8E55177 /* InfoPlist.xcstrings in Resources */,
 				55D914D8E621291665434C7E /* Localizable 2.xcstrings in Resources */,
 				D878D8EB398C5B2F7E67F418 /* Localizable.xcstrings in Resources */,
-				BB79D573FA27DA776ADF0234 /* Pinkha.icon in Resources */,
+				9EF2BAA2288F889BCEF5C900 /* Pinkha.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
