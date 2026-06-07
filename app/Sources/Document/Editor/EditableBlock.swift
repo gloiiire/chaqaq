@@ -51,6 +51,21 @@ enum NewBlockType: String, CaseIterable, Identifiable {
     case text = "Text", title1 = "Title 1", title2 = "Title 2", title3 = "Title 3"
     case quote = "Quote", callout = "Callout", todo = "To do", divider = "Divider"
     var id: String { rawValue }
+    /// User-facing label resolved through `Localizable.xcstrings`.
+    /// `rawValue` is a `String` which SwiftUI never localizes, so call
+    /// sites must use this key — see [[localizedstringkey-trap]].
+    var displayName: LocalizedStringKey {
+        switch self {
+        case .text:    return "Text"
+        case .title1:  return "Title 1"
+        case .title2:  return "Title 2"
+        case .title3:  return "Title 3"
+        case .quote:   return "Quote"
+        case .callout: return "Callout"
+        case .todo:    return "To do"
+        case .divider: return "Divider"
+        }
+    }
     var icone: String {
         switch self {
         case .text:    return "text.alignleft"

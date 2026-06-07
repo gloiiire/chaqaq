@@ -11,6 +11,7 @@ struct NotesHomeView: View {
     @ObservedObject var store: PinkhaStore
     @EnvironmentObject private var composer: Composer
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var tabManager: TabManager
     @State private var showingSettings = false
     /// Programmatic navigation stack so a freshly-created note can be
     /// pushed onto the editor right after the create sheet dismisses
@@ -183,7 +184,8 @@ struct NotesHomeView: View {
             // editor — driven by `composer.pendingOpenDoc` below.
             .navigationDestination(for: String.self) { docId in
                 if let api = store.api {
-                    DocumentView(docId: docId, api: api, onDisappear: store.load)
+                    DocumentView(vm: tabManager.open(docId: docId, api: api),
+                                 onDisappear: store.load)
                 }
             }
         }
@@ -198,7 +200,18 @@ struct NotesHomeView: View {
                 composer.pendingOpenDoc = nil
             }
         }
-        .onChange(of: path) { _, newPath in
+        .onChange(of: path) { oldPath, newPath in
+            // Mark every newly-pushed doc as "open" in the switcher.
+            // We do it here (in response to an explicit path change),
+            // NOT inside the NavigationLink destination — that closure
+            // is re-evaluated every time SwiftUI re-renders the body,
+            // which would re-add tabs the user just closed via the
+            // switcher.
+            if newPath.count > oldPath.count, let api = store.api {
+                for docId in newPath where !oldPath.contains(docId) {
+                    tabManager.markOpened(docId: docId, api: api)
+                }
+            }
             // When the user pops back to the home, drop any selection
             // SwiftUI's List might have carried over from the programmatic
             // push — otherwise the row that was just navigated to stays
@@ -272,7 +285,7 @@ struct NotesHomeView: View {
     private func itemRow(_ item: WorkspaceItem, api: PinkhaApi) -> some View {
         switch item {
         case .note(let doc):
-            NavigationLink(destination: DocumentView(docId: doc.id, api: api,
+            NavigationLink(destination: DocumentView(vm: tabManager.open(docId: doc.id, api: api),
                                                      onDisappear: store.load)) {
                 WorkspaceRow(item: item)
             }

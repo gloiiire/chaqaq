@@ -82,6 +82,56 @@
         "fr" : { "stringUnit" : { "state" : "translated", "value" : "Renommer" } }
       }
     },
+    "Lock" : {
+      "comment" : "Title-bubble menu — toggle the document to read-only.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Lock" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Verrouiller" } }
+      }
+    },
+    "Unlock" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unlock" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Déverrouiller" } }
+      }
+    },
+    "Share" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Share" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Partager" } }
+      }
+    },
+    "Delete this note?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete this note?" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Supprimer cette note ?" } }
+      }
+    },
+    "It will move to the trash." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "It will move to the trash." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Elle sera déplacée dans la corbeille." } }
+      }
+    },
+    "Recent documents" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Recent documents" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Documents récents" } }
+      }
+    },
+    "Close" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Fermer" } }
+      }
+    },
     "Select" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -451,6 +501,34 @@
         "fr" : { "stringUnit" : { "state" : "translated", "value" : "Supprimer l'icône" } }
       }
     },
+    "Add cover" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add cover" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ajouter une couverture" } }
+      }
+    },
+    "Change cover" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Change cover" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Changer la couverture" } }
+      }
+    },
+    "Add icon" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add icon" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ajouter une icône" } }
+      }
+    },
+    "Change icon" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Change icon" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Changer l'icône" } }
+      }
+    },
     "Choose from Photos" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -754,6 +832,42 @@
         "fr" : { "stringUnit" : { "state" : "translated", "value" : "Toutes les bases" } }
       }
     },
+    "All documents" : {
+      "comment" : "Overflow menu item — opens the Safari-tab-style switcher.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "All documents" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Tous les documents" } }
+      }
+    },
+    "Search documents" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Search documents" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Rechercher" } }
+      }
+    },
+    "Close search" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close search" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Fermer la recherche" } }
+      }
+    },
+    "Close tab" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close tab" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Fermer l'onglet" } }
+      }
+    },
+    "Close all tabs" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close all tabs" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Fermer tous les onglets" } }
+      }
+    },
     "Tap the button at the bottom right\nto create your first database." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -895,6 +1009,64 @@
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Start writing…" } },
         "fr" : { "stringUnit" : { "state" : "translated", "value" : "Commencez à écrire…" } }
+      }
+    },
+
+    "Text" : {
+      "comment" : "Block type — plain paragraph.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Text" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Texte" } }
+      }
+    },
+    "Title 1" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Title 1" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Titre 1" } }
+      }
+    },
+    "Title 2" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Title 2" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Titre 2" } }
+      }
+    },
+    "Title 3" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Title 3" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Titre 3" } }
+      }
+    },
+    "Quote" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Quote" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Citation" } }
+      }
+    },
+    "Callout" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Callout" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Encart" } }
+      }
+    },
+    "To do" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "To do" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "À faire" } }
+      }
+    },
+    "Divider" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Divider" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Séparateur" } }
       }
     },
 

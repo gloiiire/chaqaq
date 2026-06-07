@@ -14,6 +14,10 @@ final class Composer: ObservableObject {
     @Published var showingNewFolder = false
     /// Whether the trash sheet is on screen.
     @Published var showingTrash = false
+    /// Whether the Safari-tab-style "All documents" full-screen
+    /// switcher is on screen — opened from the overflow menu in the
+    /// bottom accessory.
+    @Published var showingAllDocs = false
     /// Whether the Notion import sheet is on screen.
     @Published var showingNotionImport = false
     /// Whether the Bear import sheet is on screen.

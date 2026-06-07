@@ -9,28 +9,11 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var store = PinkhaStore()
     @StateObject private var composer = Composer()
+    @StateObject private var tabManager = TabManager()
     @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
-        TabView {
-            Tab("Notes", systemImage: "note.text") {
-                NotesHomeView(store: store)
-            }
-            Tab("Databases", systemImage: "tablecells") {
-                DatabasesHomeView(store: store)
-            }
-            // Inbox : the SF Symbol swaps from `tray.fill` to `tray.badge.fill`
-            // when `hasInboxNotification` flips on, giving a clear "you have
-            // something to look at" cue without relying on .badge() (which
-            // we reserve for actual unread counts).
-            Tab("Inbox",
-                systemImage: store.hasInboxNotification ? "tray.badge.fill" : "tray.fill") {
-                InboxView(store: store)
-            }
-            Tab(role: .search) {
-                SearchView(store: store)
-            }
-        }
+        rootTabs
         // iOS 26 tab-bar morphing : the tab bar collapses when the user
         // scrolls down so the content gets more breathing room, and
         // reappears on scroll-up. Search (role: .search) automatically
@@ -47,6 +30,7 @@ struct ContentView: View {
         // when they appear / disappear without having to be passed
         // through every NavigationLink call site.
         .environmentObject(composer)
+        .environmentObject(tabManager)
         // Create bubble : single glass accessory hosting the four primary
         // entry points — new note, new database, new folder and an
         // overflow menu (trash + imports). Stays visible across all tabs
@@ -62,7 +46,8 @@ struct ContentView: View {
                 onImportNotion: { composer.showingNotionImport = true },
                 onImportBear: { composer.showingBearImport = true },
                 onImportCraftTextBundle: { composer.showingCraftTextBundleImport = true },
-                onImportCraftCombined: { composer.showingCraftCombinedImport = true }
+                onImportCraftCombined: { composer.showingCraftCombinedImport = true },
+                onShowAllDocs: { composer.showingAllDocs = true }
             )
         }
         .sheet(isPresented: $composer.showingCreateDoc) {
@@ -106,6 +91,19 @@ struct ContentView: View {
         .sheet(isPresented: $composer.showingTrash) {
             TrashView().environmentObject(store)
         }
+        .fullScreenCover(isPresented: $composer.showingAllDocs) {
+            AllDocumentsSwitcher(store: store) { docId in
+                composer.showingAllDocs = false
+                composer.pendingOpenDoc = docId
+            }
+            .environmentObject(settings)
+            .environmentObject(tabManager)
+            // The switcher's `+` bottom-bar action needs `composer`
+            // to trigger the create-doc sheet. `fullScreenCover`
+            // doesn't always propagate env objects to its content
+            // root in iOS 26 — explicit injection is required.
+            .environmentObject(composer)
+        }
         .sheet(isPresented: $composer.showingNotionImport) {
             NotionImportView(api: store.api) { store.load() }
         }
@@ -136,41 +134,81 @@ struct ContentView: View {
         .onChange(of: composer.showingCraftCombinedImport) { _, isShowing in
             if !isShowing { store.load() }
         }
-        .alert("New Folder", isPresented: $composer.showingNewFolder) {
-            TextField("Name", text: $composer.newFolderName)
-            Button("Create") {
-                let trimmed = composer.newFolderName.trimmingCharacters(in: .whitespaces)
-                guard !trimmed.isEmpty else { return }
-                store.createFolder(name: trimmed, in: composer.currentContext)
-                composer.newFolderName = ""
-            }
-            Button("Cancel", role: .cancel) { composer.newFolderName = "" }
-        }
-        .alert("Delete all \(store.items.count) notes?",
-               isPresented: $composer.showingDeleteAllConfirm) {
-            Button("Delete All", role: .destructive) {
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(300))
-                    composer.showingDeleteAllConfirm2 = true
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will remove all your notes.")
-        }
-        .alert("Are you sure?", isPresented: $composer.showingDeleteAllConfirm2) {
-            Button("Yes, delete everything", role: .destructive) {
-                store.deleteAll()
-                store.deleteAllDatabases()
-                store.deleteAllFolders()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This cannot be undone.")
-        }
+        .modifier(ContentAlerts(composer: composer, store: store))
         .onAppear { store.connect() }
         .task { composer.bindQuickActions() }
         .errorAlert(message: $store.errorMessage, onRetry: store.load)
+    }
+
+    /// Bundles the three top-level alerts (new folder, delete-all
+    /// step 1, delete-all step 2) into a single modifier so the
+    /// SwiftUI type-checker can chew through `body` — inlining the
+    /// alerts on top of every `.sheet` / `.fullScreenCover` already
+    /// stacked there blew the "unable to type-check in reasonable
+    /// time" budget.
+    private struct ContentAlerts: ViewModifier {
+        @ObservedObject var composer: Composer
+        @ObservedObject var store: PinkhaStore
+
+        func body(content: Content) -> some View {
+            content
+                .alert("New Folder", isPresented: $composer.showingNewFolder) {
+                    TextField("Name", text: $composer.newFolderName)
+                    Button("Create") {
+                        let trimmed = composer.newFolderName
+                            .trimmingCharacters(in: .whitespaces)
+                        guard !trimmed.isEmpty else { return }
+                        store.createFolder(name: trimmed, in: composer.currentContext)
+                        composer.newFolderName = ""
+                    }
+                    Button("Cancel", role: .cancel) { composer.newFolderName = "" }
+                }
+                .alert("Delete all \(store.items.count) notes?",
+                       isPresented: $composer.showingDeleteAllConfirm) {
+                    Button("Delete All", role: .destructive) {
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(300))
+                            composer.showingDeleteAllConfirm2 = true
+                        }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This will remove all your notes.")
+                }
+                .alert("Are you sure?", isPresented: $composer.showingDeleteAllConfirm2) {
+                    Button("Yes, delete everything", role: .destructive) {
+                        store.deleteAll()
+                        store.deleteAllDatabases()
+                        store.deleteAllFolders()
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This cannot be undone.")
+                }
+        }
+    }
+
+    /// The 4-tab root. Extracted so the SwiftUI type-checker doesn't
+    /// blow up on `body` once every `.sheet` / `.alert` modifier piles
+    /// up — we hit the "unable to type-check this expression in
+    /// reasonable time" wall when both were inlined.
+    @ViewBuilder
+    private var rootTabs: some View {
+        TabView {
+            Tab("Notes", systemImage: "note.text") {
+                NotesHomeView(store: store)
+            }
+            Tab("Databases", systemImage: "tablecells") {
+                DatabasesHomeView(store: store)
+            }
+            Tab("Inbox",
+                systemImage: store.hasInboxNotification ? "tray.badge.fill" : "tray.fill") {
+                InboxView(store: store)
+            }
+            Tab(role: .search) {
+                SearchView(store: store)
+            }
+        }
     }
 }
 
@@ -198,6 +236,7 @@ struct ContentView: View {
 private struct SearchView: View {
     @ObservedObject var store: PinkhaStore
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var tabManager: TabManager
     @State private var query = ""
 
     private var results: PinkhaStore.SuperSearchResults {
@@ -226,28 +265,20 @@ private struct SearchView: View {
                         Section {
                             ForEach(results.documentsByTitle, id: \.id) { doc in
                                 NavigationLink(
-                                    destination: DocumentView(docId: doc.id, api: api,
+                                    destination: DocumentView(vm: tabManager.open(docId: doc.id, api: api),
                                                               onDisappear: store.load)
                                 ) { WorkspaceRow(item: .note(doc)) }
                             }
                         } header: { SectionHeader(title: "Notes") }
                     }
                     if !results.documentsByContent.isEmpty {
-                        // One Section per doc with the doc title +
-                        // icon as the section header, and one row per
-                        // matching block. Each row owns a single
-                        // NavigationLink — nesting multiple
-                        // NavigationLinks inside the same List row
-                        // confuses iOS's back-stack and causes swipe-
-                        // back to land on the wrong destination.
                         ForEach(groupHits(results.documentsByContent),
                                 id: \.doc.id) { group in
                             Section {
                                 ForEach(group.hits, id: \.blockId) { hit in
                                     NavigationLink(
                                         destination: DocumentView(
-                                            docId: hit.doc.id,
-                                            api: api,
+                                            vm: tabManager.open(docId: hit.doc.id, api: api),
                                             onDisappear: store.load,
                                             scrollToBlockId: hit.blockId
                                         )
@@ -358,7 +389,9 @@ private struct DocHitSectionHeader: View {
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(.secondary)
             }
-            Text(doc.titlePlain.isEmpty ? "Untitled" : doc.titlePlain)
+            Group {
+                if doc.titlePlain.isEmpty { Text("Untitled") } else { Text(doc.titlePlain) }
+            }
                 .font(.caption.weight(.semibold))
                 .textCase(.uppercase)
                 .kerning(0.5)
