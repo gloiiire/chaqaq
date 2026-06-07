@@ -54,6 +54,12 @@ struct DocumentView: View {
     /// initiated — without this, the programmatic `proxy.scrollTo` below
     /// would itself trigger the "user scrolled, drop the spotlight" path.
     @State var spotlightArmedAt: Date? = nil
+    /// Stamped when the view first appears. Used to suppress the
+    /// `vm.activeBlockId` auto-scroll for the first second after mount
+    /// so it doesn't undo `ScrollPositionRestorer`'s restore : on re-open
+    /// from the switcher we want the user back at their last scroll
+    /// position, not jumped to whatever block was focused before.
+    @State var mountedAt: Date? = nil
     /// Legacy UserDefaults key for the lock state, retained for the one-shot
     /// migration in `onAppear` — the canonical store is now `vm.locked`.
     let lockKey: String
@@ -107,6 +113,12 @@ struct DocumentView: View {
                 documentList
                     .onChange(of: vm.activeBlockId) { _, newId in
                         guard let id = newId else { return }
+                        // Skip the auto-scroll during the first second
+                        // after mount : otherwise it competes with the
+                        // ScrollPositionRestorer (which lands the user
+                        // at their saved offset, not at the active block).
+                        if let mountedAt,
+                           Date().timeIntervalSince(mountedAt) < 1.0 { return }
                         Task { @MainActor in
                             try? await Task.sleep(for: .milliseconds(420))
                             withAnimation(.easeOut(duration: 0.25)) {
@@ -194,6 +206,11 @@ struct DocumentView: View {
             geo.contentOffset.y + geo.contentInsets.top
         } action: { _, offset in
             withAnimation(.easeInOut(duration: 0.15)) { titleInNavBar = offset > 60 }
+            // Persist the scroll offset so re-opening this doc from the
+            // switcher lands the user back at the same position. Stored
+            // in-memory (`ScrollPositionCache`) — lost on cold launch by
+            // design, since the switcher itself is session-scoped.
+            ScrollPositionCache.shared.save(offset, for: vm.docId)
             // Drop the spotlight as soon as the user takes over the scroll.
             // The 0.6s grace window lets our own programmatic scrollTo
             // settle without triggering this path.
@@ -221,6 +238,11 @@ struct DocumentView: View {
         // exactly when the editor is still on screen for the final
         // frame.
         .background(DocumentSnapshotHook(docId: vm.docId).frame(width: 0, height: 0))
+        // Restore the persisted scroll offset for this doc on first
+        // appear — runs after `viewDidAppear` on the host VC, retries
+        // until the List's `contentSize` is large enough to fit the
+        // target (lazy row population otherwise clamps us to the top).
+        .background(ScrollPositionRestorer(docId: vm.docId).frame(width: 0, height: 0))
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             withAnimation(.easeInOut(duration: 0.2)) { keyboardVisible = true }
         }
@@ -228,6 +250,7 @@ struct DocumentView: View {
             withAnimation(.easeInOut(duration: 0.2)) { keyboardVisible = false }
         }
         .onAppear {
+            mountedAt = Date()
             vm.load()
             composer.currentContext = .document(id: vm.docId)
             // Mark this doc as an open tab in the switcher. Done here
