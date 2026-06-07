@@ -12,6 +12,11 @@ struct ContentView: View {
     @StateObject private var tabManager = TabManager()
     @EnvironmentObject private var settings: AppSettings
 
+    /// Tracks crossing of the swipe-up haptic threshold so we fire
+    /// the "ready to commit" tap exactly once per drag, not on every
+    /// pixel past the line.
+    @State private var swipeUpHapticFired = false
+
     var body: some View {
         rootTabs
         // iOS 26 tab-bar morphing : the tab bar collapses when the user
@@ -31,6 +36,23 @@ struct ContentView: View {
         // through every NavigationLink call site.
         .environmentObject(composer)
         .environmentObject(tabManager)
+        // Swipe-up from the tab bar opens the "Tous les documents"
+        // switcher (Safari pattern : the bottom toolbar zone is the
+        // canonical entry into the tab grid). `simultaneousGesture`
+        // lets it coexist with tab taps (no movement = tab tap fires;
+        // movement = our drag fires). We only trigger when the gesture
+        // (a) started near the bottom of the screen, (b) moved up
+        // significantly, and (c) was mostly vertical — same heuristics
+        // Safari uses to distinguish from a side-swipe between tabs.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 20, coordinateSpace: .global)
+                .onChanged { value in
+                    swipeUpProgress(value)
+                }
+                .onEnded { value in
+                    commitSwipeUpIfReady(value)
+                }
+        )
         // Create bubble : single glass accessory hosting the four primary
         // entry points — new note, new database, new folder and an
         // overflow menu (trash + imports). Stays visible across all tabs
@@ -185,6 +207,56 @@ struct ContentView: View {
                 } message: {
                     Text("This cannot be undone.")
                 }
+        }
+    }
+
+    // ── Swipe-up to open switcher ────────────────────────────────────────
+
+    /// Y-coordinate threshold (from the bottom of the screen) above
+    /// which a swipe starts being eligible for the "open switcher"
+    /// gesture. The tab bar + accessory sit in roughly the bottom
+    /// 130 pt on a typical iPhone.
+    private static let swipeUpStartBand: CGFloat = 140
+    /// Upward translation past this distance (pt) commits the open.
+    private static let swipeUpCommitDistance: CGFloat = 70
+    /// Vertical-to-horizontal ratio that disqualifies a swipe as
+    /// "mostly vertical". Smaller = stricter.
+    private static let swipeUpDirectionRatio: CGFloat = 1.4
+
+    /// True if `value` is a candidate swipe-up : started near the
+    /// bottom of the screen, moving up, and the motion is dominantly
+    /// vertical. Doesn't require past-threshold — that's the commit.
+    private func isCandidateSwipeUp(_ value: DragGesture.Value) -> Bool {
+        let screenH = UIScreen.main.bounds.height
+        let startedNearBottom = value.startLocation.y > screenH - Self.swipeUpStartBand
+        let upward = value.translation.height < 0
+        let mostlyVertical = abs(value.translation.height)
+            > abs(value.translation.width) * Self.swipeUpDirectionRatio
+        return startedNearBottom && upward && mostlyVertical
+    }
+
+    /// Tracks the in-flight drag — fires a single anticipation haptic
+    /// when the user crosses the commit threshold so they feel "yes,
+    /// release here will open the switcher" before they let go.
+    private func swipeUpProgress(_ value: DragGesture.Value) {
+        guard isCandidateSwipeUp(value) else {
+            swipeUpHapticFired = false
+            return
+        }
+        let crossed = value.translation.height < -Self.swipeUpCommitDistance
+        if crossed && !swipeUpHapticFired {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            swipeUpHapticFired = true
+        }
+    }
+
+    /// On release, commit the open if the swipe was a candidate and
+    /// crossed the threshold. Resets the haptic flag either way.
+    private func commitSwipeUpIfReady(_ value: DragGesture.Value) {
+        defer { swipeUpHapticFired = false }
+        guard isCandidateSwipeUp(value) else { return }
+        if value.translation.height < -Self.swipeUpCommitDistance {
+            composer.showingAllDocs = true
         }
     }
 
