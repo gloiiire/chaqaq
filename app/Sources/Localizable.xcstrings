@@ -1,1315 +1,3162 @@
 {
   "sourceLanguage" : "en",
-  "version" : "1.0",
   "strings" : {
+    "%@" : {
 
-    "Notes" : {
-      "extractionState" : "manual",
+    },
+    "%@ %@ imported" : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Notes" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Notes" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@ imported"
+          }
+        }
       }
     },
-    "Databases" : {
-      "extractionState" : "manual",
+    "%@ %@ imported from Bear." : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Databases" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Bases" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@ imported from Bear."
+          }
+        }
       }
     },
-    "Inbox" : {
-      "extractionState" : "manual",
+    "%@ %@ imported from Craft." : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Inbox" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Boîte" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@ imported from Craft."
+          }
+        }
       }
     },
-    "Search" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Search" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Recherche" } }
-      }
-    },
-    "Settings" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Settings" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Réglages" } }
-      }
-    },
+    "%@ item(s) will be permanently removed." : {
 
-    "Done" : {
-      "comment" : "Apple iOS standard for finishing an edit mode or sheet.",
+    },
+    "%@ selected" : {
+
+    },
+    "•" : {
+
+    },
+    "^[%@ document](inflect: true)" : {
+
+    },
+    "1." : {
+
+    },
+    "Accent color" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Done" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Terminé" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accent color"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couleur d'accentuation"
+          }
+        }
       }
     },
-    "Cancel" : {
+    "Accent color, recent strip count and the spotlight tint will go back to their factory values." : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cancel" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Annuler" } }
-      }
-    },
-    "Create" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Create" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Créer" } }
-      }
-    },
-    "Save" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Save" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Enregistrer" } }
-      }
-    },
-    "Delete" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Supprimer" } }
-      }
-    },
-    "Rename" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rename" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Renommer" } }
-      }
-    },
-    "Lock" : {
-      "comment" : "Title-bubble menu — toggle the document to read-only.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Lock" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Verrouiller" } }
-      }
-    },
-    "Unlock" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unlock" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Déverrouiller" } }
-      }
-    },
-    "Share" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Share" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Partager" } }
-      }
-    },
-    "Delete this note?" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete this note?" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Supprimer cette note ?" } }
-      }
-    },
-    "It will move to the trash." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "It will move to the trash." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Elle sera déplacée dans la corbeille." } }
-      }
-    },
-    "Recent documents" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Recent documents" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Documents récents" } }
-      }
-    },
-    "Close" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Fermer" } }
-      }
-    },
-    "Select" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Select" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Sélectionner" } }
-      }
-    },
-    "OK" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "OK" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "OK" } }
-      }
-    },
-    "Retry" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Retry" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Réessayer" } }
-      }
-    },
-    "Import" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Import" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Importer" } }
-      }
-    },
-    "Restore" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Restore" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Restaurer" } }
-      }
-    },
-    "Reset" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Reset" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Réinitialiser" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accent color, recent strip count and the spotlight tint will go back to their factory values."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La couleur d'accentuation, le nombre de notes récentes et la teinte du curseur reviendront à leurs valeurs d'origine."
+          }
+        }
       }
     },
     "Add" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ajouter" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter"
+          }
+        }
       }
     },
-    "Clear" : {
+    "Add a block" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Clear" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Effacer" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a block"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter un bloc"
+          }
+        }
       }
     },
-
-    "Trash" : {
+    "Add a row to create your first page." : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Trash" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Corbeille" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a row to create your first page."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajoutez une ligne pour créer votre première page."
+          }
+        }
       }
     },
-    "Recent" : {
+    "Add block" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Recent" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Récents" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add block"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter un bloc"
+          }
+        }
+      }
+    },
+    "Add column" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add column"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter une colonne"
+          }
+        }
+      }
+    },
+    "Add cover" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add cover"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter une couverture"
+          }
+        }
+      }
+    },
+    "Add database URL" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add database URL"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter l'URL d'une base"
+          }
+        }
+      }
+    },
+    "Add icon" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add icon"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter une icône"
+          }
+        }
+      }
+    },
+    "Add option…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add option…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter une option…"
+          }
+        }
       }
     },
     "All" : {
       "comment" : "Section header listing all workspace items (notes + databases). Masculine plural — items are mixed.",
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "All" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Tous" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tous"
+          }
+        }
       }
     },
-    "Folders" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Folders" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Dossiers" } }
-      }
-    },
-    "Title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Title" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Titre" } }
-      }
-    },
-    "Untitled" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Untitled" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Sans titre" } }
-      }
-    },
-
-    "New Note" : {
-      "comment" : "Title case in FR to match Apple's prominent sheet titles ('Nouvelle Note', 'Nouvelle Liste', etc.).",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "New Note" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nouvelle Note" } }
-      }
-    },
-    "New Database" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "New Database" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nouvelle Base" } }
-      }
-    },
-    "New Folder" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "New Folder" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nouveau Dossier" } }
-      }
-    },
-    "New sub-folder" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "New sub-folder" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nouveau Sous-dossier" } }
-      }
-    },
-    "New" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "New" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nouveau" } }
-      }
-    },
-    "Document title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Document title" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Titre du document" } }
-      }
-    },
-    "New Document" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "New Document" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nouveau Document" } }
-      }
-    },
-
-    "Good morning." : {
-      "comment" : "Apple uses 'Bonjour.' all day in French; we follow the same convention.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Good morning." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Bonjour." } }
-      }
-    },
-    "Good afternoon." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Good afternoon." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Bonjour." } }
-      }
-    },
-    "Good evening." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Good evening." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Bonsoir." } }
-      }
-    },
-
-    "No notes" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No notes" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Aucune note" } }
-      }
-    },
-    "Tap the button at the bottom right\nto create your first note." : {
-      "comment" : "Vouvoiement to match Apple iOS French.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Tap the button at the bottom right\nto create your first note." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Touchez le bouton en bas à droite\npour créer votre première note." } }
-      }
-    },
-    "No notes in this folder yet." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No notes in this folder yet." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Aucune note dans ce dossier pour le moment." } }
-      }
-    },
-    "No databases" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No databases" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Aucune base" } }
-      }
-    },
-    "Loading your databases…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Loading your databases…" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Chargement des bases…" } }
-      }
-    },
-    "Empty database" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Empty database" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Base vide" } }
-      }
-    },
-    "Add a row to create your first page." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add a row to create your first page." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ajoutez une ligne pour créer votre première page." } }
-      }
-    },
-    "Inbox is empty" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Inbox is empty" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Boîte vide" } }
-      }
-    },
-    "Imported items, quick captures and shared notes\nwill appear here." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Imported items, quick captures and shared notes\nwill appear here." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Les éléments importés, captures rapides et notes partagées\napparaîtront ici." } }
-      }
-    },
-    "Deleted notes, databases and folders will appear here." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Deleted notes, databases and folders will appear here." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Les notes, bases et dossiers supprimés apparaîtront ici." } }
-      }
-    },
-    "Type to search" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Type to search" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Saisissez votre recherche" } }
-      }
-    },
-    "Empty" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Empty" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Vide" } }
-      }
-    },
-
-    "More" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "More" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Plus" } }
-      }
-    },
-    "More actions" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "More actions" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Plus d'actions" } }
-      }
-    },
-
-    "Add block" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add block" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ajouter un bloc" } }
-      }
-    },
-    "New block" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "New block" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nouveau bloc" } }
-      }
-    },
-    "Delete block" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete block" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Supprimer le bloc" } }
-      }
-    },
-    "Delete selected blocks" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete selected blocks" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Supprimer les blocs sélectionnés" } }
-      }
-    },
-    "Change to" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Change to" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Convertir en" } }
-      }
-    },
-
-    "Add column" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add column" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ajouter une colonne" } }
-      }
-    },
-    "Delete column" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete column" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Supprimer la colonne" } }
-      }
-    },
-    "New row" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "New row" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nouvelle ligne" } }
-      }
-    },
-    "Delete row" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete row" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Supprimer la ligne" } }
-      }
-    },
-    "Delete forever" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete forever" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Supprimer définitivement" } }
-      }
-    },
-    "Delete all" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete all" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Tout supprimer" } }
-      }
-    },
-
-    "Remove cover" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Remove cover" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Supprimer la couverture" } }
-      }
-    },
-    "Remove icon" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Remove icon" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Supprimer l'icône" } }
-      }
-    },
-    "Add cover" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add cover" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ajouter une couverture" } }
-      }
-    },
-    "Change cover" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Change cover" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Changer la couverture" } }
-      }
-    },
-    "Add icon" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add icon" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ajouter une icône" } }
-      }
-    },
-    "Change icon" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Change icon" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Changer l'icône" } }
-      }
-    },
-    "Choose from Photos" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose from Photos" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Choisir dans Photos" } }
-      }
-    },
-    "Choose a file" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose a file" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Choisir un fichier" } }
-      }
-    },
-    "Enter an emoji" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Enter an emoji" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Saisissez un emoji" } }
-      }
-    },
-    "All emojis" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "All emojis" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Tous les emojis" } }
-      }
-    },
-    "Clear date" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Clear date" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Effacer la date" } }
-      }
-    },
-
-    "Reset settings to defaults" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Reset settings to defaults" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Rétablir les réglages par défaut" } }
-      }
-    },
-    "Accent color" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Accent color" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Couleur d'accentuation" } }
-      }
-    },
-    "Applies to the tab bar, selected icons, cursor, and other system controls." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Applies to the tab bar, selected icons, cursor, and other system controls." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "S'applique à la barre d'onglets, aux icônes sélectionnées, au curseur et aux autres contrôles système." } }
-      }
-    },
-    "Accent color, recent strip count and the spotlight tint will go back to their factory values." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Accent color, recent strip count and the spotlight tint will go back to their factory values." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "La couleur d'accentuation, le nombre de notes récentes et la teinte du curseur reviendront à leurs valeurs d'origine." } }
-      }
-    },
-    "How many notes appear in the horizontal strip at the top of the Notes home. Bounded between 5 and 20." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "How many notes appear in the horizontal strip at the top of the Notes home. Bounded between 5 and 20." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nombre de notes affichées dans la bande horizontale en haut de l'onglet Notes. Entre 5 et 20." } }
-      }
-    },
-
-    "Rename note" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rename note" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Renommer la note" } }
-      }
-    },
-    "They'll move to the trash." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "They'll move to the trash." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ils seront déplacés dans la corbeille." } }
-      }
-    },
-    "This cannot be undone." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "This cannot be undone." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Cette action est irréversible." } }
-      }
-    },
-
-    "Import complete!" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Import complete!" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Importation terminée !" } }
-      }
-    },
-    "Importing notes…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Importing notes…" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Importation des notes…" } }
-      }
-    },
-    "Connect with Notion" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Connect with Notion" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Se connecter à Notion" } }
-      }
-    },
-    "Notion" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Notion" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Notion" } }
-      }
-    },
-    "Bear" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Bear" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Bear" } }
-      }
-    },
-    "Craft" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Craft" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Craft" } }
-      }
-    },
-    "Import from…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Import from…" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Importer depuis…" } }
-      }
-    },
-    "API Token" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "API Token" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Jeton API" } }
-      }
-    },
-    "Bear Database" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Bear Database" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Base Bear" } }
-      }
-    },
-    "Craft Database (.realm)" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Craft Database (.realm)" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Base Craft (.realm)" } }
-      }
-    },
-    "Choose Craft database…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose Craft database…" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Choisir la base Craft…" } }
-      }
-    },
-    "Choose database.sqlite…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose database.sqlite…" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Choisir database.sqlite…" } }
-      }
-    },
-    "Choose export folder…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose export folder…" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Choisir le dossier d'export…" } }
-      }
-    },
-    "Auto-detected · tap to change" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Auto-detected · tap to change" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Détecté automatiquement · touchez pour modifier" } }
-      }
-    },
-
-    "Add database URL" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add database URL" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ajouter l'URL d'une base" } }
-      }
-    },
-    "TextBundle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "TextBundle" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "TextBundle" } }
-      }
-    },
-    "TextBundle + Realm" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "TextBundle + Realm" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "TextBundle + Realm" } }
-      }
-    },
-
-    "Recents" : {
-      "comment" : "Section header above the horizontal strip on the Notes home.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Recents" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Récents" } }
-      }
-    },
-    "Recent strip count" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Recent strip count" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nombre de notes récentes" } }
-      }
-    },
-    "Text input" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Text input" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Saisie de texte" } }
-      }
-    },
-    "Cursor follows accent" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cursor follows accent" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Le curseur suit l'accent" } }
-      }
-    },
-    "On (default): the caret and selection use your accent color. Off: white, Notion-style." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "On (default): the caret and selection use your accent color. Off: white, Notion-style." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Activé (par défaut) : le curseur et la sélection prennent la couleur d'accentuation. Désactivé : blanc, façon Notion." } }
-      }
-    },
-    "Search spotlight" : {
-      "comment" : "Section header for the toggle that highlights a search-matched block.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Search spotlight" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Mise en valeur des recherches" } }
-      }
-    },
-    "Tint focused block" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Tint focused block" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Teinter le bloc ciblé" } }
-      }
-    },
-    "When you open a note from search, the rest of the page is blurred. Turn this on to also paint a soft tint behind the matched block." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "When you open a note from search, the rest of the page is blurred. Turn this on to also paint a soft tint behind the matched block." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Quand vous ouvrez une note depuis la recherche, le reste de la page est flouté. Activez ceci pour aussi colorer légèrement l'arrière-plan du bloc trouvé." } }
-      }
-    },
-    "Reset all settings to defaults?" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Reset all settings to defaults?" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Rétablir les réglages par défaut ?" } }
-      }
-    },
-
-    "Note title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Note title" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Titre de la note" } }
-      }
-    },
-    "Database title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Database title" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Titre de la base" } }
-      }
-    },
-
     "All databases" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "All databases" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Toutes les bases" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All databases"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toutes les bases"
+          }
+        }
       }
     },
     "All documents" : {
       "comment" : "Overflow menu item — opens the Safari-tab-style switcher.",
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "All documents" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Tous les documents" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All documents"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tous les documents"
+          }
+        }
       }
     },
-    "Search documents" : {
+    "All emojis" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Search documents" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Rechercher" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All emojis"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tous les emojis"
+          }
+        }
       }
     },
-    "Close search" : {
+    "API Token" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close search" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Fermer la recherche" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API Token"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeton API"
+          }
+        }
       }
     },
-    "Close tab" : {
+    "Applies to the tab bar, selected icons, cursor, and other system controls." : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close tab" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Fermer l'onglet" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applies to the tab bar, selected icons, cursor, and other system controls."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S'applique à la barre d'onglets, aux icônes sélectionnées, au curseur et aux autres contrôles système."
+          }
+        }
       }
     },
-    "Close all tabs" : {
+    "Auto-detected · tap to change" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close all tabs" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Fermer tous les onglets" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto-detected · tap to change"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Détecté automatiquement · touchez pour modifier"
+          }
+        }
       }
     },
-    "Tap the button at the bottom right\nto create your first database." : {
+    "Bear" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Tap the button at the bottom right\nto create your first database." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Touchez le bouton en bas à droite\npour créer votre première base." } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bear"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bear"
+          }
+        }
       }
     },
-
-    "Delete All" : {
+    "Bear Database" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete All" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Tout supprimer" } }
-      }
-    },
-    "This will remove all your notes." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "This will remove all your notes." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Toutes vos notes seront supprimées." } }
-      }
-    },
-    "This action cannot be undone." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "This action cannot be undone." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Cette action est irréversible." } }
-      }
-    },
-    "Yes, delete everything" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Yes, delete everything" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Oui, tout supprimer" } }
-      }
-    },
-    "Empty permanently" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Empty permanently" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Vider définitivement" } }
-      }
-    },
-
-    "Import from Notion" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Import from Notion" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Importer depuis Notion" } }
-      }
-    },
-    "Import from Bear" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Import from Bear" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Importer depuis Bear" } }
-      }
-    },
-    "Import from Craft" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Import from Craft" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Importer depuis Craft" } }
-      }
-    },
-    "Pick databases" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Pick databases" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Choisir des bases" } }
-      }
-    },
-    "Sign in to import any database you've granted access to." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sign in to import any database you've granted access to." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Connectez-vous pour importer toute base à laquelle vous avez donné accès." } }
-      }
-    },
-    "Or paste URLs manually" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Or paste URLs manually" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ou collez des URL manuellement" } }
-      }
-    },
-    "Or paste a private integration token from notion.so/my-integrations." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Or paste a private integration token from notion.so/my-integrations." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ou collez un jeton d'intégration privée depuis notion.so/my-integrations." } }
-      }
-    },
-    "Useful for databases not yet shared with this integration." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Useful for databases not yet shared with this integration." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Utile pour les bases pas encore partagées avec cette intégration." } }
-      }
-    },
-    "TextBundle Export Folder" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "TextBundle Export Folder" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Dossier d'export TextBundle" } }
-      }
-    },
-    "In Craft: ··· → Export → Export All → TextBundle. Select the exported folder here." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "In Craft: ··· → Export → Export All → TextBundle. Select the exported folder here." } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Dans Craft : ··· → Export → Export All → TextBundle. Sélectionnez ici le dossier exporté." } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bear Database"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Base Bear"
+          }
+        }
       }
     },
     "Bear's database is at:\n~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Bear's database is at:\n~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "La base Bear se trouve à :\n~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bear's database is at:\n~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La base Bear se trouve à :\n~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite"
+          }
+        }
       }
     },
-    "Craft's database is in ~/Library/Containers/com.lukilabs.lukiapp/…/LukiMain_*.realm" : {
+    "Blue" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Craft's database is in ~/Library/Containers/com.lukilabs.lukiapp/…/LukiMain_*.realm" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "La base Craft se trouve dans ~/Library/Containers/com.lukilabs.lukiapp/…/LukiMain_*.realm" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blue"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bleu"
+          }
+        }
       }
     },
-
-    "Search notes, content, databases, folders…" : {
+    "Bold" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Search notes, content, databases, folders…" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Rechercher notes, contenu, bases, dossiers…" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bold"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gras"
+          }
+        }
       }
     },
-    "Start writing…" : {
+    "Brown" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Start writing…" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Commencez à écrire…" } }
-      }
-    },
-
-    "Text" : {
-      "comment" : "Block type — plain paragraph.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Text" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Texte" } }
-      }
-    },
-    "Title 1" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Title 1" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Titre 1" } }
-      }
-    },
-    "Title 2" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Title 2" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Titre 2" } }
-      }
-    },
-    "Title 3" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Title 3" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Titre 3" } }
-      }
-    },
-    "Quote" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Quote" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Citation" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brown"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marron"
+          }
+        }
       }
     },
     "Callout" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Callout" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Encart" } }
-      }
-    },
-    "To do" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "To do" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "À faire" } }
-      }
-    },
-    "Divider" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Divider" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Séparateur" } }
-      }
-    },
-
-    "Heading…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Heading…" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Titre…" } }
-      }
-    },
-    "Quote…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Quote…" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Citation…" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Callout"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encart"
+          }
+        }
       }
     },
     "Callout…" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Callout…" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Encart…" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Callout…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encart…"
+          }
+        }
       }
     },
-    "To do…" : {
+    "Cancel" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "To do…" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "À faire…" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annuler"
+          }
+        }
       }
     },
-    "List item…" : {
+    "Change cover" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "List item…" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Élément de liste…" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change cover"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changer la couverture"
+          }
+        }
       }
     },
-    "Text…" : {
+    "Change icon" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Text…" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Texte…" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change icon"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changer l'icône"
+          }
+        }
       }
     },
-
+    "Change to" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change to"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Convertir en"
+          }
+        }
+      }
+    },
+    "Choose a file" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a file"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir un fichier"
+          }
+        }
+      }
+    },
+    "Choose Craft database…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Craft database…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir la base Craft…"
+          }
+        }
+      }
+    },
+    "Choose database.sqlite…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose database.sqlite…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir database.sqlite…"
+          }
+        }
+      }
+    },
+    "Choose export folder…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose export folder…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir le dossier d'export…"
+          }
+        }
+      }
+    },
+    "Choose from Photos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose from Photos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir dans Photos"
+          }
+        }
+      }
+    },
+    "Clear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacer"
+          }
+        }
+      }
+    },
+    "Clear date" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear date"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacer la date"
+          }
+        }
+      }
+    },
+    "Close" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermer"
+          }
+        }
+      }
+    },
+    "Close all tabs" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close all tabs"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermer tous les onglets"
+          }
+        }
+      }
+    },
+    "Close search" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close search"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermer la recherche"
+          }
+        }
+      }
+    },
+    "Close tab" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close tab"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermer l'onglet"
+          }
+        }
+      }
+    },
     "Column name" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Column name" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nom de la colonne" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Column name"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom de la colonne"
+          }
+        }
       }
     },
-    "New column" : {
+    "Connect with Notion" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "New column" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nouvelle colonne" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect with Notion"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter à Notion"
+          }
+        }
       }
     },
-    "Name" : {
+    "Craft" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Name" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nom" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Craft"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Craft"
+          }
+        }
       }
     },
-    "Options" : {
+    "Craft Database (.realm)" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Options" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Options" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Craft Database (.realm)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Base Craft (.realm)"
+          }
+        }
       }
     },
-    "Add option…" : {
+    "Craft's database is in ~/Library/Containers/com.lukilabs.lukiapp/…/LukiMain_*.realm" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add option…" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ajouter une option…" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Craft's database is in ~/Library/Containers/com.lukilabs.lukiapp/…/LukiMain_*.realm"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La base Craft se trouve dans ~/Library/Containers/com.lukilabs.lukiapp/…/LukiMain_*.realm"
+          }
+        }
       }
     },
-    "Pick a date" : {
+    "Create" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Pick a date" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Choisir une date" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Créer"
+          }
+        }
       }
     },
-    "Icon" : {
+    "Cursor follows accent" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Icon" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Icône" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cursor follows accent"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le curseur suit l'accent"
+          }
+        }
       }
     },
-    "Emoji" : {
+    "Cyan" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Emoji" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Emoji" } }
-      }
-    },
-    "Add a block" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add a block" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ajouter un bloc" } }
-      }
-    },
-
-    "Note" : {
-      "comment" : "Singular — CreateBubble label for the Note action.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Note" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Note" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cyan"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cyan"
+          }
+        }
       }
     },
     "Database" : {
       "comment" : "Singular — CreateBubble label for the Database action.",
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Database" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Base" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Database"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Base"
+          }
+        }
       }
     },
-    "Folder" : {
-      "comment" : "Singular — CreateBubble label for the Folder action.",
+    "Database title" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Folder" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Dossier" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Database title"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titre de la base"
+          }
+        }
       }
     },
-
-    "Bold" : {
+    "Databases" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Bold" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Gras" } }
-      }
-    },
-    "Italic" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Italic" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Italique" } }
-      }
-    },
-    "Underline" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Underline" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Souligné" } }
-      }
-    },
-    "Strikethrough" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Strikethrough" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Barré" } }
-      }
-    },
-
-    "None" : {
-      "comment" : "Menu item that clears the current inline colour.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "None" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Aucune" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Databases"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bases"
+          }
+        }
       }
     },
     "Default" : {
       "comment" : "Menu item that clears the current block colour to use the default foreground.",
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Default" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Par défaut" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par défaut"
+          }
+        }
       }
     },
-
-    "Red" : {
+    "Delete" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Red" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Rouge" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer"
+          }
+        }
       }
     },
-    "Pink" : {
+    "Delete all" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Pink" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Rose" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete all"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout supprimer"
+          }
+        }
       }
     },
-    "Orange" : {
+    "Delete All" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Orange" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Orange" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete All"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout supprimer"
+          }
+        }
       }
     },
-    "Yellow" : {
+    "Delete block" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Yellow" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Jaune" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete block"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer le bloc"
+          }
+        }
+      }
+    },
+    "Delete column" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete column"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer la colonne"
+          }
+        }
+      }
+    },
+    "Delete forever" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete forever"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer définitivement"
+          }
+        }
+      }
+    },
+    "Delete row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete row"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer la ligne"
+          }
+        }
+      }
+    },
+    "Delete selected blocks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete selected blocks"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer les blocs sélectionnés"
+          }
+        }
+      }
+    },
+    "Delete this note?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete this note?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer cette note ?"
+          }
+        }
+      }
+    },
+    "Deleted notes, databases and folders will appear here." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted notes, databases and folders will appear here."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les notes, bases et dossiers supprimés apparaîtront ici."
+          }
+        }
+      }
+    },
+    "Divider" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Divider"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Séparateur"
+          }
+        }
+      }
+    },
+    "Document title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Document title"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titre du document"
+          }
+        }
+      }
+    },
+    "Done" : {
+      "comment" : "Apple iOS standard for finishing an edit mode or sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminé"
+          }
+        }
+      }
+    },
+    "Emoji" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emoji"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emoji"
+          }
+        }
+      }
+    },
+    "Empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empty"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vide"
+          }
+        }
+      }
+    },
+    "Empty database" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empty database"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Base vide"
+          }
+        }
+      }
+    },
+    "Empty permanently" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empty permanently"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vider définitivement"
+          }
+        }
+      }
+    },
+    "Enter an emoji" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter an emoji"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisissez un emoji"
+          }
+        }
+      }
+    },
+    "Folder" : {
+      "comment" : "Singular — CreateBubble label for the Folder action.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folder"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dossier"
+          }
+        }
+      }
+    },
+    "Folders" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folders"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dossiers"
+          }
+        }
+      }
+    },
+    "Good afternoon." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Good afternoon."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bonjour."
+          }
+        }
+      }
+    },
+    "Good evening." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Good evening."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bonsoir."
+          }
+        }
+      }
+    },
+    "Good morning." : {
+      "comment" : "Apple uses 'Bonjour.' all day in French; we follow the same convention.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Good morning."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bonjour."
+          }
+        }
       }
     },
     "Green" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Green" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Vert" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Green"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vert"
+          }
+        }
       }
     },
-    "Cyan" : {
+    "Heading…" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cyan" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Cyan" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heading…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titre…"
+          }
+        }
       }
     },
-    "Blue" : {
+    "How many notes appear in the horizontal strip at the top of the Notes home. Bounded between 5 and 20." : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Blue" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Bleu" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How many notes appear in the horizontal strip at the top of the Notes home. Bounded between 5 and 20."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nombre de notes affichées dans la bande horizontale en haut de l'onglet Notes. Entre 5 et 20."
+          }
+        }
+      }
+    },
+    "Icon" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Icon"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Icône"
+          }
+        }
+      }
+    },
+    "Import" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importer"
+          }
+        }
+      }
+    },
+    "Import complete!" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import complete!"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importation terminée !"
+          }
+        }
+      }
+    },
+    "Import from Bear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import from Bear"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importer depuis Bear"
+          }
+        }
+      }
+    },
+    "Import from Craft" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import from Craft"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importer depuis Craft"
+          }
+        }
+      }
+    },
+    "Import from Notion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import from Notion"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importer depuis Notion"
+          }
+        }
+      }
+    },
+    "Import from…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import from…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importer depuis…"
+          }
+        }
+      }
+    },
+    "Imported items, quick captures and shared notes\nwill appear here." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imported items, quick captures and shared notes\nwill appear here."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les éléments importés, captures rapides et notes partagées\napparaîtront ici."
+          }
+        }
+      }
+    },
+    "Importing %@ of %@…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Importing %1$@ of %2$@…"
+          }
+        }
+      }
+    },
+    "Importing notes…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importing notes…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importation des notes…"
+          }
+        }
+      }
+    },
+    "In Craft: ··· → Export → Export All → TextBundle. Select the exported folder here." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Craft: ··· → Export → Export All → TextBundle. Select the exported folder here."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans Craft : ··· → Export → Export All → TextBundle. Sélectionnez ici le dossier exporté."
+          }
+        }
+      }
+    },
+    "Inbox" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inbox"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boîte"
+          }
+        }
+      }
+    },
+    "Inbox is empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inbox is empty"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boîte vide"
+          }
+        }
+      }
+    },
+    "It will move to the trash." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It will move to the trash."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elle sera déplacée dans la corbeille."
+          }
+        }
+      }
+    },
+    "Italic" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Italic"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Italique"
+          }
+        }
+      }
+    },
+    "List item…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "List item…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Élément de liste…"
+          }
+        }
+      }
+    },
+    "Loading your databases…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading your databases…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chargement des bases…"
+          }
+        }
+      }
+    },
+    "Lock" : {
+      "comment" : "Title-bubble menu — toggle the document to read-only.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lock"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verrouiller"
+          }
+        }
+      }
+    },
+    "More" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus"
+          }
+        }
+      }
+    },
+    "More actions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More actions"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus d'actions"
+          }
+        }
+      }
+    },
+    "Name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom"
+          }
+        }
+      }
+    },
+    "New" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau"
+          }
+        }
+      }
+    },
+    "New block" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New block"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau bloc"
+          }
+        }
+      }
+    },
+    "New column" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New column"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvelle colonne"
+          }
+        }
+      }
+    },
+    "New Database" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Database"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvelle Base"
+          }
+        }
+      }
+    },
+    "New Document" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Document"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau Document"
+          }
+        }
+      }
+    },
+    "New Folder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Folder"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau Dossier"
+          }
+        }
+      }
+    },
+    "New Note" : {
+      "comment" : "Title case in FR to match Apple's prominent sheet titles ('Nouvelle Note', 'Nouvelle Liste', etc.).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Note"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvelle Note"
+          }
+        }
+      }
+    },
+    "New row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New row"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvelle ligne"
+          }
+        }
+      }
+    },
+    "New sub-folder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New sub-folder"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau Sous-dossier"
+          }
+        }
+      }
+    },
+    "No database visible. In Notion, open a database → ⋯ → Connect to → %@." : {
+
+    },
+    "No databases" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No databases"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune base"
+          }
+        }
+      }
+    },
+    "No notes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No notes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune note"
+          }
+        }
+      }
+    },
+    "No notes in this folder yet." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No notes in this folder yet."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune note dans ce dossier pour le moment."
+          }
+        }
+      }
+    },
+    "No results for \"%@\"" : {
+
+    },
+    "None" : {
+      "comment" : "Menu item that clears the current inline colour.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune"
+          }
+        }
+      }
+    },
+    "Note" : {
+      "comment" : "Singular — CreateBubble label for the Note action.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Note"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Note"
+          }
+        }
+      }
+    },
+    "Note title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Note title"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titre de la note"
+          }
+        }
+      }
+    },
+    "Notes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notes"
+          }
+        }
+      }
+    },
+    "Notion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notion"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notion"
+          }
+        }
+      }
+    },
+    "OK" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
+    "On (default): the caret and selection use your accent color. Off: white, Notion-style." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On (default): the caret and selection use your accent color. Off: white, Notion-style."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activé (par défaut) : le curseur et la sélection prennent la couleur d'accentuation. Désactivé : blanc, façon Notion."
+          }
+        }
+      }
+    },
+    "Options" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Options"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Options"
+          }
+        }
+      }
+    },
+    "Or paste a private integration token from notion.so/my-integrations." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Or paste a private integration token from notion.so/my-integrations."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ou collez un jeton d'intégration privée depuis notion.so/my-integrations."
+          }
+        }
+      }
+    },
+    "Or paste URLs manually" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Or paste URLs manually"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ou collez des URL manuellement"
+          }
+        }
+      }
+    },
+    "Orange" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Orange"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Orange"
+          }
+        }
+      }
+    },
+    "Pick a date" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick a date"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir une date"
+          }
+        }
+      }
+    },
+    "Pick databases" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick databases"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir des bases"
+          }
+        }
+      }
+    },
+    "Pink" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pink"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rose"
+          }
+        }
       }
     },
     "Purple" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Purple" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Violet" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purple"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Violet"
+          }
+        }
       }
     },
-    "Brown" : {
+    "Quote" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Brown" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Marron" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quote"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Citation"
+          }
+        }
+      }
+    },
+    "Quote…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quote…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Citation…"
+          }
+        }
+      }
+    },
+    "Recent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Récents"
+          }
+        }
+      }
+    },
+    "Recent documents" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent documents"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Documents récents"
+          }
+        }
+      }
+    },
+    "Recent strip count" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent strip count"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nombre de notes récentes"
+          }
+        }
+      }
+    },
+    "Recents" : {
+      "comment" : "Section header above the horizontal strip on the Notes home.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recents"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Récents"
+          }
+        }
+      }
+    },
+    "Red" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Red"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rouge"
+          }
+        }
+      }
+    },
+    "Remove cover" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove cover"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer la couverture"
+          }
+        }
+      }
+    },
+    "Remove icon" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove icon"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer l'icône"
+          }
+        }
+      }
+    },
+    "Rename" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renommer"
+          }
+        }
+      }
+    },
+    "Rename note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename note"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renommer la note"
+          }
+        }
+      }
+    },
+    "Reset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réinitialiser"
+          }
+        }
+      }
+    },
+    "Reset all settings to defaults?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset all settings to defaults?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rétablir les réglages par défaut ?"
+          }
+        }
+      }
+    },
+    "Reset settings to defaults" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset settings to defaults"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rétablir les réglages par défaut"
+          }
+        }
+      }
+    },
+    "Restore" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restaurer"
+          }
+        }
+      }
+    },
+    "Retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réessayer"
+          }
+        }
+      }
+    },
+    "Save" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrer"
+          }
+        }
+      }
+    },
+    "Search" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recherche"
+          }
+        }
+      }
+    },
+    "Search documents" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search documents"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher"
+          }
+        }
+      }
+    },
+    "Search notes, content, databases, folders…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search notes, content, databases, folders…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher notes, contenu, bases, dossiers…"
+          }
+        }
+      }
+    },
+    "Search spotlight" : {
+      "comment" : "Section header for the toggle that highlights a search-matched block.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search spotlight"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mise en valeur des recherches"
+          }
+        }
+      }
+    },
+    "Select" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sélectionner"
+          }
+        }
+      }
+    },
+    "Settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réglages"
+          }
+        }
+      }
+    },
+    "Share" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partager"
+          }
+        }
+      }
+    },
+    "Sign in to import any database you've granted access to." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to import any database you've granted access to."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connectez-vous pour importer toute base à laquelle vous avez donné accès."
+          }
+        }
+      }
+    },
+    "Start writing…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start writing…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commencez à écrire…"
+          }
+        }
+      }
+    },
+    "Strikethrough" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Strikethrough"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Barré"
+          }
+        }
+      }
+    },
+    "Tap the button at the bottom right\nto create your first database." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the button at the bottom right\nto create your first database."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Touchez le bouton en bas à droite\npour créer votre première base."
+          }
+        }
+      }
+    },
+    "Tap the button at the bottom right\nto create your first note." : {
+      "comment" : "Vouvoiement to match Apple iOS French.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the button at the bottom right\nto create your first note."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Touchez le bouton en bas à droite\npour créer votre première note."
+          }
+        }
+      }
+    },
+    "Text" : {
+      "comment" : "Block type — plain paragraph.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Texte"
+          }
+        }
+      }
+    },
+    "Text input" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text input"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisie de texte"
+          }
+        }
+      }
+    },
+    "Text…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Texte…"
+          }
+        }
+      }
+    },
+    "TextBundle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TextBundle"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TextBundle"
+          }
+        }
+      }
+    },
+    "TextBundle + Realm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TextBundle + Realm"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TextBundle + Realm"
+          }
+        }
+      }
+    },
+    "TextBundle Export Folder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TextBundle Export Folder"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dossier d'export TextBundle"
+          }
+        }
+      }
+    },
+    "They'll move to the trash." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "They'll move to the trash."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ils seront déplacés dans la corbeille."
+          }
+        }
+      }
+    },
+    "This action cannot be undone." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This action cannot be undone."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette action est irréversible."
+          }
+        }
+      }
+    },
+    "This cannot be undone." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This cannot be undone."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette action est irréversible."
+          }
+        }
+      }
+    },
+    "This will remove all your notes." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This will remove all your notes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toutes vos notes seront supprimées."
+          }
+        }
+      }
+    },
+    "Tint focused block" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tint focused block"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teinter le bloc ciblé"
+          }
+        }
+      }
+    },
+    "Title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Title"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titre"
+          }
+        }
+      }
+    },
+    "Title 1" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Title 1"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titre 1"
+          }
+        }
+      }
+    },
+    "Title 2" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Title 2"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titre 2"
+          }
+        }
+      }
+    },
+    "Title 3" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Title 3"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titre 3"
+          }
+        }
+      }
+    },
+    "To do" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To do"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À faire"
+          }
+        }
+      }
+    },
+    "To do…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To do…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À faire…"
+          }
+        }
+      }
+    },
+    "Trash" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trash"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Corbeille"
+          }
+        }
+      }
+    },
+    "Type to search" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type to search"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisissez votre recherche"
+          }
+        }
+      }
+    },
+    "Underline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Underline"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Souligné"
+          }
+        }
+      }
+    },
+    "Unlock" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlock"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déverrouiller"
+          }
+        }
+      }
+    },
+    "Untitled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Untitled"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sans titre"
+          }
+        }
+      }
+    },
+    "Useful for databases not yet shared with this integration." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Useful for databases not yet shared with this integration."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utile pour les bases pas encore partagées avec cette intégration."
+          }
+        }
+      }
+    },
+    "When you open a note from search, the rest of the page is blurred. Turn this on to also paint a soft tint behind the matched block." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When you open a note from search, the rest of the page is blurred. Turn this on to also paint a soft tint behind the matched block."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quand vous ouvrez une note depuis la recherche, le reste de la page est flouté. Activez ceci pour aussi colorer légèrement l'arrière-plan du bloc trouvé."
+          }
+        }
+      }
+    },
+    "Yellow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yellow"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jaune"
+          }
+        }
+      }
+    },
+    "Yes, delete everything" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yes, delete everything"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oui, tout supprimer"
+          }
+        }
       }
     }
-  }
+  },
+  "version" : "1.0"
 }
