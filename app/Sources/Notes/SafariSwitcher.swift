@@ -534,7 +534,12 @@ final class TabCardView: UIView {
     private let snippetLabel: UILabel = {
         let l = UILabel()
         l.font = .systemFont(ofSize: 9.5)
-        l.textColor = .secondaryLabel
+        // `.label` (primary) — `.secondaryLabel` rendered the snippet
+        // in flat grey which read as "this card lost its formatting".
+        // Until we load attributed text that preserves the doc's
+        // inline colours, plain primary text at least matches the
+        // visual weight of cards that DO have a live thumbnail.
+        l.textColor = .label
         l.numberOfLines = 0
         l.lineBreakMode = .byTruncatingTail
         return l

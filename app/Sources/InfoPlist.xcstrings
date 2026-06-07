@@ -1,14 +1,36 @@
 {
   "sourceLanguage" : "en",
-  "version" : "1.0",
   "strings" : {
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Pinkha"
+          }
+        }
+      }
+    },
     "New Note" : {
       "comment" : "UIApplicationShortcutItemTitle for the Home Screen Quick Action attached to the app icon (long-press it).",
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "New Note" } },
-        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nouvelle note" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Note"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvelle note"
+          }
+        }
       }
     }
-  }
+  },
+  "version" : "1.0"
 }

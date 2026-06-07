@@ -24,6 +24,16 @@ if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode.app/Contents/Developer ]
     export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 fi
 
+# ── Prune iCloud Drive conflict copies ───────────────────────────────────
+# Repo lives in iCloud Drive, which auto-creates "Foo 2.swift",
+# "Pinkha 3.xcodeproj" etc. when sync conflicts. They confuse Xcode
+# (extra projects), bloat the tree, and are explicitly excluded by
+# xcodegen — but only at compile time. Sweep them every build so
+# they never accumulate.
+find app -name "* [2-9].swift" -delete 2>/dev/null
+find app -name "* [2-9].xcodeproj" -type d -exec rm -rf {} + 2>/dev/null
+find scripts -name "* [2-9].sh" -delete 2>/dev/null
+
 # ── xcodegen + icon patch (idempotent, cheap) ─────────────────────────────
 (cd app && xcodegen generate >/dev/null)
 if [ -f "scripts/patch-app-icon.rb" ]; then

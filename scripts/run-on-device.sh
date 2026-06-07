@@ -59,6 +59,13 @@ if [[ -z "$XCODE_DEVICE_ID" ]]; then
     exit 1
 fi
 
+# Prune iCloud Drive conflict copies before regenerating — repo lives
+# in iCloud which auto-creates "Foo 2.swift", "Pinkha 3.xcodeproj" etc.
+# on sync conflicts. They confuse Xcode and bloat the tree.
+find app -name "* [2-9].swift" -delete 2>/dev/null
+find app -name "* [2-9].xcodeproj" -type d -exec rm -rf {} + 2>/dev/null
+find scripts -name "* [2-9].sh" -delete 2>/dev/null
+
 echo "→ Regenerating Pinkha.xcodeproj (xcodegen)…"
 (cd app && xcodegen generate >/dev/null)
 

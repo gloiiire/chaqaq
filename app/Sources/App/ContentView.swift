@@ -69,7 +69,7 @@ struct ContentView: View {
                 onImportBear: { composer.showingBearImport = true },
                 onImportCraftTextBundle: { composer.showingCraftTextBundleImport = true },
                 onImportCraftCombined: { composer.showingCraftCombinedImport = true },
-                onShowAllDocs: { composer.showingAllDocs = true }
+                onShowAllDocs: { openSwitcher() }
             )
         }
         .sheet(isPresented: $composer.showingCreateDoc) {
@@ -256,8 +256,21 @@ struct ContentView: View {
         defer { swipeUpHapticFired = false }
         guard isCandidateSwipeUp(value) else { return }
         if value.translation.height < -Self.swipeUpCommitDistance {
-            composer.showingAllDocs = true
+            openSwitcher()
         }
+    }
+
+    /// Centralised "open the switcher" path. If the user is currently
+    /// inside a document, captures a snapshot of the live window into
+    /// `TabSnapshotCache` keyed by that doc id, so the switcher card
+    /// shows the exact content / scroll position they had — even if
+    /// `viewWillDisappear` doesn't fire on the covered DocumentView
+    /// (Safari-style guarantee).
+    private func openSwitcher() {
+        if case .document(let docId) = composer.currentContext {
+            TabSnapshotCache.shared.captureCurrentWindow(for: docId)
+        }
+        composer.showingAllDocs = true
     }
 
     /// The 4-tab root. Extracted so the SwiftUI type-checker doesn't
