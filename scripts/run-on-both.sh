@@ -10,6 +10,20 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# ── DEVELOPER_DIR sanity ──────────────────────────────────────────────────
+# If the caller's shell has DEVELOPER_DIR pointing somewhere that doesn't
+# exist (Xcode-beta uninstalled, agents inheriting a stale value from a
+# parent process), every `xcrun` call crashes with `missing DEVELOPER_DIR
+# path` and the script silently falls back to "no device found". Detect
+# + recover so the script works regardless of the calling env.
+if [[ -n "${DEVELOPER_DIR:-}" && ! -d "$DEVELOPER_DIR" ]]; then
+    echo "⚠ DEVELOPER_DIR=$DEVELOPER_DIR does not exist — falling back to /Applications/Xcode.app." >&2
+    unset DEVELOPER_DIR
+fi
+if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode.app/Contents/Developer ]]; then
+    export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+fi
+
 # ── xcodegen + icon patch (idempotent, cheap) ─────────────────────────────
 (cd app && xcodegen generate >/dev/null)
 if [ -f "scripts/patch-app-icon.rb" ]; then
@@ -30,7 +44,8 @@ fi
 # ── Device target ─────────────────────────────────────────────────────────
 DEVICE_ID="${DEVICE_ID:-$(xcrun devicectl list devices --json-output - 2>/dev/null \
     | jq -r '.result.devices[]
-        | select(.connectionProperties.tunnelState == "connected"
+        | select((.connectionProperties.tunnelState == "connected"
+                  or .connectionProperties.tunnelState == "disconnected")
                  and (.hardwareProperties.productType // "" | startswith("iPhone")))
         | .identifier' \
     | head -1)}"
