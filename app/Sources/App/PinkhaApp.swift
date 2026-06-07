@@ -6,6 +6,10 @@ struct PinkhaApp: App {
     /// Lives at the App level so the accent color and other prefs
     /// propagate to every view in the hierarchy via the environment.
     @StateObject private var settings = AppSettings()
+    /// Bridges Home Screen Quick Actions (long-press the app icon)
+    /// back into SwiftUI. The delegate dispatches via NotificationCenter,
+    /// `Composer` listens and triggers the matching flow.
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     /// Two-stage splash state. `showingSplash` removes the view from
     /// the tree once dissolve completes; `dismissingSplash` is the

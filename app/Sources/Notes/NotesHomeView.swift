@@ -5,10 +5,13 @@ import SwiftUI
 /// Home screen for the Notes tab — shows notes and databases in a unified list.
 /// All creation / import / trash actions live in the global CreateBubble
 /// hosted by `ContentView.tabViewBottomAccessory`, so this view focuses on
-/// presenting the workspace content.
+/// presenting the workspace content. Sibling files in this folder own the
+/// recent strip (`RecentStrip.swift`) and the list row (`WorkspaceRow.swift`).
 struct NotesHomeView: View {
     @ObservedObject var store: PinkhaStore
     @EnvironmentObject private var composer: Composer
+    @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var tabManager: TabManager
     @State private var showingSettings = false
     /// Programmatic navigation stack so a freshly-created note can be
     /// pushed onto the editor right after the create sheet dismisses
@@ -21,6 +24,10 @@ struct NotesHomeView: View {
     @State private var editMode: EditMode = .inactive
     @State private var selectedIds: Set<String> = []
     @State private var showingBulkDeleteConfirm = false
+    /// Doc currently being renamed via the contextMenu — drives the
+    /// rename alert and `renameDraft` TextField below.
+    @State private var renamingDoc: DocumentMetaFfi?
+    @State private var renameDraft: String = ""
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -38,9 +45,21 @@ struct NotesHomeView: View {
             )) {
                 if !store.items.isEmpty {
                     Section {
-                        RecentStrip(items: store.recentItems, api: store.api) {
-                            store.load()
-                        }
+                        RecentStrip(
+                            items: store.recentItems(limit: settings.recentCount),
+                            api: store.api,
+                            onDisappear: { store.load() },
+                            onOpenNote: { docId in
+                                path.append(docId)
+                            },
+                            onRenameNote: { doc in
+                                renameDraft = doc.titlePlain
+                                renamingDoc = doc
+                            },
+                            onDeleteNote: { doc in
+                                store.delete(id: doc.id)
+                            }
+                        )
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets())
@@ -91,6 +110,11 @@ struct NotesHomeView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            // Re-tint the List with the accent so the edit-mode
+            // selection circles stay readable. Without this they'd
+            // inherit the `.tint(.primary)` set just before the
+            // rename alert later in the chain and render white.
+            .tint(settings.accentColor)
             .environment(\.editMode, $editMode)
             .navigationTitle(greeting)
             .navigationBarTitleDisplayMode(.large)
@@ -160,7 +184,8 @@ struct NotesHomeView: View {
             // editor — driven by `composer.pendingOpenDoc` below.
             .navigationDestination(for: String.self) { docId in
                 if let api = store.api {
-                    DocumentView(docId: docId, api: api, onDisappear: store.load)
+                    DocumentView(vm: tabManager.open(docId: docId, api: api),
+                                 onDisappear: store.load)
                 }
             }
         }
@@ -175,7 +200,18 @@ struct NotesHomeView: View {
                 composer.pendingOpenDoc = nil
             }
         }
-        .onChange(of: path) { _, newPath in
+        .onChange(of: path) { oldPath, newPath in
+            // Mark every newly-pushed doc as "open" in the switcher.
+            // We do it here (in response to an explicit path change),
+            // NOT inside the NavigationLink destination — that closure
+            // is re-evaluated every time SwiftUI re-renders the body,
+            // which would re-add tabs the user just closed via the
+            // switcher.
+            if newPath.count > oldPath.count, let api = store.api {
+                for docId in newPath where !oldPath.contains(docId) {
+                    tabManager.markOpened(docId: docId, api: api)
+                }
+            }
             // When the user pops back to the home, drop any selection
             // SwiftUI's List might have carried over from the programmatic
             // push — otherwise the row that was just navigated to stays
@@ -185,6 +221,28 @@ struct NotesHomeView: View {
                 selectedIds.removeAll()
             }
         }
+        // Rename alert — native iOS style. `.tint(.primary)` is
+        // placed AFTER the `.alert` modifier so it wraps the alert
+        // (env modifiers in SwiftUI flow downward to attached
+        // overlays). Buttons read `.primary` instead of the
+        // TabView's accent.
+        .alert("Rename note", isPresented: Binding(
+            get: { renamingDoc != nil },
+            set: { if !$0 { renamingDoc = nil } }
+        )) {
+            TextField("Title", text: $renameDraft)
+            Button("Rename") {
+                if let doc = renamingDoc {
+                    let trimmed = renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty {
+                        store.renameDocument(id: doc.id, newTitle: trimmed)
+                    }
+                }
+                renamingDoc = nil
+            }
+            Button("Cancel", role: .cancel) { renamingDoc = nil }
+        }
+        .tint(.primary)
         // Belt-and-braces: clear any lingering selection every time
         // the home reappears (covers pops, tab switches, sheet
         // dismissals). The onChange above only fires when `path`
@@ -227,9 +285,29 @@ struct NotesHomeView: View {
     private func itemRow(_ item: WorkspaceItem, api: PinkhaApi) -> some View {
         switch item {
         case .note(let doc):
-            NavigationLink(destination: DocumentView(docId: doc.id, api: api,
+            NavigationLink(destination: DocumentView(vm: tabManager.open(docId: doc.id, api: api),
                                                      onDisappear: store.load)) {
                 WorkspaceRow(item: item)
+            }
+            // Apple Music-style long-press : the row floats as a
+            // detached card preview, with Rename / Delete options
+            // underneath. Tap on the row itself still navigates.
+            .contextMenu {
+                Button {
+                    renameDraft = doc.titlePlain
+                    renamingDoc = doc
+                } label: {
+                    Label("Rename", systemImage: "pencil")
+                }
+                .tint(.primary)
+                Button(role: .destructive) {
+                    store.delete(id: doc.id)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+                .tint(.red)
+            } preview: {
+                NoteCardPreview(doc: doc)
             }
         case .database(let db):
             NavigationLink(destination: DatabaseView(dbId: db.id, api: api,
@@ -239,194 +317,16 @@ struct NotesHomeView: View {
         }
     }
 
-    /// Returns a greeting adapted to the time of day.
-    private var greeting: String {
+    /// Returns a greeting adapted to the time of day. Returns
+    /// `LocalizedStringKey` (not `String`) so `.navigationTitle(_:)`
+    /// picks the localized overload — a raw `String` would render
+    /// verbatim and skip the catalog lookup.
+    private var greeting: LocalizedStringKey {
         let h = Calendar.current.component(.hour, from: .now)
         switch h {
         case 5..<12: return "Good morning."
         case 12..<18: return "Good afternoon."
         default:      return "Good evening."
         }
-    }
-}
-
-// ── Recent strip ──────────────────────────────────────────────────────────────
-
-/// Horizontal scroll strip displaying the most recently updated workspace items.
-struct RecentStrip: View {
-    let items: [WorkspaceItem]
-    let api: PinkhaApi?
-    let onDisappear: () -> Void
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 12) {
-                ForEach(items) { item in
-                    if let api {
-                        switch item {
-                        case .note(let doc):
-                            NavigationLink(destination: DocumentView(docId: doc.id, api: api,
-                                                                     onDisappear: onDisappear)) {
-                                RecentCard(item: item)
-                            }
-                            .buttonStyle(.plain)
-                        case .database(let db):
-                            NavigationLink(destination: DatabaseView(dbId: db.id, api: api,
-                                                                    onDisappear: onDisappear)) {
-                                RecentCard(item: item)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 4)
-        }
-    }
-}
-
-/// A card in the recent strip — Notion-style with a cover image
-/// (or fallback gradient) filling the top half, an icon overlapping the
-/// cover/content boundary, and the title plus relative date below.
-struct RecentCard: View {
-    let item: WorkspaceItem
-
-    private let cornerRadius: CGFloat = 16
-    private let coverHeight: CGFloat = 80
-    private let iconSize: CGFloat = 32
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            CoverImageView(cover: coverValue)
-                .frame(height: coverHeight)
-                .clipped()
-            // The bottom block hosts both the overlapping icon and the
-            // title/date stack. The icon is placed in an overlay so it
-            // can sit half on top of the cover and half on the white
-            // surface below — same trick Notion uses.
-            VStack(alignment: .leading, spacing: 3) {
-                Text(item.titlePlain.isEmpty ? "Untitled" : item.titlePlain)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                if let date = formattedDate(item.updatedAt) {
-                    Text(date)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                Spacer(minLength: 0)
-            }
-            // The padding top makes room for the icon that will overlap
-            // from above via the overlay below.
-            .padding(.top, iconSize / 2 + 6)
-            .padding(.horizontal, 12)
-            .padding(.bottom, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .overlay(alignment: .topLeading) {
-                itemIcon
-                    .frame(width: iconSize, height: iconSize)
-                    .padding(.leading, 10)
-                    .offset(y: -iconSize / 2)
-            }
-        }
-        .frame(width: 165, height: 170, alignment: .leading)
-        .background(.background.secondary)
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .strokeBorder(.separator.opacity(0.5), lineWidth: 0.5)
-        )
-        .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
-    }
-
-    private var coverValue: String? {
-        if case .note(let doc) = item { return doc.cover }
-        return nil
-    }
-
-    @ViewBuilder
-    private var itemIcon: some View {
-        switch item {
-        case .note(let doc):
-            if let icon = doc.icon, !icon.isEmpty {
-                Text(icon).font(.title2)
-            } else {
-                Image(systemName: "doc.text")
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .frame(width: iconSize, height: iconSize)
-                    .background(Color(.systemBackground), in: Circle())
-                    .overlay(Circle().strokeBorder(.separator.opacity(0.6), lineWidth: 0.5))
-            }
-        case .database:
-            Image(systemName: "tablecells")
-                .font(.body.weight(.medium))
-                .foregroundStyle(.secondary)
-                .frame(width: iconSize, height: iconSize)
-                .background(Color(.systemBackground), in: Circle())
-                .overlay(Circle().strokeBorder(.separator.opacity(0.6), lineWidth: 0.5))
-        }
-    }
-
-    private func formattedDate(_ iso: String) -> String? {
-        guard !iso.isEmpty else { return nil }
-        let parser = ISO8601DateFormatter()
-        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = parser.date(from: iso) else { return nil }
-        return date.formatted(.relative(presentation: .named, unitsStyle: .abbreviated))
-    }
-}
-
-/// A row in the unified workspace list.
-struct WorkspaceRow: View {
-    let item: WorkspaceItem
-
-    var body: some View {
-        HStack(spacing: 12) {
-            itemIcon
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.titlePlain.isEmpty ? "Untitled" : item.titlePlain)
-                    .font(.body.weight(.medium))
-                if let date = formattedDate(item.updatedAt) {
-                    Text(date).font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.vertical, 2)
-    }
-
-    @ViewBuilder
-    private var itemIcon: some View {
-        switch item {
-        case .note(let doc):
-            if let icon = doc.icon, !icon.isEmpty {
-                Text(icon).font(.title2).frame(width: 34, height: 34)
-            } else {
-                Image(systemName: "doc.text")
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 34, height: 34)
-                    .background(.secondary.opacity(0.12),
-                                 in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            }
-        case .database:
-            Image(systemName: "tablecells")
-                .font(.body.weight(.medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 34, height: 34)
-                .background(.secondary.opacity(0.12),
-                             in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        }
-    }
-
-    private func formattedDate(_ iso: String) -> String? {
-        guard !iso.isEmpty else { return nil }
-        let parser = ISO8601DateFormatter()
-        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = parser.date(from: iso) else { return nil }
-        return date.formatted(.relative(presentation: .named, unitsStyle: .wide))
     }
 }

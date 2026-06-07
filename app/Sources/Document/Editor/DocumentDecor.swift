@@ -140,6 +140,7 @@ struct DocumentDecorView: View {
         } label: {
             Label("All emojis", systemImage: "face.smiling")
         }
+        .tint(.primary)
         if !recentEmojis.isEmpty {
             Divider()
             ForEach(recentEmojis.prefix(8), id: \.self) { emoji in

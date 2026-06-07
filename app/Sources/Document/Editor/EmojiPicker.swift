@@ -26,6 +26,7 @@ struct EmojiPickerSheet: View {
     let recents: [String]
     let onSelect: (String) -> Void
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var settings: AppSettings
     @State private var input = ""
     @State private var inputOpen = false
 
@@ -71,6 +72,7 @@ struct EmojiPickerSheet: View {
                     } label: {
                         Image(systemName: "keyboard")
                     }
+                    .tint(.primary)
                     .accessibilityLabel("Enter an emoji")
                 }
             }
@@ -121,7 +123,7 @@ struct EmojiPickerSheet: View {
                         Text(emoji)
                             .font(.system(size: 30))
                             .frame(width: 44, height: 44)
-                            .background(selection == emoji ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.10))
+                            .background(selection == emoji ? settings.accentColor.opacity(0.18) : Color.secondary.opacity(0.10))
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                     .buttonStyle(.plain)

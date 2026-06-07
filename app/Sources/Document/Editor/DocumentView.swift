@@ -4,12 +4,17 @@ import SwiftUI
 
 /// Full-screen document editor: cover + icon, title, block list, FAB, undo/redo pill.
 struct DocumentView: View {
-    @StateObject var vm: DocumentViewModel
+    /// `@ObservedObject` (not `@StateObject`) because the VM is owned
+    /// by `TabManager` — DocumentView is recreated on every push but
+    /// the VM lives for as long as the tab is open, keeping its
+    /// blocks/undo/burst state alive across navigations à la Safari.
+    @ObservedObject var vm: DocumentViewModel
     /// Injected by `ContentView` so we can flip the global creation
     /// context to this document while it's on screen — `New …` from
     /// the bubble then creates child pages or embedded databases inside
     /// this doc, à la Notion.
-    @EnvironmentObject private var composer: Composer
+    @EnvironmentObject var composer: Composer
+    @EnvironmentObject var tabManager: TabManager
     /// Read-only here — drives the optional spotlight tint applied in
     /// `blockListRow`. The setting is owned at the app level so every
     /// document picks the same look without having to re-fetch it.
@@ -19,6 +24,8 @@ struct DocumentView: View {
     /// floating-button bottom padding so the visual gap to the
     /// accessory bar stays consistent in both modes.
     @Environment(\.tabViewBottomAccessoryPlacement) var accessoryPlacement
+    /// Pops the editor when the title-bubble menu confirms a delete.
+    @Environment(\.dismiss) var dismiss
     @State var showingBlockPicker = false
     @State var editMode: EditMode = .inactive
     @State var focusTitle = false
@@ -58,13 +65,16 @@ struct DocumentView: View {
     /// straight to the matched block instead of the top of the doc.
     let scrollToBlockId: String?
 
-    init(docId: String,
-         api: PinkhaApi,
+    /// Build a DocumentView around an existing VM (the typical path —
+    /// callers fetch the VM from `TabManager.open(docId:)` so the
+    /// tab keeps its in-memory state).
+    init(vm: DocumentViewModel,
          onDisappear: (() -> Void)? = nil,
          scrollToBlockId: String? = nil) {
+        let docId = vm.docId
         let lockKey = Self.lockKeyFor(docId: docId)
         let iconKey = Self.iconKeyFor(docId: docId)
-        _vm = StateObject(wrappedValue: DocumentViewModel(docId: docId, api: api))
+        self.vm = vm
         _documentIcon = State(initialValue: UserDefaults.standard.string(forKey: iconKey))
         _recentEmojis = State(initialValue: loadRecentEmojis())
         self.lockKey = lockKey
@@ -95,12 +105,6 @@ struct DocumentView: View {
         ScrollViewReader { proxy in
             ZStack(alignment: .bottomTrailing) {
                 documentList
-                    // Focus → wait for iOS keyboard avoidance to settle
-                    // (≈ 400 ms keyboard animation), then anchor the
-                    // focused block at the bottom of the visible area
-                    // (y = 1.0 — clamped if larger). Keeps the just-
-                    // tapped block close to the keyboard top so the
-                    // user sees max prior context above it.
                     .onChange(of: vm.activeBlockId) { _, newId in
                         guard let id = newId else { return }
                         Task { @MainActor in
@@ -112,10 +116,6 @@ struct DocumentView: View {
                     }
                     .task(id: scrollToBlockId) {
                         guard let target = scrollToBlockId else { return }
-                        // Defer past the first layout pass so the List
-                        // has measured its rows. Without the delay,
-                        // scrollTo silently no-ops on a freshly pushed
-                        // destination.
                         try? await Task.sleep(for: .milliseconds(350))
                         withAnimation(.easeOut(duration: 0.25)) {
                             proxy.scrollTo(target, anchor: .center)
@@ -214,6 +214,13 @@ struct DocumentView: View {
         // used to make symbols white-on-white over light cover images.
         .toolbarBackground(.automatic, for: .navigationBar)
         .toolbar { documentToolbar }
+        // Capture a screenshot when the user navigates away — fuels
+        // the tab switcher's Safari-style "live thumbnail at last
+        // scroll position" preview. Lives in the body (invisible,
+        // 0-sized) so its hosting VC's `viewWillDisappear` fires
+        // exactly when the editor is still on screen for the final
+        // frame.
+        .background(DocumentSnapshotHook(docId: vm.docId).frame(width: 0, height: 0))
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             withAnimation(.easeInOut(duration: 0.2)) { keyboardVisible = true }
         }
@@ -223,6 +230,11 @@ struct DocumentView: View {
         .onAppear {
             vm.load()
             composer.currentContext = .document(id: vm.docId)
+            // Mark this doc as an open tab in the switcher. Done here
+            // (in `onAppear`) rather than at NavigationLink build time
+            // so SwiftUI body re-renders don't keep re-adding tabs the
+            // user just closed via the Safari-style switcher.
+            tabManager.markOpened(docId: vm.docId, api: vm.api)
             // One-shot migration: documents created before the icon moved
             // to the Rust domain stored their emoji in UserDefaults. Carry
             // it over to the freshly-loaded document, then clear the legacy
@@ -272,7 +284,7 @@ struct DocumentView: View {
         // The destination view runs through `onAppear { vm.load() }`, so the
         // target document loads from SQLite without any extra plumbing.
         .navigationDestination(item: $pushedDocId) { docId in
-            DocumentView(docId: docId, api: vm.api, onDisappear: nil)
+            DocumentView(vm: tabManager.open(docId: docId, api: vm.api), onDisappear: nil)
         }
     }
 
@@ -284,7 +296,7 @@ struct DocumentView: View {
         } label: {
             Image(systemName: selectedBlocks.contains(id) ? "checkmark.circle.fill" : "circle")
                 .font(.title3)
-                .foregroundStyle(selectedBlocks.contains(id) ? Color("SelectionTint") : .secondary)
+                .foregroundStyle(selectedBlocks.contains(id) ? settings.accentColor : .secondary)
                 .frame(width: 28, height: 44)
                 .contentShape(Rectangle())
         }

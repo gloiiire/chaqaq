@@ -3,14 +3,21 @@ import SwiftUI
 // ── Shared components ─────────────────────────────────────────────────────────
 
 /// Section header in uppercase with semi-bold caption style.
+///
+/// `title` is a `LocalizedStringKey` so the string is resolved via
+/// `Localizable.xcstrings` (instead of `String`, which SwiftUI treats
+/// as a literal and never localizes). The visual uppercase comes from
+/// `.textCase(.uppercase)` — applying `.uppercased()` to the raw String
+/// would bypass the catalog lookup.
 struct SectionHeader: View {
-    let title: String
+    let title: LocalizedStringKey
 
     var body: some View {
-        Text(title.uppercased())
+        Text(title)
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
             .kerning(0.5)
+            .textCase(.uppercase)
     }
 }
 
@@ -44,65 +51,20 @@ struct NotesEmptyState: View {
     }
 }
 
-/// Floating button shared between the home screen (square.and.pencil) and the editor (pencil.and.outline).
-/// Glass effect + pulse animation + haptic feedback.
-struct FloatingButton: View {
-    let icon: String
-    let action: () -> Void
-    @State private var pulse = false
-
-    var body: some View {
-        Button {
-            withAnimation(.spring(response: 0.24, dampingFraction: 0.58)) { pulse = true }
-            action()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
-                withAnimation(.easeOut(duration: 0.18)) { pulse = false }
-            }
-        } label: {
-            ZStack {
-                if pulse {
-                    Circle()
-                        .fill(Color("SelectionTint").opacity(0.18))
-                        .frame(width: 54, height: 54)
-                        .transition(.scale.combined(with: .opacity))
-                }
-                Image(systemName: icon)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 44, height: 44)
-                    .symbolEffect(.bounce, value: pulse)
-            }
-            .frame(width: 54, height: 54)
-            .contentShape(Circle())
-        }
-        .buttonStyle(FloatingButtonStyle())
-        .sensoryFeedback(.impact(flexibility: .soft), trigger: pulse)
-    }
-}
-
-/// Custom `ButtonStyle` for `FloatingButton`: glass effect, press zoom, colored shadow.
-private struct FloatingButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .glassEffect(.regular.interactive(), in: .circle)
-            .scaleEffect(configuration.isPressed ? 0.84 : 1)
-            .rotationEffect(.degrees(configuration.isPressed ? -6 : 0))
-            .shadow(color: Color("SelectionTint").opacity(configuration.isPressed ? 0.34 : 0.18),
-                    radius: configuration.isPressed ? 20 : 12,
-                    y: configuration.isPressed ? 8 : 6)
-            .animation(.spring(response: 0.22, dampingFraction: 0.62), value: configuration.isPressed)
-    }
-}
-
-
 /// Sheet for creating a new note or database. Accepts a title and calls `onCreate` or `onCancel`.
+///
+/// `prompt` and `navigationTitle` are `LocalizedStringKey` (not `String`)
+/// so the catalog resolves them — `TextField(_ titleKey:)` and
+/// `navigationTitle(_:)` both pick the localized overload only when the
+/// argument type is a key. With raw `String` SwiftUI displays the
+/// English source verbatim.
 struct CreateDocumentSheet: View {
     @Binding var title: String
-    var prompt: String = "Document title"
+    var prompt: LocalizedStringKey = "Document title"
     /// Navigation title — defaults to "New" but each call site sets a
     /// more descriptive label (e.g. "New Document", "New Database") so the
     /// user knows what they're creating before they type.
-    var navigationTitle: String = "New"
+    var navigationTitle: LocalizedStringKey = "New"
     let onCreate: () -> Void
     let onCancel: () -> Void
     @FocusState private var focused: Bool

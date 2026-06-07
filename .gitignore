@@ -1,4 +1,5 @@
 /target
+/target.nosync
 .DS_Store
 .claude/
 

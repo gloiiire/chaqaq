@@ -27,6 +27,10 @@ struct CreateBubble: View {
     var onImportBear: () -> Void = {}
     var onImportCraftTextBundle: () -> Void = {}
     var onImportCraftCombined: () -> Void = {}
+    /// Opens the Safari-tab-style "All documents" switcher. Lives in
+    /// the overflow menu next to Trash / Imports — it's a navigation
+    /// affordance, not a creation one.
+    var onShowAllDocs: () -> Void = {}
 
     /// Tracks whether the accessory is rendered next to the minimised tab
     /// bar (`.inline`) or detached above it (`.expanded`). Set automatically
@@ -69,7 +73,7 @@ struct CreateBubble: View {
     }
 
     private func icon(systemImage: String,
-                      label: String,
+                      label: LocalizedStringKey,
                       font: Font = .title3,
                       labelSpacing: CGFloat = 2,
                       action: @escaping () -> Void) -> some View {
@@ -87,7 +91,7 @@ struct CreateBubble: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(label)
+        .accessibilityLabel(Text(label))
     }
 
     /// Overflow menu — consolidates the secondary actions (trash, imports,
@@ -136,6 +140,13 @@ struct CreateBubble: View {
                 }
             } label: {
                 Label("Import from…", systemImage: "square.and.arrow.down")
+            }
+            Divider()
+            // Source-order inversion : putting "All documents" LAST in
+            // the source list lands it FIRST visually because iOS
+            // bottom-anchored menus stack from the trigger upwards.
+            Button { onShowAllDocs() } label: {
+                Label("All documents", systemImage: "square.stack")
             }
         } label: {
             VStack(spacing: 4) {

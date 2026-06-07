@@ -65,7 +65,9 @@ private struct DatabaseRow: View {
                 .background(.secondary.opacity(0.12),
                              in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             VStack(alignment: .leading, spacing: 4) {
-                Text(db.titlePlain.isEmpty ? "Untitled" : db.titlePlain)
+                Group {
+                    if db.titlePlain.isEmpty { Text("Untitled") } else { Text(db.titlePlain) }
+                }
                     .font(.body.weight(.medium))
                 if let date = formattedDate(db.updatedAt) {
                     Text(date).font(.caption).foregroundStyle(.secondary)

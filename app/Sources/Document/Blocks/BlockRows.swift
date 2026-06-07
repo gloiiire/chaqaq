@@ -204,15 +204,17 @@ struct BlockRowView: View {
                             blockContent(for: type, preserving: block.spans)
                         )
                     } label: {
-                        Label(type.rawValue, systemImage: type.icone)
+                        Label(type.displayName, systemImage: type.icone)
                     }
                 }
             } label: {
                 Label("Change to", systemImage: "arrow.triangle.2.circlepath")
             }
+            .tint(.primary)
             Button(role: .destructive, action: cb.onDelete) {
                 Label("Delete block", systemImage: "trash")
             }
+            .tint(.red)
         }
     }
 }
@@ -227,7 +229,7 @@ private struct TextRowView: View {
 
     var body: some View {
         BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                       placeholder: "Text…", baseFont: .preferredFont(forTextStyle: .body), cb: cb)
+                       placeholder: String(localized: "Text…"), baseFont: .preferredFont(forTextStyle: .body), cb: cb)
     }
 }
 
@@ -383,7 +385,10 @@ struct ChildPageRowView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Text(resolved?.title.isEmpty == false ? resolved!.title : "Untitled")
+            Group {
+                if let r = resolved, !r.title.isEmpty { Text(r.title) }
+                else { Text("Untitled") }
+            }
                 .font(.body.weight(.medium))
                 .foregroundStyle(.primary)
                 .lineLimit(1)

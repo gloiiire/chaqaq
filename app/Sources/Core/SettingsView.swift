@@ -6,10 +6,21 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
     @Environment(\.dismiss) private var dismiss
+    @State private var showingResetConfirm = false
 
     var body: some View {
         NavigationStack {
-            Form {
+            ZStack(alignment: .bottomTrailing) {
+                form
+                resetFloatingButton
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 20)
+            }
+        }
+    }
+
+    private var form: some View {
+        Form {
                 Section {
                     accentColorPicker
                 } header: {
@@ -19,7 +30,37 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Stepper(
+                        value: $settings.recentCount,
+                        in: 5...20,
+                        step: 1
+                    ) {
+                        HStack {
+                            Text("Recent strip count")
+                            Spacer()
+                            Text("\(settings.recentCount)")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
+                } header: {
+                    Text("Recents")
+                } footer: {
+                    Text("How many notes appear in the horizontal strip at the top of the Notes home. Bounded between 5 and 20.")
+                }
+
+                Section {
+                    Toggle("Cursor follows accent", isOn: $settings.cursorFollowsAccent)
+                        .tint(settings.accentColor)
+                } header: {
+                    Text("Text input")
+                } footer: {
+                    Text("On (default): the caret and selection use your accent color. Off: white, Notion-style.")
+                }
+
+                Section {
                     Toggle("Tint focused block", isOn: $settings.spotlightTinted)
+                        .tint(settings.accentColor)
                 } header: {
                     Text("Search spotlight")
                 } footer: {
@@ -34,7 +75,36 @@ struct SettingsView: View {
                         .tint(.primary)
                 }
             }
+            .confirmationDialog(
+                "Reset all settings to defaults?",
+                isPresented: $showingResetConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Reset", role: .destructive) {
+                    settings.resetToDefaults()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Accent color, recent strip count and the spotlight tint will go back to their factory values.")
+            }
+    }
+
+    /// Floating glass capsule pinned to the bottom-left of the
+    /// settings sheet. Triggers a confirmation dialog before wiping
+    /// the user's preferences back to their factory defaults.
+    private var resetFloatingButton: some View {
+        Button {
+            showingResetConfirm = true
+        } label: {
+            Label("Reset", systemImage: "arrow.counterclockwise")
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
         }
+        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
+        .glassEffect(.regular.interactive(), in: Capsule(style: .continuous))
+        .accessibilityLabel("Reset settings to defaults")
     }
 
     /// Compact swatch row — one tappable circle per accent option.

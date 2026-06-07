@@ -51,7 +51,11 @@ struct DatabaseView: View {
                 table
             }
         }
-        .navigationTitle(vm.titlePlain.isEmpty ? "Database" : vm.titlePlain)
+        // `navigationTitle(_:)` has a `LocalizedStringKey` overload only
+        // when the argument is a key literal; a `String` ternary defaults
+        // to the verbatim overload. Pass `Text(_:)` so the empty branch
+        // hits the localized init. See [[localizedstringkey-trap]].
+        .navigationTitle(vm.titlePlain.isEmpty ? Text("Database") : Text(vm.titlePlain))
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -188,6 +192,7 @@ struct DatabaseView: View {
 private struct PropertyHeaderCell: View {
     enum SortDirection { case ascending, descending }
 
+    @EnvironmentObject private var settings: AppSettings
     let name: String
     let icon: String
     let width: CGFloat
@@ -220,7 +225,7 @@ private struct PropertyHeaderCell: View {
                           ? "arrow.up"
                           : "arrow.down")
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(settings.accentColor)
                 }
             }
             .padding(.horizontal, 10)
@@ -312,6 +317,7 @@ private struct TitleCell: View {
     let api: PinkhaApi
     let width: CGFloat
     let onDisappear: () -> Void
+    @EnvironmentObject private var tabManager: TabManager
 
     @State private var draft = ""
     @FocusState private var focused: Bool
@@ -335,8 +341,7 @@ private struct TitleCell: View {
 
             if let docId {
                 NavigationLink(destination: DocumentView(
-                    docId: docId,
-                    api: api,
+                    vm: tabManager.open(docId: docId, api: api),
                     onDisappear: onDisappear
                 )) {
                     Image(systemName: "arrow.up.right.square")
