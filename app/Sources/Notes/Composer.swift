@@ -14,6 +14,10 @@ final class Composer: ObservableObject {
     @Published var showingNewFolder = false
     /// Whether the trash sheet is on screen.
     @Published var showingTrash = false
+    /// Whether the Safari-tab-style "All documents" full-screen
+    /// switcher is on screen — opened from the overflow menu in the
+    /// bottom accessory.
+    @Published var showingAllDocs = false
     /// Whether the Notion import sheet is on screen.
     @Published var showingNotionImport = false
     /// Whether the Bear import sheet is on screen.
@@ -75,6 +79,37 @@ final class Composer: ObservableObject {
         createMode = .note
         newTitle = ""
         showingCreateDoc = true
+    }
+
+    /// Wires Home Screen Quick Actions (long-press the app icon) into
+    /// the composer. Call once on app start — covers both the cold
+    /// launch path (a shortcut tap that woke the app from suspended,
+    /// captured by `AppDelegate.pendingShortcutType`) and the warm
+    /// launch path (Scene-delegate notification while the app is
+    /// already in memory).
+    func bindQuickActions() {
+        // Drain any shortcut captured during cold launch.
+        if let type = AppDelegate.pendingShortcutType {
+            AppDelegate.pendingShortcutType = nil
+            handle(shortcutType: type)
+        }
+        NotificationCenter.default.addObserver(
+            forName: .pinkhaQuickAction,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let type = note.userInfo?["type"] as? String else { return }
+            Task { @MainActor in self?.handle(shortcutType: type) }
+        }
+    }
+
+    private func handle(shortcutType type: String) {
+        switch type {
+        case "com.gloiiire.pinkha.new-note":
+            openNewNote()
+        default:
+            break
+        }
     }
 
     func openNewDatabase() {

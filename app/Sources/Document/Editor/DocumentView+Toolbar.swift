@@ -7,15 +7,34 @@ extension DocumentView {
     @ToolbarContentBuilder
     var documentToolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            // Wraps the scrolled-down title in a tappable Liquid Glass
-            // capsule. The Button gives iOS's standard press-down
-            // animation; the action is a placeholder for now (room for
-            // a future title-edit affordance or jump-to-top).
+            // Tap = Safari-style "dezoom" sheet of recently opened
+            // documents — primary affordance, what a user expects
+            // when tapping a title bar.
+            // Long-press = `.contextMenu` with the per-doc actions
+            // (Rename / Lock / Share / Delete). We pick this trigger
+            // over a pull-down `Menu` because SwiftUI's `Menu` lands
+            // on UIKit's `UIMenu`, which renders items in
+            // `.secondaryLabel` (dim grey) until highlighted —
+            // `.foregroundStyle` overrides don't bite. `.contextMenu`
+            // renders items at full `.label` brightness by default,
+            // matching the long-press menu on a row in Apple Notes.
             Button {
-                // Placeholder — kept tappable so the bubble feels live
-                // even before its real behaviour ships.
+                // Placeholder — keeps the bubble visually tappable
+                // with the standard press animation while the
+                // long-press / switcher feature isn't wired up.
             } label: {
-                Text(vm.title.isEmpty ? "Untitled" : vm.title)
+                // Split the ternary so the empty-title branch keeps a
+                // literal `Text("Untitled")` — SwiftUI auto-localizes
+                // it via `Localizable.xcstrings`. A `Text(String)`
+                // ternary would resolve to `String` and render
+                // verbatim. See [[localizedstringkey-trap]].
+                Group {
+                    if vm.title.isEmpty {
+                        Text("Untitled")
+                    } else {
+                        Text(vm.title)
+                    }
+                }
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
                     .foregroundStyle(.primary)
@@ -28,10 +47,6 @@ extension DocumentView {
             }
             .buttonStyle(.plain)
             .contentShape(Capsule(style: .continuous))
-            // `.interactive()` makes the glass squish and bounce on
-            // press, matching the iOS 26 toolbar buttons right next
-            // to it (lock, edit). Without it the bubble is visually
-            // glass but feels dead when tapped.
             .glassEffect(.regular.interactive(), in: Capsule(style: .continuous))
             .opacity(titleInNavBar ? 1 : 0)
             .offset(y: titleInNavBar ? 0 : 8)
