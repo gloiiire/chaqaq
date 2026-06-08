@@ -4,6 +4,18 @@ import SwiftUI
 
 extension DocumentView {
 
+    /// Resolves the accent the editor should paint with. A per-doc
+    /// `accentColor` overrides the app-wide setting; `nil` (the default
+    /// for any pre-existing doc) inherits from `AppSettings`. Computed
+    /// fresh on every body re-eval so flipping the per-doc choice
+    /// repaints the toolbar / chrome immediately.
+    var effectiveAccentColor: Color {
+        if let name = vm.accentColor {
+            return Color(uiColor: uiColorFromName(name))
+        }
+        return settings.accentColor
+    }
+
     @ToolbarContentBuilder
     var documentToolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
@@ -47,7 +59,7 @@ extension DocumentView {
             // Only the locked state earns the accent — the unlocked
             // open-lock keeps the neutral material color so the rest
             // of the toolbar reads as quiet chrome.
-            .tint(vm.locked ? settings.accentColor : .primary)
+            .tint(vm.locked ? effectiveAccentColor : .primary)
             .accessibilityLabel(vm.locked ? "Unlock document" : "Lock document")
         }
         ToolbarItem(placement: .primaryAction) {
@@ -63,6 +75,53 @@ extension DocumentView {
             // propagates through the env.
             .tint(.primary)
             .disabled(vm.locked)
+        }
+        // "…" overflow menu — declared LAST so it lands at the far
+        // right edge of the toolbar (SwiftUI orders trailing
+        // primaryAction items left → right in source order). Collects
+        // per-doc settings; first occupant is the accent color picker.
+        ToolbarItem(placement: .primaryAction) {
+            Menu {
+                Menu {
+                    Button {
+                        vm.saveAccentColor(nil)
+                    } label: {
+                        Label {
+                            Text("Use default")
+                        } icon: {
+                            Image(systemName: "circle.dashed")
+                        }
+                    }
+                    ForEach(BlockColorOption.palette) { option in
+                        Button {
+                            vm.saveAccentColor(option.name)
+                        } label: {
+                            Label {
+                                Text(option.displayName)
+                            } icon: {
+                                Image(uiImage: option.swatchImage)
+                            }
+                        }
+                    }
+                } label: {
+                    Label {
+                        Text("Accent color")
+                    } icon: {
+                        // Filled paintbrush in the overflow menu when
+                        // an explicit accent is set; outline otherwise.
+                        Image(systemName: vm.accentColor == nil
+                              ? "paintbrush"
+                              : "paintbrush.fill")
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+            }
+            // Neutral chrome by default — the per-doc accent only
+            // shows up inside the menu's swatches, the trigger itself
+            // stays quiet.
+            .tint(.primary)
+            .accessibilityLabel("Document options")
         }
     }
 

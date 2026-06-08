@@ -598,6 +598,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_set_view_sort(uint64_t ptr, RustBuffer db
 void uniffi_pinkha_fn_method_pinkhaapi_update_block(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustBuffer content_json, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_ACCENT_COLOR
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_ACCENT_COLOR
+void uniffi_pinkha_fn_method_pinkhaapi_update_document_accent_color(uint64_t ptr, RustBuffer id, RustBuffer accent_color, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_COVER
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_COVER
 void uniffi_pinkha_fn_method_pinkhaapi_update_document_cover(uint64_t ptr, RustBuffer id, RustBuffer cover, RustCallStatus *_Nonnull out_status
@@ -1303,6 +1308,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_view_sort(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_BLOCK
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_BLOCK
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_block(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_ACCENT_COLOR
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_ACCENT_COLOR
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_accent_color(void
     
 );
 #endif

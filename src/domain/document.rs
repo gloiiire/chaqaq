@@ -183,6 +183,16 @@ pub struct Document {
     /// row's `created_at` is immutable).
     #[serde(default)]
     pub created_at: Option<String>,
+    /// Per-document accent color name (e.g. `"red"`, `"teal"`). When
+    /// `Some`, the editor renders its chrome (toolbar, FAB, cursor,
+    /// selection lozenge, etc.) in this color instead of the
+    /// app-wide accent from settings. `None` means the document
+    /// inherits the global accent. Same naming scheme as
+    /// [`Block::color`] — the rendering layer maps the name to a
+    /// concrete `UIColor` / `Color`. `#[serde(default)]` keeps
+    /// backward compatibility with pre-feature documents.
+    #[serde(default)]
+    pub accent_color: Option<String>,
 }
 
 impl Document {
@@ -198,6 +208,7 @@ impl Document {
             parent_doc_id: None,
             locked: false,
             created_at: None,
+            accent_color: None,
         }
     }
 

@@ -103,13 +103,14 @@ struct TodoRowView: View {
             } label: {
                 Image(systemName: block.done ? "checkmark.square.fill" : "square")
                     .font(.body)
-                    // Use the user's chosen accent directly —
-                    // `Color.accentColor` would read the asset
-                    // catalog (`Accent.colorset` = orange) and
-                    // `.foregroundStyle(.tint)` was failing to
-                    // propagate through here, both fell back to
-                    // orange.
-                    .foregroundStyle(block.done ? settings.accentColor : Color.secondary)
+                    // Use the BlockCallbacks-supplied accent so a
+                    // per-doc override (DocumentView.effectiveAccentColor)
+                    // wins over `settings.accentColor`. The callback's
+                    // default is `Color.accentColor` for non-doc
+                    // previews. `.foregroundStyle(.tint)` was failing
+                    // to propagate through here in earlier tests, so
+                    // we plumb an explicit value instead.
+                    .foregroundStyle(block.done ? cb.accentColor : Color.secondary)
             }
             .buttonStyle(.plain)
             .padding(.top, 8)

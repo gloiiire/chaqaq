@@ -56,6 +56,25 @@ extension DocumentViewModel {
         } catch { errorMessage = error.localizedDescription }
     }
 
+    /// Sets (or clears with `nil`) the per-document accent color and
+    /// persists. Mutates the published value first so SwiftUI repaints
+    /// the chrome immediately, then registers the inverse on the undo
+    /// manager so cmd-Z restores the previous choice.
+    func saveAccentColor(_ newColor: String?) {
+        guard accentColor != newColor else { return }
+        let previous = accentColor
+        accentColor = newColor
+        do {
+            try api.updateDocumentAccentColor(id: docId, accentColor: newColor)
+            undoMgr.registerUndo(withTarget: self) { vm in
+                vm.saveAccentColor(previous)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            accentColor = previous
+        }
+    }
+
     /// Toggles the read-only lock and persists. Source of truth for the lock
     /// flag — replaces the legacy per-doc UserDefaults entry. The toolbar
     /// reads `vm.locked` for the icon and calls this on tap; imports default

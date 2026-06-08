@@ -825,6 +825,13 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      */
     func updateBlock(docId: String, blockId: String, contentJson: String) throws 
     
+    /**
+     * Pose ou retire l'accent color du document (override par-doc de
+     * l'accent global). Nom de couleur ("red", "teal"...) ou null
+     * pour repartir sur l'accent des Settings.
+     */
+    func updateDocumentAccentColor(id: String, accentColor: String?) throws 
+    
     func updateDocumentCover(id: String, cover: String?) throws 
     
     /**
@@ -1749,6 +1756,20 @@ open func updateBlock(docId: String, blockId: String, contentJson: String)throws
         FfiConverterString.lower(docId),
         FfiConverterString.lower(blockId),
         FfiConverterString.lower(contentJson),$0
+    )
+}
+}
+    
+    /**
+     * Pose ou retire l'accent color du document (override par-doc de
+     * l'accent global). Nom de couleur ("red", "teal"...) ou null
+     * pour repartir sur l'accent des Settings.
+     */
+open func updateDocumentAccentColor(id: String, accentColor: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_document_accent_color(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(accentColor),$0
     )
 }
 }
@@ -2878,6 +2899,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_block() != 49420) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_accent_color() != 46266) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_cover() != 31520) {

@@ -95,6 +95,21 @@ pub fn update_document_icon(
     repo.save(&doc)
 }
 
+/// Sets (or clears with `None`) the per-document accent color name
+/// and persists. When `Some`, the editor renders its chrome with this
+/// color instead of the app-wide accent from settings; `None` falls
+/// back to the global accent.
+pub fn update_document_accent_color(
+    uow: &dyn UnitOfWork,
+    doc_id: Uuid,
+    accent_color: Option<String>,
+) -> Result<(), PinkhaError> {
+    let repo = uow.documents();
+    let mut doc = repo.load(doc_id)?;
+    doc.accent_color = accent_color;
+    repo.save(&doc)
+}
+
 /// Toggles the read-only lock on a document and persists. Imports default
 /// new documents to `locked = true` so the user reads the extracted content
 /// before editing it.

@@ -79,7 +79,7 @@ extension DocumentView {
         // it in Settings — default is blur-only.
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(settings.accentColor.opacity(showTint ? 0.10 : 0))
+                .fill(effectiveAccentColor.opacity(showTint ? 0.10 : 0))
                 .padding(.horizontal, -8)
         )
         .blur(radius: isDimmed ? 3 : 0)
@@ -204,6 +204,7 @@ extension DocumentView {
             onOutdent: { vm.outdentBlock(id: block.id) },
             onSetBlockColor: { color in vm.setBlockColor(id: block.id, color: color) },
             onDuplicate: { vm.duplicateBlock(id: block.id) },
+            accentColor: effectiveAccentColor,
             onOpenInternalDoc: { docId in pushedDocId = docId },
             resolveChildPage: { childId in
                 // The child-page row needs a title + optional icon. We load

@@ -223,6 +223,12 @@ struct DocumentView: View {
         // used to make symbols white-on-white over light cover images.
         .toolbarBackground(.automatic, for: .navigationBar)
         .toolbar { documentToolbar }
+        // Per-doc accent overrides the global setting for the whole
+        // editor — toolbar buttons, swipe action buttons, the cursor
+        // (UIKit reads the env tint), etc. all repaint when
+        // `vm.accentColor` changes. Explicit `effectiveAccentColor`
+        // call so `nil` falls back to `settings.accentColor`.
+        .tint(effectiveAccentColor)
         // Capture a screenshot when the user navigates away — fuels
         // the tab switcher's Safari-style "live thumbnail at last
         // scroll position" preview. Lives in the body (invisible,
@@ -349,7 +355,7 @@ struct DocumentView: View {
         } label: {
             Image(systemName: selectedBlocks.contains(id) ? "checkmark.circle.fill" : "circle")
                 .font(.title3)
-                .foregroundStyle(selectedBlocks.contains(id) ? settings.accentColor : .secondary)
+                .foregroundStyle(selectedBlocks.contains(id) ? effectiveAccentColor : .secondary)
                 .frame(width: 28, height: 44)
                 .contentShape(Rectangle())
         }

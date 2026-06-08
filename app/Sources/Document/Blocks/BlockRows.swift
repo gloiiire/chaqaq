@@ -70,6 +70,12 @@ struct BlockCallbacks {
     /// inserts the copy right after the original. The VM focuses the
     /// new block once the reload settles.
     var onDuplicate: (() -> Void)? = nil
+    /// Accent color the row should paint its accented affordances with
+    /// (todo checkmark, etc.). Resolved at the DocumentView level so a
+    /// per-doc accent overrides the global setting; the default falls
+    /// back to the SwiftUI env tint when no DocumentView is in the
+    /// chain (preview / other contexts).
+    var accentColor: Color = .accentColor
     /// Called when an inline `pinkha://doc/{uuid}` link is tapped — the
     /// parent navigates to that document. Set by `DocumentView` and read by
     /// `RichTextEditor`.
@@ -300,7 +306,7 @@ struct BlockRowView: View {
 // surfaces the same palette to SwiftUI as a stable, identifiable list
 // the menu can iterate over.
 
-private struct BlockColorOption: Identifiable {
+struct BlockColorOption: Identifiable {
     let id: String
     let name: String
     let displayName: LocalizedStringKey
