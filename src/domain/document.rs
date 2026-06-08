@@ -1,6 +1,19 @@
 pub use chaqaq::{InlineStyle, InlineText};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use uuid::Uuid;
+
+/// Maps a JSON `null` or missing field to `String::default()` (empty),
+/// otherwise expects a normal string. Used by `DocumentMeta`'s
+/// timestamp fields so JSON files written by [`crate::domain::document::Document`]
+/// — whose timestamps are `Option<String>` and serialise to `null` when
+/// `None` — can still be re-read into the non-optional `String` typed
+/// meta view without serde rejecting the row.
+fn deserialize_string_or_null<'de, D>(d: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(Option::<String>::deserialize(d)?.unwrap_or_default())
+}
 
 /// Content variant of a block — determines how it is rendered and edited.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,11 +119,16 @@ pub struct DocumentMeta {
     pub title: Vec<InlineText>,
     /// ISO 8601 timestamp of the last modification, managed by the infrastructure layer.
     /// Empty when the backend does not provide it (JsonStore, mock).
-    #[serde(default)]
+    /// `deserialize_with` tolerates an explicit `null` from a JSON
+    /// document whose Document-side timestamp is `None` — without it,
+    /// `JsonStore.list()` silently drops every doc that was natively
+    /// created in-app (those serialise `created_at: null`).
+    #[serde(default, deserialize_with = "deserialize_string_or_null")]
     pub updated_at: String,
     /// ISO 8601 creation timestamp, set at INSERT and never modified.
     /// Empty when the backend does not provide it (JsonStore, mock).
-    #[serde(default)]
+    /// Same `null → ""` tolerance as `updated_at` above.
+    #[serde(default, deserialize_with = "deserialize_string_or_null")]
     pub created_at: String,
     /// Folder this document belongs to. None = root level.
     #[serde(default)]
