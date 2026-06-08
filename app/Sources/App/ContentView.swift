@@ -36,6 +36,7 @@ struct ContentView: View {
         // through every NavigationLink call site.
         .environmentObject(composer)
         .environmentObject(tabManager)
+        .environmentObject(store)
         // Swipe-up from the tab bar opens the "Tous les documents"
         // switcher (Safari pattern : the bottom toolbar zone is the
         // canonical entry into the tab grid). `simultaneousGesture`

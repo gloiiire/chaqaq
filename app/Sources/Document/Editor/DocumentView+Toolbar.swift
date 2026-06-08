@@ -7,50 +7,15 @@ extension DocumentView {
     @ToolbarContentBuilder
     var documentToolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            // Tap = Safari-style "dezoom" sheet of recently opened
-            // documents — primary affordance, what a user expects
-            // when tapping a title bar.
-            // Long-press = `.contextMenu` with the per-doc actions
-            // (Rename / Lock / Share / Delete). We pick this trigger
-            // over a pull-down `Menu` because SwiftUI's `Menu` lands
-            // on UIKit's `UIMenu`, which renders items in
-            // `.secondaryLabel` (dim grey) until highlighted —
-            // `.foregroundStyle` overrides don't bite. `.contextMenu`
-            // renders items at full `.label` brightness by default,
-            // matching the long-press menu on a row in Apple Notes.
-            Button {
-                // Placeholder — keeps the bubble visually tappable
-                // with the standard press animation while the
-                // long-press / switcher feature isn't wired up.
-            } label: {
-                // Split the ternary so the empty-title branch keeps a
-                // literal `Text("Untitled")` — SwiftUI auto-localizes
-                // it via `Localizable.xcstrings`. A `Text(String)`
-                // ternary would resolve to `String` and render
-                // verbatim. See [[localizedstringkey-trap]].
-                Group {
-                    if vm.title.isEmpty {
-                        Text("Untitled")
-                    } else {
-                        Text(vm.title)
-                    }
-                }
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 16)
-                    // Matches the ~36-pt diameter of the iOS 26
-                    // toolbar icon buttons next to it (lock, edit)
-                    // so the bubble doesn't read smaller than its
-                    // neighbours.
-                    .frame(minHeight: 36)
-            }
-            .buttonStyle(.plain)
-            .contentShape(Capsule(style: .continuous))
-            .glassEffect(.regular.interactive(), in: Capsule(style: .continuous))
-            .opacity(titleInNavBar ? 1 : 0)
-            .offset(y: titleInNavBar ? 0 : 8)
-            .animation(.easeOut(duration: 0.2), value: titleInNavBar)
+            // The principal slot fades in once the user scrolls past
+            // the inline title (~60 pt). Shows the current doc title
+            // alone for root pages, OR a Notion-style breadcrumb
+            // (Parent › Child › This) for nested sub-pages — tap on
+            // any segment dismisses back to that ancestor.
+            titleBubble
+                .opacity(titleInNavBar ? 1 : 0)
+                .offset(y: titleInNavBar ? 0 : 8)
+                .animation(.easeOut(duration: 0.2), value: titleInNavBar)
         }
         if editMode == .active && !selectedBlocks.isEmpty && !vm.locked {
             ToolbarItem(placement: .primaryAction) {
@@ -98,6 +63,113 @@ extension DocumentView {
             // propagates through the env.
             .tint(.primary)
             .disabled(vm.locked)
+        }
+    }
+
+    /// Whether `vm.docId` is somewhere below `targetId` in the
+    /// `parentDocId` tree (used by the popToDoc handler to defensively
+    /// clear pushedDocId on every doc between the target and current).
+    /// No depth cap — `seen` is the cycle guard, so legitimate trees
+    /// can nest arbitrarily deep. Walk stops only on a cycle or root.
+    func isDescendant(of targetId: String) -> Bool {
+        var currentId = vm.docId
+        var seen: Set<String> = [currentId]
+        while let meta = docMetaById[currentId],
+              let parentId = meta.parentDocId,
+              !seen.contains(parentId) {
+            if parentId == targetId { return true }
+            seen.insert(parentId)
+            currentId = parentId
+        }
+        return false
+    }
+
+    /// Walks up the `parentDocId` chain via `store.documents` to build
+    /// the breadcrumb. Root → … → this doc. Returns `[self]` for root
+    /// pages (single segment, rendered as a plain title bubble).
+    private var breadcrumbPath: [DocumentMetaFfi] {
+        // `docMetaById` is loaded on appear from `listDocuments()`
+        // (includes sub-pages, unlike `store.documents` which is
+        // root-only). Until it's populated, no breadcrumb is shown.
+        guard var node = docMetaById[vm.docId] else { return [] }
+        var path: [DocumentMetaFfi] = [node]
+        var seen: Set<String> = [node.id]
+        while let parentId = node.parentDocId,
+              let parent = docMetaById[parentId],
+              !seen.contains(parent.id) {
+            path.insert(parent, at: 0)
+            seen.insert(parent.id)
+            node = parent
+        }
+        return path
+    }
+
+    @ViewBuilder
+    private var titleBubble: some View {
+        let path = breadcrumbPath
+        if path.count > 1 {
+            // Breadcrumb : tap any ancestor segment to dismiss back to
+            // it. Truncates each segment so the bubble fits on screen
+            // even with long titles.
+            HStack(spacing: 4) {
+                ForEach(Array(path.enumerated()), id: \.element.id) { idx, meta in
+                    if idx > 0 {
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    let isLast = idx == path.count - 1
+                    let titleText = Text(meta.titlePlain.isEmpty
+                                          ? "Untitled" : meta.titlePlain)
+                        .font(.subheadline.weight(isLast ? .semibold : .regular))
+                        .foregroundStyle(isLast ? .primary : .secondary)
+                    if isLast {
+                        // Current doc — non-tappable, just shows
+                        // "you are here" in the chain.
+                        titleText
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    } else {
+                        // Ancestor — tap pops the NavStack to it.
+                        Button {
+                            NotificationCenter.default.post(
+                                name: Composer.popToDocNotification,
+                                object: nil,
+                                userInfo: ["docId": meta.id])
+                        } label: {
+                            titleText
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 36)
+            .glassEffect(.regular.interactive(), in: Capsule(style: .continuous))
+        } else {
+            // Root page : plain title bubble (no breadcrumb chevrons).
+            Button {
+                // Placeholder — keeps the bubble tappable until the
+                // long-press / switcher feature is wired up.
+            } label: {
+                Group {
+                    if vm.title.isEmpty {
+                        Text("Untitled")
+                    } else {
+                        Text(vm.title)
+                    }
+                }
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 16)
+                .frame(minHeight: 36)
+            }
+            .buttonStyle(.plain)
+            .contentShape(Capsule(style: .continuous))
+            .glassEffect(.regular.interactive(), in: Capsule(style: .continuous))
         }
     }
 

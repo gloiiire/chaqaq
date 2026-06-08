@@ -13,6 +13,14 @@ extension DocumentViewModel {
         do {
             try api.updateDocumentTitle(id: docId, newTitle: newTitle)
             lastPersistedTitle = newTitle
+            // Broadcast so every mounted DocumentView refreshes the
+            // copy of this doc it keeps in `docMetaById` for its
+            // breadcrumb — otherwise a child still shows the stale
+            // parent title until you pop back to root and re-enter.
+            NotificationCenter.default.post(
+                name: Composer.docTitleChangedNotification,
+                object: nil,
+                userInfo: ["docId": docId])
             undoMgr.registerUndo(withTarget: self) { vm in
                 vm.title = oldTitle
                 vm.saveTitle()

@@ -126,7 +126,14 @@ struct FolderView: View {
             }
         }
         .onAppear { composer.currentContext = .folder(id: folder.id) }
-        .onDisappear { composer.currentContext = .root }
+        .onDisappear {
+            // Same guard as DocumentView.onDisappear : SwiftUI may
+            // fire the destination's onAppear before our onDisappear,
+            // so we only reset when the context is still ours.
+            if composer.currentContext == .folder(id: folder.id) {
+                composer.currentContext = .root
+            }
+        }
         .alert("New sub-folder", isPresented: $showingNewSubFolder) {
             TextField("Name", text: $newSubFolderName)
             Button("Create") {

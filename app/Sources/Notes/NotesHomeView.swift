@@ -258,6 +258,15 @@ struct NotesHomeView: View {
             // NavigationStack (a $model.path binding wouldn't).
             path.removeAll()
         }
+        .onReceive(NotificationCenter.default.publisher(
+            for: Composer.popToDocNotification)) { note in
+            // DocumentView breadcrumb tapped an ancestor — truncate
+            // the NavStack path to keep entries up to (and including)
+            // that doc, popping every descendant in one go.
+            guard let target = note.userInfo?["docId"] as? String,
+                  let idx = path.firstIndex(of: target) else { return }
+            path = Array(path.prefix(idx + 1))
+        }
         .onChange(of: path) { oldPath, newPath in
             // Mark every newly-pushed doc as "open" in the switcher.
             // We do it here (in response to an explicit path change),

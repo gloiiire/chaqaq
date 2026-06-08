@@ -64,6 +64,19 @@ final class Composer: ObservableObject {
     /// fullScreenCover is dismissing).
     static let popHomeNotification = Notification.Name("pinkha.popHomeRequest")
 
+    /// Posted by the DocumentView breadcrumb when the user taps an
+    /// ancestor segment. `userInfo["docId"]` carries the target —
+    /// NotesHomeView truncates its NavigationStack `path` to keep
+    /// only entries up to and including that doc.
+    static let popToDocNotification = Notification.Name("pinkha.popToDoc")
+
+    /// Posted whenever a document's title is persisted (FFI write
+    /// succeeded). `userInfo["docId"]` carries the doc that changed.
+    /// Used by every mounted DocumentView to refresh its
+    /// `docMetaById` cache — otherwise a child's breadcrumb keeps
+    /// showing the old parent title until the user pops to root.
+    static let docTitleChangedNotification = Notification.Name("pinkha.docTitleChanged")
+
     /// Currently-selected pinkha tab. Bound to the root `TabView`
     /// `selection:` so we can programmatically switch tabs from
     /// anywhere (e.g. the switcher's ✓ button forcing a return to

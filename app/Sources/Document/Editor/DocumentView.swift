@@ -19,6 +19,10 @@ struct DocumentView: View {
     /// `blockListRow`. The setting is owned at the app level so every
     /// document picks the same look without having to re-fetch it.
     @EnvironmentObject var settings: AppSettings
+    /// Used by the breadcrumb in the toolbar to walk up the
+    /// parent-doc chain (`parentDocId` is on the metadata, not on
+    /// the active VM).
+    @EnvironmentObject var store: PinkhaStore
     /// Tracks whether the iOS 26 bottom accessory is rendered inline
     /// (collapsed into the tab bar) or expanded above it. Drives the
     /// floating-button bottom padding so the visual gap to the
@@ -54,6 +58,11 @@ struct DocumentView: View {
     /// initiated — without this, the programmatic `proxy.scrollTo` below
     /// would itself trigger the "user scrolled, drop the spotlight" path.
     @State var spotlightArmedAt: Date? = nil
+    /// Cache of `id → metadata` for every non-deleted doc, used to
+    /// walk the `parentDocId` chain for the breadcrumb. Loaded once
+    /// on appear from `vm.api.listDocuments()` (which includes
+    /// sub-pages, unlike `store.documents` which is root-only).
+    @State var docMetaById: [String: DocumentMetaFfi] = [:]
     /// Legacy UserDefaults key for the lock state, retained for the one-shot
     /// migration in `onAppear` — the canonical store is now `vm.locked`.
     let lockKey: String
@@ -221,6 +230,35 @@ struct DocumentView: View {
         // exactly when the editor is still on screen for the final
         // frame.
         .background(DocumentSnapshotHook(docId: vm.docId).frame(width: 0, height: 0))
+        .onReceive(NotificationCenter.default.publisher(
+            for: Composer.popToDocNotification)) { note in
+            // Breadcrumb tapped an ancestor. We need to clear
+            // `pushedDocId` on:
+            //  - the target itself (so the NavStack pops the
+            //    descendant chain rooted at its `navigationDestination`
+            //    binding), AND
+            //  - every doc strictly between target and current — even
+            //    though they'll be unmounted, clearing defensively
+            //    prevents a transient body re-eval from re-pushing
+            //    the popped descendant while SwiftUI is still
+            //    tearing the chain down. Needed at depth ≥ 3.
+            guard let target = note.userInfo?["docId"] as? String
+            else { return }
+            if target == vm.docId || isDescendant(of: target) {
+                pushedDocId = nil
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(
+            for: Composer.docTitleChangedNotification)) { _ in
+            // Some doc's title was just persisted — refresh our
+            // copy of every doc's metadata so the breadcrumb walks
+            // the chain with fresh titles. Cheap (in-memory + one
+            // SQLite read) and only fires on actual title saves.
+            if let all = try? vm.api.listDocuments() {
+                docMetaById = Dictionary(uniqueKeysWithValues:
+                    all.map { ($0.id, $0) })
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             withAnimation(.easeInOut(duration: 0.2)) { keyboardVisible = true }
         }
@@ -230,6 +268,13 @@ struct DocumentView: View {
         .onAppear {
             vm.load()
             composer.currentContext = .document(id: vm.docId)
+            // Load every doc's metadata (root + sub-pages) so the
+            // breadcrumb in the toolbar can walk the `parentDocId`
+            // chain. `store.documents` only contains root pages.
+            if let all = try? vm.api.listDocuments() {
+                docMetaById = Dictionary(uniqueKeysWithValues:
+                    all.map { ($0.id, $0) })
+            }
             // Mark this doc as an open tab in the switcher. Done here
             // (in `onAppear`) rather than at NavigationLink build time
             // so SwiftUI body re-renders don't keep re-adding tabs the
@@ -257,7 +302,15 @@ struct DocumentView: View {
         .onDisappear {
             vm.flushAllBursts()
             vm.saveTitle()
-            composer.currentContext = .root
+            // Only reset the creation context to `.root` if it still
+            // points at this doc. When the user pushes a sub-page,
+            // SwiftUI may fire B.onAppear (set `.document(B)`)
+            // before A.onDisappear here — blindly resetting would
+            // clobber B's just-set context and any new note created
+            // from inside B would land at the workspace root.
+            if composer.currentContext == .document(id: vm.docId) {
+                composer.currentContext = .root
+            }
             onDisappear?()
         }
         // When the bubble creates a child page from inside this doc, the
