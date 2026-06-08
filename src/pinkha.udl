@@ -139,6 +139,12 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void delete_block(string doc_id, string block_id);
 
+    /// Duplique un bloc (et tous ses enfants, avec de nouveaux UUIDs)
+    /// et insère le clone juste après l'original au même niveau.
+    /// Retourne l'UUID du nouveau bloc.
+    [Throws=PinkhaError]
+    string duplicate_block(string doc_id, string block_id);
+
     /// Réordonne les blocs racine selon la liste d'UUIDs fournie.
     [Throws=PinkhaError]
     void reorder_blocks(string doc_id, sequence<string> order);

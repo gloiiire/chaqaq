@@ -353,6 +353,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_delete_property(uint64_t ptr, RustBuffer 
 void uniffi_pinkha_fn_method_pinkhaapi_delete_view(uint64_t ptr, RustBuffer db_id, RustBuffer view_id, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DUPLICATE_BLOCK
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DUPLICATE_BLOCK
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_duplicate_block(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_GET_DATABASE_JSON
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_GET_DATABASE_JSON
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_get_database_json(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
@@ -1004,6 +1009,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_property(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_VIEW
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_VIEW
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_view(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DUPLICATE_BLOCK
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DUPLICATE_BLOCK
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_duplicate_block(void
     
 );
 #endif

@@ -484,6 +484,22 @@ impl PinkhaApi {
         use_cases::delete_block(&self.uow(), doc_uuid, block_uuid).map_err(PinkhaError::from)
     }
 
+    /// Duplicates a block (and all its children, with fresh UUIDs) and
+    /// inserts the clone right after the original at the same level.
+    /// Returns the new top-level block id so the UI can focus / scroll
+    /// to it.
+    pub fn duplicate_block(
+        &self,
+        doc_id: String,
+        block_id: String,
+    ) -> Result<String, PinkhaError> {
+        let doc_uuid = parse_uuid(&doc_id)?;
+        let block_uuid = parse_uuid(&block_id)?;
+        use_cases::duplicate_block(&self.uow(), doc_uuid, block_uuid)
+            .map(|id| id.to_string())
+            .map_err(PinkhaError::from)
+    }
+
     /// Reorders the root-level blocks of a document according to `order`.
     /// Blocks not mentioned in `order` are appended at the end.
     pub fn reorder_blocks(&self, doc_id: String, order: Vec<String>) -> Result<(), PinkhaError> {

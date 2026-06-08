@@ -203,6 +203,7 @@ extension DocumentView {
             onIndent: { vm.indentBlock(id: block.id) },
             onOutdent: { vm.outdentBlock(id: block.id) },
             onSetBlockColor: { color in vm.setBlockColor(id: block.id, color: color) },
+            onDuplicate: { vm.duplicateBlock(id: block.id) },
             onOpenInternalDoc: { docId in pushedDocId = docId },
             resolveChildPage: { childId in
                 // The child-page row needs a title + optional icon. We load
