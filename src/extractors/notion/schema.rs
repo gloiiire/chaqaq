@@ -167,6 +167,13 @@ pub struct NotionPageResult {
     /// Page icon (emoji or external image). `None` when not set.
     #[serde(default)]
     pub icon: Option<NotionPageIcon>,
+    /// RFC 3339 timestamp set by Notion when the page was created.
+    /// Forwarded into the Pinkha doc's `created_at` at import so the
+    /// imported note keeps its real creation date instead of the
+    /// import wall-clock time. `#[serde(default)]` to stay
+    /// forward-compatible with any older fixtures missing the field.
+    #[serde(default)]
+    pub created_time: String,
 }
 
 /// Cover image returned by the Notion API. Two variants depending on the

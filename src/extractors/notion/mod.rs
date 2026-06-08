@@ -292,10 +292,35 @@ async fn import_page(
         })
         .unwrap_or_else(|| "Untitled".to_string());
 
-    // Create the Pinkha document.
+    // Create the Pinkha document, threading Notion's `created_time`
+    // through so the imported doc keeps its real creation date in the
+    // SQLite row's `created_at` column. Falls back to `now()` (the
+    // default `create_document` path) when Notion didn't send a
+    // timestamp.
     let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
-    let doc = use_cases::create_document(&uow, &plain_title)?;
+    let doc = if page.created_time.is_empty() {
+        use_cases::create_document(&uow, &plain_title)?
+    } else {
+        use_cases::create_document_with_created_at(
+            &uow, &plain_title, page.created_time.clone())?
+    };
     let doc_id = doc.id;
+
+    // Debug log : record the Notion-side timestamp + what we forwarded
+    // so we can verify the createdAt round-trip after import.
+    if let Some(dir) = covers_dir {
+        use std::io::Write;
+        let line = format!(
+            "[createdAt] page={} title={:?} notion_created_time={:?} doc_id={} doc_created_at={:?}\n",
+            page.id, plain_title, page.created_time, doc_id, doc.created_at
+        );
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true).append(true)
+            .open(format!("{dir}/notion-debug.log"))
+        {
+            let _ = f.write_all(line.as_bytes());
+        }
+    }
 
     // Imports default to locked = true so the user reads the extracted
     // content (which they didn't write themselves) before editing it.

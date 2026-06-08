@@ -11,7 +11,7 @@ struct EmptyEditorState: View {
         RichTextEditor(
             spans: .constant([]),
             isFocused: $focused,
-            placeholder: "Start writing…",
+            placeholder: String(localized: "Start writing…"),
             onSave: nil,
             onNewBlock: nil,
             onDeleteBloc: nil,
@@ -90,7 +90,7 @@ struct BlockPickerSheet: View {
                     onSelect(type)
                     dismiss()
                 } label: {
-                    Label(type.rawValue, systemImage: type.icone)
+                    Label(type.displayName, systemImage: type.icone)
                         .foregroundStyle(.primary)
                 }
             }

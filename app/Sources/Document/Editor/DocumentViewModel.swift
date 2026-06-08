@@ -17,6 +17,10 @@ final class DocumentViewModel: ObservableObject {
     /// Read-only lock. Mirrors `Document.locked` from Rust. Imports default
     /// to `true`; the toolbar toggles via `saveLocked(_:)`.
     @Published var locked: Bool = false
+    /// Per-document accent color name (e.g. `"red"`). `nil` falls back
+    /// to the global accent from `AppSettings`. Mirrors
+    /// `Document.accent_color` from Rust; sync via `saveAccentColor`.
+    @Published var accentColor: String? = nil
     @Published var blocks: [EditableBlock] = []
     @Published var errorMessage: String?
     @Published var autoFocusId: String?

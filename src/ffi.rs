@@ -411,6 +411,23 @@ impl PinkhaApi {
         use_cases::update_document_icon(&self.uow(), uuid, icon).map_err(PinkhaError::from)
     }
 
+    /// Sets (or clears with `None`) the per-document accent color name
+    /// (e.g. `"red"`, `"teal"`). Same naming scheme as `set_block_color`.
+    /// When set, the editor renders its chrome in this color instead
+    /// of the app-wide accent; `None` falls back to the global accent.
+    pub fn update_document_accent_color(
+        &self,
+        id: String,
+        accent_color: Option<String>,
+    ) -> Result<(), PinkhaError> {
+        if let Some(c) = accent_color.as_deref() {
+            validate_string(c, "accent_color")?;
+        }
+        let uuid = parse_uuid(&id)?;
+        use_cases::update_document_accent_color(&self.uow(), uuid, accent_color)
+            .map_err(PinkhaError::from)
+    }
+
     /// Sets the read-only lock on a document. Used by the editor toggle and
     /// auto-applied by data-extract imports (Notion/Bear/Craft) which lock
     /// new documents by default — the user reads first, unlocks before
@@ -482,6 +499,22 @@ impl PinkhaApi {
         let doc_uuid = parse_uuid(&doc_id)?;
         let block_uuid = parse_uuid(&block_id)?;
         use_cases::delete_block(&self.uow(), doc_uuid, block_uuid).map_err(PinkhaError::from)
+    }
+
+    /// Duplicates a block (and all its children, with fresh UUIDs) and
+    /// inserts the clone right after the original at the same level.
+    /// Returns the new top-level block id so the UI can focus / scroll
+    /// to it.
+    pub fn duplicate_block(
+        &self,
+        doc_id: String,
+        block_id: String,
+    ) -> Result<String, PinkhaError> {
+        let doc_uuid = parse_uuid(&doc_id)?;
+        let block_uuid = parse_uuid(&block_id)?;
+        use_cases::duplicate_block(&self.uow(), doc_uuid, block_uuid)
+            .map(|id| id.to_string())
+            .map_err(PinkhaError::from)
     }
 
     /// Reorders the root-level blocks of a document according to `order`.

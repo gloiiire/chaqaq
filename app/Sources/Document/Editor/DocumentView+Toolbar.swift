@@ -4,38 +4,30 @@ import SwiftUI
 
 extension DocumentView {
 
+    /// Resolves the accent the editor should paint with. A per-doc
+    /// `accentColor` overrides the app-wide setting; `nil` (the default
+    /// for any pre-existing doc) inherits from `AppSettings`. Computed
+    /// fresh on every body re-eval so flipping the per-doc choice
+    /// repaints the toolbar / chrome immediately.
+    var effectiveAccentColor: Color {
+        if let name = vm.accentColor {
+            return Color(uiColor: uiColorFromName(name))
+        }
+        return settings.accentColor
+    }
+
     @ToolbarContentBuilder
     var documentToolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            // Wraps the scrolled-down title in a tappable Liquid Glass
-            // capsule. The Button gives iOS's standard press-down
-            // animation; the action is a placeholder for now (room for
-            // a future title-edit affordance or jump-to-top).
-            Button {
-                // Placeholder — kept tappable so the bubble feels live
-                // even before its real behaviour ships.
-            } label: {
-                Text(vm.title.isEmpty ? "Untitled" : vm.title)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 16)
-                    // Matches the ~36-pt diameter of the iOS 26
-                    // toolbar icon buttons next to it (lock, edit)
-                    // so the bubble doesn't read smaller than its
-                    // neighbours.
-                    .frame(minHeight: 36)
-            }
-            .buttonStyle(.plain)
-            .contentShape(Capsule(style: .continuous))
-            // `.interactive()` makes the glass squish and bounce on
-            // press, matching the iOS 26 toolbar buttons right next
-            // to it (lock, edit). Without it the bubble is visually
-            // glass but feels dead when tapped.
-            .glassEffect(.regular.interactive(), in: Capsule(style: .continuous))
-            .opacity(titleInNavBar ? 1 : 0)
-            .offset(y: titleInNavBar ? 0 : 8)
-            .animation(.easeOut(duration: 0.2), value: titleInNavBar)
+            // The principal slot fades in once the user scrolls past
+            // the inline title (~60 pt). Shows the current doc title
+            // alone for root pages, OR a Notion-style breadcrumb
+            // (Parent › Child › This) for nested sub-pages — tap on
+            // any segment dismisses back to that ancestor.
+            titleBubble
+                .opacity(titleInNavBar ? 1 : 0)
+                .offset(y: titleInNavBar ? 0 : 8)
+                .animation(.easeOut(duration: 0.2), value: titleInNavBar)
         }
         if editMode == .active && !selectedBlocks.isEmpty && !vm.locked {
             ToolbarItem(placement: .primaryAction) {
@@ -67,7 +59,7 @@ extension DocumentView {
             // Only the locked state earns the accent — the unlocked
             // open-lock keeps the neutral material color so the rest
             // of the toolbar reads as quiet chrome.
-            .tint(vm.locked ? settings.accentColor : .primary)
+            .tint(vm.locked ? effectiveAccentColor : .primary)
             .accessibilityLabel(vm.locked ? "Unlock document" : "Lock document")
         }
         ToolbarItem(placement: .primaryAction) {
@@ -83,6 +75,160 @@ extension DocumentView {
             // propagates through the env.
             .tint(.primary)
             .disabled(vm.locked)
+        }
+        // "…" overflow menu — declared LAST so it lands at the far
+        // right edge of the toolbar (SwiftUI orders trailing
+        // primaryAction items left → right in source order). Collects
+        // per-doc settings; first occupant is the accent color picker.
+        ToolbarItem(placement: .primaryAction) {
+            Menu {
+                Menu {
+                    Button {
+                        vm.saveAccentColor(nil)
+                    } label: {
+                        Label {
+                            Text("Use default")
+                        } icon: {
+                            Image(systemName: "circle.dashed")
+                        }
+                    }
+                    ForEach(BlockColorOption.palette) { option in
+                        Button {
+                            vm.saveAccentColor(option.name)
+                        } label: {
+                            Label {
+                                Text(option.displayName)
+                            } icon: {
+                                Image(uiImage: option.swatchImage)
+                            }
+                        }
+                    }
+                } label: {
+                    Label {
+                        Text("Accent color")
+                    } icon: {
+                        // Filled paintbrush in the overflow menu when
+                        // an explicit accent is set; outline otherwise.
+                        Image(systemName: vm.accentColor == nil
+                              ? "paintbrush"
+                              : "paintbrush.fill")
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+            }
+            // Neutral chrome by default — the per-doc accent only
+            // shows up inside the menu's swatches, the trigger itself
+            // stays quiet.
+            .tint(.primary)
+            .accessibilityLabel("Document options")
+        }
+    }
+
+    /// Whether `vm.docId` is somewhere below `targetId` in the
+    /// `parentDocId` tree (used by the popToDoc handler to defensively
+    /// clear pushedDocId on every doc between the target and current).
+    /// No depth cap — `seen` is the cycle guard, so legitimate trees
+    /// can nest arbitrarily deep. Walk stops only on a cycle or root.
+    func isDescendant(of targetId: String) -> Bool {
+        var currentId = vm.docId
+        var seen: Set<String> = [currentId]
+        while let meta = docMetaById[currentId],
+              let parentId = meta.parentDocId,
+              !seen.contains(parentId) {
+            if parentId == targetId { return true }
+            seen.insert(parentId)
+            currentId = parentId
+        }
+        return false
+    }
+
+    /// Walks up the `parentDocId` chain via `store.documents` to build
+    /// the breadcrumb. Root → … → this doc. Returns `[self]` for root
+    /// pages (single segment, rendered as a plain title bubble).
+    private var breadcrumbPath: [DocumentMetaFfi] {
+        // `docMetaById` is loaded on appear from `listDocuments()`
+        // (includes sub-pages, unlike `store.documents` which is
+        // root-only). Until it's populated, no breadcrumb is shown.
+        guard var node = docMetaById[vm.docId] else { return [] }
+        var path: [DocumentMetaFfi] = [node]
+        var seen: Set<String> = [node.id]
+        while let parentId = node.parentDocId,
+              let parent = docMetaById[parentId],
+              !seen.contains(parent.id) {
+            path.insert(parent, at: 0)
+            seen.insert(parent.id)
+            node = parent
+        }
+        return path
+    }
+
+    @ViewBuilder
+    private var titleBubble: some View {
+        let path = breadcrumbPath
+        if path.count > 1 {
+            // Breadcrumb : tap any ancestor segment to dismiss back to
+            // it. Truncates each segment so the bubble fits on screen
+            // even with long titles.
+            HStack(spacing: 4) {
+                ForEach(Array(path.enumerated()), id: \.element.id) { idx, meta in
+                    if idx > 0 {
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    let isLast = idx == path.count - 1
+                    let titleText = Text(meta.titlePlain.isEmpty
+                                          ? "Untitled" : meta.titlePlain)
+                        .font(.subheadline.weight(isLast ? .semibold : .regular))
+                        .foregroundStyle(isLast ? .primary : .secondary)
+                    if isLast {
+                        // Current doc — non-tappable, just shows
+                        // "you are here" in the chain.
+                        titleText
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    } else {
+                        // Ancestor — tap pops the NavStack to it.
+                        Button {
+                            NotificationCenter.default.post(
+                                name: Composer.popToDocNotification,
+                                object: nil,
+                                userInfo: ["docId": meta.id])
+                        } label: {
+                            titleText
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 36)
+            .glassEffect(.regular.interactive(), in: Capsule(style: .continuous))
+        } else {
+            // Root page : plain title bubble (no breadcrumb chevrons).
+            Button {
+                // Placeholder — keeps the bubble tappable until the
+                // long-press / switcher feature is wired up.
+            } label: {
+                Group {
+                    if vm.title.isEmpty {
+                        Text("Untitled")
+                    } else {
+                        Text(vm.title)
+                    }
+                }
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 16)
+                .frame(minHeight: 36)
+            }
+            .buttonStyle(.plain)
+            .contentShape(Capsule(style: .continuous))
+            .glassEffect(.regular.interactive(), in: Capsule(style: .continuous))
         }
     }
 

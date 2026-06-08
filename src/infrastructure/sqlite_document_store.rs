@@ -49,6 +49,13 @@ impl DocumentRepository for SqliteDocumentStore {
             .join("");
         let title_json = serde_json::to_string(&doc.title)?;
         let now = chrono::Utc::now().to_rfc3339();
+        // `created_at` on the row is set only at the very first INSERT
+        // and never updated afterwards. Importers can pass through the
+        // origin platform's creation timestamp via `doc.created_at`
+        // (Notion's `created_time`, Bear's `ZCREATIONDATE`, Craft's
+        // `creationDate`) so the imported doc keeps its real history.
+        // Native docs leave it `None` and fall back to `now`.
+        let created_at = doc.created_at.clone().unwrap_or_else(|| now.clone());
         let id = doc.id.to_string();
         let cover = doc.cover.clone();
 
@@ -59,7 +66,7 @@ impl DocumentRepository for SqliteDocumentStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             conn.execute(
                 "INSERT INTO documents (id, title_text, title_json, cover, updated_at, created_at, folder_id, parent_doc_id, icon, data)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6, ?7, ?8, ?9)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
                  ON CONFLICT(id) DO UPDATE SET
                     title_text    = excluded.title_text,
                     title_json    = excluded.title_json,
@@ -70,7 +77,7 @@ impl DocumentRepository for SqliteDocumentStore {
                     icon          = excluded.icon,
                     data          = excluded.data,
                     deleted_at    = NULL",
-                params![id, title_text, title_json, cover, now, folder_id, parent_doc_id, icon, data],
+                params![id, title_text, title_json, cover, now, created_at, folder_id, parent_doc_id, icon, data],
             )
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
             Ok(())

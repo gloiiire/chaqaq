@@ -35,6 +35,12 @@ struct PinkhaApp: App {
                 // material/label color, matching Apple's own apps.
                 ContentView()
                     .environmentObject(settings)
+                    // User-controlled appearance override : `.system`
+                    // returns `nil` so iOS keeps its own choice; the
+                    // explicit `.light` / `.dark` modes force the
+                    // scheme app-wide. Repaints live when the user
+                    // flips the picker in Settings.
+                    .preferredColorScheme(settings.appearance.colorScheme)
                 if showingSplash {
                     SplashView(isDismissing: dismissingSplash)
                         // Slow fade-out so the logo doesn't vanish —
@@ -46,6 +52,12 @@ struct PinkhaApp: App {
                 }
             }
             .task {
+                // Honour the stored appearance preference at cold
+                // launch — `AppSettings.init()` can't apply it
+                // because no UIWindowScene is connected yet. Doing
+                // it here (the first SwiftUI task on screen) is safe :
+                // the splash window is already up.
+                settings.applyAppearanceToWindows()
                 // Beat 1 (0.0–0.7s): logo fades + scales in.
                 // Beat 2 (0.7–1.5s): hold — gives the eye time to land.
                 // Beat 3 (1.5–2.2s): scale-up + fade-out into the app.

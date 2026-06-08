@@ -14,6 +14,10 @@ final class Composer: ObservableObject {
     @Published var showingNewFolder = false
     /// Whether the trash sheet is on screen.
     @Published var showingTrash = false
+    /// Whether the Safari-tab-style "All documents" full-screen
+    /// switcher is on screen — opened from the overflow menu in the
+    /// bottom accessory.
+    @Published var showingAllDocs = false
     /// Whether the Notion import sheet is on screen.
     @Published var showingNotionImport = false
     /// Whether the Bear import sheet is on screen.
@@ -51,6 +55,51 @@ final class Composer: ObservableObject {
     /// list. Only set for `.root` / `.folder` contexts — the
     /// `.document` context routes through `pendingChildPage` instead.
     @Published var pendingOpenDoc: String? = nil
+
+    /// NotificationCenter signal — when the switcher dismisses with
+    /// zero open tabs, posts this so the active `NavigationStack`
+    /// pops to root. Going through `NotificationCenter` instead of an
+    /// `@Published` counter sidesteps the SwiftUI binding propagation
+    /// quirks we hit (`.onChange` not firing reliably while a
+    /// fullScreenCover is dismissing).
+    static let popHomeNotification = Notification.Name("pinkha.popHomeRequest")
+
+    /// Posted by the DocumentView breadcrumb when the user taps an
+    /// ancestor segment. `userInfo["docId"]` carries the target —
+    /// NotesHomeView truncates its NavigationStack `path` to keep
+    /// only entries up to and including that doc.
+    static let popToDocNotification = Notification.Name("pinkha.popToDoc")
+
+    /// Posted whenever a document's title is persisted (FFI write
+    /// succeeded). `userInfo["docId"]` carries the doc that changed.
+    /// Used by every mounted DocumentView to refresh its
+    /// `docMetaById` cache — otherwise a child's breadcrumb keeps
+    /// showing the old parent title until the user pops to root.
+    static let docTitleChangedNotification = Notification.Name("pinkha.docTitleChanged")
+
+    /// Currently-selected pinkha tab. Bound to the root `TabView`
+    /// `selection:` so we can programmatically switch tabs from
+    /// anywhere (e.g. the switcher's ✓ button forcing a return to
+    /// Notes after closing all open docs).
+    @Published var selectedTab: TabKind = .notes
+
+    // NavigationStack path lives back in `NotesHomeView.@State` because
+    // `NavigationStack(path: $model.path)` is buggy in iOS — it doesn't
+    // visibly pop when the binding is mutated, while `@State` does.
+
+    /// Bump this to force-recreate `NotesHomeView` via `.id(notesHomeKey)`.
+    /// Used by the switcher's ✓ button to nuke a stuck NavStack
+    /// (Apple SwiftUI bug : path mutation from outside doesn't always
+    /// visibly pop even when the binding fires). Recreating the view
+    /// instantiates fresh `@State` → path starts at `[]` → home shown.
+    @Published var notesHomeKey: Int = 0
+
+    /// The four pinkha tabs. `rawValue` is stable for `Codable` use if
+    /// we ever persist the last-selected tab; the enum itself is
+    /// `Hashable` so it works as a `TabView` selection binding.
+    enum TabKind: String, Hashable, Codable {
+        case notes, databases, inbox, search
+    }
 
     enum CreateMode { case note, database }
 

@@ -260,6 +260,26 @@ extension DocumentViewModel {
         }
     }
 
+    /// Duplicates a block (with its descendants, all freshly UUID'd)
+    /// and inserts the clone right after the original at the same
+    /// tree level. Reloads via DFS-flatten so the visible list
+    /// mirrors the Rust tree, then focuses the new block so the user
+    /// sees where the copy landed. The undo inverse is a plain delete
+    /// — the clone has a known UUID, no need to compare snapshots.
+    func duplicateBlock(id: String) {
+        flushAllBursts()
+        do {
+            let newId = try api.duplicateBlock(docId: docId, blockId: id)
+            reloadBlocksAfterStructuralChange()
+            autoFocusId = newId
+            undoMgr.registerUndo(withTarget: self) { vm in
+                vm.deleteBlock(id: newId)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     /// Reloads the full document from SQLite after a structural mutation
     /// (indent / outdent). Index-based bookkeeping is no longer enough once
     /// the tree changes shape — we use the same DFS-flatten as `load()` so
