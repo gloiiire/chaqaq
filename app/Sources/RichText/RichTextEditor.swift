@@ -46,6 +46,12 @@ struct RichTextEditor: UIViewRepresentable {
     /// no inline `.color(...)` override — implements the "inline wins over
     /// block" priority rule from the domain.
     var blockColor: String? = nil
+    /// Accent color used by the keyboard pill's "active" icon tint
+    /// (paste when clipboard has strings, etc.). Caller resolves it
+    /// — typically a per-doc override via `DocumentView.effectiveAccentColor`,
+    /// falling back to the app-wide accent. `nil` keeps the legacy
+    /// `UIColor(named: "Accent") ?? .tintColor` path.
+    var accentColor: UIColor? = nil
     /// Called when the user picks a colour from the ¶ menu (or "None" to
     /// clear). Goes through the VM which calls the FFI `set_block_color`.
     var onSetBlockColor: ((String?) -> Void)? = nil
@@ -102,6 +108,12 @@ struct RichTextEditor: UIViewRepresentable {
         coord.parent = self
         coord.updateUndoRedoButtons()
         coord.updateBlockColorButton(blockColor)
+        // Push the resolved accent down to the toolbar — the paste
+        // button uses it for its "active" tint, which currently
+        // hard-fell back to the asset-catalog `Accent` color and
+        // therefore ignored any per-doc override.
+        coord.currentAccentColor = accentColor
+        coord.updatePasteButton()
         tv.tintColor = resolvedSelectionTint(settings)
         tv.isEditable = isEnabled
         tv.isSelectable = isEnabled

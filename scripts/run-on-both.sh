@@ -64,7 +64,8 @@ XCODE_DEVICE_ID="${XCODE_DEVICE_ID:-$(xcodebuild -project app/Pinkha.xcodeproj \
     | grep 'platform:iOS,' \
     | grep -v -E 'Simulator|Placeholder|Designed for' \
     | head -1 \
-    | sed -nE 's/.*id:([0-9A-Fa-f-]+).*/\1/p')}"
+    | sed -nE 's/.*id:([0-9A-Fa-f-]+).*/\1/p' \
+    || true)}"
 HAVE_DEVICE=0
 [[ -n "$DEVICE_ID" && -n "$XCODE_DEVICE_ID" ]] && HAVE_DEVICE=1
 

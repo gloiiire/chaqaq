@@ -23,6 +23,11 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
     weak var btnColor: UIButton?
     weak var btnBlockColor: UIButton?
     weak var btnPaste: UIButton?
+    /// Pushed by the SwiftUI parent on every `updateUIView` —
+    /// `setSymbolActive(...)` reads it to paint "active" toolbar
+    /// icons in the per-doc accent (or the global one when no
+    /// override is set). `nil` falls back to `UIColor(named: "Accent")`.
+    var currentAccentColor: UIColor?
     weak var btnUndo: UIButton?
     weak var btnRedo: UIButton?
     var lastCanUndo: Bool?

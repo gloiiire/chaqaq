@@ -129,6 +129,7 @@ struct BlockTextEditor: View {
             onIndent: cb.onIndent,
             onOutdent: cb.onOutdent,
             blockColor: block.color,
+            accentColor: UIColor(cb.accentColor),
             onSetBlockColor: cb.onSetBlockColor,
             onOpenInternalDoc: cb.onOpenInternalDoc)
         .autoFocusIfNeeded(blockId: block.id, autoFocusId: $autoFocusId,
@@ -209,7 +210,11 @@ struct BlockRowView: View {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     onDuplicate()
                 } label: {
-                    Label("Duplicate", systemImage: "plus.square.on.square")
+                    Label {
+                        Text("Duplicate")
+                    } icon: {
+                        Image(uiImage: Self.neutralIcon("plus.square.on.square"))
+                    }
                 }
             }
             // "Change to" — convert the existing block to another
@@ -222,11 +227,19 @@ struct BlockRowView: View {
                             blockContent(for: type, preserving: block.spans)
                         )
                     } label: {
-                        Label(type.displayName, systemImage: type.icone)
+                        Label {
+                            Text(type.displayName)
+                        } icon: {
+                            Image(uiImage: Self.neutralIcon(type.icone))
+                        }
                     }
                 }
             } label: {
-                Label("Change to", systemImage: "arrow.triangle.2.circlepath")
+                Label {
+                    Text("Change to")
+                } icon: {
+                    Image(uiImage: Self.neutralIcon("arrow.triangle.2.circlepath"))
+                }
             }
             // "Color" — paints the whole block in one of the palette
             // colors. Inline color styles on individual spans always
@@ -252,7 +265,7 @@ struct BlockRowView: View {
                         Label {
                             Text("Default")
                         } icon: {
-                            Image(systemName: "circle.dashed")
+                            Image(uiImage: Self.neutralIcon("circle.dashed"))
                         }
                     }
                     ForEach(BlockColorOption.palette) { option in
@@ -267,7 +280,11 @@ struct BlockRowView: View {
                         }
                     }
                 } label: {
-                    Label("Color", systemImage: "paintpalette")
+                    Label {
+                        Text("Color")
+                    } icon: {
+                        Image(uiImage: Self.neutralIcon("paintpalette"))
+                    }
                 }
             }
             Divider()
@@ -297,6 +314,23 @@ struct BlockRowView: View {
             ?? UIImage()
         return base.withTintColor(.systemRed, renderingMode: .alwaysOriginal)
     }()
+
+    /// SF Symbol rendered as a neutral `.label`-colored UIImage so the
+    /// menu can't re-tint it to the env accent (per-doc accent
+    /// otherwise paints every Duplicate / Change-to / Color trigger
+    /// in the doc's color, which fights the "menu chrome stays
+    /// neutral" rule we follow elsewhere). Same `.alwaysOriginal`
+    /// trick as `trashIcon` and the color swatches. Cached so the
+    /// menu doesn't reallocate UIImages on every open.
+    private static var neutralIconCache: [String: UIImage] = [:]
+    static func neutralIcon(_ name: String) -> UIImage {
+        if let cached = neutralIconCache[name] { return cached }
+        let config = UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)
+        let base = UIImage(systemName: name, withConfiguration: config) ?? UIImage()
+        let tinted = base.withTintColor(.label, renderingMode: .alwaysOriginal)
+        neutralIconCache[name] = tinted
+        return tinted
+    }
 }
 
 // ── Palette options for the block-color context menu ──────────────────────────

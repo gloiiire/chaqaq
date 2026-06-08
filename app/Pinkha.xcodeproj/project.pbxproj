@@ -26,7 +26,6 @@
 		29937B07CEA589F05F3C64D1 /* ResilienceFFITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AB645E2E656B62E6D0182C /* ResilienceFFITests.swift */; };
 		2AF60F327F068C845A054391 /* RichTextEditorCoordinator+Toolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6084E410F0DAFDE23346475E /* RichTextEditorCoordinator+Toolbar.swift */; };
 		2F4DBAA7D9DAC41973B02B81 /* MarkdownShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0A8005F4451F496EF2075F1 /* MarkdownShortcutTests.swift */; };
-		31F4C824CC94D1E0EB94A56A /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 31F2E9B8D0F90235685BAA0C /* Pinkha.icon */; };
 		32A58C6A3B2306C8C71716E2 /* FontHelpersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97AAE4ED1A7A8EFFA0FFB26F /* FontHelpersTests.swift */; };
 		32C8426F08A11B36F8D34425 /* ColorPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0242538C571C77BB05443CB /* ColorPersistenceTests.swift */; };
 		35790178FC28CBE4BBC07EB3 /* Resilience.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56806548C25A65F2BB6E2671 /* Resilience.swift */; };
@@ -109,6 +108,7 @@
 		E92F562B0BC4BFD440E650AF /* DatabasesHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC6268A543F57BE87AC43F83 /* DatabasesHomeView.swift */; };
 		EDF95358CEFF04EA6FF47BB7 /* DocumentViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7489CFC34A012E88663D5A4E /* DocumentViewModelTests.swift */; };
 		EF55B8535B9D42B45F96B1A5 /* DocumentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AA5AD149942C517A93E0631 /* DocumentViewModel.swift */; };
+		F03541A893D36F29C6554635 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = D2FCBF4903A130A9AE2E0DAE /* Pinkha.icon */; };
 		F1F32310563BE3298EAF023A /* PersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2993E55B338F853D7618589 /* PersistenceTests.swift */; };
 		F408B0625381F22FD4541EFF /* TabManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FD63652AFD0D42CDE57170D /* TabManager.swift */; };
 		F64EEC8F5D4FAFC4338B85AB /* RichTextAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 544D22A9F70020AAC703BB01 /* RichTextAttributes.swift */; };
@@ -158,7 +158,6 @@
 		2E2E7F51D0CD04EEBC8FE493 /* ImportUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportUITests.swift; sourceTree = "<group>"; };
 		2F4F9BF7DD9230F2CC2D175F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2F8AFBAF1ABB7C2F44C3F4E2 /* Observability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Observability.swift; sourceTree = "<group>"; };
-		31F2E9B8D0F90235685BAA0C /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		320D74AADC9E183109B95653 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		36A6032BCBFCFE419E656DCE /* BlockContentFfiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockContentFfiTests.swift; sourceTree = "<group>"; };
 		37543D1D1AAFB9CE1F61603F /* ResilienceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilienceTests.swift; sourceTree = "<group>"; };
@@ -238,6 +237,7 @@
 		CC6268A543F57BE87AC43F83 /* DatabasesHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabasesHomeView.swift; sourceTree = "<group>"; };
 		CFA4CB8B18F322F82D34991C /* DatabaseViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseViewModelTests.swift; sourceTree = "<group>"; };
 		D0A8005F4451F496EF2075F1 /* MarkdownShortcutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownShortcutTests.swift; sourceTree = "<group>"; };
+		D2FCBF4903A130A9AE2E0DAE /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		D4B3F017BEB4CF32BDC0BECA /* DocumentDecor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentDecor.swift; sourceTree = "<group>"; };
 		D790938BD86DCD84018B0A63 /* DatabaseApiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseApiTests.swift; sourceTree = "<group>"; };
 		D8829AA3035FF94BD0A3EF7B /* NotionOAuth2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionOAuth2Tests.swift; sourceTree = "<group>"; };
@@ -356,14 +356,6 @@
 			path = Core;
 			sourceTree = "<group>";
 		};
-		3DB676A65A2CF924CB78B517 /* app */ = {
-			isa = PBXGroup;
-			children = (
-				31F2E9B8D0F90235685BAA0C /* Pinkha.icon */,
-			);
-			name = app;
-			sourceTree = "<group>";
-		};
 		421A0A589F8AC01BE871254C /* Models */ = {
 			isa = PBXGroup;
 			children = (
@@ -472,6 +464,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		76D2A9CA428C192AFC3B5FA3 /* app */ = {
+			isa = PBXGroup;
+			children = (
+				D2FCBF4903A130A9AE2E0DAE /* Pinkha.icon */,
+			);
+			name = app;
+			sourceTree = "<group>";
+		};
 		7CE19974FB0E7C2FE24CED36 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
@@ -542,7 +542,7 @@
 				7CE19974FB0E7C2FE24CED36 /* Tests */,
 				4494D74BA7F514A78EB8D8AC /* Frameworks */,
 				7459E38DDB42FA0567FB08BE /* Products */,
-				3DB676A65A2CF924CB78B517 /* app */,
+				76D2A9CA428C192AFC3B5FA3 /* app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -686,7 +686,7 @@
 				1687C7C9610D2298A8E55177 /* InfoPlist.xcstrings in Resources */,
 				55D914D8E621291665434C7E /* Localizable 2.xcstrings in Resources */,
 				D878D8EB398C5B2F7E67F418 /* Localizable.xcstrings in Resources */,
-				31F4C824CC94D1E0EB94A56A /* Pinkha.icon in Resources */,
+				F03541A893D36F29C6554635 /* Pinkha.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

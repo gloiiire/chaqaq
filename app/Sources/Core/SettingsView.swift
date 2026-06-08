@@ -17,10 +17,38 @@ struct SettingsView: View {
                     .padding(.bottom, 20)
             }
         }
+        // The sheet inherits its colorScheme from the *presenting*
+        // view, which is below the app root's `.preferredColorScheme`.
+        // Without this line, flipping the picker repaints the rest
+        // of the app but leaves this sheet stuck on whatever scheme
+        // was current when it appeared.
+        .preferredColorScheme(settings.appearance.colorScheme)
+        // `.preferredColorScheme(nil)` (for `.system`) doesn't release
+        // a previously-forced scheme inside a sheet — SwiftUI caches
+        // the scheme on the sheet's host. Forcing a fresh view
+        // identity via `.id(...)` makes SwiftUI rebuild the sheet's
+        // content tree, which re-evaluates the modifier from scratch
+        // and finally lets `.system` follow the OS again. Cheap : the
+        // sheet only re-instantiates when the user flips this picker.
+        .id(settings.appearance)
     }
 
     private var form: some View {
         Form {
+                Section {
+                    Picker(selection: $settings.appearance) {
+                        ForEach(AppSettings.AppearanceMode.allCases) { mode in
+                            Label(mode.label, systemImage: mode.systemImage)
+                                .tag(mode)
+                        }
+                    } label: { Text("Appearance") }
+                    .pickerStyle(.segmented)
+                } header: {
+                    Text("Appearance")
+                } footer: {
+                    Text("System follows iOS. Light or Dark forces the theme app-wide, regardless of your device setting.")
+                }
+
                 Section {
                     accentColorPicker
                 } header: {
@@ -85,7 +113,7 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Accent color, recent strip count and the spotlight tint will go back to their factory values.")
+                Text("Appearance, accent color, recent strip count and the spotlight tint will go back to their factory values.")
             }
     }
 
