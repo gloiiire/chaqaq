@@ -92,12 +92,39 @@ extension DocumentView {
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+        .swipeActions(edge: .leading) {
+            // Right-swipe = indent (block slides right, matches gesture
+            // direction). FFI's `indentBlock` no-ops if the block is
+            // already the first child or has no previous sibling, so
+            // we don't need to gate the button on hierarchy state.
+            if !vm.locked && editMode != .active {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    vm.indentBlock(id: b.id)
+                } label: {
+                    Label("Indent", systemImage: "arrow.right.to.line")
+                }
+                .tint(.blue)
+            }
+        }
         .swipeActions(edge: .trailing) {
             if !vm.locked && editMode != .active {
+                // Destructive primary stays as `.delete` — full-swipe
+                // triggers it (preserves the long-standing UX).
                 Button(role: .destructive) { vm.deleteBlock(id: b.id) } label: {
                     Label("Delete", systemImage: "trash")
                 }
                 .tint(.red)
+                // Outdent as secondary — left-swipe surfaces both
+                // buttons; partial swipe reveals them without firing
+                // delete. Direction matches the block's movement (left).
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    vm.outdentBlock(id: b.id)
+                } label: {
+                    Label("Outdent", systemImage: "arrow.left.to.line")
+                }
+                .tint(.orange)
             }
         }
     }
