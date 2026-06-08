@@ -9,9 +9,9 @@ import SwiftUI
 /// recent strip (`RecentStrip.swift`) and the list row (`WorkspaceRow.swift`).
 struct NotesHomeView: View {
     @ObservedObject var store: PinkhaStore
-    @EnvironmentObject private var composer: Composer
-    @EnvironmentObject private var settings: AppSettings
-    @EnvironmentObject private var tabManager: TabManager
+    @EnvironmentObject var composer: Composer
+    @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var tabManager: TabManager
     @State private var showingSettings = false
     /// Programmatic navigation stack so a freshly-created note can be
     /// pushed onto the editor right after the create sheet dismisses
@@ -33,6 +33,65 @@ struct NotesHomeView: View {
     /// rename alert and `renameDraft` TextField below.
     @State private var renamingDoc: DocumentMetaFfi?
     @State private var renameDraft: String = ""
+
+    /// Sort + group preferences. `@AppStorage` persists them across
+    /// launches without an explicit migration — each user setting maps
+    /// to one `UserDefaults` key. Defaults mirror the previous implicit
+    /// behaviour (most-recently-updated first, no grouping).
+    @AppStorage("notes.sortKey")   var sortKeyRaw: String = SortKey.updatedAt.rawValue
+    @AppStorage("notes.sortAsc")   var sortAscending: Bool = false
+    @AppStorage("notes.groupBy")   var groupByRaw: String = GroupBy.none.rawValue
+
+    var sortKey: SortKey {
+        SortKey(rawValue: sortKeyRaw) ?? .updatedAt
+    }
+    var groupBy: GroupBy {
+        GroupBy(rawValue: groupByRaw) ?? .none
+    }
+
+    enum SortKey: String, CaseIterable, Identifiable {
+        case lastOpened, name, createdAt, updatedAt
+        var id: String { rawValue }
+        var label: LocalizedStringKey {
+            switch self {
+            case .lastOpened: "Last opened"
+            case .name:       "Name"
+            case .createdAt:  "Created"
+            case .updatedAt:  "Updated"
+            }
+        }
+        var systemImage: String {
+            switch self {
+            case .lastOpened: "clock"
+            case .name:       "textformat"
+            case .createdAt:  "calendar.badge.plus"
+            case .updatedAt:  "calendar"
+            }
+        }
+    }
+
+    enum GroupBy: String, CaseIterable, Identifiable {
+        case none, lastOpened, name, createdAt, updatedAt
+        var id: String { rawValue }
+        var label: LocalizedStringKey {
+            switch self {
+            case .none:       "None"
+            case .lastOpened: "Last opened"
+            case .name:       "Name"
+            case .createdAt:  "Created"
+            case .updatedAt:  "Updated"
+            }
+        }
+        var systemImage: String {
+            switch self {
+            case .none:       "minus.rectangle"
+            case .lastOpened: "clock"
+            case .name:       "textformat"
+            case .createdAt:  "calendar.badge.plus"
+            case .updatedAt:  "calendar"
+            }
+        }
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -86,31 +145,12 @@ struct NotesHomeView: View {
                             .listRowSeparator(.hidden)
                     }
                 } else {
-                    Section {
-                        if let api = store.api {
-                            ForEach(store.items) { item in
-                                itemRow(item, api: api)
-                                    // Explicit swipeActions (not
-                                    // `.onDelete`) so the trash icon +
-                                    // label match every other swipe
-                                    // delete in the app.
-                                    .swipeActions(edge: .trailing) {
-                                        Button(role: .destructive) {
-                                            switch item {
-                                            case .note(let d):      store.delete(id: d.id)
-                                            case .database(let db): store.deleteDatabase(id: db.id)
-                                            }
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
-                                        .tint(.red)
-                                    }
-                            }
-                        } else {
-                            ProgressView()
+                    if let api = store.api {
+                        ForEach(groupedItems) { group in
+                            groupSection(group, api: api)
                         }
-                    } header: {
-                        SectionHeader(title: "All")
+                    } else {
+                        Section { ProgressView() }
                     }
                 }
             }
@@ -137,6 +177,11 @@ struct NotesHomeView: View {
                             }
                         }
                         .tint(.primary)
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if editMode != .active && !store.items.isEmpty {
+                        sortMenuButton
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -331,12 +376,12 @@ struct NotesHomeView: View {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     @ViewBuilder
-    private func itemRow(_ item: WorkspaceItem, api: PinkhaApi) -> some View {
+    func itemRow(_ item: WorkspaceItem, api: PinkhaApi) -> some View {
         switch item {
         case .note(let doc):
             NavigationLink(destination: DocumentView(vm: tabManager.open(docId: doc.id, api: api),
                                                      onDisappear: store.load)) {
-                WorkspaceRow(item: item)
+                WorkspaceRow(item: item, displayDateIso: displayDate(for: item))
             }
             // Apple Music-style long-press : the row floats as a
             // detached card preview, with Rename / Delete options
@@ -361,7 +406,7 @@ struct NotesHomeView: View {
         case .database(let db):
             NavigationLink(destination: DatabaseView(dbId: db.id, api: api,
                                                     onDisappear: store.load)) {
-                WorkspaceRow(item: item)
+                WorkspaceRow(item: item, displayDateIso: displayDate(for: item))
             }
         }
     }

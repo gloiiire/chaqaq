@@ -12,6 +12,22 @@ pub fn create_document(uow: &dyn UnitOfWork, title: &str) -> Result<Document, Pi
     Ok(doc)
 }
 
+/// Variant of `create_document` that pins the doc's `created_at` to a
+/// specific timestamp (RFC 3339). Used by importers (Notion / Bear /
+/// Craft) so the imported note carries the original platform's
+/// creation date through to its SQLite row — `created_at` is otherwise
+/// set to `now()` at first INSERT and immutable afterwards.
+pub fn create_document_with_created_at(
+    uow: &dyn UnitOfWork,
+    title: &str,
+    created_at: String,
+) -> Result<Document, PinkhaError> {
+    let mut doc = Document::new(parse_inline(title));
+    doc.created_at = Some(created_at);
+    uow.documents().save(&doc)?;
+    Ok(doc)
+}
+
 /// Loads a full document by ID.
 pub fn get_document(uow: &dyn UnitOfWork, id: Uuid) -> Result<Document, PinkhaError> {
     uow.documents().load(id)

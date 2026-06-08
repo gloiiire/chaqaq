@@ -173,6 +173,16 @@ pub struct Document {
     /// saved before this field existed.
     #[serde(default)]
     pub locked: bool,
+    /// Optional override for the document's `created_at` timestamp at
+    /// **first save**. When `Some`, the store uses this value (RFC 3339
+    /// string) for the initial INSERT instead of `now()`. Used by
+    /// importers (Notion / Bear / Craft) so the imported doc keeps the
+    /// original platform's creation date, not the import-time wall
+    /// clock. `None` for natively-created docs — they get `now()` as
+    /// usual. After the first save this field is irrelevant (the SQLite
+    /// row's `created_at` is immutable).
+    #[serde(default)]
+    pub created_at: Option<String>,
 }
 
 impl Document {
@@ -187,6 +197,7 @@ impl Document {
             folder_id: None,
             parent_doc_id: None,
             locked: false,
+            created_at: None,
         }
     }
 
