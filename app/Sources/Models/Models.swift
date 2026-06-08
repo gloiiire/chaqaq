@@ -17,6 +17,17 @@ struct DocumentFfi: Codable {
     /// Bear/Craft default to locked) — the user unlocks before editing.
     /// Decoded as false for legacy documents (Rust uses `#[serde(default)]`).
     let locked: Bool?
+    /// Per-document accent color name (e.g. `"red"`) overriding the
+    /// app-wide accent from `AppSettings`. `nil` falls back to the
+    /// global accent. Decoded as nil for pre-feature documents (Rust
+    /// uses `#[serde(default)]`). Default = nil so existing call
+    /// sites (tests, pre-feature constructors) keep compiling.
+    let accentColor: String? = nil
+
+    enum CodingKeys: String, CodingKey {
+        case id, cover, icon, title, blocks, locked
+        case accentColor = "accent_color"
+    }
 }
 
 /// Swift mirror of a `Block` node. Blocks are recursive (children).

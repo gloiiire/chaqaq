@@ -13,6 +13,7 @@ struct FolderView: View {
     /// disappear, so the create bubble's "New …" land inside the folder
     /// the user is looking at.
     @EnvironmentObject private var composer: Composer
+    @EnvironmentObject private var tabManager: TabManager
 
     @State private var showingNewSubFolder = false
     @State private var newSubFolderName = ""
@@ -71,7 +72,7 @@ struct FolderView: View {
                         .listRowSeparator(.hidden)
                 } else if let api = store.api {
                     ForEach(docs, id: \.id) { doc in
-                        NavigationLink(destination: DocumentView(docId: doc.id, api: api,
+                        NavigationLink(destination: DocumentView(vm: tabManager.open(docId: doc.id, api: api),
                                                                   onDisappear: store.load)) {
                             WorkspaceRow(item: .note(doc))
                         }
@@ -125,7 +126,14 @@ struct FolderView: View {
             }
         }
         .onAppear { composer.currentContext = .folder(id: folder.id) }
-        .onDisappear { composer.currentContext = .root }
+        .onDisappear {
+            // Same guard as DocumentView.onDisappear : SwiftUI may
+            // fire the destination's onAppear before our onDisappear,
+            // so we only reset when the context is still ours.
+            if composer.currentContext == .folder(id: folder.id) {
+                composer.currentContext = .root
+            }
+        }
         .alert("New sub-folder", isPresented: $showingNewSubFolder) {
             TextField("Name", text: $newSubFolderName)
             Button("Create") {

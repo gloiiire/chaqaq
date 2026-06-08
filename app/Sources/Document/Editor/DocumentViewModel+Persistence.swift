@@ -95,6 +95,7 @@ extension DocumentViewModel {
             cover = doc.cover
             icon = doc.icon
             locked = doc.locked ?? false
+            accentColor = doc.accentColor
             blocks = DocumentViewModel.flattenBlocks(doc.blocks, depth: 0)
             // Initialise stable snapshots for burst undo tracking.
             blockSnapshots = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, snapshotOf($0)) })

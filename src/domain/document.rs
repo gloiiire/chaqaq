@@ -1,6 +1,19 @@
 pub use chaqaq::{InlineStyle, InlineText};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use uuid::Uuid;
+
+/// Maps a JSON `null` or missing field to `String::default()` (empty),
+/// otherwise expects a normal string. Used by `DocumentMeta`'s
+/// timestamp fields so JSON files written by [`crate::domain::document::Document`]
+/// — whose timestamps are `Option<String>` and serialise to `null` when
+/// `None` — can still be re-read into the non-optional `String` typed
+/// meta view without serde rejecting the row.
+fn deserialize_string_or_null<'de, D>(d: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(Option::<String>::deserialize(d)?.unwrap_or_default())
+}
 
 /// Content variant of a block — determines how it is rendered and edited.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,11 +119,16 @@ pub struct DocumentMeta {
     pub title: Vec<InlineText>,
     /// ISO 8601 timestamp of the last modification, managed by the infrastructure layer.
     /// Empty when the backend does not provide it (JsonStore, mock).
-    #[serde(default)]
+    /// `deserialize_with` tolerates an explicit `null` from a JSON
+    /// document whose Document-side timestamp is `None` — without it,
+    /// `JsonStore.list()` silently drops every doc that was natively
+    /// created in-app (those serialise `created_at: null`).
+    #[serde(default, deserialize_with = "deserialize_string_or_null")]
     pub updated_at: String,
     /// ISO 8601 creation timestamp, set at INSERT and never modified.
     /// Empty when the backend does not provide it (JsonStore, mock).
-    #[serde(default)]
+    /// Same `null → ""` tolerance as `updated_at` above.
+    #[serde(default, deserialize_with = "deserialize_string_or_null")]
     pub created_at: String,
     /// Folder this document belongs to. None = root level.
     #[serde(default)]
@@ -173,6 +191,26 @@ pub struct Document {
     /// saved before this field existed.
     #[serde(default)]
     pub locked: bool,
+    /// Optional override for the document's `created_at` timestamp at
+    /// **first save**. When `Some`, the store uses this value (RFC 3339
+    /// string) for the initial INSERT instead of `now()`. Used by
+    /// importers (Notion / Bear / Craft) so the imported doc keeps the
+    /// original platform's creation date, not the import-time wall
+    /// clock. `None` for natively-created docs — they get `now()` as
+    /// usual. After the first save this field is irrelevant (the SQLite
+    /// row's `created_at` is immutable).
+    #[serde(default)]
+    pub created_at: Option<String>,
+    /// Per-document accent color name (e.g. `"red"`, `"teal"`). When
+    /// `Some`, the editor renders its chrome (toolbar, FAB, cursor,
+    /// selection lozenge, etc.) in this color instead of the
+    /// app-wide accent from settings. `None` means the document
+    /// inherits the global accent. Same naming scheme as
+    /// [`Block::color`] — the rendering layer maps the name to a
+    /// concrete `UIColor` / `Color`. `#[serde(default)]` keeps
+    /// backward compatibility with pre-feature documents.
+    #[serde(default)]
+    pub accent_color: Option<String>,
 }
 
 impl Document {
@@ -187,6 +225,8 @@ impl Document {
             folder_id: None,
             parent_doc_id: None,
             locked: false,
+            created_at: None,
+            accent_color: None,
         }
     }
 

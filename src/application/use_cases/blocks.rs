@@ -49,6 +49,56 @@ pub fn set_block_color(
     repo.save(&doc)
 }
 
+/// Duplicates a block (with all its descendants) and inserts the copy
+/// directly after the original, at the same level in the tree. Every
+/// block (and child block) in the clone receives a fresh UUID so the
+/// editor can address them independently.
+///
+/// Returns the new top-level block id so callers can focus / scroll
+/// to the freshly inserted copy. `NotFound` if `block_id` is unknown.
+pub fn duplicate_block(
+    uow: &dyn UnitOfWork,
+    doc_id: Uuid,
+    block_id: Uuid,
+) -> Result<Uuid, PinkhaError> {
+    let repo = uow.documents();
+    let mut doc = repo.load(doc_id)?;
+    let new_id = duplicate_in_tree(&mut doc.blocks, block_id)
+        .ok_or(PinkhaError::NotFound(block_id))?;
+    repo.save(&doc)?;
+    Ok(new_id)
+}
+
+/// Walks the tree looking for `block_id`. On match, clones the block
+/// (regenerating every UUID recursively), inserts the clone right
+/// after the original, and returns the clone's id. Returns `None`
+/// if the block isn't in this subtree.
+fn duplicate_in_tree(blocks: &mut Vec<Block>, block_id: Uuid) -> Option<Uuid> {
+    if let Some(pos) = blocks.iter().position(|b| b.id == block_id) {
+        let clone = clone_with_fresh_ids(&blocks[pos]);
+        let new_id = clone.id;
+        blocks.insert(pos + 1, clone);
+        return Some(new_id);
+    }
+    for block in blocks.iter_mut() {
+        if let Some(id) = duplicate_in_tree(&mut block.children, block_id) {
+            return Some(id);
+        }
+    }
+    None
+}
+
+/// Deep-clones a block, assigning a fresh `Uuid` to it and every
+/// descendant. Preserves content and color verbatim.
+fn clone_with_fresh_ids(block: &Block) -> Block {
+    Block {
+        id: Uuid::new_v4(),
+        content: block.content.clone(),
+        color: block.color.clone(),
+        children: block.children.iter().map(clone_with_fresh_ids).collect(),
+    }
+}
+
 /// Deletes a block (and all its descendants) from the document tree and persists.
 pub fn delete_block(uow: &dyn UnitOfWork, doc_id: Uuid, block_id: Uuid) -> Result<(), PinkhaError> {
     let repo = uow.documents();
@@ -576,6 +626,113 @@ mod tests {
 
         let res = outdent_block(&doc_uow(&repo), doc.id, a_id);
         assert!(matches!(res, Err(PinkhaError::InvalidOperation(_))));
+    }
+
+    // ── duplicate ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_duplicate_root_block_inserts_clone_right_after() {
+        let repo = MockRepo::new();
+        let mut doc = Document::new(inline("Test"));
+        let a = text_block("A");
+        let b = text_block("B");
+        let a_id = a.id;
+        let b_id = b.id;
+        doc.blocks.push(a);
+        doc.blocks.push(b);
+        repo.save(&doc).unwrap();
+
+        let new_id = duplicate_block(&doc_uow(&repo), doc.id, a_id).unwrap();
+
+        let loaded = repo.load(doc.id).unwrap();
+        assert_eq!(loaded.blocks.len(), 3);
+        assert_eq!(loaded.blocks[0].id, a_id);
+        assert_eq!(loaded.blocks[1].id, new_id);
+        assert_eq!(loaded.blocks[2].id, b_id);
+        // Clone gets a fresh UUID — not equal to the original.
+        assert_ne!(new_id, a_id);
+    }
+
+    #[test]
+    fn test_duplicate_preserves_content_and_color() {
+        let repo = MockRepo::new();
+        let mut doc = Document::new(inline("Test"));
+        let mut a = text_block("hello");
+        a.color = Some("red".into());
+        let a_id = a.id;
+        doc.blocks.push(a);
+        repo.save(&doc).unwrap();
+
+        let new_id = duplicate_block(&doc_uow(&repo), doc.id, a_id).unwrap();
+
+        let loaded = repo.load(doc.id).unwrap();
+        let clone = loaded.blocks.iter().find(|b| b.id == new_id).unwrap();
+        assert_eq!(clone.color.as_deref(), Some("red"));
+        match &clone.content {
+            BlockContent::Text(spans) => {
+                assert_eq!(spans[0].content, "hello");
+            }
+            _ => panic!("clone content variant changed"),
+        }
+    }
+
+    #[test]
+    fn test_duplicate_deep_clones_children_with_fresh_ids() {
+        let repo = MockRepo::new();
+        let mut doc = Document::new(inline("Test"));
+        let mut parent = text_block("parent");
+        let child = text_block("child");
+        let child_id = child.id;
+        parent.children.push(child);
+        let parent_id = parent.id;
+        doc.blocks.push(parent);
+        repo.save(&doc).unwrap();
+
+        let new_id = duplicate_block(&doc_uow(&repo), doc.id, parent_id).unwrap();
+
+        let loaded = repo.load(doc.id).unwrap();
+        let clone = loaded.blocks.iter().find(|b| b.id == new_id).unwrap();
+        assert_eq!(clone.children.len(), 1);
+        // Child of the clone has a fresh UUID — not equal to the original child.
+        assert_ne!(clone.children[0].id, child_id);
+    }
+
+    #[test]
+    fn test_duplicate_nested_block_inserts_at_same_level() {
+        // parent
+        //   ├─ child1  ← duplicate this
+        //   └─ child2
+        // → parent.children = [child1, clone, child2]
+        let repo = MockRepo::new();
+        let mut doc = Document::new(inline("Test"));
+        let mut parent = text_block("parent");
+        let child1 = text_block("c1");
+        let child2 = text_block("c2");
+        let c1_id = child1.id;
+        let c2_id = child2.id;
+        parent.children.push(child1);
+        parent.children.push(child2);
+        doc.blocks.push(parent);
+        repo.save(&doc).unwrap();
+
+        let new_id = duplicate_block(&doc_uow(&repo), doc.id, c1_id).unwrap();
+
+        let loaded = repo.load(doc.id).unwrap();
+        let kids = &loaded.blocks[0].children;
+        assert_eq!(kids.len(), 3);
+        assert_eq!(kids[0].id, c1_id);
+        assert_eq!(kids[1].id, new_id);
+        assert_eq!(kids[2].id, c2_id);
+    }
+
+    #[test]
+    fn test_duplicate_unknown_block_returns_not_found() {
+        let repo = MockRepo::new();
+        let doc = Document::new(inline("Test"));
+        repo.save(&doc).unwrap();
+        let unknown = Uuid::new_v4();
+        let res = duplicate_block(&doc_uow(&repo), doc.id, unknown);
+        assert!(matches!(res, Err(PinkhaError::NotFound(_))));
     }
 
     #[test]

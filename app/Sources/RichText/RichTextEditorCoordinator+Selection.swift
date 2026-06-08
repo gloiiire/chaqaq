@@ -36,7 +36,13 @@ extension RichTextEditorCoordinator {
 
     func setSymbolActive(_ btn: UIButton?, active: Bool, name: String, size: CGFloat = 22) {
         guard let btn else { return }
-        let c: UIColor = active ? (UIColor(named: "Accent") ?? .tintColor) : .secondaryLabel
+        // Prefer the doc-resolved accent pushed by the SwiftUI parent
+        // (per-doc override winning over the global accent). Fall
+        // back to the asset-catalog color, then `.tintColor`.
+        let activeColor = currentAccentColor
+            ?? UIColor(named: "Accent")
+            ?? .tintColor
+        let c: UIColor = active ? activeColor : .secondaryLabel
         let cfg = UIImage.SymbolConfiguration(pointSize: size, weight: .medium)
         btn.setImage(UIImage(systemName: name, withConfiguration: cfg)?
             .withTintColor(c, renderingMode: .alwaysOriginal), for: .normal)

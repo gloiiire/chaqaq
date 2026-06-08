@@ -4,21 +4,32 @@ import SwiftUI
 
 /// Full-screen document editor: cover + icon, title, block list, FAB, undo/redo pill.
 struct DocumentView: View {
-    @StateObject var vm: DocumentViewModel
+    /// `@ObservedObject` (not `@StateObject`) because the VM is owned
+    /// by `TabManager` — DocumentView is recreated on every push but
+    /// the VM lives for as long as the tab is open, keeping its
+    /// blocks/undo/burst state alive across navigations à la Safari.
+    @ObservedObject var vm: DocumentViewModel
     /// Injected by `ContentView` so we can flip the global creation
     /// context to this document while it's on screen — `New …` from
     /// the bubble then creates child pages or embedded databases inside
     /// this doc, à la Notion.
-    @EnvironmentObject private var composer: Composer
+    @EnvironmentObject var composer: Composer
+    @EnvironmentObject var tabManager: TabManager
     /// Read-only here — drives the optional spotlight tint applied in
     /// `blockListRow`. The setting is owned at the app level so every
     /// document picks the same look without having to re-fetch it.
     @EnvironmentObject var settings: AppSettings
+    /// Used by the breadcrumb in the toolbar to walk up the
+    /// parent-doc chain (`parentDocId` is on the metadata, not on
+    /// the active VM).
+    @EnvironmentObject var store: PinkhaStore
     /// Tracks whether the iOS 26 bottom accessory is rendered inline
     /// (collapsed into the tab bar) or expanded above it. Drives the
     /// floating-button bottom padding so the visual gap to the
     /// accessory bar stays consistent in both modes.
     @Environment(\.tabViewBottomAccessoryPlacement) var accessoryPlacement
+    /// Pops the editor when the title-bubble menu confirms a delete.
+    @Environment(\.dismiss) var dismiss
     @State var showingBlockPicker = false
     @State var editMode: EditMode = .inactive
     @State var focusTitle = false
@@ -47,6 +58,11 @@ struct DocumentView: View {
     /// initiated — without this, the programmatic `proxy.scrollTo` below
     /// would itself trigger the "user scrolled, drop the spotlight" path.
     @State var spotlightArmedAt: Date? = nil
+    /// Cache of `id → metadata` for every non-deleted doc, used to
+    /// walk the `parentDocId` chain for the breadcrumb. Loaded once
+    /// on appear from `vm.api.listDocuments()` (which includes
+    /// sub-pages, unlike `store.documents` which is root-only).
+    @State var docMetaById: [String: DocumentMetaFfi] = [:]
     /// Legacy UserDefaults key for the lock state, retained for the one-shot
     /// migration in `onAppear` — the canonical store is now `vm.locked`.
     let lockKey: String
@@ -58,13 +74,16 @@ struct DocumentView: View {
     /// straight to the matched block instead of the top of the doc.
     let scrollToBlockId: String?
 
-    init(docId: String,
-         api: PinkhaApi,
+    /// Build a DocumentView around an existing VM (the typical path —
+    /// callers fetch the VM from `TabManager.open(docId:)` so the
+    /// tab keeps its in-memory state).
+    init(vm: DocumentViewModel,
          onDisappear: (() -> Void)? = nil,
          scrollToBlockId: String? = nil) {
+        let docId = vm.docId
         let lockKey = Self.lockKeyFor(docId: docId)
         let iconKey = Self.iconKeyFor(docId: docId)
-        _vm = StateObject(wrappedValue: DocumentViewModel(docId: docId, api: api))
+        self.vm = vm
         _documentIcon = State(initialValue: UserDefaults.standard.string(forKey: iconKey))
         _recentEmojis = State(initialValue: loadRecentEmojis())
         self.lockKey = lockKey
@@ -95,12 +114,6 @@ struct DocumentView: View {
         ScrollViewReader { proxy in
             ZStack(alignment: .bottomTrailing) {
                 documentList
-                    // Focus → wait for iOS keyboard avoidance to settle
-                    // (≈ 400 ms keyboard animation), then anchor the
-                    // focused block at the bottom of the visible area
-                    // (y = 1.0 — clamped if larger). Keeps the just-
-                    // tapped block close to the keyboard top so the
-                    // user sees max prior context above it.
                     .onChange(of: vm.activeBlockId) { _, newId in
                         guard let id = newId else { return }
                         Task { @MainActor in
@@ -112,10 +125,6 @@ struct DocumentView: View {
                     }
                     .task(id: scrollToBlockId) {
                         guard let target = scrollToBlockId else { return }
-                        // Defer past the first layout pass so the List
-                        // has measured its rows. Without the delay,
-                        // scrollTo silently no-ops on a freshly pushed
-                        // destination.
                         try? await Task.sleep(for: .milliseconds(350))
                         withAnimation(.easeOut(duration: 0.25)) {
                             proxy.scrollTo(target, anchor: .center)
@@ -214,6 +223,48 @@ struct DocumentView: View {
         // used to make symbols white-on-white over light cover images.
         .toolbarBackground(.automatic, for: .navigationBar)
         .toolbar { documentToolbar }
+        // Per-doc accent overrides the global setting for the whole
+        // editor — toolbar buttons, swipe action buttons, the cursor
+        // (UIKit reads the env tint), etc. all repaint when
+        // `vm.accentColor` changes. Explicit `effectiveAccentColor`
+        // call so `nil` falls back to `settings.accentColor`.
+        .tint(effectiveAccentColor)
+        // Capture a screenshot when the user navigates away — fuels
+        // the tab switcher's Safari-style "live thumbnail at last
+        // scroll position" preview. Lives in the body (invisible,
+        // 0-sized) so its hosting VC's `viewWillDisappear` fires
+        // exactly when the editor is still on screen for the final
+        // frame.
+        .background(DocumentSnapshotHook(docId: vm.docId).frame(width: 0, height: 0))
+        .onReceive(NotificationCenter.default.publisher(
+            for: Composer.popToDocNotification)) { note in
+            // Breadcrumb tapped an ancestor. We need to clear
+            // `pushedDocId` on:
+            //  - the target itself (so the NavStack pops the
+            //    descendant chain rooted at its `navigationDestination`
+            //    binding), AND
+            //  - every doc strictly between target and current — even
+            //    though they'll be unmounted, clearing defensively
+            //    prevents a transient body re-eval from re-pushing
+            //    the popped descendant while SwiftUI is still
+            //    tearing the chain down. Needed at depth ≥ 3.
+            guard let target = note.userInfo?["docId"] as? String
+            else { return }
+            if target == vm.docId || isDescendant(of: target) {
+                pushedDocId = nil
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(
+            for: Composer.docTitleChangedNotification)) { _ in
+            // Some doc's title was just persisted — refresh our
+            // copy of every doc's metadata so the breadcrumb walks
+            // the chain with fresh titles. Cheap (in-memory + one
+            // SQLite read) and only fires on actual title saves.
+            if let all = try? vm.api.listDocuments() {
+                docMetaById = Dictionary(uniqueKeysWithValues:
+                    all.map { ($0.id, $0) })
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             withAnimation(.easeInOut(duration: 0.2)) { keyboardVisible = true }
         }
@@ -223,6 +274,18 @@ struct DocumentView: View {
         .onAppear {
             vm.load()
             composer.currentContext = .document(id: vm.docId)
+            // Load every doc's metadata (root + sub-pages) so the
+            // breadcrumb in the toolbar can walk the `parentDocId`
+            // chain. `store.documents` only contains root pages.
+            if let all = try? vm.api.listDocuments() {
+                docMetaById = Dictionary(uniqueKeysWithValues:
+                    all.map { ($0.id, $0) })
+            }
+            // Mark this doc as an open tab in the switcher. Done here
+            // (in `onAppear`) rather than at NavigationLink build time
+            // so SwiftUI body re-renders don't keep re-adding tabs the
+            // user just closed via the Safari-style switcher.
+            tabManager.markOpened(docId: vm.docId, api: vm.api)
             // One-shot migration: documents created before the icon moved
             // to the Rust domain stored their emoji in UserDefaults. Carry
             // it over to the freshly-loaded document, then clear the legacy
@@ -245,7 +308,15 @@ struct DocumentView: View {
         .onDisappear {
             vm.flushAllBursts()
             vm.saveTitle()
-            composer.currentContext = .root
+            // Only reset the creation context to `.root` if it still
+            // points at this doc. When the user pushes a sub-page,
+            // SwiftUI may fire B.onAppear (set `.document(B)`)
+            // before A.onDisappear here — blindly resetting would
+            // clobber B's just-set context and any new note created
+            // from inside B would land at the workspace root.
+            if composer.currentContext == .document(id: vm.docId) {
+                composer.currentContext = .root
+            }
             onDisappear?()
         }
         // When the bubble creates a child page from inside this doc, the
@@ -272,7 +343,7 @@ struct DocumentView: View {
         // The destination view runs through `onAppear { vm.load() }`, so the
         // target document loads from SQLite without any extra plumbing.
         .navigationDestination(item: $pushedDocId) { docId in
-            DocumentView(docId: docId, api: vm.api, onDisappear: nil)
+            DocumentView(vm: tabManager.open(docId: docId, api: vm.api), onDisappear: nil)
         }
     }
 
@@ -284,7 +355,7 @@ struct DocumentView: View {
         } label: {
             Image(systemName: selectedBlocks.contains(id) ? "checkmark.circle.fill" : "circle")
                 .font(.title3)
-                .foregroundStyle(selectedBlocks.contains(id) ? settings.accentColor : .secondary)
+                .foregroundStyle(selectedBlocks.contains(id) ? effectiveAccentColor : .secondary)
                 .frame(width: 28, height: 44)
                 .contentShape(Rectangle())
         }

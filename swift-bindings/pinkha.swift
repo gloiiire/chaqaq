@@ -578,6 +578,13 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func deleteView(dbId: String, viewId: String) throws 
     
     /**
+     * Duplique un bloc (et tous ses enfants, avec de nouveaux UUIDs)
+     * et insère le clone juste après l'original au même niveau.
+     * Retourne l'UUID du nouveau bloc.
+     */
+    func duplicateBlock(docId: String, blockId: String) throws  -> String
+    
+    /**
      * Retourne la database complète sérialisée en JSON (avec entrées et vues).
      */
     func getDatabaseJson(id: String) throws  -> String
@@ -817,6 +824,13 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Remplace le contenu d'un bloc existant (JSON de BlockContent).
      */
     func updateBlock(docId: String, blockId: String, contentJson: String) throws 
+    
+    /**
+     * Pose ou retire l'accent color du document (override par-doc de
+     * l'accent global). Nom de couleur ("red", "teal"...) ou null
+     * pour repartir sur l'accent des Settings.
+     */
+    func updateDocumentAccentColor(id: String, accentColor: String?) throws 
     
     func updateDocumentCover(id: String, cover: String?) throws 
     
@@ -1119,6 +1133,21 @@ open func deleteView(dbId: String, viewId: String)throws   {try rustCallWithErro
         FfiConverterString.lower(viewId),$0
     )
 }
+}
+    
+    /**
+     * Duplique un bloc (et tous ses enfants, avec de nouveaux UUIDs)
+     * et insère le clone juste après l'original au même niveau.
+     * Retourne l'UUID du nouveau bloc.
+     */
+open func duplicateBlock(docId: String, blockId: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_duplicate_block(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(docId),
+        FfiConverterString.lower(blockId),$0
+    )
+})
 }
     
     /**
@@ -1727,6 +1756,20 @@ open func updateBlock(docId: String, blockId: String, contentJson: String)throws
         FfiConverterString.lower(docId),
         FfiConverterString.lower(blockId),
         FfiConverterString.lower(contentJson),$0
+    )
+}
+}
+    
+    /**
+     * Pose ou retire l'accent color du document (override par-doc de
+     * l'accent global). Nom de couleur ("red", "teal"...) ou null
+     * pour repartir sur l'accent des Settings.
+     */
+open func updateDocumentAccentColor(id: String, accentColor: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_document_accent_color(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(accentColor),$0
     )
 }
 }
@@ -2711,6 +2754,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_view() != 42172) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_duplicate_block() != 40850) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_get_database_json() != 53195) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -2853,6 +2899,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_block() != 49420) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_accent_color() != 46266) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_cover() != 31520) {

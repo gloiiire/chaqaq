@@ -353,6 +353,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_delete_property(uint64_t ptr, RustBuffer 
 void uniffi_pinkha_fn_method_pinkhaapi_delete_view(uint64_t ptr, RustBuffer db_id, RustBuffer view_id, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DUPLICATE_BLOCK
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DUPLICATE_BLOCK
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_duplicate_block(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_GET_DATABASE_JSON
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_GET_DATABASE_JSON
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_get_database_json(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
@@ -591,6 +596,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_set_view_sort(uint64_t ptr, RustBuffer db
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_BLOCK
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_BLOCK
 void uniffi_pinkha_fn_method_pinkhaapi_update_block(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustBuffer content_json, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_ACCENT_COLOR
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_ACCENT_COLOR
+void uniffi_pinkha_fn_method_pinkhaapi_update_document_accent_color(uint64_t ptr, RustBuffer id, RustBuffer accent_color, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_COVER
@@ -1007,6 +1017,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_view(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DUPLICATE_BLOCK
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DUPLICATE_BLOCK
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_duplicate_block(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_GET_DATABASE_JSON
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_GET_DATABASE_JSON
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_get_database_json(void
@@ -1292,6 +1308,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_view_sort(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_BLOCK
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_BLOCK
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_block(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_ACCENT_COLOR
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_ACCENT_COLOR
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_accent_color(void
     
 );
 #endif

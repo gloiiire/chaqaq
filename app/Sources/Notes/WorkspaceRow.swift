@@ -17,6 +17,11 @@ func formattedRelativeDate(_ iso: String) -> String? {
 /// A row in the unified workspace list.
 struct WorkspaceRow: View {
     let item: WorkspaceItem
+    /// ISO date shown under the title. Defaults to `updatedAt` (the
+    /// historical behaviour) but callers can override — `NotesHomeView`
+    /// passes `createdAt` when the user sorts by Created so the visible
+    /// timestamp matches the active sort key.
+    var displayDateIso: String? = nil
 
     var body: some View {
         HStack(spacing: 12) {
@@ -24,7 +29,7 @@ struct WorkspaceRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.titlePlain.isEmpty ? "Untitled" : item.titlePlain)
                     .font(.body.weight(.medium))
-                if let date = formattedDate(item.updatedAt) {
+                if let date = formattedDate(displayDateIso ?? item.updatedAt) {
                     Text(date).font(.caption).foregroundStyle(.secondary)
                 }
             }
