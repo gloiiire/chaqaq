@@ -247,7 +247,12 @@ extension NotesHomeView {
                 .pickerStyle(.inline)
             }
         } label: {
-            Image(systemName: "line.3.horizontal.decrease.circle")
+            // Filled glyph signals "grouping is active" — a passive
+            // hint that the list isn't a flat sort. Falls back to the
+            // outline when groupBy is `.none`.
+            Image(systemName: groupBy == .none
+                  ? "line.3.horizontal.decrease.circle"
+                  : "line.3.horizontal.decrease.circle.fill")
         }
         // Neutral chrome — the sort icon shouldn't pick up the
         // TabView's accent color (per the .tint(.primary) convention

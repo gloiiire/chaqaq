@@ -55,7 +55,6 @@
 		62FDB0C4AF1E562971C8A80F /* pinkha.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9E3470806F13B18DD1BDF7AC /* pinkha.xcframework */; };
 		68BC15311DC7E4DACE35F1AC /* CraftCombinedImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4CE1B82B64C77244F8BD2A7 /* CraftCombinedImportView.swift */; };
 		6A61F7F6FC09488712F87FD4 /* DatabaseModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC27E249DFB98A2B03FBBE07 /* DatabaseModelsTests.swift */; };
-		6B3257D35230755B272B2D77 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = EB498FF064AD7FC15511152E /* Pinkha.icon */; };
 		6D96251ADE4D099A372F7FAF /* RichTextEditorCoordinator+Menus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BCB63FBC9E7B7B4FC6EAD63 /* RichTextEditorCoordinator+Menus.swift */; };
 		6F1BED5AF109B8A559654E40 /* MalformedJSONTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D00712F93440126D5247D83 /* MalformedJSONTests.swift */; };
 		70E5381BE9FC61F70FFF8428 /* DatabaseQueriesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74758505CF9C5437D290A702 /* DatabaseQueriesTests.swift */; };
@@ -83,6 +82,7 @@
 		9B9A431855E8404A9003314B /* NotesHomeView+Sort.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3C4D279824EA1E96EE07D0E /* NotesHomeView+Sort.swift */; };
 		9C56A8C90EE5492F7FD49F24 /* PinkhaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 909E5D4DB1628C93BC5215A1 /* PinkhaApp.swift */; };
 		9E488110AB0BE3931273EEA6 /* PerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8FFF93EEDC254780485D651 /* PerformanceTests.swift */; };
+		A216DAD9951750F231062C7B /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 67A530DD3CDD6EFA5378AD70 /* Pinkha.icon */; };
 		A56785ADE2F127B5EBA0AAB7 /* BlockOpsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 738ECE1D72957495F50518E6 /* BlockOpsTests.swift */; };
 		A7488A14BA5D34A208227E79 /* DocumentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4028AC186A60E09445883F5 /* DocumentView.swift */; };
 		A755F6C957C8FF1627DCCCAA /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EA90C535ED0F61DCB900957 /* AppSettings.swift */; };
@@ -184,6 +184,7 @@
 		5FF3FD226E223F8377466121 /* RichTextEditorCoordinator+Style.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RichTextEditorCoordinator+Style.swift"; sourceTree = "<group>"; };
 		6084E410F0DAFDE23346475E /* RichTextEditorCoordinator+Toolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RichTextEditorCoordinator+Toolbar.swift"; sourceTree = "<group>"; };
 		6093527A0945328E7EC8D4F6 /* EmptyStateUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateUITests.swift; sourceTree = "<group>"; };
+		67A530DD3CDD6EFA5378AD70 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		6BA2A66D382F788C73DDAA3E /* DocumentViewHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentViewHelpers.swift; sourceTree = "<group>"; };
 		6C7CC1817FC3F8DA6E8AAEE2 /* TrashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashView.swift; sourceTree = "<group>"; };
 		6FF3829D735CC2FE776FCB96 /* RecentStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentStrip.swift; sourceTree = "<group>"; };
@@ -245,7 +246,6 @@
 		DDF836EB2D9E803A6DCC33B3 /* MarkdownShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownShortcuts.swift; sourceTree = "<group>"; };
 		E2C07ADA01E894E83B574ABA /* HomeScreenUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreenUITests.swift; sourceTree = "<group>"; };
 		E4CE1B82B64C77244F8BD2A7 /* CraftCombinedImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CraftCombinedImportView.swift; sourceTree = "<group>"; };
-		EB498FF064AD7FC15511152E /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		ED135BF384902D45638398A9 /* SharedComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedComponents.swift; sourceTree = "<group>"; };
 		ED9B1DB1A313487130CA11D1 /* FolderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderView.swift; sourceTree = "<group>"; };
 		F0C5E1D7104E176374A94957 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -307,14 +307,6 @@
 				37543D1D1AAFB9CE1F61603F /* ResilienceTests.swift */,
 			);
 			path = Unit;
-			sourceTree = "<group>";
-		};
-		2118041C39A438103BCDB40B /* app */ = {
-			isa = PBXGroup;
-			children = (
-				EB498FF064AD7FC15511152E /* Pinkha.icon */,
-			);
-			name = app;
 			sourceTree = "<group>";
 		};
 		30C4E3F3EB6B011D64BD914E /* Notes */ = {
@@ -533,6 +525,14 @@
 			path = Import;
 			sourceTree = "<group>";
 		};
+		E030019B9C9A9050196DAF69 /* app */ = {
+			isa = PBXGroup;
+			children = (
+				67A530DD3CDD6EFA5378AD70 /* Pinkha.icon */,
+			);
+			name = app;
+			sourceTree = "<group>";
+		};
 		F122F2A1952EFD55C6F7E411 = {
 			isa = PBXGroup;
 			children = (
@@ -542,7 +542,7 @@
 				7CE19974FB0E7C2FE24CED36 /* Tests */,
 				4494D74BA7F514A78EB8D8AC /* Frameworks */,
 				7459E38DDB42FA0567FB08BE /* Products */,
-				2118041C39A438103BCDB40B /* app */,
+				E030019B9C9A9050196DAF69 /* app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -686,7 +686,7 @@
 				1687C7C9610D2298A8E55177 /* InfoPlist.xcstrings in Resources */,
 				55D914D8E621291665434C7E /* Localizable 2.xcstrings in Resources */,
 				D878D8EB398C5B2F7E67F418 /* Localizable.xcstrings in Resources */,
-				6B3257D35230755B272B2D77 /* Pinkha.icon in Resources */,
+				A216DAD9951750F231062C7B /* Pinkha.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
