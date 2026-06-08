@@ -16,6 +16,9 @@ enum WorkspaceItem: Identifiable {
     var updatedAt: String {
         switch self { case .note(let d): return d.updatedAt; case .database(let db): return db.updatedAt }
     }
+    var createdAt: String {
+        switch self { case .note(let d): return d.createdAt; case .database(let db): return db.createdAt }
+    }
     var isDatabase: Bool { if case .database = self { return true }; return false }
 }
 

@@ -94,7 +94,7 @@ struct ExpandingBlockFAB: View {
                     }
                     .buttonStyle(.plain)
                     .tint(.primary)
-                    .accessibilityLabel(type.rawValue)
+                    .accessibilityLabel(Text(type.displayName))
                 }
             }
             .padding(.horizontal, 4)

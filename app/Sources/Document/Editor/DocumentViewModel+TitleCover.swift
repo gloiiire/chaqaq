@@ -13,6 +13,14 @@ extension DocumentViewModel {
         do {
             try api.updateDocumentTitle(id: docId, newTitle: newTitle)
             lastPersistedTitle = newTitle
+            // Broadcast so every mounted DocumentView refreshes the
+            // copy of this doc it keeps in `docMetaById` for its
+            // breadcrumb — otherwise a child still shows the stale
+            // parent title until you pop back to root and re-enter.
+            NotificationCenter.default.post(
+                name: Composer.docTitleChangedNotification,
+                object: nil,
+                userInfo: ["docId": docId])
             undoMgr.registerUndo(withTarget: self) { vm in
                 vm.title = oldTitle
                 vm.saveTitle()
@@ -46,6 +54,25 @@ extension DocumentViewModel {
             try api.updateDocumentIcon(id: docId, icon: newIcon)
             undoMgr.registerUndo(withTarget: self) { vm in vm.saveIcon(oldIcon) }
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// Sets (or clears with `nil`) the per-document accent color and
+    /// persists. Mutates the published value first so SwiftUI repaints
+    /// the chrome immediately, then registers the inverse on the undo
+    /// manager so cmd-Z restores the previous choice.
+    func saveAccentColor(_ newColor: String?) {
+        guard accentColor != newColor else { return }
+        let previous = accentColor
+        accentColor = newColor
+        do {
+            try api.updateDocumentAccentColor(id: docId, accentColor: newColor)
+            undoMgr.registerUndo(withTarget: self) { vm in
+                vm.saveAccentColor(previous)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            accentColor = previous
+        }
     }
 
     /// Toggles the read-only lock and persists. Source of truth for the lock

@@ -66,6 +66,16 @@ struct BlockCallbacks {
     /// toolbar's ¶ button can highlight the active colour, and the closure
     /// applies a new one (nil = clear back to default) via the VM.
     var onSetBlockColor: ((String?) -> Void)? = nil
+    /// Deep-clones the block (FFI side regenerates every UUID) and
+    /// inserts the copy right after the original. The VM focuses the
+    /// new block once the reload settles.
+    var onDuplicate: (() -> Void)? = nil
+    /// Accent color the row should paint its accented affordances with
+    /// (todo checkmark, etc.). Resolved at the DocumentView level so a
+    /// per-doc accent overrides the global setting; the default falls
+    /// back to the SwiftUI env tint when no DocumentView is in the
+    /// chain (preview / other contexts).
+    var accentColor: Color = .accentColor
     /// Called when an inline `pinkha://doc/{uuid}` link is tapped — the
     /// parent navigates to that document. Set by `DocumentView` and read by
     /// `RichTextEditor`.
@@ -119,6 +129,7 @@ struct BlockTextEditor: View {
             onIndent: cb.onIndent,
             onOutdent: cb.onOutdent,
             blockColor: block.color,
+            accentColor: UIColor(cb.accentColor),
             onSetBlockColor: cb.onSetBlockColor,
             onOpenInternalDoc: cb.onOpenInternalDoc)
         .autoFocusIfNeeded(blockId: block.id, autoFocusId: $autoFocusId,
@@ -194,6 +205,18 @@ struct BlockRowView: View {
             }
         }
         .contextMenu {
+            if let onDuplicate = cb.onDuplicate {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    onDuplicate()
+                } label: {
+                    Label {
+                        Text("Duplicate")
+                    } icon: {
+                        Image(uiImage: Self.neutralIcon("plus.square.on.square"))
+                    }
+                }
+            }
             // "Change to" — convert the existing block to another
             // type while preserving its inline content (text spans).
             // Routes through the same FFI as markdown shortcuts.
@@ -204,19 +227,161 @@ struct BlockRowView: View {
                             blockContent(for: type, preserving: block.spans)
                         )
                     } label: {
-                        Label(type.rawValue, systemImage: type.icone)
+                        Label {
+                            Text(type.displayName)
+                        } icon: {
+                            Image(uiImage: Self.neutralIcon(type.icone))
+                        }
                     }
                 }
             } label: {
-                Label("Change to", systemImage: "arrow.triangle.2.circlepath")
+                Label {
+                    Text("Change to")
+                } icon: {
+                    Image(uiImage: Self.neutralIcon("arrow.triangle.2.circlepath"))
+                }
             }
-            .tint(.primary)
+            // "Color" — paints the whole block in one of the palette
+            // colors. Inline color styles on individual spans always
+            // win, so this only repaints text that has no per-span
+            // color of its own (matches the Rust render contract).
+            // Rendered as a `Picker(.inline)` rather than plain
+            // Buttons — that's the only Menu construct iOS 26
+            // actually colours the icons inside (verified pattern
+            // from `NotesHomeView` sort menu).
+            if let onSetColor = cb.onSetBlockColor {
+                Menu {
+                    // Plain Buttons + UIImage circles : iOS 26 strips
+                    // `foregroundStyle` from icon Images inside both
+                    // Menus and inline Pickers (only the *selected*
+                    // row of an inline Picker keeps the tint). A
+                    // pre-rendered UIImage with the color burned into
+                    // the pixels survives the strip — the renderer
+                    // treats it as opaque content, not a tintable
+                    // template.
+                    Button {
+                        onSetColor(nil)
+                    } label: {
+                        Label {
+                            Text("Default")
+                        } icon: {
+                            Image(uiImage: Self.neutralIcon("circle.dashed"))
+                        }
+                    }
+                    ForEach(BlockColorOption.palette) { option in
+                        Button {
+                            onSetColor(option.name)
+                        } label: {
+                            Label {
+                                Text(option.displayName)
+                            } icon: {
+                                Image(uiImage: option.swatchImage)
+                            }
+                        }
+                    }
+                } label: {
+                    Label {
+                        Text("Color")
+                    } icon: {
+                        Image(uiImage: Self.neutralIcon("paintpalette"))
+                    }
+                }
+            }
+            Divider()
+            // Destructive role colours the text red on its own.
+            // The icon, however, gets re-tinted to the menu's default
+            // even with `role: .destructive` in iOS 26 — same root
+            // cause as the colour swatches above. A pre-tinted UIImage
+            // with `.alwaysOriginal` rendering survives the strip.
             Button(role: .destructive, action: cb.onDelete) {
-                Label("Delete block", systemImage: "trash")
+                Label {
+                    Text("Delete block")
+                } icon: {
+                    Image(uiImage: Self.trashIcon)
+                }
             }
-            .tint(.red)
         }
     }
+
+    /// Red trash glyph baked into a UIImage so the menu renderer treats
+    /// it as opaque content (rather than a template it re-tints). Built
+    /// once and reused — `UIImage(systemName:)` returns a configurable
+    /// template, the `.applyingSymbolConfiguration` + `.withTintColor`
+    /// + `.alwaysOriginal` chain renders it into a concrete red bitmap.
+    private static let trashIcon: UIImage = {
+        let config = UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)
+        let base = UIImage(systemName: "trash", withConfiguration: config)
+            ?? UIImage()
+        return base.withTintColor(.systemRed, renderingMode: .alwaysOriginal)
+    }()
+
+    /// SF Symbol rendered as a neutral `.label`-colored UIImage so the
+    /// menu can't re-tint it to the env accent (per-doc accent
+    /// otherwise paints every Duplicate / Change-to / Color trigger
+    /// in the doc's color, which fights the "menu chrome stays
+    /// neutral" rule we follow elsewhere). Same `.alwaysOriginal`
+    /// trick as `trashIcon` and the color swatches. Cached so the
+    /// menu doesn't reallocate UIImages on every open.
+    private static var neutralIconCache: [String: UIImage] = [:]
+    static func neutralIcon(_ name: String) -> UIImage {
+        if let cached = neutralIconCache[name] { return cached }
+        let config = UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)
+        let base = UIImage(systemName: name, withConfiguration: config) ?? UIImage()
+        let tinted = base.withTintColor(.label, renderingMode: .alwaysOriginal)
+        neutralIconCache[name] = tinted
+        return tinted
+    }
+}
+
+// ── Palette options for the block-color context menu ──────────────────────────
+//
+// The Rust side stores a color *name* (e.g. `"red"`); the rendering side
+// already maps names to `UIColor` via `uiColorFromName(_:)`. This struct
+// surfaces the same palette to SwiftUI as a stable, identifiable list
+// the menu can iterate over.
+
+struct BlockColorOption: Identifiable {
+    let id: String
+    let name: String
+    let displayName: LocalizedStringKey
+    let uiColor: UIColor
+
+    /// Pre-rendered filled circle with the color baked into pixels.
+    /// Cached at first access — the menu re-renders on every open and
+    /// reallocating 10 UIImages each time would show up in the
+    /// AttributeGraph trace.
+    var swatchImage: UIImage {
+        BlockColorOption.swatchCache[id] ?? Self.buildSwatch(for: self)
+    }
+
+    private static var swatchCache: [String: UIImage] = [:]
+
+    private static func buildSwatch(for option: BlockColorOption) -> UIImage {
+        let size: CGFloat = 18
+        let img = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
+            .image { _ in
+                option.uiColor.setFill()
+                UIBezierPath(ovalIn: CGRect(x: 0, y: 0, width: size, height: size)).fill()
+            }
+            // `.alwaysOriginal` flags the image as opaque content the
+            // menu rendering pipeline must not re-tint to its accent.
+            .withRenderingMode(.alwaysOriginal)
+        swatchCache[option.id] = img
+        return img
+    }
+
+    static let palette: [BlockColorOption] = [
+        .init(id: "red",    name: "red",    displayName: "Red",    uiColor: .systemRed),
+        .init(id: "pink",   name: "pink",   displayName: "Pink",   uiColor: .systemPink),
+        .init(id: "orange", name: "orange", displayName: "Orange", uiColor: .systemOrange),
+        .init(id: "yellow", name: "yellow", displayName: "Yellow", uiColor: .systemYellow),
+        .init(id: "green",  name: "green",  displayName: "Green",  uiColor: .systemGreen),
+        .init(id: "cyan",   name: "cyan",   displayName: "Cyan",   uiColor: .systemCyan),
+        .init(id: "blue",   name: "blue",   displayName: "Blue",   uiColor: .systemBlue),
+        .init(id: "purple", name: "purple", displayName: "Purple", uiColor: .systemPurple),
+        .init(id: "brown",  name: "brown",  displayName: "Brown",  uiColor: .systemBrown),
+        .init(id: "gray",   name: "gray",   displayName: "Gray",   uiColor: .systemGray),
+    ]
 }
 
 // ── Text ──────────────────────────────────────────────────────────────────────
@@ -229,7 +394,7 @@ private struct TextRowView: View {
 
     var body: some View {
         BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                       placeholder: "Text…", baseFont: .preferredFont(forTextStyle: .body), cb: cb)
+                       placeholder: String(localized: "Text…"), baseFont: .preferredFont(forTextStyle: .body), cb: cb)
     }
 }
 
@@ -385,7 +550,10 @@ struct ChildPageRowView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Text(resolved?.title.isEmpty == false ? resolved!.title : "Untitled")
+            Group {
+                if let r = resolved, !r.title.isEmpty { Text(r.title) }
+                else { Text("Untitled") }
+            }
                 .font(.body.weight(.medium))
                 .foregroundStyle(.primary)
                 .lineLimit(1)

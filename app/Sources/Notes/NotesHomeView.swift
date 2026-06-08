@@ -9,12 +9,18 @@ import SwiftUI
 /// recent strip (`RecentStrip.swift`) and the list row (`WorkspaceRow.swift`).
 struct NotesHomeView: View {
     @ObservedObject var store: PinkhaStore
-    @EnvironmentObject private var composer: Composer
-    @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject var composer: Composer
+    @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var tabManager: TabManager
     @State private var showingSettings = false
     /// Programmatic navigation stack so a freshly-created note can be
     /// pushed onto the editor right after the create sheet dismisses
     /// — driven by `composer.pendingOpenDoc`.
+    /// Programmatic navigation stack. Must stay `@State` — using a
+    /// `@Published`-backed binding (e.g. moved to `Composer`) hits a
+    /// SwiftUI bug where `NavigationStack(path: $model.path)` does
+    /// not visibly pop when `path.removeAll()` is called from outside.
+    /// External mutations route through `Composer.popHomeNotification`.
     @State private var path: [String] = []
     /// Multi-select state for bulk delete. `editMode` flips between
     /// `.inactive` and `.active` via the toolbar Select button; the
@@ -27,6 +33,65 @@ struct NotesHomeView: View {
     /// rename alert and `renameDraft` TextField below.
     @State private var renamingDoc: DocumentMetaFfi?
     @State private var renameDraft: String = ""
+
+    /// Sort + group preferences. `@AppStorage` persists them across
+    /// launches without an explicit migration — each user setting maps
+    /// to one `UserDefaults` key. Defaults mirror the previous implicit
+    /// behaviour (most-recently-updated first, no grouping).
+    @AppStorage("notes.sortKey")   var sortKeyRaw: String = SortKey.updatedAt.rawValue
+    @AppStorage("notes.sortAsc")   var sortAscending: Bool = false
+    @AppStorage("notes.groupBy")   var groupByRaw: String = GroupBy.none.rawValue
+
+    var sortKey: SortKey {
+        SortKey(rawValue: sortKeyRaw) ?? .updatedAt
+    }
+    var groupBy: GroupBy {
+        GroupBy(rawValue: groupByRaw) ?? .none
+    }
+
+    enum SortKey: String, CaseIterable, Identifiable {
+        case lastOpened, name, createdAt, updatedAt
+        var id: String { rawValue }
+        var label: LocalizedStringKey {
+            switch self {
+            case .lastOpened: "Last opened"
+            case .name:       "Name"
+            case .createdAt:  "Created"
+            case .updatedAt:  "Updated"
+            }
+        }
+        var systemImage: String {
+            switch self {
+            case .lastOpened: "clock"
+            case .name:       "textformat"
+            case .createdAt:  "calendar.badge.plus"
+            case .updatedAt:  "calendar"
+            }
+        }
+    }
+
+    enum GroupBy: String, CaseIterable, Identifiable {
+        case none, lastOpened, name, createdAt, updatedAt
+        var id: String { rawValue }
+        var label: LocalizedStringKey {
+            switch self {
+            case .none:       "None"
+            case .lastOpened: "Last opened"
+            case .name:       "Name"
+            case .createdAt:  "Created"
+            case .updatedAt:  "Updated"
+            }
+        }
+        var systemImage: String {
+            switch self {
+            case .none:       "minus.rectangle"
+            case .lastOpened: "clock"
+            case .name:       "textformat"
+            case .createdAt:  "calendar.badge.plus"
+            case .updatedAt:  "calendar"
+            }
+        }
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -42,10 +107,10 @@ struct NotesHomeView: View {
                     if editMode == .active { selectedIds = newValue }
                 }
             )) {
-                if !store.items.isEmpty {
+                if !recentlyViewedItems.isEmpty {
                     Section {
                         RecentStrip(
-                            items: store.recentItems(limit: settings.recentCount),
+                            items: recentlyViewedItems,
                             api: store.api,
                             onDisappear: { store.load() },
                             onOpenNote: { docId in
@@ -80,31 +145,12 @@ struct NotesHomeView: View {
                             .listRowSeparator(.hidden)
                     }
                 } else {
-                    Section {
-                        if let api = store.api {
-                            ForEach(store.items) { item in
-                                itemRow(item, api: api)
-                                    // Explicit swipeActions (not
-                                    // `.onDelete`) so the trash icon +
-                                    // label match every other swipe
-                                    // delete in the app.
-                                    .swipeActions(edge: .trailing) {
-                                        Button(role: .destructive) {
-                                            switch item {
-                                            case .note(let d):      store.delete(id: d.id)
-                                            case .database(let db): store.deleteDatabase(id: db.id)
-                                            }
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
-                                        .tint(.red)
-                                    }
-                            }
-                        } else {
-                            ProgressView()
+                    if let api = store.api {
+                        ForEach(groupedItems) { group in
+                            groupSection(group, api: api)
                         }
-                    } header: {
-                        SectionHeader(title: "All")
+                    } else {
+                        Section { ProgressView() }
                     }
                 }
             }
@@ -131,6 +177,11 @@ struct NotesHomeView: View {
                             }
                         }
                         .tint(.primary)
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if editMode != .active && !store.items.isEmpty {
+                        sortMenuButton
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -183,7 +234,8 @@ struct NotesHomeView: View {
             // editor — driven by `composer.pendingOpenDoc` below.
             .navigationDestination(for: String.self) { docId in
                 if let api = store.api {
-                    DocumentView(docId: docId, api: api, onDisappear: store.load)
+                    DocumentView(vm: tabManager.open(docId: docId, api: api),
+                                 onDisappear: store.load)
                 }
             }
         }
@@ -198,7 +250,35 @@ struct NotesHomeView: View {
                 composer.pendingOpenDoc = nil
             }
         }
-        .onChange(of: path) { _, newPath in
+        .onChange(of: validPathKey) { _, _ in pruneStalePath() }
+        .onReceive(NotificationCenter.default.publisher(
+            for: Composer.popHomeNotification)) { _ in
+            // Switcher's ✓ button posted this after dismissing with
+            // zero tabs left. Direct @State mutation actually pops the
+            // NavigationStack (a $model.path binding wouldn't).
+            path.removeAll()
+        }
+        .onReceive(NotificationCenter.default.publisher(
+            for: Composer.popToDocNotification)) { note in
+            // DocumentView breadcrumb tapped an ancestor — truncate
+            // the NavStack path to keep entries up to (and including)
+            // that doc, popping every descendant in one go.
+            guard let target = note.userInfo?["docId"] as? String,
+                  let idx = path.firstIndex(of: target) else { return }
+            path = Array(path.prefix(idx + 1))
+        }
+        .onChange(of: path) { oldPath, newPath in
+            // Mark every newly-pushed doc as "open" in the switcher.
+            // We do it here (in response to an explicit path change),
+            // NOT inside the NavigationLink destination — that closure
+            // is re-evaluated every time SwiftUI re-renders the body,
+            // which would re-add tabs the user just closed via the
+            // switcher.
+            if newPath.count > oldPath.count, let api = store.api {
+                for docId in newPath where !oldPath.contains(docId) {
+                    tabManager.markOpened(docId: docId, api: api)
+                }
+            }
             // When the user pops back to the home, drop any selection
             // SwiftUI's List might have carried over from the programmatic
             // push — otherwise the row that was just navigated to stays
@@ -252,6 +332,42 @@ struct NotesHomeView: View {
     /// disappeared — that's the `NSInternalInconsistencyException` we
     /// saw on Sentry (APPLE-IOS-8). Clearing first lets the diff
     /// settle on the store changes alone.
+    /// Recent strip items, ordered by **last-opened** (MRU), not by
+    /// `updatedAt`. Reads from `tabManager.recentlyViewed` (kept up to
+    /// date in `markOpened`) and resolves each id against the live
+    /// store metadata. Deleted docs naturally drop out of the strip.
+    /// Capped at the user's recent-count setting.
+    private var recentlyViewedItems: [WorkspaceItem] {
+        let byId = Dictionary(uniqueKeysWithValues: store.items.map { ($0.id, $0) })
+        return tabManager.recentlyViewed
+            .compactMap { byId[$0] }
+            .prefix(settings.recentCount)
+            .map { $0 }
+    }
+
+    /// Stringified snapshot of the two upstream collections that gate
+    /// path validity. Used as the single `.onChange` trigger to avoid
+    /// the "compiler unable to type-check in reasonable time" wall
+    /// that two separate `.onChange` modifiers in the body hit.
+    private var validPathKey: String {
+        let docs = store.documents.map(\.id).joined(separator: ",")
+        let tabs = tabManager.openTabs.map(\.docId).joined(separator: ",")
+        return "\(docs)|\(tabs)"
+    }
+
+    /// Drops any doc on the nav stack that's either been deleted from
+    /// the store (bulk Delete All) or removed from the open-tabs list
+    /// (switcher's "Close all tabs"). Without this the user stays on a
+    /// DocumentView for a doc they just declared gone — renders as a
+    /// blank "Untitled" because vm.load has nothing to fetch.
+    private func pruneStalePath() {
+        let docs = Set(store.documents.map(\.id))
+        let tabs = Set(tabManager.openTabs.map(\.docId))
+        path = path.filter {
+            docs.contains($0) && tabs.contains($0)
+        }
+    }
+
     private func deleteSelected() {
         let toDelete = store.items.filter { selectedIds.contains($0.id) }
         withAnimation(.easeInOut(duration: 0.2)) {
@@ -269,12 +385,12 @@ struct NotesHomeView: View {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     @ViewBuilder
-    private func itemRow(_ item: WorkspaceItem, api: PinkhaApi) -> some View {
+    func itemRow(_ item: WorkspaceItem, api: PinkhaApi) -> some View {
         switch item {
         case .note(let doc):
-            NavigationLink(destination: DocumentView(docId: doc.id, api: api,
+            NavigationLink(destination: DocumentView(vm: tabManager.open(docId: doc.id, api: api),
                                                      onDisappear: store.load)) {
-                WorkspaceRow(item: item)
+                WorkspaceRow(item: item, displayDateIso: displayDate(for: item))
             }
             // Apple Music-style long-press : the row floats as a
             // detached card preview, with Rename / Delete options
@@ -299,7 +415,7 @@ struct NotesHomeView: View {
         case .database(let db):
             NavigationLink(destination: DatabaseView(dbId: db.id, api: api,
                                                     onDisappear: store.load)) {
-                WorkspaceRow(item: item)
+                WorkspaceRow(item: item, displayDateIso: displayDate(for: item))
             }
         }
     }

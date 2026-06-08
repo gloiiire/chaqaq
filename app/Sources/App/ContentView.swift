@@ -9,28 +9,16 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var store = PinkhaStore()
     @StateObject private var composer = Composer()
+    @StateObject private var tabManager = TabManager()
     @EnvironmentObject private var settings: AppSettings
 
+    /// Tracks crossing of the swipe-up haptic threshold so we fire
+    /// the "ready to commit" tap exactly once per drag, not on every
+    /// pixel past the line.
+    @State private var swipeUpHapticFired = false
+
     var body: some View {
-        TabView {
-            Tab("Notes", systemImage: "note.text") {
-                NotesHomeView(store: store)
-            }
-            Tab("Databases", systemImage: "tablecells") {
-                DatabasesHomeView(store: store)
-            }
-            // Inbox : the SF Symbol swaps from `tray.fill` to `tray.badge.fill`
-            // when `hasInboxNotification` flips on, giving a clear "you have
-            // something to look at" cue without relying on .badge() (which
-            // we reserve for actual unread counts).
-            Tab("Inbox",
-                systemImage: store.hasInboxNotification ? "tray.badge.fill" : "tray.fill") {
-                InboxView(store: store)
-            }
-            Tab(role: .search) {
-                SearchView(store: store)
-            }
-        }
+        rootTabs
         // iOS 26 tab-bar morphing : the tab bar collapses when the user
         // scrolls down so the content gets more breathing room, and
         // reappears on scroll-up. Search (role: .search) automatically
@@ -47,6 +35,25 @@ struct ContentView: View {
         // when they appear / disappear without having to be passed
         // through every NavigationLink call site.
         .environmentObject(composer)
+        .environmentObject(tabManager)
+        .environmentObject(store)
+        // Swipe-up from the tab bar opens the "Tous les documents"
+        // switcher (Safari pattern : the bottom toolbar zone is the
+        // canonical entry into the tab grid). `simultaneousGesture`
+        // lets it coexist with tab taps (no movement = tab tap fires;
+        // movement = our drag fires). We only trigger when the gesture
+        // (a) started near the bottom of the screen, (b) moved up
+        // significantly, and (c) was mostly vertical — same heuristics
+        // Safari uses to distinguish from a side-swipe between tabs.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 20, coordinateSpace: .global)
+                .onChanged { value in
+                    swipeUpProgress(value)
+                }
+                .onEnded { value in
+                    commitSwipeUpIfReady(value)
+                }
+        )
         // Create bubble : single glass accessory hosting the four primary
         // entry points — new note, new database, new folder and an
         // overflow menu (trash + imports). Stays visible across all tabs
@@ -62,7 +69,8 @@ struct ContentView: View {
                 onImportNotion: { composer.showingNotionImport = true },
                 onImportBear: { composer.showingBearImport = true },
                 onImportCraftTextBundle: { composer.showingCraftTextBundleImport = true },
-                onImportCraftCombined: { composer.showingCraftCombinedImport = true }
+                onImportCraftCombined: { composer.showingCraftCombinedImport = true },
+                onShowAllDocs: { openSwitcher() }
             )
         }
         .sheet(isPresented: $composer.showingCreateDoc) {
@@ -106,6 +114,19 @@ struct ContentView: View {
         .sheet(isPresented: $composer.showingTrash) {
             TrashView().environmentObject(store)
         }
+        .fullScreenCover(isPresented: $composer.showingAllDocs) {
+            AllDocumentsSwitcher(store: store) { docId in
+                composer.showingAllDocs = false
+                composer.pendingOpenDoc = docId
+            }
+            .environmentObject(settings)
+            .environmentObject(tabManager)
+            // The switcher's `+` bottom-bar action needs `composer`
+            // to trigger the create-doc sheet. `fullScreenCover`
+            // doesn't always propagate env objects to its content
+            // root in iOS 26 — explicit injection is required.
+            .environmentObject(composer)
+        }
         .sheet(isPresented: $composer.showingNotionImport) {
             NotionImportView(api: store.api) { store.load() }
         }
@@ -136,41 +157,148 @@ struct ContentView: View {
         .onChange(of: composer.showingCraftCombinedImport) { _, isShowing in
             if !isShowing { store.load() }
         }
-        .alert("New Folder", isPresented: $composer.showingNewFolder) {
-            TextField("Name", text: $composer.newFolderName)
-            Button("Create") {
-                let trimmed = composer.newFolderName.trimmingCharacters(in: .whitespaces)
-                guard !trimmed.isEmpty else { return }
-                store.createFolder(name: trimmed, in: composer.currentContext)
-                composer.newFolderName = ""
-            }
-            Button("Cancel", role: .cancel) { composer.newFolderName = "" }
-        }
-        .alert("Delete all \(store.items.count) notes?",
-               isPresented: $composer.showingDeleteAllConfirm) {
-            Button("Delete All", role: .destructive) {
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(300))
-                    composer.showingDeleteAllConfirm2 = true
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will remove all your notes.")
-        }
-        .alert("Are you sure?", isPresented: $composer.showingDeleteAllConfirm2) {
-            Button("Yes, delete everything", role: .destructive) {
-                store.deleteAll()
-                store.deleteAllDatabases()
-                store.deleteAllFolders()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This cannot be undone.")
-        }
+        .modifier(ContentAlerts(composer: composer, store: store))
         .onAppear { store.connect() }
         .task { composer.bindQuickActions() }
         .errorAlert(message: $store.errorMessage, onRetry: store.load)
+    }
+
+    /// Bundles the three top-level alerts (new folder, delete-all
+    /// step 1, delete-all step 2) into a single modifier so the
+    /// SwiftUI type-checker can chew through `body` — inlining the
+    /// alerts on top of every `.sheet` / `.fullScreenCover` already
+    /// stacked there blew the "unable to type-check in reasonable
+    /// time" budget.
+    private struct ContentAlerts: ViewModifier {
+        @ObservedObject var composer: Composer
+        @ObservedObject var store: PinkhaStore
+
+        func body(content: Content) -> some View {
+            content
+                .alert("New Folder", isPresented: $composer.showingNewFolder) {
+                    TextField("Name", text: $composer.newFolderName)
+                    Button("Create") {
+                        let trimmed = composer.newFolderName
+                            .trimmingCharacters(in: .whitespaces)
+                        guard !trimmed.isEmpty else { return }
+                        store.createFolder(name: trimmed, in: composer.currentContext)
+                        composer.newFolderName = ""
+                    }
+                    Button("Cancel", role: .cancel) { composer.newFolderName = "" }
+                }
+                .alert("Delete all \(store.items.count) notes?",
+                       isPresented: $composer.showingDeleteAllConfirm) {
+                    Button("Delete All", role: .destructive) {
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(300))
+                            composer.showingDeleteAllConfirm2 = true
+                        }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This will remove all your notes.")
+                }
+                .alert("Are you sure?", isPresented: $composer.showingDeleteAllConfirm2) {
+                    Button("Yes, delete everything", role: .destructive) {
+                        store.deleteAll()
+                        store.deleteAllDatabases()
+                        store.deleteAllFolders()
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This cannot be undone.")
+                }
+        }
+    }
+
+    // ── Swipe-up to open switcher ────────────────────────────────────────
+
+    /// Y-coordinate threshold (from the bottom of the screen) above
+    /// which a swipe starts being eligible for the "open switcher"
+    /// gesture. The tab bar + accessory sit in roughly the bottom
+    /// 130 pt on a typical iPhone.
+    private static let swipeUpStartBand: CGFloat = 140
+    /// Upward translation past this distance (pt) commits the open.
+    private static let swipeUpCommitDistance: CGFloat = 70
+    /// Vertical-to-horizontal ratio that disqualifies a swipe as
+    /// "mostly vertical". Smaller = stricter.
+    private static let swipeUpDirectionRatio: CGFloat = 1.4
+
+    /// True if `value` is a candidate swipe-up : started near the
+    /// bottom of the screen, moving up, and the motion is dominantly
+    /// vertical. Doesn't require past-threshold — that's the commit.
+    private func isCandidateSwipeUp(_ value: DragGesture.Value) -> Bool {
+        let screenH = UIScreen.main.bounds.height
+        let startedNearBottom = value.startLocation.y > screenH - Self.swipeUpStartBand
+        let upward = value.translation.height < 0
+        let mostlyVertical = abs(value.translation.height)
+            > abs(value.translation.width) * Self.swipeUpDirectionRatio
+        return startedNearBottom && upward && mostlyVertical
+    }
+
+    /// Tracks the in-flight drag — fires a single anticipation haptic
+    /// when the user crosses the commit threshold so they feel "yes,
+    /// release here will open the switcher" before they let go.
+    private func swipeUpProgress(_ value: DragGesture.Value) {
+        guard isCandidateSwipeUp(value) else {
+            swipeUpHapticFired = false
+            return
+        }
+        let crossed = value.translation.height < -Self.swipeUpCommitDistance
+        if crossed && !swipeUpHapticFired {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            swipeUpHapticFired = true
+        }
+    }
+
+    /// On release, commit the open if the swipe was a candidate and
+    /// crossed the threshold. Resets the haptic flag either way.
+    private func commitSwipeUpIfReady(_ value: DragGesture.Value) {
+        defer { swipeUpHapticFired = false }
+        guard isCandidateSwipeUp(value) else { return }
+        if value.translation.height < -Self.swipeUpCommitDistance {
+            openSwitcher()
+        }
+    }
+
+    /// Centralised "open the switcher" path. Card thumbnails come from
+    /// `DocumentSnapshotHook`'s `viewWillDisappear` capture, not from
+    /// a live grab — re-opening a doc just shows its top, which is
+    /// what the user prefers over a half-restored scroll mid-page.
+    private func openSwitcher() {
+        composer.showingAllDocs = true
+    }
+
+    /// The 4-tab root. Extracted so the SwiftUI type-checker doesn't
+    /// blow up on `body` once every `.sheet` / `.alert` modifier piles
+    /// up — we hit the "unable to type-check this expression in
+    /// reasonable time" wall when both were inlined.
+    @ViewBuilder
+    private var rootTabs: some View {
+        TabView(selection: $composer.selectedTab) {
+            Tab("Notes", systemImage: "note.text",
+                value: Composer.TabKind.notes) {
+                NotesHomeView(store: store)
+                    // Bumping `notesHomeKey` from outside (the
+                    // switcher's ✓ when all tabs are closed)
+                    // force-recreates this view with fresh @State —
+                    // the only reliable way to pop a NavigationStack
+                    // whose path mutation didn't take (SwiftUI bug).
+                    .id(composer.notesHomeKey)
+            }
+            Tab("Databases", systemImage: "tablecells",
+                value: Composer.TabKind.databases) {
+                DatabasesHomeView(store: store)
+            }
+            Tab("Inbox",
+                systemImage: store.hasInboxNotification ? "tray.badge.fill" : "tray.fill",
+                value: Composer.TabKind.inbox) {
+                InboxView(store: store)
+            }
+            Tab(value: Composer.TabKind.search, role: .search) {
+                SearchView(store: store)
+            }
+        }
     }
 }
 
@@ -198,6 +326,7 @@ struct ContentView: View {
 private struct SearchView: View {
     @ObservedObject var store: PinkhaStore
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var tabManager: TabManager
     @State private var query = ""
 
     private var results: PinkhaStore.SuperSearchResults {
@@ -226,28 +355,20 @@ private struct SearchView: View {
                         Section {
                             ForEach(results.documentsByTitle, id: \.id) { doc in
                                 NavigationLink(
-                                    destination: DocumentView(docId: doc.id, api: api,
+                                    destination: DocumentView(vm: tabManager.open(docId: doc.id, api: api),
                                                               onDisappear: store.load)
                                 ) { WorkspaceRow(item: .note(doc)) }
                             }
                         } header: { SectionHeader(title: "Notes") }
                     }
                     if !results.documentsByContent.isEmpty {
-                        // One Section per doc with the doc title +
-                        // icon as the section header, and one row per
-                        // matching block. Each row owns a single
-                        // NavigationLink — nesting multiple
-                        // NavigationLinks inside the same List row
-                        // confuses iOS's back-stack and causes swipe-
-                        // back to land on the wrong destination.
                         ForEach(groupHits(results.documentsByContent),
                                 id: \.doc.id) { group in
                             Section {
                                 ForEach(group.hits, id: \.blockId) { hit in
                                     NavigationLink(
                                         destination: DocumentView(
-                                            docId: hit.doc.id,
-                                            api: api,
+                                            vm: tabManager.open(docId: hit.doc.id, api: api),
                                             onDisappear: store.load,
                                             scrollToBlockId: hit.blockId
                                         )
@@ -358,7 +479,9 @@ private struct DocHitSectionHeader: View {
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(.secondary)
             }
-            Text(doc.titlePlain.isEmpty ? "Untitled" : doc.titlePlain)
+            Group {
+                if doc.titlePlain.isEmpty { Text("Untitled") } else { Text(doc.titlePlain) }
+            }
                 .font(.caption.weight(.semibold))
                 .textCase(.uppercase)
                 .kerning(0.5)
