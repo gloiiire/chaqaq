@@ -12,6 +12,13 @@ struct EditableBlock: Identifiable, Equatable {
     /// Block-level text color (matches Rust `Block.color`). When set, applies
     /// to every span that has no inline `.color(...)` override.
     var color: String? = nil
+    /// Block-level *background* color (Craft / Notion highlight).
+    /// Painted as a soft tinted band behind the whole block content.
+    /// Independent from `color`. Matches `Block.background_color`.
+    var backgroundColor: String? = nil
+    /// Per-block writing direction (`"ltr"` / `"rtl"`). `nil` inherits
+    /// the document-level direction. Matches `Block.text_direction`.
+    var textDirection: String? = nil
     /// Nesting depth (0 = top-level). The Rust domain models nesting as a
     /// recursive `Block.children` tree, but the editor UI renders a flat
     /// list — we flatten the tree at load time and use this depth to apply a

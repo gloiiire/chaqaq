@@ -16,6 +16,32 @@ extension DocumentView {
         return settings.accentColor
     }
 
+    /// Resolved Books-style theme — per-doc override wins, otherwise
+    /// the global setting. Drives the editor's background colour,
+    /// foreground colour, optional bold base font, and a forced
+    /// colorScheme for system widgets to match the palette.
+    var effectiveTheme: AppSettings.Theme {
+        if let raw = vm.theme,
+           let theme = AppSettings.Theme(rawValue: raw) {
+            return theme
+        }
+        return settings.theme
+    }
+
+    /// Keyboard appearance derived from the effective theme — light
+    /// keyboard for light backgrounds, dark for dark, `.default` for
+    /// the system-matching `.original` theme. Plumbed onto every
+    /// editor's UITextView so the keyboard window (which sits in its
+    /// own UIWindow and ignores our app-window override) stays in
+    /// sync with the doc surface.
+    var effectiveKeyboardAppearance: UIKeyboardAppearance {
+        switch effectiveTheme.colorScheme {
+        case .light: return .light
+        case .dark:  return .dark
+        default:     return .default
+        }
+    }
+
     @ToolbarContentBuilder
     var documentToolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
@@ -25,9 +51,13 @@ extension DocumentView {
             // (Parent › Child › This) for nested sub-pages — tap on
             // any segment dismisses back to that ancestor.
             titleBubble
-                .opacity(titleInNavBar ? 1 : 0)
-                .offset(y: titleInNavBar ? 0 : 8)
-                .animation(.easeOut(duration: 0.2), value: titleInNavBar)
+                // The opacity / offset animation went away with the
+                // conditional creation above — the bubble now slides
+                // in from the principal slot via SwiftUI's default
+                // transition when the `if` flips on. Keeping the
+                // `.animation` modifier on the toolbar item caused
+                // an extra body re-eval per scroll frame for nothing.
+                .transition(.opacity.combined(with: .offset(y: 8)))
         }
         if editMode == .active && !selectedBlocks.isEmpty && !vm.locked {
             ToolbarItem(placement: .primaryAction) {
@@ -114,6 +144,92 @@ extension DocumentView {
                               : "paintbrush.fill")
                     }
                 }
+                Menu {
+                    Button {
+                        vm.saveTextDirection(nil)
+                    } label: {
+                        Label {
+                            Text("System default")
+                        } icon: {
+                            Image(systemName: "circle.dashed")
+                        }
+                    }
+                    Button {
+                        vm.saveTextDirection("ltr")
+                    } label: {
+                        Label {
+                            Text("Left to right")
+                        } icon: {
+                            Image(systemName: "text.alignleft")
+                        }
+                    }
+                    Button {
+                        vm.saveTextDirection("rtl")
+                    } label: {
+                        Label {
+                            Text("Right to left")
+                        } icon: {
+                            Image(systemName: "text.alignright")
+                        }
+                    }
+                } label: {
+                    Label {
+                        Text("Text direction")
+                    } icon: {
+                        Image(systemName: vm.textDirection == "rtl"
+                              ? "text.alignright"
+                              : (vm.textDirection == "ltr"
+                                 ? "text.alignleft"
+                                 : "text.justify"))
+                    }
+                }
+                // Books-style theme picker — per-doc override of the
+                // app-wide theme from Settings. "Use default" clears
+                // the override so the doc inherits whatever the user
+                // chose globally; the label spells out the current
+                // default so the user can tell what "default" maps
+                // to right now. A `state = .on` mark on the active
+                // entry signals which one is effective.
+                Menu {
+                    Button {
+                        vm.saveTheme(nil)
+                    } label: {
+                        if vm.theme == nil {
+                            Label {
+                                Text("Match Settings (\(settings.theme.label))")
+                            } icon: {
+                                Image(systemName: "checkmark")
+                            }
+                        } else {
+                            Label {
+                                Text("Match Settings (\(settings.theme.label))")
+                            } icon: {
+                                Image(systemName: "circle.dashed")
+                            }
+                        }
+                    }
+                    ForEach(AppSettings.Theme.allCases) { theme in
+                        Button {
+                            vm.saveTheme(theme.rawValue)
+                        } label: {
+                            if vm.theme == theme.rawValue {
+                                Label {
+                                    Text(theme.label)
+                                } icon: {
+                                    Image(systemName: "checkmark")
+                                }
+                            } else {
+                                Text(theme.label)
+                            }
+                        }
+                    }
+                } label: {
+                    Label {
+                        Text("Theme")
+                    } icon: {
+                        Image(systemName: "book.pages")
+                    }
+                }
             } label: {
                 Image(systemName: "ellipsis")
             }
@@ -165,6 +281,22 @@ extension DocumentView {
 
     @ViewBuilder
     private var titleBubble: some View {
+        // Skip the whole bubble — including the iOS 26 `.glassEffect`
+        // backdrop blur, which is composited even when the parent's
+        // opacity is 0 — until the user actually scrolls past the
+        // inline title. The previous `.opacity(titleInNavBar ? 1 : 0)`
+        // hid it visually but kept the expensive blur layer alive on
+        // every scroll frame. Now the entire view tree only exists
+        // when it has something to show.
+        if !titleInNavBar {
+            EmptyView()
+        } else {
+            titleBubbleContent
+        }
+    }
+
+    @ViewBuilder
+    private var titleBubbleContent: some View {
         let path = breadcrumbPath
         if path.count > 1 {
             // Breadcrumb : tap any ancestor segment to dismiss back to

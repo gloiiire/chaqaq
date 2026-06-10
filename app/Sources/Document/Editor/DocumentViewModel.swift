@@ -21,6 +21,14 @@ final class DocumentViewModel: ObservableObject {
     /// to the global accent from `AppSettings`. Mirrors
     /// `Document.accent_color` from Rust; sync via `saveAccentColor`.
     @Published var accentColor: String? = nil
+    /// Document-level writing direction (`"ltr"` / `"rtl"`). `nil`
+    /// = system locale. Acts as the default for every block;
+    /// `EditableBlock.textDirection` overrides per-block.
+    @Published var textDirection: String? = nil
+    /// Per-document Books-style theme name (raw value of
+    /// `AppSettings.Theme`). `nil` inherits from the app-wide
+    /// `settings.theme`. The editor renders the matching palette.
+    @Published var theme: String? = nil
     @Published var blocks: [EditableBlock] = []
     @Published var errorMessage: String?
     @Published var autoFocusId: String?

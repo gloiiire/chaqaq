@@ -171,7 +171,9 @@ struct DocumentView: View {
                               onNewBlock: { tail in
                                   let spans = tail.isEmpty ? [] : [InlineTextFfi(content: tail, styles: [])]
                                   vm.addBlock(type: .text, initialSpans: spans, atStart: true)
-                              })
+                              },
+                              themeForeground: effectiveTheme.foregroundColor.map(UIColor.init),
+                              keyboardAppearance: effectiveKeyboardAppearance)
                 .disabled(vm.locked)
                 .listRowBackground(Color.clear).listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 8, trailing: 20))
@@ -202,7 +204,19 @@ struct DocumentView: View {
         .onScrollGeometryChange(for: CGFloat.self) { geo in
             geo.contentOffset.y + geo.contentInsets.top
         } action: { _, offset in
-            withAnimation(.easeInOut(duration: 0.15)) { titleInNavBar = offset > 60 }
+            // `onScrollGeometryChange` fires every frame while the
+            // user drags. Unconditionally calling `withAnimation`
+            // opens a SwiftUI transaction even when the bool flag
+            // doesn't change, which compounds into per-frame jank
+            // on docs with few blocks (no other expensive content
+            // soaks the cost). Compare first, mutate only on the
+            // boundary crossing.
+            let shouldShow = offset > 60
+            if shouldShow != titleInNavBar {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    titleInNavBar = shouldShow
+                }
+            }
             // Drop the spotlight as soon as the user takes over the scroll.
             // The 0.6s grace window lets our own programmatic scrollTo
             // settle without triggering this path.
@@ -229,6 +243,25 @@ struct DocumentView: View {
         // `vm.accentColor` changes. Explicit `effectiveAccentColor`
         // call so `nil` falls back to `settings.accentColor`.
         .tint(effectiveAccentColor)
+        // Books-style theme : tint the doc surface + force a matching
+        // colorScheme so system widgets (cursor, scrollbar, blur)
+        // align with the palette. `.original` is a no-op so iOS
+        // light/dark continues to drive the look.
+        .scrollContentBackground(.hidden)
+        .background(effectiveTheme.backgroundColor ?? Color(uiColor: .systemBackground))
+        .preferredColorScheme(effectiveTheme.colorScheme)
+        // SwiftUI `.preferredColorScheme` alone isn't enough when the
+        // app-wide `applyAppearanceToWindows()` already pinned the
+        // window's `overrideUserInterfaceStyle` — UIKit window
+        // overrides supersede every SwiftUI view-level preference,
+        // so `UIColor.label` inside the textViews stays on the
+        // global scheme and the per-doc theme's body text ends up
+        // unreadable (white text on a papier-light doc and the
+        // reverse). Mirror the doc's effective scheme onto the window
+        // while the editor is on screen, then restore the global
+        // appearance when the user leaves.
+        .onChange(of: effectiveTheme) { _, _ in syncWindowTheme() }
+        .onAppear { syncWindowTheme() }
         // Capture a screenshot when the user navigates away — fuels
         // the tab switcher's Safari-style "live thumbnail at last
         // scroll position" preview. Lives in the body (invisible,
@@ -317,6 +350,9 @@ struct DocumentView: View {
             if composer.currentContext == .document(id: vm.docId) {
                 composer.currentContext = .root
             }
+            // Restore the global appearance — the doc's window theme
+            // override only lives while the editor is on screen.
+            settings.applyAppearanceToWindows()
             onDisappear?()
         }
         // When the bubble creates a child page from inside this doc, the
@@ -367,6 +403,33 @@ struct DocumentView: View {
     }
 
     /// Fades out the search-hit spotlight, restoring the rest of the doc
+    /// Mirrors the doc's effective Books-theme `colorScheme` onto the
+    /// window's UIKit `overrideUserInterfaceStyle`. SwiftUI's
+    /// `.preferredColorScheme` alone can't beat the window-level
+    /// override `applyAppearanceToWindows()` already sets at app
+    /// startup, so `UIColor.label` inside the editor's `UITextView`s
+    /// would otherwise stay on the global scheme — making the
+    /// per-doc theme's body text unreadable. When the theme is
+    /// `.original` (no explicit scheme), fall back to whatever the
+    /// global appearance setting wants.
+    func syncWindowTheme() {
+        let style: UIUserInterfaceStyle
+        switch effectiveTheme.colorScheme {
+        case .light: style = .light
+        case .dark:  style = .dark
+        case nil, .some(_):
+            switch settings.appearance {
+            case .system: style = .unspecified
+            case .light:  style = .light
+            case .dark:   style = .dark
+            }
+        }
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .forEach { $0.overrideUserInterfaceStyle = style }
+    }
+
     /// to full clarity. Safe to call when no spotlight is active.
     func dismissSpotlight() {
         guard spotlightBlockId != nil else { return }

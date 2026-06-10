@@ -35,6 +35,7 @@ extension RichTextEditorCoordinator {
             ("bleu",   .systemBlue,   String(localized: "Blue")),
             ("violet", .systemPurple, String(localized: "Purple")),
             ("marron", .brown,        String(localized: "Brown")),
+            ("gris",   .systemGray,   String(localized: "Gray")),
         ]
         let cfgDot = UIImage.SymbolConfiguration(pointSize: 12, weight: .regular)
         let cfgX   = UIImage.SymbolConfiguration(pointSize: 12, weight: .medium)
@@ -104,6 +105,7 @@ extension RichTextEditorCoordinator {
             ("bleu",   .systemBlue,   String(localized: "Blue")),
             ("violet", .systemPurple, String(localized: "Purple")),
             ("marron", .brown,        String(localized: "Brown")),
+            ("gris",   .systemGray,   String(localized: "Gray")),
         ]
         let cfgDot = UIImage.SymbolConfiguration(pointSize: 12, weight: .regular)
         let cfgX   = UIImage.SymbolConfiguration(pointSize: 12, weight: .medium)
@@ -139,6 +141,70 @@ extension RichTextEditorCoordinator {
         btn.setImage(UIImage(systemName: "paragraphsign", withConfiguration: cfg)?
             .withTintColor(c, renderingMode: .alwaysOriginal), for: .normal)
         btn.menu = blockColorMenu(current: current)
+    }
+
+    // ── Block background colour (Craft highlight) ─────────────────────────
+    // Twin of `blockColorMenu` — same palette + "Default" entry, routed
+    // through `onSetBlockBackgroundColor` and a different FFI call.
+
+    func blockBackgroundColorMenu(current: String?) -> UIMenu {
+        let deferred = UIDeferredMenuElement.uncached { [weak self] completion in
+            guard let self else { completion([]); return }
+            self.captureSelectionBeforeToolbar()
+            self.menuPresentingUntil = Date().addingTimeInterval(0.7)
+            self.setToolbarHidden(true)
+            completion(self.blockBackgroundColorMenuChildren(current: current))
+        }
+        return UIMenu(title: "", children: [deferred])
+    }
+
+    func blockBackgroundColorMenuChildren(current: String?) -> [UIMenuElement] {
+        let palette: [(String, UIColor, String)] = [
+            ("rouge",  .systemRed,    String(localized: "Red")),
+            ("rose",   .systemPink,   String(localized: "Pink")),
+            ("orange", .systemOrange, String(localized: "Orange")),
+            ("jaune",  .systemYellow, String(localized: "Yellow")),
+            ("vert",   .systemGreen,  String(localized: "Green")),
+            ("cyan",   .cyan,         String(localized: "Cyan")),
+            ("bleu",   .systemBlue,   String(localized: "Blue")),
+            ("violet", .systemPurple, String(localized: "Purple")),
+            ("marron", .brown,        String(localized: "Brown")),
+            ("gris",   .systemGray,   String(localized: "Gray")),
+        ]
+        let cfgDot = UIImage.SymbolConfiguration(pointSize: 12, weight: .regular)
+        let cfgX   = UIImage.SymbolConfiguration(pointSize: 12, weight: .medium)
+
+        let none = UIAction(
+            title: String(localized: "Default"),
+            image: UIImage(systemName: "xmark", withConfiguration: cfgX)
+        ) { [weak self] _ in
+            self?.parent.onSetBlockBackgroundColor?(nil)
+            self?.menuPresentingUntil = nil
+            self?.setToolbarHidden(false)
+        }
+        if current == nil { none.state = .on }
+
+        let items = palette.map { (nom, couleur, label) -> UIAction in
+            let img = UIImage(systemName: "circle.fill", withConfiguration: cfgDot)?
+                .withTintColor(couleur, renderingMode: .alwaysOriginal)
+            let action = UIAction(title: label, image: img) { [weak self] _ in
+                self?.parent.onSetBlockBackgroundColor?(nom)
+                self?.menuPresentingUntil = nil
+                self?.setToolbarHidden(false)
+            }
+            if current == nom { action.state = .on }
+            return action
+        }
+        return [none] + items
+    }
+
+    func updateBlockBackgroundColorButton(_ current: String?) {
+        guard let btn = btnBlockBg else { return }
+        let c: UIColor = current.map { uiColorFromName($0) } ?? .secondaryLabel
+        let cfg = UIImage.SymbolConfiguration(pointSize: 22, weight: .medium)
+        btn.setImage(UIImage(systemName: "rectangle.fill", withConfiguration: cfg)?
+            .withTintColor(c, renderingMode: .alwaysOriginal), for: .normal)
+        btn.menu = blockBackgroundColorMenu(current: current)
     }
 
     // Same pattern for B/I/U/S — deferred element for the reliable presentation hook.

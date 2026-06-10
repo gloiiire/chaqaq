@@ -17,6 +17,75 @@ final class AppSettings: ObservableObject {
     /// mapping name → Color in one place lets us persist a stable
     /// string in UserDefaults (Color isn't `Codable` cleanly) and round-
     /// trip it on relaunch.
+    /// Books.app-style reading themes — bundles a background colour
+    /// and a foreground colour, plus a "bold" flavour that switches
+    /// the editor's base font to a heavy weight. Default `.original`
+    /// keeps the iOS-native system background, so the rest of the
+    /// app stays untouched until a user opts in.
+    enum Theme: String, CaseIterable, Identifiable {
+        case original, tranquille, papier, gras, calme, attention
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .original:  return "Match App Appearance"
+            case .tranquille: return "Tranquille"
+            case .papier:    return "Papier"
+            case .gras:      return "Gras"
+            case .calme:     return "Calme"
+            case .attention: return "Attention"
+            }
+        }
+
+        /// `nil` = inherit the system background (`.original` does
+        /// this so light/dark mode keeps working untouched).
+        var backgroundColor: Color? {
+            switch self {
+            case .original:  return nil
+            // `.tranquille` is intentionally close to iOS-26's native
+            // dark keyboard / `systemBackground` (≈ 0.11) so the seam
+            // between the doc and the keyboard reads as one surface
+            // rather than two shades of dark fighting each other.
+            case .tranquille: return Color(red: 0.11, green: 0.11, blue: 0.11)
+            case .papier:    return Color(red: 0.96, green: 0.96, blue: 0.96)
+            case .gras:      return Color.white
+            case .calme:     return Color(red: 0.93, green: 0.88, blue: 0.78)
+            case .attention: return Color(red: 0.98, green: 0.95, blue: 0.86)
+            }
+        }
+
+        /// Foreground colour for body text. `nil` falls back to
+        /// `.label` (system-dynamic).
+        var foregroundColor: Color? {
+            switch self {
+            case .original:  return nil
+            case .tranquille: return Color(white: 0.88)
+            case .papier:    return Color.black
+            case .gras:      return Color.black
+            case .calme:     return Color(red: 0.18, green: 0.14, blue: 0.07)
+            case .attention: return Color(red: 0.18, green: 0.14, blue: 0.07)
+            }
+        }
+
+        /// Forces a `ColorScheme` override on the theme's view tree
+        /// so system controls (cursor, selection lozenge, etc.) match
+        /// the theme background. `nil` = leave system / appearance
+        /// alone. Only `.tranquille` is intrinsically dark — the
+        /// other backgrounds are light.
+        var colorScheme: ColorScheme? {
+            switch self {
+            case .original:  return nil
+            case .tranquille: return .dark
+            case .papier, .gras, .calme, .attention: return .light
+            }
+        }
+
+        /// Whether the theme paints body text with a bolder weight
+        /// (Books.app's "Gras" flavour).
+        var boldText: Bool { self == .gras }
+    }
+
     /// User-facing color scheme override — `.system` follows the
     /// device-wide setting (default), `.light` / `.dark` force a
     /// specific scheme regardless of what iOS does. Mirrors the
@@ -80,6 +149,7 @@ final class AppSettings: ObservableObject {
     private let recentCountKey    = "pinkha.settings.recentCount"
     private let cursorAccentKey   = "pinkha.settings.cursorFollowsAccent"
     private let appearanceKey     = "pinkha.settings.appearance"
+    private let themeKey          = "pinkha.settings.theme"
 
     /// When on, the text-input caret + selection highlight use the
     /// chosen accent color. Off by default (white, à la Notion) so
@@ -113,6 +183,14 @@ final class AppSettings: ObservableObject {
     @Published var spotlightTinted: Bool {
         didSet {
             UserDefaults.standard.set(spotlightTinted, forKey: spotlightKey)
+        }
+    }
+
+    /// Books.app-style reading theme applied at the app root. Per-doc
+    /// `Document.theme` overrides this when set.
+    @Published var theme: Theme {
+        didSet {
+            UserDefaults.standard.set(theme.rawValue, forKey: themeKey)
         }
     }
 
@@ -170,6 +248,8 @@ final class AppSettings: ObservableObject {
         }
         let storedAppearance = UserDefaults.standard.string(forKey: appearanceKey)
         self.appearance = AppearanceMode(rawValue: storedAppearance ?? "") ?? .system
+        let storedTheme = UserDefaults.standard.string(forKey: themeKey)
+        self.theme = Theme(rawValue: storedTheme ?? "") ?? .original
     }
 
     var accentColor: Color { accentChoice.color }
@@ -183,5 +263,6 @@ final class AppSettings: ObservableObject {
         recentCount         = 7
         cursorFollowsAccent = true
         appearance          = .system
+        theme               = .original
     }
 }
