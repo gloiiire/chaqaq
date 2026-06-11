@@ -77,49 +77,89 @@ struct EmbedRowView: View {
                 UIApplication.shared.open(parsed)
             }
         } label: {
-            HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 0) {
+                // Cover image — full width on top, sized to a tasteful
+                // 16:9 thumbnail. Smooth in once loaded; skeleton
+                // placeholder while the OG fetch resolves.
+                ZStack {
+                    if let image = loadedImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        Rectangle()
+                            .fill(Color(uiColor: .tertiarySystemBackground))
+                        if external?.imageURL != nil {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(.secondary)
+                        }
+                    }
+                }
+                .frame(height: 160)
+                .clipped()
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(external?.title ?? prettyHost)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(2)
-                    if let description = external?.description, !description.isEmpty {
+                        .multilineTextAlignment(.leading)
+                    if let description = external?.description,
+                       !description.isEmpty {
                         Text(description)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
+                            .multilineTextAlignment(.leading)
                     }
-                    Text(prettyHost)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 0)
-                if let image = loadedImage {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 64, height: 64)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                } else if external?.imageURL != nil {
-                    // Image URL known but not loaded yet — placeholder.
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color(uiColor: .tertiarySystemBackground))
-                        .frame(width: 64, height: 64)
-                        .overlay {
-                            ProgressView()
+                    HStack(spacing: 6) {
+                        // Favicon — Google's free favicon service hands
+                        // back a 32 px PNG keyed on host; instant fall-
+                        // back to a globe glyph when network is down.
+                        if let favicon = faviconURL {
+                            AsyncImage(url: favicon) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image.resizable().scaledToFit()
+                                default:
+                                    Image(systemName: "globe")
+                                        .foregroundStyle(.tertiary)
+                                }
+                            }
+                            .frame(width: 14, height: 14)
+                        } else {
+                            Image(systemName: "globe")
+                                .foregroundStyle(.tertiary)
                         }
+                        Text(prettyHost)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
+                    .padding(.top, 2)
                 }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(Color(uiColor: .secondarySystemBackground))
             )
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
         .task(id: url) { await loadIfNeeded() }
+    }
+
+    /// Google's free `s2/favicons` service hosts a 32 px PNG for
+    /// every public host — used to render a little site identifier
+    /// next to the URL's hostname in the embed card's footer.
+    private var faviconURL: URL? {
+        guard let host = URL(string: url)?.host, !host.isEmpty else { return nil }
+        return URL(string:
+            "https://www.google.com/s2/favicons?sz=64&domain=\(host)")
     }
 
     private var prettyHost: String {

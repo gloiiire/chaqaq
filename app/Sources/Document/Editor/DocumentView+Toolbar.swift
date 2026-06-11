@@ -69,6 +69,7 @@ extension DocumentView {
         }
         ToolbarItem(placement: .primaryAction) {
             Button {
+                Haptic.toggle()
                 let newLocked = !vm.locked
                 withAnimation(.easeInOut(duration: 0.15)) {
                     // Apply UI side-effects of locking *before* the save
@@ -94,6 +95,7 @@ extension DocumentView {
         }
         ToolbarItem(placement: .primaryAction) {
             Button {
+                Haptic.toggle()
                 withAnimation {
                     editMode = editMode == .active ? .inactive : .active
                     if editMode != .active { selectedBlocks.removeAll() }
@@ -114,6 +116,7 @@ extension DocumentView {
             Menu {
                 Menu {
                     Button {
+                        Haptic.tap()
                         vm.saveAccentColor(nil)
                     } label: {
                         Label {
@@ -124,6 +127,7 @@ extension DocumentView {
                     }
                     ForEach(BlockColorOption.palette) { option in
                         Button {
+                            Haptic.tap()
                             vm.saveAccentColor(option.name)
                         } label: {
                             Label {
@@ -146,6 +150,7 @@ extension DocumentView {
                 }
                 Menu {
                     Button {
+                        Haptic.tap()
                         vm.saveTextDirection(nil)
                     } label: {
                         Label {
@@ -155,6 +160,7 @@ extension DocumentView {
                         }
                     }
                     Button {
+                        Haptic.tap()
                         vm.saveTextDirection("ltr")
                     } label: {
                         Label {
@@ -164,6 +170,7 @@ extension DocumentView {
                         }
                     }
                     Button {
+                        Haptic.tap()
                         vm.saveTextDirection("rtl")
                     } label: {
                         Label {
@@ -192,17 +199,18 @@ extension DocumentView {
                 // entry signals which one is effective.
                 Menu {
                     Button {
+                        Haptic.tap()
                         vm.saveTheme(nil)
                     } label: {
                         if vm.theme == nil {
                             Label {
-                                Text("Match Settings (\(settings.theme.label))")
+                                Text("Match Settings (\(settings.theme.labelString))")
                             } icon: {
                                 Image(systemName: "checkmark")
                             }
                         } else {
                             Label {
-                                Text("Match Settings (\(settings.theme.label))")
+                                Text("Match Settings (\(settings.theme.labelString))")
                             } icon: {
                                 Image(systemName: "circle.dashed")
                             }
@@ -210,6 +218,7 @@ extension DocumentView {
                     }
                     ForEach(AppSettings.Theme.allCases) { theme in
                         Button {
+                            Haptic.tap()
                             vm.saveTheme(theme.rawValue)
                         } label: {
                             if vm.theme == theme.rawValue {

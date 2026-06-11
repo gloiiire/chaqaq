@@ -19,21 +19,60 @@ struct DocumentFfi: Codable {
     let locked: Bool?
     /// Per-document accent color name (e.g. `"red"`) overriding the
     /// app-wide accent from `AppSettings`. `nil` falls back to the
-    /// global accent. Decoded as nil for pre-feature documents (Rust
-    /// uses `#[serde(default)]`). Default = nil so existing call
-    /// sites (tests, pre-feature constructors) keep compiling.
-    let accentColor: String? = nil
+    /// global accent.
+    let accentColor: String?
     /// Document-level writing direction (`"ltr"` / `"rtl"`). `nil`
     /// = system locale. Default for every block.
-    let textDirection: String? = nil
+    let textDirection: String?
     /// Per-document Books-style theme name. `nil` inherits the global
     /// `AppSettings.theme`.
-    let theme: String? = nil
+    let theme: String?
 
     enum CodingKeys: String, CodingKey {
         case id, cover, icon, title, blocks, locked, theme
         case accentColor = "accent_color"
         case textDirection = "text_direction"
+    }
+
+    /// Memberwise init kept around so existing test fixtures that
+    /// pre-date the per-doc accent / text-direction / theme fields
+    /// (`CodableRoundTripTests`) still compile without listing every
+    /// new optional. Property-level defaults can't live here because
+    /// they break the `Codable` synth (see the explicit `init(from:)`
+    /// below).
+    init(id: String, cover: String?, icon: String?,
+         title: [InlineTextFfi], blocks: [BlockFfi], locked: Bool?,
+         accentColor: String? = nil, textDirection: String? = nil,
+         theme: String? = nil) {
+        self.id = id
+        self.cover = cover
+        self.icon = icon
+        self.title = title
+        self.blocks = blocks
+        self.locked = locked
+        self.accentColor = accentColor
+        self.textDirection = textDirection
+        self.theme = theme
+    }
+
+    /// Explicit `init(from:)` — Swift's auto-synthesized decoder
+    /// skips properties that have a `let X = value` default, which
+    /// silently dropped the per-doc theme / accent color / text
+    /// direction on reload (user reported "theme isn't saved when I
+    /// quit the doc"). Calling `decodeIfPresent` ourselves makes
+    /// every optional behave the same way regardless of whether the
+    /// property declaration carries a default.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id            = try c.decode(String.self, forKey: .id)
+        cover         = try c.decodeIfPresent(String.self, forKey: .cover)
+        icon          = try c.decodeIfPresent(String.self, forKey: .icon)
+        title         = try c.decode([InlineTextFfi].self, forKey: .title)
+        blocks        = try c.decode([BlockFfi].self, forKey: .blocks)
+        locked        = try c.decodeIfPresent(Bool.self, forKey: .locked)
+        accentColor   = try c.decodeIfPresent(String.self, forKey: .accentColor)
+        textDirection = try c.decodeIfPresent(String.self, forKey: .textDirection)
+        theme         = try c.decodeIfPresent(String.self, forKey: .theme)
     }
 }
 

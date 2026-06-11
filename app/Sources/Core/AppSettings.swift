@@ -27,7 +27,11 @@ final class AppSettings: ObservableObject {
 
         var id: String { rawValue }
 
-        var label: String {
+        /// Localizable via `Localizable.xcstrings` — returning a
+        /// `LocalizedStringKey` ensures `Text(theme.label)` picks the
+        /// `LocalizedStringKey` initializer, not the verbatim-`String`
+        /// one that bypasses the catalog.
+        var label: LocalizedStringKey {
             switch self {
             case .original:  return "Match App Appearance"
             case .tranquille: return "Tranquille"
@@ -35,6 +39,20 @@ final class AppSettings: ObservableObject {
             case .gras:      return "Gras"
             case .calme:     return "Calme"
             case .attention: return "Attention"
+            }
+        }
+
+        /// Same content, already resolved through the string catalogue,
+        /// for places where SwiftUI wants a `String` (text
+        /// interpolation, attributed-string composition, etc.).
+        var labelString: String {
+            switch self {
+            case .original:   return String(localized: "Match App Appearance")
+            case .tranquille: return String(localized: "Tranquille")
+            case .papier:     return String(localized: "Papier")
+            case .gras:       return String(localized: "Gras")
+            case .calme:      return String(localized: "Calme")
+            case .attention:  return String(localized: "Attention")
             }
         }
 
@@ -106,7 +124,7 @@ final class AppSettings: ObservableObject {
             }
         }
 
-        var label: String {
+        var label: LocalizedStringKey {
             switch self {
             case .system: return "System"
             case .light:  return "Light"
@@ -141,7 +159,18 @@ final class AppSettings: ObservableObject {
             }
         }
 
-        var label: String { rawValue.capitalized }
+        var label: LocalizedStringKey {
+            switch self {
+            case .pink:   return "Pink"
+            case .purple: return "Purple"
+            case .blue:   return "Blue"
+            case .teal:   return "Teal"
+            case .green:  return "Green"
+            case .yellow: return "Yellow"
+            case .orange: return "Orange"
+            case .red:    return "Red"
+            }
+        }
     }
 
     private let accentKey         = "pinkha.settings.accentColor"
@@ -150,6 +179,15 @@ final class AppSettings: ObservableObject {
     private let cursorAccentKey   = "pinkha.settings.cursorFollowsAccent"
     private let appearanceKey     = "pinkha.settings.appearance"
     private let themeKey          = "pinkha.settings.theme"
+    /// Public so `Haptic` can read the flag without an
+    /// `AppSettings` env injection — it's polled from inside the
+    /// haptic generators which run in `@MainActor` static functions.
+    static let hapticsKey         = "pinkha.settings.hapticsEnabled"
+    /// Public so `AppDelegate.application(_:supportedInterfaceOrientationsFor:)`
+    /// can read the flag — UIKit polls that callback at every layout
+    /// pass and we can't inject `AppSettings` into a plain
+    /// `UIApplicationDelegate`.
+    static let rotationLockKey    = "pinkha.settings.rotationLocked"
 
     /// When on, the text-input caret + selection highlight use the
     /// chosen accent color. Off by default (white, à la Notion) so
@@ -183,6 +221,46 @@ final class AppSettings: ObservableObject {
     @Published var spotlightTinted: Bool {
         didSet {
             UserDefaults.standard.set(spotlightTinted, forKey: spotlightKey)
+        }
+    }
+
+    /// Whether the global `HapticTapStyle` (and the semantic
+    /// `Haptic.tap` / `Haptic.toggle` / … helpers) fire any taptic
+    /// feedback. Default on — users who find the per-button buzz
+    /// excessive can flip this off in Settings.
+    @Published var hapticsEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(hapticsEnabled, forKey: AppSettings.hapticsKey)
+        }
+    }
+
+    /// When on, the app refuses to rotate into landscape — handy on
+    /// iPhone where a stray wrist twist while reading flips a doc
+    /// sideways. Off by default so the existing landscape layout
+    /// keeps working. Toggling immediately snaps the active scene
+    /// back to portrait and invalidates UIKit's supported-orientation
+    /// cache.
+    @Published var rotationLocked: Bool {
+        didSet {
+            UserDefaults.standard.set(rotationLocked, forKey: AppSettings.rotationLockKey)
+            AppSettings.applyRotationLockToScenes(locked: rotationLocked)
+        }
+    }
+
+    /// Pokes UIKit so the orientation change becomes immediate, instead
+    /// of waiting for the next device-motion event. `requestGeometryUpdate`
+    /// performs the visible rotation ; `setNeedsUpdateOfSupportedInterfaceOrientations`
+    /// invalidates the cached "which orientations does this VC accept"
+    /// answer so the next query lands on our `AppDelegate` override.
+    static func applyRotationLockToScenes(locked: Bool) {
+        let scenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+        let mask: UIInterfaceOrientationMask = locked ? .portrait : .allButUpsideDown
+        let geometry = UIWindowScene.GeometryPreferences.iOS(interfaceOrientations: mask)
+        for scene in scenes {
+            scene.requestGeometryUpdate(geometry) { _ in }
+            scene.windows.first?.rootViewController?
+                .setNeedsUpdateOfSupportedInterfaceOrientations()
         }
     }
 
@@ -221,10 +299,23 @@ final class AppSettings: ObservableObject {
         case .light:  .light
         case .dark:   .dark
         }
-        UIApplication.shared.connectedScenes
+        // Short-circuit when the key window already matches — setting
+        // `overrideUserInterfaceStyle` forces a layout pass on every
+        // descendant. Skipping the redundant set keeps the
+        // backgrounding snapshot fast.
+        let windows = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows)
-            .forEach { $0.overrideUserInterfaceStyle = style }
+        if windows.first?.overrideUserInterfaceStyle == style { return }
+        // Animate the override flip so the relayout fades in over
+        // 0.25s instead of snapping — the actual layout cost is the
+        // same, but the perceived "slowness" comes from the abrupt
+        // colour swap of the entire view tree (NavStack + tabs +
+        // toolbars + cover images), which UIKit handles much better
+        // when wrapped in `UIView.animate`.
+        UIView.animate(withDuration: 0.25) {
+            windows.forEach { $0.overrideUserInterfaceStyle = style }
+        }
     }
 
     init() {
@@ -250,6 +341,17 @@ final class AppSettings: ObservableObject {
         self.appearance = AppearanceMode(rawValue: storedAppearance ?? "") ?? .system
         let storedTheme = UserDefaults.standard.string(forKey: themeKey)
         self.theme = Theme(rawValue: storedTheme ?? "") ?? .original
+        // Default ON — users discover the haptic feel and decide
+        // whether they want it. Existing users without the key set
+        // get the same default behaviour.
+        if UserDefaults.standard.object(forKey: AppSettings.hapticsKey) != nil {
+            self.hapticsEnabled = UserDefaults.standard.bool(forKey: AppSettings.hapticsKey)
+        } else {
+            self.hapticsEnabled = true
+        }
+        // Default OFF — preserves the existing landscape behaviour
+        // for users who haven't touched the toggle yet.
+        self.rotationLocked = UserDefaults.standard.bool(forKey: AppSettings.rotationLockKey)
     }
 
     var accentColor: Color { accentChoice.color }
@@ -264,5 +366,7 @@ final class AppSettings: ObservableObject {
         cursorFollowsAccent = true
         appearance          = .system
         theme               = .original
+        hapticsEnabled      = true
+        rotationLocked      = false
     }
 }
