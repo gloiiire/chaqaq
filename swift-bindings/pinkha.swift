@@ -837,6 +837,26 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func updateBlock(docId: String, blockId: String, contentJson: String) throws 
     
     /**
+     * Remplace ou efface l'image de couverture de la database.
+     */
+    func updateDatabaseCover(id: String, cover: String?) throws 
+    
+    /**
+     * Remplace la description rich-text de la database (chaîne vide = efface).
+     */
+    func updateDatabaseDescription(id: String, description: String) throws 
+    
+    /**
+     * Remplace ou efface l'icône (emoji / fichier / URL) de la database.
+     */
+    func updateDatabaseIcon(id: String, icon: String?) throws 
+    
+    /**
+     * Remplace le titre rich-text de la database.
+     */
+    func updateDatabaseTitle(id: String, newTitle: String) throws 
+    
+    /**
      * Pose ou retire l'accent color du document (override par-doc de
      * l'accent global). Nom de couleur ("red", "teal"...) ou null
      * pour repartir sur l'accent des Settings.
@@ -1811,6 +1831,54 @@ open func updateBlock(docId: String, blockId: String, contentJson: String)throws
 }
     
     /**
+     * Remplace ou efface l'image de couverture de la database.
+     */
+open func updateDatabaseCover(id: String, cover: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_database_cover(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(cover),$0
+    )
+}
+}
+    
+    /**
+     * Remplace la description rich-text de la database (chaîne vide = efface).
+     */
+open func updateDatabaseDescription(id: String, description: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_database_description(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterString.lower(description),$0
+    )
+}
+}
+    
+    /**
+     * Remplace ou efface l'icône (emoji / fichier / URL) de la database.
+     */
+open func updateDatabaseIcon(id: String, icon: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_database_icon(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(icon),$0
+    )
+}
+}
+    
+    /**
+     * Remplace le titre rich-text de la database.
+     */
+open func updateDatabaseTitle(id: String, newTitle: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_database_title(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterString.lower(newTitle),$0
+    )
+}
+}
+    
+    /**
      * Pose ou retire l'accent color du document (override par-doc de
      * l'accent global). Nom de couleur ("red", "teal"...) ou null
      * pour repartir sur l'accent des Settings.
@@ -2054,15 +2122,19 @@ public struct DatabaseMetaFfi: Equatable, Hashable {
     public var id: String
     public var titlePlain: String
     public var titleJson: String
+    public var cover: String?
+    public var icon: String?
     public var updatedAt: String
     public var createdAt: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, titlePlain: String, titleJson: String, updatedAt: String, createdAt: String) {
+    public init(id: String, titlePlain: String, titleJson: String, cover: String?, icon: String?, updatedAt: String, createdAt: String) {
         self.id = id
         self.titlePlain = titlePlain
         self.titleJson = titleJson
+        self.cover = cover
+        self.icon = icon
         self.updatedAt = updatedAt
         self.createdAt = createdAt
     }
@@ -2086,6 +2158,8 @@ public struct FfiConverterTypeDatabaseMetaFfi: FfiConverterRustBuffer {
                 id: FfiConverterString.read(from: &buf), 
                 titlePlain: FfiConverterString.read(from: &buf), 
                 titleJson: FfiConverterString.read(from: &buf), 
+                cover: FfiConverterOptionString.read(from: &buf), 
+                icon: FfiConverterOptionString.read(from: &buf), 
                 updatedAt: FfiConverterString.read(from: &buf), 
                 createdAt: FfiConverterString.read(from: &buf)
         )
@@ -2095,6 +2169,8 @@ public struct FfiConverterTypeDatabaseMetaFfi: FfiConverterRustBuffer {
         FfiConverterString.write(value.id, into: &buf)
         FfiConverterString.write(value.titlePlain, into: &buf)
         FfiConverterString.write(value.titleJson, into: &buf)
+        FfiConverterOptionString.write(value.cover, into: &buf)
+        FfiConverterOptionString.write(value.icon, into: &buf)
         FfiConverterString.write(value.updatedAt, into: &buf)
         FfiConverterString.write(value.createdAt, into: &buf)
     }
@@ -2981,6 +3057,18 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_block() != 49420) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_database_cover() != 15810) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_database_description() != 59844) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_database_icon() != 46833) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_database_title() != 8063) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_accent_color() != 46266) {
