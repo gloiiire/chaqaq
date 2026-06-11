@@ -58,6 +58,18 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Picker(selection: $settings.theme) {
+                        ForEach(AppSettings.Theme.allCases) { theme in
+                            Text(theme.label).tag(theme)
+                        }
+                    } label: { Text("Theme") }
+                } header: {
+                    Text("Theme")
+                } footer: {
+                    Text("Books-style reading theme applied to every doc. Each doc can override via its \"…\" overflow menu.")
+                }
+
+                Section {
                     Stepper(
                         value: $settings.recentCount,
                         in: 5...20,

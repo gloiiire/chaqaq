@@ -808,11 +808,22 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func searchInBlocksWithSnippets(query: String) throws  -> [BlockSearchHitFfi]
     
     /**
+     * Pose ou retire la couleur de fond du bloc (highlight style Craft).
+     */
+    func setBlockBackgroundColor(docId: String, blockId: String, backgroundColor: String?) throws 
+    
+    /**
      * Pose ou retire la couleur d'un bloc (texte). `color` est un nom de
      * couleur (`"red"`, `"blue"`, etc.) ou `null` pour revenir au thème.
      * Les couleurs inline sur les spans ont toujours priorité.
      */
     func setBlockColor(docId: String, blockId: String, color: String?) throws 
+    
+    /**
+     * Pose ou retire la direction d'écriture du bloc ("ltr" / "rtl").
+     * `null` = hérite du document.
+     */
+    func setBlockTextDirection(docId: String, blockId: String, textDirection: String?) throws 
     
     /**
      * Pose un tri unique sur une vue, en remplaçant ceux qui existent.
@@ -851,6 +862,18 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * repromouvoir le document à la racine. Rejette les cycles.
      */
     func updateDocumentParent(docId: String, newParentDocId: String?) throws 
+    
+    /**
+     * Pose ou retire la direction d'écriture par défaut du document.
+     * `null` = locale système. Chaque bloc peut overrider.
+     */
+    func updateDocumentTextDirection(id: String, textDirection: String?) throws 
+    
+    /**
+     * Pose ou retire le thème par-document.
+     * `null` = hérite de AppSettings.theme.
+     */
+    func updateDocumentTheme(id: String, theme: String?) throws 
     
     func updateDocumentTitle(id: String, newTitle: String) throws 
     
@@ -1718,6 +1741,19 @@ open func searchInBlocksWithSnippets(query: String)throws  -> [BlockSearchHitFfi
 }
     
     /**
+     * Pose ou retire la couleur de fond du bloc (highlight style Craft).
+     */
+open func setBlockBackgroundColor(docId: String, blockId: String, backgroundColor: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_set_block_background_color(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(docId),
+        FfiConverterString.lower(blockId),
+        FfiConverterOptionString.lower(backgroundColor),$0
+    )
+}
+}
+    
+    /**
      * Pose ou retire la couleur d'un bloc (texte). `color` est un nom de
      * couleur (`"red"`, `"blue"`, etc.) ou `null` pour revenir au thème.
      * Les couleurs inline sur les spans ont toujours priorité.
@@ -1728,6 +1764,20 @@ open func setBlockColor(docId: String, blockId: String, color: String?)throws   
         FfiConverterString.lower(docId),
         FfiConverterString.lower(blockId),
         FfiConverterOptionString.lower(color),$0
+    )
+}
+}
+    
+    /**
+     * Pose ou retire la direction d'écriture du bloc ("ltr" / "rtl").
+     * `null` = hérite du document.
+     */
+open func setBlockTextDirection(docId: String, blockId: String, textDirection: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_set_block_text_direction(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(docId),
+        FfiConverterString.lower(blockId),
+        FfiConverterOptionString.lower(textDirection),$0
     )
 }
 }
@@ -1818,6 +1868,32 @@ open func updateDocumentParent(docId: String, newParentDocId: String?)throws   {
             self.uniffiCloneHandle(),
         FfiConverterString.lower(docId),
         FfiConverterOptionString.lower(newParentDocId),$0
+    )
+}
+}
+    
+    /**
+     * Pose ou retire la direction d'écriture par défaut du document.
+     * `null` = locale système. Chaque bloc peut overrider.
+     */
+open func updateDocumentTextDirection(id: String, textDirection: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_document_text_direction(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(textDirection),$0
+    )
+}
+}
+    
+    /**
+     * Pose ou retire le thème par-document.
+     * `null` = hérite de AppSettings.theme.
+     */
+open func updateDocumentTheme(id: String, theme: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_document_theme(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(theme),$0
     )
 }
 }
@@ -2892,7 +2968,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks_with_snippets() != 57833) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_background_color() != 3931) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_color() != 56489) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_text_direction() != 63451) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_sort() != 45579) {
@@ -2914,6 +2996,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_parent() != 28850) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_text_direction() != 9380) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_theme() != 4251) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_title() != 35631) {

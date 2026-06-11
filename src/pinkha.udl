@@ -142,6 +142,25 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void set_block_color(string doc_id, string block_id, string? color);
 
+    /// Pose ou retire la couleur de fond du bloc (highlight style Craft).
+    [Throws=PinkhaError]
+    void set_block_background_color(string doc_id, string block_id, string? background_color);
+
+    /// Pose ou retire la direction d'écriture du bloc ("ltr" / "rtl").
+    /// `null` = hérite du document.
+    [Throws=PinkhaError]
+    void set_block_text_direction(string doc_id, string block_id, string? text_direction);
+
+    /// Pose ou retire la direction d'écriture par défaut du document.
+    /// `null` = locale système. Chaque bloc peut overrider.
+    [Throws=PinkhaError]
+    void update_document_text_direction(string id, string? text_direction);
+
+    /// Pose ou retire le thème par-document.
+    /// `null` = hérite de AppSettings.theme.
+    [Throws=PinkhaError]
+    void update_document_theme(string id, string? theme);
+
     [Throws=PinkhaError]
     void delete_block(string doc_id, string block_id);
 

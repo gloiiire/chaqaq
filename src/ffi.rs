@@ -88,7 +88,7 @@ impl From<CoreError> for PinkhaError {
 ///
 /// Carries pre-computed plain-text and JSON representations of the title so
 /// that Swift does not need to decode the full document to display a list item.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct DocumentMetaFfi {
     /// UUID string of the document.
     pub id: String,
@@ -112,7 +112,7 @@ pub struct DocumentMetaFfi {
 }
 
 /// Lightweight folder metadata passed across the FFI boundary.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct FolderMetaFfi {
     /// UUID string of the folder.
     pub id: String,
@@ -129,7 +129,7 @@ pub struct FolderMetaFfi {
 }
 
 /// Summary of a completed import operation, returned to Swift.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ImportResultFfi {
     /// Human-readable name of the source application (e.g. `"Notion"`, `"Bear"`).
     pub app: String,
@@ -171,7 +171,7 @@ pub struct NotionDatabaseSummaryFfi {
 /// One match from a block-content search. Carries the document metadata
 /// plus a short snippet of the matching block so the UI can preview
 /// where the hit occurs, Notion-style.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct BlockSearchHitFfi {
     pub doc: DocumentMetaFfi,
     /// UUID string of the matching block — lets Swift scroll directly
@@ -181,7 +181,7 @@ pub struct BlockSearchHitFfi {
 }
 
 /// Lightweight database metadata passed across the FFI boundary.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct DatabaseMetaFfi {
     /// UUID string of the database.
     pub id: String,
@@ -471,6 +471,72 @@ impl PinkhaApi {
         let block_uuid = parse_uuid(&block_id)?;
         let content: BlockContent = parse_json(&content_json)?;
         use_cases::update_block(&self.uow(), doc_uuid, block_uuid, content)
+            .map_err(PinkhaError::from)
+    }
+
+    /// Sets the block-level *background* color, or clears it when `color`
+    /// is `None`. Independent from [`set_block_color`] — colors a soft
+    /// tinted band behind the whole block (highlight style).
+    pub fn set_block_background_color(
+        &self,
+        doc_id: String,
+        block_id: String,
+        background_color: Option<String>,
+    ) -> Result<(), PinkhaError> {
+        if let Some(c) = background_color.as_deref() {
+            validate_string(c, "background_color")?;
+        }
+        let doc_uuid = parse_uuid(&doc_id)?;
+        let block_uuid = parse_uuid(&block_id)?;
+        use_cases::set_block_background_color(&self.uow(), doc_uuid, block_uuid, background_color)
+            .map_err(PinkhaError::from)
+    }
+
+    /// Sets the per-block writing direction (`"ltr"` / `"rtl"`), or
+    /// clears with `None` to inherit the document-level setting.
+    pub fn set_block_text_direction(
+        &self,
+        doc_id: String,
+        block_id: String,
+        text_direction: Option<String>,
+    ) -> Result<(), PinkhaError> {
+        if let Some(d) = text_direction.as_deref() {
+            validate_string(d, "text_direction")?;
+        }
+        let doc_uuid = parse_uuid(&doc_id)?;
+        let block_uuid = parse_uuid(&block_id)?;
+        use_cases::set_block_text_direction(&self.uow(), doc_uuid, block_uuid, text_direction)
+            .map_err(PinkhaError::from)
+    }
+
+    /// Sets the per-document writing direction (`"ltr"` / `"rtl"`), or
+    /// clears with `None` to let the system locale decide. The chosen
+    /// direction is the default for every block in the doc.
+    pub fn update_document_text_direction(
+        &self,
+        id: String,
+        text_direction: Option<String>,
+    ) -> Result<(), PinkhaError> {
+        if let Some(d) = text_direction.as_deref() {
+            validate_string(d, "text_direction")?;
+        }
+        let uuid = parse_uuid(&id)?;
+        use_cases::update_document_text_direction(&self.uow(), uuid, text_direction)
+            .map_err(PinkhaError::from)
+    }
+
+    /// Sets the per-document theme name, or clears with `None` to
+    /// inherit from `AppSettings.theme`.
+    pub fn update_document_theme(
+        &self,
+        id: String,
+        theme: Option<String>,
+    ) -> Result<(), PinkhaError> {
+        if let Some(t) = theme.as_deref() {
+            validate_string(t, "theme")?;
+        }
+        let uuid = parse_uuid(&id)?;
+        use_cases::update_document_theme(&self.uow(), uuid, theme)
             .map_err(PinkhaError::from)
     }
 

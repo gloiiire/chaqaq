@@ -583,9 +583,19 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_search_in_blocks(uint64_t ptr, Rust
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_search_in_blocks_with_snippets(uint64_t ptr, RustBuffer query, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_BLOCK_BACKGROUND_COLOR
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_BLOCK_BACKGROUND_COLOR
+void uniffi_pinkha_fn_method_pinkhaapi_set_block_background_color(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustBuffer background_color, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_BLOCK_COLOR
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_BLOCK_COLOR
 void uniffi_pinkha_fn_method_pinkhaapi_set_block_color(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustBuffer color, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_BLOCK_TEXT_DIRECTION
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_BLOCK_TEXT_DIRECTION
+void uniffi_pinkha_fn_method_pinkhaapi_set_block_text_direction(uint64_t ptr, RustBuffer doc_id, RustBuffer block_id, RustBuffer text_direction, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_VIEW_SORT
@@ -621,6 +631,16 @@ void uniffi_pinkha_fn_method_pinkhaapi_update_document_locked(uint64_t ptr, Rust
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_PARENT
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_PARENT
 void uniffi_pinkha_fn_method_pinkhaapi_update_document_parent(uint64_t ptr, RustBuffer doc_id, RustBuffer new_parent_doc_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_TEXT_DIRECTION
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_TEXT_DIRECTION
+void uniffi_pinkha_fn_method_pinkhaapi_update_document_text_direction(uint64_t ptr, RustBuffer id, RustBuffer text_direction, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_THEME
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_THEME
+void uniffi_pinkha_fn_method_pinkhaapi_update_document_theme(uint64_t ptr, RustBuffer id, RustBuffer theme, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_DOCUMENT_TITLE
@@ -1293,9 +1313,21 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks_with_snippets(
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_BLOCK_BACKGROUND_COLOR
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_BLOCK_BACKGROUND_COLOR
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_block_background_color(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_BLOCK_COLOR
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_BLOCK_COLOR
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_block_color(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_BLOCK_TEXT_DIRECTION
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_BLOCK_TEXT_DIRECTION
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_block_text_direction(void
     
 );
 #endif
@@ -1338,6 +1370,18 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_locked(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_PARENT
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_PARENT
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_parent(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_TEXT_DIRECTION
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_TEXT_DIRECTION
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_text_direction(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_THEME
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_DOCUMENT_THEME
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_document_theme(void
     
 );
 #endif

@@ -23,10 +23,17 @@ struct DocumentFfi: Codable {
     /// uses `#[serde(default)]`). Default = nil so existing call
     /// sites (tests, pre-feature constructors) keep compiling.
     let accentColor: String? = nil
+    /// Document-level writing direction (`"ltr"` / `"rtl"`). `nil`
+    /// = system locale. Default for every block.
+    let textDirection: String? = nil
+    /// Per-document Books-style theme name. `nil` inherits the global
+    /// `AppSettings.theme`.
+    let theme: String? = nil
 
     enum CodingKeys: String, CodingKey {
-        case id, cover, icon, title, blocks, locked
+        case id, cover, icon, title, blocks, locked, theme
         case accentColor = "accent_color"
+        case textDirection = "text_direction"
     }
 }
 
@@ -42,6 +49,19 @@ struct BlockFfi: Codable, Identifiable {
     let children: [BlockFfi]
     /// Decoded as nil for documents serialised before this field existed.
     let color: String?
+    /// Block-level background color name (highlight). Independent
+    /// from `color`. `nil` = no background. Default = nil so pre-
+    /// feature constructors and tests keep compiling.
+    let backgroundColor: String? = nil
+    /// Per-block writing direction (`"ltr"` / `"rtl"`). `nil`
+    /// inherits the document-level direction.
+    let textDirection: String? = nil
+
+    enum CodingKeys: String, CodingKey {
+        case id, content, children, color
+        case backgroundColor = "background_color"
+        case textDirection = "text_direction"
+    }
 }
 
 /// A run of text with zero or more inline styles applied to it.
@@ -102,9 +122,11 @@ enum BlockContentFfi: Codable, Equatable {
     case database(id: String)
     /// Reference to a child pinkha page. Mirrors Rust `BlockContent::Page`.
     case page(id: String)
+    /// Rich URL bookmark / preview card. Mirrors Rust `BlockContent::Embed`.
+    case embed(url: String)
 
     private enum K: String, CodingKey {
-        case Text, Heading, Quote, Todo, BulletedListItem, NumberedListItem, Code, Divider, Breadcrumb, Database, Page
+        case Text, Heading, Quote, Todo, BulletedListItem, NumberedListItem, Code, Divider, Breadcrumb, Database, Page, Embed
     }
     private struct PayloadHeading: Codable { let level: Int; let text: [InlineTextFfi] }
     private struct PayloadQuote:   Codable { let icon: String?; let text: [InlineTextFfi] }
@@ -112,6 +134,7 @@ enum BlockContentFfi: Codable, Equatable {
     private struct PayloadCode:    Codable { let language: String; let text: String }
     private struct PayloadDb:      Codable { let id: String }
     private struct PayloadPage:    Codable { let id: String }
+    private struct PayloadEmbed:   Codable { let url: String }
 
     init(from decoder: Decoder) throws {
         // Unit variants (Divider, Breadcrumb) are bare strings in serde's externally-tagged format.
@@ -129,6 +152,7 @@ enum BlockContentFfi: Codable, Equatable {
         if let v = try? c.decode(PayloadCode.self,     forKey: .Code)             { self = .code(language: v.language, text: v.text); return }
         if let v = try? c.decode(PayloadDb.self,       forKey: .Database)         { self = .database(id: v.id); return }
         if let v = try? c.decode(PayloadPage.self,     forKey: .Page)             { self = .page(id: v.id); return }
+        if let v = try? c.decode(PayloadEmbed.self,    forKey: .Embed)            { self = .embed(url: v.url); return }
         throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown BlockContent"))
     }
 
@@ -162,6 +186,9 @@ enum BlockContentFfi: Codable, Equatable {
         case .page(let id):
             var c = encoder.container(keyedBy: K.self)
             try c.encode(PayloadPage(id: id), forKey: .Page)
+        case .embed(let url):
+            var c = encoder.container(keyedBy: K.self)
+            try c.encode(PayloadEmbed(url: url), forKey: .Embed)
         }
     }
 

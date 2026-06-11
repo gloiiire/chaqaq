@@ -9,12 +9,18 @@ struct DocumentTitleView: View {
     @Binding var focusCursorOffset: Int?
     let onSave: () -> Void
     let onNewBlock: (String) -> Void
+    /// Books-style theme foreground colour. `nil` falls back to
+    /// `.label` (system-dynamic).
+    var themeForeground: UIColor? = nil
+    var keyboardAppearance: UIKeyboardAppearance = .default
     @State private var focused = false
 
     var body: some View {
         TitleEditor(text: $title, isFocused: $focused,
                     cursorOffset: $focusCursorOffset,
-                    onSave: onSave, onNewBlock: onNewBlock)
+                    onSave: onSave, onNewBlock: onNewBlock,
+                    themeForeground: themeForeground,
+                    keyboardAppearance: keyboardAppearance)
             .onChange(of: focusDemande) { _, requested in
                 if requested {
                     focusDemande = false
@@ -34,8 +40,15 @@ private struct TitleEditor: UIViewRepresentable {
     @EnvironmentObject private var settings: AppSettings
     let onSave: () -> Void
     let onNewBlock: (String) -> Void
+    var themeForeground: UIColor? = nil
+    var keyboardAppearance: UIKeyboardAppearance = .default
 
     private let police = UIFont.systemFont(ofSize: 32, weight: .bold)
+
+    /// Resolves the foreground colour for the title — theme override
+    /// wins, otherwise the system label. Computed each call so the
+    /// title repaints live when the user flips themes.
+    private var titleColor: UIColor { themeForeground ?? .label }
 
     func makeUIView(context: Context) -> ExpandingTextView {
         let tv = ExpandingTextView()
@@ -43,6 +56,7 @@ private struct TitleEditor: UIViewRepresentable {
         tv.backgroundColor = .clear
         tv.font = police
         tv.tintColor = resolvedSelectionTint(settings)
+        tv.keyboardAppearance = keyboardAppearance
         tv.isEditable = isEnabled
         tv.isSelectable = isEnabled
         tv.isScrollEnabled = false
@@ -51,13 +65,17 @@ private struct TitleEditor: UIViewRepresentable {
         context.coordinator.tv = tv
         tv.attributedText = text.isEmpty
             ? context.coordinator.placeholderAttr()
-            : NSAttributedString(string: text, attributes: [.font: police, .foregroundColor: UIColor.label])
+            : NSAttributedString(string: text, attributes: [.font: police, .foregroundColor: titleColor])
         return tv
     }
 
     func updateUIView(_ tv: ExpandingTextView, context: Context) {
         context.coordinator.parent = self
         tv.tintColor = resolvedSelectionTint(settings)
+        if tv.keyboardAppearance != keyboardAppearance {
+            tv.keyboardAppearance = keyboardAppearance
+            if tv.isFirstResponder { tv.reloadInputViews() }
+        }
         tv.isEditable = isEnabled
         tv.isSelectable = isEnabled
         if !isEnabled && tv.isFirstResponder {
@@ -67,7 +85,7 @@ private struct TitleEditor: UIViewRepresentable {
         if !context.coordinator.isEditing {
             tv.attributedText = text.isEmpty
                 ? context.coordinator.placeholderAttr()
-                : NSAttributedString(string: text, attributes: [.font: police, .foregroundColor: UIColor.label])
+                : NSAttributedString(string: text, attributes: [.font: police, .foregroundColor: titleColor])
         }
         if isFocused && !tv.isFirstResponder {
             let targetOffset = cursorOffset
@@ -106,9 +124,9 @@ private struct TitleEditor: UIViewRepresentable {
             // Clear the placeholder when editing begins.
             if tv.textColor == .tertiaryLabel {
                 tv.attributedText = NSAttributedString(string: "",
-                    attributes: [.font: parent.police, .foregroundColor: UIColor.label])
+                    attributes: [.font: parent.police, .foregroundColor: parent.titleColor])
             }
-            tv.typingAttributes = [.font: parent.police, .foregroundColor: UIColor.label]
+            tv.typingAttributes = [.font: parent.police, .foregroundColor: parent.titleColor]
         }
 
         func textViewDidEndEditing(_ tv: UITextView) {

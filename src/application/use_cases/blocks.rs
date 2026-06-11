@@ -49,6 +49,40 @@ pub fn set_block_color(
     repo.save(&doc)
 }
 
+/// Sets (or clears with `None`) the block-level *background* color and
+/// persists. Independent from [`set_block_color`] — the editor paints a
+/// soft tinted band behind the whole block (Craft / Notion highlight).
+pub fn set_block_background_color(
+    uow: &dyn UnitOfWork,
+    doc_id: Uuid,
+    block_id: Uuid,
+    background_color: Option<String>,
+) -> Result<(), PinkhaError> {
+    let repo = uow.documents();
+    let mut doc = repo.load(doc_id)?;
+    let block = find_block_mut(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
+    block.background_color = background_color;
+    repo.save(&doc)
+}
+
+/// Sets (or clears with `None`) the per-block writing direction.
+/// Values: `"ltr"`, `"rtl"`, or `None` to inherit the document-level
+/// setting. The rendering layer applies the corresponding
+/// `NSTextAlignment` + `UISemanticContentAttribute` so the text
+/// editor (and the row chrome around it) flips accordingly.
+pub fn set_block_text_direction(
+    uow: &dyn UnitOfWork,
+    doc_id: Uuid,
+    block_id: Uuid,
+    text_direction: Option<String>,
+) -> Result<(), PinkhaError> {
+    let repo = uow.documents();
+    let mut doc = repo.load(doc_id)?;
+    let block = find_block_mut(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
+    block.text_direction = text_direction;
+    repo.save(&doc)
+}
+
 /// Duplicates a block (with all its descendants) and inserts the copy
 /// directly after the original, at the same level in the tree. Every
 /// block (and child block) in the clone receives a fresh UUID so the
@@ -95,6 +129,8 @@ fn clone_with_fresh_ids(block: &Block) -> Block {
         id: Uuid::new_v4(),
         content: block.content.clone(),
         color: block.color.clone(),
+        background_color: block.background_color.clone(),
+        text_direction: block.text_direction.clone(),
         children: block.children.iter().map(clone_with_fresh_ids).collect(),
     }
 }

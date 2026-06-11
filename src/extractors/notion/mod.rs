@@ -743,7 +743,8 @@ fn rewrite_inlines_in_content(
         | BlockContent::Breadcrumb
         | BlockContent::Database { .. }
         | BlockContent::Code { .. }
-        | BlockContent::Page { .. } => None,
+        | BlockContent::Page { .. }
+        | BlockContent::Embed { .. } => None,
     };
     if let Some(spans) = inlines {
         for span in spans.iter_mut() {
@@ -866,6 +867,8 @@ async fn fetch_blocks_recursive(
                     content: BlockContent::Page { id: child_id },
                     children: Vec::new(),
                     color: None,
+                    background_color: None,
+                    text_direction: None,
                 });
                 continue;
             }
@@ -898,6 +901,8 @@ async fn fetch_blocks_recursive(
                         content,
                         children,
                         color: map_block_color(notion_block),
+                        background_color: None,
+                        text_direction: None,
                     });
                 }
                 None => {

@@ -6,6 +6,14 @@ import UIKit
 /// `UIViewRepresentable` wrapping `ExpandingTextView` with full rich text editing:
 /// bold/italic/underline/strikethrough/color/link via a glass pill toolbar,
 /// markdown shortcuts, Shift+Enter line breaks, and undo/redo integration.
+/// One row in the `@`-mention picker — a document the user can
+/// reference by name. The picker shows `title` and on tap inserts
+/// a `pinkha://doc/{id}` link with `title` as the visible text.
+struct MentionCandidate {
+    let id: String
+    let title: String
+}
+
 struct RichTextEditor: UIViewRepresentable {
     typealias Coordinator = RichTextEditorCoordinator
 
@@ -55,6 +63,38 @@ struct RichTextEditor: UIViewRepresentable {
     /// Called when the user picks a colour from the ¶ menu (or "None" to
     /// clear). Goes through the VM which calls the FFI `set_block_color`.
     var onSetBlockColor: ((String?) -> Void)? = nil
+    /// Block-level *background* color name (Craft / Notion highlight).
+    /// Mirrors `blockColor` — passed down so the keyboard pill's
+    /// background-color button can highlight the active swatch.
+    var blockBackgroundColor: String? = nil
+    /// Background-color setter — same shape as `onSetBlockColor`,
+    /// routes through the VM to FFI `set_block_background_color`.
+    var onSetBlockBackgroundColor: ((String?) -> Void)? = nil
+    /// Resolved writing direction for this block (`"ltr"` / `"rtl"`),
+    /// already combined from per-block override + document default
+    /// at the call site. `nil` leaves UIKit's default `.natural`
+    /// alignment, which honours the system locale.
+    var textDirection: String? = nil
+    /// Books-style theme foreground colour passed down so the spans
+    /// inherit the right default (papier = black, calme/attention =
+    /// dark brown, tranquille = off-white, …). `nil` keeps the
+    /// system `.label` fallback.
+    var themeForegroundColor: UIColor? = nil
+    /// Forced keyboard appearance — `.dark` for dark themes,
+    /// `.light` for light themes, `.default` to follow the window's
+    /// trait collection. Setting this explicitly is what fixes the
+    /// disconnect between the doc background and the on-screen
+    /// keyboard when a per-doc theme overrides the global one (the
+    /// keyboard lives in its own window and doesn't pick up the
+    /// app-window `overrideUserInterfaceStyle` we just set).
+    var keyboardAppearance: UIKeyboardAppearance = .default
+    /// Provides the candidate documents for the `@`-mention picker.
+    /// Called when the user types `@` at the start of a word — the
+    /// coordinator shows the returned list as a chooser; tapping
+    /// an entry replaces the `@…` token with a `pinkha://doc/{id}`
+    /// link styled with the document's title. `nil` disables the
+    /// feature (e.g. title editor, where mentions don't make sense).
+    var onMentionLookup: (() -> [MentionCandidate])? = nil
     /// Called when the user taps a `pinkha://doc/{uuid}` link in the
     /// editor — the value is the destination document UUID. The parent
     /// view (DocumentView) navigates to that document instead of opening
@@ -99,24 +139,83 @@ struct RichTextEditor: UIViewRepresentable {
         longPress.delegate = context.coordinator
         tv.addGestureRecognizer(longPress)
         if spans.isEmpty { tv.attributedText = context.coordinator.placeholder() }
-        else { tv.attributedText = withExtras(spansToAttributed(spans, police: baseFont, blockColor: blockColor)) }
+        else { tv.attributedText = withExtras(spansToAttributed(spans, police: baseFont, blockColor: blockColor, themeForeground: themeForegroundColor)) }
         return tv
     }
 
     func updateUIView(_ tv: ExpandingTextView, context: Context) {
         let coord = context.coordinator
         coord.parent = self
+        // Gate every setter behind an equality check : SwiftUI calls
+        // `updateUIView` for ALL rows on every parent re-render, even
+        // when the row's own props are unchanged. Unconditionally
+        // touching `tintColor` / `textAlignment` / `semanticContent…`
+        // / pushing a new accent → UIImage rebuild forces a layout
+        // pass per row per frame and is the dominant source of
+        // scroll jank in the editor (verified by an audit). The
+        // checks themselves are nanoseconds; the avoided work is ms.
+        if coord.lastSyncedBlockColor != blockColor {
+            coord.updateBlockColorButton(blockColor)
+        }
+        if coord.lastSyncedBlockBackgroundColor != blockBackgroundColor {
+            coord.updateBlockBackgroundColorButton(blockBackgroundColor)
+            coord.lastSyncedBlockBackgroundColor = blockBackgroundColor
+        }
+        if coord.lastSyncedTextDirection != textDirection {
+            switch textDirection {
+            case "rtl":
+                tv.textAlignment = .right
+                tv.semanticContentAttribute = .forceRightToLeft
+            case "ltr":
+                tv.textAlignment = .left
+                tv.semanticContentAttribute = .forceLeftToRight
+            default:
+                tv.textAlignment = .natural
+                tv.semanticContentAttribute = .unspecified
+            }
+            coord.lastSyncedTextDirection = textDirection
+        }
+        if coord.currentAccentColor != accentColor {
+            coord.currentAccentColor = accentColor
+            coord.updatePasteButton()
+        }
+        let tint = resolvedSelectionTint(settings)
+        if tv.tintColor != tint { tv.tintColor = tint }
+        // Pin link colour to the theme foreground (or `.label`) instead
+        // of letting UIKit derive it from `tintColor` — which can drift
+        // to white / black depending on selection-tint settings and
+        // leave links invisible against the doc background (e.g. a
+        // YouTube URL going black on a dark doc). The link attributes
+        // are merged with each `.link` attribute on the spans.
+        let linkColor: UIColor = themeForegroundColor ?? .label
+        let linkAttrs: [NSAttributedString.Key: Any] = [
+            .foregroundColor: linkColor,
+            .underlineStyle: NSUnderlineStyle.single.rawValue,
+        ]
+        if (tv.linkTextAttributes?[.foregroundColor] as? UIColor) != linkColor {
+            tv.linkTextAttributes = linkAttrs
+        }
+        if tv.isEditable != isEnabled { tv.isEditable = isEnabled }
+        if tv.isSelectable != isEnabled { tv.isSelectable = isEnabled }
+        if tv.keyboardAppearance != keyboardAppearance {
+            tv.keyboardAppearance = keyboardAppearance
+            // The text view needs to be told the input view changed
+            // so iOS re-renders the keyboard with the new appearance
+            // while it's already on screen — otherwise the swap only
+            // takes effect the *next* time the keyboard is shown.
+            if tv.isFirstResponder { tv.reloadInputViews() }
+        }
+        // Hard iOS limitation — the keyboard host window lives in
+        // another process (`UIRemoteKeyboardWindow`) and only takes
+        // `.light` / `.dark` via `keyboardAppearance`. Tinting the
+        // accessory container in the doc theme worked visually but
+        // hid scrolling text behind the opaque strip, which was
+        // worse than the seam. Native apps (Notion, Craft, Bear)
+        // accept the seam too. Confirmed in Apple forum #707262.
+        // Undo / redo button visuals already have an internal cache
+        // (see `RichTextEditorCoordinator.lastCanUndo`) — leave the
+        // call here so the buttons stay live during edits.
         coord.updateUndoRedoButtons()
-        coord.updateBlockColorButton(blockColor)
-        // Push the resolved accent down to the toolbar — the paste
-        // button uses it for its "active" tint, which currently
-        // hard-fell back to the asset-catalog `Accent` color and
-        // therefore ignored any per-doc override.
-        coord.currentAccentColor = accentColor
-        coord.updatePasteButton()
-        tv.tintColor = resolvedSelectionTint(settings)
-        tv.isEditable = isEnabled
-        tv.isSelectable = isEnabled
         if !isEnabled && tv.isFirstResponder {
             tv.resignFirstResponder()
             DispatchQueue.main.async { isFocused = false }
@@ -130,13 +229,15 @@ struct RichTextEditor: UIViewRepresentable {
         // the spans-equality check would skip the `spansToAttributed` rebuild.
         if coord.lastSyncedSpans != spans
             || coord.lastSyncedBlockColor != blockColor
-            || coord.lastSyncedIsEnabled != isEnabled {
+            || coord.lastSyncedIsEnabled != isEnabled
+            || coord.lastSyncedThemeForeground != themeForegroundColor {
             // Do not reassign tv.font during editing: UITextView.font reapplies
             // the font to ALL the text and would erase per-character bold/italic.
             let editingText: NSAttributedString = spans.isEmpty
                 ? NSAttributedString(string: "",
-                                      attributes: [.font: baseFont, .foregroundColor: UIColor.label])
-                : withExtras(spansToAttributed(spans, police: baseFont, blockColor: blockColor))
+                                      attributes: [.font: baseFont,
+                                                   .foregroundColor: themeForegroundColor ?? UIColor.label])
+                : withExtras(spansToAttributed(spans, police: baseFont, blockColor: blockColor, themeForeground: themeForegroundColor))
             if !coord.isEditing {
                 tv.font = baseFont
                 tv.attributedText = spans.isEmpty ? coord.placeholder() : editingText
@@ -171,6 +272,7 @@ struct RichTextEditor: UIViewRepresentable {
             coord.lastSyncedSpans = spans
             coord.lastSyncedBlockColor = blockColor
             coord.lastSyncedIsEnabled = isEnabled
+            coord.lastSyncedThemeForeground = themeForegroundColor
         }
 
         if isFocused && !tv.isFirstResponder {
