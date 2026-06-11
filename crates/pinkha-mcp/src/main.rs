@@ -17,10 +17,8 @@ use std::io::{self, BufRead, Write};
 use std::sync::Arc;
 
 use pinkha::ffi::PinkhaApi;
+use pinkha_mcp::{protocol, tools};
 use serde_json::{Value, json};
-
-mod protocol;
-mod tools;
 
 fn main() -> anyhow::Result<()> {
     let db_path = std::env::args().nth(1).ok_or_else(|| {

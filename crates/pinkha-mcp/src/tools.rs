@@ -569,12 +569,13 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
         "search_folders" => json_of(api.search_folders(take(&args, "query")?)?),
 
         // ── Folders ───────────────────────────────────────────
-        "create_folder" => Ok(json!({
-            "id": api.create_folder(
+        "create_folder" => {
+            let meta = api.create_folder(
                 take(&args, "name")?,
                 take_opt(&args, "parent_id")?,
-            )?,
-        }).to_string()),
+            )?;
+            Ok(json!({ "id": meta.id }).to_string())
+        }
         "list_folders" => json_of(api.list_folders()?),
         "get_folder" => json_of(api.get_folder(take(&args, "id")?)?),
         "rename_folder" => {
