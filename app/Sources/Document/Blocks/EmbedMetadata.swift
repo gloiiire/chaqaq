@@ -66,40 +66,85 @@ actor EmbedMetadataStore {
     private static func fetch(url: URL) async -> EmbedMetadata? {
         let host = url.host ?? ""
         var request = URLRequest(url: url)
-        request.timeoutInterval = 1.0
+        // 4 seconds is the practical browser sweet spot — most OG
+        // responses land in under a second, but some CDNs (especially
+        // for redirect chains like `youtu.be` → `youtube.com/watch`)
+        // need the extra time before the document body lands.
+        request.timeoutInterval = 4.0
         request.setValue(
-            // Identify as a regular browser — some sites refuse non-
-            // browser UAs and skip the OG tags they normally serve.
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) "
-            + "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+            // Match a recent Safari UA verbatim so sites that gate
+            // OG tags on "real browser" UA strings (YouTube, Twitter,
+            // a lot of CDN-served pages) still serve them. The earlier
+            // truncated UA was being rejected by enough hosts that
+            // most cards fell back to the bare hostname.
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+            + "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 "
+            + "Mobile/15E148 Safari/604.1",
             forHTTPHeaderField: "User-Agent",
         )
+        request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await URLSession.shared.data(for: request)
         } catch {
-            return EmbedMetadata(title: host, description: nil,
-                                 imageURL: nil, host: host)
+            return fallback(host: host, url: url)
         }
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200,
-              let raw = String(data: data.prefix(256 * 1024), encoding: .utf8)
-                ?? String(data: data.prefix(256 * 1024), encoding: .isoLatin1)
-        else {
-            return EmbedMetadata(title: host, description: nil,
-                                 imageURL: nil, host: host)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            return fallback(host: host, url: url)
         }
+        // Read the first 512 KB — most OG tags sit in the first 32 KB
+        // of the `<head>`, but some sites push them past the 256 KB
+        // mark behind inline scripts. Doubling the cap is cheap RAM
+        // and covers the long-tail without unbounded reads.
+        let cap = data.prefix(512 * 1024)
+        guard let raw = String(data: cap, encoding: .utf8)
+            ?? String(data: cap, encoding: .isoLatin1)
+        else { return fallback(host: host, url: url) }
         let title = scrape(raw, properties: ["og:title", "twitter:title"])
             ?? scrapeTitleTag(raw)
             ?? host
         let description = scrape(raw, properties: ["og:description", "twitter:description", "description"])
         let imageURLString = scrape(raw, properties: ["og:image", "twitter:image"])
         let imageURL = imageURLString.flatMap { resolveImageURL($0, base: url) }
+            ?? youTubeThumbnail(for: url)
         return EmbedMetadata(
             title: title,
             description: description,
             imageURL: imageURL,
             host: host,
         )
+    }
+
+    /// Fallback envelope when the network call fails or the response
+    /// can't be parsed — still attempts a known thumbnail URL for
+    /// YouTube so the card isn't empty.
+    private static func fallback(host: String, url: URL) -> EmbedMetadata {
+        EmbedMetadata(
+            title: host,
+            description: nil,
+            imageURL: youTubeThumbnail(for: url),
+            host: host,
+        )
+    }
+
+    /// YouTube hosts everything behind aggressive bot detection. For
+    /// `youtu.be/{ID}` or `youtube.com/watch?v={ID}` URLs, the
+    /// thumbnail follows a deterministic pattern, so we can render a
+    /// rich card even when the OG fetch is blocked. `nil` for any
+    /// other host.
+    private static func youTubeThumbnail(for url: URL) -> URL? {
+        let id: String?
+        let host = url.host ?? ""
+        if host == "youtu.be" {
+            id = url.path.split(separator: "/").first.map(String.init)
+        } else if host.hasSuffix("youtube.com") {
+            id = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?.first(where: { $0.name == "v" })?.value
+        } else {
+            id = nil
+        }
+        guard let id, !id.isEmpty else { return nil }
+        return URL(string: "https://img.youtube.com/vi/\(id)/hqdefault.jpg")
     }
 
     /// Walks the HTML head looking for an OpenGraph / Twitter / classic

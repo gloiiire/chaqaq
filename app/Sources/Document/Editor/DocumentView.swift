@@ -424,10 +424,22 @@ struct DocumentView: View {
             case .dark:   style = .dark
             }
         }
-        UIApplication.shared.connectedScenes
+        // Short-circuit when the key window already has the right
+        // style — `overrideUserInterfaceStyle = …` forces a layout
+        // pass on every descendant view, and re-doing it on every
+        // body re-eval (including the snapshot SwiftUI takes when
+        // the app goes to background) is what made the global
+        // re-render visibly slow at app-quit time.
+        let windows = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows)
-            .forEach { $0.overrideUserInterfaceStyle = style }
+        if windows.first?.overrideUserInterfaceStyle == style { return }
+        // Match `AppSettings.applyAppearanceToWindows` : animate the
+        // override flip so the NavStack-↔-home transition looks
+        // smooth instead of snapping into the new colour scheme.
+        UIView.animate(withDuration: 0.25) {
+            windows.forEach { $0.overrideUserInterfaceStyle = style }
+        }
     }
 
     /// to full clarity. Safe to call when no spotlight is active.

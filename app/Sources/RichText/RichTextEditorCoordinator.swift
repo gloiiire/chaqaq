@@ -307,6 +307,20 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
             currentSpans = attributedToSpans(tv.attributedText, police: parent.baseFont)
         }
 
+        // Auto-embed : if the block now contains *only* one URL (and
+        // nothing else, save for surrounding whitespace), promote it
+        // to a `.embed` block. Routes through the same `onConvert`
+        // path the long-press "Convert to embed" menu uses, so the
+        // resulting block-content rewrite is undoable. Skipping any
+        // block that has an external `pinkha://` link — those are
+        // typed via the `@`-mention picker and we want them to stay
+        // inline.
+        if let url = soleURLForAutoEmbed(in: currentSpans) {
+            Haptic.soft()
+            parent.onConvert?(.embed(url: url))
+            return
+        }
+
         // `@`-mention trigger : the user just typed `@` at the start
         // of the editor or right after whitespace. Show a chooser
         // populated by the parent's `onMentionLookup`. The picked
@@ -491,6 +505,7 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
     /// `pinkha://doc/{id}` link, then closes the session.
     private func commitMention(_ candidate: MentionCandidate) {
         guard let tv, let session = mentionSession else { return }
+        Haptic.tap()
         let replaceRange = NSRange(location: session.start,
                                     length: 1 + session.queryLength)
         let url = URL(string: "pinkha://doc/\(candidate.id)")
@@ -526,6 +541,37 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
         } completion: { _ in
             bar.isHidden = true
         }
+    }
+
+    /// Returns the URL when the block's spans collapse to a single
+    /// external link — the plain text is exactly the URL and the
+    /// `.link` style points to it. `nil` for anything else (mixed
+    /// text + URL, `pinkha://` internal links, multiple links).
+    /// Used by `textViewDidChange` to flip the block to a `.embed`
+    /// card without an explicit user gesture.
+    private func soleURLForAutoEmbed(in spans: [InlineTextFfi]) -> String? {
+        // Reject `pinkha://` links — those are internal mentions and
+        // should stay inline.
+        let plain = spans.map(\.content).joined()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !plain.isEmpty,
+              !plain.hasPrefix("pinkha://"),
+              let parsed = URL(string: plain),
+              parsed.scheme == "http" || parsed.scheme == "https",
+              parsed.host?.isEmpty == false
+        else { return nil }
+        // Also require the URL to round-trip via `NSDataDetector` —
+        // it's stricter than `URL(string:)` and matches our
+        // `linkifyWordEndingAtCursor` heuristic, so the user only
+        // ever sees an auto-embed when they typed something we
+        // already styled as a hyperlink.
+        let detector = try? NSDataDetector(
+            types: NSTextCheckingResult.CheckingType.link.rawValue)
+        let range = NSRange(plain.startIndex..<plain.endIndex, in: plain)
+        guard let match = detector?.firstMatch(in: plain, range: range),
+              match.range == range
+        else { return nil }
+        return parsed.absoluteString
     }
 
     /// Returns a URL if the candidate string is a real link.
