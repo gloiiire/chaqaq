@@ -58,6 +58,18 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Picker(selection: $settings.theme) {
+                        ForEach(AppSettings.Theme.allCases) { theme in
+                            Text(theme.label).tag(theme)
+                        }
+                    } label: { Text("Theme") }
+                } header: {
+                    Text("Theme")
+                } footer: {
+                    Text("Books-style reading theme applied to every doc. Each doc can override via its \"…\" overflow menu.")
+                }
+
+                Section {
                     Stepper(
                         value: $settings.recentCount,
                         in: 5...20,
@@ -87,6 +99,24 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Toggle("Haptic feedback", isOn: $settings.hapticsEnabled)
+                        .tint(settings.accentColor)
+                } header: {
+                    Text("Feedback")
+                } footer: {
+                    Text("On (default): every button tap, theme pick and toggle triggers a soft taptic click. Off: silent. Also respects the iOS system setting (Settings → Sounds & Haptics → System Haptics).")
+                }
+
+                Section {
+                    Toggle("Lock rotation", isOn: $settings.rotationLocked)
+                        .tint(settings.accentColor)
+                } header: {
+                    Text("Rotation")
+                } footer: {
+                    Text("Off (default): the app rotates between portrait and landscape with the device. On: stays in portrait whatever the device does — handy on iPhone while reading in bed.")
+                }
+
+                Section {
                     Toggle("Tint focused block", isOn: $settings.spotlightTinted)
                         .tint(settings.accentColor)
                 } header: {
@@ -113,7 +143,7 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Appearance, accent color, recent strip count and the spotlight tint will go back to their factory values.")
+                Text("Appearance, accent color, recent strip count, spotlight tint, haptics and rotation lock will go back to their factory values.")
             }
     }
 

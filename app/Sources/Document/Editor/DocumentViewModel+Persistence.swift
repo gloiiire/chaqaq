@@ -96,6 +96,8 @@ extension DocumentViewModel {
             icon = doc.icon
             locked = doc.locked ?? false
             accentColor = doc.accentColor
+            textDirection = doc.textDirection
+            theme = doc.theme
             blocks = DocumentViewModel.flattenBlocks(doc.blocks, depth: 0)
             // Initialise stable snapshots for burst undo tracking.
             blockSnapshots = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, snapshotOf($0)) })
@@ -117,6 +119,8 @@ extension DocumentViewModel {
                 spans: node.content.spansOrEmpty,
                 done: node.content.isTodoDone,
                 color: node.color,
+                backgroundColor: node.backgroundColor,
+                textDirection: node.textDirection,
                 depth: depth
             ))
             if !node.children.isEmpty {

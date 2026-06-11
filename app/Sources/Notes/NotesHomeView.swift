@@ -22,6 +22,12 @@ struct NotesHomeView: View {
     /// not visibly pop when `path.removeAll()` is called from outside.
     /// External mutations route through `Composer.popHomeNotification`.
     @State private var path: [String] = []
+    /// Shared geometry namespace for the Apple Music / Books-style
+    /// zoom transition when a doc card opens. Source views (list
+    /// rows, Recent cards) tag themselves with
+    /// `.matchedTransitionSource(id:in:)`; the destination DocumentView
+    /// pairs it with `.navigationTransition(.zoom(sourceID:in:))`.
+    @Namespace private var docZoom
     /// Multi-select state for bulk delete. `editMode` flips between
     /// `.inactive` and `.active` via the toolbar Select button; the
     /// List binds `selection:` to `selectedIds` so the standard iOS
@@ -112,6 +118,7 @@ struct NotesHomeView: View {
                         RecentStrip(
                             items: recentlyViewedItems,
                             api: store.api,
+                            zoomNamespace: docZoom,
                             onDisappear: { store.load() },
                             onOpenNote: { docId in
                                 path.append(docId)
@@ -236,6 +243,7 @@ struct NotesHomeView: View {
                 if let api = store.api {
                     DocumentView(vm: tabManager.open(docId: docId, api: api),
                                  onDisappear: store.load)
+                        .navigationTransition(.zoom(sourceID: docId, in: docZoom))
                 }
             }
         }
@@ -388,10 +396,14 @@ struct NotesHomeView: View {
     func itemRow(_ item: WorkspaceItem, api: PinkhaApi) -> some View {
         switch item {
         case .note(let doc):
-            NavigationLink(destination: DocumentView(vm: tabManager.open(docId: doc.id, api: api),
-                                                     onDisappear: store.load)) {
+            NavigationLink(destination:
+                DocumentView(vm: tabManager.open(docId: doc.id, api: api),
+                             onDisappear: store.load)
+                    .navigationTransition(.zoom(sourceID: doc.id, in: docZoom))
+            ) {
                 WorkspaceRow(item: item, displayDateIso: displayDate(for: item))
             }
+            .matchedTransitionSource(id: doc.id, in: docZoom)
             // Apple Music-style long-press : the row floats as a
             // detached card preview, with Rename / Delete options
             // underneath. Tap on the row itself still navigates.

@@ -203,8 +203,30 @@ extension DocumentView {
             onIndent: { vm.indentBlock(id: block.id) },
             onOutdent: { vm.outdentBlock(id: block.id) },
             onSetBlockColor: { color in vm.setBlockColor(id: block.id, color: color) },
+            onSetBlockBackgroundColor: { color in
+                vm.setBlockBackgroundColor(id: block.id, color: color)
+            },
+            // Per-block override wins; otherwise inherit the
+            // document-level direction (already loaded into the VM).
+            effectiveTextDirection: block.textDirection ?? vm.textDirection,
+            onSetBlockTextDirection: { dir in
+                vm.setBlockTextDirection(id: block.id, direction: dir)
+            },
+            // `@`-mention candidates : every document the user can
+            // link to. We include the doc currently being edited so
+            // a workspace with a single doc still gets a non-empty
+            // list (otherwise the bar wouldn't appear on first use).
+            onMentionLookup: { [weak vm] in
+                guard let vm,
+                      let docs = try? vm.api.listDocuments() else { return [] }
+                return docs.map { MentionCandidate(
+                    id: $0.id,
+                    title: $0.titlePlain.isEmpty ? "Untitled" : $0.titlePlain) }
+            },
             onDuplicate: { vm.duplicateBlock(id: block.id) },
             accentColor: effectiveAccentColor,
+            themeForegroundColor: effectiveTheme.foregroundColor,
+            keyboardAppearance: effectiveKeyboardAppearance,
             onOpenInternalDoc: { docId in pushedDocId = docId },
             resolveChildPage: { childId in
                 // The child-page row needs a title + optional icon. We load

@@ -110,6 +110,37 @@ pub fn update_document_accent_color(
     repo.save(&doc)
 }
 
+/// Sets (or clears with `None`) the per-document writing direction.
+/// Values: `"ltr"`, `"rtl"`, or `None` to let the system locale
+/// decide. Acts as the default direction for every block; individual
+/// blocks can still override via `set_block_text_direction`.
+pub fn update_document_text_direction(
+    uow: &dyn UnitOfWork,
+    doc_id: Uuid,
+    text_direction: Option<String>,
+) -> Result<(), PinkhaError> {
+    let repo = uow.documents();
+    let mut doc = repo.load(doc_id)?;
+    doc.text_direction = text_direction;
+    repo.save(&doc)
+}
+
+/// Sets (or clears with `None`) the per-document theme.
+/// Values: `"original"`, `"tranquille"`, `"papier"`, `"gras"`,
+/// `"calme"`, `"attention"`, or `None` to inherit from
+/// `AppSettings.theme`. The editor maps the name to a palette
+/// (background, text color, bold) at render time.
+pub fn update_document_theme(
+    uow: &dyn UnitOfWork,
+    doc_id: Uuid,
+    theme: Option<String>,
+) -> Result<(), PinkhaError> {
+    let repo = uow.documents();
+    let mut doc = repo.load(doc_id)?;
+    doc.theme = theme;
+    repo.save(&doc)
+}
+
 /// Toggles the read-only lock on a document and persists. Imports default
 /// new documents to `locked = true` so the user reads the extracted content
 /// before editing it.

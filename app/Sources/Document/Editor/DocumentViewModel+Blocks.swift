@@ -240,6 +240,46 @@ extension DocumentViewModel {
         }
     }
 
+    /// Applies (or clears with `nil`) the per-block writing direction.
+    /// Mutates the in-memory `EditableBlock` so the editor re-orients
+    /// immediately, then persists via the FFI. Registers the inverse
+    /// on the UndoManager.
+    func setBlockTextDirection(id: String, direction: String?) {
+        guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
+        let previous = blocks[idx].textDirection
+        guard previous != direction else { return }
+        blocks[idx].textDirection = direction
+        do {
+            try api.setBlockTextDirection(docId: docId, blockId: id, textDirection: direction)
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+        undoMgr.registerUndo(withTarget: self) { vm in
+            vm.setBlockTextDirection(id: id, direction: previous)
+        }
+    }
+
+    /// Applies (or clears with `nil`) the block-level *background* color
+    /// (Craft / Notion highlight). Mutates the in-memory `EditableBlock`
+    /// so the soft tinted band repaints immediately, then persists via
+    /// the FFI. Registers the inverse on the UndoManager.
+    func setBlockBackgroundColor(id: String, color: String?) {
+        guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
+        let previous = blocks[idx].backgroundColor
+        guard previous != color else { return }
+        blocks[idx].backgroundColor = color
+        do {
+            try api.setBlockBackgroundColor(docId: docId, blockId: id, backgroundColor: color)
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+        undoMgr.registerUndo(withTarget: self) { vm in
+            vm.setBlockBackgroundColor(id: id, color: previous)
+        }
+    }
+
     /// Applies (or clears with `nil`) the block-level text colour. Mutates
     /// the in-memory `EditableBlock` so the re-render picks up the new
     /// default foreground immediately, then persists via the FFI. Registers

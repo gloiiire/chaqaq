@@ -16,6 +16,14 @@ struct DocumentDecorView: View {
     @State private var photosPickerOuvert = false
     @State private var fichierOuvert = false
     @State private var emojiPickerOuvert = false
+    /// Decoded UIImage for the local cover file, cached so the body
+    /// stops re-reading it from disk on every re-eval. SwiftUI
+    /// re-evaluates the body whenever an ancestor publishes (which
+    /// happens many times during a scroll session), and
+    /// `UIImage(contentsOfFile:)` decoded the JPEG every time —
+    /// killing the scroll frame rate on docs with a cover.
+    /// Re-loaded only when `cover` changes (`.task(id: cover)`).
+    @State private var coverCache: UIImage?
 
     // UIMenu does not scroll: the inline menu only shows recents.
     // "All emojis" opens the full sheet.
@@ -157,13 +165,8 @@ struct DocumentDecorView: View {
 
     @ViewBuilder
     private func coverView(_ id: String) -> some View {
-        if let image = coverImage(id) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .clipped()
-        } else if id.hasPrefix("http://") || id.hasPrefix("https://"),
-                  let url = URL(string: id) {
+        if id.hasPrefix("http://") || id.hasPrefix("https://"),
+           let url = URL(string: id) {
             // Remote cover (typical case: Notion imports preserve the original
             // cover URL — Notion-hosted URLs expire after ~1h so a future
             // PR should download them locally at import time; for now we
@@ -186,6 +189,22 @@ struct DocumentDecorView: View {
                     Color.secondary.opacity(0.1)
                 }
             }
+        } else if isLocalCoverId(id) {
+            // Local cover : show the cached UIImage if we have one,
+            // a soft placeholder otherwise. The cache is populated by
+            // `.task(id:)` so the JPEG is decoded ONCE per identifier
+            // change, off the main thread.
+            Group {
+                if let image = coverCache {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .clipped()
+                } else {
+                    Color.secondary.opacity(0.1)
+                }
+            }
+            .task(id: id) { await loadCoverCache(id: id) }
         } else {
             switch id {
             case "cover.aurora":
@@ -220,5 +239,45 @@ struct DocumentDecorView: View {
         }
         guard let url = URL(string: id), url.isFileURL else { return nil }
         return UIImage(contentsOfFile: url.path)
+    }
+
+    /// Whether the cover identifier should be loaded from a local file
+    /// (vs. a remote URL or a built-in gradient). Local files are
+    /// either bare filenames inside the covers directory, or
+    /// `file://` URLs (used by drag-and-drop imports).
+    private func isLocalCoverId(_ id: String) -> Bool {
+        if id.hasPrefix("file://") { return true }
+        if id.hasPrefix("cover.") { return false }
+        if id.hasPrefix("http://") || id.hasPrefix("https://") { return false }
+        return true
+    }
+
+    /// Decodes the local cover image off the main thread and stores
+    /// it in `coverCache`. Called once per `id` change via
+    /// `.task(id:)`. A second call with the same id is short-circuited
+    /// because SwiftUI doesn't restart the task unless the id flips.
+    @MainActor
+    private func loadCoverCache(id: String) async {
+        // Resolve the file path on the main actor (covers directory is
+        // main-isolated), then hand the bare path off to a background
+        // task for the actual JPEG decode. Keeps the heavy bit off the
+        // main thread without breaking actor isolation.
+        let path: String?
+        if id.hasPrefix("file://") {
+            path = URL(string: id).flatMap { $0.isFileURL ? $0.path : nil }
+        } else if id.hasPrefix("cover.") {
+            path = nil
+        } else if let directory = try? DocumentViewModel.coversDirectory() {
+            path = directory.appendingPathComponent(id).path
+        } else {
+            path = nil
+        }
+        guard let path else { coverCache = nil; return }
+        let image = await Task.detached(priority: .userInitiated) {
+            UIImage(contentsOfFile: path)
+        }.value
+        if !Task.isCancelled {
+            coverCache = image
+        }
     }
 }

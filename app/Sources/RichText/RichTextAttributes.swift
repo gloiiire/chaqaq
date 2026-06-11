@@ -4,11 +4,15 @@ import UIKit
 /// Resolves the cursor + selection tint from the user prefs. UIKit
 /// ties the caret colour to `tintColor` on UITextView (there's no
 /// separate `insertionPointColor` like UITextField has on iOS 18+),
-/// so this toggle paints BOTH the caret and the selection lozenge.
-/// Default on : accent for both ; off : white, Notion-style.
+/// so this toggle paints BOTH the caret and the selection lozenge
+/// AND every inline `.link` (the default `linkTextAttributes` uses
+/// the tint). Default on : accent ; off : `.label` (dynamic — white
+/// in dark mode, black in light) so links never become invisible
+/// against the matching background — the earlier hard-coded `.white`
+/// rendered links unreadable in light mode.
 @MainActor
 func resolvedSelectionTint(_ settings: AppSettings) -> UIColor {
-    settings.cursorFollowsAccent ? UIColor(settings.accentColor) : .white
+    settings.cursorFollowsAccent ? UIColor(settings.accentColor) : .label
 }
 
 // ── Custom attribute keys ─────────────────────────────────────────────────────

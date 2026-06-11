@@ -70,6 +70,17 @@ pub enum BlockContent {
         /// ID of the referenced child `Document`.
         id: Uuid,
     },
+    /// Rich card preview for a single URL (Notion-style "web bookmark").
+    /// Renders with the destination's title / description / image fetched
+    /// from OpenGraph tags for external URLs; `pinkha://doc/{uuid}` URLs
+    /// resolve instantly against the local store and show the target
+    /// document's title + icon. The block's content is just the URL —
+    /// metadata is recomputed at render time so the card stays fresh.
+    Embed {
+        /// Destination URL. Can be a `pinkha://doc/{uuid}` for internal
+        /// references or any `http(s)://` URL for external bookmarks.
+        url: String,
+    },
 }
 
 /// A node in a document's block tree — may contain nested child blocks.
@@ -90,6 +101,21 @@ pub struct Block {
     /// serialised before this field existed (they decode as `None`).
     #[serde(default)]
     pub color: Option<String>,
+    /// Block-level *background* color name (e.g. `"red"`, `"blue"`).
+    /// When set, the editor paints a soft tinted band behind the
+    /// whole block (Craft / Notion highlight style). Independent
+    /// from [`Block::color`] — the foreground color can be `None`
+    /// while the background is set and vice versa. `None` means no
+    /// background. `#[serde(default)]` keeps backward compatibility.
+    #[serde(default)]
+    pub background_color: Option<String>,
+    /// Per-block writing direction override. Values: `"ltr"`,
+    /// `"rtl"`, or `None` to inherit the document-level setting
+    /// (which itself defaults to the system locale). Lets a single
+    /// Arabic paragraph live inside an otherwise LTR document, or
+    /// vice versa. `#[serde(default)]` for backward compatibility.
+    #[serde(default)]
+    pub text_direction: Option<String>,
 }
 
 impl Block {
@@ -101,6 +127,8 @@ impl Block {
             content,
             children: vec![],
             color: None,
+            background_color: None,
+            text_direction: None,
         }
     }
 }
@@ -211,6 +239,21 @@ pub struct Document {
     /// backward compatibility with pre-feature documents.
     #[serde(default)]
     pub accent_color: Option<String>,
+    /// Document-level writing direction. Values: `"ltr"`, `"rtl"`,
+    /// or `None` to let the system locale decide. Acts as the
+    /// default for every block; individual blocks can still override
+    /// via [`Block::text_direction`]. `#[serde(default)]` for
+    /// backward compatibility.
+    #[serde(default)]
+    pub text_direction: Option<String>,
+    /// Per-document theme name (`"original"`, `"tranquille"`,
+    /// `"papier"`, `"gras"`, `"calme"`, `"attention"`). When
+    /// `Some`, the editor paints the doc background + text in the
+    /// matching palette regardless of the app-wide setting. `None`
+    /// inherits from `AppSettings.theme`. Same naming scheme as
+    /// `accent_color`. `#[serde(default)]` for backward compatibility.
+    #[serde(default)]
+    pub theme: Option<String>,
 }
 
 impl Document {
@@ -227,6 +270,8 @@ impl Document {
             locked: false,
             created_at: None,
             accent_color: None,
+            text_direction: None,
+            theme: None,
         }
     }
 
