@@ -102,6 +102,16 @@ extension RichTextEditorCoordinator {
                 m.addAttribute(.foregroundColor, value: uiColorFromName(nom), range: range)
                 m.addAttribute(.pinkhaColor,     value: nom,                  range: range)
             }
+        case .link(let url):
+            // Empty URL = remove the link from the selection — same
+            // shape as `clearColor` for inline colours. Valid URL =
+            // attach the `.link` attribute so `attributedToSpans`
+            // round-trips it back to `InlineStyle::Link(String)`.
+            if url.isEmpty {
+                m.removeAttribute(.link, range: range)
+            } else if let resolved = URL(string: url) {
+                m.addAttribute(.link, value: resolved, range: range)
+            }
         default: break
         }
 

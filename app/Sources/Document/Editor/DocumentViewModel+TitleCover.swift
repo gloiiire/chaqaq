@@ -56,6 +56,41 @@ extension DocumentViewModel {
         } catch { errorMessage = error.localizedDescription }
     }
 
+    /// Sets (or clears with `nil`) the per-document Books-style theme.
+    /// Same optimistic-then-FFI pattern as `saveAccentColor`.
+    func saveTheme(_ newTheme: String?) {
+        guard theme != newTheme else { return }
+        let previous = theme
+        theme = newTheme
+        do {
+            try api.updateDocumentTheme(id: docId, theme: newTheme)
+            undoMgr.registerUndo(withTarget: self) { vm in
+                vm.saveTheme(previous)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            theme = previous
+        }
+    }
+
+    /// Sets (or clears with `nil`) the per-document writing direction.
+    /// Same pattern as `saveAccentColor` — optimistic UI update, then
+    /// FFI persist, then undo registration.
+    func saveTextDirection(_ newDirection: String?) {
+        guard textDirection != newDirection else { return }
+        let previous = textDirection
+        textDirection = newDirection
+        do {
+            try api.updateDocumentTextDirection(id: docId, textDirection: newDirection)
+            undoMgr.registerUndo(withTarget: self) { vm in
+                vm.saveTextDirection(previous)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            textDirection = previous
+        }
+    }
+
     /// Sets (or clears with `nil`) the per-document accent color and
     /// persists. Mutates the published value first so SwiftUI repaints
     /// the chrome immediately, then registers the inverse on the undo

@@ -33,6 +33,18 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         config.delegateClass = SceneDelegate.self
         return config
     }
+
+    /// UIKit calls this on every layout pass to decide which
+    /// orientations the window may rotate into. We read the persisted
+    /// flag straight from `UserDefaults` instead of holding an
+    /// `AppSettings` reference — the delegate is a singleton owned
+    /// by UIKit, not by the SwiftUI scene. `.portrait` when locked,
+    /// `.allButUpsideDown` otherwise (matches the Info.plist set).
+    func application(_ application: UIApplication,
+                     supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+        let locked = UserDefaults.standard.bool(forKey: AppSettings.rotationLockKey)
+        return locked ? .portrait : .allButUpsideDown
+    }
 }
 
 /// Catches the shortcut when the app is already running (warm launch).

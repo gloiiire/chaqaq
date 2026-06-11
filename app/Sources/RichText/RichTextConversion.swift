@@ -4,18 +4,22 @@ import UIKit
 
 /// Converts an array of `InlineTextFfi` spans into an `NSAttributedString` using `police` as the base font.
 ///
-/// `blockColor`, when non-nil, becomes the default foreground for spans
-/// without an inline `.color(...)` style — matches the domain rule "inline
-/// color wins over block color". Inline color is *not* persisted as
-/// `.pinkhaColor` on spans that only inherit the block color, so removing the
-/// inline color naturally falls back to the block color at the next render.
+/// Default foreground precedence : inline `.color(...)` on the span
+/// (set inside the loop) wins over `blockColor`, which wins over
+/// `themeForeground`, which wins over the system `.label`. Inline
+/// color is *not* persisted as `.pinkhaColor` on spans that only
+/// inherit a higher tier, so removing the inline color naturally
+/// falls back to whichever default applies at the next render.
 func spansToAttributed(
     _ spans: [InlineTextFfi],
     police: UIFont,
-    blockColor: String? = nil
+    blockColor: String? = nil,
+    themeForeground: UIColor? = nil
 ) -> NSAttributedString {
     guard !spans.isEmpty else { return NSAttributedString() }
-    let defaultForeground: UIColor = blockColor.map(uiColorFromName) ?? .label
+    let defaultForeground: UIColor = blockColor.map(uiColorFromName)
+        ?? themeForeground
+        ?? .label
     let result = NSMutableAttributedString()
     for span in spans {
         var isBold   = false

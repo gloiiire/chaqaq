@@ -275,7 +275,13 @@ struct ContentView: View {
     /// reasonable time" wall when both were inlined.
     @ViewBuilder
     private var rootTabs: some View {
-        TabView(selection: $composer.selectedTab) {
+        TabView(selection: Binding(
+            get: { composer.selectedTab },
+            set: { newTab in
+                if newTab != composer.selectedTab { Haptic.tap() }
+                composer.selectedTab = newTab
+            }
+        )) {
             Tab("Notes", systemImage: "note.text",
                 value: Composer.TabKind.notes) {
                 NotesHomeView(store: store)

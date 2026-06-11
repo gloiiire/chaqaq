@@ -66,6 +66,21 @@ struct BlockCallbacks {
     /// toolbar's ¶ button can highlight the active colour, and the closure
     /// applies a new one (nil = clear back to default) via the VM.
     var onSetBlockColor: ((String?) -> Void)? = nil
+    /// Block-level *background* colour (Craft highlight). Same shape
+    /// as `onSetBlockColor` — the closure persists via the VM, the
+    /// row reads the current value off the block and paints the band.
+    var onSetBlockBackgroundColor: ((String?) -> Void)? = nil
+    /// Resolved writing direction for this block (per-block override
+    /// or document default, fallback to system locale). `"ltr"` or
+    /// `"rtl"` ; `nil` leaves it to the OS.
+    var effectiveTextDirection: String? = nil
+    /// Setter for the per-block writing direction. `nil` = inherit
+    /// from the document. Routes through the VM → FFI.
+    var onSetBlockTextDirection: ((String?) -> Void)? = nil
+    /// Returns the list of documents available for `@`-mentions —
+    /// shown as an action sheet when the user types `@` at the
+    /// start of a word. `nil` disables the feature.
+    var onMentionLookup: (() -> [MentionCandidate])? = nil
     /// Deep-clones the block (FFI side regenerates every UUID) and
     /// inserts the copy right after the original. The VM focuses the
     /// new block once the reload settles.
@@ -76,6 +91,16 @@ struct BlockCallbacks {
     /// back to the SwiftUI env tint when no DocumentView is in the
     /// chain (preview / other contexts).
     var accentColor: Color = .accentColor
+    /// Resolved Books-style theme foreground colour. `nil` keeps the
+    /// system `.label` fallback. Plumbed all the way down to the
+    /// `RichTextEditor` so every span without a more specific colour
+    /// inherits the right body-text colour for the active theme.
+    var themeForegroundColor: Color? = nil
+    /// Forced keyboard appearance for the per-doc theme. UIKit's
+    /// keyboard window doesn't pick up the doc-window
+    /// `overrideUserInterfaceStyle`, so we set this directly on the
+    /// textView.
+    var keyboardAppearance: UIKeyboardAppearance = .default
     /// Called when an inline `pinkha://doc/{uuid}` link is tapped — the
     /// parent navigates to that document. Set by `DocumentView` and read by
     /// `RichTextEditor`.
@@ -131,6 +156,12 @@ struct BlockTextEditor: View {
             blockColor: block.color,
             accentColor: UIColor(cb.accentColor),
             onSetBlockColor: cb.onSetBlockColor,
+            blockBackgroundColor: block.backgroundColor,
+            onSetBlockBackgroundColor: cb.onSetBlockBackgroundColor,
+            textDirection: cb.effectiveTextDirection,
+            themeForegroundColor: cb.themeForegroundColor.map(UIColor.init),
+            keyboardAppearance: cb.keyboardAppearance,
+            onMentionLookup: cb.onMentionLookup,
             onOpenInternalDoc: cb.onOpenInternalDoc)
         .autoFocusIfNeeded(blockId: block.id, autoFocusId: $autoFocusId,
                               autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
@@ -156,6 +187,33 @@ func blockContent(for type: NewBlockType,
     case .todo:    return .todo(done: false, text: spans)
     case .divider: return .divider
     }
+}
+
+/// Walks the block's spans looking for a URL we can promote to a
+/// `.embed` card : either an inline `.link(...)` style, or — when no
+/// link style is present — the block's plain text if it parses as a
+/// single URL. Returns `nil` when there's nothing embeddable.
+func extractEmbedURL(from block: EditableBlock) -> String? {
+    for span in block.spans {
+        for style in span.styles {
+            if case .link(let url) = style, !url.isEmpty {
+                return url
+            }
+        }
+    }
+    let plain = block.spans.map(\.content).joined()
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !plain.isEmpty,
+          let detector = try? NSDataDetector(
+              types: NSTextCheckingResult.CheckingType.link.rawValue),
+          let match = detector.firstMatch(
+              in: plain,
+              range: NSRange(plain.startIndex..<plain.endIndex, in: plain)),
+          match.range.location == 0,
+          match.range.length == (plain as NSString).length,
+          let url = match.url
+    else { return nil }
+    return url.absoluteString
 }
 
 // ── Block row dispatcher ──────────────────────────────────────────────────────
@@ -200,11 +258,41 @@ struct BlockRowView: View {
                 CodeBlockEditorView(block: $block, language: language, text: text, cb: cb)
             case .page(let id):
                 ChildPageRowView(childDocId: id, cb: cb)
+            case .embed(let url):
+                EmbedRowView(url: url, cb: cb)
             default:
                 EmptyView()
             }
         }
+        // Block-level background highlight band — Craft / Notion
+        // style. Opacity 0.15 keeps it readable in both schemes and
+        // avoids fighting with the per-span / per-block foreground.
+        // Negative horizontal padding extends the band slightly past
+        // the row content so the highlight reads as "the whole line"
+        // rather than "just the text".
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(block.backgroundColor.map {
+                    Color(uiColor: uiColorFromName($0)).opacity(0.15)
+                } ?? .clear)
+                .padding(.horizontal, -8)
+        )
         .contextMenu {
+            // "Convert to embed" — appears when the block contains
+            // exactly one URL (inline link or plain-text URL). Swaps
+            // the text block for an `.embed` block that renders as
+            // a rich preview card.
+            if let urlForEmbed = extractEmbedURL(from: block) {
+                Button {
+                    cb.onConvertContent?(.embed(url: urlForEmbed))
+                } label: {
+                    Label {
+                        Text("Convert to embed")
+                    } icon: {
+                        Image(uiImage: Self.neutralIcon("rectangle.on.rectangle"))
+                    }
+                }
+            }
             if let onDuplicate = cb.onDuplicate {
                 Button {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -284,6 +372,79 @@ struct BlockRowView: View {
                         Text("Color")
                     } icon: {
                         Image(uiImage: Self.neutralIcon("paintpalette"))
+                    }
+                }
+            }
+            // "Text direction" — per-block override of the document's
+            // default writing direction. `Default` clears so the block
+            // inherits; LTR / RTL force a specific direction.
+            if let onSetDir = cb.onSetBlockTextDirection {
+                Menu {
+                    Button {
+                        onSetDir(nil)
+                    } label: {
+                        Label {
+                            Text("Default")
+                        } icon: {
+                            Image(uiImage: Self.neutralIcon("circle.dashed"))
+                        }
+                    }
+                    Button {
+                        onSetDir("ltr")
+                    } label: {
+                        Label {
+                            Text("Left to right")
+                        } icon: {
+                            Image(uiImage: Self.neutralIcon("text.alignleft"))
+                        }
+                    }
+                    Button {
+                        onSetDir("rtl")
+                    } label: {
+                        Label {
+                            Text("Right to left")
+                        } icon: {
+                            Image(uiImage: Self.neutralIcon("text.alignright"))
+                        }
+                    }
+                } label: {
+                    Label {
+                        Text("Text direction")
+                    } icon: {
+                        Image(uiImage: Self.neutralIcon("text.justify"))
+                    }
+                }
+            }
+            // "Background" — soft tinted band painted behind the
+            // whole block (Craft / Notion highlight). Mirror of the
+            // Color picker right above, persisted via a separate FFI.
+            if let onSetBg = cb.onSetBlockBackgroundColor {
+                Menu {
+                    Button {
+                        onSetBg(nil)
+                    } label: {
+                        Label {
+                            Text("Default")
+                        } icon: {
+                            Image(uiImage: Self.neutralIcon("circle.dashed"))
+                        }
+                    }
+                    ForEach(BlockColorOption.palette) { option in
+                        Button {
+                            onSetBg(option.name)
+                        } label: {
+                            Label {
+                                Text(option.displayName)
+                            } icon: {
+                                Image(uiImage: option.swatchImage)
+                            }
+                        }
+                    }
+                } label: {
+                    Label {
+                        Text("Background")
+                    } icon: {
+                        Image(uiImage: Self.neutralIcon("highlighter"))
                     }
                 }
             }

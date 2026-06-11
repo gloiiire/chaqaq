@@ -836,6 +836,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pinkha-mcp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "pinkha",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "pkg-config"
 version = "0.3.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"

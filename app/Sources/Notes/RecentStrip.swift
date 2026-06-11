@@ -6,6 +6,10 @@ import SwiftUI
 struct RecentStrip: View {
     let items: [WorkspaceItem]
     let api: PinkhaApi?
+    /// Geometry namespace for the doc-open zoom transition. Each
+    /// note card tags itself with `.matchedTransitionSource(...)` so
+    /// SwiftUI knows where the destination view should fly out of.
+    let zoomNamespace: Namespace.ID
     let onDisappear: () -> Void
     /// Programmatic-push handler for note items — wired from the
     /// parent so each card can use a `Button` instead of
@@ -30,6 +34,7 @@ struct RecentStrip: View {
                                 onRename: { onRenameNote?(doc) },
                                 onDelete: { onDeleteNote?(doc) }
                             )
+                            .matchedTransitionSource(id: doc.id, in: zoomNamespace)
                             .id(doc.id)
                         case .database(let db):
                             NavigationLink(destination: DatabaseView(dbId: db.id, api: api,

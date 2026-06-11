@@ -41,6 +41,12 @@ struct PinkhaApp: App {
                     // scheme app-wide. Repaints live when the user
                     // flips the picker in Settings.
                     .preferredColorScheme(settings.appearance.colorScheme)
+                    // Wire haptic feedback on every `Button` tap by
+                    // default. Children that explicitly opt out
+                    // (`.buttonStyle(.plain)`, system Picker rows,
+                    // etc.) keep their own behaviour ; everything
+                    // else gets a soft selection click for free.
+                    .buttonStyle(HapticTapStyle())
                 if showingSplash {
                     SplashView(isDismissing: dismissingSplash)
                         // Slow fade-out so the logo doesn't vanish —

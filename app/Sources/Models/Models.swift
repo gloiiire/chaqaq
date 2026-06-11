@@ -19,14 +19,60 @@ struct DocumentFfi: Codable {
     let locked: Bool?
     /// Per-document accent color name (e.g. `"red"`) overriding the
     /// app-wide accent from `AppSettings`. `nil` falls back to the
-    /// global accent. Decoded as nil for pre-feature documents (Rust
-    /// uses `#[serde(default)]`). Default = nil so existing call
-    /// sites (tests, pre-feature constructors) keep compiling.
-    let accentColor: String? = nil
+    /// global accent.
+    let accentColor: String?
+    /// Document-level writing direction (`"ltr"` / `"rtl"`). `nil`
+    /// = system locale. Default for every block.
+    let textDirection: String?
+    /// Per-document Books-style theme name. `nil` inherits the global
+    /// `AppSettings.theme`.
+    let theme: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, cover, icon, title, blocks, locked
+        case id, cover, icon, title, blocks, locked, theme
         case accentColor = "accent_color"
+        case textDirection = "text_direction"
+    }
+
+    /// Memberwise init kept around so existing test fixtures that
+    /// pre-date the per-doc accent / text-direction / theme fields
+    /// (`CodableRoundTripTests`) still compile without listing every
+    /// new optional. Property-level defaults can't live here because
+    /// they break the `Codable` synth (see the explicit `init(from:)`
+    /// below).
+    init(id: String, cover: String?, icon: String?,
+         title: [InlineTextFfi], blocks: [BlockFfi], locked: Bool?,
+         accentColor: String? = nil, textDirection: String? = nil,
+         theme: String? = nil) {
+        self.id = id
+        self.cover = cover
+        self.icon = icon
+        self.title = title
+        self.blocks = blocks
+        self.locked = locked
+        self.accentColor = accentColor
+        self.textDirection = textDirection
+        self.theme = theme
+    }
+
+    /// Explicit `init(from:)` — Swift's auto-synthesized decoder
+    /// skips properties that have a `let X = value` default, which
+    /// silently dropped the per-doc theme / accent color / text
+    /// direction on reload (user reported "theme isn't saved when I
+    /// quit the doc"). Calling `decodeIfPresent` ourselves makes
+    /// every optional behave the same way regardless of whether the
+    /// property declaration carries a default.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id            = try c.decode(String.self, forKey: .id)
+        cover         = try c.decodeIfPresent(String.self, forKey: .cover)
+        icon          = try c.decodeIfPresent(String.self, forKey: .icon)
+        title         = try c.decode([InlineTextFfi].self, forKey: .title)
+        blocks        = try c.decode([BlockFfi].self, forKey: .blocks)
+        locked        = try c.decodeIfPresent(Bool.self, forKey: .locked)
+        accentColor   = try c.decodeIfPresent(String.self, forKey: .accentColor)
+        textDirection = try c.decodeIfPresent(String.self, forKey: .textDirection)
+        theme         = try c.decodeIfPresent(String.self, forKey: .theme)
     }
 }
 
@@ -42,6 +88,19 @@ struct BlockFfi: Codable, Identifiable {
     let children: [BlockFfi]
     /// Decoded as nil for documents serialised before this field existed.
     let color: String?
+    /// Block-level background color name (highlight). Independent
+    /// from `color`. `nil` = no background. Default = nil so pre-
+    /// feature constructors and tests keep compiling.
+    let backgroundColor: String? = nil
+    /// Per-block writing direction (`"ltr"` / `"rtl"`). `nil`
+    /// inherits the document-level direction.
+    let textDirection: String? = nil
+
+    enum CodingKeys: String, CodingKey {
+        case id, content, children, color
+        case backgroundColor = "background_color"
+        case textDirection = "text_direction"
+    }
 }
 
 /// A run of text with zero or more inline styles applied to it.
@@ -102,9 +161,11 @@ enum BlockContentFfi: Codable, Equatable {
     case database(id: String)
     /// Reference to a child pinkha page. Mirrors Rust `BlockContent::Page`.
     case page(id: String)
+    /// Rich URL bookmark / preview card. Mirrors Rust `BlockContent::Embed`.
+    case embed(url: String)
 
     private enum K: String, CodingKey {
-        case Text, Heading, Quote, Todo, BulletedListItem, NumberedListItem, Code, Divider, Breadcrumb, Database, Page
+        case Text, Heading, Quote, Todo, BulletedListItem, NumberedListItem, Code, Divider, Breadcrumb, Database, Page, Embed
     }
     private struct PayloadHeading: Codable { let level: Int; let text: [InlineTextFfi] }
     private struct PayloadQuote:   Codable { let icon: String?; let text: [InlineTextFfi] }
@@ -112,6 +173,7 @@ enum BlockContentFfi: Codable, Equatable {
     private struct PayloadCode:    Codable { let language: String; let text: String }
     private struct PayloadDb:      Codable { let id: String }
     private struct PayloadPage:    Codable { let id: String }
+    private struct PayloadEmbed:   Codable { let url: String }
 
     init(from decoder: Decoder) throws {
         // Unit variants (Divider, Breadcrumb) are bare strings in serde's externally-tagged format.
@@ -129,6 +191,7 @@ enum BlockContentFfi: Codable, Equatable {
         if let v = try? c.decode(PayloadCode.self,     forKey: .Code)             { self = .code(language: v.language, text: v.text); return }
         if let v = try? c.decode(PayloadDb.self,       forKey: .Database)         { self = .database(id: v.id); return }
         if let v = try? c.decode(PayloadPage.self,     forKey: .Page)             { self = .page(id: v.id); return }
+        if let v = try? c.decode(PayloadEmbed.self,    forKey: .Embed)            { self = .embed(url: v.url); return }
         throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown BlockContent"))
     }
 
@@ -162,6 +225,9 @@ enum BlockContentFfi: Codable, Equatable {
         case .page(let id):
             var c = encoder.container(keyedBy: K.self)
             try c.encode(PayloadPage(id: id), forKey: .Page)
+        case .embed(let url):
+            var c = encoder.container(keyedBy: K.self)
+            try c.encode(PayloadEmbed(url: url), forKey: .Embed)
         }
     }
 
