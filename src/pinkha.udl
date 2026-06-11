@@ -39,6 +39,8 @@ dictionary DatabaseMetaFfi {
     string id;
     string title_plain;
     string title_json;
+    string? cover;
+    string? icon;
     string updated_at;
     string created_at;
 };
@@ -242,6 +244,22 @@ interface PinkhaApi {
     /// Liste les métadonnées de toutes les databases actives.
     [Throws=PinkhaError]
     sequence<DatabaseMetaFfi> list_databases();
+
+    /// Remplace le titre rich-text de la database.
+    [Throws=PinkhaError]
+    void update_database_title(string id, string new_title);
+
+    /// Remplace ou efface l'image de couverture de la database.
+    [Throws=PinkhaError]
+    void update_database_cover(string id, string? cover);
+
+    /// Remplace ou efface l'icône (emoji / fichier / URL) de la database.
+    [Throws=PinkhaError]
+    void update_database_icon(string id, string? icon);
+
+    /// Remplace la description rich-text de la database (chaîne vide = efface).
+    [Throws=PinkhaError]
+    void update_database_description(string id, string description);
 
     /// Soft-delete de la database.
     [Throws=PinkhaError]

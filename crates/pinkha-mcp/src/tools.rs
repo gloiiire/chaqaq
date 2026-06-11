@@ -263,6 +263,30 @@ pub fn registry() -> Value {
         tool("get_database",
             "Return the full database (schema + entries) as a JSON object.",
             obj_schema(&[("id", "string", true, "Database UUID.")])),
+        tool("update_database_title",
+            "Replace a database's plain-text title.",
+            obj_schema(&[
+                ("id", "string", true, "Database UUID."),
+                ("new_title", "string", true, "Replacement title."),
+            ])),
+        tool("update_database_cover",
+            "Replace or clear the database's cover image identifier (URL, local filename, or null to clear).",
+            obj_schema(&[
+                ("id", "string", true, "Database UUID."),
+                ("cover", "string", false, "Cover identifier or null to clear."),
+            ])),
+        tool("update_database_icon",
+            "Replace or clear the database's icon (emoji / filename / URL).",
+            obj_schema(&[
+                ("id", "string", true, "Database UUID."),
+                ("icon", "string", false, "Icon identifier or null to clear."),
+            ])),
+        tool("update_database_description",
+            "Replace the database's rich-text description (empty string clears it).",
+            obj_schema(&[
+                ("id", "string", true, "Database UUID."),
+                ("description", "string", true, "Description content or empty to clear."),
+            ])),
         tool("create_database",
             "Create a new database with the given title and return its UUID.",
             obj_schema(&[("title", "string", true, "Database title.")])),
@@ -620,6 +644,25 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
         // ── Databases ─────────────────────────────────────────
         "list_databases" => json_of(api.list_databases()?),
         "get_database" => Ok(api.get_database_json(take(&args, "id")?)?),
+        "update_database_title" => {
+            api.update_database_title(take(&args, "id")?, take(&args, "new_title")?)?;
+            ok()
+        }
+        "update_database_cover" => {
+            api.update_database_cover(take(&args, "id")?, take_opt(&args, "cover")?)?;
+            ok()
+        }
+        "update_database_icon" => {
+            api.update_database_icon(take(&args, "id")?, take_opt(&args, "icon")?)?;
+            ok()
+        }
+        "update_database_description" => {
+            api.update_database_description(
+                take(&args, "id")?,
+                take(&args, "description")?,
+            )?;
+            ok()
+        }
         "create_database" => Ok(json!({
             "id": api.create_database(take(&args, "title")?)?,
         }).to_string()),

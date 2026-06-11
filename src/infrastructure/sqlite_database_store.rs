@@ -50,18 +50,22 @@ impl DatabaseRepository for SqliteDatabaseStore {
         let now = chrono::Utc::now().to_rfc3339();
         let id = db.id.to_string();
 
+        let cover = db.cover.clone();
+        let icon = db.icon.clone();
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             conn.execute(
-                "INSERT INTO databases (id, title_text, title_json, updated_at, created_at, data)
-                 VALUES (?1, ?2, ?3, ?4, ?4, ?5)
+                "INSERT INTO databases (id, title_text, title_json, cover, icon, updated_at, created_at, data)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7)
                  ON CONFLICT(id) DO UPDATE SET
                     title_text = excluded.title_text,
                     title_json = excluded.title_json,
+                    cover      = excluded.cover,
+                    icon       = excluded.icon,
                     updated_at = excluded.updated_at,
                     data       = excluded.data,
                     deleted_at = NULL",
-                params![id, title_text, title_json, now, data],
+                params![id, title_text, title_json, cover, icon, now, data],
             )
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
             Ok(())
@@ -88,21 +92,23 @@ impl DatabaseRepository for SqliteDatabaseStore {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let mut stmt = conn
-                .prepare("SELECT id, title_json, updated_at, created_at FROM databases WHERE deleted_at IS NULL")
+                .prepare("SELECT id, title_json, cover, icon, updated_at, created_at FROM databases WHERE deleted_at IS NULL")
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let rows = stmt
                 .query_map([], |row| {
                     Ok((
                         row.get::<_, String>(0)?,
                         row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?,
-                        row.get::<_, String>(3)?,
+                        row.get::<_, Option<String>>(2)?,
+                        row.get::<_, Option<String>>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, String>(5)?,
                     ))
                 })
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let mut metas = Vec::new();
             for row in rows {
-                let (id_str, title_json, updated_at, created_at) =
+                let (id_str, title_json, cover, icon, updated_at, created_at) =
                     row.map_err(|e| PinkhaError::Db(e.to_string()))?;
                 let id = Uuid::parse_str(&id_str).map_err(|_| {
                     PinkhaError::InvalidOperation(format!("UUID invalide : {id_str}"))
@@ -111,6 +117,8 @@ impl DatabaseRepository for SqliteDatabaseStore {
                 metas.push(DatabaseMeta {
                     id,
                     title,
+                    cover,
+                    icon,
                     updated_at,
                     created_at,
                 });
@@ -140,7 +148,7 @@ impl DatabaseRepository for SqliteDatabaseStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let mut stmt = conn
                 .prepare(
-                    "SELECT id, title_json, updated_at, created_at FROM databases
+                    "SELECT id, title_json, cover, icon, updated_at, created_at FROM databases
                      WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC",
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
@@ -149,14 +157,16 @@ impl DatabaseRepository for SqliteDatabaseStore {
                     Ok((
                         row.get::<_, String>(0)?,
                         row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?,
-                        row.get::<_, String>(3)?,
+                        row.get::<_, Option<String>>(2)?,
+                        row.get::<_, Option<String>>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, String>(5)?,
                     ))
                 })
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let mut metas = Vec::new();
             for row in rows {
-                let (id_str, title_json, updated_at, created_at) =
+                let (id_str, title_json, cover, icon, updated_at, created_at) =
                     row.map_err(|e| PinkhaError::Db(e.to_string()))?;
                 let id = Uuid::parse_str(&id_str).map_err(|_| {
                     PinkhaError::InvalidOperation(format!("UUID invalide : {id_str}"))
@@ -165,6 +175,8 @@ impl DatabaseRepository for SqliteDatabaseStore {
                 metas.push(DatabaseMeta {
                     id,
                     title,
+                    cover,
+                    icon,
                     updated_at,
                     created_at,
                 });

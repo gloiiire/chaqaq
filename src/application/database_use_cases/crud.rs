@@ -46,6 +46,57 @@ pub fn purge_database(uow: &dyn UnitOfWork, db_id: Uuid) -> Result<(), PinkhaErr
     uow.databases().purge(db_id)
 }
 
+/// Replaces the rich-text title of a database. The new title is
+/// already parsed into spans by the FFI layer.
+pub fn update_database_title(
+    uow: &dyn UnitOfWork,
+    db_id: Uuid,
+    title: Vec<InlineText>,
+) -> Result<(), PinkhaError> {
+    let repo = uow.databases();
+    let mut db = repo.load(db_id)?;
+    db.title = title;
+    repo.save(&db)
+}
+
+/// Replaces or clears the database's cover image identifier (URL or
+/// local filename). `None` clears it.
+pub fn update_database_cover(
+    uow: &dyn UnitOfWork,
+    db_id: Uuid,
+    cover: Option<String>,
+) -> Result<(), PinkhaError> {
+    let repo = uow.databases();
+    let mut db = repo.load(db_id)?;
+    db.cover = cover;
+    repo.save(&db)
+}
+
+/// Replaces or clears the database's icon (emoji / filename / URL).
+pub fn update_database_icon(
+    uow: &dyn UnitOfWork,
+    db_id: Uuid,
+    icon: Option<String>,
+) -> Result<(), PinkhaError> {
+    let repo = uow.databases();
+    let mut db = repo.load(db_id)?;
+    db.icon = icon;
+    repo.save(&db)
+}
+
+/// Replaces the rich-text description of a database. Empty `Vec` is the
+/// "no description" state and renders nothing in the header.
+pub fn update_database_description(
+    uow: &dyn UnitOfWork,
+    db_id: Uuid,
+    description: Vec<InlineText>,
+) -> Result<(), PinkhaError> {
+    let repo = uow.databases();
+    let mut db = repo.load(db_id)?;
+    db.description = description;
+    repo.save(&db)
+}
+
 /// Adds a new row to the database and persists.
 pub fn add_entry(
     uow: &dyn UnitOfWork,

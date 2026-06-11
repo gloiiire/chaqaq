@@ -189,6 +189,10 @@ pub struct DatabaseMetaFfi {
     pub title_plain: String,
     /// JSON-encoded `Vec<InlineText>` title.
     pub title_json: String,
+    /// Optional cover image identifier (URL or local filename).
+    pub cover: Option<String>,
+    /// Optional icon (emoji / filename / URL) shown next to the title.
+    pub icon: Option<String>,
     /// RFC 3339 timestamp of the last update.
     pub updated_at: String,
     /// RFC 3339 timestamp of creation.
@@ -242,6 +246,8 @@ fn db_meta_to_ffi(m: DatabaseMeta) -> DatabaseMetaFfi {
         id: m.id.to_string(),
         title_plain,
         title_json,
+        cover: m.cover,
+        icon: m.icon,
         updated_at: m.updated_at,
         created_at: m.created_at,
     }
@@ -746,6 +752,63 @@ impl PinkhaApi {
     pub fn list_databases(&self) -> Result<Vec<DatabaseMetaFfi>, PinkhaError> {
         let metas = database_use_cases::list_databases(&self.uow()).map_err(PinkhaError::from)?;
         Ok(metas.into_iter().map(db_meta_to_ffi).collect())
+    }
+
+    /// Replaces the database's title with `new_title` parsed into inline spans.
+    pub fn update_database_title(
+        &self,
+        id: String,
+        new_title: String,
+    ) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        validate_string(&new_title, "new_title")?;
+        database_use_cases::update_database_title(&self.uow(), uuid, parse_inline(&new_title))
+            .map_err(PinkhaError::from)
+    }
+
+    /// Replaces or clears the database's cover image identifier.
+    pub fn update_database_cover(
+        &self,
+        id: String,
+        cover: Option<String>,
+    ) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        if let Some(ref c) = cover {
+            validate_string(c, "cover")?;
+        }
+        database_use_cases::update_database_cover(&self.uow(), uuid, cover)
+            .map_err(PinkhaError::from)
+    }
+
+    /// Replaces or clears the database's icon (emoji / filename / URL).
+    pub fn update_database_icon(
+        &self,
+        id: String,
+        icon: Option<String>,
+    ) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        if let Some(ref i) = icon {
+            validate_string(i, "icon")?;
+        }
+        database_use_cases::update_database_icon(&self.uow(), uuid, icon)
+            .map_err(PinkhaError::from)
+    }
+
+    /// Replaces the database's rich-text description. Empty string clears it.
+    pub fn update_database_description(
+        &self,
+        id: String,
+        description: String,
+    ) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        validate_string(&description, "description")?;
+        let spans = if description.is_empty() {
+            vec![]
+        } else {
+            parse_inline(&description)
+        };
+        database_use_cases::update_database_description(&self.uow(), uuid, spans)
+            .map_err(PinkhaError::from)
     }
 
     /// Soft-deletes the database identified by `id`.

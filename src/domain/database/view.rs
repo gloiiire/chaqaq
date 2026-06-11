@@ -6,6 +6,10 @@ use uuid::Uuid;
 /// Layout used to display the entries of a database.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ViewType {
+    /// Vertical list of cards — mobile-first default. Each row is one
+    /// entry rendered as icon + title + inline metadata (tags / date)
+    /// stacked under the title. Tapping the row opens the linked doc.
+    List,
     /// Spreadsheet-style row/column grid.
     Table,
     /// Kanban board grouped by a property.
