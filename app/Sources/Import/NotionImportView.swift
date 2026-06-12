@@ -446,7 +446,11 @@ struct NotionImportView: View {
                     try? FileManager.default.copyItem(at: src, to: dst)
                 }
             }
-            await MainActor.run { state = .done(aggregated: totals) }
+            // Copy before hopping to the main actor — capturing the mutable
+            // `totals` var in concurrently-executing code is an error in
+            // Swift 6 language mode.
+            let aggregated = totals
+            await MainActor.run { state = .done(aggregated: aggregated) }
         }
     }
 }

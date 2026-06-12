@@ -639,17 +639,17 @@ extension ViewTypeFfi: Codable {
         let c = try decoder.container(keyedBy: GenericKey.self)
         guard let key = c.allKeys.first else {
             throw DecodingError.dataCorruptedError(
-                forKey: GenericKey(stringValue: "")!,
+                forKey: GenericKey(""),
                 in: c,
                 debugDescription: "empty ViewType")
         }
         let payload = try c.nestedContainer(keyedBy: GenericKey.self, forKey: key)
         switch key.stringValue {
         case "Kanban":
-            let groupBy = try payload.decode(String.self, forKey: GenericKey(stringValue: "group_by")!)
+            let groupBy = try payload.decode(String.self, forKey: GenericKey("group_by"))
             self = .kanban(groupBy: groupBy)
         case "Calendar":
-            let prop = try payload.decode(String.self, forKey: GenericKey(stringValue: "property_id")!)
+            let prop = try payload.decode(String.self, forKey: GenericKey("property_id"))
             self = .calendar(propertyId: prop)
         default:
             throw DecodingError.dataCorruptedError(
@@ -665,12 +665,12 @@ extension ViewTypeFfi: Codable {
         case .gallery: var s = encoder.singleValueContainer(); try s.encode("Gallery")
         case .kanban(let g):
             var c = encoder.container(keyedBy: GenericKey.self)
-            var n = c.nestedContainer(keyedBy: GenericKey.self, forKey: GenericKey(stringValue: "Kanban")!)
-            try n.encode(g, forKey: GenericKey(stringValue: "group_by")!)
+            var n = c.nestedContainer(keyedBy: GenericKey.self, forKey: GenericKey("Kanban"))
+            try n.encode(g, forKey: GenericKey("group_by"))
         case .calendar(let p):
             var c = encoder.container(keyedBy: GenericKey.self)
-            var n = c.nestedContainer(keyedBy: GenericKey.self, forKey: GenericKey(stringValue: "Calendar")!)
-            try n.encode(p, forKey: GenericKey(stringValue: "property_id")!)
+            var n = c.nestedContainer(keyedBy: GenericKey.self, forKey: GenericKey("Calendar"))
+            try n.encode(p, forKey: GenericKey("property_id"))
         }
     }
 }
@@ -681,6 +681,7 @@ extension ViewTypeFfi: Codable {
 private struct GenericKey: CodingKey {
     var stringValue: String
     var intValue: Int? { nil }
+    init(_ stringValue: String) { self.stringValue = stringValue }
     init?(stringValue: String) { self.stringValue = stringValue }
     init?(intValue: Int) { nil }
 }

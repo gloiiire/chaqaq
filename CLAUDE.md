@@ -60,7 +60,7 @@ src/
     parser.rs      — re-exporte parse_inline
     rich_text.rs   — re-exporte RichText, Span
     editor.rs      — re-exporte EditorState
-    commandes.rs   — re-exporte Command, Insert, Delete, ApplyStyle, History
+    commands.rs    — re-exporte Command, Insert, Delete, ApplyStyle, History
     database.rs    — types Database/Notion (Property, Entry, View, Filter, Sort…)
   application/     — traits + use cases
     repository.rs  — trait DocumentRepository (save, load, list, delete)
@@ -81,13 +81,24 @@ src/
       client.rs    — HTTP client (reqwest, rustls-tls, iOS-compatible)
       schema.rs    — types serde pour API Notion v1 (database, pages, blocs)
       mapper.rs    — Notion → domaine Pinkha (propriétés, valeurs, blocs)
+      assets.rs    — téléchargement covers / icons (client sans bearer token)
+      mentions.rs  — réécriture 2-pass des liens notion.so → pinkha://doc/{uuid}
       mod.rs       — pipeline complet : schéma → DB → pages → blocs récursifs
     bear/          — lecteur SQLite + parseur Markdown Bear
       reader.rs    — rusqlite read-only, conversion timestamps Core Data
       schema.rs    — BearNote row type
       mapper.rs    — parseur Markdown Bear ligne par ligne
       mod.rs       — importe toutes les notes non supprimées
-  ffi.rs           — façade UniFFI : PinkhaApi, PinkhaError FFI, types dictionnaire
+  ffi/             — façade UniFFI éclatée par domaine (composition root)
+    mod.rs         — struct PinkhaApi (stores + uow()), re-exports
+    error.rs       — PinkhaError FFI + From<CoreError>
+    types.rs       — dictionnaires FFI (DocumentMetaFfi, SuperSearchResultsFfi…) + converters
+    validation.rs  — parse_uuid, parse_json (5 Mo max), validate_string (64 Ko max)
+    documents.rs   — impl PinkhaApi : documents, blocs, recherche, corbeille docs
+    databases.rs   — impl PinkhaApi : databases, entries, propriétés, vues, requêtes
+    folders.rs     — impl PinkhaApi : folders + placement des documents
+    workspace.rs   — impl PinkhaApi : opérations cross-domain (super_search, empty_trash)
+    extractors.rs  — impl PinkhaApi : imports Notion / Bear / Craft + runtime Tokio
   pinkha.udl       — interface UDL déclarant l'API publique Swift/Kotlin
   bin/
     uniffi-bindgen.rs — binaire local pour générer les bindings
@@ -131,7 +142,7 @@ Re-exporte `InlineStyle` et `InlineText` depuis chaqaq. Définit les types pinkh
 - `Document { id, cover, title: Vec<InlineText>, blocks: Vec<Block> }`
 - `DocumentMeta { id, cover, title, updated_at }` — vue légère sans blocks pour `list()`. `updated_at` peuplé par SQLite, vide sinon (`#[serde(default)]`)
 
-### `domain/parser.rs` / `rich_text.rs` / `editor.rs` / `commandes.rs`
+### `domain/parser.rs` / `rich_text.rs` / `editor.rs` / `commands.rs`
 Simples re-exports depuis `chaqaq` — aucune logique propre.
 
 ### `domain/database.rs`
@@ -173,6 +184,13 @@ Moteur type Notion (défini dans pinkha, pas dans chaqaq) :
 - `search_entries(db_id, query)` — insensible à la casse dans toutes les valeurs textuelles
 - `evaluate_rollups(db, entries)` — calcul des colonnes Rollup (non persisté)
 
+### Use cases Rust-first (la donnée ne se traite jamais en Swift)
+- `super_search(query)` — toutes les surfaces de recherche en un appel, dédup titre/contenu côté Rust (`use_cases/search.rs`)
+- `empty_trash()` — purge bulk docs + databases + folders (`use_cases/trash.rs`)
+- `list_child_folders(parent_id)` — filtrage parent/enfant côté Rust (`folder_use_cases.rs`)
+- `create_document_in_database(db_id, title, values)` — crée le doc, remplit la colonne `PAGE_LINK_PROPERTY` (`__pinkha_page__`) et la colonne Title, lie l'entry au doc (`db_doc_sync.rs`)
+- `get_document_meta(id)` — méta légère sans l'arbre de blocs (icône/cover/titre)
+
 ### `infrastructure/migrations.rs`
 Migrations versionnées via `rusqlite_migration`. Deux fonctions : `apply_document_migrations` et `apply_database_migrations`. Chaque évolution de schéma = un `M::up()` de plus.
 
@@ -188,7 +206,7 @@ Stockage SQLite local-first. Schéma : document-as-JSON dans une colonne `data`,
 `JsonStore { dir: PathBuf }` — conservé pour compatibilité et tests existants.
 `#[serde(alias = "style")]` sur `styles` pour la compat avec les anciens fichiers.
 
-### `ffi.rs` + `pinkha.udl` — Couche UniFFI
+### `ffi/` + `pinkha.udl` — Couche UniFFI
 Façade publique exposée à Swift via UniFFI 0.31.
 - `PinkhaError` FFI : enum `NonTrouve { id }`, `OperationInvalide { detail }`, `Stockage { detail }` — devient un `enum` Swift natif
 - `DocumentMetaFfi` / `DatabaseMetaFfi` : structs dictionnaire (id, title_plain, title_json, cover, updated_at, created_at)
@@ -208,7 +226,7 @@ let json = try api.obtenirDocumentJson(id: id)  // → Codable
 
 UniFFI 0.31 ship son propre foreign-task executor, **qui n'est pas un runtime Tokio**. Un futur reqwest poll sous cet executor panique avec `there is no reactor running, must be called from the context of a Tokio 1.x runtime` — reqwest enregistre ses IO directement avec Tokio.
 
-Pattern utilisé dans `ffi.rs` pour contourner :
+Pattern utilisé dans `ffi/extractors.rs` pour contourner :
 1. Singleton process-wide via `OnceLock<tokio::runtime::Runtime>` (multi-thread, 2 workers, `enable_all()`)
 2. La méthode FFI est déclarée **synchrone** (pas `async fn`, pas `[Async]` dans le UDL)
 3. À l'intérieur, on `tokio_runtime().block_on(extractor.run(...))`
@@ -392,7 +410,7 @@ Tout dans le repo est en **anglais** : identifiants, commentaires, doc-comments,
 **Toute opération sur les données appartient à Rust, jamais à Swift.**
 
 Avant d'écrire un loop ou une logique de traitement en Swift, s'arrêter et implémenter dans Rust :
-1. Ajouter la méthode dans `ffi.rs` (suivre le pattern `delete_all_documents` comme référence)
+1. Ajouter la méthode dans le bon sous-module de `ffi/` (suivre le pattern `delete_all_documents` comme référence)
 2. L'exposer dans `pinkha.udl` (`[Throws=PinkhaError]`)
 3. Rebuilder le XCFramework (`./build-xcframework.sh`)
 4. Appeler le FFI depuis Swift
@@ -413,14 +431,14 @@ Avant d'écrire un loop ou une logique de traitement en Swift, s'arrêter et imp
 - **Open/Closed** : ajout d'une fonctionnalité = nouveau type/impl, pas de modification des use cases. Les `match` exhaustifs forcent par le compilateur à traiter chaque variant ajouté (voulu).
 - **Liskov** : toute impl de `DocumentRepository`/`DatabaseRepository` doit être strictement substituable (les tests tournent sur `MockRepo`, la prod sur `SqliteDocumentStore`).
 - **Interface Segregation** : un trait = un rôle. `DocumentRepository` et `DatabaseRepository` sont séparés ; un client documents ne dépend pas des méthodes database.
-- **Dependency Inversion** : les use cases dépendent d'abstractions (`&dyn DocumentRepository`), jamais de stores concrets. Seul `ffi.rs` (composition root) connaît les implémentations concrètes (`SqliteDocumentStore`).
+- **Dependency Inversion** : les use cases dépendent d'abstractions (`&dyn DocumentRepository`), jamais de stores concrets. Seul `ffi/` (composition root) connaît les implémentations concrètes (`SqliteDocumentStore`).
 
 ### Résilience (back + front)
 - **Erreurs typées, pas de panic** : `Result<T, PinkhaError>` côté Rust, throws/Result côté Swift. Jamais de `unwrap()`/`!` en production.
 - **Conversion d'erreurs aux frontières** : `From<E>` Rust (cf. `From<CoreError> for PinkhaError` FFI) ; mapping en `PinkhaError` côté Swift via `do/catch` qui remonte un `errorMessage: String?` au store.
 - **Pas de couplage à l'impl** : `PinkhaError::Db(String)` convertit les erreurs `rusqlite` en string pour ne pas coupler l'application à SQLite.
 - **Retry avec backoff exponentiel** : `application/resilience.rs::retry_with_backoff` (3 essais, 50ms→500ms doublés) wrappe les opérations SQLite write/read. `is_transient()` ne retente que les erreurs verrou/I/O bloquante, jamais les erreurs métier (`NotFound`, `InvalidOperation`).
-- **Validation aux frontières FFI** (`ffi.rs`) :
+- **Validation aux frontières FFI** (`ffi/validation.rs`) :
   - `parse_uuid` rejette les UUID malformés en `InvalidOperation`
   - `parse_json` refuse les payloads > **5 Mo** (`MAX_JSON_BYTES`)
   - `check_string` refuse les chaînes > **64 Ko** (`MAX_STRING_BYTES`) — appliqué à title/query/new_name

@@ -2,6 +2,12 @@ use crate::domain::document::InlineText;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+/// Name of the hidden Text property that links a database row to the
+/// pinkha document backing it (Notion-style "row = page" convention).
+/// Created by imports and by `create_document_in_database`; the UI
+/// hides it from the visible columns.
+pub const PAGE_LINK_PROPERTY: &str = "__pinkha_page__";
+
 /// Aggregation function applied to a Rollup column.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Aggregate {

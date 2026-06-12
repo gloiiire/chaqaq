@@ -54,6 +54,15 @@ dictionary BlockSearchHitFfi {
     string snippet;
 };
 
+/// Bundle of search results across every workspace surface, returned by
+/// `super_search`. Empty arrays mean "no match in that category".
+dictionary SuperSearchResultsFfi {
+    sequence<DocumentMetaFfi> documents_by_title;
+    sequence<BlockSearchHitFfi> documents_by_content;
+    sequence<DatabaseMetaFfi> databases;
+    sequence<FolderMetaFfi> folders;
+};
+
 /// Résumé d'une opération d'import retourné à Swift.
 dictionary ImportResultFfi {
     string app;
@@ -225,6 +234,15 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     sequence<FolderMetaFfi> search_folders(string query);
 
+    /// Runs every search axis in one call (titles, block content with
+    /// snippets, databases, folders) with the document axis deduplicated.
+    [Throws=PinkhaError]
+    SuperSearchResultsFfi super_search(string query);
+
+    /// Lightweight metadata for a single document (no block tree).
+    [Throws=PinkhaError]
+    DocumentMetaFfi get_document_meta(string id);
+
     /// Liste les documents en corbeille (soft-deleted), du plus récemment supprimé en premier.
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> list_deleted_documents();
@@ -236,6 +254,11 @@ interface PinkhaApi {
     /// Supprime définitivement un document de la corbeille (hard delete).
     [Throws=PinkhaError]
     void purge_document(string id);
+
+    /// Permanently purges every soft-deleted document, database and folder.
+    /// Returns the total number of items removed.
+    [Throws=PinkhaError]
+    u32 empty_trash();
 
     // ── Databases ─────────────────────────────────────────────
 
@@ -282,6 +305,13 @@ interface PinkhaApi {
     /// Ajoute une entrée ; `values_json` est une map UUID -> ValeurPropriete sérialisée.
     [Throws=PinkhaError]
     string add_entry(string db_id, string values_json);
+
+    /// Creates a fresh document and files it as a new row of the database
+    /// in one call — fills the hidden page-link column and the Title
+    /// column automatically. `values_json` carries any extra column
+    /// values (same shape as `add_entry`). Returns the document UUID.
+    [Throws=PinkhaError]
+    string create_document_in_database(string db_id, string title, string values_json);
 
     /// Files an existing document as a row of an existing database.
     /// `values_json` is the same UUID -> PropertyValue map as for
@@ -385,6 +415,10 @@ interface PinkhaApi {
 
     [Throws=PinkhaError]
     sequence<FolderMetaFfi> list_folders();
+
+    /// Direct children of `parent_id` (null = root-level folders).
+    [Throws=PinkhaError]
+    sequence<FolderMetaFfi> list_child_folders(string? parent_id);
 
     [Throws=PinkhaError]
     void rename_folder(string id, string new_name);

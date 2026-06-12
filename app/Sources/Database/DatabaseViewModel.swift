@@ -508,17 +508,16 @@ final class DatabaseViewModel: ObservableObject {
     /// Best-effort lookup of the linked document's icon for an entry.
     /// Returns `nil` for orphan rows (no linked doc) or unfetched ones —
     /// the row falls back to a generic glyph in that case. Lookup is
-    /// cached per-entry to avoid hammering SQLite during scroll.
+    /// cached per-entry to avoid hammering SQLite during scroll, and goes
+    /// through the lightweight meta FFI so the block tree never crosses
+    /// the boundary just to read an icon.
     func iconForEntry(_ entry: EntryFfi) -> String? {
         if let cached = iconCache[entry.id] { return cached }
         guard let docId = documentId(forEntryId: entry.id) else {
             iconCache[entry.id] = nil
             return nil
         }
-        let icon = (try? api.getDocumentJson(id: docId))
-            .flatMap { $0.data(using: .utf8) }
-            .flatMap { try? JSONDecoder().decode(DocumentFfi.self, from: $0) }?
-            .icon
+        let icon = (try? api.getDocumentMeta(id: docId))?.icon
         iconCache[entry.id] = icon
         return icon
     }

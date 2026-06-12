@@ -144,7 +144,7 @@ final class PinkhaStore: ObservableObject {
         style: CreateDocumentSheet.StandaloneStyle?
     ) -> String? {
         guard let api else { return nil }
-        do {
+        let docId = tryCatch(into: &errorMessage) {
             let docId = try api.createDocument(title: title)
             switch context {
             case .root:
@@ -154,15 +154,14 @@ final class PinkhaStore: ObservableObject {
             case .document(let parentDocId):
                 try api.updateDocumentParent(docId: docId, newParentDocId: parentDocId)
             }
-            if let style {
-                applyStandaloneStyle(style, to: docId, api: api)
-            }
-            load()
             return docId
-        } catch {
-            errorMessage = error.localizedDescription
-            return nil
         }
+        guard let docId else { return nil }
+        if let style {
+            applyStandaloneStyle(style, to: docId, api: api)
+        }
+        load()
+        return docId
     }
 
     /// Writes the picked style overrides to the freshly-created
@@ -198,11 +197,10 @@ final class PinkhaStore: ObservableObject {
     }
 
     /// Creates a doc + files it as a new row of the given database.
-    /// Mirrors what the database "+" button does internally :
-    /// create a document, append an entry that links to it via the
-    /// hidden `__pinkha_page__` property, and pre-fill any other
-    /// columns the user provided in `propertyValues`. Returns the
-    /// new document's id so the caller can navigate to it.
+    /// The orchestration (create document, fill the hidden page-link
+    /// and Title columns, link the entry to the doc) lives in Rust —
+    /// `create_document_in_database`. Returns the new document's id so
+    /// the caller can navigate to it.
     @discardableResult
     func createNoteInDatabase(
         title: String,
@@ -211,42 +209,20 @@ final class PinkhaStore: ObservableObject {
         style: CreateDocumentSheet.StandaloneStyle? = nil
     ) -> String? {
         guard let api else { return nil }
-        do {
-            let docId = try api.createDocument(title: title)
-            if let style {
-                applyStandaloneStyle(style, to: docId, api: api)
-            }
-            // Discover the hidden page-link property + the Title
-            // property so we can fill them — same convention as
-            // DatabaseViewModel.load.
-            let dbJson = try api.getDatabaseJson(id: databaseId)
-            guard let dbData = dbJson.data(using: .utf8),
-                  let db = try? JSONDecoder().decode(DatabaseFfi.self, from: dbData)
-            else { throw PinkhaError.InvalidOperation(detail: "Failed to parse database") }
-
-            var initial = propertyValues
-            if let pageProp = db.properties.first(where: { $0.name == "__pinkha_page__" }) {
-                initial[pageProp.id] = .text(docId)
-            }
-            if let titleProp = db.properties.first(where: {
-                if case .title = $0.propertyType { return true }; return false
-            }) {
-                let spans: [InlineTextFfi] = title.isEmpty
-                    ? []
-                    : [InlineTextFfi(content: title, styles: [])]
-                initial[titleProp.id] = .title(spans)
-            }
-            guard let json = try? JSONEncoder().encode(initial),
+        let docId = tryCatch(into: &errorMessage) {
+            guard let json = try? JSONEncoder().encode(propertyValues),
                   let valuesJson = String(data: json, encoding: .utf8) else {
                 throw PinkhaError.InvalidOperation(detail: "Failed to encode property values")
             }
-            _ = try api.addEntry(dbId: databaseId, valuesJson: valuesJson)
-            load()
-            return docId
-        } catch {
-            errorMessage = error.localizedDescription
-            return nil
+            return try api.createDocumentInDatabase(
+                dbId: databaseId, title: title, valuesJson: valuesJson)
         }
+        guard let docId else { return nil }
+        if let style {
+            applyStandaloneStyle(style, to: docId, api: api)
+        }
+        load()
+        return docId
     }
 
     /// Context-aware database creation. In `.document` context the new
@@ -255,7 +231,7 @@ final class PinkhaStore: ObservableObject {
     /// the database lands at the workspace root in that case.
     func createDatabase(title: String, in context: Composer.CreationContext) {
         guard let api else { return }
-        do {
+        tryCatch(into: &errorMessage) {
             let dbId = try api.createDatabase(title: title)
             if case .document(let parentDocId) = context {
                 let dbBlock = BlockContentFfi.database(id: dbId)
@@ -264,10 +240,8 @@ final class PinkhaStore: ObservableObject {
                     _ = try? api.addBlock(docId: parentDocId, blockContentJson: payload)
                 }
             }
-            load()
-        } catch {
-            errorMessage = error.localizedDescription
         }
+        load()
     }
 
     /// Context-aware folder creation. Honours folder nesting (parent
@@ -335,31 +309,18 @@ final class PinkhaStore: ObservableObject {
         return (try? api.searchDocuments(query: query)) ?? []
     }
 
-    /// Runs all available search axes in a single call : titles + block
+    /// Runs all available search axes in a single FFI call : titles + block
     /// content for documents, plus database titles and folder names. The
-    /// document axis is deduplicated — a doc matching both title and
-    /// content shows up once in the title hits and is hidden from the
-    /// content hits.
+    /// document-axis deduplication (a doc matching both title and content
+    /// shows up once, in the title hits) happens on the Rust side.
     func superSearch(query: String) -> SuperSearchResults {
         guard !query.isEmpty, let api else { return .empty }
-        let titles = (try? api.searchDocuments(query: query)) ?? []
-        // Use the snippets variant so the UI can show a Notion-style
-        // preview of where the match landed in the doc's content.
-        let blockHits = (try? api.searchInBlocksWithSnippets(query: query)) ?? []
-        let dbs = (try? api.searchDatabases(query: query)) ?? []
-        let folders = (try? api.searchFolders(query: query)) ?? []
-        // A doc matching by title shows up in the title section once;
-        // its block-level hits are still kept so the user can jump to a
-        // specific occurrence inside the body — multiple snippet rows
-        // per doc are intentional now that the Rust side returns every
-        // matching block, not just the first one.
-        let titleIds = Set(titles.map(\.id))
-        let contentOnly = blockHits.filter { !titleIds.contains($0.doc.id) }
+        guard let results = try? api.superSearch(query: query) else { return .empty }
         return SuperSearchResults(
-            documentsByTitle: titles,
-            documentsByContent: contentOnly,
-            databases: dbs,
-            folders: folders
+            documentsByTitle: results.documentsByTitle,
+            documentsByContent: results.documentsByContent,
+            databases: results.databases,
+            folders: results.folders
         )
     }
 
@@ -435,8 +396,10 @@ final class PinkhaStore: ObservableObject {
     }
 
     /// Returns the direct children of `parentId` (`nil` = root-level folders).
+    /// The parent/child filtering runs in Rust.
     func childFolders(of parentId: String?) -> [FolderMetaFfi] {
-        listFolders().filter { $0.parentId == parentId }
+        guard let api else { return [] }
+        return (try? api.listChildFolders(parentId: parentId)) ?? []
     }
 
     /// Returns documents in the given folder (`nil` = root level).
@@ -499,16 +462,12 @@ final class PinkhaStore: ObservableObject {
     }
 
     /// Empties the trash by purging every soft-deleted document, database
-    /// and folder. Returns the total number of items removed.
+    /// and folder in a single bulk FFI call. Returns the total number of
+    /// items removed.
     @discardableResult
     func emptyTrash() -> Int {
-        let docs = listDeletedDocuments()
-        let dbs = listDeletedDatabases()
-        let folders = listDeletedFolders()
-        for d in docs { purgeDocument(id: d.id) }
-        for d in dbs { purgeDatabase(id: d.id) }
-        for f in folders { purgeFolder(id: f.id) }
+        let purged = tryCatch(into: &errorMessage) { try api?.emptyTrash() ?? 0 } ?? 0
         load()
-        return docs.count + dbs.count + folders.count
+        return Int(purged)
     }
 }
