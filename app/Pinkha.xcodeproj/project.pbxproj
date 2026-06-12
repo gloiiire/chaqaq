@@ -59,7 +59,6 @@
 		599105D6197DADEB981F1275 /* SwipeDeleteUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB8BDD53EA02FC1A56928B5 /* SwipeDeleteUITests.swift */; };
 		5B178E6B0B5EBD3F7DE7E8E5 /* DatabaseListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AB06C82AFCB67B99CDD92CE /* DatabaseListView.swift */; };
 		5D10E3CF18AB2BBBC4992714 /* BlockRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4841430F047F9217FA8E7E83 /* BlockRows.swift */; };
-		5ED4D0D36225E27DAC4E4D4A /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 7FFA32F09DC29019F8C2CED4 /* Pinkha.icon */; };
 		6037AF533565A18E60760F2C /* ConcurrencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83C7E5FB163EC0BCAADD90F1 /* ConcurrencyTests.swift */; };
 		60A09E44A2C02CD59C1C08BE /* UIKitContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB0F81F0C34049331FECB422 /* UIKitContextMenu.swift */; };
 		62FDB0C4AF1E562971C8A80F /* pinkha.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9E3470806F13B18DD1BDF7AC /* pinkha.xcframework */; };
@@ -77,6 +76,7 @@
 		7730782D87144200F2C2467F /* HelpersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E4D3F92F639F9E34A27C66 /* HelpersTests.swift */; };
 		7B0171AC7A15E65F4A60B271 /* InboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A4803ADD45316B67067AEC7 /* InboxView.swift */; };
 		7C52E3761387AD402A903707 /* MarkdownShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDF836EB2D9E803A6DCC33B3 /* MarkdownShortcuts.swift */; };
+		7CD26B994A6BD2238CB396D3 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = CB86FA130AB29B67F525448E /* Pinkha.icon */; };
 		7F6DC0D4E5B9C5A340452CB6 /* DocumentViewModel+Undo.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7B62706E6C0BDE46FF867DA /* DocumentViewModel+Undo.swift */; };
 		806AD95333900E5770567ECB /* EdgeOpsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75D7DCC839125DE7FA5021C1 /* EdgeOpsTests.swift */; };
 		80DC3F511283AC0E5FB4718C /* DocumentViewModel+Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B12A10AF0ABA0755B011232 /* DocumentViewModel+Persistence.swift */; };
@@ -242,7 +242,6 @@
 		7BDCE4B4A67B7675CF7E4994 /* ModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsTests.swift; sourceTree = "<group>"; };
 		7E8493451BB64B1B9FBF2A03 /* ExpandingTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpandingTextView.swift; sourceTree = "<group>"; };
 		7EA90C535ED0F61DCB900957 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
-		7FFA32F09DC29019F8C2CED4 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		8169A1E412FB3AB0851E5ADB /* DocumentApiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentApiTests.swift; sourceTree = "<group>"; };
 		83C7E5FB163EC0BCAADD90F1 /* ConcurrencyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConcurrencyTests.swift; sourceTree = "<group>"; };
 		870CA1B2DFAA09E7ADD88550 /* Haptic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptic.swift; sourceTree = "<group>"; };
@@ -282,6 +281,7 @@
 		C48A6090EBBFBAB7A44A9513 /* DatabaseEntitiesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseEntitiesTests.swift; sourceTree = "<group>"; };
 		C7B62706E6C0BDE46FF867DA /* DocumentViewModel+Undo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DocumentViewModel+Undo.swift"; sourceTree = "<group>"; };
 		C7C31BC0B000B9D4E7321876 /* BlockPickerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockPickerUITests.swift; sourceTree = "<group>"; };
+		CB86FA130AB29B67F525448E /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		CBE9EDA58052E521C5447AFC /* DocumentView+BlockCallbacks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DocumentView+BlockCallbacks.swift"; sourceTree = "<group>"; };
 		CC6268A543F57BE87AC43F83 /* DatabasesHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabasesHomeView.swift; sourceTree = "<group>"; };
 		CFA4CB8B18F322F82D34991C /* DatabaseViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseViewModelTests.swift; sourceTree = "<group>"; };
@@ -519,6 +519,14 @@
 			path = Integration;
 			sourceTree = "<group>";
 		};
+		5D554167F40F8C388CE4F1D6 /* app */ = {
+			isa = PBXGroup;
+			children = (
+				CB86FA130AB29B67F525448E /* Pinkha.icon */,
+			);
+			name = app;
+			sourceTree = "<group>";
+		};
 		651EA0FB42E391E774BAC629 /* Database */ = {
 			isa = PBXGroup;
 			children = (
@@ -541,14 +549,6 @@
 				6A8E8AE9B516507D0E1A651A /* DocumentPublishDateSheet.swift */,
 			);
 			path = Sheets;
-			sourceTree = "<group>";
-		};
-		7278F18477252DA3B470B18E /* app */ = {
-			isa = PBXGroup;
-			children = (
-				7FFA32F09DC29019F8C2CED4 /* Pinkha.icon */,
-			);
-			name = app;
 			sourceTree = "<group>";
 		};
 		7459E38DDB42FA0567FB08BE /* Products */ = {
@@ -642,7 +642,7 @@
 				7CE19974FB0E7C2FE24CED36 /* Tests */,
 				4494D74BA7F514A78EB8D8AC /* Frameworks */,
 				7459E38DDB42FA0567FB08BE /* Products */,
-				7278F18477252DA3B470B18E /* app */,
+				5D554167F40F8C388CE4F1D6 /* app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -797,7 +797,7 @@
 				57155F8A05B7C7EA1ED129AF /* Assets.xcassets in Resources */,
 				1687C7C9610D2298A8E55177 /* InfoPlist.xcstrings in Resources */,
 				D878D8EB398C5B2F7E67F418 /* Localizable.xcstrings in Resources */,
-				5ED4D0D36225E27DAC4E4D4A /* Pinkha.icon in Resources */,
+				7CD26B994A6BD2238CB396D3 /* Pinkha.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
