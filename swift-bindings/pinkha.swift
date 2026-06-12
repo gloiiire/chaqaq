@@ -503,28 +503,28 @@ fileprivate struct FfiConverterString: FfiConverter {
 public protocol PinkhaApiProtocol: AnyObject, Sendable {
     
     /**
-     * Ajoute un bloc ; le contenu est passé en JSON (BlockContent sérialisé).
-     * Retourne le document mis à jour en JSON.
+     * Appends a block; the content is passed as JSON (serialized BlockContent).
+     * Returns the updated document as JSON.
      */
     func addBlock(docId: String, blockContentJson: String) throws  -> String
     
     /**
-     * Ajoute un bloc enfant ; le contenu est passé en JSON (BlockContent sérialisé).
+     * Appends a child block; the content is passed as JSON (serialized BlockContent).
      */
     func addChildBlock(docId: String, parentId: String, blockContentJson: String) throws  -> String
     
     /**
-     * Ajoute une entrée ; `values_json` est une map UUID -> ValeurPropriete sérialisée.
+     * Adds an entry; `values_json` is a serialized UUID -> PropertyValue map.
      */
     func addEntry(dbId: String, valuesJson: String) throws  -> String
     
     /**
-     * Ajoute une propriété sérialisée en JSON.
+     * Adds a property serialized as JSON.
      */
     func addProperty(dbId: String, propertyJson: String) throws 
     
     /**
-     * Ajoute une vue sérialisée en JSON.
+     * Adds a view serialized as JSON.
      */
     func addView(dbId: String, viewJson: String) throws  -> String
     
@@ -536,17 +536,17 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func attachDocumentToDatabase(dbId: String, docId: String, valuesJson: String) throws  -> String
     
     /**
-     * Retourne l'agrégat d'une colonne en JSON.
+     * Returns a column aggregate as JSON.
      */
     func columnAggregateDatabaseJson(dbId: String, propertyId: String, aggregateJson: String) throws  -> String
     
     /**
-     * Crée une nouvelle database et retourne son UUID.
+     * Creates a new database and returns its UUID.
      */
     func createDatabase(title: String) throws  -> String
     
     /**
-     * Crée un nouveau document et retourne son UUID.
+     * Creates a new document and returns its UUID.
      */
     func createDocument(title: String) throws  -> String
     
@@ -566,7 +566,7 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func deleteAllDatabases() throws  -> UInt32
     
     /**
-     * Soft-delete de tous les documents. Retourne le nombre supprimé.
+     * Soft-deletes every document. Returns the number deleted.
      */
     func deleteAllDocuments() throws  -> UInt32
     
@@ -575,12 +575,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func deleteBlock(docId: String, blockId: String) throws 
     
     /**
-     * Soft-delete de la database.
+     * Soft-deletes the database.
      */
     func deleteDatabase(id: String) throws 
     
     /**
-     * Soft-delete du document.
+     * Soft-deletes the document.
      */
     func deleteDocument(id: String) throws 
     
@@ -593,9 +593,9 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func deleteView(dbId: String, viewId: String) throws 
     
     /**
-     * Duplique un bloc (et tous ses enfants, avec de nouveaux UUIDs)
-     * et insère le clone juste après l'original au même niveau.
-     * Retourne l'UUID du nouveau bloc.
+     * Duplicates a block (and all its children, with fresh UUIDs) and
+     * inserts the clone right after the original at the same level.
+     * Returns the new block's UUID.
      */
     func duplicateBlock(docId: String, blockId: String) throws  -> String
     
@@ -606,12 +606,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func emptyTrash() throws  -> UInt32
     
     /**
-     * Retourne la database complète sérialisée en JSON (avec entrées et vues).
+     * Returns the full database serialized as JSON (with entries and views).
      */
     func getDatabaseJson(id: String) throws  -> String
     
     /**
-     * Retourne le document complet sérialisé en JSON (avec blocs).
+     * Returns the full document serialized as JSON (with blocks).
      */
     func getDocumentJson(id: String) throws  -> String
     
@@ -623,58 +623,58 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func getFolder(id: String) throws  -> FolderMetaFfi
     
     /**
-     * Retourne les groupes d'entrées en JSON.
+     * Returns the grouped entries as JSON.
      */
     func groupedQueryDatabaseJson(dbId: String, viewId: String, groupBy: String) throws  -> String
     
     /**
-     * Importe les notes Bear depuis la SQLite locale de Bear.
-     * `db_path` est le chemin absolu vers `database.sqlite` de Bear.
+     * Imports Bear notes from Bear's local SQLite database.
+     * `db_path` is the absolute path to Bear's `database.sqlite`.
      */
     func importFromBear(dbPath: String) async throws  -> ImportResultFfi
     
     /**
-     * Importe les pages Craft depuis le fichier `.realm` local de Craft.
-     * `db_path` est le chemin absolu vers le fichier `.realm` de Craft.
+     * Imports Craft pages from Craft's local `.realm` file.
+     * `db_path` is the absolute path to Craft's `.realm` file.
      */
     func importFromCraft(dbPath: String) async throws  -> ImportResultFfi
     
     /**
-     * Combine le fichier `.realm` de Craft et un dossier de `.textbundle` :
-     * les pages ayant un textbundle correspondant utilisent son contenu markdown ;
-     * les autres pages utilisent le contenu realm.
+     * Combines Craft's `.realm` file with a folder of `.textbundle` exports:
+     * pages with a matching textbundle use its markdown content;
+     * the remaining pages use the realm content.
      */
     func importFromCraftCombined(realmPath: String, textbundleRoot: String) async throws  -> ImportResultFfi
     
     /**
-     * Importe les pages Craft depuis un dossier de `.textbundle` exporté par Craft.
-     * `root_dir` est le chemin absolu vers le dossier racine de l'export.
+     * Imports Craft pages from a folder of `.textbundle` packages exported by Craft.
+     * `root_dir` is the absolute path to the export's root folder.
      */
     func importFromCraftTextbundle(rootDir: String) async throws  -> ImportResultFfi
     
     /**
-     * Importe une database Notion complète (schéma + pages + blocs).
-     * `token` est un bearer token OAuth2 ou private integration token.
-     * `database_id` est un UUID 32-char hex ou l'URL complète Notion.
+     * Imports a full Notion database (schema + pages + blocks).
+     * `token` is an OAuth2 bearer token or a private integration token.
+     * `database_id` is a 32-char hex UUID or the full Notion URL.
      *
-     * Synchrone côté FFI : Notion utilise `reqwest`, qui exige un runtime
-     * Tokio absent de l'executor UniFFI. On `block_on` côté Rust, donc Swift
-     * doit appeler depuis `Task.detached` pour ne pas bloquer le main thread.
-     * `covers_dir` est un chemin absolu vers un dossier existant où les
-     * images de cover sont téléchargées. Quand null, on stocke seulement
-     * l'URL — OK pour les covers externes mais celles hébergées par Notion
-     * expirent au bout d'~1h.
+     * Synchronous on the FFI side: Notion uses `reqwest`, which requires a
+     * Tokio runtime that UniFFI's executor does not provide. Rust calls
+     * `block_on`, so Swift must dispatch from `Task.detached` to avoid
+     * blocking the main thread.
+     * `covers_dir` is an absolute path to an existing directory where cover
+     * images are downloaded. When null, only the URL is stored — fine for
+     * external covers but Notion-hosted ones expire after ~1h.
      */
     func importFromNotion(token: String, databaseId: String, coversDir: String?) throws  -> ImportResultFfi
     
     /**
-     * Indente un bloc : le déplace sous le frère précédent au même niveau.
-     * `InvalidOperation` si le bloc est le premier de son niveau.
+     * Indents a block: moves it under the previous sibling at the same level.
+     * `InvalidOperation` when the block is the first of its level.
      */
     func indentBlock(docId: String, blockId: String) throws 
     
     /**
-     * Liste les enfants directs d'un document parent (page-in-page).
+     * Lists the direct children of a parent document (page-in-page).
      */
     func listChildDocuments(parentDocId: String) throws  -> [DocumentMetaFfi]
     
@@ -684,32 +684,32 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func listChildFolders(parentId: String?) throws  -> [FolderMetaFfi]
     
     /**
-     * Liste les métadonnées de toutes les databases actives.
+     * Lists metadata for every active database.
      */
     func listDatabases() throws  -> [DatabaseMetaFfi]
     
     /**
-     * Liste les databases en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     * Lists trashed databases (soft-deleted), most recently deleted first.
      */
     func listDeletedDatabases() throws  -> [DatabaseMetaFfi]
     
     /**
-     * Liste les documents en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     * Lists trashed documents (soft-deleted), most recently deleted first.
      */
     func listDeletedDocuments() throws  -> [DocumentMetaFfi]
     
     /**
-     * Liste les entries soft-deleted d'une database (JSON array).
+     * Lists a database's soft-deleted entries (JSON array).
      */
     func listDeletedEntriesJson(dbId: String) throws  -> String
     
     /**
-     * Liste les dossiers en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     * Lists trashed folders (soft-deleted), most recently deleted first.
      */
     func listDeletedFolders() throws  -> [FolderMetaFfi]
     
     /**
-     * Liste les métadonnées de tous les documents actifs.
+     * Lists metadata for every active document.
      */
     func listDocuments() throws  -> [DocumentMetaFfi]
     
@@ -718,26 +718,26 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func listFolders() throws  -> [FolderMetaFfi]
     
     /**
-     * Liste les databases Notion accessibles avec le token donné. Utilisé
-     * par le picker côté Swift pour éviter à l'utilisateur de coller des URLs.
+     * Lists the Notion databases reachable with the given token. Used by
+     * the Swift-side picker so the user never has to paste URLs.
      */
     func listNotionDatabases(token: String) throws  -> [NotionDatabaseSummaryFfi]
     
     /**
-     * Comme [`list_notion_databases`] mais utilise le chemin Notion
-     * API 2025-09-03 data-source-aware sous le capot — récupère
-     * aussi les DBs multi-source que le filtre legacy rate. Le
-     * picker devrait préférer cette version.
+     * Same as [`list_notion_databases`] but uses the 2025-09-03
+     * data-source-aware Notion API path under the hood — also catches
+     * the multi-source DBs the legacy filter misses. Pickers should
+     * prefer this version.
      */
     func listNotionDatabasesV2025(token: String) throws  -> [NotionDatabaseSummaryFfi]
     
     /**
-     * Liste les pages racine (documents sans parent). Alimente la home.
+     * Lists root pages (documents with no parent). Drives the home view.
      */
     func listRootDocuments() throws  -> [DocumentMetaFfi]
     
     /**
-     * Déplace un bloc vers un parent ou vers la racine si `new_parent_id` est nul.
+     * Moves a block under a parent, or to the root when `new_parent_id` is null.
      */
     func moveBlock(docId: String, blockId: String, newParentId: String?) throws 
     
@@ -746,39 +746,39 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func moveFolderTo(id: String, newParentId: String?) throws 
     
     /**
-     * Désindente un bloc : le sort de son parent et le replace au niveau du
-     * grand-parent, juste après l'ancien parent. `InvalidOperation` si le
-     * bloc est déjà à la racine.
+     * Outdents a block: moves it out of its parent up to the grandparent
+     * level, right after the former parent. `InvalidOperation` when the
+     * block is already at the root.
      */
     func outdentBlock(docId: String, blockId: String) throws 
     
     /**
-     * Supprime définitivement une database de la corbeille (hard delete).
+     * Permanently deletes a database from the trash (hard delete).
      */
     func purgeDatabase(id: String) throws 
     
     /**
-     * Supprime définitivement un document de la corbeille (hard delete).
+     * Permanently deletes a document from the trash (hard delete).
      */
     func purgeDocument(id: String) throws 
     
     /**
-     * Supprime définitivement une entry soft-deleted (hard delete).
+     * Permanently deletes a soft-deleted entry (hard delete).
      */
     func purgeEntry(dbId: String, entryId: String) throws 
     
     /**
-     * Supprime définitivement un dossier de la corbeille (hard delete).
+     * Permanently deletes a folder from the trash (hard delete).
      */
     func purgeFolder(id: String) throws 
     
     /**
-     * Retourne les entrées filtrées/triées en JSON.
+     * Returns the filtered/sorted entries as JSON.
      */
     func queryDatabaseJson(dbId: String, viewId: String) throws  -> String
     
     /**
-     * Retourne les entrées filtrées/triées avec rollups calculés en JSON.
+     * Returns the filtered/sorted entries with computed rollups as JSON.
      */
     func queryDatabaseWithRollupsJson(dbId: String, viewId: String) throws  -> String
     
@@ -787,93 +787,93 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func renameProperty(dbId: String, propertyId: String, newName: String) throws 
     
     /**
-     * Réordonne les blocs racine selon la liste d'UUIDs fournie.
+     * Reorders the root blocks according to the supplied UUID list.
      */
     func reorderBlocks(docId: String, order: [String]) throws 
     
     /**
-     * Réordonne les enfants directs d'un bloc parent.
+     * Reorders the direct children of a parent block.
      */
     func reorderChildBlocks(docId: String, parentId: String, order: [String]) throws 
     
     /**
-     * Restaure une database depuis la corbeille.
+     * Restores a database from the trash.
      */
     func restoreDatabase(id: String) throws 
     
     /**
-     * Restaure un document depuis la corbeille.
+     * Restores a document from the trash.
      */
     func restoreDocument(id: String) throws 
     
     /**
-     * Restaure une entry depuis la corbeille de sa database.
+     * Restores an entry from its database's trash.
      */
     func restoreEntry(dbId: String, entryId: String) throws 
     
     /**
-     * Restaure un dossier depuis la corbeille.
+     * Restores a folder from the trash.
      */
     func restoreFolder(id: String) throws 
     
     /**
-     * Retourne les entrées correspondant à la recherche en JSON.
+     * Returns the entries matching the search query as JSON.
      */
     func searchDatabaseEntriesJson(dbId: String, query: String) throws  -> String
     
     /**
-     * Recherche par titre de database.
+     * Search across database titles.
      */
     func searchDatabases(query: String) throws  -> [DatabaseMetaFfi]
     
     /**
-     * Recherche insensible à la casse dans les titles.
+     * Case-insensitive search across document titles.
      */
     func searchDocuments(query: String) throws  -> [DocumentMetaFfi]
     
     /**
-     * Recherche par nom de folder.
+     * Search across folder names.
      */
     func searchFolders(query: String) throws  -> [FolderMetaFfi]
     
     /**
-     * Recherche plein texte dans les blocs.
+     * Full-text search across block content.
      */
     func searchInBlocks(query: String) throws  -> [DocumentMetaFfi]
     
     /**
-     * Recherche plein texte avec extrait (snippet) du bloc qui matche.
+     * Full-text search returning a snippet of each matching block.
      */
     func searchInBlocksWithSnippets(query: String) throws  -> [BlockSearchHitFfi]
     
     /**
-     * Pose ou retire la couleur de fond du bloc (highlight style Craft).
+     * Sets or clears the block's background color (Craft-style highlight).
      */
     func setBlockBackgroundColor(docId: String, blockId: String, backgroundColor: String?) throws 
     
     /**
-     * Pose ou retire la couleur d'un bloc (texte). `color` est un nom de
-     * couleur (`"red"`, `"blue"`, etc.) ou `null` pour revenir au thème.
-     * Les couleurs inline sur les spans ont toujours priorité.
+     * Sets or clears a block's text color. `color` is a color name
+     * (`"red"`, `"blue"`, etc.) or `null` to revert to the theme.
+     * Inline colors on spans always take priority.
      */
     func setBlockColor(docId: String, blockId: String, color: String?) throws 
     
     /**
-     * Pose ou retire la direction d'écriture du bloc ("ltr" / "rtl").
-     * `null` = hérite du document.
+     * Sets or clears the block's writing direction ("ltr" / "rtl").
+     * `null` = inherit from the document.
      */
     func setBlockTextDirection(docId: String, blockId: String, textDirection: String?) throws 
     
     /**
-     * Set le sort de la vue sur created_at ou published_at de l'entrée.
-     * `kind` = "created" ou "published". Pas de property_id (les timestamps
-     * vivent sur Entry, pas sur une colonne).
+     * Sets the view's sort to the entry-level created_at or published_at.
+     * `kind` = "created" or "published". No property_id (the timestamps
+     * live on Entry, not on a column).
      */
     func setViewDateSort(dbId: String, viewId: String, kind: String, ascending: Bool) throws 
     
     /**
-     * Pose un tri unique sur une vue, en remplaçant ceux qui existent.
-     * `property_id = null` retire le tri.
+     * Sets a single sort on a view, replacing any existing ones.
+     * `property_id = null` clears the sort.
      */
     func setViewSort(dbId: String, viewId: String, propertyId: String?, ascending: Bool) throws 
     
@@ -884,77 +884,77 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func superSearch(query: String) throws  -> SuperSearchResultsFfi
     
     /**
-     * Remplace le contenu d'un bloc existant (JSON de BlockContent).
+     * Replaces the content of an existing block (BlockContent JSON).
      */
     func updateBlock(docId: String, blockId: String, contentJson: String) throws 
     
     /**
-     * Remplace ou efface l'image de couverture de la database.
+     * Replaces or clears the database's cover image.
      */
     func updateDatabaseCover(id: String, cover: String?) throws 
     
     /**
-     * Remplace la description rich-text de la database (chaîne vide = efface).
+     * Replaces the database's rich-text description (empty string clears it).
      */
     func updateDatabaseDescription(id: String, description: String) throws 
     
     /**
-     * Remplace ou efface l'icône (emoji / fichier / URL) de la database.
+     * Replaces or clears the database's icon (emoji / file / URL).
      */
     func updateDatabaseIcon(id: String, icon: String?) throws 
     
     /**
-     * Bascule le flag read-only de la database.
+     * Flips the database's read-only flag.
      */
     func updateDatabaseLocked(id: String, locked: Bool) throws 
     
     /**
-     * Remplace le titre rich-text de la database.
+     * Replaces the database's rich-text title.
      */
     func updateDatabaseTitle(id: String, newTitle: String) throws 
     
     /**
-     * Pose ou retire l'accent color du document (override par-doc de
-     * l'accent global). Nom de couleur ("red", "teal"...) ou null
-     * pour repartir sur l'accent des Settings.
+     * Sets or clears the document's accent color (per-doc override of
+     * the global accent). Color name ("red", "teal"...) or null to
+     * fall back to the Settings accent.
      */
     func updateDocumentAccentColor(id: String, accentColor: String?) throws 
     
     func updateDocumentCover(id: String, cover: String?) throws 
     
     /**
-     * Pose ou retire l'icône d'un document (emoji, filename local, ou URL).
+     * Sets or clears a document's icon (emoji, local filename, or URL).
      */
     func updateDocumentIcon(id: String, icon: String?) throws 
     
     /**
-     * Active ou désactive le verrou lecture seule sur un document.
-     * Les imports (Notion/Bear/Craft) appellent automatiquement avec
-     * `locked = true` à la création.
+     * Enables or disables the read-only lock on a document.
+     * Imports (Notion/Bear/Craft) automatically call this with
+     * `locked = true` at creation time.
      */
     func updateDocumentLocked(id: String, locked: Bool) throws 
     
     /**
-     * Définit le document parent (page imbriquée à la Notion). `None` pour
-     * repromouvoir le document à la racine. Rejette les cycles.
+     * Sets the parent document (Notion-style nested page). `None` to
+     * promote the document back to the root. Rejects cycles.
      */
     func updateDocumentParent(docId: String, newParentDocId: String?) throws 
     
     /**
-     * Override la timestamp publish_at d'un document. Chaîne vide = reset
-     * au défaut (suit created_at).
+     * Overrides a document's published_at timestamp. Empty string =
+     * reset to the default (follows created_at).
      */
     func updateDocumentPublishedAt(id: String, newPublishedAt: String) throws 
     
     /**
-     * Pose ou retire la direction d'écriture par défaut du document.
-     * `null` = locale système. Chaque bloc peut overrider.
+     * Sets or clears the document's default writing direction.
+     * `null` = system locale. Every block can override.
      */
     func updateDocumentTextDirection(id: String, textDirection: String?) throws 
     
     /**
-     * Pose ou retire le thème par-document.
-     * `null` = hérite de AppSettings.theme.
+     * Sets or clears the per-document theme.
+     * `null` = inherit from AppSettings.theme.
      */
     func updateDocumentTheme(id: String, theme: String?) throws 
     
@@ -963,8 +963,8 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func updateEntry(dbId: String, entryId: String, valuesJson: String) throws 
     
     /**
-     * Override la timestamp publish_at d'une entrée.
-     * Chaîne vide = reset au défaut (suit created_at).
+     * Overrides an entry's published_at timestamp.
+     * Empty string = reset to the default (follows created_at).
      */
     func updateEntryPublishedAt(dbId: String, entryId: String, newPublishedAt: String) throws 
     
@@ -1013,7 +1013,7 @@ open class PinkhaApi: PinkhaApiProtocol, @unchecked Sendable {
         return try! rustCall { uniffi_pinkha_fn_clone_pinkhaapi(self.handle, $0) }
     }
     /**
-     * Ouvre (ou crée) la base SQLite au chemin donné.
+     * Opens (or creates) the SQLite database at the given path.
      */
 public convenience init(dbPath: String)throws  {
     let handle =
@@ -1038,8 +1038,8 @@ public convenience init(dbPath: String)throws  {
 
     
     /**
-     * Ajoute un bloc ; le contenu est passé en JSON (BlockContent sérialisé).
-     * Retourne le document mis à jour en JSON.
+     * Appends a block; the content is passed as JSON (serialized BlockContent).
+     * Returns the updated document as JSON.
      */
 open func addBlock(docId: String, blockContentJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1052,7 +1052,7 @@ open func addBlock(docId: String, blockContentJson: String)throws  -> String  {
 }
     
     /**
-     * Ajoute un bloc enfant ; le contenu est passé en JSON (BlockContent sérialisé).
+     * Appends a child block; the content is passed as JSON (serialized BlockContent).
      */
 open func addChildBlock(docId: String, parentId: String, blockContentJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1066,7 +1066,7 @@ open func addChildBlock(docId: String, parentId: String, blockContentJson: Strin
 }
     
     /**
-     * Ajoute une entrée ; `values_json` est une map UUID -> ValeurPropriete sérialisée.
+     * Adds an entry; `values_json` is a serialized UUID -> PropertyValue map.
      */
 open func addEntry(dbId: String, valuesJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1079,7 +1079,7 @@ open func addEntry(dbId: String, valuesJson: String)throws  -> String  {
 }
     
     /**
-     * Ajoute une propriété sérialisée en JSON.
+     * Adds a property serialized as JSON.
      */
 open func addProperty(dbId: String, propertyJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_add_property(
@@ -1091,7 +1091,7 @@ open func addProperty(dbId: String, propertyJson: String)throws   {try rustCallW
 }
     
     /**
-     * Ajoute une vue sérialisée en JSON.
+     * Adds a view serialized as JSON.
      */
 open func addView(dbId: String, viewJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1120,7 +1120,7 @@ open func attachDocumentToDatabase(dbId: String, docId: String, valuesJson: Stri
 }
     
     /**
-     * Retourne l'agrégat d'une colonne en JSON.
+     * Returns a column aggregate as JSON.
      */
 open func columnAggregateDatabaseJson(dbId: String, propertyId: String, aggregateJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1134,7 +1134,7 @@ open func columnAggregateDatabaseJson(dbId: String, propertyId: String, aggregat
 }
     
     /**
-     * Crée une nouvelle database et retourne son UUID.
+     * Creates a new database and returns its UUID.
      */
 open func createDatabase(title: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1146,7 +1146,7 @@ open func createDatabase(title: String)throws  -> String  {
 }
     
     /**
-     * Crée un nouveau document et retourne son UUID.
+     * Creates a new document and returns its UUID.
      */
 open func createDocument(title: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1196,7 +1196,7 @@ open func deleteAllDatabases()throws  -> UInt32  {
 }
     
     /**
-     * Soft-delete de tous les documents. Retourne le nombre supprimé.
+     * Soft-deletes every document. Returns the number deleted.
      */
 open func deleteAllDocuments()throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1224,7 +1224,7 @@ open func deleteBlock(docId: String, blockId: String)throws   {try rustCallWithE
 }
     
     /**
-     * Soft-delete de la database.
+     * Soft-deletes the database.
      */
 open func deleteDatabase(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_delete_database(
@@ -1235,7 +1235,7 @@ open func deleteDatabase(id: String)throws   {try rustCallWithError(FfiConverter
 }
     
     /**
-     * Soft-delete du document.
+     * Soft-deletes the document.
      */
 open func deleteDocument(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_delete_document(
@@ -1281,9 +1281,9 @@ open func deleteView(dbId: String, viewId: String)throws   {try rustCallWithErro
 }
     
     /**
-     * Duplique un bloc (et tous ses enfants, avec de nouveaux UUIDs)
-     * et insère le clone juste après l'original au même niveau.
-     * Retourne l'UUID du nouveau bloc.
+     * Duplicates a block (and all its children, with fresh UUIDs) and
+     * inserts the clone right after the original at the same level.
+     * Returns the new block's UUID.
      */
 open func duplicateBlock(docId: String, blockId: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1308,7 +1308,7 @@ open func emptyTrash()throws  -> UInt32  {
 }
     
     /**
-     * Retourne la database complète sérialisée en JSON (avec entrées et vues).
+     * Returns the full database serialized as JSON (with entries and views).
      */
 open func getDatabaseJson(id: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1320,7 +1320,7 @@ open func getDatabaseJson(id: String)throws  -> String  {
 }
     
     /**
-     * Retourne le document complet sérialisé en JSON (avec blocs).
+     * Returns the full document serialized as JSON (with blocks).
      */
 open func getDocumentJson(id: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1353,7 +1353,7 @@ open func getFolder(id: String)throws  -> FolderMetaFfi  {
 }
     
     /**
-     * Retourne les groupes d'entrées en JSON.
+     * Returns the grouped entries as JSON.
      */
 open func groupedQueryDatabaseJson(dbId: String, viewId: String, groupBy: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1367,8 +1367,8 @@ open func groupedQueryDatabaseJson(dbId: String, viewId: String, groupBy: String
 }
     
     /**
-     * Importe les notes Bear depuis la SQLite locale de Bear.
-     * `db_path` est le chemin absolu vers `database.sqlite` de Bear.
+     * Imports Bear notes from Bear's local SQLite database.
+     * `db_path` is the absolute path to Bear's `database.sqlite`.
      */
 open func importFromBear(dbPath: String)async throws  -> ImportResultFfi  {
     return
@@ -1388,8 +1388,8 @@ open func importFromBear(dbPath: String)async throws  -> ImportResultFfi  {
 }
     
     /**
-     * Importe les pages Craft depuis le fichier `.realm` local de Craft.
-     * `db_path` est le chemin absolu vers le fichier `.realm` de Craft.
+     * Imports Craft pages from Craft's local `.realm` file.
+     * `db_path` is the absolute path to Craft's `.realm` file.
      */
 open func importFromCraft(dbPath: String)async throws  -> ImportResultFfi  {
     return
@@ -1409,9 +1409,9 @@ open func importFromCraft(dbPath: String)async throws  -> ImportResultFfi  {
 }
     
     /**
-     * Combine le fichier `.realm` de Craft et un dossier de `.textbundle` :
-     * les pages ayant un textbundle correspondant utilisent son contenu markdown ;
-     * les autres pages utilisent le contenu realm.
+     * Combines Craft's `.realm` file with a folder of `.textbundle` exports:
+     * pages with a matching textbundle use its markdown content;
+     * the remaining pages use the realm content.
      */
 open func importFromCraftCombined(realmPath: String, textbundleRoot: String)async throws  -> ImportResultFfi  {
     return
@@ -1431,8 +1431,8 @@ open func importFromCraftCombined(realmPath: String, textbundleRoot: String)asyn
 }
     
     /**
-     * Importe les pages Craft depuis un dossier de `.textbundle` exporté par Craft.
-     * `root_dir` est le chemin absolu vers le dossier racine de l'export.
+     * Imports Craft pages from a folder of `.textbundle` packages exported by Craft.
+     * `root_dir` is the absolute path to the export's root folder.
      */
 open func importFromCraftTextbundle(rootDir: String)async throws  -> ImportResultFfi  {
     return
@@ -1452,17 +1452,17 @@ open func importFromCraftTextbundle(rootDir: String)async throws  -> ImportResul
 }
     
     /**
-     * Importe une database Notion complète (schéma + pages + blocs).
-     * `token` est un bearer token OAuth2 ou private integration token.
-     * `database_id` est un UUID 32-char hex ou l'URL complète Notion.
+     * Imports a full Notion database (schema + pages + blocks).
+     * `token` is an OAuth2 bearer token or a private integration token.
+     * `database_id` is a 32-char hex UUID or the full Notion URL.
      *
-     * Synchrone côté FFI : Notion utilise `reqwest`, qui exige un runtime
-     * Tokio absent de l'executor UniFFI. On `block_on` côté Rust, donc Swift
-     * doit appeler depuis `Task.detached` pour ne pas bloquer le main thread.
-     * `covers_dir` est un chemin absolu vers un dossier existant où les
-     * images de cover sont téléchargées. Quand null, on stocke seulement
-     * l'URL — OK pour les covers externes mais celles hébergées par Notion
-     * expirent au bout d'~1h.
+     * Synchronous on the FFI side: Notion uses `reqwest`, which requires a
+     * Tokio runtime that UniFFI's executor does not provide. Rust calls
+     * `block_on`, so Swift must dispatch from `Task.detached` to avoid
+     * blocking the main thread.
+     * `covers_dir` is an absolute path to an existing directory where cover
+     * images are downloaded. When null, only the URL is stored — fine for
+     * external covers but Notion-hosted ones expire after ~1h.
      */
 open func importFromNotion(token: String, databaseId: String, coversDir: String?)throws  -> ImportResultFfi  {
     return try  FfiConverterTypeImportResultFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1476,8 +1476,8 @@ open func importFromNotion(token: String, databaseId: String, coversDir: String?
 }
     
     /**
-     * Indente un bloc : le déplace sous le frère précédent au même niveau.
-     * `InvalidOperation` si le bloc est le premier de son niveau.
+     * Indents a block: moves it under the previous sibling at the same level.
+     * `InvalidOperation` when the block is the first of its level.
      */
 open func indentBlock(docId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_indent_block(
@@ -1489,7 +1489,7 @@ open func indentBlock(docId: String, blockId: String)throws   {try rustCallWithE
 }
     
     /**
-     * Liste les enfants directs d'un document parent (page-in-page).
+     * Lists the direct children of a parent document (page-in-page).
      */
 open func listChildDocuments(parentDocId: String)throws  -> [DocumentMetaFfi]  {
     return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1513,7 +1513,7 @@ open func listChildFolders(parentId: String?)throws  -> [FolderMetaFfi]  {
 }
     
     /**
-     * Liste les métadonnées de toutes les databases actives.
+     * Lists metadata for every active database.
      */
 open func listDatabases()throws  -> [DatabaseMetaFfi]  {
     return try  FfiConverterSequenceTypeDatabaseMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1524,7 +1524,7 @@ open func listDatabases()throws  -> [DatabaseMetaFfi]  {
 }
     
     /**
-     * Liste les databases en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     * Lists trashed databases (soft-deleted), most recently deleted first.
      */
 open func listDeletedDatabases()throws  -> [DatabaseMetaFfi]  {
     return try  FfiConverterSequenceTypeDatabaseMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1535,7 +1535,7 @@ open func listDeletedDatabases()throws  -> [DatabaseMetaFfi]  {
 }
     
     /**
-     * Liste les documents en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     * Lists trashed documents (soft-deleted), most recently deleted first.
      */
 open func listDeletedDocuments()throws  -> [DocumentMetaFfi]  {
     return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1546,7 +1546,7 @@ open func listDeletedDocuments()throws  -> [DocumentMetaFfi]  {
 }
     
     /**
-     * Liste les entries soft-deleted d'une database (JSON array).
+     * Lists a database's soft-deleted entries (JSON array).
      */
 open func listDeletedEntriesJson(dbId: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1558,7 +1558,7 @@ open func listDeletedEntriesJson(dbId: String)throws  -> String  {
 }
     
     /**
-     * Liste les dossiers en corbeille (soft-deleted), du plus récemment supprimé en premier.
+     * Lists trashed folders (soft-deleted), most recently deleted first.
      */
 open func listDeletedFolders()throws  -> [FolderMetaFfi]  {
     return try  FfiConverterSequenceTypeFolderMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1569,7 +1569,7 @@ open func listDeletedFolders()throws  -> [FolderMetaFfi]  {
 }
     
     /**
-     * Liste les métadonnées de tous les documents actifs.
+     * Lists metadata for every active document.
      */
 open func listDocuments()throws  -> [DocumentMetaFfi]  {
     return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1597,8 +1597,8 @@ open func listFolders()throws  -> [FolderMetaFfi]  {
 }
     
     /**
-     * Liste les databases Notion accessibles avec le token donné. Utilisé
-     * par le picker côté Swift pour éviter à l'utilisateur de coller des URLs.
+     * Lists the Notion databases reachable with the given token. Used by
+     * the Swift-side picker so the user never has to paste URLs.
      */
 open func listNotionDatabases(token: String)throws  -> [NotionDatabaseSummaryFfi]  {
     return try  FfiConverterSequenceTypeNotionDatabaseSummaryFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1610,10 +1610,10 @@ open func listNotionDatabases(token: String)throws  -> [NotionDatabaseSummaryFfi
 }
     
     /**
-     * Comme [`list_notion_databases`] mais utilise le chemin Notion
-     * API 2025-09-03 data-source-aware sous le capot — récupère
-     * aussi les DBs multi-source que le filtre legacy rate. Le
-     * picker devrait préférer cette version.
+     * Same as [`list_notion_databases`] but uses the 2025-09-03
+     * data-source-aware Notion API path under the hood — also catches
+     * the multi-source DBs the legacy filter misses. Pickers should
+     * prefer this version.
      */
 open func listNotionDatabasesV2025(token: String)throws  -> [NotionDatabaseSummaryFfi]  {
     return try  FfiConverterSequenceTypeNotionDatabaseSummaryFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1625,7 +1625,7 @@ open func listNotionDatabasesV2025(token: String)throws  -> [NotionDatabaseSumma
 }
     
     /**
-     * Liste les pages racine (documents sans parent). Alimente la home.
+     * Lists root pages (documents with no parent). Drives the home view.
      */
 open func listRootDocuments()throws  -> [DocumentMetaFfi]  {
     return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1636,7 +1636,7 @@ open func listRootDocuments()throws  -> [DocumentMetaFfi]  {
 }
     
     /**
-     * Déplace un bloc vers un parent ou vers la racine si `new_parent_id` est nul.
+     * Moves a block under a parent, or to the root when `new_parent_id` is null.
      */
 open func moveBlock(docId: String, blockId: String, newParentId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_move_block(
@@ -1667,9 +1667,9 @@ open func moveFolderTo(id: String, newParentId: String?)throws   {try rustCallWi
 }
     
     /**
-     * Désindente un bloc : le sort de son parent et le replace au niveau du
-     * grand-parent, juste après l'ancien parent. `InvalidOperation` si le
-     * bloc est déjà à la racine.
+     * Outdents a block: moves it out of its parent up to the grandparent
+     * level, right after the former parent. `InvalidOperation` when the
+     * block is already at the root.
      */
 open func outdentBlock(docId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_outdent_block(
@@ -1681,7 +1681,7 @@ open func outdentBlock(docId: String, blockId: String)throws   {try rustCallWith
 }
     
     /**
-     * Supprime définitivement une database de la corbeille (hard delete).
+     * Permanently deletes a database from the trash (hard delete).
      */
 open func purgeDatabase(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_purge_database(
@@ -1692,7 +1692,7 @@ open func purgeDatabase(id: String)throws   {try rustCallWithError(FfiConverterT
 }
     
     /**
-     * Supprime définitivement un document de la corbeille (hard delete).
+     * Permanently deletes a document from the trash (hard delete).
      */
 open func purgeDocument(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_purge_document(
@@ -1703,7 +1703,7 @@ open func purgeDocument(id: String)throws   {try rustCallWithError(FfiConverterT
 }
     
     /**
-     * Supprime définitivement une entry soft-deleted (hard delete).
+     * Permanently deletes a soft-deleted entry (hard delete).
      */
 open func purgeEntry(dbId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_purge_entry(
@@ -1715,7 +1715,7 @@ open func purgeEntry(dbId: String, entryId: String)throws   {try rustCallWithErr
 }
     
     /**
-     * Supprime définitivement un dossier de la corbeille (hard delete).
+     * Permanently deletes a folder from the trash (hard delete).
      */
 open func purgeFolder(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_purge_folder(
@@ -1726,7 +1726,7 @@ open func purgeFolder(id: String)throws   {try rustCallWithError(FfiConverterTyp
 }
     
     /**
-     * Retourne les entrées filtrées/triées en JSON.
+     * Returns the filtered/sorted entries as JSON.
      */
 open func queryDatabaseJson(dbId: String, viewId: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1739,7 +1739,7 @@ open func queryDatabaseJson(dbId: String, viewId: String)throws  -> String  {
 }
     
     /**
-     * Retourne les entrées filtrées/triées avec rollups calculés en JSON.
+     * Returns the filtered/sorted entries with computed rollups as JSON.
      */
 open func queryDatabaseWithRollupsJson(dbId: String, viewId: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1771,7 +1771,7 @@ open func renameProperty(dbId: String, propertyId: String, newName: String)throw
 }
     
     /**
-     * Réordonne les blocs racine selon la liste d'UUIDs fournie.
+     * Reorders the root blocks according to the supplied UUID list.
      */
 open func reorderBlocks(docId: String, order: [String])throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_reorder_blocks(
@@ -1783,7 +1783,7 @@ open func reorderBlocks(docId: String, order: [String])throws   {try rustCallWit
 }
     
     /**
-     * Réordonne les enfants directs d'un bloc parent.
+     * Reorders the direct children of a parent block.
      */
 open func reorderChildBlocks(docId: String, parentId: String, order: [String])throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_reorder_child_blocks(
@@ -1796,7 +1796,7 @@ open func reorderChildBlocks(docId: String, parentId: String, order: [String])th
 }
     
     /**
-     * Restaure une database depuis la corbeille.
+     * Restores a database from the trash.
      */
 open func restoreDatabase(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_restore_database(
@@ -1807,7 +1807,7 @@ open func restoreDatabase(id: String)throws   {try rustCallWithError(FfiConverte
 }
     
     /**
-     * Restaure un document depuis la corbeille.
+     * Restores a document from the trash.
      */
 open func restoreDocument(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_restore_document(
@@ -1818,7 +1818,7 @@ open func restoreDocument(id: String)throws   {try rustCallWithError(FfiConverte
 }
     
     /**
-     * Restaure une entry depuis la corbeille de sa database.
+     * Restores an entry from its database's trash.
      */
 open func restoreEntry(dbId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_restore_entry(
@@ -1830,7 +1830,7 @@ open func restoreEntry(dbId: String, entryId: String)throws   {try rustCallWithE
 }
     
     /**
-     * Restaure un dossier depuis la corbeille.
+     * Restores a folder from the trash.
      */
 open func restoreFolder(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_restore_folder(
@@ -1841,7 +1841,7 @@ open func restoreFolder(id: String)throws   {try rustCallWithError(FfiConverterT
 }
     
     /**
-     * Retourne les entrées correspondant à la recherche en JSON.
+     * Returns the entries matching the search query as JSON.
      */
 open func searchDatabaseEntriesJson(dbId: String, query: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1854,7 +1854,7 @@ open func searchDatabaseEntriesJson(dbId: String, query: String)throws  -> Strin
 }
     
     /**
-     * Recherche par titre de database.
+     * Search across database titles.
      */
 open func searchDatabases(query: String)throws  -> [DatabaseMetaFfi]  {
     return try  FfiConverterSequenceTypeDatabaseMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1866,7 +1866,7 @@ open func searchDatabases(query: String)throws  -> [DatabaseMetaFfi]  {
 }
     
     /**
-     * Recherche insensible à la casse dans les titles.
+     * Case-insensitive search across document titles.
      */
 open func searchDocuments(query: String)throws  -> [DocumentMetaFfi]  {
     return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1878,7 +1878,7 @@ open func searchDocuments(query: String)throws  -> [DocumentMetaFfi]  {
 }
     
     /**
-     * Recherche par nom de folder.
+     * Search across folder names.
      */
 open func searchFolders(query: String)throws  -> [FolderMetaFfi]  {
     return try  FfiConverterSequenceTypeFolderMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1890,7 +1890,7 @@ open func searchFolders(query: String)throws  -> [FolderMetaFfi]  {
 }
     
     /**
-     * Recherche plein texte dans les blocs.
+     * Full-text search across block content.
      */
 open func searchInBlocks(query: String)throws  -> [DocumentMetaFfi]  {
     return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1902,7 +1902,7 @@ open func searchInBlocks(query: String)throws  -> [DocumentMetaFfi]  {
 }
     
     /**
-     * Recherche plein texte avec extrait (snippet) du bloc qui matche.
+     * Full-text search returning a snippet of each matching block.
      */
 open func searchInBlocksWithSnippets(query: String)throws  -> [BlockSearchHitFfi]  {
     return try  FfiConverterSequenceTypeBlockSearchHitFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1914,7 +1914,7 @@ open func searchInBlocksWithSnippets(query: String)throws  -> [BlockSearchHitFfi
 }
     
     /**
-     * Pose ou retire la couleur de fond du bloc (highlight style Craft).
+     * Sets or clears the block's background color (Craft-style highlight).
      */
 open func setBlockBackgroundColor(docId: String, blockId: String, backgroundColor: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_set_block_background_color(
@@ -1927,9 +1927,9 @@ open func setBlockBackgroundColor(docId: String, blockId: String, backgroundColo
 }
     
     /**
-     * Pose ou retire la couleur d'un bloc (texte). `color` est un nom de
-     * couleur (`"red"`, `"blue"`, etc.) ou `null` pour revenir au thème.
-     * Les couleurs inline sur les spans ont toujours priorité.
+     * Sets or clears a block's text color. `color` is a color name
+     * (`"red"`, `"blue"`, etc.) or `null` to revert to the theme.
+     * Inline colors on spans always take priority.
      */
 open func setBlockColor(docId: String, blockId: String, color: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_set_block_color(
@@ -1942,8 +1942,8 @@ open func setBlockColor(docId: String, blockId: String, color: String?)throws   
 }
     
     /**
-     * Pose ou retire la direction d'écriture du bloc ("ltr" / "rtl").
-     * `null` = hérite du document.
+     * Sets or clears the block's writing direction ("ltr" / "rtl").
+     * `null` = inherit from the document.
      */
 open func setBlockTextDirection(docId: String, blockId: String, textDirection: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_set_block_text_direction(
@@ -1956,9 +1956,9 @@ open func setBlockTextDirection(docId: String, blockId: String, textDirection: S
 }
     
     /**
-     * Set le sort de la vue sur created_at ou published_at de l'entrée.
-     * `kind` = "created" ou "published". Pas de property_id (les timestamps
-     * vivent sur Entry, pas sur une colonne).
+     * Sets the view's sort to the entry-level created_at or published_at.
+     * `kind` = "created" or "published". No property_id (the timestamps
+     * live on Entry, not on a column).
      */
 open func setViewDateSort(dbId: String, viewId: String, kind: String, ascending: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_set_view_date_sort(
@@ -1972,8 +1972,8 @@ open func setViewDateSort(dbId: String, viewId: String, kind: String, ascending:
 }
     
     /**
-     * Pose un tri unique sur une vue, en remplaçant ceux qui existent.
-     * `property_id = null` retire le tri.
+     * Sets a single sort on a view, replacing any existing ones.
+     * `property_id = null` clears the sort.
      */
 open func setViewSort(dbId: String, viewId: String, propertyId: String?, ascending: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_set_view_sort(
@@ -2000,7 +2000,7 @@ open func superSearch(query: String)throws  -> SuperSearchResultsFfi  {
 }
     
     /**
-     * Remplace le contenu d'un bloc existant (JSON de BlockContent).
+     * Replaces the content of an existing block (BlockContent JSON).
      */
 open func updateBlock(docId: String, blockId: String, contentJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_block(
@@ -2013,7 +2013,7 @@ open func updateBlock(docId: String, blockId: String, contentJson: String)throws
 }
     
     /**
-     * Remplace ou efface l'image de couverture de la database.
+     * Replaces or clears the database's cover image.
      */
 open func updateDatabaseCover(id: String, cover: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_database_cover(
@@ -2025,7 +2025,7 @@ open func updateDatabaseCover(id: String, cover: String?)throws   {try rustCallW
 }
     
     /**
-     * Remplace la description rich-text de la database (chaîne vide = efface).
+     * Replaces the database's rich-text description (empty string clears it).
      */
 open func updateDatabaseDescription(id: String, description: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_database_description(
@@ -2037,7 +2037,7 @@ open func updateDatabaseDescription(id: String, description: String)throws   {tr
 }
     
     /**
-     * Remplace ou efface l'icône (emoji / fichier / URL) de la database.
+     * Replaces or clears the database's icon (emoji / file / URL).
      */
 open func updateDatabaseIcon(id: String, icon: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_database_icon(
@@ -2049,7 +2049,7 @@ open func updateDatabaseIcon(id: String, icon: String?)throws   {try rustCallWit
 }
     
     /**
-     * Bascule le flag read-only de la database.
+     * Flips the database's read-only flag.
      */
 open func updateDatabaseLocked(id: String, locked: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_database_locked(
@@ -2061,7 +2061,7 @@ open func updateDatabaseLocked(id: String, locked: Bool)throws   {try rustCallWi
 }
     
     /**
-     * Remplace le titre rich-text de la database.
+     * Replaces the database's rich-text title.
      */
 open func updateDatabaseTitle(id: String, newTitle: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_database_title(
@@ -2073,9 +2073,9 @@ open func updateDatabaseTitle(id: String, newTitle: String)throws   {try rustCal
 }
     
     /**
-     * Pose ou retire l'accent color du document (override par-doc de
-     * l'accent global). Nom de couleur ("red", "teal"...) ou null
-     * pour repartir sur l'accent des Settings.
+     * Sets or clears the document's accent color (per-doc override of
+     * the global accent). Color name ("red", "teal"...) or null to
+     * fall back to the Settings accent.
      */
 open func updateDocumentAccentColor(id: String, accentColor: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_document_accent_color(
@@ -2096,7 +2096,7 @@ open func updateDocumentCover(id: String, cover: String?)throws   {try rustCallW
 }
     
     /**
-     * Pose ou retire l'icône d'un document (emoji, filename local, ou URL).
+     * Sets or clears a document's icon (emoji, local filename, or URL).
      */
 open func updateDocumentIcon(id: String, icon: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_document_icon(
@@ -2108,9 +2108,9 @@ open func updateDocumentIcon(id: String, icon: String?)throws   {try rustCallWit
 }
     
     /**
-     * Active ou désactive le verrou lecture seule sur un document.
-     * Les imports (Notion/Bear/Craft) appellent automatiquement avec
-     * `locked = true` à la création.
+     * Enables or disables the read-only lock on a document.
+     * Imports (Notion/Bear/Craft) automatically call this with
+     * `locked = true` at creation time.
      */
 open func updateDocumentLocked(id: String, locked: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_document_locked(
@@ -2122,8 +2122,8 @@ open func updateDocumentLocked(id: String, locked: Bool)throws   {try rustCallWi
 }
     
     /**
-     * Définit le document parent (page imbriquée à la Notion). `None` pour
-     * repromouvoir le document à la racine. Rejette les cycles.
+     * Sets the parent document (Notion-style nested page). `None` to
+     * promote the document back to the root. Rejects cycles.
      */
 open func updateDocumentParent(docId: String, newParentDocId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_document_parent(
@@ -2135,8 +2135,8 @@ open func updateDocumentParent(docId: String, newParentDocId: String?)throws   {
 }
     
     /**
-     * Override la timestamp publish_at d'un document. Chaîne vide = reset
-     * au défaut (suit created_at).
+     * Overrides a document's published_at timestamp. Empty string =
+     * reset to the default (follows created_at).
      */
 open func updateDocumentPublishedAt(id: String, newPublishedAt: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_document_published_at(
@@ -2148,8 +2148,8 @@ open func updateDocumentPublishedAt(id: String, newPublishedAt: String)throws   
 }
     
     /**
-     * Pose ou retire la direction d'écriture par défaut du document.
-     * `null` = locale système. Chaque bloc peut overrider.
+     * Sets or clears the document's default writing direction.
+     * `null` = system locale. Every block can override.
      */
 open func updateDocumentTextDirection(id: String, textDirection: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_document_text_direction(
@@ -2161,8 +2161,8 @@ open func updateDocumentTextDirection(id: String, textDirection: String?)throws 
 }
     
     /**
-     * Pose ou retire le thème par-document.
-     * `null` = hérite de AppSettings.theme.
+     * Sets or clears the per-document theme.
+     * `null` = inherit from AppSettings.theme.
      */
 open func updateDocumentTheme(id: String, theme: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_document_theme(
@@ -2193,8 +2193,8 @@ open func updateEntry(dbId: String, entryId: String, valuesJson: String)throws  
 }
     
     /**
-     * Override la timestamp publish_at d'une entrée.
-     * Chaîne vide = reset au défaut (suit created_at).
+     * Overrides an entry's published_at timestamp.
+     * Empty string = reset to the default (follows created_at).
      */
 open func updateEntryPublishedAt(dbId: String, entryId: String, newPublishedAt: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_entry_published_at(
@@ -2275,8 +2275,8 @@ public func FfiConverterTypePinkhaApi_lower(_ value: PinkhaApi) -> UInt64 {
 
 
 /**
- * Hit d'une recherche dans le contenu des blocs — métadonnées du doc
- * plus extrait du bloc qui matche pour preview style Notion.
+ * One hit from a block-content search — the document metadata plus a
+ * snippet of the matching block for a Notion-style preview.
  */
 public struct BlockSearchHitFfi: Equatable, Hashable {
     public var doc: DocumentMetaFfi
@@ -2337,7 +2337,7 @@ public func FfiConverterTypeBlockSearchHitFfi_lower(_ value: BlockSearchHitFfi) 
 
 
 /**
- * Métadonnées légères d'une database (sans entrées).
+ * Lightweight database metadata (no entries).
  */
 public struct DatabaseMetaFfi: Equatable, Hashable {
     public var id: String
@@ -2414,7 +2414,7 @@ public func FfiConverterTypeDatabaseMetaFfi_lower(_ value: DatabaseMetaFfi) -> R
 
 
 /**
- * Métadonnées légères d'un document (sans blocs).
+ * Lightweight document metadata (no blocks).
  */
 public struct DocumentMetaFfi: Equatable, Hashable {
     public var id: String
@@ -2503,7 +2503,7 @@ public func FfiConverterTypeDocumentMetaFfi_lower(_ value: DocumentMetaFfi) -> R
 
 
 /**
- * Métadonnées légères d'un dossier.
+ * Lightweight folder metadata.
  */
 public struct FolderMetaFfi: Equatable, Hashable {
     public var id: String
@@ -2576,7 +2576,7 @@ public func FfiConverterTypeFolderMetaFfi_lower(_ value: FolderMetaFfi) -> RustB
 
 
 /**
- * Résumé d'une opération d'import retourné à Swift.
+ * Summary of a completed import operation, returned to Swift.
  */
 public struct ImportResultFfi: Equatable, Hashable {
     public var app: String
@@ -2679,8 +2679,8 @@ public func FfiConverterTypeImportResultFfi_lower(_ value: ImportResultFfi) -> R
 
 
 /**
- * Résumé d'une database Notion retournée par `list_notion_databases` pour
- * le picker UI.
+ * Summary of a Notion database returned by `list_notion_databases` for
+ * the picker UI.
  */
 public struct NotionDatabaseSummaryFfi: Equatable, Hashable {
     public var id: String
