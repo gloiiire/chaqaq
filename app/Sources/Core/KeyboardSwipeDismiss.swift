@@ -122,6 +122,15 @@ final class GlobalKeyboardDismissPan: NSObject, UIGestureRecognizerDelegate {
                 return false
             }
         }
+        // Never observe touches inside a UIAlertController. Alerts
+        // manage their own keyboard (TextField prompts like "New
+        // Folder") and their action "buttons" are private views —
+        // neither UIControl nor UITextInput — so the generic filters
+        // below let the tap through. Firing resignFirstResponder
+        // there dismisses the keyboard mid-press, the alert
+        // re-centers, and the user's tap on Cancel / Create is lost
+        // — they have to tap twice.
+        if Self.touchIsInsideAlert(touch) { return false }
         // Tap-only filter : never fire when the touch landed on a
         // text input, otherwise tapping a sibling TextField would
         // first dismiss the keyboard instead of moving focus.
@@ -129,6 +138,21 @@ final class GlobalKeyboardDismissPan: NSObject, UIGestureRecognizerDelegate {
             return !Self.touchIsOnTextInput(touch)
         }
         return true
+    }
+
+    /// Walks the touched view's superview chain looking for any view
+    /// vended by UIAlertController (`_UIAlertControllerView`,
+    /// `_UIAlertControllerActionView`, …). The type-name match keeps
+    /// us off private API while reliably identifying the alert subtree.
+    private static func touchIsInsideAlert(_ touch: UITouch) -> Bool {
+        var view: UIView? = touch.view
+        while let v = view {
+            if String(describing: type(of: v)).contains("AlertController") {
+                return true
+            }
+            view = v.superview
+        }
+        return false
     }
 
     /// Walks the touched view's hierarchy looking for a UIKit
