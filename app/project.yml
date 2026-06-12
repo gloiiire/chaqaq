@@ -53,9 +53,13 @@ targets:
           - "**/* [2-9].swift"
       - path: ../swift-bindings/pinkha.swift
     resources:
-      # Sources/Assets.xcassets includes Pinkha.icon (Icon Composer
-      # bundle, Xcode 26) alongside the legacy AppIcon.appiconset.
-      # ASSETCATALOG_COMPILER_APPICON_NAME below points actool at Pinkha.
+      # The app icon is an Icon Composer bundle (Xcode 26) living at
+      # app/Pinkha.icon — NOT inside Assets.xcassets. AppIcon.appiconset
+      # there is an intentionally empty fallback. xcodegen cannot register
+      # .icon bundles nor set ASSETCATALOG_COMPILER_APPICON_NAME, so every
+      # `xcodegen generate` MUST be followed by ./scripts/patch-app-icon.rb
+      # (run-on-device.sh runs it automatically) — otherwise the built app
+      # ships the blank placeholder icon.
       - path: Sources/Assets.xcassets
     settings:
       base:
