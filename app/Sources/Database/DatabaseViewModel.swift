@@ -54,6 +54,19 @@ final class DatabaseViewModel: ObservableObject {
     /// sort menu.
     @Published private(set) var activeDateSort: DateSortKind? = nil
 
+    /// Direction of the active date sort. `nil` whenever
+    /// `activeDateSort` is `nil`. Kept separate (not folded into the
+    /// enum) so the toolbar can match kind and direction independently.
+    @Published private(set) var activeDateSortAscending: Bool? = nil
+
+    /// `true` when the active sort is exactly this date sort — kind AND
+    /// direction. Drives the per-row checkmark in the toolbar's date
+    /// sort menu, where "Published newest" and "Published oldest" are
+    /// distinct rows.
+    func isDateSort(_ kind: DateSortKind, ascending: Bool) -> Bool {
+        activeDateSort == kind && activeDateSortAscending == ascending
+    }
+
     /// Date-only sort vocabulary surfaced in the toolbar menu.
     enum DateSortKind: String, Equatable {
         case created
@@ -162,19 +175,24 @@ final class DatabaseViewModel: ObservableObject {
             case "Property":
                 activeSort = ActiveSort(propertyId: s.propertyId, ascending: asc)
                 activeDateSort = nil
+                activeDateSortAscending = nil
             case "Created":
                 activeDateSort = .created
+                activeDateSortAscending = asc
                 activeSort = nil
             case "Published":
                 activeDateSort = .published
+                activeDateSortAscending = asc
                 activeSort = nil
             default:
                 activeSort = nil
                 activeDateSort = nil
+                activeDateSortAscending = nil
             }
         } else {
             activeSort = nil
             activeDateSort = nil
+            activeDateSortAscending = nil
         }
 
         var visible = db.properties.filter { $0.name != pagePropName }
@@ -549,6 +567,7 @@ final class DatabaseViewModel: ObservableObject {
         guard result != nil else { return }
         activeSort = next
         activeDateSort = nil
+        activeDateSortAscending = nil
         refreshSortedEntries()
     }
 
@@ -580,6 +599,7 @@ final class DatabaseViewModel: ObservableObject {
         }
         guard result != nil else { return }
         activeDateSort = kind
+        activeDateSortAscending = kind != nil ? ascending : nil
         if kind != nil {
             // Column sort and date sort are mutually exclusive on
             // the same view — clear the column-sort indicator so the
