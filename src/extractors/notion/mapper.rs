@@ -243,6 +243,26 @@ pub fn map_block(block: &NotionBlock) -> Option<BlockContent> {
             })
         }
         "divider" => Some(BlockContent::Divider),
+        // A reference to an existing page (or database). Mapped to a
+        // paragraph holding a single notion.so link: the post-import
+        // mention-rewriting pass turns it into `pinkha://doc/{uuid}` when
+        // the target is part of the same import, and the promotion pass
+        // then upgrades the sole-link paragraph into a real `Page` block.
+        // Targets outside the import keep a working notion.so URL.
+        "link_to_page" => {
+            let target = block.link_to_page.as_ref()?;
+            let id = target
+                .page_id
+                .as_deref()
+                .or(target.database_id.as_deref())?;
+            Some(BlockContent::Text(vec![InlineText {
+                content: "Linked page".to_string(),
+                styles: vec![InlineStyle::Link(format!(
+                    "https://www.notion.so/{}",
+                    id.replace('-', "")
+                ))],
+            }]))
+        }
         _ => None,
     }
 }
@@ -484,6 +504,7 @@ mod tests {
             code: None,
             child_page: None,
             child_database: None,
+            link_to_page: None,
         }
     }
 
@@ -542,6 +563,7 @@ mod tests {
             numbered_list_item: None,
             child_page: None,
             child_database: None,
+            link_to_page: None,
             code: Some(CodeBlock {
                 rich_text: vec![rt],
                 language: "rust".to_string(),
@@ -576,6 +598,7 @@ mod tests {
             code: None,
             child_page: None,
             child_database: None,
+            link_to_page: None,
         };
         assert!(map_block(&block).is_none());
     }
@@ -628,6 +651,7 @@ mod tests {
             code: None,
             child_page: None,
             child_database: None,
+            link_to_page: None,
         };
         let result = map_block(&block);
         assert!(matches!(
@@ -666,6 +690,7 @@ mod tests {
             code: None,
             child_page: None,
             child_database: None,
+            link_to_page: None,
         };
         let result = map_block(&block);
         assert!(matches!(
@@ -707,6 +732,7 @@ mod tests {
             code: None,
             child_page: None,
             child_database: None,
+            link_to_page: None,
         };
         let result = map_block(&block);
         match result {
@@ -747,6 +773,7 @@ mod tests {
             code: None,
             child_page: None,
             child_database: None,
+            link_to_page: None,
         };
         let result = map_block(&block);
         match result {
@@ -786,6 +813,7 @@ mod tests {
             code: None,
             child_page: None,
             child_database: None,
+            link_to_page: None,
         };
         let result = map_block(&block);
         match result {
@@ -816,6 +844,7 @@ mod tests {
             code: None,
             child_page: None,
             child_database: None,
+            link_to_page: None,
         };
         let result = map_block(&block);
         assert!(matches!(
@@ -968,6 +997,7 @@ mod tests {
             code: None,
             child_page: None,
             child_database: None,
+            link_to_page: None,
         }
     }
 
@@ -1009,6 +1039,7 @@ mod tests {
             code: None,
             child_page: None,
             child_database: None,
+            link_to_page: None,
         };
         assert!(map_block_color(&block).is_none());
     }
@@ -1057,5 +1088,65 @@ mod publish_source_tests {
             prop("Published", PropertyType::Date),
         ];
         assert_eq!(detect_publish_source(&props), None);
+    }
+}
+
+#[cfg(test)]
+mod link_to_page_tests {
+    use super::*;
+    use crate::extractors::notion::schema::LinkToPageBlock;
+
+    fn make_link_to_page_block(page_id: Option<&str>, database_id: Option<&str>) -> NotionBlock {
+        NotionBlock {
+            id: "block-1".to_string(),
+            type_: "link_to_page".to_string(),
+            has_children: false,
+            paragraph: None,
+            heading_1: None,
+            heading_2: None,
+            heading_3: None,
+            callout: None,
+            quote: None,
+            to_do: None,
+            bulleted_list_item: None,
+            numbered_list_item: None,
+            code: None,
+            child_page: None,
+            child_database: None,
+            link_to_page: Some(LinkToPageBlock {
+                page_id: page_id.map(str::to_string),
+                database_id: database_id.map(str::to_string),
+            }),
+        }
+    }
+
+    #[test]
+    fn test_map_block_link_to_page_becomes_notion_link_paragraph() {
+        let block = make_link_to_page_block(Some("12345678-90ab-cdef-1234-567890abcdef"), None);
+        let result = map_block(&block);
+        let Some(crate::domain::document::BlockContent::Text(spans)) = result else {
+            panic!("expected a Text block");
+        };
+        assert_eq!(spans.len(), 1);
+        assert!(spans[0].styles.iter().any(|st| matches!(
+            st,
+            InlineStyle::Link(url) if url == "https://www.notion.so/1234567890abcdef1234567890abcdef"
+        )));
+    }
+
+    #[test]
+    fn test_map_block_link_to_database_uses_database_id() {
+        let block = make_link_to_page_block(None, Some("abcdefab-cdef-abcd-efab-cdefabcdefab"));
+        let result = map_block(&block);
+        assert!(matches!(
+            result,
+            Some(crate::domain::document::BlockContent::Text(_))
+        ));
+    }
+
+    #[test]
+    fn test_map_block_link_to_page_without_target_is_skipped() {
+        let block = make_link_to_page_block(None, None);
+        assert!(map_block(&block).is_none());
     }
 }

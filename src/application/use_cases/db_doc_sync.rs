@@ -70,6 +70,49 @@ pub fn update_entry_propagating_title(
     Ok(())
 }
 
+/// Soft-deletes a database together with every document its rows are
+/// backed by (`Entry.document_id`). Documents already in the trash are
+/// skipped. Returns the number of documents deleted alongside the
+/// database — the UI surfaces it in the confirmation feedback.
+pub fn delete_database_cascade(uow: &dyn UnitOfWork, db_id: Uuid) -> Result<u32, PinkhaError> {
+    // Load before deleting — `load` only sees active databases.
+    let db = uow.databases().load(db_id)?;
+    let doc_ids: Vec<Uuid> = db.entries.iter().filter_map(|e| e.document_id).collect();
+    database_use_cases::delete_database(uow, db_id)?;
+
+    let mut deleted: u32 = 0;
+    for doc_id in doc_ids {
+        match doc_use_cases::delete_document(uow, doc_id) {
+            Ok(()) => deleted += 1,
+            // Already trashed or purged — nothing left to delete.
+            Err(PinkhaError::NotFound(_)) => {}
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(deleted)
+}
+
+/// Restores a soft-deleted database together with every document its
+/// rows are backed by. Documents that are not in the trash (still
+/// active, or purged for good) are skipped. Returns the number of
+/// documents restored alongside the database.
+pub fn restore_database_cascade(uow: &dyn UnitOfWork, db_id: Uuid) -> Result<u32, PinkhaError> {
+    // Restore first — `load` only sees active databases.
+    database_use_cases::restore_database(uow, db_id)?;
+    let db = uow.databases().load(db_id)?;
+
+    let mut restored: u32 = 0;
+    for doc_id in db.entries.iter().filter_map(|e| e.document_id) {
+        match doc_use_cases::restore_document(uow, doc_id) {
+            Ok(()) => restored += 1,
+            // Active (nothing to restore) or purged (nothing left).
+            Err(PinkhaError::NotFound(_)) => {}
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(restored)
+}
+
 /// Sets (or clears with `None`) the Date column that drives every row's
 /// `published_at` in this database, then re-syncs all rows:
 /// - adopting a column backfills `published_at` on each entry from the

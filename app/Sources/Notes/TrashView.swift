@@ -19,6 +19,9 @@ struct TrashView: View {
     @State private var editMode: EditMode = .inactive
     @State private var selectedIds: Set<String> = []
     @State private var showBulkPurgeConfirm = false
+    /// Database staged for the restore confirmation dialog — the user
+    /// decides whether its trashed pages come back with it.
+    @State private var pendingDatabaseRestore: DatabaseMetaFfi?
 
     private var totalCount: Int {
         deletedDocs.count + deletedDatabases.count + deletedFolders.count
@@ -94,6 +97,7 @@ struct TrashView: View {
                     }
                 }
             }
+            .databaseRestoreDialog(pending: $pendingDatabaseRestore, store: store, onDone: reload)
             .confirmationDialog(
                 "Empty the trash?",
                 isPresented: $showEmptyConfirm,
@@ -180,8 +184,9 @@ struct TrashView: View {
             title: db.titlePlain.isEmpty ? "Untitled" : db.titlePlain,
             icon: "tablecells",
             onRestore: {
-                store.restoreDatabase(id: db.id)
-                reload()
+                // Stage the dialog — the user picks whether the pages
+                // deleted alongside the database come back with it.
+                pendingDatabaseRestore = db
             },
             onPurge: {
                 store.purgeDatabase(id: db.id)

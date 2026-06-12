@@ -256,6 +256,13 @@ struct NotionImportView: View {
                     ProgressView()
                     Text("Importing \(current + 1) of \(total)…").foregroundStyle(.secondary)
                 }
+                // Cancellation flips a Rust-side flag; the import loop rolls
+                // back everything the current database import created
+                // (documents + database) before returning. Databases that
+                // finished importing before the cancel stay.
+                Button("Cancel import", role: .destructive) {
+                    api?.cancelImport()
+                }
             }
         }
         if case .failed(let msg) = state {
@@ -420,6 +427,15 @@ struct NotionImportView: View {
                     )
                     totals.add(result)
                 } catch let err as PinkhaError {
+                    // Cancellation is a user action, not a failure — show a
+                    // calm confirmation instead of the raw error message.
+                    if case .InvalidOperation(let detail) = err, detail == "import cancelled" {
+                        await MainActor.run {
+                            state = .failed(String(
+                                localized: "Import cancelled — pages from the interrupted database were removed."))
+                        }
+                        return
+                    }
                     let message = err.userMessage
                     await MainActor.run { state = .failed(message) }
                     return

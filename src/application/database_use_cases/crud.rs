@@ -55,6 +55,13 @@ pub fn update_database_title(
 ) -> Result<(), PinkhaError> {
     let repo = uow.databases();
     let mut db = repo.load(db_id)?;
+    // The lock is enforced here, not just in the UI — any future surface
+    // (shortcuts, sync, new views) hits the same wall.
+    if db.locked {
+        return Err(PinkhaError::InvalidOperation(
+            "database is locked".to_string(),
+        ));
+    }
     db.title = title;
     repo.save(&db)
 }
@@ -93,6 +100,13 @@ pub fn update_database_description(
 ) -> Result<(), PinkhaError> {
     let repo = uow.databases();
     let mut db = repo.load(db_id)?;
+    // Same wall as `update_database_title` — the lock is enforced at the
+    // use-case layer, not just in the UI.
+    if db.locked {
+        return Err(PinkhaError::InvalidOperation(
+            "database is locked".to_string(),
+        ));
+    }
     db.description = description;
     repo.save(&db)
 }

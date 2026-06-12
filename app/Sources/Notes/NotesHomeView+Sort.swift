@@ -187,7 +187,9 @@ extension NotesHomeView {
                         Button(role: .destructive) {
                             switch item {
                             case .note(let d):      store.delete(id: d.id)
-                            case .database(let db): store.deleteDatabase(id: db.id)
+                            // Stage the dialog — the user picks whether
+                            // the pages inside follow the database.
+                            case .database(let db): pendingDatabaseDeletion = db
                             }
                         } label: {
                             Label("Delete", systemImage: "trash")

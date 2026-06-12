@@ -253,6 +253,9 @@ impl Extractor for NotionExtractor {
         _folders: &(dyn FolderRepository + Send + Sync),
     ) -> Result<ImportResult, ExtractorError> {
         // 1. Normalise the database ID.
+        // A cancel requested after a previous run must not kill this one.
+        crate::extractors::cancel::reset();
+
         let db_id = extract_database_id(&config.database_id);
 
         // 2. Build the HTTP client.
@@ -390,6 +393,16 @@ impl Extractor for NotionExtractor {
             let mut imported = stream::iter(page_futures).buffered(IMPORT_CONCURRENCY);
 
             while let Some(result) = imported.next().await {
+                // Cancellation checkpoint: drop the in-flight futures,
+                // purge everything this run created and bail. The
+                // map already contains every materialised document
+                // (top pages register themselves right after their
+                // doc is created) so the rollback is complete.
+                if crate::extractors::cancel::requested() {
+                    drop(imported);
+                    purge_partial_import(docs, dbs, pinkha_db_id, &notion_to_pinkha);
+                    return Err(ExtractorError::Cancelled);
+                }
                 let page = result?;
                 {
                     let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
@@ -400,10 +413,6 @@ impl Extractor for NotionExtractor {
                         page.doc_id,
                     )?;
                 }
-                notion_to_pinkha
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .insert(normalize_notion_id(&page.notion_page_id), page.doc_id);
 
                 // The database row contributes the page itself; nested
                 // child_page blocks turn into additional pinkha documents
@@ -466,13 +475,34 @@ impl Extractor for NotionExtractor {
     }
 }
 
+/// Rolls back a cancelled import: hard-deletes every document the run
+/// created (top pages and nested child pages — all registered in
+/// `notion_to_pinkha`) plus the freshly created database. Best-effort on
+/// purpose — a rollback must never surface an error of its own.
+fn purge_partial_import(
+    docs: &(dyn DocumentRepository + Send + Sync),
+    dbs: &(dyn DatabaseRepository + Send + Sync),
+    db_id: Uuid,
+    notion_to_pinkha: &Mutex<HashMap<String, Uuid>>,
+) {
+    let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
+    let map = notion_to_pinkha.lock().unwrap_or_else(|e| e.into_inner());
+    for doc_id in map.values() {
+        // Soft-delete first (purge only touches trashed rows), then purge —
+        // a cancelled import should leave no trace, not fill the trash.
+        let _ = use_cases::delete_document(&uow, *doc_id);
+        let _ = use_cases::purge_document(&uow, *doc_id);
+    }
+    let _ = database_use_cases::delete_database(&uow, db_id);
+    let _ = database_use_cases::purge_database(&uow, db_id);
+}
+
 // ── Page import helper ────────────────────────────────────────────────────────
 
 /// Everything `import_page` produced for one Notion page. The entry
 /// values are returned (not inserted) so the caller can append database
 /// rows sequentially, in order, outside the concurrent fetch window.
 struct ImportedPage {
-    notion_page_id: String,
     doc_id: Uuid,
     values: HashMap<Uuid, PropertyValue>,
     block_count: usize,
@@ -526,6 +556,13 @@ async fn import_page(
         use_cases::create_document_with_created_at(&uow, &plain_title, page.created_time.clone())?
     };
     let doc_id = doc.id;
+    // Register the mapping immediately: if the user cancels while this
+    // future is still in flight, the rollback walks the map — a document
+    // created but not yet registered would leak.
+    notion_to_pinkha
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(normalize_notion_id(&page.id), doc_id);
 
     // Debug log : record the Notion-side timestamp + what we forwarded
     // so we can verify the createdAt round-trip after import.
@@ -614,7 +651,6 @@ async fn import_page(
     }
 
     Ok(ImportedPage {
-        notion_page_id: page.id.clone(),
         doc_id,
         values,
         block_count,

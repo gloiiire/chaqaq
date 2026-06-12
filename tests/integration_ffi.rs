@@ -1821,3 +1821,104 @@ fn adopting_known_text_property_is_invalid_operation() {
     let err = a.set_published_at_source(db, Some(prop_id)).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
+
+// ── delete_database_cascade / restore_database_cascade ──────────────────────
+
+#[test]
+fn delete_cascade_trashes_database_and_backing_documents() {
+    let a = api();
+    let db = a.create_database("Book".to_string()).unwrap();
+    let d1 = a.create_document("Page 1".to_string()).unwrap();
+    let d2 = a.create_document("Page 2".to_string()).unwrap();
+    a.attach_document_to_database(db.clone(), d1.clone(), "{}".to_string())
+        .unwrap();
+    a.attach_document_to_database(db.clone(), d2.clone(), "{}".to_string())
+        .unwrap();
+    // A standalone row with no backing document must not break the cascade.
+    a.add_entry(db.clone(), "{}".to_string()).unwrap();
+
+    let deleted = a.delete_database_cascade(db.clone()).unwrap();
+    assert_eq!(deleted, 2);
+    assert!(a.list_databases().unwrap().is_empty());
+    assert!(a.list_documents().unwrap().is_empty());
+    // Everything is recoverable from the trash.
+    assert_eq!(a.list_deleted_documents().unwrap().len(), 2);
+    assert_eq!(a.list_deleted_databases().unwrap().len(), 1);
+}
+
+#[test]
+fn delete_cascade_skips_documents_already_in_the_trash() {
+    let a = api();
+    let db = a.create_database("Book".to_string()).unwrap();
+    let d1 = a.create_document("Page 1".to_string()).unwrap();
+    a.attach_document_to_database(db.clone(), d1.clone(), "{}".to_string())
+        .unwrap();
+    a.delete_document(d1).unwrap();
+
+    let deleted = a.delete_database_cascade(db).unwrap();
+    assert_eq!(deleted, 0);
+}
+
+#[test]
+fn restore_cascade_brings_back_database_and_documents() {
+    let a = api();
+    let db = a.create_database("Book".to_string()).unwrap();
+    let d1 = a.create_document("Page 1".to_string()).unwrap();
+    a.attach_document_to_database(db.clone(), d1.clone(), "{}".to_string())
+        .unwrap();
+    a.delete_database_cascade(db.clone()).unwrap();
+
+    let restored = a.restore_database_cascade(db).unwrap();
+    assert_eq!(restored, 1);
+    assert_eq!(a.list_databases().unwrap().len(), 1);
+    assert_eq!(a.list_documents().unwrap().len(), 1);
+    assert!(a.list_deleted_documents().unwrap().is_empty());
+}
+
+#[test]
+fn restore_cascade_skips_documents_that_stayed_active() {
+    let a = api();
+    let db = a.create_database("Book".to_string()).unwrap();
+    let d1 = a.create_document("Page 1".to_string()).unwrap();
+    a.attach_document_to_database(db.clone(), d1, "{}".to_string())
+        .unwrap();
+    // DB-only delete: the doc stays active.
+    a.delete_database(db.clone()).unwrap();
+
+    let restored = a.restore_database_cascade(db).unwrap();
+    assert_eq!(restored, 0);
+    assert_eq!(a.list_documents().unwrap().len(), 1);
+}
+
+#[test]
+fn delete_cascade_unknown_database_fails() {
+    let a = api();
+    let err = a
+        .delete_database_cascade(Uuid::new_v4().to_string())
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::NotFound { .. }));
+}
+
+// ── Locked database guards ───────────────────────────────────────────────────
+
+#[test]
+fn locked_database_rejects_title_and_description_edits() {
+    let a = api();
+    let db = a.create_database("Sealed".to_string()).unwrap();
+    a.update_database_locked(db.clone(), true).unwrap();
+
+    let err = a
+        .update_database_title(db.clone(), "New title".to_string())
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+    let err = a
+        .update_database_description(db.clone(), "New description".to_string())
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+
+    // Unlocking lifts the wall.
+    a.update_database_locked(db.clone(), false).unwrap();
+    a.update_database_title(db.clone(), "New title".to_string())
+        .unwrap();
+    assert!(a.get_database_json(db).unwrap().contains("New title"));
+}
