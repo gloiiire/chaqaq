@@ -490,10 +490,7 @@ struct CreateDocumentSheet: View {
         }
         pickedDatabaseLoading = true
         Task.detached(priority: .userInitiated) {
-            let json = try? api.getDatabaseJson(id: dbId)
-            let decoded: DatabaseFfi? = json
-                .flatMap { $0.data(using: .utf8) }
-                .flatMap { try? JSONDecoder().decode(DatabaseFfi.self, from: $0) }
+            let decoded = try? api.getDatabase(id: dbId)
             await MainActor.run {
                 pickedDatabase = decoded
                 propertyValues = [:]

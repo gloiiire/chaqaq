@@ -508,8 +508,13 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
         Haptic.tap()
         let replaceRange = NSRange(location: session.start,
                                     length: 1 + session.queryLength)
-        let url = URL(string: "pinkha://doc/\(candidate.id)")
-            ?? URL(string: "about:blank")!
+        // `URL(string:)` only fails on a malformed string; the candidate
+        // id is a UUID we just minted, so the primary path always works.
+        // The fallback is paranoia — if it ever did fail we abort the
+        // commit instead of force-unwrapping a second URL.
+        guard let url = URL(string: "pinkha://doc/\(candidate.id)") else {
+            return
+        }
         let m = NSMutableAttributedString(attributedString: tv.attributedText)
         let replacement = NSMutableAttributedString(
             string: candidate.title,

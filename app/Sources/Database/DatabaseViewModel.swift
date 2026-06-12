@@ -622,11 +622,9 @@ final class DatabaseViewModel: ObservableObject {
 
     private func refreshSortedEntries() {
         guard let viewId = primaryViewId,
-              let json = tryCatch(into: &errorMessage, {
-                  try api.queryDatabaseJson(dbId: dbId, viewId: viewId)
-              }),
-              let data = json.data(using: .utf8),
-              let sorted = try? JSONDecoder().decode([EntryFfi].self, from: data)
+              let sorted = tryCatch(into: &errorMessage, {
+                  try api.queryDatabase(dbId: dbId, viewId: viewId)
+              })
         else { return }
         entries = sorted
         iconCache.removeAll(keepingCapacity: true)
@@ -653,10 +651,6 @@ final class DatabaseViewModel: ObservableObject {
     }
 
     private func fetchDB() -> DatabaseFfi? {
-        guard let json = tryCatch(into: &errorMessage, { try api.getDatabaseJson(id: dbId) }),
-              let data = json.data(using: .utf8),
-              let db   = try? JSONDecoder().decode(DatabaseFfi.self, from: data)
-        else { return nil }
-        return db
+        tryCatch(into: &errorMessage) { try api.getDatabase(id: dbId) }
     }
 }
