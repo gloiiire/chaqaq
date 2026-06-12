@@ -29,7 +29,9 @@ struct DatabaseViewModelTests {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
         #expect(vm.titlePlain == "Test DB")
-        #expect(vm.properties.isEmpty)
+        // load() auto-creates the "Name" Title column on fresh databases.
+        #expect(vm.properties.count == 1)
+        #expect(vm.properties[0].name == "Name")
         #expect(vm.entries.isEmpty)
     }
 
@@ -37,8 +39,10 @@ struct DatabaseViewModelTests {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
         #expect(vm.pagePropertyId != nil)
-        // The page property must NOT appear in the visible properties list.
-        #expect(vm.properties.isEmpty)
+        // The page property must NOT appear in the visible properties list —
+        // only the auto-created "Name" Title column is visible.
+        #expect(vm.properties.allSatisfy { $0.name != "__pinkha_page__" })
+        #expect(vm.properties.map(\.name) == ["Name"])
     }
 
     @Test func secondLoadReusesExistingPageProperty() throws {
@@ -100,8 +104,10 @@ struct DatabaseViewModelTests {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
         vm.addProperty(name: "Status", type: .text)
-        #expect(vm.properties.count == 1)
-        #expect(vm.properties[0].name == "Status")
+        // The auto-created "Name" Title column sorts first; the new
+        // column lands after it.
+        #expect(vm.properties.count == 2)
+        #expect(vm.properties.map(\.name) == ["Name", "Status"])
     }
 
     @Test func addPropertyPersistsAcrossLoad() throws {
@@ -109,8 +115,8 @@ struct DatabaseViewModelTests {
         vm.load()
         vm.addProperty(name: "Priority", type: .text)
         vm.load()
-        #expect(vm.properties.count == 1)
-        #expect(vm.properties[0].name == "Priority")
+        #expect(vm.properties.count == 2)
+        #expect(vm.properties.map(\.name) == ["Name", "Priority"])
     }
 
     @Test func updateCellPersistsTextValue() throws {
@@ -119,7 +125,7 @@ struct DatabaseViewModelTests {
         vm.addProperty(name: "Notes", type: .text)
         vm.addEntry()
         let entryId = vm.entries[0].id
-        let propId  = vm.properties[0].id
+        let propId  = try #require(vm.properties.first { $0.name == "Notes" }).id
         vm.updateCell(entryId: entryId, propertyId: propId, value: .text("Done"))
         vm.load()
         #expect(vm.entries[0].values[propId] == .text("Done"))
@@ -131,7 +137,7 @@ struct DatabaseViewModelTests {
         vm.addProperty(name: "Checked", type: .checkbox)
         vm.addEntry()
         let entryId = vm.entries[0].id
-        let propId  = vm.properties[0].id
+        let propId  = try #require(vm.properties.first { $0.name == "Checked" }).id
         vm.updateCell(entryId: entryId, propertyId: propId, value: .checkbox(true))
         vm.load()
         #expect(vm.entries[0].values[propId] == .checkbox(true))
@@ -141,9 +147,10 @@ struct DatabaseViewModelTests {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
         vm.addProperty(name: "Col", type: .text)
-        let propId = vm.properties[0].id
+        let propId = try #require(vm.properties.first { $0.name == "Col" }).id
         vm.deleteProperty(id: propId)
-        #expect(vm.properties.isEmpty)
+        // Only the auto-created "Name" Title column survives.
+        #expect(vm.properties.map(\.name) == ["Name"])
     }
 
     @Test func renamePropertyUpdatesNameInMemory() throws {
