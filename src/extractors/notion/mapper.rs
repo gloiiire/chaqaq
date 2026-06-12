@@ -346,15 +346,15 @@ mod tests {
                 plain_text: "".to_string(),
                 annotations: NotionAnnotations::default(),
                 href: None,
-            run_type: "text".to_string(),
-            mention: None,
+                run_type: "text".to_string(),
+                mention: None,
             },
             NotionRichText {
                 plain_text: "hello".to_string(),
                 annotations: NotionAnnotations::default(),
                 href: None,
-            run_type: "text".to_string(),
-            mention: None,
+                run_type: "text".to_string(),
+                mention: None,
             },
         ];
         let result = map_rich_text(&items);
@@ -401,8 +401,8 @@ mod tests {
                 plain_text: text.to_string(),
                 annotations: NotionAnnotations::default(),
                 href: None,
-            run_type: "text".to_string(),
-            mention: None,
+                run_type: "text".to_string(),
+                mention: None,
             }],
         }
     }
@@ -744,8 +744,8 @@ mod tests {
                     plain_text: "wisdom".to_string(),
                     annotations: NotionAnnotations::default(),
                     href: None,
-            run_type: "text".to_string(),
-            mention: None,
+                    run_type: "text".to_string(),
+                    mention: None,
                 }],
                 color: "default".into(),
             }),

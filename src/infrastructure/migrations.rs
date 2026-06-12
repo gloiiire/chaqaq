@@ -94,7 +94,12 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
     // published date can skip the JSON blob. Backfilled from
     // `created_at` so pre-existing rows sort exactly like before
     // until the user overrides.
-    add_column_if_missing(conn, "documents", "published_at", "TEXT NOT NULL DEFAULT ''")?;
+    add_column_if_missing(
+        conn,
+        "documents",
+        "published_at",
+        "TEXT NOT NULL DEFAULT ''",
+    )?;
     conn.execute(
         "UPDATE documents
             SET published_at = created_at

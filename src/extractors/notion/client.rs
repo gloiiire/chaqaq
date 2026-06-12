@@ -178,8 +178,7 @@ impl NotionClient {
             let bytes = self
                 .send_with_backoff(self.client.post(url).json(&body))
                 .await?;
-            let parsed: super::schema::NotionPageSearchResponse =
-                serde_json::from_slice(&bytes)?;
+            let parsed: super::schema::NotionPageSearchResponse = serde_json::from_slice(&bytes)?;
             results.extend(parsed.results);
             if !parsed.has_more {
                 break;
@@ -263,73 +262,86 @@ impl NotionClient {
     /// every body we send is a serialised JSON `serde_json::Value`
     /// (cloneable).
     ///
-    /// Defaults : 500ms initial interval, 2× multiplier, 8s max
-    /// interval, 30s total elapsed budget, no jitter. The picker
-    /// hits the success path on the first attempt — backoff only
-    /// kicks in during heavy import flows where the 3 req/sec
-    /// Notion rate limit becomes a factor.
+    /// Hand-rolled loop (no `backoff` crate — it is unmaintained,
+    /// RUSTSEC-2024-0384) : 500ms initial interval, 2× multiplier,
+    /// 8s max interval, 30s total elapsed budget, no jitter. The
+    /// picker hits the success path on the first attempt — the
+    /// retries only kick in during heavy import flows where the
+    /// 3 req/sec Notion rate limit becomes a factor.
     async fn send_with_backoff(
         &self,
         builder: reqwest::RequestBuilder,
     ) -> Result<Vec<u8>, ExtractorError> {
-        let policy = backoff::ExponentialBackoffBuilder::new()
-            .with_initial_interval(std::time::Duration::from_millis(500))
-            .with_multiplier(2.0)
-            .with_max_interval(std::time::Duration::from_secs(8))
-            .with_max_elapsed_time(Some(std::time::Duration::from_secs(30)))
-            .build();
-        let builder_arc = std::sync::Arc::new(builder);
+        const INITIAL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
+        const MAX_INTERVAL: std::time::Duration = std::time::Duration::from_secs(8);
+        const MAX_ELAPSED: std::time::Duration = std::time::Duration::from_secs(30);
 
-        backoff::future::retry(policy, || {
-            let builder = std::sync::Arc::clone(&builder_arc);
-            async move {
-                let attempt = match builder.try_clone() {
-                    Some(b) => b,
-                    None => {
-                        return Err(backoff::Error::permanent(ExtractorError::Parse(
-                            "request builder not cloneable".to_string(),
-                        )));
-                    }
-                };
-                let response = attempt.send().await.map_err(|e| {
-                    // Network-level failures (timeout, connection
-                    // reset) are transient — let backoff retry.
-                    backoff::Error::transient(ExtractorError::from(e))
-                })?;
-                let status = response.status();
-                let bytes = response
-                    .bytes()
-                    .await
-                    .map(|b| b.to_vec())
-                    .map_err(|e| backoff::Error::transient(ExtractorError::from(e)))?;
-                if status.is_success() {
-                    return Ok(bytes);
-                }
-                let message = serde_json::from_slice::<serde_json::Value>(&bytes)
-                    .ok()
-                    .and_then(|v| v["message"].as_str().map(str::to_owned))
-                    .unwrap_or_else(|| format!("HTTP {}", status.as_u16()));
-                let code = status.as_u16();
-                // 401 — auth dead, can't recover by retrying.
-                if code == 401 {
-                    return Err(backoff::Error::permanent(ExtractorError::Auth(message)));
-                }
-                // 429 (rate limit) + every 5xx → transient ; backoff
-                // sleeps then retries.
-                if code == 429 || (500..=599).contains(&code) {
-                    return Err(backoff::Error::transient(ExtractorError::Http {
-                        status: code,
-                        message,
-                    }));
-                }
-                // Everything else (404, 403, 400…) is a permanent
-                // client error — don't waste retries on it.
-                Err(backoff::Error::permanent(ExtractorError::Http {
-                    status: code,
-                    message,
-                }))
+        let start = std::time::Instant::now();
+        let mut interval = INITIAL_INTERVAL;
+        loop {
+            let attempt = builder.try_clone().ok_or_else(|| {
+                ExtractorError::Parse("request builder not cloneable".to_string())
+            })?;
+            let error = match Self::execute_once(attempt).await {
+                Ok(bytes) => return Ok(bytes),
+                Err(Retry::Permanent(e)) => return Err(e),
+                Err(Retry::Transient(e)) => e,
+            };
+            // Give up once the next sleep would blow the elapsed budget.
+            if start.elapsed() + interval > MAX_ELAPSED {
+                return Err(error);
             }
-        })
-        .await
+            tokio::time::sleep(interval).await;
+            interval = (interval * 2).min(MAX_INTERVAL);
+        }
     }
+
+    /// Single request attempt — classifies every failure as transient
+    /// (worth retrying) or permanent (abort immediately).
+    async fn execute_once(attempt: reqwest::RequestBuilder) -> Result<Vec<u8>, Retry> {
+        // Network-level failures (timeout, connection reset) are transient.
+        let response = attempt
+            .send()
+            .await
+            .map_err(|e| Retry::Transient(ExtractorError::from(e)))?;
+        let status = response.status();
+        let bytes = response
+            .bytes()
+            .await
+            .map(|b| b.to_vec())
+            .map_err(|e| Retry::Transient(ExtractorError::from(e)))?;
+        if status.is_success() {
+            return Ok(bytes);
+        }
+        let message = serde_json::from_slice::<serde_json::Value>(&bytes)
+            .ok()
+            .and_then(|v| v["message"].as_str().map(str::to_owned))
+            .unwrap_or_else(|| format!("HTTP {}", status.as_u16()));
+        let code = status.as_u16();
+        // 401 — auth dead, can't recover by retrying.
+        if code == 401 {
+            return Err(Retry::Permanent(ExtractorError::Auth(message)));
+        }
+        // 429 (rate limit) + every 5xx → transient; sleep then retry.
+        if code == 429 || (500..=599).contains(&code) {
+            return Err(Retry::Transient(ExtractorError::Http {
+                status: code,
+                message,
+            }));
+        }
+        // Everything else (404, 403, 400…) is a permanent client
+        // error — don't waste retries on it.
+        Err(Retry::Permanent(ExtractorError::Http {
+            status: code,
+            message,
+        }))
+    }
+}
+
+/// Retry classification for a failed request attempt.
+enum Retry {
+    /// Worth retrying after a backoff sleep.
+    Transient(ExtractorError),
+    /// Retrying cannot help — surface the error immediately.
+    Permanent(ExtractorError),
 }

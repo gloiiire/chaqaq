@@ -62,27 +62,25 @@ impl DocumentRepository for SqliteDocumentStore {
         let folder_id = doc.folder_id.map(|u| u.to_string());
         let parent_doc_id = doc.parent_doc_id.map(|u| u.to_string());
         let icon = doc.icon.clone();
-        // `published_at` defaults to the same value as the row's
-        // creation timestamp when the caller hasn't overridden it ;
-        // that way fresh docs sort identically under both `created`
-        // and `published`, and only the user-edit path makes them
-        // diverge.
-        let published_at = if doc.published_at.is_empty() {
-            created_at.clone()
-        } else {
-            doc.published_at.clone()
-        };
+        // `published_at` defaults to the row's creation timestamp when the
+        // caller hasn't overridden it ; that way fresh docs sort identically
+        // under both `created` and `published`, and only the user-edit path
+        // makes them diverge. The empty-string sentinel is resolved in SQL
+        // (`CASE WHEN ?7 = ''`) because only the row knows its real `created_at`
+        // — for a native doc `doc.created_at` is `None` and the Rust-side
+        // fallback would be the *save* time, polluting resets with "now".
+        let published_at = doc.published_at.clone();
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             conn.execute(
                 "INSERT INTO documents (id, title_text, title_json, cover, updated_at, created_at, published_at, folder_id, parent_doc_id, icon, data)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, CASE WHEN ?7 = '' THEN ?6 ELSE ?7 END, ?8, ?9, ?10, ?11)
                  ON CONFLICT(id) DO UPDATE SET
                     title_text    = excluded.title_text,
                     title_json    = excluded.title_json,
                     cover         = excluded.cover,
                     updated_at    = excluded.updated_at,
-                    published_at  = excluded.published_at,
+                    published_at  = CASE WHEN ?7 = '' THEN documents.created_at ELSE ?7 END,
                     folder_id     = excluded.folder_id,
                     parent_doc_id = excluded.parent_doc_id,
                     icon          = excluded.icon,
@@ -181,8 +179,17 @@ impl DocumentRepository for SqliteDocumentStore {
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let mut metas = Vec::new();
             for row in rows {
-                let (id_str, title_json, cover, updated_at, created_at, fid, pdid, icon, published_at) =
-                    row.map_err(|e| PinkhaError::Db(e.to_string()))?;
+                let (
+                    id_str,
+                    title_json,
+                    cover,
+                    updated_at,
+                    created_at,
+                    fid,
+                    pdid,
+                    icon,
+                    published_at,
+                ) = row.map_err(|e| PinkhaError::Db(e.to_string()))?;
                 let id = Uuid::parse_str(&id_str).map_err(|_| {
                     PinkhaError::InvalidOperation(format!("UUID invalide : {id_str}"))
                 })?;
@@ -287,8 +294,17 @@ impl SqliteDocumentStore {
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let mut metas = Vec::new();
             for row in rows {
-                let (id_str, title_json, cover, updated_at, created_at, fid, pdid, icon, published_at) =
-                    row.map_err(|e| PinkhaError::Db(e.to_string()))?;
+                let (
+                    id_str,
+                    title_json,
+                    cover,
+                    updated_at,
+                    created_at,
+                    fid,
+                    pdid,
+                    icon,
+                    published_at,
+                ) = row.map_err(|e| PinkhaError::Db(e.to_string()))?;
                 let id = Uuid::parse_str(&id_str).map_err(|_| {
                     PinkhaError::InvalidOperation(format!("UUID invalide : {id_str}"))
                 })?;

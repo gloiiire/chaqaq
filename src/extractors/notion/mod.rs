@@ -304,11 +304,8 @@ impl Extractor for NotionExtractor {
                 );
             }
             if let Some(icon_value) = schema.icon.as_ref().and_then(notion_icon_identifier) {
-                let _ = database_use_cases::update_database_icon(
-                    &uow,
-                    pinkha_db_id,
-                    Some(icon_value),
-                );
+                let _ =
+                    database_use_cases::update_database_icon(&uow, pinkha_db_id, Some(icon_value));
             }
             if !schema.description.is_empty() {
                 let desc = schema
@@ -319,11 +316,7 @@ impl Extractor for NotionExtractor {
                         styles: vec![],
                     })
                     .collect::<Vec<_>>();
-                let _ = database_use_cases::update_database_description(
-                    &uow,
-                    pinkha_db_id,
-                    desc,
-                );
+                let _ = database_use_cases::update_database_description(&uow, pinkha_db_id, desc);
             }
             // Imported databases land locked by default — Notion data
             // is read-only state we don't want to accidentally edit
@@ -453,8 +446,7 @@ async fn import_page(
     let doc = if page.created_time.is_empty() {
         use_cases::create_document(&uow, &plain_title)?
     } else {
-        use_cases::create_document_with_created_at(
-            &uow, &plain_title, page.created_time.clone())?
+        use_cases::create_document_with_created_at(&uow, &plain_title, page.created_time.clone())?
     };
     let doc_id = doc.id;
 
@@ -467,7 +459,8 @@ async fn import_page(
             page.id, plain_title, page.created_time, doc_id, doc.created_at
         );
         if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true).append(true)
+            .create(true)
+            .append(true)
             .open(format!("{dir}/notion-debug.log"))
         {
             let _ = f.write_all(line.as_bytes());
@@ -780,7 +773,9 @@ fn dump_unpromoted_links(blocks: &[crate::domain::document::Block], dir: &str) {
         .create(true)
         .append(true)
         .open(format!("{dir}/notion-debug.log"))
-    else { return };
+    else {
+        return;
+    };
     walk_dump(blocks, &mut f);
 }
 
@@ -959,8 +954,7 @@ async fn fetch_and_add_blocks(
     covers_dir: Option<&str>,
 ) -> Result<(usize, usize, usize), ExtractorError> {
     let (root_blocks, skipped, child_docs) =
-        fetch_blocks_recursive(client, page_id, doc_id, docs, notion_to_pinkha, covers_dir)
-            .await?;
+        fetch_blocks_recursive(client, page_id, doc_id, docs, notion_to_pinkha, covers_dir).await?;
 
     let count = count_blocks_recursive(&root_blocks);
 
@@ -1130,10 +1124,7 @@ async fn import_child_page(
             meta.icon,
             meta.cover.is_some()
         ),
-        Err(err) => format!(
-            "FAIL '{}' (id={}): {err:?}\n",
-            title, notion_id
-        ),
+        Err(err) => format!("FAIL '{}' (id={}): {err:?}\n", title, notion_id),
     };
     eprintln!("[notion import] {}", log_line.trim_end());
     if let Some(dir) = covers_dir {

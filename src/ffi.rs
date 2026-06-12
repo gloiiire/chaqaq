@@ -159,6 +159,7 @@ pub struct ImportResultFfi {
 /// Lightweight Notion database summary returned by `list_notion_databases`.
 /// Carries just enough for the picker UI to render a row (title + icon) and
 /// kick off an import.
+#[derive(Debug, Clone)]
 pub struct NotionDatabaseSummaryFfi {
     /// 32-char hex ID. Pass to [`import_from_notion`] as `database_id`.
     pub id: String,
@@ -444,11 +445,7 @@ impl PinkhaApi {
     /// auto-applied by data-extract imports (Notion/Bear/Craft) which lock
     /// new documents by default — the user reads first, unlocks before
     /// editing imported content.
-    pub fn update_document_locked(
-        &self,
-        id: String,
-        locked: bool,
-    ) -> Result<(), PinkhaError> {
+    pub fn update_document_locked(&self, id: String, locked: bool) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
         use_cases::update_document_locked(&self.uow(), uuid, locked).map_err(PinkhaError::from)
     }
@@ -566,8 +563,7 @@ impl PinkhaApi {
             validate_string(t, "theme")?;
         }
         let uuid = parse_uuid(&id)?;
-        use_cases::update_document_theme(&self.uow(), uuid, theme)
-            .map_err(PinkhaError::from)
+        use_cases::update_document_theme(&self.uow(), uuid, theme).map_err(PinkhaError::from)
     }
 
     /// Sets the block-level text color, or clears it when `color` is `None`.
@@ -601,11 +597,7 @@ impl PinkhaApi {
     /// inserts the clone right after the original at the same level.
     /// Returns the new top-level block id so the UI can focus / scroll
     /// to it.
-    pub fn duplicate_block(
-        &self,
-        doc_id: String,
-        block_id: String,
-    ) -> Result<String, PinkhaError> {
+    pub fn duplicate_block(&self, doc_id: String, block_id: String) -> Result<String, PinkhaError> {
         let doc_uuid = parse_uuid(&doc_id)?;
         let block_uuid = parse_uuid(&block_id)?;
         use_cases::duplicate_block(&self.uow(), doc_uuid, block_uuid)
@@ -779,11 +771,7 @@ impl PinkhaApi {
     }
 
     /// Replaces the database's title with `new_title` parsed into inline spans.
-    pub fn update_database_title(
-        &self,
-        id: String,
-        new_title: String,
-    ) -> Result<(), PinkhaError> {
+    pub fn update_database_title(&self, id: String, new_title: String) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
         validate_string(&new_title, "new_title")?;
         database_use_cases::update_database_title(&self.uow(), uuid, parse_inline(&new_title))
@@ -814,8 +802,7 @@ impl PinkhaApi {
         if let Some(ref i) = icon {
             validate_string(i, "icon")?;
         }
-        database_use_cases::update_database_icon(&self.uow(), uuid, icon)
-            .map_err(PinkhaError::from)
+        database_use_cases::update_database_icon(&self.uow(), uuid, icon).map_err(PinkhaError::from)
     }
 
     /// Replaces the database's rich-text description. Empty string clears it.
@@ -836,11 +823,7 @@ impl PinkhaApi {
     }
 
     /// Flips the database's `locked` flag.
-    pub fn update_database_locked(
-        &self,
-        id: String,
-        locked: bool,
-    ) -> Result<(), PinkhaError> {
+    pub fn update_database_locked(&self, id: String, locked: bool) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
         database_use_cases::update_database_locked(&self.uow(), uuid, locked)
             .map_err(PinkhaError::from)
@@ -886,13 +869,9 @@ impl PinkhaApi {
         let db_uuid = parse_uuid(&db_id)?;
         let doc_uuid = parse_uuid(&doc_id)?;
         let values: HashMap<Uuid, PropertyValue> = parse_json(&values_json)?;
-        let entry = database_use_cases::add_entry_with_document(
-            &self.uow(),
-            db_uuid,
-            values,
-            doc_uuid,
-        )
-        .map_err(PinkhaError::from)?;
+        let entry =
+            database_use_cases::add_entry_with_document(&self.uow(), db_uuid, values, doc_uuid)
+                .map_err(PinkhaError::from)?;
         Ok(entry.id.to_string())
     }
 
@@ -1093,14 +1072,8 @@ impl PinkhaApi {
                 });
             }
         };
-        database_use_cases::set_view_date_sort(
-            &self.uow(),
-            db_uuid,
-            view_uuid,
-            source,
-            ascending,
-        )
-        .map_err(PinkhaError::from)
+        database_use_cases::set_view_date_sort(&self.uow(), db_uuid, view_uuid, source, ascending)
+            .map_err(PinkhaError::from)
     }
 
     /// Removes a view from a database. Fails if it is the last view.
@@ -1218,11 +1191,7 @@ impl PinkhaApi {
     }
 
     /// Sets or clears a folder's emoji icon. Pass `None` to remove.
-    pub fn update_folder_icon(
-        &self,
-        id: String,
-        icon: Option<String>,
-    ) -> Result<(), PinkhaError> {
+    pub fn update_folder_icon(&self, id: String, icon: Option<String>) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
         folder_use_cases::update_folder_icon(&self.uow(), uuid, icon.as_deref())
             .map_err(PinkhaError::from)
@@ -1302,10 +1271,7 @@ impl PinkhaApi {
         new_parent_doc_id: Option<String>,
     ) -> Result<(), PinkhaError> {
         let doc_uuid = parse_uuid(&doc_id)?;
-        let parent = new_parent_doc_id
-            .as_deref()
-            .map(parse_uuid)
-            .transpose()?;
+        let parent = new_parent_doc_id.as_deref().map(parse_uuid).transpose()?;
         use_cases::update_document_parent(&self.uow(), doc_uuid, parent).map_err(PinkhaError::from)
     }
 
@@ -1400,17 +1366,13 @@ impl PinkhaApi {
     /// between two callers was begging to drift apart.
     fn map_notion_picker_error(e: crate::extractors::ExtractorError) -> PinkhaError {
         match e {
-            crate::extractors::ExtractorError::Http { status, message } => {
-                PinkhaError::Storage {
-                    detail: format!("Notion HTTP {status}: {message}"),
-                }
-            }
+            crate::extractors::ExtractorError::Http { status, message } => PinkhaError::Storage {
+                detail: format!("Notion HTTP {status}: {message}"),
+            },
             crate::extractors::ExtractorError::Auth(msg) => {
                 PinkhaError::InvalidOperation { detail: msg }
             }
-            crate::extractors::ExtractorError::Parse(msg) => {
-                PinkhaError::Storage { detail: msg }
-            }
+            crate::extractors::ExtractorError::Parse(msg) => PinkhaError::Storage { detail: msg },
             crate::extractors::ExtractorError::Storage(e) => e.into(),
         }
     }

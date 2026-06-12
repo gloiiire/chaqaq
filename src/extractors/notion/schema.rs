@@ -61,7 +61,9 @@ fn default_run_type() -> String {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NotionMention {
-    Page { page: NotionMentionPage },
+    Page {
+        page: NotionMentionPage,
+    },
     #[serde(other)]
     Unknown,
 }
@@ -144,7 +146,9 @@ pub struct NotionDataSourceSearchHit {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NotionDataSourceParent {
-    DatabaseId { database_id: String },
+    DatabaseId {
+        database_id: String,
+    },
     #[serde(other)]
     Unknown,
 }
