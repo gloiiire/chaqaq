@@ -48,6 +48,11 @@ final class DatabaseViewModel: ObservableObject {
     /// Currently active sort. `nil` means insertion order.
     @Published private(set) var activeSort: ActiveSort? = nil
 
+    /// UUID of the Date property driving every row's publish date —
+    /// mirrors `Database.published_at_source`. `nil` = publish dates
+    /// follow `created_at` unless overridden per row.
+    @Published private(set) var publishedAtSource: String? = nil
+
     /// Which entry-level date the active sort is keyed by, if any.
     /// `.none` when no date sort is active (either column sort or
     /// no sort at all). Drives the checkmark in the toolbar's date
@@ -138,6 +143,7 @@ final class DatabaseViewModel: ObservableObject {
         cover            = db.cover
         icon             = db.icon
         locked           = db.locked
+        publishedAtSource = db.publishedAtSource
         pagePropertyId   = db.properties.first(where: { $0.name == pagePropName })?.id
 
         var allViews = db.views ?? []
@@ -505,6 +511,17 @@ final class DatabaseViewModel: ObservableObject {
             }
             return false
         }
+    }
+
+    /// Adopts (or clears with `nil`) the Date column that drives every
+    /// row's publish date. The Rust use case backfills / resets all rows
+    /// and their backing documents; reloading keeps the in-memory
+    /// entries in sync with the rewritten `published_at` values.
+    func setPublishedAtSource(propertyId: String?) {
+        tryCatch(into: &errorMessage) {
+            _ = try api.setPublishedAtSource(dbId: dbId, propertyId: propertyId)
+        }
+        load()
     }
 
     // ── Lookup helpers ───────────────────────────────────────────────────────

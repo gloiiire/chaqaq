@@ -60,7 +60,81 @@ pub fn update_entry_propagating_title(
         doc_use_cases::update_document_title(uow, doc_id, &plain)?;
     }
 
+    // Propagate the publish date when the database has a source column —
+    // `update_entry` already synced the entry's `published_at`; the
+    // backing document follows so home-view sorts agree with the DB view.
+    if let (Some(doc_id), Some(published)) = (document_id, db.source_publish_date(&values)) {
+        doc_use_cases::update_document_published_at(uow, doc_id, published)?;
+    }
+
     Ok(())
+}
+
+/// Sets (or clears with `None`) the Date column that drives every row's
+/// `published_at` in this database, then re-syncs all rows:
+/// - adopting a column backfills `published_at` on each entry from the
+///   column's cell (empty cell = empty sentinel = "follow `created_at`"),
+/// - clearing resets every entry back to the sentinel.
+///
+/// Backing documents follow their entry so the home view's "Published"
+/// sort agrees with the database view. Rows pointing at trashed
+/// documents are skipped silently. Returns the number of entries whose
+/// `published_at` changed.
+pub fn set_published_at_source(
+    uow: &dyn UnitOfWork,
+    db_id: Uuid,
+    source: Option<Uuid>,
+) -> Result<u32, PinkhaError> {
+    let repo = uow.databases();
+    let mut db = repo.load(db_id)?;
+
+    if let Some(prop_id) = source {
+        let prop = db
+            .properties
+            .iter()
+            .find(|p| p.id == prop_id)
+            .ok_or(PinkhaError::NotFound(prop_id))?;
+        if !matches!(prop.type_, PropertyType::Date) {
+            return Err(PinkhaError::InvalidOperation(
+                "published_at_source must be a Date property".to_string(),
+            ));
+        }
+    }
+    db.published_at_source = source;
+
+    let mut touched: u32 = 0;
+    let mut doc_updates: Vec<(Uuid, String)> = Vec::new();
+    for entry in &mut db.entries {
+        // With a source column the cell's date wins (empty cell = empty
+        // sentinel); with the source cleared every row resets to the
+        // sentinel and follows its creation date again.
+        let new_published = db
+            .published_at_source
+            .and_then(|prop_id| match entry.values.get(&prop_id) {
+                Some(PropertyValue::Date(d)) if !d.is_empty() => Some(d.clone()),
+                _ => None,
+            })
+            .unwrap_or_default();
+        if entry.published_at != new_published {
+            entry.published_at = new_published.clone();
+            touched += 1;
+        }
+        if let Some(doc_id) = entry.document_id {
+            doc_updates.push((doc_id, new_published));
+        }
+    }
+    repo.save(&db)?;
+
+    for (doc_id, published) in doc_updates {
+        match doc_use_cases::update_document_published_at(uow, doc_id, published) {
+            Ok(()) => {}
+            // The entry may point at a soft-deleted document — its
+            // publish date will be re-derived if it ever gets restored.
+            Err(PinkhaError::NotFound(_)) => {}
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(touched)
 }
 
 /// Creates a fresh document and files it as a new row of `db_id` in one

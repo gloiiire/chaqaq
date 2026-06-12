@@ -1681,3 +1681,143 @@ fn create_document_in_database_unknown_db_fails_without_creating_doc() {
     assert!(matches!(err, PinkhaError::NotFound { .. }));
     assert_eq!(a.list_documents().unwrap().len(), before);
 }
+
+// ── set_published_at_source ──────────────────────────────────────────────────
+
+/// Builds a DB with a Date column + one doc-backed row whose cell holds
+/// `date`. Returns (db_id, date_prop_id, entry_id, doc_id).
+fn make_publish_source_fixture(a: &PinkhaApi, date: &str) -> (String, String, String, String) {
+    let db = a.create_database("Journal".to_string()).unwrap();
+    let prop_id = Uuid::new_v4().to_string();
+    a.add_property(
+        db.clone(),
+        json!({"id": prop_id, "name": "Publication", "type_": "Date"}).to_string(),
+    )
+    .unwrap();
+    let doc = a.create_document("Old text".to_string()).unwrap();
+    let entry = a
+        .attach_document_to_database(
+            db.clone(),
+            doc.clone(),
+            json!({ prop_id.clone(): {"Date": date} }).to_string(),
+        )
+        .unwrap();
+    (db, prop_id, entry, doc)
+}
+
+fn doc_published_at(a: &PinkhaApi, doc_id: &str) -> String {
+    a.get_document_meta(doc_id.to_string())
+        .unwrap()
+        .published_at
+}
+
+#[test]
+fn adopting_a_date_column_backfills_entries_and_documents() {
+    let a = api();
+    let (db, prop, entry, doc) = make_publish_source_fixture(&a, "2023-11-08");
+
+    let touched = a.set_published_at_source(db.clone(), Some(prop)).unwrap();
+    assert_eq!(touched, 1);
+
+    let db_json = a.get_database_json(db).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&db_json).unwrap();
+    let row = value["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["id"] == entry)
+        .unwrap()
+        .clone();
+    assert_eq!(row["published_at"], "2023-11-08");
+    assert_eq!(doc_published_at(&a, &doc), "2023-11-08");
+}
+
+#[test]
+fn clearing_the_source_resets_rows_to_follow_created_at() {
+    let a = api();
+    let (db, prop, _entry, doc) = make_publish_source_fixture(&a, "2023-11-08");
+    a.set_published_at_source(db.clone(), Some(prop)).unwrap();
+
+    let touched = a.set_published_at_source(db.clone(), None).unwrap();
+    assert_eq!(touched, 1);
+
+    // The document falls back to its creation date (SQL CASE resolves
+    // the empty sentinel against the row's real created_at).
+    let meta = a.get_document_meta(doc).unwrap();
+    assert_eq!(meta.published_at, meta.created_at);
+}
+
+#[test]
+fn editing_the_source_cell_keeps_publish_date_in_sync() {
+    let a = api();
+    let (db, prop, entry, doc) = make_publish_source_fixture(&a, "2023-11-08");
+    a.set_published_at_source(db.clone(), Some(prop.clone()))
+        .unwrap();
+
+    // Live sync: editing the date cell re-dates the row + its document.
+    a.update_entry(
+        db.clone(),
+        entry.clone(),
+        json!({ prop: {"Date": "2024-01-20"} }).to_string(),
+    )
+    .unwrap();
+
+    let db_json = a.get_database_json(db.clone()).unwrap();
+    assert!(db_json.contains("2024-01-20"));
+    assert_eq!(doc_published_at(&a, &doc), "2024-01-20");
+}
+
+#[test]
+fn new_rows_inherit_publish_date_from_the_source_cell() {
+    let a = api();
+    let (db, prop, _entry, _doc) = make_publish_source_fixture(&a, "2023-11-08");
+    a.set_published_at_source(db.clone(), Some(prop.clone()))
+        .unwrap();
+
+    let entry2 = a
+        .add_entry(
+            db.clone(),
+            json!({ prop: {"Date": "2022-05-01"} }).to_string(),
+        )
+        .unwrap();
+    let db_json = a.get_database_json(db).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&db_json).unwrap();
+    let row = value["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["id"] == entry2)
+        .unwrap()
+        .clone();
+    assert_eq!(row["published_at"], "2022-05-01");
+}
+
+#[test]
+fn adopting_a_non_date_property_fails() {
+    let a = api();
+    let db = a.create_database("DB".to_string()).unwrap();
+    let prop_id = Uuid::new_v4().to_string();
+    a.add_property(db.clone(), make_text_property("Notes"))
+        .unwrap();
+    let err = a.set_published_at_source(db, Some(prop_id)).unwrap_err();
+    // Unknown UUID (the Text prop has its own id) → NotFound; a known
+    // non-Date prop would be InvalidOperation. Both reject the adopt.
+    assert!(matches!(
+        err,
+        PinkhaError::NotFound { .. } | PinkhaError::InvalidOperation { .. }
+    ));
+}
+
+#[test]
+fn adopting_known_text_property_is_invalid_operation() {
+    let a = api();
+    let db = a.create_database("DB".to_string()).unwrap();
+    let prop_id = Uuid::new_v4().to_string();
+    a.add_property(
+        db.clone(),
+        json!({"id": prop_id, "name": "Notes", "type_": "Text"}).to_string(),
+    )
+    .unwrap();
+    let err = a.set_published_at_source(db, Some(prop_id)).unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}

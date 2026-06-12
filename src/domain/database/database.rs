@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use crate::domain::database::entry::Entry;
 use crate::domain::database::property::Property;
+use crate::domain::database::property::PropertyValue;
 use crate::domain::database::view::{View, ViewType};
 use crate::domain::document::InlineText;
 use serde::{Deserialize, Serialize};
@@ -55,6 +58,13 @@ pub struct Database {
     /// Mirrors `Document.locked` so users keep the same mental model.
     #[serde(default)]
     pub locked: bool,
+    /// When set, the Date property identified here drives every entry's
+    /// `published_at`: adopting the column backfills existing rows, and
+    /// later edits to a cell of this column keep the row's publish date
+    /// in sync. `None` = publish dates follow `created_at` unless the
+    /// user overrides a row manually.
+    #[serde(default)]
+    pub published_at_source: Option<Uuid>,
     /// Column definitions.
     pub properties: Vec<Property>,
     /// Rows.
@@ -77,10 +87,23 @@ impl Database {
             icon: None,
             description: vec![],
             locked: false,
+            published_at_source: None,
             properties,
             entries: vec![],
             views: vec![default_view],
         }
+    }
+
+    /// Publish date driven by the `published_at_source` column for the
+    /// given values map. `None` when no source column is configured.
+    /// `Some("")` when the source is configured but the cell is empty or
+    /// not a date — the empty sentinel means "follow `created_at`".
+    pub fn source_publish_date(&self, values: &HashMap<Uuid, PropertyValue>) -> Option<String> {
+        let prop_id = self.published_at_source?;
+        Some(match values.get(&prop_id) {
+            Some(PropertyValue::Date(d)) if !d.is_empty() => d.clone(),
+            _ => String::new(),
+        })
     }
 
     /// Returns a lightweight `DatabaseMeta` snapshot (timestamps left empty).

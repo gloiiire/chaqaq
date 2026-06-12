@@ -5,7 +5,7 @@
 use super::schema::{
     NotionAnnotations, NotionBlock, NotionPagePropValue, NotionPropertyDef, NotionRichText,
 };
-use crate::domain::database::{PropertyType, PropertyValue};
+use crate::domain::database::{Property, PropertyType, PropertyValue};
 use crate::domain::document::{BlockContent, InlineStyle, InlineText};
 
 // ── Database ID extraction ────────────────────────────────────────────────────
@@ -314,6 +314,37 @@ pub fn map_property_value(val: &NotionPagePropValue) -> Option<PropertyValue> {
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
+
+/// Column names (lowercased, trimmed) that mark a Date property as the
+/// database's publish date. Exact match only — substring matching would
+/// hijack columns like "Due date".
+const PUBLISH_SOURCE_NAMES: [&str; 9] = [
+    "publication",
+    "published",
+    "publish date",
+    "published at",
+    "publication date",
+    "publié",
+    "publiée",
+    "date de publication",
+    "date",
+];
+
+/// Detects the Date column that should drive `published_at` for an
+/// imported database. Returns `Some(property_id)` only when exactly one
+/// Date property carries a publish-flavored name — zero or several
+/// candidates means no auto-adoption (no magic on ambiguous schemas).
+pub fn detect_publish_source(properties: &[Property]) -> Option<uuid::Uuid> {
+    let candidates: Vec<&Property> = properties
+        .iter()
+        .filter(|p| matches!(p.type_, PropertyType::Date))
+        .filter(|p| PUBLISH_SOURCE_NAMES.contains(&p.name.trim().to_lowercase().as_str()))
+        .collect();
+    match candidates.as_slice() {
+        [single] => Some(single.id),
+        _ => None,
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -980,5 +1011,51 @@ mod tests {
             child_database: None,
         };
         assert!(map_block_color(&block).is_none());
+    }
+}
+
+#[cfg(test)]
+mod publish_source_tests {
+    use super::*;
+
+    fn prop(name: &str, type_: PropertyType) -> Property {
+        Property::new(name, type_)
+    }
+
+    #[test]
+    fn detects_a_single_publish_named_date_column() {
+        let props = vec![
+            prop("Name", PropertyType::Title),
+            prop("Publication", PropertyType::Date),
+            prop("Tags", PropertyType::Text),
+        ];
+        assert_eq!(detect_publish_source(&props), Some(props[1].id));
+    }
+
+    #[test]
+    fn name_match_is_case_insensitive_and_trimmed() {
+        let props = vec![prop("  PUBLISHED AT ", PropertyType::Date)];
+        assert_eq!(detect_publish_source(&props), Some(props[0].id));
+    }
+
+    #[test]
+    fn ignores_publish_named_columns_that_are_not_dates() {
+        let props = vec![prop("Publication", PropertyType::Text)];
+        assert_eq!(detect_publish_source(&props), None);
+    }
+
+    #[test]
+    fn ignores_date_columns_with_unrelated_names() {
+        let props = vec![prop("Due date", PropertyType::Date)];
+        assert_eq!(detect_publish_source(&props), None);
+    }
+
+    #[test]
+    fn ambiguous_schemas_are_skipped() {
+        let props = vec![
+            prop("Publication", PropertyType::Date),
+            prop("Published", PropertyType::Date),
+        ];
+        assert_eq!(detect_publish_source(&props), None);
     }
 }

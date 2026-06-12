@@ -118,7 +118,10 @@ pub fn add_entry(
 ) -> Result<Entry, PinkhaError> {
     let repo = uow.databases();
     let mut db = repo.load(db_id)?;
-    let entry = Entry::new(values);
+    let mut entry = Entry::new(values);
+    if let Some(published) = db.source_publish_date(&entry.values) {
+        entry.published_at = published;
+    }
     db.entries.push(entry.clone());
     repo.save(&db)?;
     Ok(entry)
@@ -136,7 +139,10 @@ pub fn add_entry_with_document(
 ) -> Result<Entry, PinkhaError> {
     let repo = uow.databases();
     let mut db = repo.load(db_id)?;
-    let entry = Entry::with_document(values, document_id);
+    let mut entry = Entry::with_document(values, document_id);
+    if let Some(published) = db.source_publish_date(&entry.values) {
+        entry.published_at = published;
+    }
     db.entries.push(entry.clone());
     repo.save(&db)?;
     Ok(entry)
@@ -171,12 +177,18 @@ pub fn update_entry(
 ) -> Result<(), PinkhaError> {
     let repo = uow.databases();
     let mut db = repo.load(db_id)?;
+    let published = db.source_publish_date(&values);
     let entry = db
         .entries
         .iter_mut()
         .find(|e| e.id == entry_id)
         .ok_or(PinkhaError::NotFound(entry_id))?;
     entry.values = values;
+    // Keep the publish date in lockstep with the source column (when one
+    // is configured) so editing the date cell re-dates the row.
+    if let Some(published) = published {
+        entry.published_at = published;
+    }
     repo.save(&db)
 }
 

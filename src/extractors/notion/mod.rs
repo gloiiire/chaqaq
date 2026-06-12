@@ -393,6 +393,21 @@ impl Extractor for NotionExtractor {
             )?;
         }
 
+        // 8. Publish-date source auto-adoption: when the Notion schema
+        //    carries a Date column whose name marks it as the publish
+        //    date (e.g. "Publication"), adopt it so every imported row
+        //    (and its backing document) sorts by its true date instead
+        //    of the import timestamp. Best-effort — a failure here must
+        //    not fail an otherwise complete import.
+        {
+            let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
+            if let Ok(db) = database_use_cases::get_database(&uow, pinkha_db_id)
+                && let Some(prop_id) = mapper::detect_publish_source(&db.properties)
+            {
+                let _ = use_cases::set_published_at_source(&uow, pinkha_db_id, Some(prop_id));
+            }
+        }
+
         Ok(ImportResult {
             app: "Notion",
             database_id: Some(pinkha_db_id),

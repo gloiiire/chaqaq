@@ -376,6 +376,13 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void set_view_sort(string db_id, string view_id, string? property_id, boolean ascending);
 
+    /// Sets (or clears with null) the Date column that drives every
+    /// row's published_at. Adopting backfills all rows and their backing
+    /// documents; clearing resets them to "follow created_at". Returns
+    /// the number of rows whose publish date changed.
+    [Throws=PinkhaError]
+    u32 set_published_at_source(string db_id, string? property_id);
+
     /// Sets the view's sort to the entry-level created_at or published_at.
     /// `kind` = "created" or "published". No property_id (the timestamps
     /// live on Entry, not on a column).
