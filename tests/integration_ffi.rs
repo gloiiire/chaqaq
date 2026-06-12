@@ -1127,12 +1127,12 @@ async fn import_from_craft_combined_textbundle_root_too_large_fails() {
 // ── PinkhaError surfaces ───────────────────────────────────────────────────
 
 #[test]
-fn error_display_renders_french_messages() {
-    assert!(format!("{}", PinkhaError::NotFound { id: "abc".into() }).contains("non trouvé"));
+fn error_display_renders_english_messages() {
+    assert!(format!("{}", PinkhaError::NotFound { id: "abc".into() }).contains("not found"));
     assert!(
-        format!("{}", PinkhaError::InvalidOperation { detail: "x".into() }).contains("invalide")
+        format!("{}", PinkhaError::InvalidOperation { detail: "x".into() }).contains("invalid")
     );
-    assert!(format!("{}", PinkhaError::Storage { detail: "x".into() }).contains("stockage"));
+    assert!(format!("{}", PinkhaError::Storage { detail: "x".into() }).contains("storage"));
 }
 
 #[test]
@@ -1500,4 +1500,184 @@ fn list_notion_databases_rejects_oversized_token() {
     let a = api();
     let err = a.list_notion_databases("x".repeat(65 * 1024)).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+// ── get_document_meta ───────────────────────────────────────────────────────
+
+#[test]
+fn get_document_meta_returns_chrome_without_blocks() {
+    let a = api();
+    let id = a.create_document("Meta doc".to_string()).unwrap();
+    a.update_document_icon(id.clone(), Some("🌸".to_string()))
+        .unwrap();
+    let meta = a.get_document_meta(id.clone()).unwrap();
+    assert_eq!(meta.id, id);
+    assert_eq!(meta.title_plain, "Meta doc");
+    assert_eq!(meta.icon.as_deref(), Some("🌸"));
+}
+
+#[test]
+fn get_document_meta_invalid_uuid_fails() {
+    let a = api();
+    let err = a.get_document_meta("not-a-uuid".to_string()).unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+#[test]
+fn get_document_meta_unknown_id_fails() {
+    let a = api();
+    let err = a.get_document_meta(Uuid::new_v4().to_string()).unwrap_err();
+    assert!(matches!(err, PinkhaError::NotFound { .. }));
+}
+
+// ── super_search ────────────────────────────────────────────────────────────
+
+#[test]
+fn super_search_covers_every_axis_and_dedupes_documents() {
+    let a = api();
+    // Title hit that ALSO matches in content — must surface once, in titles.
+    let both = a.create_document("alpha report".to_string()).unwrap();
+    a.add_block(
+        both.clone(),
+        json!({"Text": [{"content": "alpha is here too", "styles": []}]}).to_string(),
+    )
+    .unwrap();
+    // Content-only hit.
+    let content_only = a.create_document("plain notes".to_string()).unwrap();
+    a.add_block(
+        content_only.clone(),
+        json!({"Text": [{"content": "mentions alpha inside", "styles": []}]}).to_string(),
+    )
+    .unwrap();
+    // Database + folder hits.
+    let _db = a.create_database("alpha base".to_string()).unwrap();
+    let _folder = a.create_folder("alpha folder".to_string(), None).unwrap();
+
+    let results = a.super_search("alpha".to_string()).unwrap();
+    assert_eq!(results.documents_by_title.len(), 1);
+    assert_eq!(results.documents_by_title[0].id, both);
+    // The title-matching doc is deduplicated out of the content hits.
+    assert_eq!(results.documents_by_content.len(), 1);
+    assert_eq!(results.documents_by_content[0].doc.id, content_only);
+    assert!(results.documents_by_content[0].snippet.contains("alpha"));
+    assert_eq!(results.databases.len(), 1);
+    assert_eq!(results.folders.len(), 1);
+}
+
+#[test]
+fn super_search_empty_everywhere_returns_empty_buckets() {
+    let a = api();
+    let results = a.super_search("nothing".to_string()).unwrap();
+    assert!(results.documents_by_title.is_empty());
+    assert!(results.documents_by_content.is_empty());
+    assert!(results.databases.is_empty());
+    assert!(results.folders.is_empty());
+}
+
+// ── empty_trash ─────────────────────────────────────────────────────────────
+
+#[test]
+fn empty_trash_purges_docs_databases_and_folders() {
+    let a = api();
+    let d1 = a.create_document("Doc 1".to_string()).unwrap();
+    let d2 = a.create_document("Doc 2".to_string()).unwrap();
+    let db = a.create_database("DB".to_string()).unwrap();
+    let folder = a.create_folder("Folder".to_string(), None).unwrap();
+    a.delete_document(d1).unwrap();
+    a.delete_document(d2).unwrap();
+    a.delete_database(db).unwrap();
+    a.delete_folder(folder.id).unwrap();
+
+    let purged = a.empty_trash().unwrap();
+    assert_eq!(purged, 4);
+    assert!(a.list_deleted_documents().unwrap().is_empty());
+    assert!(a.list_deleted_databases().unwrap().is_empty());
+    assert!(a.list_deleted_folders().unwrap().is_empty());
+}
+
+#[test]
+fn empty_trash_on_empty_trash_returns_zero() {
+    let a = api();
+    assert_eq!(a.empty_trash().unwrap(), 0);
+}
+
+// ── list_child_folders ──────────────────────────────────────────────────────
+
+#[test]
+fn list_child_folders_filters_by_parent() {
+    let a = api();
+    let root = a.create_folder("Root".to_string(), None).unwrap();
+    let child = a
+        .create_folder("Child".to_string(), Some(root.id.clone()))
+        .unwrap();
+
+    let top = a.list_child_folders(None).unwrap();
+    assert_eq!(top.len(), 1);
+    assert_eq!(top[0].id, root.id);
+
+    let children = a.list_child_folders(Some(root.id.clone())).unwrap();
+    assert_eq!(children.len(), 1);
+    assert_eq!(children[0].id, child.id);
+
+    let none = a.list_child_folders(Some(child.id)).unwrap();
+    assert!(none.is_empty());
+}
+
+#[test]
+fn list_child_folders_invalid_parent_uuid_fails() {
+    let a = api();
+    let err = a
+        .list_child_folders(Some("not-a-uuid".to_string()))
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+// ── create_document_in_database ─────────────────────────────────────────────
+
+#[test]
+fn create_document_in_database_fills_title_and_page_link() {
+    let a = api();
+    let db = a.create_database("Tasks".to_string()).unwrap();
+    let (title_id, title_json) = make_title_property("Name");
+    a.add_property(db.clone(), title_json).unwrap();
+    let page_prop_id = Uuid::new_v4().to_string();
+    a.add_property(
+        db.clone(),
+        json!({"id": page_prop_id, "name": "__pinkha_page__", "type_": "Text"}).to_string(),
+    )
+    .unwrap();
+
+    let doc_id = a
+        .create_document_in_database(db.clone(), "My new row".to_string(), "{}".to_string())
+        .unwrap();
+
+    // The document exists with the right title.
+    let meta = a.get_document_meta(doc_id.clone()).unwrap();
+    assert_eq!(meta.title_plain, "My new row");
+
+    // The database gained one entry whose Title and page-link are filled.
+    let db_json = a.get_database_json(db).unwrap();
+    let db_value: serde_json::Value = serde_json::from_str(&db_json).unwrap();
+    let entries = db_value["entries"].as_array().unwrap();
+    assert_eq!(entries.len(), 1);
+    let values = &entries[0]["values"];
+    assert_eq!(values[&page_prop_id]["Text"], doc_id);
+    assert_eq!(values[&title_id]["Title"][0]["content"], "My new row");
+    // The entry is linked to the document for title propagation.
+    assert_eq!(entries[0]["document_id"], doc_id);
+}
+
+#[test]
+fn create_document_in_database_unknown_db_fails_without_creating_doc() {
+    let a = api();
+    let before = a.list_documents().unwrap().len();
+    let err = a
+        .create_document_in_database(
+            Uuid::new_v4().to_string(),
+            "Orphan".to_string(),
+            "{}".to_string(),
+        )
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::NotFound { .. }));
+    assert_eq!(a.list_documents().unwrap().len(), before);
 }

@@ -56,6 +56,13 @@ extension DocumentViewModel {
     /// is deferred to `flushBurst` (at most 1 write per burst) to avoid saturating I/O.
     func saveBlock(_ block: EditableBlock) {
         let id = block.id
+        // Sync the in-memory array with the passed value. UI callers mutate
+        // `blocks` in place through the two-way binding (no-op here), but a
+        // caller holding a copy would otherwise see its change silently
+        // dropped at flush time — `flushBurst` persists from `blocks`.
+        if let idx = blocks.firstIndex(where: { $0.id == id }), blocks[idx] != block {
+            blocks[idx] = block
+        }
         // If the user switches blocks, flush the previous burst (persists it).
         if let prevId = burstFlushBlockId, prevId != id {
             flushBurst(blockId: prevId)

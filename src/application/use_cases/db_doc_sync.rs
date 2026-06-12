@@ -63,6 +63,56 @@ pub fn update_entry_propagating_title(
     Ok(())
 }
 
+/// Creates a fresh document and files it as a new row of `db_id` in one
+/// operation — the database "+" button and the create-note-in-database
+/// sheet both go through here.
+///
+/// On top of the caller-provided `extra_values`, two columns are filled
+/// automatically when the database defines them:
+/// - the hidden [`PAGE_LINK_PROPERTY`] Text column receives the new
+///   document's UUID (Notion-style "row = page" back-link),
+/// - the Title column receives `title` as a single plain span.
+///
+/// The entry also stores `document_id` so title edits propagate through
+/// [`update_entry_propagating_title`]. Returns `(document_id, entry_id)`.
+pub fn create_document_in_database(
+    uow: &dyn UnitOfWork,
+    db_id: Uuid,
+    title: &str,
+    extra_values: HashMap<Uuid, PropertyValue>,
+) -> Result<(Uuid, Uuid), PinkhaError> {
+    use crate::domain::database::PAGE_LINK_PROPERTY;
+    use crate::domain::document::InlineText;
+
+    // Load the schema first so a bad `db_id` fails before any write.
+    let db = uow.databases().load(db_id)?;
+
+    let doc = doc_use_cases::create_document(uow, title)?;
+
+    let mut values = extra_values;
+    if let Some(page_prop) = db.properties.iter().find(|p| p.name == PAGE_LINK_PROPERTY) {
+        values.insert(page_prop.id, PropertyValue::Text(doc.id.to_string()));
+    }
+    if let Some(title_prop) = db
+        .properties
+        .iter()
+        .find(|p| matches!(p.type_, PropertyType::Title))
+    {
+        let spans = if title.is_empty() {
+            vec![]
+        } else {
+            vec![InlineText {
+                content: title.to_string(),
+                styles: vec![],
+            }]
+        };
+        values.insert(title_prop.id, PropertyValue::Title(spans));
+    }
+
+    let entry = database_use_cases::add_entry_with_document(uow, db_id, values, doc.id)?;
+    Ok((doc.id, entry.id))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
