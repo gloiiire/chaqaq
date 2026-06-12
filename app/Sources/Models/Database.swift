@@ -27,8 +27,14 @@ struct DatabaseFfi: Codable {
     /// when missing so old payloads stay decodable.
     var locked: Bool
 
+    /// UUID of the Date property driving every row's publish date, or
+    /// `nil` when publish dates follow `created_at`. Mirrors
+    /// `Database.published_at_source`.
+    var publishedAtSource: String?
+
     enum CodingKeys: String, CodingKey {
         case id, title, cover, icon, description, locked, properties, entries, views
+        case publishedAtSource = "published_at_source"
     }
 
     init(from decoder: Decoder) throws {
@@ -42,6 +48,7 @@ struct DatabaseFfi: Codable {
         properties  = try c.decode([PropertyFfi].self, forKey: .properties)
         entries     = try c.decode([EntryFfi].self, forKey: .entries)
         views       = try c.decodeIfPresent([ViewFfi].self, forKey: .views)
+        publishedAtSource = try c.decodeIfPresent(String.self, forKey: .publishedAtSource)
     }
 
     init(
@@ -53,7 +60,8 @@ struct DatabaseFfi: Codable {
         locked: Bool = false,
         properties: [PropertyFfi],
         entries: [EntryFfi],
-        views: [ViewFfi]? = nil
+        views: [ViewFfi]? = nil,
+        publishedAtSource: String? = nil
     ) {
         self.id          = id
         self.title       = title
@@ -64,6 +72,7 @@ struct DatabaseFfi: Codable {
         self.properties  = properties
         self.entries     = entries
         self.views       = views
+        self.publishedAtSource = publishedAtSource
     }
 }
 

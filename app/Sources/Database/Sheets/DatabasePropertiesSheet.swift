@@ -28,6 +28,21 @@ struct DatabasePropertiesSheet: View {
                     Text("Tap a row to rename. Title can't be deleted.")
                 }
 
+                if !dateProperties.isEmpty {
+                    Section {
+                        Picker("Source column", selection: publishedAtSourceBinding) {
+                            Text("None").tag(String?.none)
+                            ForEach(dateProperties) { prop in
+                                Text(prop.name).tag(Optional(prop.id))
+                            }
+                        }
+                    } header: {
+                        Text("Publish date")
+                    } footer: {
+                        Text("Rows take their publish date from this date column — sorting by Published follows it, and editing a date re-dates the row. None: publish dates follow the creation date.")
+                    }
+                }
+
                 Section {
                     Picker("Group by", selection: groupByBinding) {
                         Text("None").tag(String?.none)
@@ -61,6 +76,20 @@ struct DatabasePropertiesSheet: View {
                 } onCancel: { showAddColumn = false }
             }
         }
+    }
+
+    private var dateProperties: [PropertyFfi] {
+        vm.properties.filter { prop in
+            if case .date = prop.propertyType { return true }
+            return false
+        }
+    }
+
+    private var publishedAtSourceBinding: Binding<String?> {
+        Binding(
+            get: { vm.publishedAtSource },
+            set: { vm.setPublishedAtSource(propertyId: $0) }
+        )
     }
 
     private var groupableProperties: [PropertyFfi] {

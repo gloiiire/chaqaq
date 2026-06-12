@@ -425,6 +425,21 @@ impl PinkhaApi {
         to_json(&entries)
     }
 
+    /// Sets (or clears with `None`) the Date column driving every row's
+    /// `published_at`. Adopting backfills all rows (+ backing documents);
+    /// clearing resets them to "follow `created_at`". Returns the number
+    /// of rows whose publish date changed.
+    pub fn set_published_at_source(
+        &self,
+        db_id: String,
+        property_id: Option<String>,
+    ) -> Result<u32, PinkhaError> {
+        let db_uuid = parse_uuid(&db_id)?;
+        let prop_uuid = property_id.as_deref().map(parse_uuid).transpose()?;
+        use_cases::set_published_at_source(&self.uow(), db_uuid, prop_uuid)
+            .map_err(PinkhaError::from)
+    }
+
     /// Creates a fresh document and files it as a new row of `db_id` in a
     /// single call — fills the hidden page-link column and the Title
     /// column automatically when the schema defines them. `values_json`

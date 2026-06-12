@@ -367,6 +367,9 @@ Lie une row de DB au document qui la sous-tend (Notion-style : row = page). Set 
 ### `published_at` (Document + Entry)
 Tous deux exposent `published_at: String` user-éditable, distinct de `created_at` (immuable). Empty string = "follow `created_at`" (sentinel traité côté `SortSource::Published`). SQLite tient une colonne dédiée (backfill = `created_at` à la migration). UI : sheet `DocumentPublishDateSheet` (overflow menu du doc) + `PublishDatePickerSheet` (context menu d'une row) + `SortSource::Published` dans le `sortMenu` côté DB + `SortKey.publishedAt` dans NotesHomeView. Use cases : `update_document_published_at`, `update_entry_published_at`. FFI tronque à 64 bytes (taille RFC 3339).
 
+### `Database.published_at_source: Option<Uuid>`
+Colonne Date qui pilote le `published_at` de chaque row (et du doc lié). Adoption = backfill de toutes les entries ; clear = reset au sentinel "suit `created_at`". Sync vivante : `add_entry`/`update_entry` recalculent `published_at` quand la cellule source change (`Database::source_publish_date`), `update_entry_propagating_title` propage au document. Use case cross-domain `set_published_at_source(uow, db_id, Option<prop_id>)` dans `db_doc_sync.rs`, FFI homonyme. Import Notion : auto-adoption quand exactement une prop Date porte un nom publish-flavored (`mapper::detect_publish_source` — match exact, casse-insensible : publication/published/publish date/…). UI : section "Publish date" dans `DatabasePropertiesSheet` (Picker None / colonnes Date).
+
 ## Git workflow
 
 ### Branches permanentes

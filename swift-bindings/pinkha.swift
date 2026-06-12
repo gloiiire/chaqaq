@@ -865,6 +865,14 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func setBlockTextDirection(docId: String, blockId: String, textDirection: String?) throws 
     
     /**
+     * Sets (or clears with null) the Date column that drives every
+     * row's published_at. Adopting backfills all rows and their backing
+     * documents; clearing resets them to "follow created_at". Returns
+     * the number of rows whose publish date changed.
+     */
+    func setPublishedAtSource(dbId: String, propertyId: String?) throws  -> UInt32
+    
+    /**
      * Sets the view's sort to the entry-level created_at or published_at.
      * `kind` = "created" or "published". No property_id (the timestamps
      * live on Entry, not on a column).
@@ -1953,6 +1961,22 @@ open func setBlockTextDirection(docId: String, blockId: String, textDirection: S
         FfiConverterOptionString.lower(textDirection),$0
     )
 }
+}
+    
+    /**
+     * Sets (or clears with null) the Date column that drives every
+     * row's published_at. Adopting backfills all rows and their backing
+     * documents; clearing resets them to "follow created_at". Returns
+     * the number of rows whose publish date changed.
+     */
+open func setPublishedAtSource(dbId: String, propertyId: String?)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_set_published_at_source(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dbId),
+        FfiConverterOptionString.lower(propertyId),$0
+    )
+})
 }
     
     /**
@@ -3360,6 +3384,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_text_direction() != 63451) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_published_at_source() != 27495) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_date_sort() != 784) {
