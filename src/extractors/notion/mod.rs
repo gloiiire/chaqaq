@@ -17,6 +17,9 @@ pub use mentions::{normalize_notion_id, rewrite_notion_mentions, rewrite_notion_
 use self::assets::{download_cover, download_or_keep_icon, notion_icon_identifier};
 
 use std::collections::HashMap;
+use std::sync::Mutex;
+
+use futures_util::{StreamExt, stream};
 
 use uuid::Uuid;
 
@@ -30,6 +33,12 @@ use crate::domain::document::InlineText;
 use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
 use crate::infrastructure::no_op_unit_of_work::NoOpUnitOfWork;
+
+/// How many pages have their content fetched concurrently during an
+/// import. The Notion API allows ~3 requests/second on average — a wider
+/// window only produces 429s that the retry/backoff then sleeps through,
+/// cancelling the gain.
+const IMPORT_CONCURRENCY: usize = 3;
 
 use self::client::NotionClient;
 use self::mapper::{
@@ -340,44 +349,82 @@ impl Extractor for NotionExtractor {
         // Built incrementally as pages are imported. Used in step 7 to rewrite
         // `[label](https://notion.so/...{notion_id})` links so they point to
         // the matching Pinkha document instead of staying broken Notion URLs.
-        let mut notion_to_pinkha: HashMap<String, Uuid> = HashMap::new();
+        // Behind a `Mutex` because concurrent page fetches materialise child
+        // pages (and register them here) in parallel.
+        let notion_to_pinkha: Mutex<HashMap<String, Uuid>> = Mutex::new(HashMap::new());
 
         let mut cursor: Option<String> = None;
 
         loop {
             let response = client.query_database(&db_id, cursor.as_deref()).await?;
 
-            for page in &response.results {
-                let (block_count, skipped_count, pinkha_doc_id, child_doc_count) = import_page(
-                    &client,
-                    page,
-                    pinkha_db_id,
-                    name_prop_id,
-                    page_prop_id,
-                    &prop_map,
-                    docs,
-                    dbs,
-                    config.covers_dir.as_deref(),
-                    &mut notion_to_pinkha,
-                )
-                .await?;
+            // Fetch page content (blocks, covers, icons) for up to
+            // IMPORT_CONCURRENCY pages at a time. `buffered` yields the
+            // results in submission order, so the sequential entry
+            // insertions below keep the database rows in Notion's order
+            // AND avoid concurrent load-modify-write cycles on the
+            // database JSON blob (`add_entry_with_document` reads the
+            // whole database, pushes a row, and saves it back — racing
+            // two of those would drop rows).
+            // Materialised into a Vec first: `buffered` over an iterator
+            // of already-constructed futures sidesteps the higher-ranked
+            // lifetime bound rustc can't prove for a closure returning a
+            // borrow-carrying future.
+            let page_futures: Vec<_> = response
+                .results
+                .iter()
+                .map(|page| {
+                    import_page(
+                        &client,
+                        page,
+                        name_prop_id,
+                        page_prop_id,
+                        &prop_map,
+                        docs,
+                        dbs,
+                        config.covers_dir.as_deref(),
+                        &notion_to_pinkha,
+                    )
+                })
+                .collect();
+            let mut imported = stream::iter(page_futures).buffered(IMPORT_CONCURRENCY);
 
-                notion_to_pinkha.insert(normalize_notion_id(&page.id), pinkha_doc_id);
+            while let Some(result) = imported.next().await {
+                let page = result?;
+                {
+                    let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
+                    database_use_cases::add_entry_with_document(
+                        &uow,
+                        pinkha_db_id,
+                        page.values,
+                        page.doc_id,
+                    )?;
+                }
+                notion_to_pinkha
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .insert(normalize_notion_id(&page.notion_page_id), page.doc_id);
 
                 // The database row contributes the page itself; nested
                 // child_page blocks turn into additional pinkha documents
                 // counted here so the import summary stays truthful.
-                total_documents += 1 + child_doc_count;
+                total_documents += 1 + page.child_doc_count;
                 total_entries += 1;
-                total_blocks += block_count;
-                total_skipped += skipped_count;
+                total_blocks += page.block_count;
+                total_skipped += page.skipped_count;
             }
+            drop(imported);
 
             if !response.has_more {
                 break;
             }
             cursor = response.next_cursor;
         }
+
+        // Concurrency is over — unwrap the map for the read-only passes.
+        let notion_to_pinkha = notion_to_pinkha
+            .into_inner()
+            .unwrap_or_else(|e| e.into_inner());
 
         // 7. Second pass: rewrite Notion page-link URLs to internal
         //    `pinkha://doc/{uuid}` links now that we know every Notion page's
@@ -421,25 +468,34 @@ impl Extractor for NotionExtractor {
 
 // ── Page import helper ────────────────────────────────────────────────────────
 
-/// Imports one Notion page: creates a Pinkha document, fetches its blocks,
-/// and adds a database entry that back-links to the document.
-///
-/// Returns `(block_count, skipped_count, pinkha_doc_id)` — the doc id is
-/// captured by the caller into the Notion→Pinkha map used for rewriting
-/// mention links in the second pass.
+/// Everything `import_page` produced for one Notion page. The entry
+/// values are returned (not inserted) so the caller can append database
+/// rows sequentially, in order, outside the concurrent fetch window.
+struct ImportedPage {
+    notion_page_id: String,
+    doc_id: Uuid,
+    values: HashMap<Uuid, PropertyValue>,
+    block_count: usize,
+    skipped_count: usize,
+    child_doc_count: usize,
+}
+
+/// Imports one Notion page: creates a Pinkha document, fetches its
+/// blocks, and returns the database-entry values the caller inserts —
+/// kept out of this function so the concurrent fetch window never races
+/// the database blob's load-modify-write cycle.
 #[allow(clippy::too_many_arguments)]
 async fn import_page(
     client: &NotionClient,
     page: &schema::NotionPageResult,
-    pinkha_db_id: Uuid,
     name_prop_id: Uuid,
     page_prop_id: Uuid,
     prop_map: &HashMap<String, Uuid>,
     docs: &(dyn DocumentRepository + Send + Sync),
     dbs: &(dyn DatabaseRepository + Send + Sync),
     covers_dir: Option<&str>,
-    notion_to_pinkha: &mut HashMap<String, Uuid>,
-) -> Result<(usize, usize, Uuid, usize), ExtractorError> {
+    notion_to_pinkha: &Mutex<HashMap<String, Uuid>>,
+) -> Result<ImportedPage, ExtractorError> {
     // Extract the page title from the "title" property type.
     let plain_title = page
         .properties
@@ -557,9 +613,14 @@ async fn import_page(
         }
     }
 
-    database_use_cases::add_entry_with_document(&uow, pinkha_db_id, values, doc_id)?;
-
-    Ok((block_count, skipped_count, doc_id, child_doc_count))
+    Ok(ImportedPage {
+        notion_page_id: page.id.clone(),
+        doc_id,
+        values,
+        block_count,
+        skipped_count,
+        child_doc_count,
+    })
 }
 
 /// Paginates through a page's block children, fetches nested children
@@ -574,7 +635,7 @@ async fn fetch_and_add_blocks(
     page_id: &str,
     doc_id: Uuid,
     docs: &(dyn DocumentRepository + Send + Sync),
-    notion_to_pinkha: &mut HashMap<String, Uuid>,
+    notion_to_pinkha: &Mutex<HashMap<String, Uuid>>,
     covers_dir: Option<&str>,
 ) -> Result<(usize, usize, usize), ExtractorError> {
     let (root_blocks, skipped, child_docs) =
@@ -605,7 +666,7 @@ async fn fetch_blocks_recursive(
     parent_id: &str,
     owning_doc_id: Uuid,
     docs: &(dyn DocumentRepository + Send + Sync),
-    notion_to_pinkha: &mut HashMap<String, Uuid>,
+    notion_to_pinkha: &Mutex<HashMap<String, Uuid>>,
     covers_dir: Option<&str>,
 ) -> Result<(Vec<crate::domain::document::Block>, usize, usize), ExtractorError> {
     use crate::domain::document::{Block, BlockContent};
@@ -716,7 +777,7 @@ async fn import_child_page(
     title: &str,
     parent_doc_id: Uuid,
     docs: &(dyn DocumentRepository + Send + Sync),
-    notion_to_pinkha: &mut HashMap<String, Uuid>,
+    notion_to_pinkha: &Mutex<HashMap<String, Uuid>>,
     covers_dir: Option<&str>,
 ) -> Result<Uuid, ExtractorError> {
     use crate::domain::document::{Document, InlineText};
@@ -734,7 +795,10 @@ async fn import_child_page(
     child.locked = true;
     let child_id = child.id;
     docs.save(&child)?;
-    notion_to_pinkha.insert(normalize_notion_id(notion_id), child_id);
+    notion_to_pinkha
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(normalize_notion_id(notion_id), child_id);
 
     // Fetch the page metadata to recover the icon and cover, which the
     // `child_page` block payload doesn't carry. A failed fetch shouldn't

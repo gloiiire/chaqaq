@@ -2854,6 +2854,9 @@
         }
       }
     },
+    "Rows take their publish date from this date column — sorting by Published follows it, and editing a date re-dates the row. None: publish dates follow the creation date." : {
+
+    },
     "Save" : {
       "extractionState" : "manual",
       "localizations" : {
