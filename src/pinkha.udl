@@ -1,6 +1,6 @@
 namespace pinkha {};
 
-// ── Erreurs ───────────────────────────────────────────────────────────────────
+// ── Errors ────────────────────────────────────────────────────────────────────
 
 [Error]
 interface PinkhaError {
@@ -9,9 +9,9 @@ interface PinkhaError {
     Storage(string detail);
 };
 
-// ── Types retournés ───────────────────────────────────────────────────────────
+// ── Returned types ────────────────────────────────────────────────────────────
 
-/// Métadonnées légères d'un document (sans blocs).
+/// Lightweight document metadata (no blocks).
 dictionary DocumentMetaFfi {
     string id;
     string title_plain;
@@ -25,7 +25,7 @@ dictionary DocumentMetaFfi {
     string? icon;
 };
 
-/// Métadonnées légères d'un dossier.
+/// Lightweight folder metadata.
 dictionary FolderMetaFfi {
     string id;
     string name;
@@ -35,7 +35,7 @@ dictionary FolderMetaFfi {
     string? icon;
 };
 
-/// Métadonnées légères d'une database (sans entrées).
+/// Lightweight database metadata (no entries).
 dictionary DatabaseMetaFfi {
     string id;
     string title_plain;
@@ -46,8 +46,8 @@ dictionary DatabaseMetaFfi {
     string created_at;
 };
 
-/// Hit d'une recherche dans le contenu des blocs — métadonnées du doc
-/// plus extrait du bloc qui matche pour preview style Notion.
+/// One hit from a block-content search — the document metadata plus a
+/// snippet of the matching block for a Notion-style preview.
 dictionary BlockSearchHitFfi {
     DocumentMetaFfi doc;
     string block_id;
@@ -63,7 +63,7 @@ dictionary SuperSearchResultsFfi {
     sequence<FolderMetaFfi> folders;
 };
 
-/// Résumé d'une opération d'import retourné à Swift.
+/// Summary of a completed import operation, returned to Swift.
 dictionary ImportResultFfi {
     string app;
     string database_id;
@@ -79,8 +79,8 @@ dictionary ImportResultFfi {
     u32 textbundle_only;
 };
 
-/// Résumé d'une database Notion retournée par `list_notion_databases` pour
-/// le picker UI.
+/// Summary of a Notion database returned by `list_notion_databases` for
+/// the picker UI.
 dictionary NotionDatabaseSummaryFfi {
     string id;
     string title;
@@ -88,32 +88,32 @@ dictionary NotionDatabaseSummaryFfi {
     string last_edited;
 };
 
-// ── Façade principale ─────────────────────────────────────────────────────────
+// ── Main facade ───────────────────────────────────────────────────────────────
 
 interface PinkhaApi {
-    /// Ouvre (ou crée) la base SQLite au chemin donné.
+    /// Opens (or creates) the SQLite database at the given path.
     [Throws=PinkhaError]
     constructor(string db_path);
 
     // ── Documents ─────────────────────────────────────────────
 
-    /// Crée un nouveau document et retourne son UUID.
+    /// Creates a new document and returns its UUID.
     [Throws=PinkhaError]
     string create_document(string title);
 
-    /// Retourne le document complet sérialisé en JSON (avec blocs).
+    /// Returns the full document serialized as JSON (with blocks).
     [Throws=PinkhaError]
     string get_document_json(string id);
 
-    /// Liste les métadonnées de tous les documents actifs.
+    /// Lists metadata for every active document.
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> list_documents();
 
-    /// Soft-delete du document.
+    /// Soft-deletes the document.
     [Throws=PinkhaError]
     void delete_document(string id);
 
-    /// Soft-delete de tous les documents. Retourne le nombre supprimé.
+    /// Soft-deletes every document. Returns the number deleted.
     [Throws=PinkhaError]
     u32 delete_all_documents();
 
@@ -123,114 +123,114 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void update_document_cover(string id, string? cover);
 
-    /// Pose ou retire l'icône d'un document (emoji, filename local, ou URL).
+    /// Sets or clears a document's icon (emoji, local filename, or URL).
     [Throws=PinkhaError]
     void update_document_icon(string id, string? icon);
 
-    /// Active ou désactive le verrou lecture seule sur un document.
-    /// Les imports (Notion/Bear/Craft) appellent automatiquement avec
-    /// `locked = true` à la création.
+    /// Enables or disables the read-only lock on a document.
+    /// Imports (Notion/Bear/Craft) automatically call this with
+    /// `locked = true` at creation time.
     [Throws=PinkhaError]
     void update_document_locked(string id, boolean locked);
 
-    /// Override la timestamp publish_at d'un document. Chaîne vide = reset
-    /// au défaut (suit created_at).
+    /// Overrides a document's published_at timestamp. Empty string =
+    /// reset to the default (follows created_at).
     [Throws=PinkhaError]
     void update_document_published_at(string id, string new_published_at);
 
-    /// Pose ou retire l'accent color du document (override par-doc de
-    /// l'accent global). Nom de couleur ("red", "teal"...) ou null
-    /// pour repartir sur l'accent des Settings.
+    /// Sets or clears the document's accent color (per-doc override of
+    /// the global accent). Color name ("red", "teal"...) or null to
+    /// fall back to the Settings accent.
     [Throws=PinkhaError]
     void update_document_accent_color(string id, string? accent_color);
 
-    /// Ajoute un bloc ; le contenu est passé en JSON (BlockContent sérialisé).
-    /// Retourne le document mis à jour en JSON.
+    /// Appends a block; the content is passed as JSON (serialized BlockContent).
+    /// Returns the updated document as JSON.
     [Throws=PinkhaError]
     string add_block(string doc_id, string block_content_json);
 
-    /// Remplace le contenu d'un bloc existant (JSON de BlockContent).
+    /// Replaces the content of an existing block (BlockContent JSON).
     [Throws=PinkhaError]
     void update_block(string doc_id, string block_id, string content_json);
 
-    /// Pose ou retire la couleur d'un bloc (texte). `color` est un nom de
-    /// couleur (`"red"`, `"blue"`, etc.) ou `null` pour revenir au thème.
-    /// Les couleurs inline sur les spans ont toujours priorité.
+    /// Sets or clears a block's text color. `color` is a color name
+    /// (`"red"`, `"blue"`, etc.) or `null` to revert to the theme.
+    /// Inline colors on spans always take priority.
     [Throws=PinkhaError]
     void set_block_color(string doc_id, string block_id, string? color);
 
-    /// Pose ou retire la couleur de fond du bloc (highlight style Craft).
+    /// Sets or clears the block's background color (Craft-style highlight).
     [Throws=PinkhaError]
     void set_block_background_color(string doc_id, string block_id, string? background_color);
 
-    /// Pose ou retire la direction d'écriture du bloc ("ltr" / "rtl").
-    /// `null` = hérite du document.
+    /// Sets or clears the block's writing direction ("ltr" / "rtl").
+    /// `null` = inherit from the document.
     [Throws=PinkhaError]
     void set_block_text_direction(string doc_id, string block_id, string? text_direction);
 
-    /// Pose ou retire la direction d'écriture par défaut du document.
-    /// `null` = locale système. Chaque bloc peut overrider.
+    /// Sets or clears the document's default writing direction.
+    /// `null` = system locale. Every block can override.
     [Throws=PinkhaError]
     void update_document_text_direction(string id, string? text_direction);
 
-    /// Pose ou retire le thème par-document.
-    /// `null` = hérite de AppSettings.theme.
+    /// Sets or clears the per-document theme.
+    /// `null` = inherit from AppSettings.theme.
     [Throws=PinkhaError]
     void update_document_theme(string id, string? theme);
 
     [Throws=PinkhaError]
     void delete_block(string doc_id, string block_id);
 
-    /// Duplique un bloc (et tous ses enfants, avec de nouveaux UUIDs)
-    /// et insère le clone juste après l'original au même niveau.
-    /// Retourne l'UUID du nouveau bloc.
+    /// Duplicates a block (and all its children, with fresh UUIDs) and
+    /// inserts the clone right after the original at the same level.
+    /// Returns the new block's UUID.
     [Throws=PinkhaError]
     string duplicate_block(string doc_id, string block_id);
 
-    /// Réordonne les blocs racine selon la liste d'UUIDs fournie.
+    /// Reorders the root blocks according to the supplied UUID list.
     [Throws=PinkhaError]
     void reorder_blocks(string doc_id, sequence<string> order);
 
-    /// Ajoute un bloc enfant ; le contenu est passé en JSON (BlockContent sérialisé).
+    /// Appends a child block; the content is passed as JSON (serialized BlockContent).
     [Throws=PinkhaError]
     string add_child_block(string doc_id, string parent_id, string block_content_json);
 
-    /// Réordonne les enfants directs d'un bloc parent.
+    /// Reorders the direct children of a parent block.
     [Throws=PinkhaError]
     void reorder_child_blocks(string doc_id, string parent_id, sequence<string> order);
 
-    /// Déplace un bloc vers un parent ou vers la racine si `new_parent_id` est nul.
+    /// Moves a block under a parent, or to the root when `new_parent_id` is null.
     [Throws=PinkhaError]
     void move_block(string doc_id, string block_id, string? new_parent_id);
 
-    /// Indente un bloc : le déplace sous le frère précédent au même niveau.
-    /// `InvalidOperation` si le bloc est le premier de son niveau.
+    /// Indents a block: moves it under the previous sibling at the same level.
+    /// `InvalidOperation` when the block is the first of its level.
     [Throws=PinkhaError]
     void indent_block(string doc_id, string block_id);
 
-    /// Désindente un bloc : le sort de son parent et le replace au niveau du
-    /// grand-parent, juste après l'ancien parent. `InvalidOperation` si le
-    /// bloc est déjà à la racine.
+    /// Outdents a block: moves it out of its parent up to the grandparent
+    /// level, right after the former parent. `InvalidOperation` when the
+    /// block is already at the root.
     [Throws=PinkhaError]
     void outdent_block(string doc_id, string block_id);
 
-    /// Recherche insensible à la casse dans les titles.
+    /// Case-insensitive search across document titles.
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> search_documents(string query);
 
-    /// Recherche plein texte dans les blocs.
+    /// Full-text search across block content.
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> search_in_blocks(string query);
 
-    /// Recherche par titre de database.
+    /// Search across database titles.
     [Throws=PinkhaError]
     sequence<DatabaseMetaFfi> search_databases(string query);
 
-    /// Recherche plein texte avec extrait (snippet) du bloc qui matche.
+    /// Full-text search returning a snippet of each matching block.
     [Throws=PinkhaError]
     sequence<BlockSearchHitFfi> search_in_blocks_with_snippets(string query);
 
-    /// Recherche par nom de folder.
+    /// Search across folder names.
     [Throws=PinkhaError]
     sequence<FolderMetaFfi> search_folders(string query);
 
@@ -243,15 +243,15 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     DocumentMetaFfi get_document_meta(string id);
 
-    /// Liste les documents en corbeille (soft-deleted), du plus récemment supprimé en premier.
+    /// Lists trashed documents (soft-deleted), most recently deleted first.
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> list_deleted_documents();
 
-    /// Restaure un document depuis la corbeille.
+    /// Restores a document from the trash.
     [Throws=PinkhaError]
     void restore_document(string id);
 
-    /// Supprime définitivement un document de la corbeille (hard delete).
+    /// Permanently deletes a document from the trash (hard delete).
     [Throws=PinkhaError]
     void purge_document(string id);
 
@@ -262,39 +262,39 @@ interface PinkhaApi {
 
     // ── Databases ─────────────────────────────────────────────
 
-    /// Crée une nouvelle database et retourne son UUID.
+    /// Creates a new database and returns its UUID.
     [Throws=PinkhaError]
     string create_database(string title);
 
-    /// Retourne la database complète sérialisée en JSON (avec entrées et vues).
+    /// Returns the full database serialized as JSON (with entries and views).
     [Throws=PinkhaError]
     string get_database_json(string id);
 
-    /// Liste les métadonnées de toutes les databases actives.
+    /// Lists metadata for every active database.
     [Throws=PinkhaError]
     sequence<DatabaseMetaFfi> list_databases();
 
-    /// Remplace le titre rich-text de la database.
+    /// Replaces the database's rich-text title.
     [Throws=PinkhaError]
     void update_database_title(string id, string new_title);
 
-    /// Remplace ou efface l'image de couverture de la database.
+    /// Replaces or clears the database's cover image.
     [Throws=PinkhaError]
     void update_database_cover(string id, string? cover);
 
-    /// Remplace ou efface l'icône (emoji / fichier / URL) de la database.
+    /// Replaces or clears the database's icon (emoji / file / URL).
     [Throws=PinkhaError]
     void update_database_icon(string id, string? icon);
 
-    /// Remplace la description rich-text de la database (chaîne vide = efface).
+    /// Replaces the database's rich-text description (empty string clears it).
     [Throws=PinkhaError]
     void update_database_description(string id, string description);
 
-    /// Bascule le flag read-only de la database.
+    /// Flips the database's read-only flag.
     [Throws=PinkhaError]
     void update_database_locked(string id, boolean locked);
 
-    /// Soft-delete de la database.
+    /// Soft-deletes the database.
     [Throws=PinkhaError]
     void delete_database(string id);
 
@@ -302,7 +302,7 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     u32 delete_all_databases();
 
-    /// Ajoute une entrée ; `values_json` est une map UUID -> ValeurPropriete sérialisée.
+    /// Adds an entry; `values_json` is a serialized UUID -> PropertyValue map.
     [Throws=PinkhaError]
     string add_entry(string db_id, string values_json);
 
@@ -322,39 +322,39 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void update_entry(string db_id, string entry_id, string values_json);
 
-    /// Override la timestamp publish_at d'une entrée.
-    /// Chaîne vide = reset au défaut (suit created_at).
+    /// Overrides an entry's published_at timestamp.
+    /// Empty string = reset to the default (follows created_at).
     [Throws=PinkhaError]
     void update_entry_published_at(string db_id, string entry_id, string new_published_at);
 
     [Throws=PinkhaError]
     void delete_entry(string db_id, string entry_id);
 
-    /// Restaure une entry depuis la corbeille de sa database.
+    /// Restores an entry from its database's trash.
     [Throws=PinkhaError]
     void restore_entry(string db_id, string entry_id);
 
-    /// Supprime définitivement une entry soft-deleted (hard delete).
+    /// Permanently deletes a soft-deleted entry (hard delete).
     [Throws=PinkhaError]
     void purge_entry(string db_id, string entry_id);
 
-    /// Liste les entries soft-deleted d'une database (JSON array).
+    /// Lists a database's soft-deleted entries (JSON array).
     [Throws=PinkhaError]
     string list_deleted_entries_json(string db_id);
 
-    /// Liste les databases en corbeille (soft-deleted), du plus récemment supprimé en premier.
+    /// Lists trashed databases (soft-deleted), most recently deleted first.
     [Throws=PinkhaError]
     sequence<DatabaseMetaFfi> list_deleted_databases();
 
-    /// Restaure une database depuis la corbeille.
+    /// Restores a database from the trash.
     [Throws=PinkhaError]
     void restore_database(string id);
 
-    /// Supprime définitivement une database de la corbeille (hard delete).
+    /// Permanently deletes a database from the trash (hard delete).
     [Throws=PinkhaError]
     void purge_database(string id);
 
-    /// Ajoute une propriété sérialisée en JSON.
+    /// Adds a property serialized as JSON.
     [Throws=PinkhaError]
     void add_property(string db_id, string property_json);
 
@@ -364,48 +364,48 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void delete_property(string db_id, string property_id);
 
-    /// Ajoute une vue sérialisée en JSON.
+    /// Adds a view serialized as JSON.
     [Throws=PinkhaError]
     string add_view(string db_id, string view_json);
 
     [Throws=PinkhaError]
     void update_view(string db_id, string view_id, string filters_json, string sorts_json);
 
-    /// Pose un tri unique sur une vue, en remplaçant ceux qui existent.
-    /// `property_id = null` retire le tri.
+    /// Sets a single sort on a view, replacing any existing ones.
+    /// `property_id = null` clears the sort.
     [Throws=PinkhaError]
     void set_view_sort(string db_id, string view_id, string? property_id, boolean ascending);
 
-    /// Set le sort de la vue sur created_at ou published_at de l'entrée.
-    /// `kind` = "created" ou "published". Pas de property_id (les timestamps
-    /// vivent sur Entry, pas sur une colonne).
+    /// Sets the view's sort to the entry-level created_at or published_at.
+    /// `kind` = "created" or "published". No property_id (the timestamps
+    /// live on Entry, not on a column).
     [Throws=PinkhaError]
     void set_view_date_sort(string db_id, string view_id, string kind, boolean ascending);
 
     [Throws=PinkhaError]
     void delete_view(string db_id, string view_id);
 
-    /// Retourne les entrées filtrées/triées en JSON.
+    /// Returns the filtered/sorted entries as JSON.
     [Throws=PinkhaError]
     string query_database_json(string db_id, string view_id);
 
-    /// Retourne les entrées filtrées/triées avec rollups calculés en JSON.
+    /// Returns the filtered/sorted entries with computed rollups as JSON.
     [Throws=PinkhaError]
     string query_database_with_rollups_json(string db_id, string view_id);
 
-    /// Retourne les groupes d'entrées en JSON.
+    /// Returns the grouped entries as JSON.
     [Throws=PinkhaError]
     string grouped_query_database_json(string db_id, string view_id, string group_by);
 
-    /// Retourne l'agrégat d'une colonne en JSON.
+    /// Returns a column aggregate as JSON.
     [Throws=PinkhaError]
     string column_aggregate_database_json(string db_id, string property_id, string aggregate_json);
 
-    /// Retourne les entrées correspondant à la recherche en JSON.
+    /// Returns the entries matching the search query as JSON.
     [Throws=PinkhaError]
     string search_database_entries_json(string db_id, string query);
 
-    // ── Dossiers ──────────────────────────────────────────────
+    // ── Folders ───────────────────────────────────────────────
 
     [Throws=PinkhaError]
     FolderMetaFfi create_folder(string name, string? parent_id);
@@ -432,15 +432,15 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     u32 delete_all_folders();
 
-    /// Liste les dossiers en corbeille (soft-deleted), du plus récemment supprimé en premier.
+    /// Lists trashed folders (soft-deleted), most recently deleted first.
     [Throws=PinkhaError]
     sequence<FolderMetaFfi> list_deleted_folders();
 
-    /// Restaure un dossier depuis la corbeille.
+    /// Restores a folder from the trash.
     [Throws=PinkhaError]
     void restore_folder(string id);
 
-    /// Supprime définitivement un dossier de la corbeille (hard delete).
+    /// Permanently deletes a folder from the trash (hard delete).
     [Throws=PinkhaError]
     void purge_folder(string id);
 
@@ -453,65 +453,65 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> list_documents_in_folder(string? folder_id);
 
-    /// Définit le document parent (page imbriquée à la Notion). `None` pour
-    /// repromouvoir le document à la racine. Rejette les cycles.
+    /// Sets the parent document (Notion-style nested page). `None` to
+    /// promote the document back to the root. Rejects cycles.
     [Throws=PinkhaError]
     void update_document_parent(string doc_id, string? new_parent_doc_id);
 
-    /// Liste les pages racine (documents sans parent). Alimente la home.
+    /// Lists root pages (documents with no parent). Drives the home view.
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> list_root_documents();
 
-    /// Liste les enfants directs d'un document parent (page-in-page).
+    /// Lists the direct children of a parent document (page-in-page).
     [Throws=PinkhaError]
     sequence<DocumentMetaFfi> list_child_documents(string parent_doc_id);
 
     // ── Imports ───────────────────────────────────────────────
 
-    /// Importe une database Notion complète (schéma + pages + blocs).
-    /// `token` est un bearer token OAuth2 ou private integration token.
-    /// `database_id` est un UUID 32-char hex ou l'URL complète Notion.
+    /// Imports a full Notion database (schema + pages + blocks).
+    /// `token` is an OAuth2 bearer token or a private integration token.
+    /// `database_id` is a 32-char hex UUID or the full Notion URL.
     ///
-    /// Synchrone côté FFI : Notion utilise `reqwest`, qui exige un runtime
-    /// Tokio absent de l'executor UniFFI. On `block_on` côté Rust, donc Swift
-    /// doit appeler depuis `Task.detached` pour ne pas bloquer le main thread.
-    /// `covers_dir` est un chemin absolu vers un dossier existant où les
-    /// images de cover sont téléchargées. Quand null, on stocke seulement
-    /// l'URL — OK pour les covers externes mais celles hébergées par Notion
-    /// expirent au bout d'~1h.
+    /// Synchronous on the FFI side: Notion uses `reqwest`, which requires a
+    /// Tokio runtime that UniFFI's executor does not provide. Rust calls
+    /// `block_on`, so Swift must dispatch from `Task.detached` to avoid
+    /// blocking the main thread.
+    /// `covers_dir` is an absolute path to an existing directory where cover
+    /// images are downloaded. When null, only the URL is stored — fine for
+    /// external covers but Notion-hosted ones expire after ~1h.
     [Throws=PinkhaError]
     ImportResultFfi import_from_notion(string token, string database_id, string? covers_dir);
 
-    /// Liste les databases Notion accessibles avec le token donné. Utilisé
-    /// par le picker côté Swift pour éviter à l'utilisateur de coller des URLs.
+    /// Lists the Notion databases reachable with the given token. Used by
+    /// the Swift-side picker so the user never has to paste URLs.
     [Throws=PinkhaError]
     sequence<NotionDatabaseSummaryFfi> list_notion_databases(string token);
 
-    /// Comme [`list_notion_databases`] mais utilise le chemin Notion
-    /// API 2025-09-03 data-source-aware sous le capot — récupère
-    /// aussi les DBs multi-source que le filtre legacy rate. Le
-    /// picker devrait préférer cette version.
+    /// Same as [`list_notion_databases`] but uses the 2025-09-03
+    /// data-source-aware Notion API path under the hood — also catches
+    /// the multi-source DBs the legacy filter misses. Pickers should
+    /// prefer this version.
     [Throws=PinkhaError]
     sequence<NotionDatabaseSummaryFfi> list_notion_databases_v2025(string token);
 
-    /// Importe les notes Bear depuis la SQLite locale de Bear.
-    /// `db_path` est le chemin absolu vers `database.sqlite` de Bear.
+    /// Imports Bear notes from Bear's local SQLite database.
+    /// `db_path` is the absolute path to Bear's `database.sqlite`.
     [Async, Throws=PinkhaError]
     ImportResultFfi import_from_bear(string db_path);
 
-    /// Importe les pages Craft depuis le fichier `.realm` local de Craft.
-    /// `db_path` est le chemin absolu vers le fichier `.realm` de Craft.
+    /// Imports Craft pages from Craft's local `.realm` file.
+    /// `db_path` is the absolute path to Craft's `.realm` file.
     [Async, Throws=PinkhaError]
     ImportResultFfi import_from_craft(string db_path);
 
-    /// Importe les pages Craft depuis un dossier de `.textbundle` exporté par Craft.
-    /// `root_dir` est le chemin absolu vers le dossier racine de l'export.
+    /// Imports Craft pages from a folder of `.textbundle` packages exported by Craft.
+    /// `root_dir` is the absolute path to the export's root folder.
     [Async, Throws=PinkhaError]
     ImportResultFfi import_from_craft_textbundle(string root_dir);
 
-    /// Combine le fichier `.realm` de Craft et un dossier de `.textbundle` :
-    /// les pages ayant un textbundle correspondant utilisent son contenu markdown ;
-    /// les autres pages utilisent le contenu realm.
+    /// Combines Craft's `.realm` file with a folder of `.textbundle` exports:
+    /// pages with a matching textbundle use its markdown content;
+    /// the remaining pages use the realm content.
     [Async, Throws=PinkhaError]
     ImportResultFfi import_from_craft_combined(string realm_path, string textbundle_root);
 };
