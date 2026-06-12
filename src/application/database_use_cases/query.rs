@@ -39,6 +39,22 @@ pub fn query(uow: &dyn UnitOfWork, db_id: Uuid, view_id: Uuid) -> Result<Vec<Ent
                     compare_values(va, vb)
                 }
                 SortSource::Created => a.created_at.cmp(&b.created_at),
+                SortSource::Published => {
+                    // Empty `published_at` (legacy entries pre-field)
+                    // falls back to `created_at` so they sort alongside
+                    // freshly-inserted ones without a jump.
+                    let pa = if a.published_at.is_empty() {
+                        a.created_at.as_str()
+                    } else {
+                        a.published_at.as_str()
+                    };
+                    let pb = if b.published_at.is_empty() {
+                        b.created_at.as_str()
+                    } else {
+                        b.published_at.as_str()
+                    };
+                    pa.cmp(pb)
+                }
                 SortSource::ManualThenCreated => {
                     let va = a
                         .values

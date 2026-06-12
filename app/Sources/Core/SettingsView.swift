@@ -92,6 +92,7 @@ struct SettingsView: View {
                 Section {
                     Toggle("Cursor follows accent", isOn: $settings.cursorFollowsAccent)
                         .tint(settings.accentColor)
+                        .onChange(of: settings.cursorFollowsAccent) { _, _ in Haptic.toggle() }
                 } header: {
                     Text("Text input")
                 } footer: {
@@ -101,6 +102,7 @@ struct SettingsView: View {
                 Section {
                     Toggle("Haptic feedback", isOn: $settings.hapticsEnabled)
                         .tint(settings.accentColor)
+                        .onChange(of: settings.hapticsEnabled) { _, _ in Haptic.toggle() }
                 } header: {
                     Text("Feedback")
                 } footer: {
@@ -110,6 +112,7 @@ struct SettingsView: View {
                 Section {
                     Toggle("Lock rotation", isOn: $settings.rotationLocked)
                         .tint(settings.accentColor)
+                        .onChange(of: settings.rotationLocked) { _, _ in Haptic.toggle() }
                 } header: {
                     Text("Rotation")
                 } footer: {
@@ -119,6 +122,7 @@ struct SettingsView: View {
                 Section {
                     Toggle("Tint focused block", isOn: $settings.spotlightTinted)
                         .tint(settings.accentColor)
+                        .onChange(of: settings.spotlightTinted) { _, _ in Haptic.toggle() }
                 } header: {
                     Text("Search spotlight")
                 } footer: {

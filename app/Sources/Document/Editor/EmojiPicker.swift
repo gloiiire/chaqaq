@@ -56,6 +56,7 @@ struct EmojiPickerSheet: View {
                 }
                 .padding(20)
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Icon")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -96,7 +97,7 @@ struct EmojiPickerSheet: View {
                 .background(Color.secondary.opacity(0.10))
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .submitLabel(.done)
-                .onSubmit { validateInput() }
+                .onSubmit { Haptic.tap(); validateInput() }
 
             Button {
                 validateInput()

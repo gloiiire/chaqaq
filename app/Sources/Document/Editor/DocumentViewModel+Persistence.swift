@@ -56,6 +56,13 @@ extension DocumentViewModel {
     /// is deferred to `flushBurst` (at most 1 write per burst) to avoid saturating I/O.
     func saveBlock(_ block: EditableBlock) {
         let id = block.id
+        // Sync the in-memory array with the passed value. UI callers mutate
+        // `blocks` in place through the two-way binding (no-op here), but a
+        // caller holding a copy would otherwise see its change silently
+        // dropped at flush time — `flushBurst` persists from `blocks`.
+        if let idx = blocks.firstIndex(where: { $0.id == id }), blocks[idx] != block {
+            blocks[idx] = block
+        }
         // If the user switches blocks, flush the previous burst (persists it).
         if let prevId = burstFlushBlockId, prevId != id {
             flushBurst(blockId: prevId)
@@ -102,7 +109,33 @@ extension DocumentViewModel {
             // Initialise stable snapshots for burst undo tracking.
             blockSnapshots = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, snapshotOf($0)) })
             blockBurstAnchor.removeAll()
+            // `published_at` / `created_at` live on the meta row, not
+            // in the document JSON. Walk the meta list once on load
+            // to surface them so the toolbar's "Publish date" sheet
+            // can read + override them without an extra query.
+            if let meta = (try? api.listDocuments())?.first(where: { $0.id == docId }) {
+                createdAt = meta.createdAt
+                publishedAt = meta.publishedAt
+            }
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// Persists a new publish date (ISO-8601) for this document and
+    /// registers an undo step. Empty string = reset to `created_at`
+    /// (the Rust use case treats empty as "follow created_at").
+    func savePublishedAt(_ newValue: String) {
+        let previous = publishedAt
+        guard previous != newValue else { return }
+        publishedAt = newValue
+        do {
+            try api.updateDocumentPublishedAt(id: docId, newPublishedAt: newValue)
+            undoMgr.registerUndo(withTarget: self) { vm in
+                vm.savePublishedAt(previous)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            publishedAt = previous
+        }
     }
 
     /// Depth-first flatten of the recursive `BlockFfi` tree into the flat list

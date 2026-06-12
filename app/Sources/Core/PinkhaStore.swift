@@ -19,6 +19,17 @@ enum WorkspaceItem: Identifiable {
     var createdAt: String {
         switch self { case .note(let d): return d.createdAt; case .database(let db): return db.createdAt }
     }
+    /// Effective publish date — manual override on the doc when set,
+    /// `createdAt` otherwise. Databases don't yet have a publish
+    /// override surface so they fall back to their createdAt.
+    var publishedAt: String {
+        switch self {
+        case .note(let d):
+            return d.publishedAt.isEmpty ? d.createdAt : d.publishedAt
+        case .database(let db):
+            return db.createdAt
+        }
+    }
     var isDatabase: Bool { if case .database = self { return true }; return false }
 }
 
@@ -119,8 +130,21 @@ final class PinkhaStore: ObservableObject {
     /// avoid racing with the editor's in-memory blocks array).
     @discardableResult
     func createNote(title: String, in context: Composer.CreationContext) -> String? {
+        createNote(title: title, in: context, style: nil)
+    }
+
+    /// Same as [`createNote`] but applies the optional standalone
+    /// `style` (cover / icon / theme) after the document lands.
+    /// Best-effort : a failure on one style write is logged but
+    /// doesn't roll the document back.
+    @discardableResult
+    func createNote(
+        title: String,
+        in context: Composer.CreationContext,
+        style: CreateDocumentSheet.StandaloneStyle?
+    ) -> String? {
         guard let api else { return nil }
-        do {
+        let docId = tryCatch(into: &errorMessage) {
             let docId = try api.createDocument(title: title)
             switch context {
             case .root:
@@ -130,12 +154,75 @@ final class PinkhaStore: ObservableObject {
             case .document(let parentDocId):
                 try api.updateDocumentParent(docId: docId, newParentDocId: parentDocId)
             }
-            load()
             return docId
-        } catch {
-            errorMessage = error.localizedDescription
-            return nil
         }
+        guard let docId else { return nil }
+        if let style {
+            applyStandaloneStyle(style, to: docId, api: api)
+        }
+        load()
+        return docId
+    }
+
+    /// Writes the picked style overrides to the freshly-created
+    /// doc. Custom cover bytes are persisted into the covers
+    /// directory under the docId-derived filename ; the resulting
+    /// short name lands in the meta row's `cover` column. Built-in
+    /// gradient covers ship a direct identifier (e.g.
+    /// `"cover.nebula"`) and skip the disk write.
+    private func applyStandaloneStyle(
+        _ style: CreateDocumentSheet.StandaloneStyle,
+        to docId: String,
+        api: PinkhaApi
+    ) {
+        if let data = style.customCoverData {
+            if let name = try? DocumentViewModel.writeCoverImage(
+                data: data, docId: docId, fileExtension: style.customCoverExt
+            ) {
+                try? api.updateDocumentCover(id: docId, cover: name)
+            }
+        } else if let cover = style.cover {
+            try? api.updateDocumentCover(id: docId, cover: cover)
+        }
+        if let icon = style.icon {
+            try? api.updateDocumentIcon(id: docId, icon: icon)
+        }
+        if let theme = style.theme {
+            try? api.updateDocumentTheme(id: docId, theme: theme)
+        }
+        if let publishedAt = style.publishedAt {
+            try? api.updateDocumentPublishedAt(
+                id: docId, newPublishedAt: publishedAt)
+        }
+    }
+
+    /// Creates a doc + files it as a new row of the given database.
+    /// The orchestration (create document, fill the hidden page-link
+    /// and Title columns, link the entry to the doc) lives in Rust —
+    /// `create_document_in_database`. Returns the new document's id so
+    /// the caller can navigate to it.
+    @discardableResult
+    func createNoteInDatabase(
+        title: String,
+        databaseId: String,
+        propertyValues: [String: PropertyValueFfi],
+        style: CreateDocumentSheet.StandaloneStyle? = nil
+    ) -> String? {
+        guard let api else { return nil }
+        let docId = tryCatch(into: &errorMessage) {
+            guard let json = try? JSONEncoder().encode(propertyValues),
+                  let valuesJson = String(data: json, encoding: .utf8) else {
+                throw PinkhaError.InvalidOperation(detail: "Failed to encode property values")
+            }
+            return try api.createDocumentInDatabase(
+                dbId: databaseId, title: title, valuesJson: valuesJson)
+        }
+        guard let docId else { return nil }
+        if let style {
+            applyStandaloneStyle(style, to: docId, api: api)
+        }
+        load()
+        return docId
     }
 
     /// Context-aware database creation. In `.document` context the new
@@ -144,7 +231,7 @@ final class PinkhaStore: ObservableObject {
     /// the database lands at the workspace root in that case.
     func createDatabase(title: String, in context: Composer.CreationContext) {
         guard let api else { return }
-        do {
+        tryCatch(into: &errorMessage) {
             let dbId = try api.createDatabase(title: title)
             if case .document(let parentDocId) = context {
                 let dbBlock = BlockContentFfi.database(id: dbId)
@@ -153,10 +240,8 @@ final class PinkhaStore: ObservableObject {
                     _ = try? api.addBlock(docId: parentDocId, blockContentJson: payload)
                 }
             }
-            load()
-        } catch {
-            errorMessage = error.localizedDescription
         }
+        load()
     }
 
     /// Context-aware folder creation. Honours folder nesting (parent
@@ -224,31 +309,18 @@ final class PinkhaStore: ObservableObject {
         return (try? api.searchDocuments(query: query)) ?? []
     }
 
-    /// Runs all available search axes in a single call : titles + block
+    /// Runs all available search axes in a single FFI call : titles + block
     /// content for documents, plus database titles and folder names. The
-    /// document axis is deduplicated — a doc matching both title and
-    /// content shows up once in the title hits and is hidden from the
-    /// content hits.
+    /// document-axis deduplication (a doc matching both title and content
+    /// shows up once, in the title hits) happens on the Rust side.
     func superSearch(query: String) -> SuperSearchResults {
         guard !query.isEmpty, let api else { return .empty }
-        let titles = (try? api.searchDocuments(query: query)) ?? []
-        // Use the snippets variant so the UI can show a Notion-style
-        // preview of where the match landed in the doc's content.
-        let blockHits = (try? api.searchInBlocksWithSnippets(query: query)) ?? []
-        let dbs = (try? api.searchDatabases(query: query)) ?? []
-        let folders = (try? api.searchFolders(query: query)) ?? []
-        // A doc matching by title shows up in the title section once;
-        // its block-level hits are still kept so the user can jump to a
-        // specific occurrence inside the body — multiple snippet rows
-        // per doc are intentional now that the Rust side returns every
-        // matching block, not just the first one.
-        let titleIds = Set(titles.map(\.id))
-        let contentOnly = blockHits.filter { !titleIds.contains($0.doc.id) }
+        guard let results = try? api.superSearch(query: query) else { return .empty }
         return SuperSearchResults(
-            documentsByTitle: titles,
-            documentsByContent: contentOnly,
-            databases: dbs,
-            folders: folders
+            documentsByTitle: results.documentsByTitle,
+            documentsByContent: results.documentsByContent,
+            databases: results.databases,
+            folders: results.folders
         )
     }
 
@@ -324,8 +396,10 @@ final class PinkhaStore: ObservableObject {
     }
 
     /// Returns the direct children of `parentId` (`nil` = root-level folders).
+    /// The parent/child filtering runs in Rust.
     func childFolders(of parentId: String?) -> [FolderMetaFfi] {
-        listFolders().filter { $0.parentId == parentId }
+        guard let api else { return [] }
+        return (try? api.listChildFolders(parentId: parentId)) ?? []
     }
 
     /// Returns documents in the given folder (`nil` = root level).
@@ -388,16 +462,12 @@ final class PinkhaStore: ObservableObject {
     }
 
     /// Empties the trash by purging every soft-deleted document, database
-    /// and folder. Returns the total number of items removed.
+    /// and folder in a single bulk FFI call. Returns the total number of
+    /// items removed.
     @discardableResult
     func emptyTrash() -> Int {
-        let docs = listDeletedDocuments()
-        let dbs = listDeletedDatabases()
-        let folders = listDeletedFolders()
-        for d in docs { purgeDocument(id: d.id) }
-        for d in dbs { purgeDatabase(id: d.id) }
-        for f in folders { purgeFolder(id: f.id) }
+        let purged = tryCatch(into: &errorMessage) { try api?.emptyTrash() ?? 0 } ?? 0
         load()
-        return docs.count + dbs.count + folders.count
+        return Int(purged)
     }
 }

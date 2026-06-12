@@ -65,9 +65,10 @@ struct DatabaseEntitiesTests {
         #expect(!dbJson.contains(propId))
     }
 
-    @Test func defaultDatabaseHasOneTableView() throws {
+    @Test func defaultDatabaseHasOneListView() throws {
+        // Mobile-first default — fresh databases ship a List view.
         let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
         let dbJson = try api.getDatabaseJson(id: dbId)
-        #expect(dbJson.contains("\"Table\""))
+        #expect(dbJson.contains("\"List\""))
     }
 }

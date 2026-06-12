@@ -66,7 +66,48 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
     // Folder icon (emoji). Folders share the same icon affordance as
     // documents in the Notion-style sidebar.
     add_column_if_missing(conn, "folders", "icon", "TEXT")?;
-    conn.pragma_update(None, "user_version", 8)
+    // Database cover + icon. Mirrors the document treatment — indexed
+    // columns so list_databases can return them without parsing each
+    // row's JSON data blob, and a backfill from the data blob covers
+    // databases written before the columns existed (None on rows that
+    // never had a cover / icon in the first place).
+    add_column_if_missing(conn, "databases", "cover", "TEXT")?;
+    add_column_if_missing(conn, "databases", "icon", "TEXT")?;
+    conn.execute(
+        "UPDATE databases
+            SET cover = json_extract(data, '$.cover')
+          WHERE cover IS NULL
+            AND json_extract(data, '$.cover') IS NOT NULL",
+        [],
+    )
+    .map_err(|e| PinkhaError::Db(e.to_string()))?;
+    conn.execute(
+        "UPDATE databases
+            SET icon = json_extract(data, '$.icon')
+          WHERE icon IS NULL
+            AND json_extract(data, '$.icon') IS NOT NULL",
+        [],
+    )
+    .map_err(|e| PinkhaError::Db(e.to_string()))?;
+    // User-editable publish timestamp on Document, parallel to the
+    // one we added on Entry. Indexed so the home view's sort by
+    // published date can skip the JSON blob. Backfilled from
+    // `created_at` so pre-existing rows sort exactly like before
+    // until the user overrides.
+    add_column_if_missing(
+        conn,
+        "documents",
+        "published_at",
+        "TEXT NOT NULL DEFAULT ''",
+    )?;
+    conn.execute(
+        "UPDATE documents
+            SET published_at = created_at
+          WHERE published_at = ''",
+        [],
+    )
+    .map_err(|e| PinkhaError::Db(e.to_string()))?;
+    conn.pragma_update(None, "user_version", 10)
         .map_err(|e| PinkhaError::Db(e.to_string()))?;
     Ok(())
 }

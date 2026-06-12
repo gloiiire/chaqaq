@@ -169,6 +169,12 @@ extension RichTextEditorCoordinator {
     }
 
     @objc func captureSelectionBeforeToolbar() {
+        // Fires on every keyboard-pill button's `.touchDown` — perfect
+        // hook for the haptic since it covers every UIKit-backed
+        // toolbar control (paste / style menu / highlighter / link /
+        // undo / redo / indent / outdent / return / dismiss) without
+        // touching each handler individually.
+        Haptic.tap()
         toolbarActionInProgress = true
         guard let tv else { return }
         if tv.selectedRange.length == 0 { clearRememberedSelection() }

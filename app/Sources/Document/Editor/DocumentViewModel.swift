@@ -29,6 +29,15 @@ final class DocumentViewModel: ObservableObject {
     /// `AppSettings.Theme`). `nil` inherits from the app-wide
     /// `settings.theme`. The editor renders the matching palette.
     @Published var theme: String? = nil
+    /// User-overridable publish date in ISO-8601 (empty = "use
+    /// `createdAt` as the effective publish date"). The DocumentMeta
+    /// row carries the real value from SQLite; the toolbar lets the
+    /// user move it back and forth on a calendar.
+    @Published var publishedAt: String = ""
+    /// Frozen creation date — surfaced in the toolbar's "Publish
+    /// date" sheet as the implicit default and as the visual fallback
+    /// when the user resets the override.
+    @Published var createdAt: String = ""
     @Published var blocks: [EditableBlock] = []
     @Published var errorMessage: String?
     @Published var autoFocusId: String?

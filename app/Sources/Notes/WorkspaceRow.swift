@@ -52,13 +52,17 @@ struct WorkspaceRow: View {
                     .background(.secondary.opacity(0.12),
                                  in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
-        case .database:
-            Image(systemName: "tablecells")
-                .font(.body.weight(.medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 34, height: 34)
-                .background(.secondary.opacity(0.12),
-                             in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        case .database(let db):
+            if let icon = db.icon, !icon.isEmpty {
+                Text(icon).font(.title2).frame(width: 34, height: 34)
+            } else {
+                Image(systemName: "tablecells")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 34, height: 34)
+                    .background(.secondary.opacity(0.12),
+                                 in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
         }
     }
 

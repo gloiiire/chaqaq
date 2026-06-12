@@ -119,6 +119,7 @@ struct BearImportView: View {
                 }
             }
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     @ViewBuilder

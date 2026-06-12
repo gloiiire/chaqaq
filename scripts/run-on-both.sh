@@ -48,6 +48,10 @@ if xcrun simctl list devices booted 2>/dev/null | grep -q "$SIM_UDID"; then
 elif xcrun simctl list devices 2>/dev/null | grep -q "$SIM_UDID"; then
     xcrun simctl boot "$SIM_UDID" 2>/dev/null || true
     open -a Simulator
+    # Block until the sim is fully booted — otherwise the install/launch
+    # calls below race the boot and fail with "Unable to lookup in current
+    # state: Shutdown" (code 405) on cold start.
+    xcrun simctl bootstatus "$SIM_UDID" -b >/dev/null 2>&1 || true
     HAVE_SIM=1
 fi
 

@@ -100,11 +100,7 @@ pub fn search_in_blocks_with_snippets(
 /// every block whose plain text contains `query`. Used to surface one
 /// preview row per match so the user can pick the specific occurrence
 /// they meant in a doc that contains the term more than once.
-fn collect_block_snippets(
-    blocks: &[Block],
-    query: &str,
-    out: &mut Vec<(uuid::Uuid, String)>,
-) {
+fn collect_block_snippets(blocks: &[Block], query: &str, out: &mut Vec<(uuid::Uuid, String)>) {
     for block in blocks {
         if let Some(text) = block_plain_text(&block.content)
             && let Some(snippet) = extract_snippet(&text, query)
@@ -178,6 +174,43 @@ pub fn search_folders(
         .into_iter()
         .filter(|m| m.name.to_lowercase().contains(&q))
         .collect())
+}
+
+/// Bundle of search results across every workspace surface: document
+/// titles, block content (with snippets), database titles and folder
+/// names. Returned by [`super_search`].
+#[derive(Debug, Clone)]
+pub struct SuperSearchResults {
+    pub documents_by_title: Vec<DocumentMeta>,
+    /// Block-level hits for documents that did **not** already match by
+    /// title — a doc matching both surfaces once in `documents_by_title`.
+    pub documents_by_content: Vec<BlockSearchHit>,
+    pub databases: Vec<crate::domain::database::DatabaseMeta>,
+    pub folders: Vec<crate::domain::folder::FolderMeta>,
+}
+
+/// Runs every search axis in a single call and deduplicates the document
+/// axis: a document matching by title is excluded from the content hits
+/// so it surfaces exactly once in the title section.
+pub fn super_search(uow: &dyn UnitOfWork, query: &str) -> Result<SuperSearchResults, PinkhaError> {
+    let documents_by_title = search_documents(uow, query)?;
+    let block_hits = search_in_blocks_with_snippets(uow, query)?;
+    let databases = search_databases(uow, query)?;
+    let folders = search_folders(uow, query)?;
+
+    let title_ids: std::collections::HashSet<uuid::Uuid> =
+        documents_by_title.iter().map(|m| m.id).collect();
+    let documents_by_content = block_hits
+        .into_iter()
+        .filter(|h| !title_ids.contains(&h.doc.id))
+        .collect();
+
+    Ok(SuperSearchResults {
+        documents_by_title,
+        documents_by_content,
+        databases,
+        folders,
+    })
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────

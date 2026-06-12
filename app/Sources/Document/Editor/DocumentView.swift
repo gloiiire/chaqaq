@@ -63,6 +63,15 @@ struct DocumentView: View {
     /// on appear from `vm.api.listDocuments()` (which includes
     /// sub-pages, unlike `store.documents` which is root-only).
     @State var docMetaById: [String: DocumentMetaFfi] = [:]
+    /// Presents the graphical date picker that lets the user
+    /// override (or reset) the document's publish date — separate
+    /// from the immutable creation timestamp. Triggered from the
+    /// overflow menu in the toolbar.
+    @State var showingPublishDateSheet = false
+    /// Presents the "Add to a database" sheet — picks a target DB
+    /// and edits its row's property values for this document.
+    /// Triggered from the overflow menu in the toolbar.
+    @State var showingAttachToDatabaseSheet = false
     /// Legacy UserDefaults key for the lock state, retained for the one-shot
     /// migration in `onAppear` — the canonical store is now `vm.locked`.
     let lockKey: String
@@ -367,6 +376,19 @@ struct DocumentView: View {
         }
         .sheet(isPresented: $showingBlockPicker) {
             BlockPickerSheet { type in vm.addBlock(type: type, afterId: vm.activeBlockId) }
+        }
+        .sheet(isPresented: $showingPublishDateSheet) {
+            DocumentPublishDateSheet(
+                createdAt: vm.createdAt,
+                publishedAt: vm.publishedAt,
+                onSave: { iso in vm.savePublishedAt(iso) }
+            )
+            .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showingAttachToDatabaseSheet) {
+            AttachDocToDatabaseSheet(docId: vm.docId)
+                .environmentObject(store)
+                .presentationDetents([.large])
         }
         .alert("Error", isPresented: Binding(
             get: { vm.errorMessage != nil },

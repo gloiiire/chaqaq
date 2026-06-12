@@ -21,12 +21,13 @@ use pinkha_mcp::{protocol, tools};
 use serde_json::{Value, json};
 
 fn main() -> anyhow::Result<()> {
-    let db_path = std::env::args().nth(1).ok_or_else(|| {
-        anyhow::anyhow!("usage: pinkha-mcp <path/to/pinkha.db>")
-    })?;
-    let api = Arc::new(PinkhaApi::new(db_path).map_err(|e| {
-        anyhow::anyhow!("failed to open pinkha database: {e}")
-    })?);
+    let db_path = std::env::args()
+        .nth(1)
+        .ok_or_else(|| anyhow::anyhow!("usage: pinkha-mcp <path/to/pinkha.db>"))?;
+    let api = Arc::new(
+        PinkhaApi::new(db_path)
+            .map_err(|e| anyhow::anyhow!("failed to open pinkha database: {e}"))?,
+    );
 
     let stdin = io::stdin();
     let stdout = io::stdout();
@@ -61,10 +62,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn write_message(
-    out: &mut impl Write,
-    msg: &protocol::Response,
-) -> io::Result<()> {
+fn write_message(out: &mut impl Write, msg: &protocol::Response) -> io::Result<()> {
     let s = serde_json::to_string(msg).expect("serializable");
     writeln!(out, "{s}")?;
     out.flush()

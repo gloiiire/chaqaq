@@ -122,6 +122,7 @@ struct NotionImportView: View {
             }
             statusSection
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     /// OAuth2 sign-in. Only shown when a public-integration client ID is
@@ -351,6 +352,13 @@ struct NotionImportView: View {
         databasesError = nil
         Task.detached(priority: .userInitiated) {
             do {
+                // Legacy picker only — 1 Notion API call, near-
+                // instant. The v2025 path (extra data_source +
+                // pages + per-page block walks) is left in the
+                // codebase but unused on this surface : it pushed
+                // the load time from ~150ms to 5-10s on real
+                // accounts. Re-enable selectively if a future user
+                // explicitly opts into deeper discovery.
                 let dbs = try api.listNotionDatabases(token: cleaned)
                 await MainActor.run {
                     availableDatabases = dbs
@@ -438,7 +446,11 @@ struct NotionImportView: View {
                     try? FileManager.default.copyItem(at: src, to: dst)
                 }
             }
-            await MainActor.run { state = .done(aggregated: totals) }
+            // Copy before hopping to the main actor — capturing the mutable
+            // `totals` var in concurrently-executing code is an error in
+            // Swift 6 language mode.
+            let aggregated = totals
+            await MainActor.run { state = .done(aggregated: aggregated) }
         }
     }
 }

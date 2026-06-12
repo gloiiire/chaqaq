@@ -38,6 +38,14 @@ pub fn list_documents(uow: &dyn UnitOfWork) -> Result<Vec<DocumentMeta>, PinkhaE
     uow.documents().list()
 }
 
+/// Returns lightweight metadata for a single document. Callers that only
+/// need the title / icon / cover should prefer this over [`get_document`]
+/// so the block tree never crosses the boundary.
+pub fn get_document_meta(uow: &dyn UnitOfWork, id: Uuid) -> Result<DocumentMeta, PinkhaError> {
+    let doc = uow.documents().load(id)?;
+    Ok(DocumentMeta::from(&doc))
+}
+
 /// Soft-deletes a document by ID — recoverable via [`restore_document`].
 pub fn delete_document(uow: &dyn UnitOfWork, doc_id: Uuid) -> Result<(), PinkhaError> {
     uow.documents().delete(doc_id)
@@ -152,6 +160,20 @@ pub fn update_document_locked(
     let repo = uow.documents();
     let mut doc = repo.load(doc_id)?;
     doc.locked = locked;
+    repo.save(&doc)
+}
+
+/// Overrides the document's user-editable `published_at` timestamp.
+/// Empty string resets the doc to the default "follow `created_at`"
+/// behaviour. Mirrors `update_entry_published_at` on Entry.
+pub fn update_document_published_at(
+    uow: &dyn UnitOfWork,
+    doc_id: Uuid,
+    new_published_at: String,
+) -> Result<(), PinkhaError> {
+    let repo = uow.documents();
+    let mut doc = repo.load(doc_id)?;
+    doc.published_at = new_published_at;
     repo.save(&doc)
 }
 

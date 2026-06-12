@@ -77,12 +77,34 @@ struct ContentView: View {
             CreateDocumentSheet(
                 title: $composer.newTitle,
                 prompt: composer.createMode == .note ? "Note title" : "Database title",
-                navigationTitle: composer.createMode == .note ? "New Document" : "New Database"
-            ) {
+                navigationTitle: composer.createMode == .note ? "New Document" : "New Database",
+                // Only the Note flow can attach to a database — the
+                // Database creation flow doesn't make sense to nest
+                // inside another DB.
+                availableDatabases: composer.createMode == .note ? store.databases : [],
+                api: composer.createMode == .note ? store.api : nil
+            ) { databaseId, propertyValues, standaloneStyle in
                 switch composer.createMode {
                 case .note:
-                    let newId = store.createNote(title: composer.newTitle,
-                                                 in: composer.currentContext)
+                    let newId: String?
+                    if let dbId = databaseId {
+                        // User opted to file the note as a row of an
+                        // existing database — the store handles both
+                        // the doc creation AND the entry insert. We
+                        // still propagate the chosen style so the
+                        // doc carries its cover / icon / theme when
+                        // opened from the DB.
+                        newId = store.createNoteInDatabase(
+                            title: composer.newTitle,
+                            databaseId: dbId,
+                            propertyValues: propertyValues,
+                            style: standaloneStyle
+                        )
+                    } else {
+                        newId = store.createNote(title: composer.newTitle,
+                                                 in: composer.currentContext,
+                                                 style: standaloneStyle)
+                    }
                     if case .document(let parentId) = composer.currentContext,
                        let newId {
                         // For `.document` context, the active editor's
@@ -292,7 +314,7 @@ struct ContentView: View {
                     // whose path mutation didn't take (SwiftUI bug).
                     .id(composer.notesHomeKey)
             }
-            Tab("Databases", systemImage: "tablecells",
+            Tab("Databases tab", systemImage: "tablecells",
                 value: Composer.TabKind.databases) {
                 DatabasesHomeView(store: store)
             }
@@ -409,6 +431,7 @@ private struct SearchView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Search")
             .searchable(text: $query, prompt: "Search notes, content, databases, folders…")
             .autocorrectionDisabled()
