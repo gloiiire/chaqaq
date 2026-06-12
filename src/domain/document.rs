@@ -158,6 +158,13 @@ pub struct DocumentMeta {
     /// Same `null → ""` tolerance as `updated_at` above.
     #[serde(default, deserialize_with = "deserialize_string_or_null")]
     pub created_at: String,
+    /// User-editable publish timestamp. Defaults to `created_at` at
+    /// insert (so untouched docs behave like before), but the user
+    /// can override it from the doc toolbar. Empty string on legacy
+    /// metas (pre-field) is treated as "fall back to `created_at`"
+    /// by the sort path.
+    #[serde(default, deserialize_with = "deserialize_string_or_null")]
+    pub published_at: String,
     /// Folder this document belongs to. None = root level.
     #[serde(default)]
     pub folder_id: Option<Uuid>,
@@ -178,6 +185,7 @@ impl From<&Document> for DocumentMeta {
             title: doc.title.clone(),
             updated_at: String::new(),
             created_at: String::new(),
+            published_at: doc.published_at.clone(),
             folder_id: doc.folder_id,
             parent_doc_id: doc.parent_doc_id,
         }
@@ -254,6 +262,15 @@ pub struct Document {
     /// `accent_color`. `#[serde(default)]` for backward compatibility.
     #[serde(default)]
     pub theme: Option<String>,
+    /// User-editable publish timestamp. Defaults to `created_at`
+    /// at the SQLite insert path (see `SqliteDocumentStore`), but
+    /// the user can override it from the doc toolbar to make the
+    /// doc surface as if it had been published on a different
+    /// date — useful for backdated articles. Empty string on
+    /// legacy rows is treated as "follow `created_at`" by the sort
+    /// path. `#[serde(default)]` keeps backward compat.
+    #[serde(default)]
+    pub published_at: String,
 }
 
 impl Document {
@@ -272,6 +289,7 @@ impl Document {
             accent_color: None,
             text_direction: None,
             theme: None,
+            published_at: String::new(),
         }
     }
 

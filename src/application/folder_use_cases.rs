@@ -19,6 +19,19 @@ pub fn list_folders(uow: &dyn UnitOfWork) -> Result<Vec<FolderMeta>, PinkhaError
     uow.folders().list()
 }
 
+/// Returns the direct children of `parent_id` (`None` = root-level folders).
+pub fn list_child_folders(
+    uow: &dyn UnitOfWork,
+    parent_id: Option<Uuid>,
+) -> Result<Vec<FolderMeta>, PinkhaError> {
+    Ok(uow
+        .folders()
+        .list()?
+        .into_iter()
+        .filter(|f| f.parent_id == parent_id)
+        .collect())
+}
+
 pub fn rename_folder(uow: &dyn UnitOfWork, id: Uuid, new_name: &str) -> Result<(), PinkhaError> {
     uow.folders().rename(id, new_name)
 }

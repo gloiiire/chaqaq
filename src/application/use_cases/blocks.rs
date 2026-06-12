@@ -97,8 +97,8 @@ pub fn duplicate_block(
 ) -> Result<Uuid, PinkhaError> {
     let repo = uow.documents();
     let mut doc = repo.load(doc_id)?;
-    let new_id = duplicate_in_tree(&mut doc.blocks, block_id)
-        .ok_or(PinkhaError::NotFound(block_id))?;
+    let new_id =
+        duplicate_in_tree(&mut doc.blocks, block_id).ok_or(PinkhaError::NotFound(block_id))?;
     repo.save(&doc)?;
     Ok(new_id)
 }

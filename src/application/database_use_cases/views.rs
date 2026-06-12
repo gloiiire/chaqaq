@@ -66,6 +66,36 @@ pub fn set_view_single_sort(
     repo.save(&db)
 }
 
+/// Sets the active view's sort to the entry-level timestamp sources :
+/// `created_at` or `published_at`. `property_id` is ignored — both
+/// timestamps live on `Entry`, not on a column. Pass `None` to clear
+/// the sort entirely (same vocabulary as `set_view_single_sort`).
+pub fn set_view_date_sort(
+    uow: &dyn UnitOfWork,
+    db_id: Uuid,
+    view_id: Uuid,
+    source: SortSource,
+    ascending: bool,
+) -> Result<(), PinkhaError> {
+    let repo = uow.databases();
+    let mut db = repo.load(db_id)?;
+    let view = db
+        .views
+        .iter_mut()
+        .find(|v| v.id == view_id)
+        .ok_or(PinkhaError::NotFound(view_id))?;
+    view.sorts = vec![Sort {
+        property_id: Uuid::nil(),
+        order: if ascending {
+            Order::Ascending
+        } else {
+            Order::Descending
+        },
+        source,
+    }];
+    repo.save(&db)
+}
+
 /// Removes a view and persists.
 ///
 /// Returns `InvalidOperation` when attempting to delete the last remaining view.

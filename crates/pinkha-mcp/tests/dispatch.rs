@@ -315,9 +315,8 @@ fn database_lifecycle_create_property_entry_query() {
     let found = entries
         .as_array()
         .map(|arr| {
-            arr.iter().any(|e| {
-                e.get("id").and_then(Value::as_str) == Some(entry_id.as_str())
-            })
+            arr.iter()
+                .any(|e| e.get("id").and_then(Value::as_str) == Some(entry_id.as_str()))
         })
         .unwrap_or(false);
     assert!(
@@ -369,10 +368,7 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
             "update_document_cover",
             json!({ "id": &doc, "cover": "cover-A" }),
         ),
-        (
-            "update_document_icon",
-            json!({ "id": &doc, "icon": "🦊" }),
-        ),
+        ("update_document_icon", json!({ "id": &doc, "icon": "🦊" })),
         (
             "update_document_locked",
             json!({ "id": &doc, "locked": false }),
@@ -393,16 +389,11 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
     // list_root_documents + list_child_documents — the parent_doc_id
     // arg path.
     let _ = dispatch(&a, "list_root_documents", json!({})).unwrap();
-    let _ = dispatch(
-        &a,
-        "list_child_documents",
-        json!({ "parent_doc_id": &doc }),
-    )
-    .unwrap();
+    let _ = dispatch(&a, "list_child_documents", json!({ "parent_doc_id": &doc })).unwrap();
 
     // ── Blocks ────────────────────────────────────────────────────
-    let text_block = json!({ "Text": serde_json::from_str::<Value>(&txt("hi")).unwrap() })
-        .to_string();
+    let text_block =
+        json!({ "Text": serde_json::from_str::<Value>(&txt("hi")).unwrap() }).to_string();
     let b1 = field(
         &dispatch(
             &a,

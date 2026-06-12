@@ -64,6 +64,7 @@ struct ExpandingBlockFAB: View {
                     let magnitude = hypot(value.translation.width,
                                           value.translation.height)
                     if magnitude > 20 {
+                        Haptic.soft()
                         withAnimation(.spring(response: 0.45, dampingFraction: 0.78)) {
                             isExpanded = true
                         }
@@ -121,6 +122,7 @@ struct ExpandingBlockFAB: View {
                     let dy = abs(value.translation.height)
                     let dx = abs(value.translation.width)
                     if dy > 30 && dy > dx * 1.5 {
+                        Haptic.soft()
                         withAnimation(.spring(response: 0.45, dampingFraction: 0.78)) {
                             isExpanded = false
                         }

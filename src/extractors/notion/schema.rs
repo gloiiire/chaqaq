@@ -61,7 +61,9 @@ fn default_run_type() -> String {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NotionMention {
-    Page { page: NotionMentionPage },
+    Page {
+        page: NotionMentionPage,
+    },
     #[serde(other)]
     Unknown,
 }
@@ -81,6 +83,74 @@ pub struct NotionSearchResponse {
     pub results: Vec<NotionDatabaseSearchHit>,
     pub has_more: bool,
     pub next_cursor: Option<String>,
+}
+
+/// Paginated response from `POST /v1/search` filtered to `object: "page"`.
+/// Used by the v2025 picker walker to enumerate every page the
+/// integration can see, then dive into each one's blocks to surface
+/// nested `child_database` blocks that the `object: database` search
+/// doesn't find on its own.
+#[derive(Debug, Deserialize)]
+pub struct NotionPageSearchResponse {
+    pub results: Vec<NotionPageSearchHit>,
+    pub has_more: bool,
+    pub next_cursor: Option<String>,
+}
+
+/// Minimal page hit — only the fields the walker actually uses.
+#[derive(Debug, Deserialize)]
+pub struct NotionPageSearchHit {
+    pub id: String,
+    #[serde(default)]
+    pub last_edited_time: String,
+}
+
+/// Search response for the v2025-09-03 API when filtered to
+/// `object: "data_source"`. Same envelope as `NotionSearchResponse`
+/// but with a distinct hit shape — kept as a separate struct so the
+/// legacy parser stays untouched (Open/Closed : extend, don't
+/// modify).
+#[derive(Debug, Deserialize)]
+pub struct NotionDataSourceSearchResponse {
+    pub results: Vec<NotionDataSourceSearchHit>,
+    pub has_more: bool,
+    pub next_cursor: Option<String>,
+}
+
+/// A single data-source hit. Notion's 2025-09-03 API introduced
+/// data sources as a first-class object — each multi-source database
+/// has one data_source per tab. The wrapping database's UUID lives
+/// in `parent.database_id`. For single-source DBs there's still a
+/// 1:1 mapping ; either way we want the database id for our import
+/// path (`/v1/databases/{id}/query` keeps working under the legacy
+/// version header).
+#[derive(Debug, Deserialize)]
+pub struct NotionDataSourceSearchHit {
+    pub id: String,
+    /// Plain-text data-source name (data sources don't carry a
+    /// rich-text title like databases do — Notion ships it as a
+    /// single string).
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub icon: Option<NotionPageIcon>,
+    #[serde(default)]
+    pub last_edited_time: String,
+    pub parent: NotionDataSourceParent,
+}
+
+/// Discriminated-union parent ref. Almost every data source has a
+/// `database_id` parent — the catch-all `Unknown` covers any
+/// future parent shapes Notion might introduce without breaking
+/// our deserialize.
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NotionDataSourceParent {
+    DatabaseId {
+        database_id: String,
+    },
+    #[serde(other)]
+    Unknown,
 }
 
 /// A single database returned by the search endpoint. Carries enough data for
@@ -108,11 +178,23 @@ pub struct NotionDatabaseSearchHit {
 
 // ── Database schema ───────────────────────────────────────────────────────────
 
-/// Schema of a Notion database (property definitions + title).
+/// Schema of a Notion database (property definitions + title + chrome).
 #[derive(Debug, Clone, Deserialize)]
 pub struct NotionDatabaseSchema {
     pub id: String,
     pub title: Vec<NotionRichText>,
+    /// Rich-text description shown under the title in Notion. Empty
+    /// when the user didn't set one ; `#[serde(default)]` so older
+    /// fixtures keep parsing.
+    #[serde(default)]
+    pub description: Vec<NotionRichText>,
+    /// Database cover banner. Same shape as a page cover — Notion
+    /// uses the identical type at both levels.
+    #[serde(default)]
+    pub cover: Option<NotionPageCover>,
+    /// Database icon (emoji or external image).
+    #[serde(default)]
+    pub icon: Option<NotionPageIcon>,
     pub properties: HashMap<String, NotionPropertyDef>,
 }
 
@@ -178,7 +260,7 @@ pub struct NotionPageResult {
 
 /// Cover image returned by the Notion API. Two variants depending on the
 /// source (Notion-hosted file vs external URL); we only care about the URL.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NotionPageCover {
     External {
@@ -205,7 +287,7 @@ impl NotionPageCover {
 
 /// Page icon — the Notion API returns either an emoji or an image (external
 /// URL or Notion-hosted file).
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NotionPageIcon {
     Emoji {
@@ -221,12 +303,12 @@ pub enum NotionPageIcon {
     Unknown,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct NotionExternalFile {
     pub url: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct NotionHostedFile {
     pub url: String,
 }
@@ -314,6 +396,24 @@ pub struct NotionBlock {
     /// block's `id` doubles as the embedded child page's Notion id, fetched
     /// separately during import to materialise the child document.
     pub child_page: Option<ChildPageBlock>,
+    /// Child-database block payload — present when `type_ == "child_database"`.
+    /// The block's own `id` is the wrapping database's Notion id, used by
+    /// the v2025 picker walker to surface nested DBs that the
+    /// `object: database` search doesn't enumerate on its own.
+    pub child_database: Option<ChildDatabaseBlock>,
+}
+
+/// Body of a `child_database` block — Notion only inlines the title
+/// in the block stream. The rest of the schema is fetched by the
+/// existing import flow via `GET /v1/databases/{block_id}`.
+#[derive(Debug, Deserialize)]
+pub struct ChildDatabaseBlock {
+    /// Defensive `#[serde(default)]` — Notion has been observed to
+    /// ship `null` titles for unnamed child databases ; without
+    /// this, the whole page-block response would fail to
+    /// deserialize and the walker would silently drop the page.
+    #[serde(default)]
+    pub title: String,
 }
 
 /// Body of a `child_page` block — only carries the static title shown inline.

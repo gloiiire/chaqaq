@@ -19,6 +19,9 @@ struct RecentStrip: View {
     let onOpenNote: (String) -> Void
     var onRenameNote: ((DocumentMetaFfi) -> Void)? = nil
     var onDeleteNote: ((DocumentMetaFfi) -> Void)? = nil
+    /// Optional handler for "Add to a database" — when nil the menu
+    /// item is hidden (e.g. when no DB exists yet).
+    var onAddToDatabase: ((DocumentMetaFfi) -> Void)? = nil
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -32,16 +35,29 @@ struct RecentStrip: View {
                                 doc: doc,
                                 onOpen: { onOpenNote(doc.id) },
                                 onRename: { onRenameNote?(doc) },
-                                onDelete: { onDeleteNote?(doc) }
+                                onDelete: { onDeleteNote?(doc) },
+                                onAddToDatabase: onAddToDatabase.map { handler in
+                                    { handler(doc) }
+                                }
                             )
                             .matchedTransitionSource(id: doc.id, in: zoomNamespace)
                             .id(doc.id)
                         case .database(let db):
-                            NavigationLink(destination: DatabaseView(dbId: db.id, api: api,
-                                                                    onDisappear: onDisappear)) {
+                            NavigationLink(destination:
+                                DatabaseView(dbId: db.id, api: api,
+                                             onDisappear: onDisappear)
+                                    .navigationTransition(
+                                        .zoom(sourceID: db.id, in: zoomNamespace))
+                            ) {
                                 RecentCard(item: item)
                             }
                             .buttonStyle(.plain)
+                            // Pair with the destination's
+                            // `.navigationTransition(.zoom(sourceID:in:))`
+                            // so opening a DB from the strip flies
+                            // out of the card, same vocabulary as
+                            // notes.
+                            .matchedTransitionSource(id: db.id, in: zoomNamespace)
                             .id(db.id)
                         }
                     }
@@ -64,6 +80,9 @@ private struct RecentNoteCard: View {
     let onOpen: () -> Void
     let onRename: () -> Void
     let onDelete: () -> Void
+    /// When non-nil, surfaces the "Add to a database" entry between
+    /// Rename and Delete in the context menu.
+    var onAddToDatabase: (() -> Void)? = nil
 
     var body: some View {
         // UIKit-backed context menu — SwiftUI's `.contextMenu` has a
@@ -86,12 +105,24 @@ private struct RecentNoteCard: View {
                     attributes: .destructive,
                     handler: { _ in onDelete() }
                 )
-                return UIMenu(children: [rename, delete])
+                var children: [UIMenuElement] = [rename]
+                if let onAddToDatabase {
+                    children.append(UIAction(
+                        title: "Add to a database",
+                        image: UIImage(systemName: "tablecells.badge.ellipsis"),
+                        handler: { _ in onAddToDatabase() }
+                    ))
+                }
+                children.append(delete)
+                return UIMenu(children: children)
             },
             onTapPreview: onOpen
         )
         .frame(width: 165, height: 170)
-        .onTapGesture(perform: onOpen)
+        .onTapGesture {
+            Haptic.tap()
+            onOpen()
+        }
     }
 }
 
@@ -151,8 +182,10 @@ struct RecentCard: View {
     }
 
     private var coverValue: String? {
-        if case .note(let doc) = item { return doc.cover }
-        return nil
+        switch item {
+        case .note(let doc):    return doc.cover
+        case .database(let db): return db.cover
+        }
     }
 
     @ViewBuilder
@@ -169,13 +202,17 @@ struct RecentCard: View {
                     .background(Color(.systemBackground), in: Circle())
                     .overlay(Circle().strokeBorder(.separator.opacity(0.6), lineWidth: 0.5))
             }
-        case .database:
-            Image(systemName: "tablecells")
-                .font(.body.weight(.medium))
-                .foregroundStyle(.secondary)
-                .frame(width: iconSize, height: iconSize)
-                .background(Color(.systemBackground), in: Circle())
-                .overlay(Circle().strokeBorder(.separator.opacity(0.6), lineWidth: 0.5))
+        case .database(let db):
+            if let icon = db.icon, !icon.isEmpty {
+                Text(icon).font(.title2)
+            } else {
+                Image(systemName: "tablecells")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: iconSize, height: iconSize)
+                    .background(Color(.systemBackground), in: Circle())
+                    .overlay(Circle().strokeBorder(.separator.opacity(0.6), lineWidth: 0.5))
+            }
         }
     }
 }

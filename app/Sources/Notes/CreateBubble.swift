@@ -157,6 +157,13 @@ struct CreateBubble: View {
                 // visual baseline matches — `.offset` shifts the render
                 // without disturbing the layout (idiomatic SwiftUI fix for
                 // small visual asymmetries like this).
+                // The `ellipsis` glyph renders centred in its bounding box
+                // and visually higher than `doc.text` / `tablecells` etc.,
+                // which are top-heavy. We frame it to the same height as
+                // the others and nudge it down with `.offset(y:)` so its
+                // visual baseline matches — `.offset` shifts the render
+                // without disturbing the layout (idiomatic SwiftUI fix for
+                // small visual asymmetries like this).
                 Image(systemName: "ellipsis")
                     .font(.title3.weight(.regular))
                     .frame(height: 22)
@@ -169,8 +176,8 @@ struct CreateBubble: View {
                 if !isInline {
                     Text("More")
                         .font(.system(size: 9, weight: .regular))
-												.transition(.opacity)
-												.offset(y: 0)
+                        .transition(.opacity)
+                        .offset(y: 0)
                 }
             }
             .frame(minWidth: 48, minHeight: 48)

@@ -68,7 +68,10 @@ extension DocumentView {
             }
         }
         ToolbarItem(placement: .primaryAction) {
-            Button {
+            LockToolbarButton(
+                locked: vm.locked,
+                accent: effectiveAccentColor
+            ) {
                 Haptic.toggle()
                 let newLocked = !vm.locked
                 withAnimation(.easeInOut(duration: 0.15)) {
@@ -84,14 +87,7 @@ extension DocumentView {
                     // persists to SQLite via the FFI + registers undo.
                     vm.saveLocked(newLocked)
                 }
-            } label: {
-                Image(systemName: vm.locked ? "lock.fill" : "lock.open.fill")
             }
-            // Only the locked state earns the accent — the unlocked
-            // open-lock keeps the neutral material color so the rest
-            // of the toolbar reads as quiet chrome.
-            .tint(vm.locked ? effectiveAccentColor : .primary)
-            .accessibilityLabel(vm.locked ? "Unlock document" : "Lock document")
         }
         ToolbarItem(placement: .primaryAction) {
             Button {
@@ -237,6 +233,27 @@ extension DocumentView {
                         Text("Theme")
                     } icon: {
                         Image(systemName: "book.pages")
+                    }
+                }
+                Divider()
+                Button {
+                    Haptic.tap()
+                    showingPublishDateSheet = true
+                } label: {
+                    Label {
+                        Text("Publish date")
+                    } icon: {
+                        Image(systemName: "paperplane")
+                    }
+                }
+                Button {
+                    Haptic.tap()
+                    showingAttachToDatabaseSheet = true
+                } label: {
+                    Label {
+                        Text("Add to a database")
+                    } icon: {
+                        Image(systemName: "tablecells.badge.ellipsis")
                     }
                 }
             } label: {

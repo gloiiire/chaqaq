@@ -46,12 +46,14 @@ struct VMErrorHandlingTests {
         let firstError = vm.errorMessage
         #expect(firstError != nil)
 
-        // attempt to save a phantom block → another error
+        // attempt to persist a phantom block → another error. `saveBlock`
+        // is burst-based and silently ignores blocks without a snapshot,
+        // so the structural-mutation path (`persistBlock`) is the one
+        // that must surface the storage error.
         vm.errorMessage = nil
         let phantom = EditableBlock(id: UUID().uuidString, content: .text([]),
                                      spans: [], done: false)
-        vm.saveBlock(phantom)
-        vm.flushAllBursts() // persist is deferred — flush to trigger the error synchronously
+        vm.persistBlock(phantom)
         #expect(vm.errorMessage != nil)
     }
 }

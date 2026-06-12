@@ -64,6 +64,11 @@ struct PinkhaApp: App {
                 // it here (the first SwiftUI task on screen) is safe :
                 // the splash window is already up.
                 settings.applyAppearanceToWindows()
+                // Hook a window-level pan recognizer that ends
+                // editing on a strong downward swipe — fall-back
+                // for sheets too short for `.scrollDismissesKeyboard`
+                // to engage on its own.
+                GlobalKeyboardDismissPan.shared.installIfNeeded()
                 // Beat 1 (0.0–0.7s): logo fades + scales in.
                 // Beat 2 (0.7–1.5s): hold — gives the eye time to land.
                 // Beat 3 (1.5–2.2s): scale-up + fade-out into the app.

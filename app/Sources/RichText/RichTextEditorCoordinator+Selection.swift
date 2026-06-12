@@ -38,10 +38,14 @@ extension RichTextEditorCoordinator {
         guard let btn else { return }
         // Prefer the doc-resolved accent pushed by the SwiftUI parent
         // (per-doc override winning over the global accent). Fall
-        // back to the asset-catalog color, then `.tintColor`.
-        let activeColor = currentAccentColor
-            ?? UIColor(named: "Accent")
-            ?? .tintColor
+        // back to `.label` — a neutral system-dynamic color — when
+        // the chain hasn't been wired yet : `UIColor.tintColor`
+        // resolves to whatever the host UIWindow's tint happens to
+        // be (red in some iOS 26 contexts), making the paste / link
+        // icons read as a wrong-but-bright accent before the first
+        // SwiftUI updateUIView pushes the real value. Falling to
+        // `.label` keeps the icon quiet until the accent settles.
+        let activeColor = currentAccentColor ?? .label
         let c: UIColor = active ? activeColor : .secondaryLabel
         let cfg = UIImage.SymbolConfiguration(pointSize: size, weight: .medium)
         btn.setImage(UIImage(systemName: name, withConfiguration: cfg)?

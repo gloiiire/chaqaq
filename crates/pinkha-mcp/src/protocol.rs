@@ -44,7 +44,12 @@ pub struct RpcError {
 
 impl Response {
     pub fn result(id: Value, value: Value) -> Self {
-        Self { jsonrpc: "2.0", id, result: Some(value), error: None }
+        Self {
+            jsonrpc: "2.0",
+            id,
+            result: Some(value),
+            error: None,
+        }
     }
 
     pub fn error(id: Value, code: i32, message: &str) -> Self {
@@ -52,7 +57,10 @@ impl Response {
             jsonrpc: "2.0",
             id,
             result: None,
-            error: Some(RpcError { code, message: message.to_string() }),
+            error: Some(RpcError {
+                code,
+                message: message.to_string(),
+            }),
         }
     }
 }
