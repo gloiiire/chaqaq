@@ -346,15 +346,15 @@ mod tests {
                 plain_text: "".to_string(),
                 annotations: NotionAnnotations::default(),
                 href: None,
-            run_type: "text".to_string(),
-            mention: None,
+                run_type: "text".to_string(),
+                mention: None,
             },
             NotionRichText {
                 plain_text: "hello".to_string(),
                 annotations: NotionAnnotations::default(),
                 href: None,
-            run_type: "text".to_string(),
-            mention: None,
+                run_type: "text".to_string(),
+                mention: None,
             },
         ];
         let result = map_rich_text(&items);
@@ -401,8 +401,8 @@ mod tests {
                 plain_text: text.to_string(),
                 annotations: NotionAnnotations::default(),
                 href: None,
-            run_type: "text".to_string(),
-            mention: None,
+                run_type: "text".to_string(),
+                mention: None,
             }],
         }
     }
@@ -452,6 +452,7 @@ mod tests {
             },
             code: None,
             child_page: None,
+            child_database: None,
         }
     }
 
@@ -509,6 +510,7 @@ mod tests {
             bulleted_list_item: None,
             numbered_list_item: None,
             child_page: None,
+            child_database: None,
             code: Some(CodeBlock {
                 rich_text: vec![rt],
                 language: "rust".to_string(),
@@ -542,6 +544,7 @@ mod tests {
             numbered_list_item: None,
             code: None,
             child_page: None,
+            child_database: None,
         };
         assert!(map_block(&block).is_none());
     }
@@ -593,6 +596,7 @@ mod tests {
             numbered_list_item: None,
             code: None,
             child_page: None,
+            child_database: None,
         };
         let result = map_block(&block);
         assert!(matches!(
@@ -630,6 +634,7 @@ mod tests {
             numbered_list_item: None,
             code: None,
             child_page: None,
+            child_database: None,
         };
         let result = map_block(&block);
         assert!(matches!(
@@ -670,6 +675,7 @@ mod tests {
             numbered_list_item: None,
             code: None,
             child_page: None,
+            child_database: None,
         };
         let result = map_block(&block);
         match result {
@@ -709,6 +715,7 @@ mod tests {
             numbered_list_item: None,
             code: None,
             child_page: None,
+            child_database: None,
         };
         let result = map_block(&block);
         match result {
@@ -737,8 +744,8 @@ mod tests {
                     plain_text: "wisdom".to_string(),
                     annotations: NotionAnnotations::default(),
                     href: None,
-            run_type: "text".to_string(),
-            mention: None,
+                    run_type: "text".to_string(),
+                    mention: None,
                 }],
                 color: "default".into(),
             }),
@@ -747,6 +754,7 @@ mod tests {
             numbered_list_item: None,
             code: None,
             child_page: None,
+            child_database: None,
         };
         let result = map_block(&block);
         match result {
@@ -776,6 +784,7 @@ mod tests {
             numbered_list_item: None,
             code: None,
             child_page: None,
+            child_database: None,
         };
         let result = map_block(&block);
         assert!(matches!(
@@ -927,6 +936,7 @@ mod tests {
             numbered_list_item: None,
             code: None,
             child_page: None,
+            child_database: None,
         }
     }
 
@@ -967,6 +977,7 @@ mod tests {
             numbered_list_item: None,
             code: None,
             child_page: None,
+            child_database: None,
         };
         assert!(map_block_color(&block).is_none());
     }

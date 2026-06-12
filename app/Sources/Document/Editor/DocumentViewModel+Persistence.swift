@@ -102,7 +102,33 @@ extension DocumentViewModel {
             // Initialise stable snapshots for burst undo tracking.
             blockSnapshots = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, snapshotOf($0)) })
             blockBurstAnchor.removeAll()
+            // `published_at` / `created_at` live on the meta row, not
+            // in the document JSON. Walk the meta list once on load
+            // to surface them so the toolbar's "Publish date" sheet
+            // can read + override them without an extra query.
+            if let meta = (try? api.listDocuments())?.first(where: { $0.id == docId }) {
+                createdAt = meta.createdAt
+                publishedAt = meta.publishedAt
+            }
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// Persists a new publish date (ISO-8601) for this document and
+    /// registers an undo step. Empty string = reset to `created_at`
+    /// (the Rust use case treats empty as "follow created_at").
+    func savePublishedAt(_ newValue: String) {
+        let previous = publishedAt
+        guard previous != newValue else { return }
+        publishedAt = newValue
+        do {
+            try api.updateDocumentPublishedAt(id: docId, newPublishedAt: newValue)
+            undoMgr.registerUndo(withTarget: self) { vm in
+                vm.savePublishedAt(previous)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            publishedAt = previous
+        }
     }
 
     /// Depth-first flatten of the recursive `BlockFfi` tree into the flat list

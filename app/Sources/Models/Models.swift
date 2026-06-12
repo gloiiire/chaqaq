@@ -472,14 +472,57 @@ enum PropertyValueFfi: Codable, Equatable {
 struct EntryFfi: Codable, Identifiable {
     let id: String
     let createdAt: String
+    /// User-editable publish timestamp. Defaults to `createdAt` at
+    /// insert on the Rust side, so untouched entries behave
+    /// identically. Empty string on legacy entries (pre-field) is
+    /// treated as "fall back to createdAt" by the query path.
+    var publishedAt: String
+
+    /// Whether the entry's publish date has been manually overridden
+    /// (i.e. differs from `createdAt`). Used by the UI to show a
+    /// little "scheduled" indicator next to the date.
+    var hasCustomPublishDate: Bool {
+        !publishedAt.isEmpty && publishedAt != createdAt
+    }
+
+    /// Effective publish date — manual override when set, else
+    /// `createdAt`. Mirrors the Rust query's fallback logic so the
+    /// row's displayed date matches the column the user sorted by.
+    var effectivePublishedAt: String {
+        publishedAt.isEmpty ? createdAt : publishedAt
+    }
     var values: [String: PropertyValueFfi]
     let documentId: String?
 
     enum CodingKeys: String, CodingKey {
         case id
         case createdAt = "created_at"
+        case publishedAt = "published_at"
         case values
         case documentId = "document_id"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id          = try c.decode(String.self, forKey: .id)
+        createdAt   = (try? c.decode(String.self, forKey: .createdAt)) ?? ""
+        publishedAt = (try? c.decode(String.self, forKey: .publishedAt)) ?? ""
+        values      = try c.decode([String: PropertyValueFfi].self, forKey: .values)
+        documentId  = try c.decodeIfPresent(String.self, forKey: .documentId)
+    }
+
+    init(
+        id: String,
+        createdAt: String,
+        publishedAt: String = "",
+        values: [String: PropertyValueFfi],
+        documentId: String?
+    ) {
+        self.id          = id
+        self.createdAt   = createdAt
+        self.publishedAt = publishedAt
+        self.values      = values
+        self.documentId  = documentId
     }
 }
 
@@ -487,19 +530,190 @@ struct EntryFfi: Codable, Identifiable {
 struct DatabaseFfi: Codable {
     let id: String
     let title: [InlineTextFfi]
+    /// Optional banner image identifier — URL or local filename. Mirrors
+    /// the document cover surface so the doc-like DB header can render
+    /// one. Decoded explicitly because Codable synthesis won't accept a
+    /// missing key without an explicit `init(from:)`.
+    var cover: String?
+    /// Optional emoji / filename / URL displayed next to the title.
+    var icon: String?
+    /// Rich-text description shown under the title in the header. Empty
+    /// means "no description".
+    var description: [InlineTextFfi]
     let properties: [PropertyFfi]
     var entries: [EntryFfi]
     /// At least one view is always present (Rust `Database::new` seeds a
-    /// default "Table" view). `#[serde(default)]` would keep us safe against
+    /// default "List" view). `#[serde(default)]` would keep us safe against
     /// older payloads — Codable's Optional support gives the same guarantee.
     let views: [ViewFfi]?
+
+    /// Read-only flag. Mirrors `Document.locked` ; defaults `false`
+    /// when missing so old payloads stay decodable.
+    var locked: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, cover, icon, description, locked, properties, entries, views
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id          = try c.decode(String.self, forKey: .id)
+        title       = try c.decode([InlineTextFfi].self, forKey: .title)
+        cover       = try c.decodeIfPresent(String.self, forKey: .cover)
+        icon        = try c.decodeIfPresent(String.self, forKey: .icon)
+        description = (try? c.decode([InlineTextFfi].self, forKey: .description)) ?? []
+        locked      = (try? c.decode(Bool.self, forKey: .locked)) ?? false
+        properties  = try c.decode([PropertyFfi].self, forKey: .properties)
+        entries     = try c.decode([EntryFfi].self, forKey: .entries)
+        views       = try c.decodeIfPresent([ViewFfi].self, forKey: .views)
+    }
+
+    init(
+        id: String,
+        title: [InlineTextFfi],
+        cover: String? = nil,
+        icon: String? = nil,
+        description: [InlineTextFfi] = [],
+        locked: Bool = false,
+        properties: [PropertyFfi],
+        entries: [EntryFfi],
+        views: [ViewFfi]? = nil
+    ) {
+        self.id          = id
+        self.title       = title
+        self.cover       = cover
+        self.icon        = icon
+        self.description = description
+        self.locked      = locked
+        self.properties  = properties
+        self.entries     = entries
+        self.views       = views
+    }
+}
+
+/// View layout discriminator. Mirrors the Rust `ViewType` externally-tagged
+/// serde encoding. `List` and `Table` and `Gallery` are unit variants ;
+/// `Kanban` and `Calendar` carry an associated property UUID.
+enum ViewTypeFfi: Equatable {
+    case list
+    case table
+    case kanban(groupBy: String)
+    case calendar(propertyId: String)
+    case gallery
+
+    var systemImage: String {
+        switch self {
+        case .list:     return "list.bullet"
+        case .table:    return "tablecells"
+        case .kanban:   return "rectangle.split.3x1"
+        case .calendar: return "calendar"
+        case .gallery:  return "square.grid.2x2"
+        }
+    }
+
+    var label: LocalizedStringKey {
+        switch self {
+        case .list:     return "List"
+        case .table:    return "Table"
+        case .kanban:   return "Board"
+        case .calendar: return "Calendar"
+        case .gallery:  return "Gallery"
+        }
+    }
+}
+
+extension ViewTypeFfi: Codable {
+    init(from decoder: Decoder) throws {
+        // serde unit variants encode as bare strings ("List", "Table",
+        // "Gallery") ; struct variants encode as { "Kanban": { … } } /
+        // { "Calendar": { … } } single-key objects.
+        if let single = try? decoder.singleValueContainer(),
+           let raw = try? single.decode(String.self) {
+            switch raw {
+            case "List":    self = .list;    return
+            case "Table":   self = .table;   return
+            case "Gallery": self = .gallery; return
+            default: break
+            }
+        }
+        let c = try decoder.container(keyedBy: GenericKey.self)
+        guard let key = c.allKeys.first else {
+            throw DecodingError.dataCorruptedError(
+                forKey: GenericKey(stringValue: "")!,
+                in: c,
+                debugDescription: "empty ViewType")
+        }
+        let payload = try c.nestedContainer(keyedBy: GenericKey.self, forKey: key)
+        switch key.stringValue {
+        case "Kanban":
+            let groupBy = try payload.decode(String.self, forKey: GenericKey(stringValue: "group_by")!)
+            self = .kanban(groupBy: groupBy)
+        case "Calendar":
+            let prop = try payload.decode(String.self, forKey: GenericKey(stringValue: "property_id")!)
+            self = .calendar(propertyId: prop)
+        default:
+            throw DecodingError.dataCorruptedError(
+                forKey: key, in: c,
+                debugDescription: "unknown ViewType variant: \(key.stringValue)")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        switch self {
+        case .list:    var s = encoder.singleValueContainer(); try s.encode("List")
+        case .table:   var s = encoder.singleValueContainer(); try s.encode("Table")
+        case .gallery: var s = encoder.singleValueContainer(); try s.encode("Gallery")
+        case .kanban(let g):
+            var c = encoder.container(keyedBy: GenericKey.self)
+            var n = c.nestedContainer(keyedBy: GenericKey.self, forKey: GenericKey(stringValue: "Kanban")!)
+            try n.encode(g, forKey: GenericKey(stringValue: "group_by")!)
+        case .calendar(let p):
+            var c = encoder.container(keyedBy: GenericKey.self)
+            var n = c.nestedContainer(keyedBy: GenericKey.self, forKey: GenericKey(stringValue: "Calendar")!)
+            try n.encode(p, forKey: GenericKey(stringValue: "property_id")!)
+        }
+    }
+}
+
+/// Tiny untyped CodingKey for tagged-enum decoding. Used by `ViewTypeFfi`
+/// and any future externally-tagged enum that doesn't deserve its own
+/// dedicated key type.
+private struct GenericKey: CodingKey {
+    var stringValue: String
+    var intValue: Int? { nil }
+    init?(stringValue: String) { self.stringValue = stringValue }
+    init?(intValue: Int) { nil }
 }
 
 /// Swift mirror of Rust `View`. Only the fields the UI consumes today.
 struct ViewFfi: Codable, Identifiable {
     let id: String
     let name: String
+    /// `type_` on Rust side ; `type` on Swift side (reserved word — gets
+    /// renamed via CodingKeys). Drives which view component renders.
+    var type: ViewTypeFfi = .list
     let sorts: [SortFfi]
+
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case type = "type_"
+        case sorts
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id    = try c.decode(String.self, forKey: .id)
+        name  = try c.decode(String.self, forKey: .name)
+        type  = (try? c.decode(ViewTypeFfi.self, forKey: .type)) ?? .list
+        sorts = (try? c.decode([SortFfi].self, forKey: .sorts)) ?? []
+    }
+
+    init(id: String, name: String, type: ViewTypeFfi = .list, sorts: [SortFfi] = []) {
+        self.id = id
+        self.name = name
+        self.type = type
+        self.sorts = sorts
+    }
 }
 
 /// Swift mirror of Rust `Sort`. `order` is `"Ascending"` / `"Descending"`,

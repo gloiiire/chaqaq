@@ -20,13 +20,23 @@ extension NotesHomeView {
 
     // ── Sorting ───────────────────────────────────────────────────────────
 
-    /// Returns `store.items` sorted by the active `sortKey`/`sortAscending`.
+    /// Returns `store.items` sorted by the active `sortKey`/`sortAscending`,
+    /// filtered by the optional "hide databases" toggle.
     var sortedItems: [WorkspaceItem] {
         let openedAt: [String: Int] = Dictionary(
             uniqueKeysWithValues: tabManager.recentlyViewed.enumerated()
                 .map { ($1, $0) })
         let asc = sortAscending
-        return store.items.sorted { a, b in
+        let base: [WorkspaceItem]
+        if hideDatabases {
+            base = store.items.filter {
+                if case .database = $0 { return false }
+                return true
+            }
+        } else {
+            base = store.items
+        }
+        return base.sorted { a, b in
             // `naturalOrder` = "should a come before b under ascending".
             let naturalOrder: Bool
             switch sortKey {
@@ -36,6 +46,8 @@ extension NotesHomeView {
                 naturalOrder = a.createdAt < b.createdAt
             case .updatedAt:
                 naturalOrder = a.updatedAt < b.updatedAt
+            case .publishedAt:
+                naturalOrder = a.publishedAt < b.publishedAt
             case .lastOpened:
                 // Lower MRU index = more recently opened. Ascending
                 // means "oldest opened first" → higher index first.
@@ -62,14 +74,25 @@ extension NotesHomeView {
                 guard let c = first else { return "#" }
                 return c.isLetter ? String(c).uppercased() : "#"
             }
-            return buckets.keys.sorted().map { key in
+            // Ascending = A → Z, descending = Z → A. The sort
+            // direction the user picks for items also drives the
+            // header order so the screen reads consistently.
+            let keys = buckets.keys.sorted(by: sortAscending ? (<) : (>))
+            return keys.map { key in
                 ItemGroup(id: key, title: key, items: buckets[key] ?? [])
             }
-        case .createdAt, .updatedAt, .lastOpened:
-            return Self.bucketByDate(items, key: groupBy,
-                                     openedAt: Dictionary(
-                                        uniqueKeysWithValues: tabManager.recentlyViewed
-                                            .enumerated().map { ($1, $0) }))
+        case .createdAt, .updatedAt, .publishedAt, .lastOpened:
+            let groups = Self.bucketByDate(
+                items,
+                key: groupBy,
+                openedAt: Dictionary(
+                    uniqueKeysWithValues: tabManager.recentlyViewed
+                        .enumerated().map { ($1, $0) }))
+            // Ascending = chronological (Older → Today), descending
+            // = recency-first (Today → Older). The natural bucket
+            // order is recency-first, so we just reverse for
+            // ascending.
+            return sortAscending ? groups.reversed() : groups
         }
     }
 
@@ -91,8 +114,9 @@ extension NotesHomeView {
         }
         func dateFor(_ item: WorkspaceItem) -> Date? {
             switch key {
-            case .createdAt:  return parseDate(item.createdAt)
-            case .updatedAt:  return parseDate(item.updatedAt)
+            case .createdAt:   return parseDate(item.createdAt)
+            case .updatedAt:   return parseDate(item.updatedAt)
+            case .publishedAt: return parseDate(item.publishedAt)
             case .lastOpened:
                 // Map the MRU index back to a synthetic "recency rank";
                 // we don't have wall-clock timestamps for opens, so all
@@ -139,8 +163,9 @@ extension NotesHomeView {
     /// so they fall back to `updatedAt` (= "last touched").
     func displayDate(for item: WorkspaceItem) -> String {
         switch sortKey {
-        case .createdAt:  return item.createdAt
-        case .updatedAt:  return item.updatedAt
+        case .createdAt:   return item.createdAt
+        case .updatedAt:   return item.updatedAt
+        case .publishedAt: return item.publishedAt
         case .name, .lastOpened: return item.updatedAt
         }
     }
@@ -186,12 +211,30 @@ extension NotesHomeView {
     private func pickerOption(label: LocalizedStringKey,
                               systemImage: String,
                               isSelected: Bool) -> some View {
+        // iOS strips `.foregroundStyle` from SF Symbol images
+        // rendered inside a Menu's `Button` label. The workaround :
+        // pre-bake the colour into a `UIImage` via `.withTintColor`
+        // + `.alwaysOriginal` rendering mode, then hand the
+        // pre-coloured image to `Label`. UIKit can't override what
+        // it didn't generate itself.
         Label {
             Text(label)
         } icon: {
-            Image(systemName: systemImage)
-                .foregroundStyle(isSelected ? settings.accentColor : .primary)
+            if isSelected {
+                Image(uiImage: tintedSymbol("checkmark", color: UIColor(settings.accentColor)))
+            } else {
+                Image(systemName: systemImage)
+            }
         }
+    }
+
+    /// Returns a `UIImage` rendition of `name` painted in `color`.
+    /// Uses `.alwaysOriginal` so UIKit doesn't re-tint it through
+    /// the host view's tint when the image is mounted in a label.
+    private func tintedSymbol(_ name: String, color: UIColor) -> UIImage {
+        let cfg = UIImage.SymbolConfiguration(textStyle: .body)
+        let base = UIImage(systemName: name, withConfiguration: cfg) ?? UIImage()
+        return base.withTintColor(color, renderingMode: .alwaysOriginal)
     }
 
     // ── Toolbar Menu ──────────────────────────────────────────────────────
@@ -205,46 +248,58 @@ extension NotesHomeView {
     @ViewBuilder
     var sortMenuButton: some View {
         Menu {
-            // Pickers inside Menu render the Mail.app pattern : the
-            // selected option keeps its original Label icon AND gets
-            // a leading checkmark, both tinted by the section's tint.
-            // The trade-off (vs explicit Buttons) is that Section
-            // titles ("Sort by" etc.) are sometimes swallowed by
-            // iOS — we keep them and accept the inconsistency.
+            // iOS 26 swallows the `Section(_)` header when the body
+            // contains an inline `Picker` — the rows render but the
+            // title vanishes. We keep the Mail.app vocabulary by
+            // emitting explicit `Button` rows ourselves and toggling
+            // a leading checkmark on the active option. The
+            // `Section("…")` wrapper still groups the rows visually
+            // and the title survives because the body is plain
+            // Buttons (no Picker).
             Section("Sort by") {
-                Picker("Sort by", selection: $sortKeyRaw) {
-                    ForEach(SortKey.allCases) { key in
-                        pickerOption(label: key.label,
-                                     systemImage: key.systemImage,
-                                     isSelected: sortKey == key)
-                            .tag(key.rawValue)
+                ForEach(SortKey.allCases) { key in
+                    Button { sortKeyRaw = key.rawValue } label: {
+                        pickerOption(
+                            label: key.label,
+                            systemImage: key.systemImage,
+                            isSelected: sortKey == key)
                     }
                 }
-                .pickerStyle(.inline)
             }
             Section("Order") {
-                Picker("Order", selection: $sortAscending) {
-                    pickerOption(label: "Ascending",
-                                 systemImage: "arrow.up",
-                                 isSelected: sortAscending)
-                        .tag(true)
-                    pickerOption(label: "Descending",
-                                 systemImage: "arrow.down",
-                                 isSelected: !sortAscending)
-                        .tag(false)
+                Button { sortAscending = true } label: {
+                    pickerOption(
+                        label: "Ascending",
+                        systemImage: "arrow.up",
+                        isSelected: sortAscending)
                 }
-                .pickerStyle(.inline)
+                Button { sortAscending = false } label: {
+                    pickerOption(
+                        label: "Descending",
+                        systemImage: "arrow.down",
+                        isSelected: !sortAscending)
+                }
             }
             Section("Group by") {
-                Picker("Group by", selection: $groupByRaw) {
-                    ForEach(GroupBy.allCases) { key in
-                        pickerOption(label: key.label,
-                                     systemImage: key.systemImage,
-                                     isSelected: groupBy == key)
-                            .tag(key.rawValue)
+                ForEach(GroupBy.allCases) { key in
+                    Button { groupByRaw = key.rawValue } label: {
+                        pickerOption(
+                            label: key.label,
+                            systemImage: key.systemImage,
+                            isSelected: groupBy == key)
                     }
                 }
-                .pickerStyle(.inline)
+            }
+            Section("Show") {
+                // `Toggle` inside a Menu renders as a tappable row with a
+                // checkmark — same vocabulary as the SortKey / GroupBy
+                // pickers above. The databases tab is unaffected.
+                Toggle(isOn: Binding(
+                    get: { !hideDatabases },
+                    set: { hideDatabases = !$0 }
+                )) {
+                    Label("Databases", systemImage: "tablecells")
+                }
             }
         } label: {
             // Filled glyph signals "grouping is active" — a passive

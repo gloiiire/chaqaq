@@ -846,7 +846,12 @@ fn update_document_parent_then_list_root_and_children() {
     // Promoting the child back to root removes it from the parent's children.
     a.update_document_parent(child.clone(), None).unwrap();
     assert!(a.list_child_documents(parent).unwrap().is_empty());
-    assert!(a.list_root_documents().unwrap().iter().any(|d| d.id == child));
+    assert!(
+        a.list_root_documents()
+            .unwrap()
+            .iter()
+            .any(|d| d.id == child)
+    );
 }
 
 #[test]
@@ -868,9 +873,7 @@ fn update_document_parent_rejects_cycle() {
     a.update_document_parent(b_id.clone(), Some(a_id.clone()))
         .unwrap();
     // Trying to make A a child of B would create a cycle.
-    let err = a
-        .update_document_parent(a_id, Some(b_id))
-        .unwrap_err();
+    let err = a.update_document_parent(a_id, Some(b_id)).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
@@ -1172,4 +1175,329 @@ fn db_metadata_includes_timestamps() {
     let meta = &list[0];
     assert!(!meta.updated_at.is_empty());
     assert!(!meta.created_at.is_empty());
+}
+
+// ── Document chrome: locked / theme / published_at ──────────────────────────
+
+#[test]
+fn update_document_locked_roundtrip() {
+    let a = api();
+    let id = a.create_document("Lockable".to_string()).unwrap();
+    a.update_document_locked(id.clone(), true).unwrap();
+    assert!(
+        a.get_document_json(id.clone())
+            .unwrap()
+            .contains("\"locked\":true")
+    );
+    a.update_document_locked(id.clone(), false).unwrap();
+    assert!(
+        a.get_document_json(id)
+            .unwrap()
+            .contains("\"locked\":false")
+    );
+}
+
+#[test]
+fn update_document_theme_set_and_clear() {
+    let a = api();
+    let id = a.create_document("Themed".to_string()).unwrap();
+    a.update_document_theme(id.clone(), Some("dark".to_string()))
+        .unwrap();
+    assert!(a.get_document_json(id.clone()).unwrap().contains("dark"));
+    a.update_document_theme(id.clone(), None).unwrap();
+    assert!(!a.get_document_json(id).unwrap().contains("\"dark\""));
+}
+
+#[test]
+fn update_document_published_at_overrides_and_resets() {
+    let a = api();
+    let id = a.create_document("Dated".to_string()).unwrap();
+    a.update_document_published_at(id.clone(), "2026-01-15T10:00:00Z".to_string())
+        .unwrap();
+    let meta = a
+        .list_documents()
+        .unwrap()
+        .into_iter()
+        .find(|m| m.id == id)
+        .unwrap();
+    assert_eq!(meta.published_at, "2026-01-15T10:00:00Z");
+    // Empty string = reset to "follow created_at" — resolved against the
+    // row's real creation timestamp, not the save time.
+    a.update_document_published_at(id.clone(), String::new())
+        .unwrap();
+    let meta = a
+        .list_documents()
+        .unwrap()
+        .into_iter()
+        .find(|m| m.id == id)
+        .unwrap();
+    assert_eq!(meta.published_at, meta.created_at);
+}
+
+#[test]
+fn update_document_published_at_rejects_oversized_value() {
+    let a = api();
+    let id = a.create_document("Doc".to_string()).unwrap();
+    let err = a
+        .update_document_published_at(id, "x".repeat(65))
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+// ── Database chrome: cover / icon / description / locked ────────────────────
+
+#[test]
+fn update_database_cover_icon_description_roundtrip() {
+    let a = api();
+    let db = a.create_database("Styled".to_string()).unwrap();
+    a.update_database_cover(db.clone(), Some("cover.nebula".to_string()))
+        .unwrap();
+    a.update_database_icon(db.clone(), Some("📚".to_string()))
+        .unwrap();
+    a.update_database_description(db.clone(), "A described base".to_string())
+        .unwrap();
+    let json = a.get_database_json(db.clone()).unwrap();
+    assert!(json.contains("cover.nebula"));
+    assert!(json.contains("📚"));
+    assert!(json.contains("A described base"));
+    // Clearing.
+    a.update_database_cover(db.clone(), None).unwrap();
+    a.update_database_icon(db.clone(), None).unwrap();
+    a.update_database_description(db.clone(), String::new())
+        .unwrap();
+    let json = a.get_database_json(db).unwrap();
+    assert!(!json.contains("cover.nebula"));
+    assert!(!json.contains("📚"));
+    assert!(!json.contains("A described base"));
+}
+
+#[test]
+fn update_database_locked_roundtrip() {
+    let a = api();
+    let db = a.create_database("Lockable".to_string()).unwrap();
+    a.update_database_locked(db.clone(), true).unwrap();
+    assert!(
+        a.get_database_json(db.clone())
+            .unwrap()
+            .contains("\"locked\":true")
+    );
+    a.update_database_locked(db.clone(), false).unwrap();
+    assert!(
+        a.get_database_json(db)
+            .unwrap()
+            .contains("\"locked\":false")
+    );
+}
+
+#[test]
+fn update_database_locked_invalid_uuid_fails() {
+    let a = api();
+    let err = a
+        .update_database_locked("not-a-uuid".to_string(), true)
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+// ── attach_document_to_database ──────────────────────────────────────────────
+
+#[test]
+fn attach_document_links_entry_to_document() {
+    let a = api();
+    let db = a.create_database("Tracker".to_string()).unwrap();
+    let doc = a.create_document("Existing note".to_string()).unwrap();
+    let entry_id = a
+        .attach_document_to_database(db.clone(), doc.clone(), "{}".to_string())
+        .unwrap();
+    let json = a.get_database_json(db).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let entries = value["entries"].as_array().unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0]["id"], entry_id);
+    assert_eq!(entries[0]["document_id"], doc);
+}
+
+#[test]
+fn attach_document_invalid_uuids_fail() {
+    let a = api();
+    let err = a
+        .attach_document_to_database("bad".to_string(), "bad".to_string(), "{}".to_string())
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+// ── update_entry_published_at ────────────────────────────────────────────────
+
+#[test]
+fn update_entry_published_at_overrides_and_resets() {
+    let a = api();
+    let db = a.create_database("Journal".to_string()).unwrap();
+    let entry = a.add_entry(db.clone(), "{}".to_string()).unwrap();
+    a.update_entry_published_at(
+        db.clone(),
+        entry.clone(),
+        "2026-02-01T08:00:00Z".to_string(),
+    )
+    .unwrap();
+    assert!(
+        a.get_database_json(db.clone())
+            .unwrap()
+            .contains("2026-02-01T08:00:00Z")
+    );
+    a.update_entry_published_at(db.clone(), entry, String::new())
+        .unwrap();
+    assert!(
+        !a.get_database_json(db)
+            .unwrap()
+            .contains("2026-02-01T08:00:00Z")
+    );
+}
+
+#[test]
+fn update_entry_published_at_rejects_oversized_value() {
+    let a = api();
+    let db = a.create_database("Journal".to_string()).unwrap();
+    let entry = a.add_entry(db.clone(), "{}".to_string()).unwrap();
+    let err = a
+        .update_entry_published_at(db, entry, "x".repeat(65))
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+#[test]
+fn update_entry_published_at_unknown_entry_fails() {
+    let a = api();
+    let db = a.create_database("Journal".to_string()).unwrap();
+    let err = a
+        .update_entry_published_at(db, Uuid::new_v4().to_string(), "2026-01-01".to_string())
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::NotFound { .. }));
+}
+
+// ── set_view_date_sort ───────────────────────────────────────────────────────
+
+fn first_view_id(a: &PinkhaApi, db: &str) -> String {
+    let json = a.get_database_json(db.to_string()).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    value["views"][0]["id"].as_str().unwrap().to_string()
+}
+
+#[test]
+fn set_view_date_sort_created_and_published() {
+    let a = api();
+    let db = a.create_database("Sorted".to_string()).unwrap();
+    let view = first_view_id(&a, &db);
+    a.set_view_date_sort(db.clone(), view.clone(), "published".to_string(), true)
+        .unwrap();
+    assert!(
+        a.get_database_json(db.clone())
+            .unwrap()
+            .contains("\"Published\"")
+    );
+    a.set_view_date_sort(db.clone(), view, "created".to_string(), false)
+        .unwrap();
+    let json = a.get_database_json(db).unwrap();
+    assert!(json.contains("\"Created\""));
+    assert!(json.contains("\"Descending\""));
+}
+
+#[test]
+fn set_view_date_sort_rejects_unknown_kind() {
+    let a = api();
+    let db = a.create_database("Sorted".to_string()).unwrap();
+    let view = first_view_id(&a, &db);
+    let err = a
+        .set_view_date_sort(db, view, "modified".to_string(), true)
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+#[test]
+fn set_view_date_sort_unknown_view_fails() {
+    let a = api();
+    let db = a.create_database("Sorted".to_string()).unwrap();
+    let err = a
+        .set_view_date_sort(db, Uuid::new_v4().to_string(), "created".to_string(), true)
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::NotFound { .. }));
+}
+
+// ── Entry trash: delete / restore / purge ────────────────────────────────────
+
+#[test]
+fn entry_delete_restore_purge_cycle() {
+    let a = api();
+    let db = a.create_database("Rows".to_string()).unwrap();
+    let entry = a.add_entry(db.clone(), "{}".to_string()).unwrap();
+
+    a.delete_entry(db.clone(), entry.clone()).unwrap();
+    assert!(
+        a.list_deleted_entries_json(db.clone())
+            .unwrap()
+            .contains(&entry)
+    );
+
+    a.restore_entry(db.clone(), entry.clone()).unwrap();
+    assert!(
+        !a.list_deleted_entries_json(db.clone())
+            .unwrap()
+            .contains(&entry)
+    );
+    assert!(a.get_database_json(db.clone()).unwrap().contains(&entry));
+
+    a.delete_entry(db.clone(), entry.clone()).unwrap();
+    a.purge_entry(db.clone(), entry.clone()).unwrap();
+    assert!(
+        !a.list_deleted_entries_json(db.clone())
+            .unwrap()
+            .contains(&entry)
+    );
+    assert!(!a.get_database_json(db).unwrap().contains(&entry));
+}
+
+// ── duplicate_block ──────────────────────────────────────────────────────────
+
+#[test]
+fn duplicate_block_inserts_clone_after_original() {
+    let a = api();
+    let doc = a.create_document("Doc".to_string()).unwrap();
+    let block = a
+        .add_block(
+            doc.clone(),
+            json!({"Text": [{"content": "original", "styles": []}]}).to_string(),
+        )
+        .unwrap();
+    let clone = a.duplicate_block(doc.clone(), block.clone()).unwrap();
+    assert_ne!(clone, block);
+    let json = a.get_document_json(doc).unwrap();
+    assert!(json.contains(&block));
+    assert!(json.contains(&clone));
+    assert_eq!(json.matches("original").count(), 2);
+}
+
+#[test]
+fn duplicate_block_unknown_block_fails() {
+    let a = api();
+    let doc = a.create_document("Doc".to_string()).unwrap();
+    let err = a
+        .duplicate_block(doc, Uuid::new_v4().to_string())
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::NotFound { .. }));
+}
+
+// ── Notion picker input validation (no network) ──────────────────────────────
+
+#[test]
+fn list_notion_databases_v2025_rejects_oversized_token() {
+    let a = api();
+    let err = a
+        .list_notion_databases_v2025("x".repeat(65 * 1024))
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+#[test]
+fn list_notion_databases_rejects_oversized_token() {
+    let a = api();
+    let err = a.list_notion_databases("x".repeat(65 * 1024)).unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }

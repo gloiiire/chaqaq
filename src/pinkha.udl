@@ -19,6 +19,7 @@ dictionary DocumentMetaFfi {
     string? cover;
     string updated_at;
     string created_at;
+    string published_at;
     string? folder_id;
     string? parent_doc_id;
     string? icon;
@@ -39,6 +40,8 @@ dictionary DatabaseMetaFfi {
     string id;
     string title_plain;
     string title_json;
+    string? cover;
+    string? icon;
     string updated_at;
     string created_at;
 };
@@ -120,6 +123,11 @@ interface PinkhaApi {
     /// `locked = true` à la création.
     [Throws=PinkhaError]
     void update_document_locked(string id, boolean locked);
+
+    /// Override la timestamp publish_at d'un document. Chaîne vide = reset
+    /// au défaut (suit created_at).
+    [Throws=PinkhaError]
+    void update_document_published_at(string id, string new_published_at);
 
     /// Pose ou retire l'accent color du document (override par-doc de
     /// l'accent global). Nom de couleur ("red", "teal"...) ou null
@@ -243,6 +251,26 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     sequence<DatabaseMetaFfi> list_databases();
 
+    /// Remplace le titre rich-text de la database.
+    [Throws=PinkhaError]
+    void update_database_title(string id, string new_title);
+
+    /// Remplace ou efface l'image de couverture de la database.
+    [Throws=PinkhaError]
+    void update_database_cover(string id, string? cover);
+
+    /// Remplace ou efface l'icône (emoji / fichier / URL) de la database.
+    [Throws=PinkhaError]
+    void update_database_icon(string id, string? icon);
+
+    /// Remplace la description rich-text de la database (chaîne vide = efface).
+    [Throws=PinkhaError]
+    void update_database_description(string id, string description);
+
+    /// Bascule le flag read-only de la database.
+    [Throws=PinkhaError]
+    void update_database_locked(string id, boolean locked);
+
     /// Soft-delete de la database.
     [Throws=PinkhaError]
     void delete_database(string id);
@@ -255,8 +283,19 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     string add_entry(string db_id, string values_json);
 
+    /// Files an existing document as a row of an existing database.
+    /// `values_json` is the same UUID -> PropertyValue map as for
+    /// `add_entry`. Returns the new entry UUID.
+    [Throws=PinkhaError]
+    string attach_document_to_database(string db_id, string doc_id, string values_json);
+
     [Throws=PinkhaError]
     void update_entry(string db_id, string entry_id, string values_json);
+
+    /// Override la timestamp publish_at d'une entrée.
+    /// Chaîne vide = reset au défaut (suit created_at).
+    [Throws=PinkhaError]
+    void update_entry_published_at(string db_id, string entry_id, string new_published_at);
 
     [Throws=PinkhaError]
     void delete_entry(string db_id, string entry_id);
@@ -306,6 +345,12 @@ interface PinkhaApi {
     /// `property_id = null` retire le tri.
     [Throws=PinkhaError]
     void set_view_sort(string db_id, string view_id, string? property_id, boolean ascending);
+
+    /// Set le sort de la vue sur created_at ou published_at de l'entrée.
+    /// `kind` = "created" ou "published". Pas de property_id (les timestamps
+    /// vivent sur Entry, pas sur une colonne).
+    [Throws=PinkhaError]
+    void set_view_date_sort(string db_id, string view_id, string kind, boolean ascending);
 
     [Throws=PinkhaError]
     void delete_view(string db_id, string view_id);
@@ -407,6 +452,13 @@ interface PinkhaApi {
     /// par le picker côté Swift pour éviter à l'utilisateur de coller des URLs.
     [Throws=PinkhaError]
     sequence<NotionDatabaseSummaryFfi> list_notion_databases(string token);
+
+    /// Comme [`list_notion_databases`] mais utilise le chemin Notion
+    /// API 2025-09-03 data-source-aware sous le capot — récupère
+    /// aussi les DBs multi-source que le filtre legacy rate. Le
+    /// picker devrait préférer cette version.
+    [Throws=PinkhaError]
+    sequence<NotionDatabaseSummaryFfi> list_notion_databases_v2025(string token);
 
     /// Importe les notes Bear depuis la SQLite locale de Bear.
     /// `db_path` est le chemin absolu vers `database.sqlite` de Bear.

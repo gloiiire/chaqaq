@@ -100,11 +100,7 @@ pub fn search_in_blocks_with_snippets(
 /// every block whose plain text contains `query`. Used to surface one
 /// preview row per match so the user can pick the specific occurrence
 /// they meant in a doc that contains the term more than once.
-fn collect_block_snippets(
-    blocks: &[Block],
-    query: &str,
-    out: &mut Vec<(uuid::Uuid, String)>,
-) {
+fn collect_block_snippets(blocks: &[Block], query: &str, out: &mut Vec<(uuid::Uuid, String)>) {
     for block in blocks {
         if let Some(text) = block_plain_text(&block.content)
             && let Some(snippet) = extract_snippet(&text, query)

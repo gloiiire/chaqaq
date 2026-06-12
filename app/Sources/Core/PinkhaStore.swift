@@ -19,6 +19,17 @@ enum WorkspaceItem: Identifiable {
     var createdAt: String {
         switch self { case .note(let d): return d.createdAt; case .database(let db): return db.createdAt }
     }
+    /// Effective publish date — manual override on the doc when set,
+    /// `createdAt` otherwise. Databases don't yet have a publish
+    /// override surface so they fall back to their createdAt.
+    var publishedAt: String {
+        switch self {
+        case .note(let d):
+            return d.publishedAt.isEmpty ? d.createdAt : d.publishedAt
+        case .database(let db):
+            return db.createdAt
+        }
+    }
     var isDatabase: Bool { if case .database = self { return true }; return false }
 }
 
@@ -119,6 +130,19 @@ final class PinkhaStore: ObservableObject {
     /// avoid racing with the editor's in-memory blocks array).
     @discardableResult
     func createNote(title: String, in context: Composer.CreationContext) -> String? {
+        createNote(title: title, in: context, style: nil)
+    }
+
+    /// Same as [`createNote`] but applies the optional standalone
+    /// `style` (cover / icon / theme) after the document lands.
+    /// Best-effort : a failure on one style write is logged but
+    /// doesn't roll the document back.
+    @discardableResult
+    func createNote(
+        title: String,
+        in context: Composer.CreationContext,
+        style: CreateDocumentSheet.StandaloneStyle?
+    ) -> String? {
         guard let api else { return nil }
         do {
             let docId = try api.createDocument(title: title)
@@ -130,6 +154,93 @@ final class PinkhaStore: ObservableObject {
             case .document(let parentDocId):
                 try api.updateDocumentParent(docId: docId, newParentDocId: parentDocId)
             }
+            if let style {
+                applyStandaloneStyle(style, to: docId, api: api)
+            }
+            load()
+            return docId
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    /// Writes the picked style overrides to the freshly-created
+    /// doc. Custom cover bytes are persisted into the covers
+    /// directory under the docId-derived filename ; the resulting
+    /// short name lands in the meta row's `cover` column. Built-in
+    /// gradient covers ship a direct identifier (e.g.
+    /// `"cover.nebula"`) and skip the disk write.
+    private func applyStandaloneStyle(
+        _ style: CreateDocumentSheet.StandaloneStyle,
+        to docId: String,
+        api: PinkhaApi
+    ) {
+        if let data = style.customCoverData {
+            if let name = try? DocumentViewModel.writeCoverImage(
+                data: data, docId: docId, fileExtension: style.customCoverExt
+            ) {
+                try? api.updateDocumentCover(id: docId, cover: name)
+            }
+        } else if let cover = style.cover {
+            try? api.updateDocumentCover(id: docId, cover: cover)
+        }
+        if let icon = style.icon {
+            try? api.updateDocumentIcon(id: docId, icon: icon)
+        }
+        if let theme = style.theme {
+            try? api.updateDocumentTheme(id: docId, theme: theme)
+        }
+        if let publishedAt = style.publishedAt {
+            try? api.updateDocumentPublishedAt(
+                id: docId, newPublishedAt: publishedAt)
+        }
+    }
+
+    /// Creates a doc + files it as a new row of the given database.
+    /// Mirrors what the database "+" button does internally :
+    /// create a document, append an entry that links to it via the
+    /// hidden `__pinkha_page__` property, and pre-fill any other
+    /// columns the user provided in `propertyValues`. Returns the
+    /// new document's id so the caller can navigate to it.
+    @discardableResult
+    func createNoteInDatabase(
+        title: String,
+        databaseId: String,
+        propertyValues: [String: PropertyValueFfi],
+        style: CreateDocumentSheet.StandaloneStyle? = nil
+    ) -> String? {
+        guard let api else { return nil }
+        do {
+            let docId = try api.createDocument(title: title)
+            if let style {
+                applyStandaloneStyle(style, to: docId, api: api)
+            }
+            // Discover the hidden page-link property + the Title
+            // property so we can fill them — same convention as
+            // DatabaseViewModel.load.
+            let dbJson = try api.getDatabaseJson(id: databaseId)
+            guard let dbData = dbJson.data(using: .utf8),
+                  let db = try? JSONDecoder().decode(DatabaseFfi.self, from: dbData)
+            else { throw PinkhaError.InvalidOperation(detail: "Failed to parse database") }
+
+            var initial = propertyValues
+            if let pageProp = db.properties.first(where: { $0.name == "__pinkha_page__" }) {
+                initial[pageProp.id] = .text(docId)
+            }
+            if let titleProp = db.properties.first(where: {
+                if case .title = $0.propertyType { return true }; return false
+            }) {
+                let spans: [InlineTextFfi] = title.isEmpty
+                    ? []
+                    : [InlineTextFfi(content: title, styles: [])]
+                initial[titleProp.id] = .title(spans)
+            }
+            guard let json = try? JSONEncoder().encode(initial),
+                  let valuesJson = String(data: json, encoding: .utf8) else {
+                throw PinkhaError.InvalidOperation(detail: "Failed to encode property values")
+            }
+            _ = try api.addEntry(dbId: databaseId, valuesJson: valuesJson)
             load()
             return docId
         } catch {

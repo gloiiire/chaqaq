@@ -165,7 +165,7 @@ extension DocumentViewModel {
         return directory
     }
 
-    private static func imageExtension(_ ext: String) -> String {
+    static func imageExtension(_ ext: String) -> String {
         let cleaned = ext.lowercased()
         return ["jpg", "jpeg", "png", "heic", "webp"].contains(cleaned) ? cleaned : "jpg"
     }

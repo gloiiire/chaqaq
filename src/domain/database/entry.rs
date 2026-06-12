@@ -20,6 +20,15 @@ pub struct Entry {
     /// ISO 8601 timestamp automatically set at creation — never modified afterwards.
     #[serde(default)]
     pub created_at: String,
+    /// User-editable publish timestamp. Defaults to `created_at` at
+    /// insert (so untouched entries behave exactly like before), but
+    /// the user can override it to surface an entry as if it were
+    /// published on a different date — useful for journals where a
+    /// page is *written* one day but documents an *event* from
+    /// another. Backward-compatible : empty string on existing rows
+    /// is treated as "fall back to `created_at`" by the query path.
+    #[serde(default)]
+    pub published_at: String,
     /// Cell values keyed by property ID.
     pub values: HashMap<Uuid, PropertyValue>,
     /// Optional link to the [`Document`] this row represents. `#[serde(default)]`
@@ -40,9 +49,11 @@ pub struct Entry {
 impl Entry {
     /// Creates a new standalone entry (no document attached).
     pub fn new(values: HashMap<Uuid, PropertyValue>) -> Self {
+        let now = Utc::now().to_rfc3339();
         Self {
             id: Uuid::new_v4(),
-            created_at: Utc::now().to_rfc3339(),
+            created_at: now.clone(),
+            published_at: now,
             values,
             document_id: None,
             deleted_at: None,
@@ -53,9 +64,11 @@ impl Entry {
     /// pipelines (Notion, Craft) where every page becomes both a Document and
     /// a row in its parent database.
     pub fn with_document(values: HashMap<Uuid, PropertyValue>, document_id: Uuid) -> Self {
+        let now = Utc::now().to_rfc3339();
         Self {
             id: Uuid::new_v4(),
-            created_at: Utc::now().to_rfc3339(),
+            created_at: now.clone(),
+            published_at: now,
             values,
             document_id: Some(document_id),
             deleted_at: None,
