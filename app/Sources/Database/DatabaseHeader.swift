@@ -33,8 +33,11 @@ struct DatabaseHeaderView: View {
         VStack(alignment: .leading, spacing: 0) {
             if let coverId = vm.cover {
                 coverBanner(coverId)
+                    // `containerRelativeFrame(.horizontal)` makes the
+                    // banner ignore parent padding and bleed edge-to-
+                    // edge, matching the document cover behaviour.
+                    .containerRelativeFrame(.horizontal)
                     .frame(height: 220)
-                    .frame(maxWidth: .infinity)
                     .clipped()
                     .overlay(alignment: .bottomLeading) {
                         iconButton
@@ -47,14 +50,21 @@ struct DatabaseHeaderView: View {
                     .padding(.top, 14)
             }
 
-            HStack(spacing: 10) {
-                coverMenu
-                iconMenu
+            if !vm.locked {
+                HStack(spacing: 10) {
+                    coverMenu
+                    iconMenu
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 20)
+                .padding(.top, vm.cover == nil && vm.icon == nil ? 12 : 50)
+            } else if vm.cover != nil {
+                // Reserve the same vertical slot when locked so the
+                // title doesn't slide upward — matches the document
+                // header treatment.
+                Color.clear.frame(height: 50)
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 20)
-            .padding(.top, vm.cover == nil && vm.icon == nil ? 12 : 50)
 
             // Title — large, freely-editable, syncs to VM on blur.
             TextField("Untitled", text: $titleDraft, axis: .vertical)
@@ -62,6 +72,7 @@ struct DatabaseHeaderView: View {
                 .focused($titleFocused)
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
+                .disabled(vm.locked)
                 .onAppear { titleDraft = vm.titlePlain }
                 .onChange(of: vm.titlePlain) { _, v in
                     if !titleFocused { titleDraft = v }
@@ -82,6 +93,7 @@ struct DatabaseHeaderView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
                 .padding(.bottom, 4)
+                .disabled(vm.locked)
                 .onAppear { descriptionDraft = vm.descriptionPlain }
                 .onChange(of: vm.descriptionPlain) { _, v in
                     if !descriptionFocused { descriptionDraft = v }
@@ -126,6 +138,7 @@ struct DatabaseHeaderView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(vm.locked)
     }
 
     private var coverMenu: some View {

@@ -41,6 +41,7 @@ struct DatabasePropertiesSheet: View {
                     Text("List, Board and Gallery views are split by this property.")
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Properties")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

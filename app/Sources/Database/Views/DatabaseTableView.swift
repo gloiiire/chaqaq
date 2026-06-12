@@ -595,6 +595,7 @@ private struct DatePickerSheet: View {
                     }
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Pick a date")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -731,7 +732,7 @@ struct AddColumnSheet: View {
                         HStack {
                             TextField("Add option…", text: $newOption)
                                 .submitLabel(.done)
-                                .onSubmit { addOption() }
+                                .onSubmit { Haptic.tap(); addOption() }
                             if !newOption.trimmingCharacters(in: .whitespaces).isEmpty {
                                 Button(action: addOption) {
                                     Image(systemName: "plus.circle.fill")
@@ -745,6 +746,7 @@ struct AddColumnSheet: View {
                     }
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("New column")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

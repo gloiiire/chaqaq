@@ -65,6 +65,11 @@ pub enum SortSource {
     Property,
     /// Sort on `created_at` only (auto-generated date, `property_id` is ignored).
     Created,
+    /// Sort on `published_at` — the user-editable publish date. Defaults to
+    /// `created_at` on insert, so untouched entries behave like `Created` ;
+    /// the difference shows up the moment the user overrides the publish
+    /// date for an entry. `property_id` is ignored.
+    Published,
     /// Uses the value of `property_id` when present, falls back to `created_at`.
     /// Useful for journals that mix manually-dated and auto-dated entries.
     ManualThenCreated,
@@ -99,6 +104,16 @@ impl Sort {
             property_id: Uuid::nil(),
             order,
             source: SortSource::Created,
+        }
+    }
+
+    /// Builds a sort rule that orders entries by their user-editable
+    /// `published_at` timestamp. `property_id` can be `Uuid::nil()`.
+    pub fn by_published(order: Order) -> Self {
+        Self {
+            property_id: Uuid::nil(),
+            order,
+            source: SortSource::Published,
         }
     }
 

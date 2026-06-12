@@ -12,6 +12,8 @@ struct DatabaseView: View {
     let api: PinkhaApi
     var onDisappear: (() -> Void)? = nil
 
+    @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var tabManager: TabManager
     @State private var searchVisible = false
     @State private var recentEmojis: [String] = []
 
@@ -33,9 +35,48 @@ struct DatabaseView: View {
                 }
             }
         }
-        .navigationTitle(vm.titlePlain.isEmpty ? Text("Database") : Text(vm.titlePlain))
+        // Dim base behind the cards so each row's
+        // `.secondarySystemGroupedBackground` reads as elevated,
+        // matching the inset-grouped vocabulary of `NotesHomeView`.
+        .background(Color(.systemGroupedBackground))
+        .scrollContentBackground(.hidden)
+        // Mirror the document treatment : when a cover is present, let
+        // the scroll content extend behind the status bar / nav-bar so
+        // the cover bleeds edge-to-edge to the top of the screen and
+        // the nav controls float on glass over the image. Falls back
+        // to a normal inset layout when there's no cover.
+        .ignoresSafeArea(.container, edges: vm.cover == nil ? [] : .top)
+        // Empty nav-title — the H1 lives inside the doc-like header,
+        // matching the document behaviour. The back button + any
+        // overflow stays available in the toolbar slot.
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { vm.load() }
+        // Adaptive glass background re-vibrancies the nav-bar over
+        // whatever surface scrolls beneath it (cover image vs body).
+        .toolbarBackground(.automatic, for: .navigationBar)
+        // Lock toggle lives in the nav-bar trailing slot — same
+        // surface as the document lock so users get the same gesture
+        // pattern end-to-end. iOS 26 visually groups it with the back
+        // chevron into the glass capsule.
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                LockToolbarButton(
+                    locked: vm.locked,
+                    accent: settings.accentColor
+                ) {
+                    Haptic.toggle()
+                    vm.toggleLock()
+                }
+            }
+        }
+        .onAppear {
+            vm.load()
+            // Track the open so the Notes home Recent strip surfaces
+            // recently-visited databases alongside docs. MRU-only push
+            // — no phantom document tab is created, the DB stays
+            // identifiable as a database in `WorkspaceItem`.
+            tabManager.markRecentlyViewed(id: vm.dbId)
+        }
         .onDisappear { onDisappear?() }
         .errorAlert(message: $vm.errorMessage, onRetry: vm.load)
     }

@@ -108,6 +108,115 @@ pub async fn list_databases(token: &str) -> Result<Vec<NotionDatabaseSummary>, E
     Ok(summaries)
 }
 
+/// 2025-09-03 picker path : merges the legacy `object: database` search
+/// with the new `object: data_source` search so multi-source databases
+/// that the legacy filter misses come back in.
+///
+/// Strategy :
+///   1. Call the legacy `list_accessible_databases` — captures every
+///      DB created under the old contract.
+///   2. Call the new `list_accessible_data_sources` (per-request
+///      `Notion-Version: 2025-09-03` header).
+///   3. For each data source, derive its wrapping database id from
+///      `parent.database_id`. Add to the union only if the legacy
+///      pass didn't already pick it up — legacy wins on dupes
+///      because its `title` is richer (rich-text vs plain string).
+///
+/// The returned `id`s are always database UUIDs, which keeps the
+/// existing legacy `import_from_notion` flow usable as-is. SOLID :
+/// extend, don't modify ; the original `list_databases` is left
+/// untouched for any caller that wants the strict legacy behaviour.
+pub async fn list_databases_v2025(
+    token: &str,
+) -> Result<Vec<NotionDatabaseSummary>, ExtractorError> {
+    let client = NotionClient::new(token)?;
+
+    let mut by_id: std::collections::HashMap<String, NotionDatabaseSummary> =
+        std::collections::HashMap::new();
+
+    // ── 1. Legacy database hits ──────────────────────────────────────────
+    for hit in client.list_accessible_databases().await? {
+        let title: String = hit
+            .title
+            .iter()
+            .map(|run| run.plain_text.as_str())
+            .collect();
+        let icon_emoji = match hit.icon {
+            Some(schema::NotionPageIcon::Emoji { emoji }) => Some(emoji),
+            _ => None,
+        };
+        by_id.insert(
+            hit.id.clone(),
+            NotionDatabaseSummary {
+                id: hit.id,
+                title,
+                icon_emoji,
+                last_edited: hit.last_edited_time,
+            },
+        );
+    }
+
+    // ── 2. v2025 data source hits — best-effort, soft-fail ──────────────
+    // We tolerate a Notion outage / unexpected response on the new
+    // endpoint and still return the legacy results. The user sees no
+    // worse than the original picker if the v2025 call fails.
+    if let Ok(data_sources) = client.list_accessible_data_sources().await {
+        for ds in data_sources {
+            let database_id = match ds.parent {
+                schema::NotionDataSourceParent::DatabaseId { database_id } => database_id,
+                schema::NotionDataSourceParent::Unknown => continue,
+            };
+            if by_id.contains_key(&database_id) {
+                continue;
+            }
+            let icon_emoji = match ds.icon {
+                Some(schema::NotionPageIcon::Emoji { emoji }) => Some(emoji),
+                _ => None,
+            };
+            by_id.insert(
+                database_id.clone(),
+                NotionDatabaseSummary {
+                    id: database_id,
+                    title: ds.name,
+                    icon_emoji,
+                    last_edited: ds.last_edited_time,
+                },
+            );
+        }
+    }
+
+    // ── 3. Walk accessible pages for `child_database` blocks ────────────
+    // Notion's `object: database` search doesn't recurse into pages
+    // — it only returns top-level databases the integration was
+    // granted direct access to. DBs created as `child_database`
+    // blocks inside a shared page never appear. We close the gap by
+    // listing every accessible page and walking its block tree.
+    if let Ok(pages) = client.list_accessible_pages().await {
+        for page in pages {
+            if let Ok(child_dbs) = client.list_child_databases_in_page(&page.id).await {
+                for (db_id, title) in child_dbs {
+                    if by_id.contains_key(&db_id) {
+                        continue;
+                    }
+                    by_id.insert(
+                        db_id.clone(),
+                        NotionDatabaseSummary {
+                            id: db_id,
+                            title,
+                            icon_emoji: None,
+                            last_edited: page.last_edited_time.clone(),
+                        },
+                    );
+                }
+            }
+        }
+    }
+
+    let mut summaries: Vec<NotionDatabaseSummary> = by_id.into_values().collect();
+    summaries.sort_by(|a, b| b.last_edited.cmp(&a.last_edited));
+    Ok(summaries)
+}
+
 impl Default for NotionExtractor {
     fn default() -> Self {
         Self::new()
@@ -179,6 +288,49 @@ impl Extractor for NotionExtractor {
             database_use_cases::create_database(&uow, title_inlines, all_properties)?
         };
         let pinkha_db_id = pinkha_db.id;
+
+        // 5b. Carry over the Notion-side cover / icon / description so
+        // the imported database opens with the same hero the user
+        // configured in Notion. Each field is optional and is only
+        // applied when present — silent no-ops for databases without
+        // a banner or icon.
+        {
+            let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
+            if let Some(cover_url) = schema.cover.as_ref().and_then(|c| c.url()) {
+                let _ = database_use_cases::update_database_cover(
+                    &uow,
+                    pinkha_db_id,
+                    Some(cover_url.to_string()),
+                );
+            }
+            if let Some(icon_value) = schema.icon.as_ref().and_then(notion_icon_identifier) {
+                let _ = database_use_cases::update_database_icon(
+                    &uow,
+                    pinkha_db_id,
+                    Some(icon_value),
+                );
+            }
+            if !schema.description.is_empty() {
+                let desc = schema
+                    .description
+                    .iter()
+                    .map(|r| InlineText {
+                        content: r.plain_text.clone(),
+                        styles: vec![],
+                    })
+                    .collect::<Vec<_>>();
+                let _ = database_use_cases::update_database_description(
+                    &uow,
+                    pinkha_db_id,
+                    desc,
+                );
+            }
+            // Imported databases land locked by default — Notion data
+            // is read-only state we don't want to accidentally edit
+            // before the user has reviewed the import. They can flip
+            // the lock off from the DB header lock button.
+            let _ = database_use_cases::update_database_locked(&uow, pinkha_db_id, true);
+        }
 
         // 6. Paginate through all Notion pages (rows) and import each one.
         let mut total_documents: usize = 0;
@@ -492,6 +644,20 @@ async fn download_icon(
     path.push(&filename);
     std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
     Ok(filename)
+}
+
+/// Reduces a `NotionPageIcon` to the string we persist in
+/// `Database.icon` / `Document.icon` : the emoji glyph for `Emoji`
+/// icons, the URL for `External` / `File` (image) icons, or `None`
+/// for the catch-all unknown variant.
+fn notion_icon_identifier(icon: &schema::NotionPageIcon) -> Option<String> {
+    use schema::NotionPageIcon::*;
+    match icon {
+        Emoji { emoji } => Some(emoji.clone()),
+        External { external } => Some(external.url.clone()),
+        File { file } => Some(file.url.clone()),
+        Unknown => None,
+    }
 }
 
 /// Maps a `Content-Type` header value to a sensible file extension. Returns

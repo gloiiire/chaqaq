@@ -18,7 +18,7 @@ struct DatabaseListView: View {
     let onDisappear: () -> Void
 
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: 0) {
+        LazyVStack(alignment: .leading, spacing: 8) {
             ForEach(vm.groupedRows, id: \.title) { group in
                 if vm.groupByPropertyId != nil {
                     DatabaseGroupHeader(
@@ -38,18 +38,87 @@ struct DatabaseListView: View {
                             icon: vm.iconForEntry(entry),
                             api: api,
                             onDelete: { vm.deleteEntry(id: entry.id) },
+                            onSetPublishDate: { iso in
+                                vm.updateEntryPublishedAt(entryId: entry.id, isoDate: iso)
+                            },
                             onDisappear: onDisappear
                         )
-                        Divider().padding(.leading, 60)
+                        // Card-style background per row — same vocabulary
+                        // as the NotesHomeView insetGrouped rows so the
+                        // two list surfaces feel unified.
+                        .background(
+                            Color(.secondarySystemGroupedBackground),
+                            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        )
+                        .padding(.horizontal, 16)
                     }
                 }
             }
         }
+        .padding(.top, 8)
         .padding(.bottom, 80) // Breathing room for the floating add button.
     }
 }
 
 // ── Row ──────────────────────────────────────────────────────────────────────
+
+extension ISO8601DateFormatter {
+    /// Shared RFC 3339 formatter — matches the format Rust's
+    /// `chrono::Utc::now().to_rfc3339()` produces, so round-tripping a
+    /// Date through Swift ↔ Rust stays stable.
+    static let fullRfc: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+}
+
+/// Modal picker used to override an entry's `published_at`. Wraps a
+/// `DatePicker` with a "Reset" option that clears the override so the
+/// entry falls back to its `created_at`.
+private struct PublishDatePickerSheet: View {
+    let initial: Date
+    let onDone: (Date?) -> Void
+
+    @State private var selected: Date
+    @Environment(\.dismiss) private var dismiss
+
+    init(initial: Date, onDone: @escaping (Date?) -> Void) {
+        self.initial = initial
+        self.onDone = onDone
+        self._selected = State(initialValue: initial)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                DatePicker("Publish date",
+                           selection: $selected,
+                           displayedComponents: [.date, .hourAndMinute])
+                    .datePickerStyle(.graphical)
+                Section {
+                    Button(role: .destructive) {
+                        onDone(nil)
+                    } label: {
+                        Label("Reset to created date",
+                              systemImage: "arrow.uturn.backward")
+                    }
+                }
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle("Publish date")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }.tint(.primary)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { onDone(selected) }
+                }
+            }
+        }
+    }
+}
 
 private struct ListRow: View {
     let entry: EntryFfi
@@ -58,9 +127,11 @@ private struct ListRow: View {
     let icon: String?
     let api: PinkhaApi
     let onDelete: () -> Void
+    let onSetPublishDate: (String) -> Void
     let onDisappear: () -> Void
 
     @EnvironmentObject private var tabManager: TabManager
+    @State private var showingPublishDateSheet = false
 
     var body: some View {
         Group {
@@ -77,10 +148,47 @@ private struct ListRow: View {
             }
         }
         .contextMenu {
+            Button {
+                showingPublishDateSheet = true
+            } label: {
+                Label(
+                    entry.hasCustomPublishDate
+                        ? "Change publish date"
+                        : "Set publish date",
+                    systemImage: "calendar")
+            }
+            if entry.hasCustomPublishDate {
+                Button(role: .destructive) {
+                    // Empty string on the FFI side resets the entry
+                    // to the default "follow created_at" behaviour.
+                    onSetPublishDate("")
+                } label: {
+                    Label("Reset publish date", systemImage: "arrow.uturn.backward")
+                }
+            }
+            Divider()
             Button(role: .destructive, action: onDelete) {
                 Label("Delete row", systemImage: "trash")
             }
         }
+        .sheet(isPresented: $showingPublishDateSheet) {
+            PublishDatePickerSheet(
+                initial: parseDate(entry.effectivePublishedAt) ?? Date()
+            ) { picked in
+                if let picked {
+                    onSetPublishDate(ISO8601DateFormatter.fullRfc.string(from: picked))
+                } else {
+                    onSetPublishDate("")
+                }
+                showingPublishDateSheet = false
+            }
+            .presentationDetents([.medium])
+        }
+    }
+
+    private func parseDate(_ iso: String) -> Date? {
+        ISO8601DateFormatter.fullRfc.date(from: iso)
+            ?? ISO8601DateFormatter().date(from: iso)
     }
 
     private var content: some View {
@@ -183,10 +291,36 @@ private struct ListRow: View {
             if case .date = prop.propertyType,
                case .date(let d) = entry.values[prop.id] ?? .empty,
                !d.isEmpty {
-                return d
+                return Self.friendlyDate(d)
             }
         }
         return nil
+    }
+
+    /// Turns a raw ISO 8601 timestamp into "Wed, Nov 29, 2024" — the
+    /// 24-character `2024-11-29T17:37:00.000Z` string looks scary in
+    /// a list row, even when it's correct. Falls back to the original
+    /// string if parsing fails so we never lose information.
+    static func friendlyDate(_ iso: String) -> String {
+        guard let date = parseISO(iso) else { return iso }
+        return date.formatted(
+            .dateTime.weekday(.abbreviated).month(.abbreviated)
+                .day().year()
+        )
+    }
+
+    /// Tolerant ISO parser — Notion sends `…T17:37:00.000Z`,
+    /// `…+02:00`, or bare `YYYY-MM-DD`. We try each in turn.
+    static func parseISO(_ s: String) -> Date? {
+        let full = ISO8601DateFormatter()
+        full.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = full.date(from: s) { return d }
+        let short = ISO8601DateFormatter()
+        short.formatOptions = [.withInternetDateTime]
+        if let d = short.date(from: s) { return d }
+        let bare = DateFormatter()
+        bare.dateFormat = "yyyy-MM-dd"
+        return bare.date(from: s)
     }
 
     /// Stable label-→color hash. 8 hues = the same palette the block

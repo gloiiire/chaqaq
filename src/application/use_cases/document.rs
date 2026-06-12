@@ -155,6 +155,20 @@ pub fn update_document_locked(
     repo.save(&doc)
 }
 
+/// Overrides the document's user-editable `published_at` timestamp.
+/// Empty string resets the doc to the default "follow `created_at`"
+/// behaviour. Mirrors `update_entry_published_at` on Entry.
+pub fn update_document_published_at(
+    uow: &dyn UnitOfWork,
+    doc_id: Uuid,
+    new_published_at: String,
+) -> Result<(), PinkhaError> {
+    let repo = uow.documents();
+    let mut doc = repo.load(doc_id)?;
+    doc.published_at = new_published_at;
+    repo.save(&doc)
+}
+
 /// Moves a document to a folder (or to the root when `folder_id` is `None`).
 pub fn move_document_to_folder(
     uow: &dyn UnitOfWork,

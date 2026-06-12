@@ -50,6 +50,11 @@ pub struct Database {
     /// header. Defaults empty.
     #[serde(default)]
     pub description: Vec<InlineText>,
+    /// Read-only flag — when `true`, every editor surface in the UI
+    /// renders blocked-out (no toolbar, no add buttons, no swipe).
+    /// Mirrors `Document.locked` so users keep the same mental model.
+    #[serde(default)]
+    pub locked: bool,
     /// Column definitions.
     pub properties: Vec<Property>,
     /// Rows.
@@ -71,6 +76,7 @@ impl Database {
             cover: None,
             icon: None,
             description: vec![],
+            locked: false,
             properties,
             entries: vec![],
             views: vec![default_view],

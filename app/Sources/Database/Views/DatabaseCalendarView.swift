@@ -9,6 +9,7 @@ struct DatabaseCalendarView: View {
     let api: PinkhaApi
     let onDisappear: () -> Void
 
+    @EnvironmentObject private var settings: AppSettings
     @State private var displayedMonth: Date = Date()
     @State private var selectedDay: Date?
 
@@ -184,6 +185,8 @@ private struct DayCell: View {
     let entries: [EntryFfi]
     let onTap: () -> Void
 
+    @EnvironmentObject private var settings: AppSettings
+
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 2) {
@@ -196,7 +199,7 @@ private struct DayCell: View {
                         .font(.caption2.weight(.bold))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color.accentColor,
+                        .background(settings.accentColor,
                                     in: Capsule(style: .continuous))
                         .foregroundStyle(.white)
                 }

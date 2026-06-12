@@ -344,7 +344,10 @@ Ce qui **reste** à construire :
 Quand une opération doit toucher plusieurs domaines (Document + Database), le module `db_doc_sync` est le bon endroit — il dépend de `&dyn DocumentRepository` ET `&dyn DatabaseRepository` sans coupler les domaines entre eux. Exemple en place : `update_entry_propagating_title(docs, dbs, db_id, entry_id, values)` qui renomme un document quand on rename une row de DB (`Entry.document_id` est le lien).
 
 ### `Entry.document_id: Option<Uuid>`
-Lie une row de DB au document qui la sous-tend (Notion-style : row = page). Set par les imports (`add_entry_with_document`), `None` pour les rows tabulaires purs. Le FFI `update_entry` route désormais vers `update_entry_propagating_title` — la propagation du Title vers le doc est transparente côté Swift.
+Lie une row de DB au document qui la sous-tend (Notion-style : row = page). Set par les imports (`add_entry_with_document`), `None` pour les rows tabulaires purs. Le FFI `update_entry` route désormais vers `update_entry_propagating_title` — la propagation du Title vers le doc est transparente côté Swift. Le FFI `attach_document_to_database(db_id, doc_id, values_json)` expose le même use case à l'UI pour filer une note existante comme row d'une DB après coup (long-press All/Recents + overflow menu de l'éditeur).
+
+### `published_at` (Document + Entry)
+Tous deux exposent `published_at: String` user-éditable, distinct de `created_at` (immuable). Empty string = "follow `created_at`" (sentinel traité côté `SortSource::Published`). SQLite tient une colonne dédiée (backfill = `created_at` à la migration). UI : sheet `DocumentPublishDateSheet` (overflow menu du doc) + `PublishDatePickerSheet` (context menu d'une row) + `SortSource::Published` dans le `sortMenu` côté DB + `SortKey.publishedAt` dans NotesHomeView. Use cases : `update_document_published_at`, `update_entry_published_at`. FFI tronque à 64 bytes (taille RFC 3339).
 
 ## Git workflow
 

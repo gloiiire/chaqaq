@@ -39,6 +39,15 @@ struct NotesHomeView: View {
     /// rename alert and `renameDraft` TextField below.
     @State private var renamingDoc: DocumentMetaFfi?
     @State private var renameDraft: String = ""
+    /// Doc currently picked through a "Add to a database" context
+    /// menu item — drives the sheet below. `nil` = no sheet shown.
+    @State var attachDocId: String?
+
+    /// Single-property Identifiable wrapper so the doc id can drive a
+    /// `.sheet(item:)` without surfacing a separate `Bool` toggle.
+    struct AttachDocIdentifier: Identifiable, Equatable {
+        let id: String
+    }
 
     /// Sort + group preferences. `@AppStorage` persists them across
     /// launches without an explicit migration — each user setting maps
@@ -47,6 +56,10 @@ struct NotesHomeView: View {
     @AppStorage("notes.sortKey")   var sortKeyRaw: String = SortKey.updatedAt.rawValue
     @AppStorage("notes.sortAsc")   var sortAscending: Bool = false
     @AppStorage("notes.groupBy")   var groupByRaw: String = GroupBy.none.rawValue
+    /// When on, databases are hidden from the unified workspace list.
+    /// The dedicated "Bases" tab still surfaces them — this flag only
+    /// scopes the Notes home view's mixed feed. Off by default.
+    @AppStorage("notes.hideDatabases") var hideDatabases: Bool = false
 
     var sortKey: SortKey {
         SortKey(rawValue: sortKeyRaw) ?? .updatedAt
@@ -56,45 +69,49 @@ struct NotesHomeView: View {
     }
 
     enum SortKey: String, CaseIterable, Identifiable {
-        case lastOpened, name, createdAt, updatedAt
+        case lastOpened, name, createdAt, updatedAt, publishedAt
         var id: String { rawValue }
         var label: LocalizedStringKey {
             switch self {
-            case .lastOpened: "Last opened"
-            case .name:       "Name"
-            case .createdAt:  "Created"
-            case .updatedAt:  "Updated"
+            case .lastOpened:  "Last opened"
+            case .name:        "Name"
+            case .createdAt:   "Created"
+            case .updatedAt:   "Updated"
+            case .publishedAt: "Published"
             }
         }
         var systemImage: String {
             switch self {
-            case .lastOpened: "clock"
-            case .name:       "textformat"
-            case .createdAt:  "calendar.badge.plus"
-            case .updatedAt:  "calendar"
+            case .lastOpened:  "clock"
+            case .name:        "textformat"
+            case .createdAt:   "calendar.badge.plus"
+            case .updatedAt:   "calendar"
+            case .publishedAt: "paperplane"
             }
         }
     }
 
     enum GroupBy: String, CaseIterable, Identifiable {
-        case none, lastOpened, name, createdAt, updatedAt
+        case none, lastOpened, name, createdAt, updatedAt, publishedAt
         var id: String { rawValue }
         var label: LocalizedStringKey {
             switch self {
-            case .none:       "None"
-            case .lastOpened: "Last opened"
-            case .name:       "Name"
-            case .createdAt:  "Created"
-            case .updatedAt:  "Updated"
+            case .none:        "None"
+            case .lastOpened:  "Last opened"
+            case .name:        "Name"
+            case .createdAt:   "Created"
+            case .updatedAt:   "Updated"
+            case .publishedAt: "Published"
             }
         }
         var systemImage: String {
             switch self {
-            case .none:       "minus.rectangle"
-            case .lastOpened: "clock"
-            case .name:       "textformat"
-            case .createdAt:  "calendar.badge.plus"
-            case .updatedAt:  "calendar"
+            case .none:        "minus.rectangle"
+            case .lastOpened:  "clock"
+            case .name:        "textformat"
+            case .createdAt:   "calendar.badge.plus"
+            case .updatedAt:   "calendar"
+            case .publishedAt: "paperplane"
             }
         }
     }
@@ -129,6 +146,9 @@ struct NotesHomeView: View {
                             },
                             onDeleteNote: { doc in
                                 store.delete(id: doc.id)
+                            },
+                            onAddToDatabase: store.databases.isEmpty ? nil : { doc in
+                                attachDocId = doc.id
                             }
                         )
                         .listRowBackground(Color.clear)
@@ -222,6 +242,17 @@ struct NotesHomeView: View {
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            // Surfaced from the "Add to a database" long-press menu
+            // on note rows / recents — files the existing doc as a
+            // row of the picked database with the title pre-seeded.
+            .sheet(item: Binding(
+                get: { attachDocId.map(AttachDocIdentifier.init) },
+                set: { attachDocId = $0?.id }
+            )) { wrapper in
+                AttachDocToDatabaseSheet(docId: wrapper.id)
+                    .environmentObject(store)
+                    .presentationDetents([.large])
             }
             // Native confirmation dialog before the bulk delete fires —
             // matches the Apple Notes / Mail pattern (slide-up sheet
@@ -415,6 +446,14 @@ struct NotesHomeView: View {
                     Label("Rename", systemImage: "pencil")
                 }
                 .tint(.primary)
+                if !store.databases.isEmpty {
+                    Button {
+                        attachDocId = doc.id
+                    } label: {
+                        Label("Add to a database", systemImage: "tablecells.badge.ellipsis")
+                    }
+                    .tint(.primary)
+                }
                 Button(role: .destructive) {
                     store.delete(id: doc.id)
                 } label: {

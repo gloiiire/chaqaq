@@ -89,7 +89,20 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
         [],
     )
     .map_err(|e| PinkhaError::Db(e.to_string()))?;
-    conn.pragma_update(None, "user_version", 9)
+    // User-editable publish timestamp on Document, parallel to the
+    // one we added on Entry. Indexed so the home view's sort by
+    // published date can skip the JSON blob. Backfilled from
+    // `created_at` so pre-existing rows sort exactly like before
+    // until the user overrides.
+    add_column_if_missing(conn, "documents", "published_at", "TEXT NOT NULL DEFAULT ''")?;
+    conn.execute(
+        "UPDATE documents
+            SET published_at = created_at
+          WHERE published_at = ''",
+        [],
+    )
+    .map_err(|e| PinkhaError::Db(e.to_string()))?;
+    conn.pragma_update(None, "user_version", 10)
         .map_err(|e| PinkhaError::Db(e.to_string()))?;
     Ok(())
 }

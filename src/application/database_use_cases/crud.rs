@@ -97,6 +97,19 @@ pub fn update_database_description(
     repo.save(&db)
 }
 
+/// Flips the database's `locked` flag — read-only when `true`. The UI
+/// uses this to disable every editor surface in one shot.
+pub fn update_database_locked(
+    uow: &dyn UnitOfWork,
+    db_id: Uuid,
+    locked: bool,
+) -> Result<(), PinkhaError> {
+    let repo = uow.databases();
+    let mut db = repo.load(db_id)?;
+    db.locked = locked;
+    repo.save(&db)
+}
+
 /// Adds a new row to the database and persists.
 pub fn add_entry(
     uow: &dyn UnitOfWork,
@@ -127,6 +140,26 @@ pub fn add_entry_with_document(
     db.entries.push(entry.clone());
     repo.save(&db)?;
     Ok(entry)
+}
+
+/// Overrides the `published_at` timestamp of an existing entry.
+/// Empty string resets the entry to "follow `created_at`" (the
+/// default behaviour). Used by the UI's publish-date picker.
+pub fn update_entry_published_at(
+    uow: &dyn UnitOfWork,
+    db_id: Uuid,
+    entry_id: Uuid,
+    new_published_at: String,
+) -> Result<(), PinkhaError> {
+    let repo = uow.databases();
+    let mut db = repo.load(db_id)?;
+    let entry = db
+        .entries
+        .iter_mut()
+        .find(|e| e.id == entry_id)
+        .ok_or(PinkhaError::NotFound(entry_id))?;
+    entry.published_at = new_published_at;
+    repo.save(&db)
 }
 
 /// Replaces all cell values for an existing entry and persists.

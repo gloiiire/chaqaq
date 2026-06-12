@@ -95,8 +95,16 @@ final class TabManager: ObservableObject {
                                      vm: vmCache[docId]!), at: 0)
         // Bump to the front of the recently-viewed MRU. Survives
         // close — the home's "Recent" strip reads from this.
-        recentlyViewed.removeAll { $0 == docId }
-        recentlyViewed.insert(docId, at: 0)
+        markRecentlyViewed(id: docId)
+    }
+
+    /// MRU-only push : adds `id` to the `recentlyViewed` list without
+    /// touching `openTabs` or `vmCache`. Used by `DatabaseView` to
+    /// surface freshly-opened databases in the Notes home Recent strip
+    /// without creating a phantom document tab for them.
+    func markRecentlyViewed(id: String) {
+        recentlyViewed.removeAll { $0 == id }
+        recentlyViewed.insert(id, at: 0)
         if recentlyViewed.count > recentlyViewedCapacity {
             recentlyViewed.removeLast(recentlyViewed.count - recentlyViewedCapacity)
         }

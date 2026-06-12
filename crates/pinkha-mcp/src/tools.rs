@@ -61,6 +61,12 @@ pub fn registry() -> Value {
                 ("id", "string", true, "Document UUID."),
                 ("icon", "string", false, "Icon identifier or null to clear."),
             ])),
+        tool("update_document_published_at",
+            "Override a document's user-editable publish_at timestamp. Empty string = reset to default (follows created_at).",
+            obj_schema(&[
+                ("id", "string", true, "Document UUID."),
+                ("new_published_at", "string", true, "RFC 3339 timestamp or empty to reset."),
+            ])),
         tool("update_document_locked",
             "Toggle the document's read-only lock.",
             obj_schema(&[
@@ -287,6 +293,12 @@ pub fn registry() -> Value {
                 ("id", "string", true, "Database UUID."),
                 ("description", "string", true, "Description content or empty to clear."),
             ])),
+        tool("update_database_locked",
+            "Toggle the database's read-only lock.",
+            obj_schema(&[
+                ("id", "string", true, "Database UUID."),
+                ("locked", "boolean", true, "Lock state."),
+            ])),
         tool("create_database",
             "Create a new database with the given title and return its UUID.",
             obj_schema(&[("title", "string", true, "Database title.")])),
@@ -312,6 +324,20 @@ pub fn registry() -> Value {
             obj_schema(&[
                 ("db_id", "string", true, "Database UUID."),
                 ("values_json", "string", true, "Serialized values map."),
+            ])),
+        tool("attach_document_to_database",
+            "File an existing document as a row of an existing database. Same values_json shape as add_entry.",
+            obj_schema(&[
+                ("db_id", "string", true, "Database UUID."),
+                ("doc_id", "string", true, "Document UUID."),
+                ("values_json", "string", true, "Serialized values map."),
+            ])),
+        tool("update_entry_published_at",
+            "Override an entry's user-editable publish_at timestamp. Empty string = reset to default (follows created_at).",
+            obj_schema(&[
+                ("db_id", "string", true, "Database UUID."),
+                ("entry_id", "string", true, "Entry UUID."),
+                ("new_published_at", "string", true, "RFC 3339 timestamp or empty to reset."),
             ])),
         tool("update_entry",
             "Replace an entry's values.",
@@ -466,6 +492,13 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
         }
         "update_document_locked" => {
             api.update_document_locked(take(&args, "id")?, take(&args, "locked")?)?;
+            ok()
+        }
+        "update_document_published_at" => {
+            api.update_document_published_at(
+                take(&args, "id")?,
+                take(&args, "new_published_at")?,
+            )?;
             ok()
         }
         "update_document_accent_color" => {
@@ -663,6 +696,10 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
             )?;
             ok()
         }
+        "update_database_locked" => {
+            api.update_database_locked(take(&args, "id")?, take(&args, "locked")?)?;
+            ok()
+        }
         "create_database" => Ok(json!({
             "id": api.create_database(take(&args, "title")?)?,
         }).to_string()),
@@ -690,11 +727,26 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
                 take(&args, "values_json")?,
             )?,
         }).to_string()),
+        "attach_document_to_database" => Ok(json!({
+            "entry_id": api.attach_document_to_database(
+                take(&args, "db_id")?,
+                take(&args, "doc_id")?,
+                take(&args, "values_json")?,
+            )?,
+        }).to_string()),
         "update_entry" => {
             api.update_entry(
                 take(&args, "db_id")?,
                 take(&args, "entry_id")?,
                 take(&args, "values_json")?,
+            )?;
+            ok()
+        }
+        "update_entry_published_at" => {
+            api.update_entry_published_at(
+                take(&args, "db_id")?,
+                take(&args, "entry_id")?,
+                take(&args, "new_published_at")?,
             )?;
             ok()
         }

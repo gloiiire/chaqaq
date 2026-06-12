@@ -15,6 +15,13 @@ import SwiftUI
 struct DatabaseToolbarView: View {
     @ObservedObject var vm: DatabaseViewModel
     @Binding var searchVisible: Bool
+    /// Read from the environment so the toolbar always renders the
+    /// chosen accent regardless of the `.tint(...)` inheritance up the
+    /// navigation stack — opening the DB from the Notes tab (inside
+    /// a doc's Page block) used to leave every accent slot white
+    /// because that stack didn't propagate the env tint, while the
+    /// Bases tab did. Reading it directly fixes both paths.
+    @EnvironmentObject private var settings: AppSettings
 
     @State private var showFilterSheet = false
     @State private var showPropertiesSheet = false
@@ -25,7 +32,7 @@ struct DatabaseToolbarView: View {
                 viewPicker
                 Spacer(minLength: 0)
                 actionButtons
-                addButton
+                if !vm.locked { addButton }
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 8)
@@ -50,7 +57,8 @@ struct DatabaseToolbarView: View {
     // ── View picker ──────────────────────────────────────────────────────────
 
     private var viewPicker: some View {
-        Menu {
+        let accent = settings.accentColor
+        return Menu {
             ForEach(vm.views) { view in
                 Button {
                     Haptic.tap()
@@ -98,14 +106,15 @@ struct DatabaseToolbarView: View {
             HStack(spacing: 6) {
                 Image(systemName: vm.activeView?.type.systemImage ?? "list.bullet")
                     .font(.body.weight(.semibold))
+                    .foregroundStyle(accent)
                 Text(vm.activeView?.name ?? "View")
                     .font(.body.weight(.semibold))
+                    .foregroundStyle(accent)
                     .lineLimit(1)
                 Image(systemName: "chevron.down")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.secondary)
             }
-            .foregroundStyle(.primary)
             .padding(.horizontal, 4)
             .contentShape(Rectangle())
         }
@@ -123,6 +132,7 @@ struct DatabaseToolbarView: View {
                     if !searchVisible { vm.searchQuery = "" }
                 }
             }
+            sortMenu
             iconButton(systemImage: "line.3.horizontal.decrease",
                        active: !vm.filters.isEmpty,
                        accessibility: "Filters") {
@@ -134,6 +144,63 @@ struct DatabaseToolbarView: View {
                 showPropertiesSheet = true
             }
         }
+    }
+
+    /// Sort menu — exposes the two entry-level date sorts (Created
+    /// and Published) plus a Clear option. Column-level sort still
+    /// works via the column-header tap on the Table view ; this menu
+    /// is the only path to a date sort on the List view.
+    private var sortMenu: some View {
+        Menu {
+            Section("Sort by date") {
+                Button {
+                    Haptic.tap()
+                    vm.setDateSort(.created, ascending: false)
+                } label: {
+                    Label("Created — newest first",
+                          systemImage: vm.activeDateSort == .created ? "checkmark" : "calendar")
+                }
+                Button {
+                    Haptic.tap()
+                    vm.setDateSort(.created, ascending: true)
+                } label: {
+                    Label("Created — oldest first",
+                          systemImage: vm.activeDateSort == .created ? "checkmark" : "calendar.badge.clock")
+                }
+                Button {
+                    Haptic.tap()
+                    vm.setDateSort(.published, ascending: false)
+                } label: {
+                    Label("Published — newest first",
+                          systemImage: vm.activeDateSort == .published ? "checkmark" : "paperplane")
+                }
+                Button {
+                    Haptic.tap()
+                    vm.setDateSort(.published, ascending: true)
+                } label: {
+                    Label("Published — oldest first",
+                          systemImage: vm.activeDateSort == .published ? "checkmark" : "paperplane.fill")
+                }
+            }
+            if vm.activeSort != nil || vm.activeDateSort != nil {
+                Section {
+                    Button(role: .destructive) {
+                        Haptic.tap()
+                        vm.setDateSort(nil, ascending: true)
+                    } label: {
+                        Label("Clear sort", systemImage: "xmark.circle")
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "arrow.up.arrow.down")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(vm.activeDateSort != nil
+                                 ? settings.accentColor : .secondary)
+                .frame(width: 38, height: 38)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel("Sort by date")
     }
 
     private func iconButton(
@@ -190,7 +257,7 @@ struct DatabaseToolbarView: View {
                     .contentShape(Rectangle())
             }
         }
-        .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(settings.accentColor, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     // ── Search field (inline, shown when search is active) ───────────────────

@@ -112,6 +112,7 @@ struct CraftTextBundleImportView: View {
                 }
             }
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     @ViewBuilder

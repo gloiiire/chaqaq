@@ -269,7 +269,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Toutes les bases"
+            "value": "Toutes les bases de données"
           }
         }
       }
@@ -1019,7 +1019,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bases"
+            "value": "Base de données"
           }
         }
       }
@@ -3514,7 +3514,24 @@
       }
     },
     "^[%@ document](inflect: true)": {},
-    "•": {}
+    "•": {},
+    "Databases tab": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Databases"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bases"
+          }
+        }
+      }
+    }
   },
   "version": "1.0"
 }

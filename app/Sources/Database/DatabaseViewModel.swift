@@ -29,6 +29,10 @@ final class DatabaseViewModel: ObservableObject {
     @Published var descriptionPlain: String = ""
     @Published var cover: String?
     @Published var icon: String?
+    /// Read-only flag — propagated from the persisted `Database.locked`.
+    /// When `true`, the toolbar's add button is dimmed and every
+    /// view component hides its mutation affordances.
+    @Published var locked: Bool = false
 
     // ── Schema + data ─────────────────────────────────────────────────────────
 
@@ -43,6 +47,18 @@ final class DatabaseViewModel: ObservableObject {
 
     /// Currently active sort. `nil` means insertion order.
     @Published private(set) var activeSort: ActiveSort? = nil
+
+    /// Which entry-level date the active sort is keyed by, if any.
+    /// `.none` when no date sort is active (either column sort or
+    /// no sort at all). Drives the checkmark in the toolbar's date
+    /// sort menu.
+    @Published private(set) var activeDateSort: DateSortKind? = nil
+
+    /// Date-only sort vocabulary surfaced in the toolbar menu.
+    enum DateSortKind: String, Equatable {
+        case created
+        case published
+    }
 
     /// In-memory filter clauses applied client-side to `entries`.
     @Published var filters: [DatabaseFilter] = []
@@ -108,19 +124,57 @@ final class DatabaseViewModel: ObservableObject {
         descriptionPlain = db.description.map(\.content).joined()
         cover            = db.cover
         icon             = db.icon
+        locked           = db.locked
         pagePropertyId   = db.properties.first(where: { $0.name == pagePropName })?.id
 
-        let allViews = db.views ?? []
-        views          = allViews
-        primaryViewId  = allViews.first?.id
-        if activeViewId == nil || !allViews.contains(where: { $0.id == activeViewId }) {
-            activeViewId = allViews.first?.id
+        var allViews = db.views ?? []
+
+        // Mobile-first default — every database always has a List view
+        // available so users on iPhone never get stuck on the Table
+        // layout. Side-effect : creates a Notion-style "List" entry on
+        // existing databases imported as Table-only.
+        if !allViews.contains(where: { if case .list = $0.type { return true }; return false }) {
+            let listId = UUID().uuidString.lowercased()
+            let json = newViewJson(id: listId, name: "List", type: .list)
+            if tryCatch(into: &errorMessage, {
+                try api.addView(dbId: dbId, viewJson: json)
+            }) != nil {
+                let listView = ViewFfi(id: listId, name: "List", type: .list)
+                allViews.insert(listView, at: 0)
+            }
         }
 
-        if let view = allViews.first, let s = view.sorts.first, s.source == "Property" {
-            activeSort = ActiveSort(propertyId: s.propertyId, ascending: s.order == "Ascending")
+        views          = allViews
+        primaryViewId  = allViews.first?.id
+        // Active view defaults to the List entry — that's the visual
+        // default the user expects on mobile, regardless of the order
+        // the DB shipped its views in.
+        if activeViewId == nil || !allViews.contains(where: { $0.id == activeViewId }) {
+            let listFirst = allViews.first(where: {
+                if case .list = $0.type { return true }; return false
+            })
+            activeViewId = listFirst?.id ?? allViews.first?.id
+        }
+
+        if let view = allViews.first, let s = view.sorts.first {
+            let asc = s.order == "Ascending"
+            switch s.source {
+            case "Property":
+                activeSort = ActiveSort(propertyId: s.propertyId, ascending: asc)
+                activeDateSort = nil
+            case "Created":
+                activeDateSort = .created
+                activeSort = nil
+            case "Published":
+                activeDateSort = .published
+                activeSort = nil
+            default:
+                activeSort = nil
+                activeDateSort = nil
+            }
         } else {
             activeSort = nil
+            activeDateSort = nil
         }
 
         var visible = db.properties.filter { $0.name != pagePropName }
@@ -156,14 +210,33 @@ final class DatabaseViewModel: ObservableObject {
         case .calendar: name = "Calendar"
         case .gallery:  name = "Gallery"
         }
+        // Hand-rolled JSON because the Rust `View` struct requires
+        // `filters` and `sorts` keys ; ViewFfi-side encoding skips
+        // `filters` (the VM manages filters separately).
+        let json = newViewJson(id: id, name: name, type: type)
+        guard tryCatch(into: &errorMessage, {
+            try api.addView(dbId: dbId, viewJson: json)
+        }) != nil else { return }
         let view = ViewFfi(id: id, name: name, type: type)
-        guard let json = encode(view),
-              let _ = tryCatch(into: &errorMessage, {
-                  try api.addView(dbId: dbId, viewJson: json)
-              })
-        else { return }
         views.append(view)
         activeViewId = id
+    }
+
+    /// Builds the exact JSON shape Rust's `View` deserializer expects :
+    /// `{ id, name, type_, filters: [], sorts: [] }`. The `type_` payload
+    /// is externally-tagged like serde, matching `ViewTypeFfi.encode`.
+    private func newViewJson(id: String, name: String, type: ViewTypeFfi) -> String {
+        let typeJson: String
+        switch type {
+        case .list:    typeJson = "\"List\""
+        case .table:   typeJson = "\"Table\""
+        case .gallery: typeJson = "\"Gallery\""
+        case .kanban(let g):
+            typeJson = "{\"Kanban\":{\"group_by\":\"\(g)\"}}"
+        case .calendar(let p):
+            typeJson = "{\"Calendar\":{\"property_id\":\"\(p)\"}}"
+        }
+        return "{\"id\":\"\(id)\",\"name\":\"\(name)\",\"type_\":\(typeJson),\"filters\":[],\"sorts\":[]}"
     }
 
     // ── Header mutations ─────────────────────────────────────────────────────
@@ -216,6 +289,16 @@ final class DatabaseViewModel: ObservableObject {
             try api.updateDatabaseIcon(id: dbId, icon: identifier)
         }
         icon = identifier
+    }
+
+    /// Toggles the read-only flag. Same surface as the document lock —
+    /// optimistic local update + best-effort FFI write.
+    func toggleLock() {
+        let next = !locked
+        tryCatch(into: &errorMessage) {
+            try api.updateDatabaseLocked(id: dbId, locked: next)
+        }
+        locked = next
     }
 
     // ── Entry mutations ──────────────────────────────────────────────────────
@@ -466,7 +549,76 @@ final class DatabaseViewModel: ObservableObject {
         }
         guard result != nil else { return }
         activeSort = next
+        activeDateSort = nil
         refreshSortedEntries()
+    }
+
+    /// Switches the active sort to one of the entry-level timestamp
+    /// sources — `created_at` or `published_at`. Pass `nil` to clear.
+    func setDateSort(_ kind: DateSortKind?, ascending: Bool) {
+        guard let viewId = primaryViewId else { return }
+        let result: ()?
+        if let kind {
+            result = tryCatch(into: &errorMessage) {
+                try api.setViewDateSort(
+                    dbId: dbId,
+                    viewId: viewId,
+                    kind: kind.rawValue,
+                    ascending: ascending,
+                )
+            }
+        } else {
+            // Clear sort entirely — falls through to the existing
+            // property-clear path.
+            result = tryCatch(into: &errorMessage) {
+                try api.setViewSort(
+                    dbId: dbId,
+                    viewId: viewId,
+                    propertyId: nil,
+                    ascending: true,
+                )
+            }
+        }
+        guard result != nil else { return }
+        activeDateSort = kind
+        if kind != nil {
+            // Column sort and date sort are mutually exclusive on
+            // the same view — clear the column-sort indicator so the
+            // UI doesn't show two highlights at once.
+            activeSort = nil
+        }
+        refreshSortedEntries()
+    }
+
+    /// Overrides the publish timestamp of an entry. Empty string =
+    /// reset to default (follow `created_at`).
+    func updateEntryPublishedAt(entryId: String, isoDate: String) {
+        tryCatch(into: &errorMessage) {
+            try api.updateEntryPublishedAt(
+                dbId: dbId,
+                entryId: entryId,
+                newPublishedAt: isoDate
+            )
+        }
+        if let idx = entries.firstIndex(where: { $0.id == entryId }) {
+            // Rebuild the entry with the new publish stamp so the
+            // list rerenders with the updated value without a full
+            // SQLite reload.
+            var e = entries[idx]
+            e = EntryFfi(
+                id: e.id,
+                createdAt: e.createdAt,
+                publishedAt: isoDate,
+                values: e.values,
+                documentId: e.documentId
+            )
+            entries[idx] = e
+        }
+        // If the active sort is a date sort, the order may have
+        // changed — re-query.
+        if activeDateSort != nil {
+            refreshSortedEntries()
+        }
     }
 
     private func refreshSortedEntries() {

@@ -166,6 +166,7 @@ struct CraftCombinedImportView: View {
                 }
             }
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     @ViewBuilder

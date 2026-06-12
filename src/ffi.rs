@@ -102,6 +102,10 @@ pub struct DocumentMetaFfi {
     pub updated_at: String,
     /// RFC 3339 timestamp of creation.
     pub created_at: String,
+    /// User-editable publish timestamp. Defaults to `created_at` on
+    /// fresh docs ; empty string on legacy rows is treated as "follow
+    /// `created_at`" by the home view's sort path.
+    pub published_at: String,
     /// UUID of the folder this document belongs to, or `None` for root.
     pub folder_id: Option<String>,
     /// UUID of the parent document (Notion-style page-in-page), or `None`
@@ -208,6 +212,7 @@ fn doc_meta_to_ffi(m: DocumentMeta) -> DocumentMetaFfi {
         .collect::<Vec<_>>()
         .join("");
     let title_json = serde_json::to_string(&m.title).unwrap_or_default();
+    let published_at = m.published_at;
     DocumentMetaFfi {
         id: m.id.to_string(),
         title_plain,
@@ -215,6 +220,7 @@ fn doc_meta_to_ffi(m: DocumentMeta) -> DocumentMetaFfi {
         cover: m.cover,
         updated_at: m.updated_at,
         created_at: m.created_at,
+        published_at,
         folder_id: m.folder_id.map(|id| id.to_string()),
         parent_doc_id: m.parent_doc_id.map(|id| id.to_string()),
         icon: m.icon,
@@ -445,6 +451,24 @@ impl PinkhaApi {
     ) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
         use_cases::update_document_locked(&self.uow(), uuid, locked).map_err(PinkhaError::from)
+    }
+
+    /// Overrides the document's user-editable `published_at`.
+    /// Empty string resets it to the default "follow `created_at`"
+    /// behaviour. Mirrors `update_entry_published_at` on Entry.
+    pub fn update_document_published_at(
+        &self,
+        id: String,
+        new_published_at: String,
+    ) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        if new_published_at.len() > 64 {
+            return Err(PinkhaError::InvalidOperation {
+                detail: "published_at too long".to_string(),
+            });
+        }
+        use_cases::update_document_published_at(&self.uow(), uuid, new_published_at)
+            .map_err(PinkhaError::from)
     }
 
     /// Appends a block to a document. `block_content_json` must be a JSON-encoded
@@ -811,6 +835,17 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Flips the database's `locked` flag.
+    pub fn update_database_locked(
+        &self,
+        id: String,
+        locked: bool,
+    ) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        database_use_cases::update_database_locked(&self.uow(), uuid, locked)
+            .map_err(PinkhaError::from)
+    }
+
     /// Soft-deletes the database identified by `id`.
     pub fn delete_database(&self, id: String) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
@@ -837,6 +872,30 @@ impl PinkhaApi {
         Ok(entry.id.to_string())
     }
 
+    /// Files an existing document as a row of an existing database.
+    /// The new entry stores `document_id` so the Title column stays
+    /// linked to the doc's title (the `update_entry_propagating_title`
+    /// path keeps them in sync going forward). Returns the new entry
+    /// UUID.
+    pub fn attach_document_to_database(
+        &self,
+        db_id: String,
+        doc_id: String,
+        values_json: String,
+    ) -> Result<String, PinkhaError> {
+        let db_uuid = parse_uuid(&db_id)?;
+        let doc_uuid = parse_uuid(&doc_id)?;
+        let values: HashMap<Uuid, PropertyValue> = parse_json(&values_json)?;
+        let entry = database_use_cases::add_entry_with_document(
+            &self.uow(),
+            db_uuid,
+            values,
+            doc_uuid,
+        )
+        .map_err(PinkhaError::from)?;
+        Ok(entry.id.to_string())
+    }
+
     /// Replaces all property values of an existing entry. When the entry is
     /// linked to a document and the new values touch the Title property, the
     /// document title is updated in lockstep — fixing the UX bug where
@@ -852,6 +911,34 @@ impl PinkhaApi {
         let values: HashMap<Uuid, PropertyValue> = parse_json(&values_json)?;
         use_cases::update_entry_propagating_title(&self.uow(), db_uuid, entry_uuid, values)
             .map_err(PinkhaError::from)
+    }
+
+    /// Overrides the entry's user-editable `published_at`. Pass an
+    /// empty string to reset to the default "follow `created_at`"
+    /// behaviour.
+    pub fn update_entry_published_at(
+        &self,
+        db_id: String,
+        entry_id: String,
+        new_published_at: String,
+    ) -> Result<(), PinkhaError> {
+        let db_uuid = parse_uuid(&db_id)?;
+        let entry_uuid = parse_uuid(&entry_id)?;
+        // Allow the empty-string reset path — `validate_string`
+        // refuses empty but we want it here. Bound the upper size to
+        // a sane RFC 3339 length.
+        if new_published_at.len() > 64 {
+            return Err(PinkhaError::InvalidOperation {
+                detail: "published_at too long".to_string(),
+            });
+        }
+        database_use_cases::update_entry_published_at(
+            &self.uow(),
+            db_uuid,
+            entry_uuid,
+            new_published_at,
+        )
+        .map_err(PinkhaError::from)
     }
 
     /// Soft-deletes an entry — recoverable via `restore_entry`.
@@ -979,6 +1066,38 @@ impl PinkhaApi {
             db_uuid,
             view_uuid,
             prop_uuid,
+            ascending,
+        )
+        .map_err(PinkhaError::from)
+    }
+
+    /// Sets the view's sort to the entry-level `created_at` or
+    /// `published_at` timestamp. `kind` accepts `"created"` or
+    /// `"published"` (case-insensitive). For column-based sorts,
+    /// use `set_view_sort` with a `property_id` instead.
+    pub fn set_view_date_sort(
+        &self,
+        db_id: String,
+        view_id: String,
+        kind: String,
+        ascending: bool,
+    ) -> Result<(), PinkhaError> {
+        let db_uuid = parse_uuid(&db_id)?;
+        let view_uuid = parse_uuid(&view_id)?;
+        let source = match kind.to_lowercase().as_str() {
+            "created" => crate::domain::database::SortSource::Created,
+            "published" => crate::domain::database::SortSource::Published,
+            other => {
+                return Err(PinkhaError::InvalidOperation {
+                    detail: format!("unsupported date sort kind: {other}"),
+                });
+            }
+        };
+        database_use_cases::set_view_date_sort(
+            &self.uow(),
+            db_uuid,
+            view_uuid,
+            source,
             ascending,
         )
         .map_err(PinkhaError::from)
@@ -1239,20 +1358,7 @@ impl PinkhaApi {
         validate_string(&token, "token")?;
         let summaries = tokio_runtime()
             .block_on(crate::extractors::notion::list_databases(&token))
-            .map_err(|e| match e {
-                crate::extractors::ExtractorError::Http { status, message } => {
-                    PinkhaError::Storage {
-                        detail: format!("Notion HTTP {status}: {message}"),
-                    }
-                }
-                crate::extractors::ExtractorError::Auth(msg) => {
-                    PinkhaError::InvalidOperation { detail: msg }
-                }
-                crate::extractors::ExtractorError::Parse(msg) => {
-                    PinkhaError::Storage { detail: msg }
-                }
-                crate::extractors::ExtractorError::Storage(e) => e.into(),
-            })?;
+            .map_err(Self::map_notion_picker_error)?;
         Ok(summaries
             .into_iter()
             .map(|s| NotionDatabaseSummaryFfi {
@@ -1262,6 +1368,51 @@ impl PinkhaApi {
                 last_edited: s.last_edited,
             })
             .collect())
+    }
+
+    /// Same surface as [`list_notion_databases`] but uses the
+    /// 2025-09-03 data-source-aware path under the hood. Pickers
+    /// should prefer this version — multi-source DBs that the
+    /// legacy `object: database` filter misses come back in. The
+    /// legacy method stays available so callers that need the
+    /// strict 2022 contract can still opt into it.
+    pub fn list_notion_databases_v2025(
+        &self,
+        token: String,
+    ) -> Result<Vec<NotionDatabaseSummaryFfi>, PinkhaError> {
+        validate_string(&token, "token")?;
+        let summaries = tokio_runtime()
+            .block_on(crate::extractors::notion::list_databases_v2025(&token))
+            .map_err(Self::map_notion_picker_error)?;
+        Ok(summaries
+            .into_iter()
+            .map(|s| NotionDatabaseSummaryFfi {
+                id: s.id,
+                title: s.title,
+                icon_emoji: s.icon_emoji,
+                last_edited: s.last_edited,
+            })
+            .collect())
+    }
+
+    /// Shared `ExtractorError → PinkhaError` mapping for the Notion
+    /// picker paths. Inline duplication of this match-arm pyramid
+    /// between two callers was begging to drift apart.
+    fn map_notion_picker_error(e: crate::extractors::ExtractorError) -> PinkhaError {
+        match e {
+            crate::extractors::ExtractorError::Http { status, message } => {
+                PinkhaError::Storage {
+                    detail: format!("Notion HTTP {status}: {message}"),
+                }
+            }
+            crate::extractors::ExtractorError::Auth(msg) => {
+                PinkhaError::InvalidOperation { detail: msg }
+            }
+            crate::extractors::ExtractorError::Parse(msg) => {
+                PinkhaError::Storage { detail: msg }
+            }
+            crate::extractors::ExtractorError::Storage(e) => e.into(),
+        }
     }
 
     pub fn import_from_notion(

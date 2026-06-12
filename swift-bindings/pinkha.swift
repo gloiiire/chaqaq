@@ -529,6 +529,13 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func addView(dbId: String, viewJson: String) throws  -> String
     
     /**
+     * Files an existing document as a row of an existing database.
+     * `values_json` is the same UUID -> PropertyValue map as for
+     * `add_entry`. Returns the new entry UUID.
+     */
+    func attachDocumentToDatabase(dbId: String, docId: String, valuesJson: String) throws  -> String
+    
+    /**
      * Retourne l'agrégat d'une colonne en JSON.
      */
     func columnAggregateDatabaseJson(dbId: String, propertyId: String, aggregateJson: String) throws  -> String
@@ -693,6 +700,14 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func listNotionDatabases(token: String) throws  -> [NotionDatabaseSummaryFfi]
     
     /**
+     * Comme [`list_notion_databases`] mais utilise le chemin Notion
+     * API 2025-09-03 data-source-aware sous le capot — récupère
+     * aussi les DBs multi-source que le filtre legacy rate. Le
+     * picker devrait préférer cette version.
+     */
+    func listNotionDatabasesV2025(token: String) throws  -> [NotionDatabaseSummaryFfi]
+    
+    /**
      * Liste les pages racine (documents sans parent). Alimente la home.
      */
     func listRootDocuments() throws  -> [DocumentMetaFfi]
@@ -826,6 +841,13 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func setBlockTextDirection(docId: String, blockId: String, textDirection: String?) throws 
     
     /**
+     * Set le sort de la vue sur created_at ou published_at de l'entrée.
+     * `kind` = "created" ou "published". Pas de property_id (les timestamps
+     * vivent sur Entry, pas sur une colonne).
+     */
+    func setViewDateSort(dbId: String, viewId: String, kind: String, ascending: Bool) throws 
+    
+    /**
      * Pose un tri unique sur une vue, en remplaçant ceux qui existent.
      * `property_id = null` retire le tri.
      */
@@ -850,6 +872,11 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Remplace ou efface l'icône (emoji / fichier / URL) de la database.
      */
     func updateDatabaseIcon(id: String, icon: String?) throws 
+    
+    /**
+     * Bascule le flag read-only de la database.
+     */
+    func updateDatabaseLocked(id: String, locked: Bool) throws 
     
     /**
      * Remplace le titre rich-text de la database.
@@ -884,6 +911,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func updateDocumentParent(docId: String, newParentDocId: String?) throws 
     
     /**
+     * Override la timestamp publish_at d'un document. Chaîne vide = reset
+     * au défaut (suit created_at).
+     */
+    func updateDocumentPublishedAt(id: String, newPublishedAt: String) throws 
+    
+    /**
      * Pose ou retire la direction d'écriture par défaut du document.
      * `null` = locale système. Chaque bloc peut overrider.
      */
@@ -898,6 +931,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func updateDocumentTitle(id: String, newTitle: String) throws 
     
     func updateEntry(dbId: String, entryId: String, valuesJson: String) throws 
+    
+    /**
+     * Override la timestamp publish_at d'une entrée.
+     * Chaîne vide = reset au défaut (suit created_at).
+     */
+    func updateEntryPublishedAt(dbId: String, entryId: String, newPublishedAt: String) throws 
     
     func updateFolderIcon(id: String, icon: String?) throws 
     
@@ -1030,6 +1069,22 @@ open func addView(dbId: String, viewJson: String)throws  -> String  {
             self.uniffiCloneHandle(),
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(viewJson),$0
+    )
+})
+}
+    
+    /**
+     * Files an existing document as a row of an existing database.
+     * `values_json` is the same UUID -> PropertyValue map as for
+     * `add_entry`. Returns the new entry UUID.
+     */
+open func attachDocumentToDatabase(dbId: String, docId: String, valuesJson: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_attach_document_to_database(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(docId),
+        FfiConverterString.lower(valuesJson),$0
     )
 })
 }
@@ -1472,6 +1527,21 @@ open func listNotionDatabases(token: String)throws  -> [NotionDatabaseSummaryFfi
 }
     
     /**
+     * Comme [`list_notion_databases`] mais utilise le chemin Notion
+     * API 2025-09-03 data-source-aware sous le capot — récupère
+     * aussi les DBs multi-source que le filtre legacy rate. Le
+     * picker devrait préférer cette version.
+     */
+open func listNotionDatabasesV2025(token: String)throws  -> [NotionDatabaseSummaryFfi]  {
+    return try  FfiConverterSequenceTypeNotionDatabaseSummaryFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_notion_databases_v2025(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),$0
+    )
+})
+}
+    
+    /**
      * Liste les pages racine (documents sans parent). Alimente la home.
      */
 open func listRootDocuments()throws  -> [DocumentMetaFfi]  {
@@ -1803,6 +1873,22 @@ open func setBlockTextDirection(docId: String, blockId: String, textDirection: S
 }
     
     /**
+     * Set le sort de la vue sur created_at ou published_at de l'entrée.
+     * `kind` = "created" ou "published". Pas de property_id (les timestamps
+     * vivent sur Entry, pas sur une colonne).
+     */
+open func setViewDateSort(dbId: String, viewId: String, kind: String, ascending: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_set_view_date_sort(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(viewId),
+        FfiConverterString.lower(kind),
+        FfiConverterBool.lower(ascending),$0
+    )
+}
+}
+    
+    /**
      * Pose un tri unique sur une vue, en remplaçant ceux qui existent.
      * `property_id = null` retire le tri.
      */
@@ -1862,6 +1948,18 @@ open func updateDatabaseIcon(id: String, icon: String?)throws   {try rustCallWit
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
         FfiConverterOptionString.lower(icon),$0
+    )
+}
+}
+    
+    /**
+     * Bascule le flag read-only de la database.
+     */
+open func updateDatabaseLocked(id: String, locked: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_database_locked(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterBool.lower(locked),$0
     )
 }
 }
@@ -1941,6 +2039,19 @@ open func updateDocumentParent(docId: String, newParentDocId: String?)throws   {
 }
     
     /**
+     * Override la timestamp publish_at d'un document. Chaîne vide = reset
+     * au défaut (suit created_at).
+     */
+open func updateDocumentPublishedAt(id: String, newPublishedAt: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_document_published_at(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterString.lower(newPublishedAt),$0
+    )
+}
+}
+    
+    /**
      * Pose ou retire la direction d'écriture par défaut du document.
      * `null` = locale système. Chaque bloc peut overrider.
      */
@@ -1981,6 +2092,20 @@ open func updateEntry(dbId: String, entryId: String, valuesJson: String)throws  
         FfiConverterString.lower(dbId),
         FfiConverterString.lower(entryId),
         FfiConverterString.lower(valuesJson),$0
+    )
+}
+}
+    
+    /**
+     * Override la timestamp publish_at d'une entrée.
+     * Chaîne vide = reset au défaut (suit created_at).
+     */
+open func updateEntryPublishedAt(dbId: String, entryId: String, newPublishedAt: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_entry_published_at(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(entryId),
+        FfiConverterString.lower(newPublishedAt),$0
     )
 }
 }
@@ -2202,19 +2327,21 @@ public struct DocumentMetaFfi: Equatable, Hashable {
     public var cover: String?
     public var updatedAt: String
     public var createdAt: String
+    public var publishedAt: String
     public var folderId: String?
     public var parentDocId: String?
     public var icon: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, titlePlain: String, titleJson: String, cover: String?, updatedAt: String, createdAt: String, folderId: String?, parentDocId: String?, icon: String?) {
+    public init(id: String, titlePlain: String, titleJson: String, cover: String?, updatedAt: String, createdAt: String, publishedAt: String, folderId: String?, parentDocId: String?, icon: String?) {
         self.id = id
         self.titlePlain = titlePlain
         self.titleJson = titleJson
         self.cover = cover
         self.updatedAt = updatedAt
         self.createdAt = createdAt
+        self.publishedAt = publishedAt
         self.folderId = folderId
         self.parentDocId = parentDocId
         self.icon = icon
@@ -2242,6 +2369,7 @@ public struct FfiConverterTypeDocumentMetaFfi: FfiConverterRustBuffer {
                 cover: FfiConverterOptionString.read(from: &buf), 
                 updatedAt: FfiConverterString.read(from: &buf), 
                 createdAt: FfiConverterString.read(from: &buf), 
+                publishedAt: FfiConverterString.read(from: &buf), 
                 folderId: FfiConverterOptionString.read(from: &buf), 
                 parentDocId: FfiConverterOptionString.read(from: &buf), 
                 icon: FfiConverterOptionString.read(from: &buf)
@@ -2255,6 +2383,7 @@ public struct FfiConverterTypeDocumentMetaFfi: FfiConverterRustBuffer {
         FfiConverterOptionString.write(value.cover, into: &buf)
         FfiConverterString.write(value.updatedAt, into: &buf)
         FfiConverterString.write(value.createdAt, into: &buf)
+        FfiConverterString.write(value.publishedAt, into: &buf)
         FfiConverterOptionString.write(value.folderId, into: &buf)
         FfiConverterOptionString.write(value.parentDocId, into: &buf)
         FfiConverterOptionString.write(value.icon, into: &buf)
@@ -2864,6 +2993,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_add_view() != 30183) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_attach_document_to_database() != 39592) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_column_aggregate_database_json() != 24533) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -2969,6 +3101,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases() != 31016) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases_v2025() != 45793) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_root_documents() != 63012) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3053,6 +3188,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_text_direction() != 63451) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_date_sort() != 784) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_sort() != 45579) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3066,6 +3204,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_database_icon() != 46833) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_database_locked() != 2347) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_database_title() != 8063) {
@@ -3086,6 +3227,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_parent() != 28850) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_published_at() != 4051) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_text_direction() != 9380) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3096,6 +3240,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_entry() != 34034) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_entry_published_at() != 24453) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_folder_icon() != 31954) {
