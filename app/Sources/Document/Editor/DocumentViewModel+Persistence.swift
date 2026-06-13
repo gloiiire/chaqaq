@@ -24,16 +24,16 @@ extension DocumentViewModel {
     }
 
     /// Flushes a burst: persists the final state and registers a single undo step
-    /// that restores the pre-burst anchor. Called by the debounce timer, on block change,
-    /// or via `persistBlock` (structural mutation).
+    /// that restores the pre-burst anchor. Called by the debounce task,
+    /// on block change, or via `persistBlock` (structural mutation).
     func flushBurst(blockId: String) {
         guard let anchor = blockBurstAnchor[blockId] else { return }
         let current = blockSnapshots[blockId]
         blockBurstAnchor.removeValue(forKey: blockId)
         if burstFlushBlockId == blockId {
             burstFlushBlockId = nil
-            burstFlushWork?.cancel()
-            burstFlushWork = nil
+            burstFlushTask?.cancel()
+            burstFlushTask = nil
         }
         guard let current, anchor != current else { return }
         if let idx = blocks.firstIndex(where: { $0.id == blockId }) {
@@ -45,8 +45,8 @@ extension DocumentViewModel {
     }
 
     func flushAllBursts() {
-        burstFlushWork?.cancel()
-        burstFlushWork = nil
+        burstFlushTask?.cancel()
+        burstFlushTask = nil
         for id in Array(blockBurstAnchor.keys) { flushBurst(blockId: id) }
         burstFlushBlockId = nil
     }
@@ -74,13 +74,15 @@ extension DocumentViewModel {
         // The stable snapshot tracks the current (post-change) state.
         blockSnapshots[id] = snapshotOf(block)
         burstFlushBlockId = id
-        // Debounce: no saveBlock for burstInterval → flush + persist.
-        burstFlushWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            self?.flushBurst(blockId: id)
+        // Debounce: no saveBlock for `burstInterval` → flush + persist. The
+        // task inherits the VM's MainActor isolation, so `flushBurst` runs
+        // on the main actor without an explicit hop.
+        burstFlushTask?.cancel()
+        burstFlushTask = Task { [weak self, burstInterval] in
+            try? await Task.sleep(for: burstInterval)
+            guard !Task.isCancelled, let self else { return }
+            self.flushBurst(blockId: id)
         }
-        burstFlushWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + burstInterval, execute: work)
     }
 
     func saveBlock(id: String, spans: [InlineTextFfi]) {
@@ -94,9 +96,7 @@ extension DocumentViewModel {
         // otherwise load() would overwrite in-memory state not yet persisted.
         flushAllBursts()
         do {
-            let json = try api.getDocumentJson(id: docId)
-            guard let data = json.data(using: .utf8) else { return }
-            let doc = try JSONDecoder().decode(DocumentFfi.self, from: data)
+            let doc = try api.getDocument(id: docId)
             title = doc.title.map(\.content).joined()
             lastPersistedTitle = title
             cover = doc.cover

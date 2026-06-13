@@ -66,43 +66,62 @@ struct DatabaseHeaderView: View {
                 Color.clear.frame(height: 50)
             }
 
-            // Title — large, freely-editable, syncs to VM on blur.
-            TextField("Untitled", text: $titleDraft, axis: .vertical)
-                .font(.system(size: 34, weight: .bold))
-                .focused($titleFocused)
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-                .disabled(vm.locked)
-                .onAppear { titleDraft = vm.titlePlain }
-                .onChange(of: vm.titlePlain) { _, v in
-                    if !titleFocused { titleDraft = v }
+            // Title + description. Locked databases render plain Text —
+            // not a disabled TextField — mirroring how documents swap
+            // their editor surfaces out entirely. `.disabled` alone
+            // proved bypassable on device (iOS 26 quirk with
+            // `axis: .vertical` fields), and a read-only header also
+            // shouldn't show the "Add a description" placeholder.
+            if vm.locked {
+                Text(vm.titlePlain.isEmpty ? String(localized: "Untitled") : vm.titlePlain)
+                    .font(.system(size: 34, weight: .bold))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                if !vm.descriptionPlain.isEmpty {
+                    Text(vm.descriptionPlain)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+                        .padding(.bottom, 4)
                 }
-                .onChange(of: titleFocused) { _, focused in
-                    if !focused, titleDraft != vm.titlePlain {
-                        vm.saveTitle(titleDraft)
+            } else {
+                // Title — large, freely-editable, syncs to VM on blur.
+                TextField("Untitled", text: $titleDraft, axis: .vertical)
+                    .font(.system(size: 34, weight: .bold))
+                    .focused($titleFocused)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .onAppear { titleDraft = vm.titlePlain }
+                    .onChange(of: vm.titlePlain) { _, v in
+                        if !titleFocused { titleDraft = v }
                     }
-                }
+                    .onChange(of: titleFocused) { _, focused in
+                        if !focused, titleDraft != vm.titlePlain {
+                            vm.saveTitle(titleDraft)
+                        }
+                    }
 
-            // Description — multiline plain text, lighter weight. Empty
-            // is a valid state ; SwiftUI's `TextField` placeholder shows
-            // "Add a description" until the user types.
-            TextField("Add a description", text: $descriptionDraft, axis: .vertical)
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .focused($descriptionFocused)
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-                .padding(.bottom, 4)
-                .disabled(vm.locked)
-                .onAppear { descriptionDraft = vm.descriptionPlain }
-                .onChange(of: vm.descriptionPlain) { _, v in
-                    if !descriptionFocused { descriptionDraft = v }
-                }
-                .onChange(of: descriptionFocused) { _, focused in
-                    if !focused, descriptionDraft != vm.descriptionPlain {
-                        vm.saveDescription(descriptionDraft)
+                // Description — multiline plain text, lighter weight. Empty
+                // is a valid state ; SwiftUI's `TextField` placeholder shows
+                // "Add a description" until the user types.
+                TextField("Add a description", text: $descriptionDraft, axis: .vertical)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .focused($descriptionFocused)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
+                    .onAppear { descriptionDraft = vm.descriptionPlain }
+                    .onChange(of: vm.descriptionPlain) { _, v in
+                        if !descriptionFocused { descriptionDraft = v }
                     }
-                }
+                    .onChange(of: descriptionFocused) { _, focused in
+                        if !focused, descriptionDraft != vm.descriptionPlain {
+                            vm.saveDescription(descriptionDraft)
+                        }
+                    }
+            }
         }
         .photosPicker(isPresented: $photosPickerOpen, selection: $photoSelection, matching: .images)
         .fileImporter(isPresented: $filePickerOpen, allowedContentTypes: [.image]) { result in

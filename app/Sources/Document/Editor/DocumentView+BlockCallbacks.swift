@@ -234,10 +234,7 @@ extension DocumentView {
                 // cheap on local disk, and the call is gated by `.onAppear`
                 // in `ChildPageRowView` so we hit the store at most once
                 // per child block surfaced.
-                guard let json = try? vm.api.getDocumentJson(id: childId),
-                      let data = json.data(using: .utf8),
-                      let doc = try? JSONDecoder().decode(DocumentFfi.self, from: data)
-                else { return nil }
+                guard let doc = try? vm.api.getDocument(id: childId) else { return nil }
                 let title = doc.title.map(\.content).joined()
                 return (title: title, icon: doc.icon)
             }

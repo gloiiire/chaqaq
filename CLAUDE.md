@@ -367,6 +367,20 @@ Lie une row de DB au document qui la sous-tend (Notion-style : row = page). Set 
 ### `published_at` (Document + Entry)
 Tous deux exposent `published_at: String` user-éditable, distinct de `created_at` (immuable). Empty string = "follow `created_at`" (sentinel traité côté `SortSource::Published`). SQLite tient une colonne dédiée (backfill = `created_at` à la migration). UI : sheet `DocumentPublishDateSheet` (overflow menu du doc) + `PublishDatePickerSheet` (context menu d'une row) + `SortSource::Published` dans le `sortMenu` côté DB + `SortKey.publishedAt` dans NotesHomeView. Use cases : `update_document_published_at`, `update_entry_published_at`. FFI tronque à 64 bytes (taille RFC 3339).
 
+### Import Notion — concurrence, annulation, link_to_page
+- **Concurrence** : `stream::buffered(3)` sur le fetch des pages (calé sur la rate limit ~3 req/s de Notion). `import_page` ne crée plus l'entry lui-même — il retourne les valeurs et le consommateur insère séquentiellement dans l'ordre Notion (le load-modify-write du blob database ne race jamais). Map notion→pinkha sous `Mutex`.
+- **Annulation** : `extractors::cancel` (AtomicBool process-wide), FFI `cancel_import()`. Le loop vérifie entre chaque page ; sur cancel → `purge_partial_import` (hard delete de tous les docs créés + la database, rien en corbeille) → `ExtractorError::Cancelled` → message calme côté Swift. Rollback par compensation — le vrai UoW transactionnel SQL reste en dette.
+- **`link_to_page`** : mappé en paragraphe portant un lien `notion.so/{page_id}` — le pass 2 le réécrit en `pinkha://doc/` et la promotion en fait un bloc `Page` quand la cible est dans l'import ; sinon le lien notion.so reste cliquable.
+
+### Cascade delete / restore des databases
+`delete_database_cascade` / `restore_database_cascade` (db_doc_sync, FFI homonymes) : la suppression/restauration d'une DB embarque les documents liés (`Entry.document_id`), docs déjà traités skippés (`NotFound`). UI : `DatabaseCascadeDialogs.swift` — confirmationDialogs partagés (« & its pages » / « only ») branchés sur DatabasesHome, NotesHome (swipe) et Trash. Les chemins bulk-selection restent DB-only.
+
+### Lock database — 3 niveaux
+Le header locké rend du `Text` statique (pas un TextField `.disabled` — bypassable sur device iOS 26 avec `axis: .vertical`) ; le VM ignore le commit-au-blur ; `update_database_title`/`update_database_description` refusent en `InvalidOperation` côté Rust.
+
+### `Database.published_at_source: Option<Uuid>`
+Colonne Date qui pilote le `published_at` de chaque row (et du doc lié). Adoption = backfill de toutes les entries ; clear = reset au sentinel "suit `created_at`". Sync vivante : `add_entry`/`update_entry` recalculent `published_at` quand la cellule source change (`Database::source_publish_date`), `update_entry_propagating_title` propage au document. Use case cross-domain `set_published_at_source(uow, db_id, Option<prop_id>)` dans `db_doc_sync.rs`, FFI homonyme. Import Notion : auto-adoption quand exactement une prop Date porte un nom publish-flavored (`mapper::detect_publish_source` — match exact, casse-insensible : publication/published/publish date/…). UI : section "Publish date" dans `DatabasePropertiesSheet` (Picker None / colonnes Date).
+
 ## Git workflow
 
 ### Branches permanentes

@@ -48,11 +48,29 @@ final class DatabaseViewModel: ObservableObject {
     /// Currently active sort. `nil` means insertion order.
     @Published private(set) var activeSort: ActiveSort? = nil
 
+    /// UUID of the Date property driving every row's publish date —
+    /// mirrors `Database.published_at_source`. `nil` = publish dates
+    /// follow `created_at` unless overridden per row.
+    @Published private(set) var publishedAtSource: String? = nil
+
     /// Which entry-level date the active sort is keyed by, if any.
     /// `.none` when no date sort is active (either column sort or
     /// no sort at all). Drives the checkmark in the toolbar's date
     /// sort menu.
     @Published private(set) var activeDateSort: DateSortKind? = nil
+
+    /// Direction of the active date sort. `nil` whenever
+    /// `activeDateSort` is `nil`. Kept separate (not folded into the
+    /// enum) so the toolbar can match kind and direction independently.
+    @Published private(set) var activeDateSortAscending: Bool? = nil
+
+    /// `true` when the active sort is exactly this date sort — kind AND
+    /// direction. Drives the per-row checkmark in the toolbar's date
+    /// sort menu, where "Published newest" and "Published oldest" are
+    /// distinct rows.
+    func isDateSort(_ kind: DateSortKind, ascending: Bool) -> Bool {
+        activeDateSort == kind && activeDateSortAscending == ascending
+    }
 
     /// Date-only sort vocabulary surfaced in the toolbar menu.
     enum DateSortKind: String, Equatable {
@@ -125,6 +143,7 @@ final class DatabaseViewModel: ObservableObject {
         cover            = db.cover
         icon             = db.icon
         locked           = db.locked
+        publishedAtSource = db.publishedAtSource
         pagePropertyId   = db.properties.first(where: { $0.name == pagePropName })?.id
 
         var allViews = db.views ?? []
@@ -162,19 +181,24 @@ final class DatabaseViewModel: ObservableObject {
             case "Property":
                 activeSort = ActiveSort(propertyId: s.propertyId, ascending: asc)
                 activeDateSort = nil
+                activeDateSortAscending = nil
             case "Created":
                 activeDateSort = .created
+                activeDateSortAscending = asc
                 activeSort = nil
             case "Published":
                 activeDateSort = .published
+                activeDateSortAscending = asc
                 activeSort = nil
             default:
                 activeSort = nil
                 activeDateSort = nil
+                activeDateSortAscending = nil
             }
         } else {
             activeSort = nil
             activeDateSort = nil
+            activeDateSortAscending = nil
         }
 
         var visible = db.properties.filter { $0.name != pagePropName }
@@ -242,6 +266,9 @@ final class DatabaseViewModel: ObservableObject {
     // ── Header mutations ─────────────────────────────────────────────────────
 
     func saveTitle(_ plain: String) {
+        // Locking mid-edit must not let the pending draft commit on blur —
+        // Rust rejects it anyway; bailing here avoids a useless error alert.
+        guard !locked else { return }
         let trimmed = plain.trimmingCharacters(in: .whitespacesAndNewlines)
         tryCatch(into: &errorMessage) {
             try api.updateDatabaseTitle(id: dbId, newTitle: trimmed)
@@ -250,6 +277,7 @@ final class DatabaseViewModel: ObservableObject {
     }
 
     func saveDescription(_ plain: String) {
+        guard !locked else { return }
         tryCatch(into: &errorMessage) {
             try api.updateDatabaseDescription(id: dbId, description: plain)
         }
@@ -489,6 +517,17 @@ final class DatabaseViewModel: ObservableObject {
         }
     }
 
+    /// Adopts (or clears with `nil`) the Date column that drives every
+    /// row's publish date. The Rust use case backfills / resets all rows
+    /// and their backing documents; reloading keeps the in-memory
+    /// entries in sync with the rewritten `published_at` values.
+    func setPublishedAtSource(propertyId: String?) {
+        tryCatch(into: &errorMessage) {
+            _ = try api.setPublishedAtSource(dbId: dbId, propertyId: propertyId)
+        }
+        load()
+    }
+
     // ── Lookup helpers ───────────────────────────────────────────────────────
 
     var namePropertyId: String? {
@@ -549,6 +588,7 @@ final class DatabaseViewModel: ObservableObject {
         guard result != nil else { return }
         activeSort = next
         activeDateSort = nil
+        activeDateSortAscending = nil
         refreshSortedEntries()
     }
 
@@ -580,6 +620,7 @@ final class DatabaseViewModel: ObservableObject {
         }
         guard result != nil else { return }
         activeDateSort = kind
+        activeDateSortAscending = kind != nil ? ascending : nil
         if kind != nil {
             // Column sort and date sort are mutually exclusive on
             // the same view — clear the column-sort indicator so the
@@ -622,11 +663,9 @@ final class DatabaseViewModel: ObservableObject {
 
     private func refreshSortedEntries() {
         guard let viewId = primaryViewId,
-              let json = tryCatch(into: &errorMessage, {
-                  try api.queryDatabaseJson(dbId: dbId, viewId: viewId)
-              }),
-              let data = json.data(using: .utf8),
-              let sorted = try? JSONDecoder().decode([EntryFfi].self, from: data)
+              let sorted = tryCatch(into: &errorMessage, {
+                  try api.queryDatabase(dbId: dbId, viewId: viewId)
+              })
         else { return }
         entries = sorted
         iconCache.removeAll(keepingCapacity: true)
@@ -653,10 +692,6 @@ final class DatabaseViewModel: ObservableObject {
     }
 
     private func fetchDB() -> DatabaseFfi? {
-        guard let json = tryCatch(into: &errorMessage, { try api.getDatabaseJson(id: dbId) }),
-              let data = json.data(using: .utf8),
-              let db   = try? JSONDecoder().decode(DatabaseFfi.self, from: data)
-        else { return nil }
-        return db
+        tryCatch(into: &errorMessage) { try api.getDatabase(id: dbId) }
     }
 }
