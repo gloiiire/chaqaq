@@ -6,6 +6,11 @@ import SwiftUI
 /// global, hosted by `ContentView`'s create bubble accessory; this view
 /// keeps only the list, the empty state and the destructive overflow.
 struct DatabasesHomeView: View {
+    /// Database awaiting the delete confirmation dialog — swiping Delete
+    /// stages the row here instead of deleting straight away so the user
+    /// chooses whether the pages inside go with it.
+    @State private var pendingDeletion: DatabaseMetaFfi?
+
     @ObservedObject var store: PinkhaStore
     /// Apple-Music-style zoom transition source ; the destination
     /// `DatabaseView` pairs it with `.navigationTransition(.zoom(...))`
@@ -38,7 +43,7 @@ struct DatabasesHomeView: View {
                                     .matchedTransitionSource(id: db.id, in: dbZoom)
                                     .swipeActions(edge: .trailing) {
                                         Button(role: .destructive) {
-                                            store.deleteDatabase(id: db.id)
+                                            pendingDeletion = db
                                         } label: {
                                             Label("Delete", systemImage: "trash")
                                         }
@@ -56,6 +61,7 @@ struct DatabasesHomeView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("Databases")
             .navigationBarTitleDisplayMode(.large)
+            .databaseDeleteDialog(pending: $pendingDeletion, store: store)
         }
     }
 }

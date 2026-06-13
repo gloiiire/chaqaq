@@ -60,9 +60,19 @@ struct NotionImportView: View {
         }
     }
 
+    private var isRunning: Bool {
+        if case .running = state { return true }
+        return false
+    }
+
     var body: some View {
         NavigationStack {
             content
+                .overlay { importProgressOverlay }
+                // Drives the alert's spring pop in/out — scoping the
+                // animation to the state keeps the rest of the form from
+                // animating along.
+                .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isRunning)
                 .navigationTitle("Import from Notion")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -247,21 +257,41 @@ struct NotionImportView: View {
         }
     }
 
-    /// Progress / error feedback while the actual import runs.
+    /// Inline error feedback. Progress lives in `importProgressOverlay`
+    /// — a centered modal card, not a row buried at the bottom of the
+    /// form where the user may never scroll.
     @ViewBuilder
     private var statusSection: some View {
-        if case .running(let current, let total) = state {
-            Section {
-                HStack(spacing: 12) {
-                    ProgressView()
-                    Text("Importing \(current + 1) of \(total)…").foregroundStyle(.secondary)
-                }
-            }
-        }
         if case .failed(let msg) = state {
             Section {
                 Text(msg).foregroundStyle(.red).font(.footnote)
             }
+        }
+    }
+
+    /// Modal progress card shown while the import runs. Visual is owned
+    /// by [`SystemAlertCard`] — a reusable iOS-26-indistinguishable card
+    /// derived from `UIAlertControllerVisualStyle`. Cancellation flips a
+    /// Rust-side flag; the import loop rolls back everything the current
+    /// database import created before returning. Databases that finished
+    /// importing before the cancel stay.
+    @ViewBuilder
+    private var importProgressOverlay: some View {
+        if case .running(let current, let total) = state {
+            ZStack {
+                Color.black.opacity(0.2)
+                    .ignoresSafeArea()
+                SystemAlertCard(
+                    title: "Importing from Notion",
+                    message: "Database \(current + 1) of \(total)",
+                    showsProgress: true,
+                    actions: [
+                        .destructive("Cancel import") { api?.cancelImport() },
+                    ]
+                )
+                .transition(.scale(scale: 1.15).combined(with: .opacity))
+            }
+            .transition(.opacity)
         }
     }
 
@@ -420,6 +450,15 @@ struct NotionImportView: View {
                     )
                     totals.add(result)
                 } catch let err as PinkhaError {
+                    // Cancellation is a user action, not a failure — show a
+                    // calm confirmation instead of the raw error message.
+                    if case .InvalidOperation(let detail) = err, detail == "import cancelled" {
+                        await MainActor.run {
+                            state = .failed(String(
+                                localized: "Import cancelled — pages from the interrupted database were removed."))
+                        }
+                        return
+                    }
                     let message = err.userMessage
                     await MainActor.run { state = .failed(message) }
                     return

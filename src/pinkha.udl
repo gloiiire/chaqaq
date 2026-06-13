@@ -298,6 +298,16 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void delete_database(string id);
 
+    /// Soft-deletes the database AND every document its rows are backed
+    /// by. Returns the number of documents deleted alongside it.
+    [Throws=PinkhaError]
+    u32 delete_database_cascade(string id);
+
+    /// Restores a soft-deleted database AND every document its rows are
+    /// backed by. Returns the number of documents restored alongside it.
+    [Throws=PinkhaError]
+    u32 restore_database_cascade(string id);
+
     /// Soft-deletes every database. Returns the number deleted.
     [Throws=PinkhaError]
     u32 delete_all_databases();
@@ -474,6 +484,11 @@ interface PinkhaApi {
     sequence<DocumentMetaFfi> list_child_documents(string parent_doc_id);
 
     // ── Imports ───────────────────────────────────────────────
+
+    /// Asks the in-flight import to stop. The import rolls back everything
+    /// it created (documents + database) and returns an "import cancelled"
+    /// error. No-op when nothing is running.
+    void cancel_import();
 
     /// Imports a full Notion database (schema + pages + blocks).
     /// `token` is an OAuth2 bearer token or a private integration token.

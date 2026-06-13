@@ -296,6 +296,26 @@ final class PinkhaStore: ObservableObject {
         }
     }
 
+    /// Soft-deletes a database AND every document its rows are backed
+    /// by — the "Delete database & its pages" path of the delete dialog.
+    /// Returns the number of documents trashed alongside the database.
+    @discardableResult
+    func deleteDatabaseCascade(id: String) -> Int {
+        let n = tryCatch(into: &errorMessage) { try api?.deleteDatabaseCascade(id: id) ?? 0 } ?? 0
+        load()
+        return Int(n)
+    }
+
+    /// Restores a soft-deleted database AND every document its rows are
+    /// backed by — the "Restore database & its pages" path of the
+    /// restore dialog. Returns the number of documents restored.
+    @discardableResult
+    func restoreDatabaseCascade(id: String) -> Int {
+        let n = tryCatch(into: &errorMessage) { try api?.restoreDatabaseCascade(id: id) ?? 0 } ?? 0
+        load()
+        return Int(n)
+    }
+
     /// Soft-deletes a database by id and reloads.
     func deleteDatabase(id: String) {
         if tryCatch(into: &errorMessage, { try api?.deleteDatabase(id: id) }) != nil {

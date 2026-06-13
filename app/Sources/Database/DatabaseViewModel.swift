@@ -266,6 +266,9 @@ final class DatabaseViewModel: ObservableObject {
     // ── Header mutations ─────────────────────────────────────────────────────
 
     func saveTitle(_ plain: String) {
+        // Locking mid-edit must not let the pending draft commit on blur —
+        // Rust rejects it anyway; bailing here avoids a useless error alert.
+        guard !locked else { return }
         let trimmed = plain.trimmingCharacters(in: .whitespacesAndNewlines)
         tryCatch(into: &errorMessage) {
             try api.updateDatabaseTitle(id: dbId, newTitle: trimmed)
@@ -274,6 +277,7 @@ final class DatabaseViewModel: ObservableObject {
     }
 
     func saveDescription(_ plain: String) {
+        guard !locked else { return }
         tryCatch(into: &errorMessage) {
             try api.updateDatabaseDescription(id: dbId, description: plain)
         }

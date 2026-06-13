@@ -102,6 +102,20 @@ impl PinkhaApi {
         database_use_cases::delete_database(&self.uow(), uuid).map_err(PinkhaError::from)
     }
 
+    /// Soft-deletes the database AND every document its rows are backed
+    /// by. Returns the number of documents deleted alongside it.
+    pub fn delete_database_cascade(&self, id: String) -> Result<u32, PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        use_cases::delete_database_cascade(&self.uow(), uuid).map_err(PinkhaError::from)
+    }
+
+    /// Restores a soft-deleted database AND every document its rows are
+    /// backed by. Returns the number of documents restored alongside it.
+    pub fn restore_database_cascade(&self, id: String) -> Result<u32, PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        use_cases::restore_database_cascade(&self.uow(), uuid).map_err(PinkhaError::from)
+    }
+
     /// Soft-deletes every database. Returns the number deleted.
     pub fn delete_all_databases(&self) -> Result<u32, PinkhaError> {
         let metas = database_use_cases::list_databases(&self.uow()).map_err(PinkhaError::from)?;

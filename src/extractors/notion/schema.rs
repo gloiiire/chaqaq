@@ -401,6 +401,20 @@ pub struct NotionBlock {
     /// the v2025 picker walker to surface nested DBs that the
     /// `object: database` search doesn't enumerate on its own.
     pub child_database: Option<ChildDatabaseBlock>,
+    /// Link-to-page block payload — present when `type_ == "link_to_page"`.
+    /// References an existing page (or database) by id; the importer maps
+    /// it to an inline link that the mention-rewriting pass resolves to a
+    /// `pinkha://doc/{uuid}` when the target belongs to the same import.
+    pub link_to_page: Option<LinkToPageBlock>,
+}
+
+/// Body of a `link_to_page` block. Exactly one of the two ids is set,
+/// discriminated by the payload's own `type` field which we don't need —
+/// presence is enough.
+#[derive(Debug, Deserialize)]
+pub struct LinkToPageBlock {
+    pub page_id: Option<String>,
+    pub database_id: Option<String>,
 }
 
 /// Body of a `child_database` block — Notion only inlines the title

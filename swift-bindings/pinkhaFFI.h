@@ -288,6 +288,11 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_add_view(uint64_t ptr, RustBuffer d
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_attach_document_to_database(uint64_t ptr, RustBuffer db_id, RustBuffer doc_id, RustBuffer values_json, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_CANCEL_IMPORT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_CANCEL_IMPORT
+void uniffi_pinkha_fn_method_pinkhaapi_cancel_import(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_COLUMN_AGGREGATE_DATABASE_JSON
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_COLUMN_AGGREGATE_DATABASE_JSON
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_column_aggregate_database_json(uint64_t ptr, RustBuffer db_id, RustBuffer property_id, RustBuffer aggregate_json, RustCallStatus *_Nonnull out_status
@@ -336,6 +341,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_delete_block(uint64_t ptr, RustBuffer doc
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_DATABASE
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_DATABASE
 void uniffi_pinkha_fn_method_pinkhaapi_delete_database(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_DATABASE_CASCADE
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_DATABASE_CASCADE
+uint32_t uniffi_pinkha_fn_method_pinkhaapi_delete_database_cascade(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_DOCUMENT
@@ -566,6 +576,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_reorder_child_blocks(uint64_t ptr, RustBu
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_DATABASE
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_DATABASE
 void uniffi_pinkha_fn_method_pinkhaapi_restore_database(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_DATABASE_CASCADE
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_DATABASE_CASCADE
+uint32_t uniffi_pinkha_fn_method_pinkhaapi_restore_database_cascade(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_DOCUMENT
@@ -1039,6 +1054,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_attach_document_to_database(voi
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_CANCEL_IMPORT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_CANCEL_IMPORT
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_cancel_import(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_COLUMN_AGGREGATE_DATABASE_JSON
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_COLUMN_AGGREGATE_DATABASE_JSON
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_column_aggregate_database_json(void
@@ -1096,6 +1117,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_block(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_DATABASE
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_DATABASE
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_database(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_DATABASE_CASCADE
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_DATABASE_CASCADE
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_database_cascade(void
     
 );
 #endif
@@ -1372,6 +1399,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_reorder_child_blocks(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_DATABASE
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_DATABASE
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_restore_database(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_DATABASE_CASCADE
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_DATABASE_CASCADE
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_restore_database_cascade(void
     
 );
 #endif
