@@ -536,6 +536,13 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func attachDocumentToDatabase(dbId: String, docId: String, valuesJson: String) throws  -> String
     
     /**
+     * Asks the in-flight import to stop. The import rolls back everything
+     * it created (documents + database) and returns an "import cancelled"
+     * error. No-op when nothing is running.
+     */
+    func cancelImport() 
+    
+    /**
      * Returns a column aggregate as JSON.
      */
     func columnAggregateDatabaseJson(dbId: String, propertyId: String, aggregateJson: String) throws  -> String
@@ -578,6 +585,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Soft-deletes the database.
      */
     func deleteDatabase(id: String) throws 
+    
+    /**
+     * Soft-deletes the database AND every document its rows are backed
+     * by. Returns the number of documents deleted alongside it.
+     */
+    func deleteDatabaseCascade(id: String) throws  -> UInt32
     
     /**
      * Soft-deletes the document.
@@ -802,6 +815,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func restoreDatabase(id: String) throws 
     
     /**
+     * Restores a soft-deleted database AND every document its rows are
+     * backed by. Returns the number of documents restored alongside it.
+     */
+    func restoreDatabaseCascade(id: String) throws  -> UInt32
+    
+    /**
      * Restores a document from the trash.
      */
     func restoreDocument(id: String) throws 
@@ -863,6 +882,14 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * `null` = inherit from the document.
      */
     func setBlockTextDirection(docId: String, blockId: String, textDirection: String?) throws 
+    
+    /**
+     * Sets (or clears with null) the Date column that drives every
+     * row's published_at. Adopting backfills all rows and their backing
+     * documents; clearing resets them to "follow created_at". Returns
+     * the number of rows whose publish date changed.
+     */
+    func setPublishedAtSource(dbId: String, propertyId: String?) throws  -> UInt32
     
     /**
      * Sets the view's sort to the entry-level created_at or published_at.
@@ -1120,6 +1147,18 @@ open func attachDocumentToDatabase(dbId: String, docId: String, valuesJson: Stri
 }
     
     /**
+     * Asks the in-flight import to stop. The import rolls back everything
+     * it created (documents + database) and returns an "import cancelled"
+     * error. No-op when nothing is running.
+     */
+open func cancelImport()  {try! rustCall() {
+    uniffi_pinkha_fn_method_pinkhaapi_cancel_import(
+            self.uniffiCloneHandle(),$0
+    )
+}
+}
+    
+    /**
      * Returns a column aggregate as JSON.
      */
 open func columnAggregateDatabaseJson(dbId: String, propertyId: String, aggregateJson: String)throws  -> String  {
@@ -1232,6 +1271,19 @@ open func deleteDatabase(id: String)throws   {try rustCallWithError(FfiConverter
         FfiConverterString.lower(id),$0
     )
 }
+}
+    
+    /**
+     * Soft-deletes the database AND every document its rows are backed
+     * by. Returns the number of documents deleted alongside it.
+     */
+open func deleteDatabaseCascade(id: String)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_database_cascade(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+})
 }
     
     /**
@@ -1807,6 +1859,19 @@ open func restoreDatabase(id: String)throws   {try rustCallWithError(FfiConverte
 }
     
     /**
+     * Restores a soft-deleted database AND every document its rows are
+     * backed by. Returns the number of documents restored alongside it.
+     */
+open func restoreDatabaseCascade(id: String)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_restore_database_cascade(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+})
+}
+    
+    /**
      * Restores a document from the trash.
      */
 open func restoreDocument(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1953,6 +2018,22 @@ open func setBlockTextDirection(docId: String, blockId: String, textDirection: S
         FfiConverterOptionString.lower(textDirection),$0
     )
 }
+}
+    
+    /**
+     * Sets (or clears with null) the Date column that drives every
+     * row's published_at. Adopting backfills all rows and their backing
+     * documents; clearing resets them to "follow created_at". Returns
+     * the number of rows whose publish date changed.
+     */
+open func setPublishedAtSource(dbId: String, propertyId: String?)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_set_published_at_source(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dbId),
+        FfiConverterOptionString.lower(propertyId),$0
+    )
+})
 }
     
     /**
@@ -3158,6 +3239,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_attach_document_to_database() != 39592) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_cancel_import() != 54498) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_column_aggregate_database_json() != 24533) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3186,6 +3270,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_database() != 12776) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_database_cascade() != 39766) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_document() != 39039) {
@@ -3326,6 +3413,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_restore_database() != 9191) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_database_cascade() != 31844) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_restore_document() != 33151) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3360,6 +3450,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_text_direction() != 63451) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_published_at_source() != 27495) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_date_sort() != 784) {

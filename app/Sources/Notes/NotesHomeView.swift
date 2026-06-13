@@ -38,6 +38,9 @@ struct NotesHomeView: View {
     /// Doc currently being renamed via the contextMenu — drives the
     /// rename alert and `renameDraft` TextField below.
     @State private var renamingDoc: DocumentMetaFfi?
+    /// Database staged for the delete confirmation dialog (swipe on a
+    /// database row) — the user decides whether its pages go with it.
+    @State var pendingDatabaseDeletion: DatabaseMetaFfi?
     @State private var renameDraft: String = ""
     /// Doc currently picked through a "Add to a database" context
     /// menu item — drives the sheet below. `nil` = no sheet shown.
@@ -190,6 +193,7 @@ struct NotesHomeView: View {
             .environment(\.editMode, $editMode)
             .navigationTitle(greeting)
             .navigationBarTitleDisplayMode(.large)
+            .databaseDeleteDialog(pending: $pendingDatabaseDeletion, store: store)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     if !store.items.isEmpty {

@@ -69,9 +69,13 @@ final class DocumentViewModel: ObservableObject {
     /// Pre-burst state captured at the first `saveBlock` of a burst.
     /// This is what undo will restore.
     var blockBurstAnchor: [String: BlockSnapshot] = [:]
-    var burstFlushWork: DispatchWorkItem?
+    /// Pending burst-flush task. Cancelled when a new keystroke arrives or
+    /// when the user switches blocks ; awaited by `flushAllBursts` so a
+    /// `load()` after a typing burst always sees the latest persisted
+    /// state.
+    var burstFlushTask: Task<Void, Never>?
     var burstFlushBlockId: String?
-    let burstInterval: TimeInterval = 0.3
+    let burstInterval: Duration = .milliseconds(300)
 
     let api: PinkhaApi
 

@@ -769,14 +769,8 @@ final class TabCardView: UIView {
     }
 
     private static func loadSnippet(api: PinkhaApi, docId: String) async -> String {
-        do {
-            let json = try api.getDocumentJson(id: docId)
-            guard let data = json.data(using: .utf8) else { return "" }
-            let doc = try JSONDecoder().decode(DocumentFfi.self, from: data)
-            return extractText(blocks: doc.blocks, limit: 240)
-        } catch {
-            return ""
-        }
+        guard let doc = try? api.getDocument(id: docId) else { return "" }
+        return extractText(blocks: doc.blocks, limit: 240)
     }
 
     private static func extractText(blocks: [BlockFfi], limit: Int) -> String {

@@ -32,6 +32,13 @@ fn tokio_runtime() -> &'static tokio::runtime::Runtime {
 }
 
 impl PinkhaApi {
+    /// Asks the in-flight import to stop. The import loop rolls back
+    /// everything it created (documents + database) and the import call
+    /// returns an "import cancelled" error. No-op when nothing is running.
+    pub fn cancel_import(&self) {
+        crate::extractors::cancel::request();
+    }
+
     // ── Extractors ────────────────────────────────────────────────────────────
     //
     // Async import methods — one per source application.
@@ -112,6 +119,9 @@ impl PinkhaApi {
             }
             crate::extractors::ExtractorError::Parse(msg) => PinkhaError::Storage { detail: msg },
             crate::extractors::ExtractorError::Storage(e) => e.into(),
+            ExtractorError::Cancelled => PinkhaError::InvalidOperation {
+                detail: "import cancelled".to_string(),
+            },
         }
     }
 
@@ -161,6 +171,9 @@ impl PinkhaApi {
                     PinkhaError::Storage { detail: msg }
                 }
                 crate::extractors::ExtractorError::Storage(e) => e.into(),
+                ExtractorError::Cancelled => PinkhaError::InvalidOperation {
+                    detail: "import cancelled".to_string(),
+                },
             })
     }
 
@@ -274,5 +287,8 @@ fn extractor_err_to_ffi(e: ExtractorError) -> PinkhaError {
         ExtractorError::Auth(msg) => PinkhaError::InvalidOperation { detail: msg },
         ExtractorError::Parse(msg) => PinkhaError::Storage { detail: msg },
         ExtractorError::Storage(e) => e.into(),
+        ExtractorError::Cancelled => PinkhaError::InvalidOperation {
+            detail: "import cancelled".to_string(),
+        },
     }
 }

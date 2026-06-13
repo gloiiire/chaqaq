@@ -153,34 +153,14 @@ struct DatabaseToolbarView: View {
     private var sortMenu: some View {
         Menu {
             Section("Sort by date") {
-                Button {
-                    Haptic.tap()
-                    vm.setDateSort(.created, ascending: false)
-                } label: {
-                    Label("Created — newest first",
-                          systemImage: vm.activeDateSort == .created ? "checkmark" : "calendar")
-                }
-                Button {
-                    Haptic.tap()
-                    vm.setDateSort(.created, ascending: true)
-                } label: {
-                    Label("Created — oldest first",
-                          systemImage: vm.activeDateSort == .created ? "checkmark" : "calendar.badge.clock")
-                }
-                Button {
-                    Haptic.tap()
-                    vm.setDateSort(.published, ascending: false)
-                } label: {
-                    Label("Published — newest first",
-                          systemImage: vm.activeDateSort == .published ? "checkmark" : "paperplane")
-                }
-                Button {
-                    Haptic.tap()
-                    vm.setDateSort(.published, ascending: true)
-                } label: {
-                    Label("Published — oldest first",
-                          systemImage: vm.activeDateSort == .published ? "checkmark" : "paperplane.fill")
-                }
+                dateSortRow("Created — newest first", icon: "calendar",
+                            kind: .created, ascending: false)
+                dateSortRow("Created — oldest first", icon: "calendar.badge.clock",
+                            kind: .created, ascending: true)
+                dateSortRow("Published — newest first", icon: "paperplane",
+                            kind: .published, ascending: false)
+                dateSortRow("Published — oldest first", icon: "paperplane.fill",
+                            kind: .published, ascending: true)
             }
             if vm.activeSort != nil || vm.activeDateSort != nil {
                 Section {
@@ -188,7 +168,18 @@ struct DatabaseToolbarView: View {
                         Haptic.tap()
                         vm.setDateSort(nil, ascending: true)
                     } label: {
-                        Label("Clear sort", systemImage: "xmark.circle")
+                        Label {
+                            Text("Clear sort")
+                        } icon: {
+                            // iOS strips the destructive-role tint from SF
+                            // Symbols inside a Menu's Button label when an
+                            // accent .tint sits above — same quirk as the
+                            // sort pickers in NotesHomeView+Sort. Pre-bake
+                            // the red into a UIImage so UIKit can't
+                            // re-tint what it didn't generate.
+                            Image(uiImage: Self.tintedSymbol("xmark.circle",
+                                                             color: .systemRed))
+                        }
                     }
                 }
             }
@@ -200,7 +191,48 @@ struct DatabaseToolbarView: View {
                 .frame(width: 38, height: 38)
                 .contentShape(Rectangle())
         }
+        // Neutral chrome for the menu rows — without this they pick up
+        // the TabView's accent tint. The active-state coloring is done
+        // explicitly (label foregroundStyle + pre-baked checkmark).
+        .tint(.primary)
         .accessibilityLabel("Sort by date")
+    }
+
+    /// One row of the date-sort menu — checkmark when the active sort
+    /// matches this row's kind AND direction (each direction is its own
+    /// row, so matching on kind alone would tick both).
+    @ViewBuilder
+    private func dateSortRow(_ title: LocalizedStringKey, icon: String,
+                             kind: DatabaseViewModel.DateSortKind,
+                             ascending: Bool) -> some View {
+        Button {
+            Haptic.tap()
+            vm.setDateSort(kind, ascending: ascending)
+        } label: {
+            Label {
+                Text(title)
+            } icon: {
+                // Selected row: checkmark pre-baked in the accent color
+                // (UIKit strips foregroundStyle from SF Symbols inside a
+                // Menu). Unselected rows keep their icon neutral via the
+                // .tint(.primary) on the Menu — same vocabulary as the
+                // sort menu in NotesHomeView+Sort.
+                if vm.isDateSort(kind, ascending: ascending) {
+                    Image(uiImage: Self.tintedSymbol(
+                        "checkmark", color: UIColor(settings.accentColor)))
+                } else {
+                    Image(systemName: icon)
+                }
+            }
+        }
+    }
+
+    /// Returns `name` painted in `color` with `.alwaysOriginal` so the
+    /// Menu's tint can't override it.
+    private static func tintedSymbol(_ name: String, color: UIColor) -> UIImage {
+        let cfg = UIImage.SymbolConfiguration(textStyle: .body)
+        let base = UIImage(systemName: name, withConfiguration: cfg) ?? UIImage()
+        return base.withTintColor(color, renderingMode: .alwaysOriginal)
     }
 
     private func iconButton(

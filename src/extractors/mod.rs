@@ -32,6 +32,8 @@ pub enum ExtractorError {
     Parse(String),
     /// A Pinkha storage operation failed while persisting the imported data.
     Storage(PinkhaError),
+    /// The user cancelled the import; everything created so far was removed.
+    Cancelled,
 }
 
 impl std::fmt::Display for ExtractorError {
@@ -41,6 +43,50 @@ impl std::fmt::Display for ExtractorError {
             Self::Auth(msg) => write!(f, "auth error: {msg}"),
             Self::Parse(msg) => write!(f, "parse error: {msg}"),
             Self::Storage(e) => write!(f, "storage error: {e}"),
+            Self::Cancelled => write!(f, "import cancelled"),
+        }
+    }
+}
+
+/// Process-wide cancellation flag for the currently running import.
+///
+/// Imports run one at a time (the UI serialises them), so a single flag is
+/// enough: the FFI sets it from the UI thread, the import loop polls it
+/// between pages, rolls back what it created and returns
+/// [`ExtractorError::Cancelled`]. The flag is reset at the start of every
+/// import so a stale request can never kill the next run.
+pub mod cancel {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    static REQUESTED: AtomicBool = AtomicBool::new(false);
+
+    /// Asks the in-flight import to stop and roll back.
+    pub fn request() {
+        REQUESTED.store(true, Ordering::SeqCst);
+    }
+
+    /// Clears any pending request — called when an import starts.
+    pub fn reset() {
+        REQUESTED.store(false, Ordering::SeqCst);
+    }
+
+    /// Polled by import loops between pages.
+    pub fn requested() -> bool {
+        REQUESTED.load(Ordering::SeqCst)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn request_then_reset_round_trip() {
+            reset();
+            assert!(!requested());
+            request();
+            assert!(requested());
+            reset();
+            assert!(!requested());
         }
     }
 }

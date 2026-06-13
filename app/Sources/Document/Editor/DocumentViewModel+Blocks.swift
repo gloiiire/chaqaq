@@ -326,11 +326,7 @@ extension DocumentViewModel {
     /// the visible block list mirrors the Rust tree, with `depth` driving
     /// the visual indentation in the row view.
     private func reloadBlocksAfterStructuralChange() {
-        guard let json = try? api.getDocumentJson(id: docId),
-              let data = json.data(using: .utf8),
-              let doc = try? JSONDecoder().decode(DocumentFfi.self, from: data) else {
-            return
-        }
+        guard let doc = try? api.getDocument(id: docId) else { return }
         blocks = DocumentViewModel.flattenBlocks(doc.blocks, depth: 0)
     }
 }
