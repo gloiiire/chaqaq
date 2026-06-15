@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 import PinkhaFFI
 import PinkhaCore
 import PinkhaDesignSystem
+import PinkhaComposer
 
 /// Sheet for creating a new note or book. Accepts a title and calls `onCreate` or `onCancel`.
 ///
@@ -40,33 +41,6 @@ struct CreateLeafSheet: View {
         _ standalone: StandaloneStyle
     ) -> Void
     let onCancel: () -> Void
-
-    /// Captures the per-doc style overrides the user picked at
-    /// creation time when the note is NOT being filed in a book.
-    struct StandaloneStyle: Equatable {
-        var cover: String? = nil
-        var icon: String? = nil
-        var theme: String? = nil
-        /// Optional RFC 3339 timestamp used to backdate the new
-        /// doc's `published_at`. `nil` = the SQLite store falls
-        /// back to the row's `created_at` (default behaviour). Set
-        /// when the user pre-picks a publish date on the creation
-        /// sheet.
-        var publishedAt: String? = nil
-        /// Raw bytes of a user-picked cover image (PhotosPicker or
-        /// fileImporter). `nil` = no custom cover ; the gradient
-        /// catalogue in `cover` is used as-is. When set, the store
-        /// writes the bytes into the covers directory once the
-        /// leafId is known and replaces `cover` with the resulting
-        /// filename — keeps the SQLite contract (cover is a short
-        /// string) without leaking image bytes into the meta row.
-        var customCoverData: Data? = nil
-        /// File extension to use when persisting `customCoverData`.
-        /// Defaults to `"jpg"` ; PhotosPicker normalises to JPEG
-        /// when reading via `loadTransferable(type: Data.self)`,
-        /// fileImporter preserves the original (`heic`, `png`, …).
-        var customCoverExt: String = "jpg"
-    }
 
     @FocusState private var focused: Bool
     @State private var attachToBook: Bool = false

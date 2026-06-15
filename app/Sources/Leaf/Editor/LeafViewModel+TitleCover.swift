@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
+import PinkhaComposer
 
 // ── Title and cover ───────────────────────────────────────────────────────────
 

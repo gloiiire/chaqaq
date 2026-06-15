@@ -3,6 +3,7 @@ import PinkhaFFI
 import PinkhaCore
 import PinkhaDesignSystem
 import PinkhaRichText
+import PinkhaComposer
 
 // ── Toolbar and overlay buttons ───────────────────────────────────────────────
 

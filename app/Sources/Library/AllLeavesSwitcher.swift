@@ -1,5 +1,6 @@
 import SwiftUI
 import PinkhaCore
+import PinkhaComposer
 
 // ── Safari-tab-style "All leaves" switcher ────────────────────────────────
 

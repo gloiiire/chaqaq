@@ -1,6 +1,7 @@
 import SwiftUI
 import PinkhaFFI
 import PinkhaCore
+import PinkhaComposer
 
 // ── Root view: 4-tab layout ──────────────────────────────────────────────────
 
@@ -273,7 +274,7 @@ private struct ContentSheets: ViewModifier {
     private func handleCreateCommit(
         bookId: String?,
         propertyValues: [String: PropertyValueFfi],
-        standaloneStyle: CreateLeafSheet.StandaloneStyle
+        standaloneStyle: StandaloneStyle
     ) {
         switch composer.createMode {
         case .note:

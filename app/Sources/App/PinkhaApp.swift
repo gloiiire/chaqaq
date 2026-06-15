@@ -1,5 +1,6 @@
 import SwiftUI
 import PinkhaCore
+import PinkhaComposer
 
 /// Application entry point.
 @main

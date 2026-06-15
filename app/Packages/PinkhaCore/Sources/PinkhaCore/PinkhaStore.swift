@@ -93,7 +93,7 @@ public final class PinkhaStore {
     /// `StandaloneStyle`) live in `PinkhaStore+Composer.swift` in the
     /// Notes layer so PinkhaCore stays independent of the
     /// feature-layer `Composer.CreationContext` and
-    /// `CreateLeafSheet.StandaloneStyle` types.
+    /// `StandaloneStyle` types.
     public func create(title: String) {
         guard let api else { return }
         tryCatch(into: &errorMessage) {

@@ -1,10 +1,11 @@
 import Foundation
 import PinkhaFFI
 import PinkhaCore
+import PinkhaComposer
 
 // Context-aware creation overloads on `PinkhaStore`. Kept in the Notes
 // layer because they reference `Composer.CreationContext` and
-// `CreateLeafSheet.StandaloneStyle` — feature-layer types that
+// `StandaloneStyle` — feature-layer types that
 // PinkhaStore (in PinkhaCore) must not depend on.
 
 @MainActor
@@ -29,7 +30,7 @@ extension PinkhaStore {
     func createNote(
         title: String,
         in context: Composer.CreationContext,
-        style: CreateLeafSheet.StandaloneStyle?
+        style: StandaloneStyle?
     ) -> String? {
         guard let api else { return nil }
         let leafId = tryCatch(into: &errorMessage) {
@@ -62,7 +63,7 @@ extension PinkhaStore {
         title: String,
         bookId: String,
         propertyValues: [String: PropertyValueFfi],
-        style: CreateLeafSheet.StandaloneStyle? = nil
+        style: StandaloneStyle? = nil
     ) -> String? {
         guard let api else { return nil }
         let leafId = tryCatch(into: &errorMessage) {
@@ -120,7 +121,7 @@ extension PinkhaStore {
     /// gradient covers ship a direct identifier (e.g.
     /// `"cover.nebula"`) and skip the disk write.
     private func applyStandaloneStyle(
-        _ style: CreateLeafSheet.StandaloneStyle,
+        _ style: StandaloneStyle,
         to leafId: String,
         api: PinkhaApi
     ) {

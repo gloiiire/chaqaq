@@ -23,11 +23,9 @@
 		1687C7C9610D2298A8E55177 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A65640724338B9AA4AAF343F /* InfoPlist.xcstrings */; };
 		1A4DEC54505A2348CADF2CD6 /* ImportUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E2E7F51D0CD04EEBC8FE493 /* ImportUITests.swift */; };
 		1C64A61967845313AF105FB2 /* BookCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34C175A782543CE2AAEF939C /* BookCalendarView.swift */; };
-		1CE20FE676E22410B6FC97F6 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3B3C6E79636C2AC11AD5710F /* Pinkha.icon */; };
 		1F0E5D20EFE23B239AF1EDC4 /* BookBoardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 697B616E0D7F19754AEC2D05 /* BookBoardView.swift */; };
 		225DCA93EF679C9B13EB1234 /* BooksHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DDB7D7DABD7A89CE15A77B0 /* BooksHomeView.swift */; };
 		27212F96EDE1DB2A69E5DC8A /* CodableRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2D794592BEC81AB2CB5E99B /* CodableRoundTripTests.swift */; };
-		291E74825D71B8BCACC86C78 /* Composer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A607D0D83EBE8EBBB227981 /* Composer.swift */; };
 		29937B07CEA589F05F3C64D1 /* ResilienceFFITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AB645E2E656B62E6D0182C /* ResilienceFFITests.swift */; };
 		2D6152949650E7122235BEA7 /* LibraryView+Sort.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89078B76C4A20D0D1B1EA87D /* LibraryView+Sort.swift */; };
 		2F4DBAA7D9DAC41973B02B81 /* MarkdownShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0A8005F4451F496EF2075F1 /* MarkdownShortcutTests.swift */; };
@@ -37,7 +35,7 @@
 		39B5525EDA29A4EDE845FA74 /* BlockRowsExtra.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1217B85A41886B799EB81A82 /* BlockRowsExtra.swift */; };
 		39EC996E337D7668192E46B0 /* ModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDCE4B4A67B7675CF7E4994 /* ModelsTests.swift */; };
 		3EBA03AE2968EAF33B020A89 /* DatabaseViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFA4CB8B18F322F82D34991C /* DatabaseViewModelTests.swift */; };
-		3FAD4339BF72CFD18FC75846 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 239C11BB7B359FC141B27B3C /* Sentry */; };
+		3FAD4339BF72CFD18FC75846 /* PinkhaComposer in Frameworks */ = {isa = PBXBuildFile; productRef = DB9CD06A32E32927DA4E283A /* PinkhaComposer */; };
 		406025C2132BC8574ADDE87F /* HomeScreenUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C07ADA01E894E83B574ABA /* HomeScreenUITests.swift */; };
 		4190B41652DB9D8C9534AD12 /* BlockHierarchyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB990B9A8557D574F681053B /* BlockHierarchyTests.swift */; };
 		4BA75C93F895BE5EE4307A17 /* EmptyStateUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6093527A0945328E7EC8D4F6 /* EmptyStateUITests.swift */; };
@@ -85,12 +83,14 @@
 		B44F29957A1D8A27E587259A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D8D5D391D7106F7C2E577E4 /* AppDelegate.swift */; };
 		B556E66BE4E6BC0B8897387E /* LeafView+BlockCallbacks.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB45144EFE56A36E589296D3 /* LeafView+BlockCallbacks.swift */; };
 		B5EDB93B6CA034D9F8DE9839 /* BookPropertiesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B004F82BC138F6C973DA51D /* BookPropertiesSheet.swift */; };
+		B7094653852ABE4A475AC8B9 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 0EC160441CBE3F2CA6ABA0A9 /* Pinkha.icon */; };
 		BB91AE2B47E1579320EBABE2 /* BookToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EA719FD10D725A9CB11B748 /* BookToolbar.swift */; };
 		BDCCBA480DB7F6BA3EAEA9FB /* EmojiPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ECCFBB1D36FD338D8DC4F19 /* EmojiPicker.swift */; };
 		BEA49A960162E98F792D98C6 /* BlockPickerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C31BC0B000B9D4E7321876 /* BlockPickerUITests.swift */; };
 		BF30B71BA4432D6D94FC3725 /* BlockRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 589D7C93A0736B903177D3EE /* BlockRows.swift */; };
 		C4F5090840F920783AABAA20 /* LeafViewModel+Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7A15A7524F2A1F37E9599E4 /* LeafViewModel+Persistence.swift */; };
 		CADF13DFAEACD69368156D23 /* NotionOAuth2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8829AA3035FF94BD0A3EF7B /* NotionOAuth2Tests.swift */; };
+		CB2ACC1814A777783FADCC91 /* Composer+QuickActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B4887EECF47E4661EA0C63B /* Composer+QuickActions.swift */; };
 		CD4789BCC780C9D68DC8B27D /* PinkhaCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7EAD411614854C81161A96AF /* PinkhaCore */; };
 		CDAFB542D8910694F862A716 /* CraftTextBundleImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A737C5AB9A5CD05DAA78F9E5 /* CraftTextBundleImportView.swift */; };
 		CFD9CAB170B0DA057F17F25B /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2516EE64F9E482E141A0D27E /* SplashView.swift */; };
@@ -112,6 +112,7 @@
 		F75F9E6E57C644E5FC38CBE8 /* PinkhaStore+Composer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DDD45EF01CEB180C59D99FD /* PinkhaStore+Composer.swift */; };
 		F79CCC9032083583516E9A36 /* SearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28EEC29CAF243FC97EC0EB7C /* SearchTests.swift */; };
 		FA722C00942F3F9227C0DBC3 /* LeafViewModel+TitleCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFAC90E1DDD43CD6D0909061 /* LeafViewModel+TitleCover.swift */; };
+		FBFB686803B28D7733E34D1C /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 239C11BB7B359FC141B27B3C /* Sentry */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -140,6 +141,7 @@
 
 /* Begin PBXFileReference section */
 		0497C37ED2F2C9BF10A9CDD8 /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxView.swift; sourceTree = "<group>"; };
+		0EC160441CBE3F2CA6ABA0A9 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		0EF086F9F0458E7ADBD9C439 /* ObservabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObservabilityTests.swift; sourceTree = "<group>"; };
 		0EF8382835124C808B432EB7 /* AttributedRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttributedRoundTripTests.swift; sourceTree = "<group>"; };
 		1217B85A41886B799EB81A82 /* BlockRowsExtra.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockRowsExtra.swift; sourceTree = "<group>"; };
@@ -160,9 +162,7 @@
 		36A6032BCBFCFE419E656DCE /* BlockContentFfiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockContentFfiTests.swift; sourceTree = "<group>"; };
 		37543D1D1AAFB9CE1F61603F /* ResilienceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilienceTests.swift; sourceTree = "<group>"; };
 		37F625607CAB79FD313EB3D6 /* BindLeafToBookSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BindLeafToBookSheet.swift; sourceTree = "<group>"; };
-		3A607D0D83EBE8EBBB227981 /* Composer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Composer.swift; sourceTree = "<group>"; };
 		3A60E26C682CDF2E9F9704C6 /* EditableBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditableBlock.swift; sourceTree = "<group>"; };
-		3B3C6E79636C2AC11AD5710F /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		3DDB7D7DABD7A89CE15A77B0 /* BooksHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BooksHomeView.swift; sourceTree = "<group>"; };
 		3ECCFBB1D36FD338D8DC4F19 /* EmojiPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmojiPicker.swift; sourceTree = "<group>"; };
 		3FD63652AFD0D42CDE57170D /* TabManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabManager.swift; sourceTree = "<group>"; };
@@ -178,6 +178,7 @@
 		5B033CFC2C8EE318FA058974 /* EditableBlockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditableBlockTests.swift; sourceTree = "<group>"; };
 		6093527A0945328E7EC8D4F6 /* EmptyStateUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateUITests.swift; sourceTree = "<group>"; };
 		697B616E0D7F19754AEC2D05 /* BookBoardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookBoardView.swift; sourceTree = "<group>"; };
+		6B4887EECF47E4661EA0C63B /* Composer+QuickActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Composer+QuickActions.swift"; sourceTree = "<group>"; };
 		6BF2BCFF29DB2FCF3CEEE997 /* CreateBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBubble.swift; sourceTree = "<group>"; };
 		6C6B9ECB60016D6BBE5A9EA3 /* CreateLeafSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateLeafSheet.swift; sourceTree = "<group>"; };
 		6DDD45EF01CEB180C59D99FD /* PinkhaStore+Composer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PinkhaStore+Composer.swift"; sourceTree = "<group>"; };
@@ -240,6 +241,7 @@
 		D8829AA3035FF94BD0A3EF7B /* NotionOAuth2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionOAuth2Tests.swift; sourceTree = "<group>"; };
 		D9368C19C4C76886E6A03917 /* EdgeCasesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeCasesTests.swift; sourceTree = "<group>"; };
 		DB45144EFE56A36E589296D3 /* LeafView+BlockCallbacks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LeafView+BlockCallbacks.swift"; sourceTree = "<group>"; };
+		DC3CE918941B43A282D0FF3D /* PinkhaComposer */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PinkhaComposer; path = Packages/PinkhaComposer; sourceTree = SOURCE_ROOT; };
 		DFAC90E1DDD43CD6D0909061 /* LeafViewModel+TitleCover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LeafViewModel+TitleCover.swift"; sourceTree = "<group>"; };
 		E2C07ADA01E894E83B574ABA /* HomeScreenUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreenUITests.swift; sourceTree = "<group>"; };
 		E4487CE8B66D75479DAD9C47 /* BookTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookTableView.swift; sourceTree = "<group>"; };
@@ -260,7 +262,8 @@
 				CD4789BCC780C9D68DC8B27D /* PinkhaCore in Frameworks */,
 				89E9A7EE05F907BBD55CB712 /* PinkhaDesignSystem in Frameworks */,
 				813F95C5C1BA14EC8CE7FE6C /* PinkhaRichText in Frameworks */,
-				3FAD4339BF72CFD18FC75846 /* Sentry in Frameworks */,
+				3FAD4339BF72CFD18FC75846 /* PinkhaComposer in Frameworks */,
+				FBFB686803B28D7733E34D1C /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -271,7 +274,6 @@
 			isa = PBXGroup;
 			children = (
 				90DE88041C018BE0E93F7B36 /* AllLeavesSwitcher.swift */,
-				3A607D0D83EBE8EBBB227981 /* Composer.swift */,
 				52266AFC945DCBC76BB8341E /* CompostView.swift */,
 				6BF2BCFF29DB2FCF3CEEE997 /* CreateBubble.swift */,
 				6C6B9ECB60016D6BBE5A9EA3 /* CreateLeafSheet.swift */,
@@ -357,6 +359,7 @@
 			isa = PBXGroup;
 			children = (
 				1D8D5D391D7106F7C2E577E4 /* AppDelegate.swift */,
+				6B4887EECF47E4661EA0C63B /* Composer+QuickActions.swift */,
 				7A3421677D3E4A70DA86CEB8 /* ContentView.swift */,
 				909E5D4DB1628C93BC5215A1 /* PinkhaApp.swift */,
 				2516EE64F9E482E141A0D27E /* SplashView.swift */,
@@ -436,14 +439,6 @@
 			path = Blocks;
 			sourceTree = "<group>";
 		};
-		8E48470D66C201966795AA4B /* app */ = {
-			isa = PBXGroup;
-			children = (
-				3B3C6E79636C2AC11AD5710F /* Pinkha.icon */,
-			);
-			name = app;
-			sourceTree = "<group>";
-		};
 		8FB7F1288CD331FA0F093783 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
@@ -485,6 +480,7 @@
 		A75FAF648EEA621E03010904 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
+				DC3CE918941B43A282D0FF3D /* PinkhaComposer */,
 				86D3AC790B05FD01F5C7C833 /* PinkhaCore */,
 				246D8DEA021370914CD19718 /* PinkhaDesignSystem */,
 				42515D61067CC8012E26290D /* PinkhaFFI */,
@@ -503,6 +499,14 @@
 				C3DF3FB26602684300293BDB /* NotionOAuth2.swift */,
 			);
 			path = Import;
+			sourceTree = "<group>";
+		};
+		E05B66294CFCE23901108174 /* app */ = {
+			isa = PBXGroup;
+			children = (
+				0EC160441CBE3F2CA6ABA0A9 /* Pinkha.icon */,
+			);
+			name = app;
 			sourceTree = "<group>";
 		};
 		E1CE21F8D9EA033102EA6EBB /* Search */ = {
@@ -530,7 +534,7 @@
 				8FB7F1288CD331FA0F093783 /* Sources */,
 				7CE19974FB0E7C2FE24CED36 /* Tests */,
 				7459E38DDB42FA0567FB08BE /* Products */,
-				8E48470D66C201966795AA4B /* app */,
+				E05B66294CFCE23901108174 /* app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -612,6 +616,7 @@
 				7EAD411614854C81161A96AF /* PinkhaCore */,
 				02A56EFCFA9BE0B5D5555148 /* PinkhaDesignSystem */,
 				5C3D37A779DD534887934AAB /* PinkhaRichText */,
+				DB9CD06A32E32927DA4E283A /* PinkhaComposer */,
 				239C11BB7B359FC141B27B3C /* Sentry */,
 			);
 			productName = Pinkha;
@@ -654,6 +659,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				C7825E2281810F2327BF98FF /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
+				E29BBE593B0D6FBC9305D41D /* XCLocalSwiftPackageReference "PinkhaComposer" */,
 				3A283417E14F4171E2CB6C47 /* XCLocalSwiftPackageReference "PinkhaCore" */,
 				D9A10A1EE966734829834F90 /* XCLocalSwiftPackageReference "PinkhaDesignSystem" */,
 				B0FE31F7CD88318FA252F053 /* XCLocalSwiftPackageReference "PinkhaFFI" */,
@@ -680,7 +686,7 @@
 				57155F8A05B7C7EA1ED129AF /* Assets.xcassets in Resources */,
 				1687C7C9610D2298A8E55177 /* InfoPlist.xcstrings in Resources */,
 				D878D8EB398C5B2F7E67F418 /* Localizable.xcstrings in Resources */,
-				1CE20FE676E22410B6FC97F6 /* Pinkha.icon in Resources */,
+				B7094653852ABE4A475AC8B9 /* Pinkha.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -711,7 +717,7 @@
 				03C4F921AC79F824D782B117 /* BookView.swift in Sources */,
 				73C2284C0A2A44B27F267671 /* BookViewModel.swift in Sources */,
 				225DCA93EF679C9B13EB1234 /* BooksHomeView.swift in Sources */,
-				291E74825D71B8BCACC86C78 /* Composer.swift in Sources */,
+				CB2ACC1814A777783FADCC91 /* Composer+QuickActions.swift in Sources */,
 				30D0CADCC5AC1703368E960E /* CompostView.swift in Sources */,
 				4C416DF2D208DC067FC9A9E1 /* ContentView.swift in Sources */,
 				68BC15311DC7E4DACE35F1AC /* CraftCombinedImportView.swift in Sources */,
@@ -1191,6 +1197,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/PinkhaDesignSystem;
 		};
+		E29BBE593B0D6FBC9305D41D /* XCLocalSwiftPackageReference "PinkhaComposer" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/PinkhaComposer;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -1225,6 +1235,10 @@
 		7EAD411614854C81161A96AF /* PinkhaCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = PinkhaCore;
+		};
+		DB9CD06A32E32927DA4E283A /* PinkhaComposer */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PinkhaComposer;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
