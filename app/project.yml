@@ -21,6 +21,8 @@ packages:
     path: Packages/PinkhaFFI
   PinkhaCore:
     path: Packages/PinkhaCore
+  PinkhaDesignSystem:
+    path: Packages/PinkhaDesignSystem
 
 schemes:
   Pinkha:
@@ -81,6 +83,8 @@ targets:
         product: PinkhaFFI
       - package: PinkhaCore
         product: PinkhaCore
+      - package: PinkhaDesignSystem
+        product: PinkhaDesignSystem
       - package: Sentry
         product: Sentry
 

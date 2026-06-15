@@ -1,5 +1,6 @@
 import SwiftUI
-
+import UIKit
+import PinkhaCore
 
 // ── Cover image view ─────────────────────────────────────────────────────────
 
@@ -10,10 +11,11 @@ import SwiftUI
 ///
 /// Shared between the document editor's banner and the home view's
 /// recent cards so a doc looks the same in both places (Notion-style).
-struct CoverImageView: View {
-    let cover: String?
+public struct CoverImageView: View {
+    public init(cover: String?) { self.cover = cover }
+    public let cover: String?
 
-    var body: some View {
+    public var body: some View {
         Group {
             if let id = cover, !id.isEmpty {
                 content(for: id)
@@ -76,7 +78,7 @@ struct CoverImageView: View {
 
     private func localImage(_ id: String) -> UIImage? {
         if !id.hasPrefix("file://") && !id.hasPrefix("cover.") {
-            guard let directory = try? DocumentViewModel.coversDirectory() else { return nil }
+            guard let directory = try? CoverImageStorage.directory() else { return nil }
             return UIImage(contentsOfFile: directory.appendingPathComponent(id).path)
         }
         guard let url = URL(string: id), url.isFileURL else { return nil }

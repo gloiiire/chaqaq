@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // ── System-style alert card ───────────────────────────────────────────────────
 //
@@ -25,39 +26,44 @@ import SwiftUI
 ///
 /// Wrap in a `ZStack` with a dim layer to use as a full-screen modal — see
 /// `View.systemAlertOverlay(isPresented:)` for the standard presentation.
-struct SystemAlertCard: View {
-    let title: LocalizedStringKey
-    var message: LocalizedStringKey? = nil
+public struct SystemAlertCard: View {
+    public init(title: LocalizedStringKey, message: LocalizedStringKey? = nil,
+                showsProgress: Bool = false, actions: [Action]) {
+        self.title = title; self.message = message
+        self.showsProgress = showsProgress; self.actions = actions
+    }
+    public let title: LocalizedStringKey
+    public var message: LocalizedStringKey? = nil
     /// `true` renders a small spinner above the title — for progress alerts
     /// where the background work is non-cancellable in real time.
-    var showsProgress: Bool = false
-    let actions: [Action]
+    public var showsProgress: Bool = false
+    public let actions: [Action]
 
     /// One alert action. Mirrors SwiftUI's `Alert.Button` vocabulary so the
     /// call site reads like a stock `.alert` modifier.
-    struct Action: Identifiable {
-        let id = UUID()
-        let title: LocalizedStringKey
-        var role: ButtonRole? = nil
-        let handler: () -> Void
+    public struct Action: Identifiable {
+        public let id = UUID()
+        public let title: LocalizedStringKey
+        public var role: ButtonRole? = nil
+        public let handler: () -> Void
 
-        static func cancel(_ title: LocalizedStringKey = "Cancel",
+        public static func cancel(_ title: LocalizedStringKey = "Cancel",
                            handler: @escaping () -> Void = {}) -> Self {
             Action(title: title, role: .cancel, handler: handler)
         }
 
-        static func destructive(_ title: LocalizedStringKey,
+        public static func destructive(_ title: LocalizedStringKey,
                                 handler: @escaping () -> Void) -> Self {
             Action(title: title, role: .destructive, handler: handler)
         }
 
-        static func `default`(_ title: LocalizedStringKey,
+        public static func `default`(_ title: LocalizedStringKey,
                               handler: @escaping () -> Void) -> Self {
             Action(title: title, role: nil, handler: handler)
         }
     }
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
                 if showsProgress {
@@ -127,7 +133,7 @@ struct SystemAlertCard: View {
 
 // ── Standard presentation modifier ───────────────────────────────────────────
 
-extension View {
+public extension View {
     /// Presents a `SystemAlertCard` as a modal overlay : 20 % dim layer
     /// (alert dim level), tap-swallowing background, and the alert-style
     /// scale + opacity transition. `alertAnimationInitialScale` from

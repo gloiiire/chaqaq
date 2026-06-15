@@ -3,6 +3,7 @@ import PhotosUI
 import UniformTypeIdentifiers
 import PinkhaFFI
 import PinkhaCore
+import PinkhaDesignSystem
 
 /// Sheet for creating a new note or database. Accepts a title and calls `onCreate` or `onCancel`.
 ///

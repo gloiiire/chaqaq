@@ -1,6 +1,7 @@
 import SwiftUI
 import PinkhaFFI
 import PinkhaCore
+import PinkhaDesignSystem
 
 // ── Toolbar and overlay buttons ───────────────────────────────────────────────
 

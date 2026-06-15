@@ -1,6 +1,7 @@
 import SwiftUI
 import PinkhaFFI
 import PinkhaCore
+import PinkhaDesignSystem
 
 // ── Folder content view ───────────────────────────────────────────────────────
 

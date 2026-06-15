@@ -14,17 +14,20 @@ import SwiftUI
 /// The SF Symbol replace alone reads as "the icon just changed".
 /// The keyframe scale + tilt + over-bounce reads as "I just clicked
 /// a padlock". Big perceptual difference.
-struct LockToolbarButton: View {
-    let locked: Bool
-    let accent: Color
-    let onTap: () -> Void
+public struct LockToolbarButton: View {
+    public init(locked: Bool, accent: Color, onTap: @escaping () -> Void) {
+        self.locked = locked; self.accent = accent; self.onTap = onTap
+    }
+    public let locked: Bool
+    public let accent: Color
+    public let onTap: () -> Void
     /// Increments on every toggle ; the keyframe animator is driven
     /// by this counter rather than `locked` directly so a tap that
     /// re-locks an already-locked button (shouldn't happen, but…)
     /// still replays the animation instead of being short-circuited.
     @State private var clickCount: Int = 0
 
-    var body: some View {
+    public var body: some View {
         Button {
             clickCount &+= 1
             onTap()

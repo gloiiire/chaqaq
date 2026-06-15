@@ -7,10 +7,11 @@ import SwiftUI
 /// as a literal and never localizes). The visual uppercase comes from
 /// `.textCase(.uppercase)` — applying `.uppercased()` to the raw String
 /// would bypass the catalog lookup.
-struct SectionHeader: View {
-    let title: LocalizedStringKey
+public struct SectionHeader: View {
+    public init(title: LocalizedStringKey) { self.title = title }
+    public let title: LocalizedStringKey
 
-    var body: some View {
+    public var body: some View {
         Text(title)
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)

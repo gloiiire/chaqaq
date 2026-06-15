@@ -7,11 +7,14 @@ import PinkhaCore
 /// type. Mirrors the cell widgets used by DatabaseTableView in spirit,
 /// but is self-contained so the sheet doesn't reach across the
 /// database internals.
-struct PropertyInputRow: View {
-    let property: PropertyFfi
-    @Binding var value: PropertyValueFfi
+public struct PropertyInputRow: View {
+    public init(property: PropertyFfi, value: Binding<PropertyValueFfi>) {
+        self.property = property; self._value = value
+    }
+    public let property: PropertyFfi
+    @Binding public var value: PropertyValueFfi
 
-    var body: some View {
+    public var body: some View {
         HStack(alignment: .center, spacing: 10) {
             Image(systemName: property.propertyType.icon)
                 .foregroundStyle(.secondary)
@@ -105,9 +108,9 @@ struct PropertyInputRow: View {
 /// the title field above.
 private struct MultiSelectInline: View {
     let options: [String]
-    @Binding var value: PropertyValueFfi
+    @Binding public var value: PropertyValueFfi
 
-    var body: some View {
+    public var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 ForEach(options, id: \.self) { opt in

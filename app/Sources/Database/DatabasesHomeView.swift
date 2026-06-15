@@ -1,6 +1,7 @@
 import SwiftUI
 import PinkhaFFI
 import PinkhaCore
+import PinkhaDesignSystem
 
 // ── Tab 2: Databases ──────────────────────────────────────────────────────────
 
