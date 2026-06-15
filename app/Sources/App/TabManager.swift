@@ -18,21 +18,23 @@ import SwiftUI
 /// the current session, so cold launches don't pay the cost of
 /// instantiating every persisted tab up-front.
 @MainActor
-final class TabManager: ObservableObject {
-    /// Published list of open tabs — observed by the switcher and the
+@Observable
+final class TabManager {
+    /// Observed list of open tabs — driven by the switcher and the
     /// few other views that need to react to opens/closes. Mutated
     /// **asynchronously** (via `Task @MainActor`) to avoid triggering
     /// an Observation feedback loop : NavigationLink eagerly
     /// constructs its destination during view body evaluation, which
-    /// is the exact moment any synchronous mutation to a `@Published`
+    /// is the exact moment any synchronous mutation to an observed
     /// property would re-publish and re-render again, etc.
-    @Published private(set) var openTabs: [DocumentTab] = []
+    private(set) var openTabs: [DocumentTab] = []
 
     /// In-process VM cache. Returns the same VM for the same docId on
     /// every call within a session, so back/forward navigation reuses
-    /// the same in-memory state. Not `@Published` — reads from view
-    /// body don't trigger re-renders.
-    private var vmCache: [String: DocumentViewModel] = [:]
+    /// the same in-memory state. `@ObservationIgnored` — reads from
+    /// view body don't trigger re-renders and we don't want SwiftUI
+    /// to dirty-mark this map.
+    @ObservationIgnored private var vmCache: [String: DocumentViewModel] = [:]
 
     /// LIFO stack of recently-closed tab docIds (Safari pattern). The
     /// `...` menu in the switcher exposes "Undo close" while this is
@@ -40,19 +42,19 @@ final class TabManager: ObservableObject {
     ///
     /// Capped so a frantic close-all spree doesn't keep VMs alive
     /// forever — older closes age out silently.
-    @Published private(set) var recentlyClosed: [String] = []
-    private let recentlyClosedCapacity = 10
+    private(set) var recentlyClosed: [String] = []
+    @ObservationIgnored private let recentlyClosedCapacity = 10
 
     /// MRU list of every docId the user has *opened* this session (or
     /// across sessions thanks to `persist()`). Unlike `openTabs`, an
     /// entry stays here after the tab is closed — the home's "Recent"
     /// strip reads it so the user sees what they actually consulted
     /// recently, not what was most recently modified.
-    @Published private(set) var recentlyViewed: [String] = []
-    private let recentlyViewedCapacity = 50
+    private(set) var recentlyViewed: [String] = []
+    @ObservationIgnored private let recentlyViewedCapacity = 50
 
-    private let persistenceKey = "com.pinkha.openTabs.v1"
-    private let recentlyViewedKey = "com.pinkha.recentlyViewed.v1"
+    @ObservationIgnored private let persistenceKey = "com.pinkha.openTabs.v1"
+    @ObservationIgnored private let recentlyViewedKey = "com.pinkha.recentlyViewed.v1"
 
     init() {
         if let saved = UserDefaults.standard.array(forKey: recentlyViewedKey) as? [String] {

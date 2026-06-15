@@ -12,7 +12,8 @@ import SwiftUI
 ///    soft accent tint behind the matched block in addition to blurring
 ///    the rest of the doc. Off by default; some users prefer the
 ///    cleaner blur-only look.
-final class AppSettings: ObservableObject {
+@Observable
+final class AppSettings {
     /// Catalogue of accent colors offered in the picker. Keeping the
     /// mapping name → Color in one place lets us persist a stable
     /// string in UserDefaults (Color isn't `Codable` cleanly) and round-
@@ -192,7 +193,7 @@ final class AppSettings: ObservableObject {
     /// When on, the text-input caret + selection highlight use the
     /// chosen accent color. Off by default (white, à la Notion) so
     /// the cursor stays quiet against most block colors.
-    @Published var cursorFollowsAccent: Bool {
+    var cursorFollowsAccent: Bool {
         didSet {
             UserDefaults.standard.set(cursorFollowsAccent, forKey: cursorAccentKey)
         }
@@ -201,7 +202,7 @@ final class AppSettings: ObservableObject {
     /// How many docs the "Recent" strip on the Notes home shows.
     /// Bounded 5–20 ; 7 is the default that fits ~2 fully-visible
     /// cards plus a peek of a third on iPhone 17 Pro.
-    @Published var recentCount: Int {
+    var recentCount: Int {
         didSet {
             let clamped = max(5, min(20, recentCount))
             if clamped != recentCount {
@@ -212,13 +213,13 @@ final class AppSettings: ObservableObject {
         }
     }
 
-    @Published var accentChoice: AccentChoice {
+    var accentChoice: AccentChoice {
         didSet {
             UserDefaults.standard.set(accentChoice.rawValue, forKey: accentKey)
         }
     }
 
-    @Published var spotlightTinted: Bool {
+    var spotlightTinted: Bool {
         didSet {
             UserDefaults.standard.set(spotlightTinted, forKey: spotlightKey)
         }
@@ -228,7 +229,7 @@ final class AppSettings: ObservableObject {
     /// `Haptic.tap` / `Haptic.toggle` / … helpers) fire any taptic
     /// feedback. Default on — users who find the per-button buzz
     /// excessive can flip this off in Settings.
-    @Published var hapticsEnabled: Bool {
+    var hapticsEnabled: Bool {
         didSet {
             UserDefaults.standard.set(hapticsEnabled, forKey: AppSettings.hapticsKey)
         }
@@ -240,7 +241,7 @@ final class AppSettings: ObservableObject {
     /// keeps working. Toggling immediately snaps the active scene
     /// back to portrait and invalidates UIKit's supported-orientation
     /// cache.
-    @Published var rotationLocked: Bool {
+    var rotationLocked: Bool {
         didSet {
             UserDefaults.standard.set(rotationLocked, forKey: AppSettings.rotationLockKey)
             AppSettings.applyRotationLockToScenes(locked: rotationLocked)
@@ -266,7 +267,7 @@ final class AppSettings: ObservableObject {
 
     /// Books.app-style reading theme applied at the app root. Per-doc
     /// `Document.theme` overrides this when set.
-    @Published var theme: Theme {
+    var theme: Theme {
         didSet {
             UserDefaults.standard.set(theme.rawValue, forKey: themeKey)
         }
@@ -274,7 +275,7 @@ final class AppSettings: ObservableObject {
 
     /// Light / dark / system override applied at the app root via
     /// `.preferredColorScheme(_:)`. Default `.system` follows iOS.
-    @Published var appearance: AppearanceMode {
+    var appearance: AppearanceMode {
         didSet {
             UserDefaults.standard.set(appearance.rawValue, forKey: appearanceKey)
             // SwiftUI's `.preferredColorScheme(_:)` on sheets has

@@ -12,7 +12,7 @@ struct AttachDocToDatabaseSheet: View {
     /// UUID of the document to file as a row.
     let docId: String
 
-    @EnvironmentObject private var store: PinkhaStore
+    @Environment(PinkhaStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
     @State private var pickedDatabaseId: String? = nil

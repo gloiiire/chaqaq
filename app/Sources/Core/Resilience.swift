@@ -35,7 +35,7 @@ extension PinkhaError {
 
 /// Executes `work`, returns its value on success, or writes a user-readable error
 /// message into `errorMessage` and returns `nil` on failure.
-/// Idiomatic pattern for view models that expose a `@Published errorMessage`.
+/// Idiomatic pattern for view models that expose an observable `errorMessage`.
 ///
 /// Side effect: unexpected failures (transient storage errors, anything not a
 /// `PinkhaError`) are forwarded to Sentry. `NotFound` and `InvalidOperation`

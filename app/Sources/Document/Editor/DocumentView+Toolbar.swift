@@ -66,6 +66,10 @@ extension DocumentView {
                 }
                 .accessibilityLabel("Delete selected blocks")
             }
+            // iOS 26 : isolates the destructive contextual action into its
+            // own glass capsule so it doesn't visually fuse with the doc
+            // chrome (lock + edit + overflow). Matches Mail / Photos.
+            ToolbarSpacer(.fixed, placement: .primaryAction)
         }
         ToolbarItem(placement: .primaryAction) {
             LockToolbarButton(
@@ -77,7 +81,7 @@ extension DocumentView {
                 withAnimation(.easeInOut(duration: 0.15)) {
                     // Apply UI side-effects of locking *before* the save
                     // round-trip — they only depend on `newLocked` and would
-                    // race the @Published change otherwise.
+                    // race the observation re-render otherwise.
                     if newLocked {
                         editMode = .inactive; selectedBlocks.removeAll()
                         focusTitle = false; showingBlockPicker = false

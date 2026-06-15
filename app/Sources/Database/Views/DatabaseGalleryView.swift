@@ -5,7 +5,7 @@ import SwiftUI
 /// first multi-select chip. Notion's "Gallery view" — mobile-friendly
 /// because cards reflow into a 2-column grid below the breakpoint.
 struct DatabaseGalleryView: View {
-    @ObservedObject var vm: DatabaseViewModel
+    @Bindable var vm: DatabaseViewModel
     let api: PinkhaApi
     let onDisappear: () -> Void
 
@@ -42,7 +42,7 @@ private struct GalleryCard: View {
     let api: PinkhaApi
     let onDisappear: () -> Void
 
-    @EnvironmentObject private var tabManager: TabManager
+    @Environment(TabManager.self) private var tabManager
 
     var body: some View {
         Group {

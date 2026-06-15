@@ -6,14 +6,14 @@ import SwiftUI
 /// then its documents. Tapping a sub-folder pushes another `FolderView` onto
 /// the same NavigationStack, giving arbitrary-depth navigation for free.
 struct FolderView: View {
-    @ObservedObject var store: PinkhaStore
+    @Bindable var store: PinkhaStore
     let folder: FolderMetaFfi
     /// Optional Composer — injected by `ContentView`. We read it to flip
     /// `currentContext` to this folder on appear and back to `.root` on
     /// disappear, so the create bubble's "New …" land inside the folder
     /// the user is looking at.
-    @EnvironmentObject private var composer: Composer
-    @EnvironmentObject private var tabManager: TabManager
+    @Environment(Composer.self) private var composer
+    @Environment(TabManager.self) private var tabManager
 
     @State private var showingNewSubFolder = false
     @State private var newSubFolderName = ""
@@ -197,7 +197,7 @@ struct FolderRow: View {
 
 /// Section that lists top-level folders in `NotesHomeView`.
 struct FoldersSectionView: View {
-    @ObservedObject var store: PinkhaStore
+    @Bindable var store: PinkhaStore
     @State private var showingNewFolder = false
     @State private var newFolderName = ""
 

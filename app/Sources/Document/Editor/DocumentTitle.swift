@@ -37,7 +37,7 @@ private struct TitleEditor: UIViewRepresentable {
     @Binding var isFocused: Bool
     @Binding var cursorOffset: Int?
     @Environment(\.isEnabled) private var isEnabled
-    @EnvironmentObject private var settings: AppSettings
+    @Environment(AppSettings.self) private var settings
     let onSave: () -> Void
     let onNewBlock: (String) -> Void
     var themeForeground: UIColor? = nil

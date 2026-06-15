@@ -5,7 +5,7 @@ import SwiftUI
 /// minimal (one filter per property, equals or contains). Multi-clause
 /// filters land in a future PR.
 struct DatabaseFilterSheet: View {
-    @ObservedObject var vm: DatabaseViewModel
+    @Bindable var vm: DatabaseViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showAddPropertyMenu = false
 
@@ -65,7 +65,7 @@ struct DatabaseFilterSheet: View {
 
 private struct FilterRow: View {
     let filter: DatabaseFilter
-    @ObservedObject var vm: DatabaseViewModel
+    @Bindable var vm: DatabaseViewModel
 
     var body: some View {
         HStack(spacing: 10) {

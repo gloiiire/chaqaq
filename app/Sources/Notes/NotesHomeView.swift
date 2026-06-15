@@ -8,16 +8,15 @@ import SwiftUI
 /// presenting the workspace content. Sibling files in this folder own the
 /// recent strip (`RecentStrip.swift`) and the list row (`WorkspaceRow.swift`).
 struct NotesHomeView: View {
-    @ObservedObject var store: PinkhaStore
-    @EnvironmentObject var composer: Composer
-    @EnvironmentObject var settings: AppSettings
-    @EnvironmentObject var tabManager: TabManager
+    @Bindable var store: PinkhaStore
+    @Environment(Composer.self) var composer
+    @Environment(AppSettings.self) var settings
+    @Environment(TabManager.self) var tabManager
     @State private var showingSettings = false
     /// Programmatic navigation stack so a freshly-created note can be
     /// pushed onto the editor right after the create sheet dismisses
-    /// — driven by `composer.pendingOpenDoc`.
-    /// Programmatic navigation stack. Must stay `@State` — using a
-    /// `@Published`-backed binding (e.g. moved to `Composer`) hits a
+    /// — driven by `composer.pendingOpenDoc`. Must stay `@State` here :
+    /// a binding sourced from `Composer` (observation-driven) hits a
     /// SwiftUI bug where `NavigationStack(path: $model.path)` does
     /// not visibly pop when `path.removeAll()` is called from outside.
     /// External mutations route through `Composer.popHomeNotification`.
@@ -193,6 +192,10 @@ struct NotesHomeView: View {
             .environment(\.editMode, $editMode)
             .navigationTitle(greeting)
             .navigationBarTitleDisplayMode(.large)
+            // iOS 26 : let the list edges fade under the large title and the
+            // bottom accessory bar so the chrome floats above the content
+            // instead of slamming a solid bar over it.
+            .scrollEdgeEffectStyle(.soft, for: .all)
             .databaseDeleteDialog(pending: $pendingDatabaseDeletion, store: store)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -255,7 +258,7 @@ struct NotesHomeView: View {
                 set: { attachDocId = $0?.id }
             )) { wrapper in
                 AttachDocToDatabaseSheet(docId: wrapper.id)
-                    .environmentObject(store)
+                    .environment(store)
                     .presentationDetents([.large])
             }
             // Native confirmation dialog before the bulk delete fires —

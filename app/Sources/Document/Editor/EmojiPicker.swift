@@ -26,7 +26,7 @@ struct EmojiPickerSheet: View {
     let recents: [String]
     let onSelect: (String) -> Void
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var settings: AppSettings
+    @Environment(AppSettings.self) private var settings
     @State private var input = ""
     @State private var inputOpen = false
 

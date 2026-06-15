@@ -11,7 +11,7 @@ struct DatabasesHomeView: View {
     /// chooses whether the pages inside go with it.
     @State private var pendingDeletion: DatabaseMetaFfi?
 
-    @ObservedObject var store: PinkhaStore
+    @Bindable var store: PinkhaStore
     /// Apple-Music-style zoom transition source ; the destination
     /// `DatabaseView` pairs it with `.navigationTransition(.zoom(...))`
     /// so opening a row reads as the card expanding into the editor.
@@ -61,6 +61,9 @@ struct DatabasesHomeView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("Databases")
             .navigationBarTitleDisplayMode(.large)
+            // iOS 26 : soft edge fade under the large nav title and the tab
+            // accessory bar — matches the Notes home and the system look.
+            .scrollEdgeEffectStyle(.soft, for: .all)
             .databaseDeleteDialog(pending: $pendingDeletion, store: store)
         }
     }

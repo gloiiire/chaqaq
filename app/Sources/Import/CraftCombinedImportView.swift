@@ -21,7 +21,7 @@ struct CraftCombinedImportView: View {
     @State private var showingFolderPicker = false
     @State private var importState: ImportState = .idle
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var settings: AppSettings
+    @Environment(AppSettings.self) private var settings
 
     enum ImportState {
         case idle

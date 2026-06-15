@@ -7,7 +7,7 @@ import PhotosUI
 /// with the same hero it would have as a Notion page. All edits route
 /// through the view model — no direct FFI call inside the view.
 struct DatabaseHeaderView: View {
-    @ObservedObject var vm: DatabaseViewModel
+    @Bindable var vm: DatabaseViewModel
     let recentEmojis: [String]
 
     @State private var photoSelection: PhotosPickerItem?

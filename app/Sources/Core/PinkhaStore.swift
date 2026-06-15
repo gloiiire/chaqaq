@@ -35,17 +35,18 @@ enum WorkspaceItem: Identifiable {
 
 /// Observable store that owns the `PinkhaApi` connection and the full workspace (notes + databases).
 @MainActor
-final class PinkhaStore: ObservableObject {
-    @Published var documents: [DocumentMetaFfi] = []
-    @Published var databases: [DatabaseMetaFfi] = []
-    @Published var errorMessage: String?
+@Observable
+final class PinkhaStore {
+    var documents: [DocumentMetaFfi] = []
+    var databases: [DatabaseMetaFfi] = []
+    var errorMessage: String?
     /// `true` when the Inbox tab has at least one item awaiting the user's
     /// attention — flips the tab icon to `tray.badge.fill`. Wired manually
     /// for now (no real notification source yet); future imports / shared
     /// items / sync events can flip this.
-    @Published var hasInboxNotification: Bool = false
+    var hasInboxNotification: Bool = false
 
-    private(set) var api: PinkhaApi?
+    @ObservationIgnored private(set) var api: PinkhaApi?
 
     /// All workspace items merged and sorted by most recently updated.
     var items: [WorkspaceItem] {

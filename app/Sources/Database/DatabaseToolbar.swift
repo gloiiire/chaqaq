@@ -13,7 +13,7 @@ import SwiftUI
 /// 5. **Add** — split button : tap the "+" creates a blank entry, tap
 ///    the chevron opens the quick-add menu (presets, future feature).
 struct DatabaseToolbarView: View {
-    @ObservedObject var vm: DatabaseViewModel
+    @Bindable var vm: DatabaseViewModel
     @Binding var searchVisible: Bool
     /// Read from the environment so the toolbar always renders the
     /// chosen accent regardless of the `.tint(...)` inheritance up the
@@ -21,7 +21,7 @@ struct DatabaseToolbarView: View {
     /// a doc's Page block) used to leave every accent slot white
     /// because that stack didn't propagate the env tint, while the
     /// Bases tab did. Reading it directly fixes both paths.
-    @EnvironmentObject private var settings: AppSettings
+    @Environment(AppSettings.self) private var settings
 
     @State private var showFilterSheet = false
     @State private var showPropertiesSheet = false
@@ -314,7 +314,7 @@ struct DatabaseToolbarView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private var quickAddPresets: [(label: String, systemImage: String)] {

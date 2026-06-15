@@ -7,7 +7,7 @@ import SwiftUI
 /// state for now; the tab icon flips to `tray.badge.fill` (driven by
 /// `PinkhaStore.hasInboxNotification`) when content appears here.
 struct InboxView: View {
-    @ObservedObject var store: PinkhaStore
+    @Bindable var store: PinkhaStore
 
     var body: some View {
         NavigationStack {
