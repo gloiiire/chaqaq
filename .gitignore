@@ -25,3 +25,7 @@ app/Config/Secrets.xcconfig
 
 # SwiftPM-generated per-user Xcode state
 **/.swiftpm/xcode/xcuserdata/
+
+
+# SwiftPM build cache (per-package)
+**/.build/

@@ -1,14 +1,13 @@
 import Foundation
 import SwiftUI
 import PinkhaFFI
-import PinkhaCore
 
 // MARK: - User-facing error messages
 
 /// Maps `PinkhaError` FFI values to user-readable messages.
 /// Technical errors (invalid UUID, oversized payload) are condensed;
 /// domain errors (NotFound, Storage) have their own distinct wording.
-extension PinkhaError {
+public extension PinkhaError {
     var userMessage: String {
         switch self {
         case .NotFound:
@@ -43,7 +42,7 @@ extension PinkhaError {
 /// `PinkhaError`) are forwarded to Sentry. `NotFound` and `InvalidOperation`
 /// are user-facing expected states and stay silent to avoid alert fatigue.
 @discardableResult
-func tryCatch<T>(into errorMessage: inout String?, _ work: () throws -> T) -> T? {
+public func tryCatch<T>(into errorMessage: inout String?, _ work: () throws -> T) -> T? {
     do {
         return try work()
     } catch let err as PinkhaError {
@@ -62,7 +61,7 @@ func tryCatch<T>(into errorMessage: inout String?, _ work: () throws -> T) -> T?
 
 /// SwiftUI view modifier: presents an alert driven by an `errorMessage: String?` binding,
 /// with an optional "Retry" button.
-extension View {
+public extension View {
     func errorAlert(
         message: Binding<String?>,
         onRetry: (() -> Void)? = nil

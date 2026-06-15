@@ -1,6 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import PinkhaFFI
+import PinkhaCore
 
 // ── Import from Craft (TextBundle) sheet ──────────────────────────────────────
 //

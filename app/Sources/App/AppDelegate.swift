@@ -1,4 +1,5 @@
 import UIKit
+import PinkhaCore
 
 extension Notification.Name {
     /// Fired when iOS hands the app a Home Screen Quick Action

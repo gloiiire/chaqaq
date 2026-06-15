@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaCore
 
 // ── Building callbacks and block rows ────────────────────────────────────────
 

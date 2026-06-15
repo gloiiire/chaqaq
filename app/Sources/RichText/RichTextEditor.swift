@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import PinkhaFFI
+import PinkhaCore
 
 // ── RichTextEditor ────────────────────────────────────────────────────────────
 

@@ -13,8 +13,9 @@ import PinkhaCore
 ///    soft accent tint behind the matched block in addition to blurring
 ///    the rest of the doc. Off by default; some users prefer the
 ///    cleaner blur-only look.
+@MainActor
 @Observable
-final class AppSettings {
+public final class AppSettings {
     /// Catalogue of accent colors offered in the picker. Keeping the
     /// mapping name → Color in one place lets us persist a stable
     /// string in UserDefaults (Color isn't `Codable` cleanly) and round-
@@ -24,16 +25,16 @@ final class AppSettings {
     /// the editor's base font to a heavy weight. Default `.original`
     /// keeps the iOS-native system background, so the rest of the
     /// app stays untouched until a user opts in.
-    enum Theme: String, CaseIterable, Identifiable {
+    public enum Theme: String, CaseIterable, Identifiable {
         case original, tranquille, papier, gras, calme, attention
 
-        var id: String { rawValue }
+        public var id: String { rawValue }
 
         /// Localizable via `Localizable.xcstrings` — returning a
         /// `LocalizedStringKey` ensures `Text(theme.label)` picks the
         /// `LocalizedStringKey` initializer, not the verbatim-`String`
         /// one that bypasses the catalog.
-        var label: LocalizedStringKey {
+        public var label: LocalizedStringKey {
             switch self {
             case .original:  return "Match App Appearance"
             case .tranquille: return "Tranquille"
@@ -47,7 +48,7 @@ final class AppSettings {
         /// Same content, already resolved through the string catalogue,
         /// for places where SwiftUI wants a `String` (text
         /// interpolation, attributed-string composition, etc.).
-        var labelString: String {
+        public var labelString: String {
             switch self {
             case .original:   return String(localized: "Match App Appearance")
             case .tranquille: return String(localized: "Tranquille")
@@ -60,7 +61,7 @@ final class AppSettings {
 
         /// `nil` = inherit the system background (`.original` does
         /// this so light/dark mode keeps working untouched).
-        var backgroundColor: Color? {
+        public var backgroundColor: Color? {
             switch self {
             case .original:  return nil
             // `.tranquille` is intentionally close to iOS-26's native
@@ -77,7 +78,7 @@ final class AppSettings {
 
         /// Foreground colour for body text. `nil` falls back to
         /// `.label` (system-dynamic).
-        var foregroundColor: Color? {
+        public var foregroundColor: Color? {
             switch self {
             case .original:  return nil
             case .tranquille: return Color(white: 0.88)
@@ -93,7 +94,7 @@ final class AppSettings {
         /// the theme background. `nil` = leave system / appearance
         /// alone. Only `.tranquille` is intrinsically dark — the
         /// other backgrounds are light.
-        var colorScheme: ColorScheme? {
+        public var colorScheme: ColorScheme? {
             switch self {
             case .original:  return nil
             case .tranquille: return .dark
@@ -103,7 +104,7 @@ final class AppSettings {
 
         /// Whether the theme paints body text with a bolder weight
         /// (Books.app's "Gras" flavour).
-        var boldText: Bool { self == .gras }
+        public var boldText: Bool { self == .gras }
     }
 
     /// User-facing color scheme override — `.system` follows the
@@ -111,14 +112,14 @@ final class AppSettings {
     /// specific scheme regardless of what iOS does. Mirrors the
     /// pattern most modern apps offer in their own Appearance
     /// section instead of forcing the user out into Settings.app.
-    enum AppearanceMode: String, CaseIterable, Identifiable {
+    public enum AppearanceMode: String, CaseIterable, Identifiable {
         case system, light, dark
 
-        var id: String { rawValue }
+        public var id: String { rawValue }
 
         /// Maps to SwiftUI's `.preferredColorScheme(_:)` — `nil` for
         /// `.system` so the view inherits whatever iOS decides.
-        var colorScheme: ColorScheme? {
+        public var colorScheme: ColorScheme? {
             switch self {
             case .system: return nil
             case .light:  return .light
@@ -126,7 +127,7 @@ final class AppSettings {
             }
         }
 
-        var label: LocalizedStringKey {
+        public var label: LocalizedStringKey {
             switch self {
             case .system: return "System"
             case .light:  return "Light"
@@ -134,7 +135,7 @@ final class AppSettings {
             }
         }
 
-        var systemImage: String {
+        public var systemImage: String {
             switch self {
             case .system: return "circle.lefthalf.filled"
             case .light:  return "sun.max"
@@ -143,12 +144,12 @@ final class AppSettings {
         }
     }
 
-    enum AccentChoice: String, CaseIterable, Identifiable {
+    public enum AccentChoice: String, CaseIterable, Identifiable {
         case pink, purple, blue, teal, green, yellow, orange, red
 
-        var id: String { rawValue }
+        public var id: String { rawValue }
 
-        var color: Color {
+        public var color: Color {
             switch self {
             case .pink:   return .pink
             case .purple: return .purple
@@ -161,7 +162,7 @@ final class AppSettings {
             }
         }
 
-        var label: LocalizedStringKey {
+        public var label: LocalizedStringKey {
             switch self {
             case .pink:   return "Pink"
             case .purple: return "Purple"
@@ -184,17 +185,17 @@ final class AppSettings {
     /// Public so `Haptic` can read the flag without an
     /// `AppSettings` env injection — it's polled from inside the
     /// haptic generators which run in `@MainActor` static functions.
-    static let hapticsKey         = "pinkha.settings.hapticsEnabled"
+    public static let hapticsKey         = "pinkha.settings.hapticsEnabled"
     /// Public so `AppDelegate.application(_:supportedInterfaceOrientationsFor:)`
     /// can read the flag — UIKit polls that callback at every layout
     /// pass and we can't inject `AppSettings` into a plain
     /// `UIApplicationDelegate`.
-    static let rotationLockKey    = "pinkha.settings.rotationLocked"
+    public static let rotationLockKey    = "pinkha.settings.rotationLocked"
 
     /// When on, the text-input caret + selection highlight use the
     /// chosen accent color. Off by default (white, à la Notion) so
     /// the cursor stays quiet against most block colors.
-    var cursorFollowsAccent: Bool {
+    public var cursorFollowsAccent: Bool {
         didSet {
             UserDefaults.standard.set(cursorFollowsAccent, forKey: cursorAccentKey)
         }
@@ -203,7 +204,7 @@ final class AppSettings {
     /// How many docs the "Recent" strip on the Notes home shows.
     /// Bounded 5–20 ; 7 is the default that fits ~2 fully-visible
     /// cards plus a peek of a third on iPhone 17 Pro.
-    var recentCount: Int {
+    public var recentCount: Int {
         didSet {
             let clamped = max(5, min(20, recentCount))
             if clamped != recentCount {
@@ -214,13 +215,13 @@ final class AppSettings {
         }
     }
 
-    var accentChoice: AccentChoice {
+    public var accentChoice: AccentChoice {
         didSet {
             UserDefaults.standard.set(accentChoice.rawValue, forKey: accentKey)
         }
     }
 
-    var spotlightTinted: Bool {
+    public var spotlightTinted: Bool {
         didSet {
             UserDefaults.standard.set(spotlightTinted, forKey: spotlightKey)
         }
@@ -230,7 +231,7 @@ final class AppSettings {
     /// `Haptic.tap` / `Haptic.toggle` / … helpers) fire any taptic
     /// feedback. Default on — users who find the per-button buzz
     /// excessive can flip this off in Settings.
-    var hapticsEnabled: Bool {
+    public var hapticsEnabled: Bool {
         didSet {
             UserDefaults.standard.set(hapticsEnabled, forKey: AppSettings.hapticsKey)
         }
@@ -242,7 +243,7 @@ final class AppSettings {
     /// keeps working. Toggling immediately snaps the active scene
     /// back to portrait and invalidates UIKit's supported-orientation
     /// cache.
-    var rotationLocked: Bool {
+    public var rotationLocked: Bool {
         didSet {
             UserDefaults.standard.set(rotationLocked, forKey: AppSettings.rotationLockKey)
             AppSettings.applyRotationLockToScenes(locked: rotationLocked)
@@ -268,7 +269,7 @@ final class AppSettings {
 
     /// Books.app-style reading theme applied at the app root. Per-doc
     /// `Document.theme` overrides this when set.
-    var theme: Theme {
+    public var theme: Theme {
         didSet {
             UserDefaults.standard.set(theme.rawValue, forKey: themeKey)
         }
@@ -276,7 +277,7 @@ final class AppSettings {
 
     /// Light / dark / system override applied at the app root via
     /// `.preferredColorScheme(_:)`. Default `.system` follows iOS.
-    var appearance: AppearanceMode {
+    public var appearance: AppearanceMode {
         didSet {
             UserDefaults.standard.set(appearance.rawValue, forKey: appearanceKey)
             // SwiftUI's `.preferredColorScheme(_:)` on sheets has
@@ -295,7 +296,7 @@ final class AppSettings {
     /// matching `overrideUserInterfaceStyle`. Called from
     /// `appearance.didSet` and once at the end of `init()` so the
     /// stored preference is honoured at cold launch.
-    func applyAppearanceToWindows() {
+    public func applyAppearanceToWindows() {
         let style: UIUserInterfaceStyle = switch appearance {
         case .system: .unspecified
         case .light:  .light
@@ -320,7 +321,7 @@ final class AppSettings {
         }
     }
 
-    init() {
+    public init() {
         let stored = UserDefaults.standard.string(forKey: accentKey)
         // Apple-ecosystem default — sticks closer to the system blue
         // most iOS apps use unless the user picks something else.
@@ -356,12 +357,12 @@ final class AppSettings {
         self.rotationLocked = UserDefaults.standard.bool(forKey: AppSettings.rotationLockKey)
     }
 
-    var accentColor: Color { accentChoice.color }
+    public var accentColor: Color { accentChoice.color }
 
     /// Resets every preference back to its factory default —
     /// accent = orange, spotlight tint off, recent count = 7. Used
     /// by the floating "Reset" button in `SettingsView`.
-    func resetToDefaults() {
+    public func resetToDefaults() {
         accentChoice        = .blue
         spotlightTinted     = false
         recentCount         = 7
