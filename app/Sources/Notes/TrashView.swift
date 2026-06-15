@@ -1,5 +1,6 @@
 import SwiftUI
 import PinkhaFFI
+import PinkhaCore
 
 /// Trash view — shows soft-deleted documents, databases, and folders with
 /// per-item restore / delete-forever actions plus a global "Empty Trash" button.

@@ -1,5 +1,4 @@
 import SwiftUI
-import PinkhaCore
 import PinkhaFFI
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -11,20 +10,22 @@ import PinkhaFFI
 /// Observable store that owns the `PinkhaApi` connection and the full workspace (notes + databases).
 @MainActor
 @Observable
-final class PinkhaStore {
-    var documents: [DocumentMetaFfi] = []
-    var databases: [DatabaseMetaFfi] = []
-    var errorMessage: String?
+public final class PinkhaStore {
+    public var documents: [DocumentMetaFfi] = []
+    public var databases: [DatabaseMetaFfi] = []
+    public var errorMessage: String?
     /// `true` when the Inbox tab has at least one item awaiting the user's
     /// attention — flips the tab icon to `tray.badge.fill`. Wired manually
     /// for now (no real notification source yet); future imports / shared
     /// items / sync events can flip this.
-    var hasInboxNotification: Bool = false
+    public var hasInboxNotification: Bool = false
 
-    @ObservationIgnored private(set) var api: PinkhaApi?
+    @ObservationIgnored public private(set) var api: PinkhaApi?
+
+    public init() {}
 
     /// All workspace items merged and sorted by most recently updated.
-    var items: [WorkspaceItem] {
+    public var items: [WorkspaceItem] {
         let notes = documents.map { WorkspaceItem.note($0) }
         let dbs   = databases.map { WorkspaceItem.database($0) }
         return (notes + dbs).sorted { $0.updatedAt > $1.updatedAt }
@@ -34,12 +35,12 @@ final class PinkhaStore {
     /// where N is the user's `AppSettings.recentCount` (default 7,
     /// bounded 5–20). Caller supplies the count so PinkhaStore stays
     /// independent of `AppSettings`.
-    func recentItems(limit: Int) -> [WorkspaceItem] {
+    public func recentItems(limit: Int) -> [WorkspaceItem] {
         Array(items.prefix(limit))
     }
 
     /// Opens the SQLite database and seeds it when running under UI-test launch arguments.
-    func connect() {
+    public func connect() {
         guard api == nil else { return }
         tryCatch(into: &errorMessage) {
             let dir  = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -61,7 +62,7 @@ final class PinkhaStore {
     /// Refreshes documents and databases from the SQLite store.
     /// Only root pages (no `parentDocId`) are surfaced — child pages are
     /// reached by tapping their parent's inline `Page` block.
-    func load() {
+    public func load() {
         if let docs = tryCatch(into: &errorMessage, { try api?.listRootDocuments() ?? [] }) {
             documents = docs
         }
@@ -73,169 +74,48 @@ final class PinkhaStore {
     /// Direct child pages of a given parent document. Used by the document
     /// view to surface sub-pages even when they aren't placed inline as
     /// `BlockContent::Page` blocks yet.
-    func childDocuments(of parentDocId: String) -> [DocumentMetaFfi] {
+    public func childDocuments(of parentDocId: String) -> [DocumentMetaFfi] {
         guard let api else { return [] }
         return (try? api.listChildDocuments(parentDocId: parentDocId)) ?? []
     }
 
     /// Moves a document under another parent document, or to root when
     /// `newParentDocId` is `nil`.
-    func moveDocumentToParent(docId: String, newParentDocId: String?) {
+    public func moveDocumentToParent(docId: String, newParentDocId: String?) {
         tryCatch(into: &errorMessage) {
             try api?.updateDocumentParent(docId: docId, newParentDocId: newParentDocId)
         }
         load()
     }
 
-    /// Creates a new note and reloads.
-    func create(title: String) {
-        createNote(title: title, in: .root)
-    }
-
-    /// Creates a new database and reloads.
-    func createDatabase(title: String) {
-        createDatabase(title: title, in: .root)
-    }
-
-    /// Context-aware note creation. Lands the new document in `context`
-    /// after creation — moved into a folder, parented under another
-    /// document, or left at the root. Returns the new document id so
-    /// callers can chain follow-up work (e.g. signalling a Page block
-    /// insertion to the active editor's view-model for `.document`
-    /// context — done by the bubble's sheet handler, *not* here, to
-    /// avoid racing with the editor's in-memory blocks array).
-    @discardableResult
-    func createNote(title: String, in context: Composer.CreationContext) -> String? {
-        createNote(title: title, in: context, style: nil)
-    }
-
-    /// Same as [`createNote`] but applies the optional standalone
-    /// `style` (cover / icon / theme) after the document lands.
-    /// Best-effort : a failure on one style write is logged but
-    /// doesn't roll the document back.
-    @discardableResult
-    func createNote(
-        title: String,
-        in context: Composer.CreationContext,
-        style: CreateDocumentSheet.StandaloneStyle?
-    ) -> String? {
-        guard let api else { return nil }
-        let docId = tryCatch(into: &errorMessage) {
-            let docId = try api.createDocument(title: title)
-            switch context {
-            case .root:
-                break
-            case .folder(let folderId):
-                try api.moveDocumentToFolder(docId: docId, folderId: folderId)
-            case .document(let parentDocId):
-                try api.updateDocumentParent(docId: docId, newParentDocId: parentDocId)
-            }
-            return docId
-        }
-        guard let docId else { return nil }
-        if let style {
-            applyStandaloneStyle(style, to: docId, api: api)
-        }
-        load()
-        return docId
-    }
-
-    /// Writes the picked style overrides to the freshly-created
-    /// doc. Custom cover bytes are persisted into the covers
-    /// directory under the docId-derived filename ; the resulting
-    /// short name lands in the meta row's `cover` column. Built-in
-    /// gradient covers ship a direct identifier (e.g.
-    /// `"cover.nebula"`) and skip the disk write.
-    private func applyStandaloneStyle(
-        _ style: CreateDocumentSheet.StandaloneStyle,
-        to docId: String,
-        api: PinkhaApi
-    ) {
-        if let data = style.customCoverData {
-            if let name = try? DocumentViewModel.writeCoverImage(
-                data: data, docId: docId, fileExtension: style.customCoverExt
-            ) {
-                try? api.updateDocumentCover(id: docId, cover: name)
-            }
-        } else if let cover = style.cover {
-            try? api.updateDocumentCover(id: docId, cover: cover)
-        }
-        if let icon = style.icon {
-            try? api.updateDocumentIcon(id: docId, icon: icon)
-        }
-        if let theme = style.theme {
-            try? api.updateDocumentTheme(id: docId, theme: theme)
-        }
-        if let publishedAt = style.publishedAt {
-            try? api.updateDocumentPublishedAt(
-                id: docId, newPublishedAt: publishedAt)
-        }
-    }
-
-    /// Creates a doc + files it as a new row of the given database.
-    /// The orchestration (create document, fill the hidden page-link
-    /// and Title columns, link the entry to the doc) lives in Rust —
-    /// `create_document_in_database`. Returns the new document's id so
-    /// the caller can navigate to it.
-    @discardableResult
-    func createNoteInDatabase(
-        title: String,
-        databaseId: String,
-        propertyValues: [String: PropertyValueFfi],
-        style: CreateDocumentSheet.StandaloneStyle? = nil
-    ) -> String? {
-        guard let api else { return nil }
-        let docId = tryCatch(into: &errorMessage) {
-            guard let json = try? JSONEncoder().encode(propertyValues),
-                  let valuesJson = String(data: json, encoding: .utf8) else {
-                throw PinkhaError.InvalidOperation(detail: "Failed to encode property values")
-            }
-            return try api.createDocumentInDatabase(
-                dbId: databaseId, title: title, valuesJson: valuesJson)
-        }
-        guard let docId else { return nil }
-        if let style {
-            applyStandaloneStyle(style, to: docId, api: api)
-        }
-        load()
-        return docId
-    }
-
-    /// Context-aware database creation. In `.document` context the new
-    /// database is embedded in the parent doc via a `Database` block so
-    /// it shows up inline. Folders aren't supported on databases yet —
-    /// the database lands at the workspace root in that case.
-    func createDatabase(title: String, in context: Composer.CreationContext) {
+    /// Creates a new note at the workspace root and reloads.
+    /// Context-aware overloads (folder / inside a doc / with a
+    /// `StandaloneStyle`) live in `PinkhaStore+Composer.swift` in the
+    /// Notes layer so PinkhaCore stays independent of the
+    /// feature-layer `Composer.CreationContext` and
+    /// `CreateDocumentSheet.StandaloneStyle` types.
+    public func create(title: String) {
         guard let api else { return }
         tryCatch(into: &errorMessage) {
-            let dbId = try api.createDatabase(title: title)
-            if case .document(let parentDocId) = context {
-                let dbBlock = BlockContentFfi.database(id: dbId)
-                if let json = try? JSONEncoder().encode(dbBlock),
-                   let payload = String(data: json, encoding: .utf8) {
-                    _ = try? api.addBlock(docId: parentDocId, blockContentJson: payload)
-                }
-            }
+            _ = try api.createDocument(title: title)
         }
         load()
     }
 
-    /// Context-aware folder creation. Honours folder nesting (parent
-    /// folder = current folder); falls back to the root in `.document`
-    /// context (folders can't live inside a document).
-    func createFolder(name: String, in context: Composer.CreationContext) {
-        let parentId: String?
-        switch context {
-        case .root, .document:    parentId = nil
-        case .folder(let id):     parentId = id
+    /// Creates a new database at the workspace root and reloads. See
+    /// `create(title:)` for the rationale; the context-aware overload
+    /// lives in the Notes-layer extension.
+    public func createDatabase(title: String) {
+        guard let api else { return }
+        tryCatch(into: &errorMessage) {
+            _ = try api.createDatabase(title: title)
         }
-        _ = createFolder(name: name, parentId: parentId)
         load()
     }
 
     /// Renames a note (updates its title) and reloads so the home
     /// list reflects the new value.
-    func renameDocument(id: String, newTitle: String) {
+    public func renameDocument(id: String, newTitle: String) {
         if tryCatch(into: &errorMessage, {
             try api?.updateDocumentTitle(id: id, newTitle: newTitle)
         }) != nil {
@@ -244,21 +124,21 @@ final class PinkhaStore {
     }
 
     /// Soft-deletes a note by id and reloads.
-    func delete(id: String) {
+    public func delete(id: String) {
         if tryCatch(into: &errorMessage, { try api?.deleteDocument(id: id) }) != nil {
             load()
         }
     }
 
     /// Soft-deletes all documents and reloads.
-    func deleteAll() {
+    public func deleteAll() {
         if tryCatch(into: &errorMessage, { try api?.deleteAllDocuments() }) != nil {
             load()
         }
     }
 
     /// Soft-deletes all databases and reloads.
-    func deleteAllDatabases() {
+    public func deleteAllDatabases() {
         if tryCatch(into: &errorMessage, { try api?.deleteAllDatabases() }) != nil {
             load()
         }
@@ -266,7 +146,7 @@ final class PinkhaStore {
 
     /// Soft-deletes all folders (orphan contents fall back to root).
     /// Used by the "Delete all" flow so a clean wipe includes folders.
-    func deleteAllFolders() {
+    public func deleteAllFolders() {
         if tryCatch(into: &errorMessage, { try api?.deleteAllFolders() }) != nil {
             load()
         }
@@ -276,7 +156,7 @@ final class PinkhaStore {
     /// by — the "Delete database & its pages" path of the delete dialog.
     /// Returns the number of documents trashed alongside the database.
     @discardableResult
-    func deleteDatabaseCascade(id: String) -> Int {
+    public func deleteDatabaseCascade(id: String) -> Int {
         let n = tryCatch(into: &errorMessage) { try api?.deleteDatabaseCascade(id: id) ?? 0 } ?? 0
         load()
         return Int(n)
@@ -286,21 +166,21 @@ final class PinkhaStore {
     /// backed by — the "Restore database & its pages" path of the
     /// restore dialog. Returns the number of documents restored.
     @discardableResult
-    func restoreDatabaseCascade(id: String) -> Int {
+    public func restoreDatabaseCascade(id: String) -> Int {
         let n = tryCatch(into: &errorMessage) { try api?.restoreDatabaseCascade(id: id) ?? 0 } ?? 0
         load()
         return Int(n)
     }
 
     /// Soft-deletes a database by id and reloads.
-    func deleteDatabase(id: String) {
+    public func deleteDatabase(id: String) {
         if tryCatch(into: &errorMessage, { try api?.deleteDatabase(id: id) }) != nil {
             load()
         }
     }
 
     /// Returns notes whose title matches `query` (case-insensitive).
-    func search(query: String) -> [DocumentMetaFfi] {
+    public func search(query: String) -> [DocumentMetaFfi] {
         guard !query.isEmpty, let api else { return [] }
         return (try? api.searchDocuments(query: query)) ?? []
     }
@@ -309,7 +189,7 @@ final class PinkhaStore {
     /// content for documents, plus database titles and folder names. The
     /// document-axis deduplication (a doc matching both title and content
     /// shows up once, in the title hits) happens on the Rust side.
-    func superSearch(query: String) -> SuperSearchResults {
+    public func superSearch(query: String) -> SuperSearchResults {
         guard !query.isEmpty, let api else { return .empty }
         guard let results = try? api.superSearch(query: query) else { return .empty }
         return SuperSearchResults(
@@ -323,20 +203,20 @@ final class PinkhaStore {
     /// Bundle of search results across every workspace surface. Empty
     /// arrays mean "no match in that category" — callers use the per-
     /// section count to decide whether to render the section.
-    struct SuperSearchResults {
-        let documentsByTitle: [DocumentMetaFfi]
-        let documentsByContent: [BlockSearchHitFfi]
-        let databases: [DatabaseMetaFfi]
-        let folders: [FolderMetaFfi]
+    public struct SuperSearchResults: Sendable {
+        public let documentsByTitle: [DocumentMetaFfi]
+        public let documentsByContent: [BlockSearchHitFfi]
+        public let databases: [DatabaseMetaFfi]
+        public let folders: [FolderMetaFfi]
 
-        var isEmpty: Bool {
+        public var isEmpty: Bool {
             documentsByTitle.isEmpty
                 && documentsByContent.isEmpty
                 && databases.isEmpty
                 && folders.isEmpty
         }
 
-        static let empty = SuperSearchResults(
+        public static let empty = SuperSearchResults(
             documentsByTitle: [],
             documentsByContent: [],
             databases: [],
@@ -347,59 +227,59 @@ final class PinkhaStore {
     // ── Folders ───────────────────────────────────────────────────────────────
 
     /// Returns all folders sorted by name.
-    func listFolders() -> [FolderMetaFfi] {
+    public func listFolders() -> [FolderMetaFfi] {
         guard let api else { return [] }
         return (try? api.listFolders()) ?? []
     }
 
     /// Creates a folder and reloads.
     @discardableResult
-    func createFolder(name: String, parentId: String? = nil) -> FolderMetaFfi? {
+    public func createFolder(name: String, parentId: String? = nil) -> FolderMetaFfi? {
         guard let api else { return nil }
         let folder = tryCatch(into: &errorMessage) { try api.createFolder(name: name, parentId: parentId) }
         return folder
     }
 
     /// Renames a folder and reloads.
-    func renameFolder(id: String, newName: String) {
+    public func renameFolder(id: String, newName: String) {
         tryCatch(into: &errorMessage) { try api?.renameFolder(id: id, newName: newName) }
         load()
     }
 
     /// Sets or clears a folder's emoji icon and reloads.
-    func updateFolderIcon(id: String, icon: String?) {
+    public func updateFolderIcon(id: String, icon: String?) {
         tryCatch(into: &errorMessage) { try api?.updateFolderIcon(id: id, icon: icon) }
         load()
     }
 
     /// Deletes a folder (orphaned docs move to root) and reloads.
-    func deleteFolder(id: String) {
+    public func deleteFolder(id: String) {
         tryCatch(into: &errorMessage) { try api?.deleteFolder(id: id) }
         load()
     }
 
     /// Moves a document into a folder (or to root when `folderId` is nil) and reloads.
-    func moveDocumentToFolder(docId: String, folderId: String?) {
+    public func moveDocumentToFolder(docId: String, folderId: String?) {
         tryCatch(into: &errorMessage) { try api?.moveDocumentToFolder(docId: docId, folderId: folderId) }
         load()
     }
 
     /// Moves a folder under another folder (or to root when `newParentId` is nil)
     /// and reloads. Used by the folder-in-folder UI.
-    func moveFolder(id: String, newParentId: String?) {
+    public func moveFolder(id: String, newParentId: String?) {
         tryCatch(into: &errorMessage) { try api?.moveFolderTo(id: id, newParentId: newParentId) }
         load()
     }
 
     /// Returns the direct children of `parentId` (`nil` = root-level folders).
     /// The parent/child filtering runs in Rust.
-    func childFolders(of parentId: String?) -> [FolderMetaFfi] {
+    public func childFolders(of parentId: String?) -> [FolderMetaFfi] {
         guard let api else { return [] }
         return (try? api.listChildFolders(parentId: parentId)) ?? []
     }
 
     /// Returns documents in the given folder (`nil` = root level).
-    func documentsInFolder(folderId: String?) -> [DocumentMetaFfi] {
+    public func documentsInFolder(folderId: String?) -> [DocumentMetaFfi] {
         guard let api else { return [] }
         return (try? api.listDocumentsInFolder(folderId: folderId)) ?? []
     }
@@ -407,53 +287,53 @@ final class PinkhaStore {
     // ── Trash (soft-deleted items) ────────────────────────────────────────────
 
     /// Returns the trashed documents (newest-deleted first).
-    func listDeletedDocuments() -> [DocumentMetaFfi] {
+    public func listDeletedDocuments() -> [DocumentMetaFfi] {
         guard let api else { return [] }
         return (try? api.listDeletedDocuments()) ?? []
     }
 
     /// Returns the trashed databases.
-    func listDeletedDatabases() -> [DatabaseMetaFfi] {
+    public func listDeletedDatabases() -> [DatabaseMetaFfi] {
         guard let api else { return [] }
         return (try? api.listDeletedDatabases()) ?? []
     }
 
     /// Returns the trashed folders.
-    func listDeletedFolders() -> [FolderMetaFfi] {
+    public func listDeletedFolders() -> [FolderMetaFfi] {
         guard let api else { return [] }
         return (try? api.listDeletedFolders()) ?? []
     }
 
     /// Restores a soft-deleted document.
-    func restoreDocument(id: String) {
+    public func restoreDocument(id: String) {
         tryCatch(into: &errorMessage) { try api?.restoreDocument(id: id) }
         load()
     }
 
     /// Permanently deletes a soft-deleted document.
-    func purgeDocument(id: String) {
+    public func purgeDocument(id: String) {
         tryCatch(into: &errorMessage) { try api?.purgeDocument(id: id) }
     }
 
     /// Restores a soft-deleted database.
-    func restoreDatabase(id: String) {
+    public func restoreDatabase(id: String) {
         tryCatch(into: &errorMessage) { try api?.restoreDatabase(id: id) }
         load()
     }
 
     /// Permanently deletes a soft-deleted database.
-    func purgeDatabase(id: String) {
+    public func purgeDatabase(id: String) {
         tryCatch(into: &errorMessage) { try api?.purgeDatabase(id: id) }
     }
 
     /// Restores a soft-deleted folder.
-    func restoreFolder(id: String) {
+    public func restoreFolder(id: String) {
         tryCatch(into: &errorMessage) { try api?.restoreFolder(id: id) }
         load()
     }
 
     /// Permanently deletes a soft-deleted folder.
-    func purgeFolder(id: String) {
+    public func purgeFolder(id: String) {
         tryCatch(into: &errorMessage) { try api?.purgeFolder(id: id) }
     }
 
@@ -461,7 +341,7 @@ final class PinkhaStore {
     /// and folder in a single bulk FFI call. Returns the total number of
     /// items removed.
     @discardableResult
-    func emptyTrash() -> Int {
+    public func emptyTrash() -> Int {
         let purged = tryCatch(into: &errorMessage) { try api?.emptyTrash() ?? 0 } ?? 0
         load()
         return Int(purged)

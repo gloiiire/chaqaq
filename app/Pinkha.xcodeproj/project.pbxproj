@@ -31,8 +31,8 @@
 		2F4DBAA7D9DAC41973B02B81 /* MarkdownShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0A8005F4451F496EF2075F1 /* MarkdownShortcutTests.swift */; };
 		32A58C6A3B2306C8C71716E2 /* FontHelpersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97AAE4ED1A7A8EFFA0FFB26F /* FontHelpersTests.swift */; };
 		32C8426F08A11B36F8D34425 /* ColorPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0242538C571C77BB05443CB /* ColorPersistenceTests.swift */; };
+		338C5D3E6D6AB28719664BD0 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 5A057E320D12794EBC5FAA03 /* Pinkha.icon */; };
 		39EC996E337D7668192E46B0 /* ModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDCE4B4A67B7675CF7E4994 /* ModelsTests.swift */; };
-		3D2EB438F75FBE9267D39944 /* PinkhaStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A60A4A6A8B2EE03385292F9 /* PinkhaStore.swift */; };
 		3EBA03AE2968EAF33B020A89 /* DatabaseViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFA4CB8B18F322F82D34991C /* DatabaseViewModelTests.swift */; };
 		3ED8C12B7F94F86A0834A1DE /* AttachDocToDatabaseSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A65E66F89E3D7BC7BDF0772D /* AttachDocToDatabaseSheet.swift */; };
 		3F74498C702B5EAFFEE232A0 /* DatabaseToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5C9F30194205370FD57F361 /* DatabaseToolbar.swift */; };
@@ -75,13 +75,13 @@
 		865473FBD5DFF9CBE3CAA0E9 /* LockToolbarButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0735819AF4878C0D44D2DCD8 /* LockToolbarButton.swift */; };
 		89E9A7EE05F907BBD55CB712 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 239C11BB7B359FC141B27B3C /* Sentry */; };
 		8BC5F7E62E7BD5C734E00D7C /* DatabaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A131D9A1E0532C0B73AC7161 /* DatabaseView.swift */; };
-		8C03F5D7BEB4902EA97A37A4 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 0E7C0A75912AD2A8B6E9831B /* Pinkha.icon */; };
 		8D5FA2C87A10F1A5515A71FF /* BlockContentFfiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36A6032BCBFCFE419E656DCE /* BlockContentFfiTests.swift */; };
 		8EDE253B7197FBC5C68EBBE1 /* DatabaseApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D790938BD86DCD84018B0A63 /* DatabaseApiTests.swift */; };
 		8F3D3AF599C0AA8C7432F385 /* DatabaseEntitiesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C48A6090EBBFBAB7A44A9513 /* DatabaseEntitiesTests.swift */; };
 		9074D56A0F02ACC6660A97DC /* PinkhaFFI in Frameworks */ = {isa = PBXBuildFile; productRef = 4FCC938B0E5B94FA0726CFF6 /* PinkhaFFI */; };
 		910515FF04B379AFB64D9779 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A873CEC0E65A4BEFCCBBC05E /* SearchView.swift */; };
 		9201EA73A777A438388BFF10 /* Composer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E55415B95A1A1155B0AD072 /* Composer.swift */; };
+		921CCDDDA5F5F0B8CAC2E850 /* PinkhaStore+Composer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74E3AF4E1ADD1598B53FD4C0 /* PinkhaStore+Composer.swift */; };
 		942B7E33459721C0FD93D3D6 /* DocumentViewModel+TitleCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 420CF5A0FD522E8FE84D832D /* DocumentViewModel+TitleCover.swift */; };
 		98E9AD73AC0F4AF81E73D662 /* EditableBlockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B033CFC2C8EE318FA058974 /* EditableBlockTests.swift */; };
 		9AD11420B8F37D7A114A13EC /* EmbedRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C53838FEB629D2C322C1E9F /* EmbedRowView.swift */; };
@@ -154,7 +154,6 @@
 
 /* Begin PBXFileReference section */
 		0735819AF4878C0D44D2DCD8 /* LockToolbarButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockToolbarButton.swift; sourceTree = "<group>"; };
-		0E7C0A75912AD2A8B6E9831B /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		0EF086F9F0458E7ADBD9C439 /* ObservabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObservabilityTests.swift; sourceTree = "<group>"; };
 		0EF8382835124C808B432EB7 /* AttributedRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttributedRoundTripTests.swift; sourceTree = "<group>"; };
 		127DC7F3BA7595FF3A94DE9B /* BearImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BearImportView.swift; sourceTree = "<group>"; };
@@ -173,7 +172,6 @@
 		366C2A42AD80DBB4B100A9E8 /* DatabaseHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseHeader.swift; sourceTree = "<group>"; };
 		36A6032BCBFCFE419E656DCE /* BlockContentFfiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockContentFfiTests.swift; sourceTree = "<group>"; };
 		37543D1D1AAFB9CE1F61603F /* ResilienceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilienceTests.swift; sourceTree = "<group>"; };
-		3A60A4A6A8B2EE03385292F9 /* PinkhaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinkhaStore.swift; sourceTree = "<group>"; };
 		3B79A5D3D1AB94785FD7654A /* AllDocumentsSwitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllDocumentsSwitcher.swift; sourceTree = "<group>"; };
 		3B92239203646879DEDD1FD9 /* DatabaseBoardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseBoardView.swift; sourceTree = "<group>"; };
 		3C53838FEB629D2C322C1E9F /* EmbedRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedRowView.swift; sourceTree = "<group>"; };
@@ -191,6 +189,7 @@
 		544D22A9F70020AAC703BB01 /* RichTextAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextAttributes.swift; sourceTree = "<group>"; };
 		57131D776D3CE92923ABAC6B /* EmojiPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmojiPicker.swift; sourceTree = "<group>"; };
 		596EB06D81D9723854411FD8 /* PinkhaTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PinkhaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A057E320D12794EBC5FAA03 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		5A4803ADD45316B67067AEC7 /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxView.swift; sourceTree = "<group>"; };
 		5B033CFC2C8EE318FA058974 /* EditableBlockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditableBlockTests.swift; sourceTree = "<group>"; };
 		5E55415B95A1A1155B0AD072 /* Composer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Composer.swift; sourceTree = "<group>"; };
@@ -209,6 +208,7 @@
 		738ECE1D72957495F50518E6 /* BlockOpsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockOpsTests.swift; sourceTree = "<group>"; };
 		74758505CF9C5437D290A702 /* DatabaseQueriesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseQueriesTests.swift; sourceTree = "<group>"; };
 		7489CFC34A012E88663D5A4E /* DocumentViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentViewModelTests.swift; sourceTree = "<group>"; };
+		74E3AF4E1ADD1598B53FD4C0 /* PinkhaStore+Composer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PinkhaStore+Composer.swift"; sourceTree = "<group>"; };
 		75D7DCC839125DE7FA5021C1 /* EdgeOpsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeOpsTests.swift; sourceTree = "<group>"; };
 		75F6CD6BFD2DE46D155DC948 /* CoverImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverImageView.swift; sourceTree = "<group>"; };
 		78031483BED592FC98C626A3 /* DatabaseFilterSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseFilterSheet.swift; sourceTree = "<group>"; };
@@ -355,6 +355,7 @@
 				654A2B5C378D6B54AC0CE45C /* NotesEmptyState.swift */,
 				7211340993B3A5D766850FDE /* NotesHomeView.swift */,
 				A3C4D279824EA1E96EE07D0E /* NotesHomeView+Sort.swift */,
+				74E3AF4E1ADD1598B53FD4C0 /* PinkhaStore+Composer.swift */,
 				6FF3829D735CC2FE776FCB96 /* RecentStrip.swift */,
 				6C7CC1817FC3F8DA6E8AAEE2 /* TrashView.swift */,
 				26E3927CA7686F453C78FFE8 /* WorkspaceRow.swift */,
@@ -373,14 +374,6 @@
 				BEB8BDD53EA02FC1A56928B5 /* SwipeDeleteUITests.swift */,
 			);
 			path = UI;
-			sourceTree = "<group>";
-		};
-		392DE59F50ABA7F2A42D7E9A /* Core */ = {
-			isa = PBXGroup;
-			children = (
-				3A60A4A6A8B2EE03385292F9 /* PinkhaStore.swift */,
-			);
-			path = Core;
 			sourceTree = "<group>";
 		};
 		517C8F4A0D5F295AD6BCE96A /* RichText */ = {
@@ -462,10 +455,10 @@
 			path = Database;
 			sourceTree = "<group>";
 		};
-		6FBB45492794E6F75610CC57 /* app */ = {
+		6B21B53988C7A77FD3C9F919 /* app */ = {
 			isa = PBXGroup;
 			children = (
-				0E7C0A75912AD2A8B6E9831B /* Pinkha.icon */,
+				5A057E320D12794EBC5FAA03 /* Pinkha.icon */,
 			);
 			name = app;
 			sourceTree = "<group>";
@@ -508,7 +501,6 @@
 				A65640724338B9AA4AAF343F /* InfoPlist.xcstrings */,
 				1C694413F2C74CAD1272F440 /* Localizable.xcstrings */,
 				53A5FA7ABDC9C73E74A8706F /* App */,
-				392DE59F50ABA7F2A42D7E9A /* Core */,
 				651EA0FB42E391E774BAC629 /* Database */,
 				CEC08A4AEF7DCBC50FB0BFE2 /* DesignSystem */,
 				990E3BE54B5E7DA3FFC7AE48 /* Document */,
@@ -590,7 +582,7 @@
 				8FB7F1288CD331FA0F093783 /* Sources */,
 				7CE19974FB0E7C2FE24CED36 /* Tests */,
 				7459E38DDB42FA0567FB08BE /* Products */,
-				6FBB45492794E6F75610CC57 /* app */,
+				6B21B53988C7A77FD3C9F919 /* app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -740,7 +732,7 @@
 				57155F8A05B7C7EA1ED129AF /* Assets.xcassets in Resources */,
 				1687C7C9610D2298A8E55177 /* InfoPlist.xcstrings in Resources */,
 				D878D8EB398C5B2F7E67F418 /* Localizable.xcstrings in Resources */,
-				8C03F5D7BEB4902EA97A37A4 /* Pinkha.icon in Resources */,
+				338C5D3E6D6AB28719664BD0 /* Pinkha.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -807,7 +799,7 @@
 				1100FDA7AEB6EF5DB87916B7 /* NotionImportView.swift in Sources */,
 				7506795FB142C78DD3F306B4 /* NotionOAuth2.swift in Sources */,
 				9C56A8C90EE5492F7FD49F24 /* PinkhaApp.swift in Sources */,
-				3D2EB438F75FBE9267D39944 /* PinkhaStore.swift in Sources */,
+				921CCDDDA5F5F0B8CAC2E850 /* PinkhaStore+Composer.swift in Sources */,
 				CC07A5F27BCF3D2536897974 /* PropertyInputRow.swift in Sources */,
 				85DF49CBBCBDBFCF76345BAA /* RecentStrip.swift in Sources */,
 				F64EEC8F5D4FAFC4338B85AB /* RichTextAttributes.swift in Sources */,
