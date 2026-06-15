@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import PinkhaFFI
 
 // MARK: - User-facing error messages
 

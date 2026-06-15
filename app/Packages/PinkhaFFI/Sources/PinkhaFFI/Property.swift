@@ -6,12 +6,12 @@ import SwiftUI
 // ── Database models ───────────────────────────────────────────────────────────
 
 /// Aggregation function for Rollup columns.
-enum AggregateFfi: String, Codable, Equatable {
+public enum AggregateFfi: String, Codable, Equatable {
     case count = "Count", sum = "Sum", average = "Average", min = "Min", max = "Max"
 }
 
 /// Matches serde's externally-tagged representation of `PropertyType`.
-enum PropertyTypeFfi: Codable, Equatable {
+public enum PropertyTypeFfi: Codable, Equatable {
     case title, text, number, date, checkbox, url
     case selection([String])
     case selectionMultiple([String])
@@ -27,7 +27,7 @@ enum PropertyTypeFfi: Codable, Equatable {
         let relation_prop_id: String; let target_prop_id: String; let aggregate: AggregateFfi
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         if let sv = try? decoder.singleValueContainer(), let s = try? sv.decode(String.self) {
             switch s {
             case "Title":    self = .title;    return
@@ -49,7 +49,7 @@ enum PropertyTypeFfi: Codable, Equatable {
         throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown PropertyType"))
     }
 
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         switch self {
         case .title:    var c = encoder.singleValueContainer(); try c.encode("Title")
         case .text:     var c = encoder.singleValueContainer(); try c.encode("Text")
@@ -70,7 +70,7 @@ enum PropertyTypeFfi: Codable, Equatable {
         }
     }
 
-    var icon: String {
+    public var icon: String {
         switch self {
         case .title:             return "textformat"
         case .text:              return "text.alignleft"
@@ -87,12 +87,18 @@ enum PropertyTypeFfi: Codable, Equatable {
 }
 
 /// A column definition in a database. Mirrors Rust `Property`.
-struct PropertyFfi: Codable, Identifiable, Equatable {
-    let id: String
-    let name: String
-    let propertyType: PropertyTypeFfi
+public struct PropertyFfi: Codable, Identifiable, Equatable {
+    public let id: String
+    public let name: String
+    public let propertyType: PropertyTypeFfi
 
     enum CodingKeys: String, CodingKey { case id, name, propertyType = "type_" }
+
+    public init(id: String, name: String, propertyType: PropertyTypeFfi) {
+        self.id = id
+        self.name = name
+        self.propertyType = propertyType
+    }
 }
 
 /// Matches serde's externally-tagged representation of `PropertyValue`.

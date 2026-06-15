@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaFFI
 
 // ── Undo / redo + Notes-style burst typing ──────────────────────────────────
 

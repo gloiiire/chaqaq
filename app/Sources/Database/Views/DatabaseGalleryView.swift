@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaFFI
 
 /// Card-grid layout. Each entry renders as a large tile with the
 /// linked document's cover (or a colored placeholder), title and the

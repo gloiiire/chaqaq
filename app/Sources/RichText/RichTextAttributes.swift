@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import PinkhaFFI
 
 /// Resolves the cursor + selection tint from the user prefs. UIKit
 /// ties the caret colour to `tintColor` on UITextView (there's no

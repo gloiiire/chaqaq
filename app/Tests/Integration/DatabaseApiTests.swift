@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PinkhaFFI
 @testable import Pinkha
 
 // Database FFI tests: even though the UI does not exist yet, the API must work.

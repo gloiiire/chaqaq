@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaFFI
 
 // ── Tab 1: Notes (unified workspace) ──────────────────────────────────────────
 

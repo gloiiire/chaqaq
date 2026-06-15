@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PinkhaFFI
 @testable import Pinkha
 
 @Suite("Document operations — edge cases")

@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PinkhaFFI
 @testable import Pinkha
 
 // Integration tests for the import FFI boundary.

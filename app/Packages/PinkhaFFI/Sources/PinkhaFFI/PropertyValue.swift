@@ -3,7 +3,7 @@ import SwiftUI
 
 // PropertyValue — the tagged enum cells store at runtime.
 
-enum PropertyValueFfi: Codable, Equatable {
+public enum PropertyValueFfi: Codable, Equatable {
     case title([InlineTextFfi])
     case text(String)
     case number(Double)
@@ -19,7 +19,7 @@ enum PropertyValueFfi: Codable, Equatable {
         case Title, Text, Number, Selection, SelectionMultiple, Date, Checkbox, Url, Relation
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         if let sv = try? decoder.singleValueContainer(), let s = try? sv.decode(String.self) {
             if s == "Empty" { self = .empty; return }
         }
@@ -36,7 +36,7 @@ enum PropertyValueFfi: Codable, Equatable {
         throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown PropertyValue"))
     }
 
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         switch self {
         case .empty:
             var c = encoder.singleValueContainer(); try c.encode("Empty")
@@ -62,7 +62,7 @@ enum PropertyValueFfi: Codable, Equatable {
     }
 
     /// Plain-text representation of the value (for read-only cells).
-    var displayText: String {
+    public var displayText: String {
         switch self {
         case .title(let s):             return s.map(\.content).joined()
         case .text(let s):              return s

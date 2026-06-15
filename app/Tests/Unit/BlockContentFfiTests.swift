@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PinkhaFFI
 @testable import Pinkha
 
 // Unit tests for the three block variants added in the latest iteration:

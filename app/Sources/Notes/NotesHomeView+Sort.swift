@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaFFI
 
 // ── Sort + group derivation for the "All" list ────────────────────────────
 //

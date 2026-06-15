@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaFFI
 
 /// Kanban-style horizontally scrolling board. Each column is a value
 /// of the `groupBy` property ; entries with that value stack vertically

@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PinkhaFFI
 @testable import Pinkha
 
 // Integration tests: validation at the FFI boundary (payload/UUID limits).

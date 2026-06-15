@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PinkhaFFI
 @testable import Pinkha
 
 @Suite("Nested blocks — addChildBlock, reorderChildBlocks, moveBlock")

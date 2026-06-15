@@ -3,7 +3,7 @@ import SwiftUI
 
 // BlockContent — the big tagged enum.
 
-enum BlockContentFfi: Codable, Equatable {
+public enum BlockContentFfi: Codable, Equatable {
     case text([InlineTextFfi])
     case heading(level: Int, text: [InlineTextFfi])
     case quote(icon: String, text: [InlineTextFfi])
@@ -30,7 +30,7 @@ enum BlockContentFfi: Codable, Equatable {
     private struct PayloadPage:    Codable { let id: String }
     private struct PayloadEmbed:   Codable { let url: String }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         // Unit variants (Divider, Breadcrumb) are bare strings in serde's externally-tagged format.
         if let sv = try? decoder.singleValueContainer(), let s = try? sv.decode(String.self) {
             if s == "Divider"    { self = .divider;    return }
@@ -50,7 +50,7 @@ enum BlockContentFfi: Codable, Equatable {
         throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown BlockContent"))
     }
 
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         switch self {
         case .divider:
             var c = encoder.singleValueContainer(); try c.encode("Divider")
@@ -87,7 +87,7 @@ enum BlockContentFfi: Codable, Equatable {
     }
 
     /// Concatenates the raw text of all inline spans, ignoring styles.
-    var plainText: String {
+    public var plainText: String {
         switch self {
         case .text(let s):              return s.map(\.content).joined()
         case .heading(_, let s):        return s.map(\.content).joined()
@@ -101,7 +101,7 @@ enum BlockContentFfi: Codable, Equatable {
     }
 
     /// Returns the inline spans of the block, or an empty array for structural blocks (Divider, etc.).
-    var spansOrEmpty: [InlineTextFfi] {
+    public var spansOrEmpty: [InlineTextFfi] {
         switch self {
         case .text(let s):              return s
         case .heading(_, let s):        return s
@@ -114,16 +114,16 @@ enum BlockContentFfi: Codable, Equatable {
     }
 
     /// `true` if this variant is a `.todo` block.
-    var isTodo: Bool { if case .todo = self { return true }; return false }
+    public var isTodo: Bool { if case .todo = self { return true }; return false }
     /// `true` if this is a `.todo` block with `done == true`.
-    var isTodoDone: Bool { if case .todo(let d, _) = self { return d }; return false }
+    public var isTodoDone: Bool { if case .todo(let d, _) = self { return d }; return false }
     /// `true` if this is a `.page` block (Notion-style child page link).
     /// The editor keeps these tappable even on a locked document since
     /// they're navigation targets, not editable content.
-    var isPageReference: Bool { if case .page = self { return true }; return false }
+    public var isPageReference: Bool { if case .page = self { return true }; return false }
 
     /// Returns a copy of the block with its text replaced by a single unstyled span.
-    func withText(_ newText: String, done: Bool = false) -> BlockContentFfi {
+    public func withText(_ newText: String, done: Bool = false) -> BlockContentFfi {
         let spans = newText.isEmpty ? [] : [InlineTextFfi(content: newText, styles: [])]
         switch self {
         case .text:                     return .text(spans)
@@ -137,7 +137,7 @@ enum BlockContentFfi: Codable, Equatable {
     }
 
     /// Returns a copy of the block with its spans replaced by `spans`, preserving structure (level, icon, done).
-    func withSpans(_ spans: [InlineTextFfi], done: Bool = false) -> BlockContentFfi {
+    public func withSpans(_ spans: [InlineTextFfi], done: Bool = false) -> BlockContentFfi {
         switch self {
         case .text:                     return .text(spans)
         case .heading(let l, _):        return .heading(level: l, text: spans)

@@ -1,5 +1,6 @@
 import Testing
 import SwiftUI
+import PinkhaFFI
 @testable import Pinkha
 
 @Suite("PinkhaError — user messages and recoverability")

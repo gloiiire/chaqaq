@@ -19,10 +19,13 @@ cargo test
 # Tester uniquement le crate chaqaq
 cargo test -p chaqaq
 
-# Régénérer les bindings Swift après modification du .udl ou de ffi.rs
+# Régénérer les bindings Swift après modification du .udl ou de ffi.rs.
+# pinkha.swift va dans le SwiftPM package, les headers C (pinkhaFFI.h /
+# .modulemap) restent dans swift-bindings/ pour build-xcframework.sh.
 cargo build
 cargo run --bin uniffi-bindgen -- generate --library target/debug/libpinkha.dylib \
     --language swift --out-dir swift-bindings/
+mv swift-bindings/pinkha.swift app/Packages/PinkhaFFI/Sources/PinkhaFFI/
 
 # Publier une nouvelle version de chaqaq sur crates.io
 # (bumper la version dans crates/chaqaq/Cargo.toml d'abord)

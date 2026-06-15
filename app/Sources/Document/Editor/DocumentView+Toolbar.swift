@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaFFI
 
 // ── Toolbar and overlay buttons ───────────────────────────────────────────────
 

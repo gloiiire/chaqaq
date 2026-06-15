@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PinkhaFFI
 @testable import Pinkha
 
 // Advanced database FFI coverage: views, queries, aggregates, grouped queries.

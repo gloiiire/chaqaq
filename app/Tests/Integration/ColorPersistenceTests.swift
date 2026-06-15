@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PinkhaFFI
 @testable import Pinkha
 
 // Verifies that inline styles (colour, bold, etc.) survive the round-trip

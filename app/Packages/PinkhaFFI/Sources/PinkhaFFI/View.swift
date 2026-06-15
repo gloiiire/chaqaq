@@ -3,14 +3,14 @@ import SwiftUI
 
 // View, ViewType, Sort + GenericKey helper.
 
-enum ViewTypeFfi: Equatable {
+public enum ViewTypeFfi: Equatable {
     case list
     case table
     case kanban(groupBy: String)
     case calendar(propertyId: String)
     case gallery
 
-    var systemImage: String {
+    public var systemImage: String {
         switch self {
         case .list:     return "list.bullet"
         case .table:    return "tablecells"
@@ -20,7 +20,7 @@ enum ViewTypeFfi: Equatable {
         }
     }
 
-    var label: LocalizedStringKey {
+    public var label: LocalizedStringKey {
         switch self {
         case .list:     return "List"
         case .table:    return "Table"
@@ -32,7 +32,7 @@ enum ViewTypeFfi: Equatable {
 }
 
 extension ViewTypeFfi: Codable {
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         // serde unit variants encode as bare strings ("List", "Table",
         // "Gallery") ; struct variants encode as { "Kanban": { … } } /
         // { "Calendar": { … } } single-key objects.
@@ -67,7 +67,7 @@ extension ViewTypeFfi: Codable {
         }
     }
 
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         switch self {
         case .list:    var s = encoder.singleValueContainer(); try s.encode("List")
         case .table:   var s = encoder.singleValueContainer(); try s.encode("Table")
@@ -88,21 +88,21 @@ extension ViewTypeFfi: Codable {
 /// and any future externally-tagged enum that doesn't deserve its own
 /// dedicated key type.
 private struct GenericKey: CodingKey {
-    var stringValue: String
-    var intValue: Int? { nil }
-    init(_ stringValue: String) { self.stringValue = stringValue }
+    public var stringValue: String
+    public var intValue: Int? { nil }
+    public init(_ stringValue: String) { self.stringValue = stringValue }
     init?(stringValue: String) { self.stringValue = stringValue }
     init?(intValue: Int) { nil }
 }
 
 /// Swift mirror of Rust `View`. Only the fields the UI consumes today.
-struct ViewFfi: Codable, Identifiable {
-    let id: String
-    let name: String
+public struct ViewFfi: Codable, Identifiable {
+    public let id: String
+    public let name: String
     /// `type_` on Rust side ; `type` on Swift side (reserved word — gets
     /// renamed via CodingKeys). Drives which view component renders.
-    var type: ViewTypeFfi = .list
-    let sorts: [SortFfi]
+    public var type: ViewTypeFfi = .list
+    public let sorts: [SortFfi]
 
     enum CodingKeys: String, CodingKey {
         case id, name
@@ -110,7 +110,7 @@ struct ViewFfi: Codable, Identifiable {
         case sorts
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id    = try c.decode(String.self, forKey: .id)
         name  = try c.decode(String.self, forKey: .name)
@@ -118,7 +118,7 @@ struct ViewFfi: Codable, Identifiable {
         sorts = (try? c.decode([SortFfi].self, forKey: .sorts)) ?? []
     }
 
-    init(id: String, name: String, type: ViewTypeFfi = .list, sorts: [SortFfi] = []) {
+    public init(id: String, name: String, type: ViewTypeFfi = .list, sorts: [SortFfi] = []) {
         self.id = id
         self.name = name
         self.type = type
@@ -129,10 +129,10 @@ struct ViewFfi: Codable, Identifiable {
 /// Swift mirror of Rust `Sort`. `order` is `"Ascending"` / `"Descending"`,
 /// `source` is `"Property"` / `"Created"` / `"ManualThenCreated"` — match the
 /// serde externally-tagged enum encoding.
-struct SortFfi: Codable, Equatable {
-    let propertyId: String
-    let order: String
-    let source: String
+public struct SortFfi: Codable, Equatable {
+    public let propertyId: String
+    public let order: String
+    public let source: String
 
     enum CodingKeys: String, CodingKey {
         case propertyId = "property_id"

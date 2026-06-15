@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaFFI
 
 // ── Database delete / restore confirmation dialogs ────────────────────────────
 //

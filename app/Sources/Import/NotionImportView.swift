@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaFFI
 
 // ── Import from Notion sheet ──────────────────────────────────────────────────
 //

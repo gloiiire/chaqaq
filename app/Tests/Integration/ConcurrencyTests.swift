@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PinkhaFFI
 @testable import Pinkha
 
 @Suite("Concurrency — simultaneous writes via SQLite retry")

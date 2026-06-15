@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaFFI
 
 /// Mobile-first default — vertical column of cards, one per entry.
 /// Each card shows :

@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PinkhaFFI
 @testable import Pinkha
 
 // Integration tests: Swift ↔ Rust FFI with a real PinkhaApi

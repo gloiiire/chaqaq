@@ -3,30 +3,30 @@ import SwiftUI
 
 // Entry — one row in a database.
 
-struct EntryFfi: Codable, Identifiable {
-    let id: String
-    let createdAt: String
+public struct EntryFfi: Codable, Identifiable {
+    public let id: String
+    public let createdAt: String
     /// User-editable publish timestamp. Defaults to `createdAt` at
     /// insert on the Rust side, so untouched entries behave
     /// identically. Empty string on legacy entries (pre-field) is
     /// treated as "fall back to createdAt" by the query path.
-    var publishedAt: String
+    public var publishedAt: String
 
     /// Whether the entry's publish date has been manually overridden
     /// (i.e. differs from `createdAt`). Used by the UI to show a
     /// little "scheduled" indicator next to the date.
-    var hasCustomPublishDate: Bool {
+    public var hasCustomPublishDate: Bool {
         !publishedAt.isEmpty && publishedAt != createdAt
     }
 
     /// Effective publish date — manual override when set, else
     /// `createdAt`. Mirrors the Rust query's fallback logic so the
     /// row's displayed date matches the column the user sorted by.
-    var effectivePublishedAt: String {
+    public var effectivePublishedAt: String {
         publishedAt.isEmpty ? createdAt : publishedAt
     }
-    var values: [String: PropertyValueFfi]
-    let documentId: String?
+    public var values: [String: PropertyValueFfi]
+    public let documentId: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -36,7 +36,7 @@ struct EntryFfi: Codable, Identifiable {
         case documentId = "document_id"
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id          = try c.decode(String.self, forKey: .id)
         createdAt   = (try? c.decode(String.self, forKey: .createdAt)) ?? ""
@@ -45,7 +45,7 @@ struct EntryFfi: Codable, Identifiable {
         documentId  = try c.decodeIfPresent(String.self, forKey: .documentId)
     }
 
-    init(
+    public init(
         id: String,
         createdAt: String,
         publishedAt: String = "",

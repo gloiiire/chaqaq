@@ -3,41 +3,41 @@ import SwiftUI
 
 // Database — full payload with rows and views.
 
-struct DatabaseFfi: Codable {
-    let id: String
-    let title: [InlineTextFfi]
+public struct DatabaseFfi: Codable {
+    public let id: String
+    public let title: [InlineTextFfi]
     /// Optional banner image identifier — URL or local filename. Mirrors
     /// the document cover surface so the doc-like DB header can render
     /// one. Decoded explicitly because Codable synthesis won't accept a
     /// missing key without an explicit `init(from:)`.
-    var cover: String?
+    public var cover: String?
     /// Optional emoji / filename / URL displayed next to the title.
-    var icon: String?
+    public var icon: String?
     /// Rich-text description shown under the title in the header. Empty
     /// means "no description".
-    var description: [InlineTextFfi]
-    let properties: [PropertyFfi]
-    var entries: [EntryFfi]
+    public var description: [InlineTextFfi]
+    public let properties: [PropertyFfi]
+    public var entries: [EntryFfi]
     /// At least one view is always present (Rust `Database::new` seeds a
     /// default "List" view). `#[serde(default)]` would keep us safe against
     /// older payloads — Codable's Optional support gives the same guarantee.
-    let views: [ViewFfi]?
+    public let views: [ViewFfi]?
 
     /// Read-only flag. Mirrors `Document.locked` ; defaults `false`
     /// when missing so old payloads stay decodable.
-    var locked: Bool
+    public var locked: Bool
 
     /// UUID of the Date property driving every row's publish date, or
     /// `nil` when publish dates follow `created_at`. Mirrors
     /// `Database.published_at_source`.
-    var publishedAtSource: String?
+    public var publishedAtSource: String?
 
     enum CodingKeys: String, CodingKey {
         case id, title, cover, icon, description, locked, properties, entries, views
         case publishedAtSource = "published_at_source"
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id          = try c.decode(String.self, forKey: .id)
         title       = try c.decode([InlineTextFfi].self, forKey: .title)
@@ -51,7 +51,7 @@ struct DatabaseFfi: Codable {
         publishedAtSource = try c.decodeIfPresent(String.self, forKey: .publishedAtSource)
     }
 
-    init(
+    public init(
         id: String,
         title: [InlineTextFfi],
         cover: String? = nil,

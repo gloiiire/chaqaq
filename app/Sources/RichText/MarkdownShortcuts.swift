@@ -1,3 +1,5 @@
+import PinkhaFFI
+
 // ── Markdown shortcuts ────────────────────────────────────────────────────────
 
 /// Converts a markdown shortcut found at the START of `text` into its

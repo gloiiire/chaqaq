@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaFFI
 
 /// Orchestrates the full database screen :
 ///   1. Scrollable doc-like header (cover + icon + title + description).

@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaFFI
 
 
 /// Inline editor for a single property — picked based on the property

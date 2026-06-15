@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaFFI
 
 /// Sheet to manage properties (columns) : add, rename, delete, choose
 /// which one drives the active view's group-by. Mirror of the Notion

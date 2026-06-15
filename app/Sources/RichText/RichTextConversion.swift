@@ -1,4 +1,5 @@
 import UIKit
+import PinkhaFFI
 
 // ── Conversion Span ↔ NSAttributedString ─────────────────────────────────────
 
