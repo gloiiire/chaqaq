@@ -17,35 +17,47 @@ import UIKit
 /// Wraps `content` in a UIKit host that owns a proper
 /// `UIContextMenuInteraction`. Use this for cards inside horizontal
 /// scrollers where SwiftUI's `.contextMenu` mis-routes the gesture.
-struct UIKitContextMenu<Content: View, Preview: View>: UIViewControllerRepresentable {
+public struct UIKitContextMenu<Content: View, Preview: View>: UIViewControllerRepresentable {
     @ViewBuilder let content: () -> Content
     @ViewBuilder let preview: () -> Preview
     /// `UIMenu` provider — typically returns a couple of `UIAction`s.
-    let menu: () -> UIMenu
+    public let menu: () -> UIMenu
     /// Fired when the user taps the lifted preview itself.
-    let onTapPreview: () -> Void
+    public let onTapPreview: () -> Void
 
-    func makeUIViewController(context: Context) -> HostController {
+    public init(
+        @ViewBuilder content: @escaping () -> Content,
+        @ViewBuilder preview: @escaping () -> Preview,
+        menu: @escaping () -> UIMenu,
+        onTapPreview: @escaping () -> Void
+    ) {
+        self.content = content
+        self.preview = preview
+        self.menu = menu
+        self.onTapPreview = onTapPreview
+    }
+
+    public func makeUIViewController(context: Context) -> HostController {
         HostController(rootView: AnyView(content()),
                        preview: { AnyView(preview()) },
                        menu: menu,
                        onTapPreview: onTapPreview)
     }
 
-    func updateUIViewController(_ controller: HostController, context: Context) {
+    public func updateUIViewController(_ controller: HostController, context: Context) {
         controller.update(rootView: AnyView(content()),
                           preview: { AnyView(preview()) },
                           menu: menu,
                           onTapPreview: onTapPreview)
     }
 
-    final class HostController: UIViewController, UIContextMenuInteractionDelegate {
+    public final class HostController: UIViewController, UIContextMenuInteractionDelegate {
         private let host: UIHostingController<AnyView>
         private var previewBuilder: () -> AnyView
         private var menuBuilder: () -> UIMenu
         private var onTapPreview: () -> Void
 
-        init(rootView: AnyView,
+        public init(rootView: AnyView,
              preview: @escaping () -> AnyView,
              menu: @escaping () -> UIMenu,
              onTapPreview: @escaping () -> Void) {
@@ -60,9 +72,9 @@ struct UIKitContextMenu<Content: View, Preview: View>: UIViewControllerRepresent
             host.view.backgroundColor = .clear
         }
 
-        required init?(coder: NSCoder) { fatalError() }
+        public required init?(coder: NSCoder) { fatalError() }
 
-        override func viewDidLoad() {
+        public override func viewDidLoad() {
             super.viewDidLoad()
             addChild(host)
             host.view.translatesAutoresizingMaskIntoConstraints = false
@@ -78,7 +90,7 @@ struct UIKitContextMenu<Content: View, Preview: View>: UIViewControllerRepresent
             view.addInteraction(interaction)
         }
 
-        func update(rootView: AnyView,
+        public func update(rootView: AnyView,
                     preview: @escaping () -> AnyView,
                     menu: @escaping () -> UIMenu,
                     onTapPreview: @escaping () -> Void) {
@@ -90,7 +102,7 @@ struct UIKitContextMenu<Content: View, Preview: View>: UIViewControllerRepresent
 
         // ── UIContextMenuInteractionDelegate ──────────────────────────────────
 
-        func contextMenuInteraction(
+        public func contextMenuInteraction(
             _ interaction: UIContextMenuInteraction,
             configurationForMenuAtLocation location: CGPoint
         ) -> UIContextMenuConfiguration? {
@@ -116,7 +128,7 @@ struct UIKitContextMenu<Content: View, Preview: View>: UIViewControllerRepresent
             )
         }
 
-        func contextMenuInteraction(
+        public func contextMenuInteraction(
             _ interaction: UIContextMenuInteraction,
             willPerformPreviewActionForMenuWith configuration: UIContextMenuConfiguration,
             animator: UIContextMenuInteractionCommitAnimating

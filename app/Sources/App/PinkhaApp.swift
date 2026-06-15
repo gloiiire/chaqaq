@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaCore
 
 /// Application entry point.
 @main

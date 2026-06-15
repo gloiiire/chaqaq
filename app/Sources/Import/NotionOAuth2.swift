@@ -2,6 +2,7 @@ import AuthenticationServices
 import CryptoKit
 import Foundation
 import SwiftUI
+import PinkhaCore
 
 /// Handles the Notion OAuth2 authorization code flow via ASWebAuthenticationSession.
 /// Credentials must be configured before use — see constants below.

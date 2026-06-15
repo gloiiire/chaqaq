@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaCore
 
 // ── Safari-tab-style "All documents" switcher ────────────────────────────────
 

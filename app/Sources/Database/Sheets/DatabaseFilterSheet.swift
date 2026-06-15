@@ -1,5 +1,6 @@
 import SwiftUI
 import PinkhaFFI
+import PinkhaCore
 
 /// Sheet to add / remove filters on the active view. The current backend
 /// surface only takes property + condition ; this sheet keeps things

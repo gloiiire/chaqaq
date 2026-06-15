@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaCore
 
 /// iOS 26 morphing FAB inspired by Preview.app on iPad : compact
 /// circular pencil button that fluidly stretches into a Liquid Glass

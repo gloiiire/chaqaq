@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaCore
 
 // ── Workspace row + date formatting ──────────────────────────────────────────
 

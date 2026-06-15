@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
 import PinkhaFFI
+import PinkhaCore
 
 /// Sheet for creating a new note or database. Accepts a title and calls `onCreate` or `onCancel`.
 ///

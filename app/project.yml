@@ -19,6 +19,8 @@ packages:
     from: "8.49.0"
   PinkhaFFI:
     path: Packages/PinkhaFFI
+  PinkhaCore:
+    path: Packages/PinkhaCore
 
 schemes:
   Pinkha:
@@ -77,6 +79,8 @@ targets:
     dependencies:
       - package: PinkhaFFI
         product: PinkhaFFI
+      - package: PinkhaCore
+        product: PinkhaCore
       - package: Sentry
         product: Sentry
 

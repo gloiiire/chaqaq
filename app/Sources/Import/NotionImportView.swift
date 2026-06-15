@@ -1,5 +1,6 @@
 import SwiftUI
 import PinkhaFFI
+import PinkhaCore
 
 // ── Import from Notion sheet ──────────────────────────────────────────────────
 //

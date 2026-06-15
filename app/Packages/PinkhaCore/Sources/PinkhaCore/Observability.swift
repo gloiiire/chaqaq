@@ -4,11 +4,11 @@ import Sentry
 /// Thin wrapper around the Sentry SDK. Call `start()` once at app boot, then
 /// use `capture(_:)` to record errors. The DSN is read from `Info.plist`
 /// (`SENTRY_DSN` key, injected at build time from `app/Config/Secrets.xcconfig`).
-enum Observability {
+public enum Observability {
 
     /// Boots Sentry. No-op when the DSN is missing or still set to the
     /// placeholder — e.g. on a fresh checkout without local secrets.
-    static func start() {
+    public static func start() {
         let raw = Bundle.main.object(forInfoDictionaryKey: "SENTRY_DSN") as? String ?? ""
         #if DEBUG
         // Surface what was actually loaded so a missing/malformed DSN is easy
@@ -41,7 +41,7 @@ enum Observability {
 
     /// Reports an error to Sentry. Safe to call before `start()`: the SDK
     /// silently no-ops when uninitialized.
-    static func capture(_ error: Error) {
+    public static func capture(_ error: Error) {
         SentrySDK.capture(error: error)
     }
 
@@ -54,7 +54,7 @@ enum Observability {
     /// serializes a full Event with a ~30-frame stacktrace and ships it
     /// synchronously, which blocks the main thread for hundreds of
     /// milliseconds and can suspend awaiting Tasks.
-    static func capture(message: String) {
+    public static func capture(message: String) {
         let breadcrumb = Breadcrumb(level: .info, category: "app")
         breadcrumb.message = message
         SentrySDK.addBreadcrumb(breadcrumb)
@@ -64,7 +64,7 @@ enum Observability {
     /// only call once per investigation, e.g. at the failure site. For
     /// regular flow tracing, prefer `capture(message:)` which is now a
     /// breadcrumb.
-    static func captureAsEvent(message: String) {
+    public static func captureAsEvent(message: String) {
         SentrySDK.capture(message: message)
     }
 

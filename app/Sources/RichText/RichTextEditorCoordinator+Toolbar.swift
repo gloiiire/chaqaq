@@ -1,4 +1,5 @@
 import UIKit
+import PinkhaCore
 
 // ── Extension Toolbar ─────────────────────────────────────────────────────────
 

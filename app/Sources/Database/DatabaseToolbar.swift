@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaCore
 
 /// Notion-style toolbar pinned above the database body. Five action
 /// surfaces, left-to-right :

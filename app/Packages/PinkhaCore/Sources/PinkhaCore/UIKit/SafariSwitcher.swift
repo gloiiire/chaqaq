@@ -28,21 +28,27 @@ import PinkhaFFI
 //     - UITapGestureRecognizer  ← cell-open OR X-close (decided by hit-test)
 
 /// SwiftUI wrapper.
-struct SafariSwitcher: UIViewRepresentable {
-    let items: [WorkspaceItem]
-    let api: PinkhaApi?
-    let accent: Color
-    let onSelect: (String) -> Void
-    let onClose: (String) -> Void
+public struct SafariSwitcher: UIViewRepresentable {
+    public init(items: [WorkspaceItem], api: PinkhaApi?, accent: Color,
+                onSelect: @escaping (String) -> Void,
+                onClose: @escaping (String) -> Void) {
+        self.items = items; self.api = api; self.accent = accent
+        self.onSelect = onSelect; self.onClose = onClose
+    }
+    public let items: [WorkspaceItem]
+    public let api: PinkhaApi?
+    public let accent: Color
+    public let onSelect: (String) -> Void
+    public let onClose: (String) -> Void
 
-    func makeUIView(context: Context) -> SafariSwitcherView {
+    public func makeUIView(context: Context) -> SafariSwitcherView {
         let v = SafariSwitcherView()
         v.onSelect = onSelect
         v.onClose = onClose
         return v
     }
 
-    func updateUIView(_ v: SafariSwitcherView, context: Context) {
+    public func updateUIView(_ v: SafariSwitcherView, context: Context) {
         v.onSelect = onSelect
         v.onClose = onClose
         v.update(items: items, api: api)
@@ -51,7 +57,7 @@ struct SafariSwitcher: UIViewRepresentable {
 
 // ── Master view ────────────────────────────────────────────────────────────
 
-final class SafariSwitcherView: UIView {
+public final class SafariSwitcherView: UIView {
     var onSelect: ((String) -> Void)?
     var onClose: ((String) -> Void)?
 
@@ -147,7 +153,7 @@ final class SafariSwitcherView: UIView {
     }
 
     // ── Layout ────────────────────────────────────────────────────────────
-    override func layoutSubviews() {
+    public override func layoutSubviews() {
         super.layoutSubviews()
         recomputeColumnsAndLayoutCells()
         applyScrollOffset(animated: false)
@@ -443,7 +449,7 @@ extension SafariSwitcherView: UIGestureRecognizerDelegate {
     // We own everything : no need for simultaneous recognition with
     // anything. Default delegate behavior is fine. We do allow tap +
     // pan to coexist (iOS already distinguishes them by movement).
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
                            shouldRecognizeSimultaneouslyWith
                            otherGestureRecognizer: UIGestureRecognizer) -> Bool {
         return true

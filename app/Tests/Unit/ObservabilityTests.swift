@@ -1,4 +1,5 @@
 import Testing
+import PinkhaCore
 @testable import Pinkha
 
 // `Observability` is a thin wrapper around Sentry. We can't reach into the

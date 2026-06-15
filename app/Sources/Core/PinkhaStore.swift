@@ -1,38 +1,12 @@
 import SwiftUI
+import PinkhaCore
 import PinkhaFFI
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 
-/// A unified workspace item — either a note or a database.
-enum WorkspaceItem: Identifiable {
-    case note(DocumentMetaFfi)
-    case database(DatabaseMetaFfi)
-
-    var id: String {
-        switch self { case .note(let d): return d.id; case .database(let db): return db.id }
-    }
-    var titlePlain: String {
-        switch self { case .note(let d): return d.titlePlain; case .database(let db): return db.titlePlain }
-    }
-    var updatedAt: String {
-        switch self { case .note(let d): return d.updatedAt; case .database(let db): return db.updatedAt }
-    }
-    var createdAt: String {
-        switch self { case .note(let d): return d.createdAt; case .database(let db): return db.createdAt }
-    }
-    /// Effective publish date — manual override on the doc when set,
-    /// `createdAt` otherwise. Databases don't yet have a publish
-    /// override surface so they fall back to their createdAt.
-    var publishedAt: String {
-        switch self {
-        case .note(let d):
-            return d.publishedAt.isEmpty ? d.createdAt : d.publishedAt
-        case .database(let db):
-            return db.createdAt
-        }
-    }
-    var isDatabase: Bool { if case .database = self { return true }; return false }
-}
+// `WorkspaceItem` moved to PinkhaCore (Phase 4A) so the UIKit bridge
+// targets can reference it without depending on the app target. Same
+// shape as before, only the home module changes.
 
 /// Observable store that owns the `PinkhaApi` connection and the full workspace (notes + databases).
 @MainActor

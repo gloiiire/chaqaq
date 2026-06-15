@@ -14,8 +14,8 @@ import UIKit
 /// resigns the first responder on a strong downward swipe. Wired
 /// from `PinkhaApp.body` via `.onAppear` so it's installed once
 /// the SwiftUI window exists.
-final class GlobalKeyboardDismissPan: NSObject, UIGestureRecognizerDelegate {
-    static let shared = GlobalKeyboardDismissPan()
+public final class GlobalKeyboardDismissPan: NSObject, UIGestureRecognizerDelegate {
+    public static let shared = GlobalKeyboardDismissPan()
 
     /// Tracks installation per UIWindow — multiple scenes (iPad
     /// multitasking, external display) each get their own
@@ -26,7 +26,7 @@ final class GlobalKeyboardDismissPan: NSObject, UIGestureRecognizerDelegate {
     /// re-arms an observer that catches windows created later (the
     /// SwiftUI sheet container in iOS 26 spins up a new
     /// `UIWindow`, so the initial sweep would miss it otherwise).
-    func installIfNeeded() {
+    public func installIfNeeded() {
         sweep()
         NotificationCenter.default.removeObserver(
             self, name: UIWindow.didBecomeVisibleNotification, object: nil)
@@ -97,7 +97,7 @@ final class GlobalKeyboardDismissPan: NSObject, UIGestureRecognizerDelegate {
 
     /// Fire alongside scroll views / lists / SwiftUI gesture
     /// machinery so our observer doesn't compete with theirs.
-    func gestureRecognizer(
+    public func gestureRecognizer(
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
     ) -> Bool { true }
@@ -106,7 +106,7 @@ final class GlobalKeyboardDismissPan: NSObject, UIGestureRecognizerDelegate {
     /// the system handles those, and our recognizer would otherwise
     /// fight the keyboard's own internal gestures (next-word
     /// pickers, predictive bar).
-    func gestureRecognizer(
+    public func gestureRecognizer(
         _ gestureRecognizer: UIGestureRecognizer,
         shouldReceive touch: UITouch
     ) -> Bool {

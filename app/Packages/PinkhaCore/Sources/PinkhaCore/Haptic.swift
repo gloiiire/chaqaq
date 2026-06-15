@@ -14,7 +14,14 @@ import UIKit
 // `.prepare()` before each tap is cheap and noticeably tightens the
 // latency — the engine doesn't have to spin up when the tap fires.
 
-enum Haptic {
+public enum Haptic {
+    /// UserDefaults key for the haptics toggle. Mirrored in
+    /// `AppSettings.hapticsKey` (kept in app/Sources/Core for now) —
+    /// keeping both pointing at the same literal lets Haptic stay
+    /// independent of AppSettings while the SettingsView toggle still
+    /// writes through to the same UserDefaults slot.
+    public static let hapticsKey = "pinkha.settings.hapticsEnabled"
+
     /// User preference gate — read once per call from UserDefaults so
     /// the setting can be flipped from the SettingsView without any
     /// observer wiring. `true` by default for users who haven't
@@ -23,7 +30,7 @@ enum Haptic {
     private static var enabled: Bool {
         // `object(forKey:)` returns nil for missing keys, otherwise
         // a boxed Bool. We treat "missing" as on.
-        let stored = UserDefaults.standard.object(forKey: AppSettings.hapticsKey)
+        let stored = UserDefaults.standard.object(forKey: hapticsKey)
         return (stored as? Bool) ?? true
     }
 
@@ -31,7 +38,7 @@ enum Haptic {
     /// The `UISelectionFeedbackGenerator` Apple calls "the wheel
     /// click" — light, quick, no body.
     @MainActor
-    static func tap() {
+    public static func tap() {
         guard enabled else { return }
         selectionGenerator.selectionChanged()
         selectionGenerator.prepare()
@@ -41,7 +48,7 @@ enum Haptic {
     /// switched. A medium impact so the user feels "something shifted"
     /// instead of just "I tapped".
     @MainActor
-    static func toggle() {
+    public static func toggle() {
         guard enabled else { return }
         mediumImpact.impactOccurred()
         mediumImpact.prepare()
@@ -53,7 +60,7 @@ enum Haptic {
     /// `UIImpactFeedbackGenerator(.light)` so it doesn't compete
     /// with selection feedback during typing.
     @MainActor
-    static func soft() {
+    public static func soft() {
         guard enabled else { return }
         lightImpact.impactOccurred()
         lightImpact.prepare()
@@ -62,7 +69,7 @@ enum Haptic {
     /// Positive completion — convert-to-embed succeeded, search hit
     /// opened, etc. Bright two-stage buzz.
     @MainActor
-    static func success() {
+    public static func success() {
         guard enabled else { return }
         notificationGenerator.notificationOccurred(.success)
         notificationGenerator.prepare()
@@ -71,7 +78,7 @@ enum Haptic {
     /// Destructive confirmation — delete a doc / block / database.
     /// Heavier rumble so the user feels the weight of the action.
     @MainActor
-    static func warning() {
+    public static func warning() {
         guard enabled else { return }
         notificationGenerator.notificationOccurred(.warning)
         notificationGenerator.prepare()
@@ -98,8 +105,10 @@ import SwiftUI
 /// inherits it unless a child view sets a different style explicitly
 /// (e.g. `.plain` in some menu rows). Visual side effects are kept
 /// to the system default — we don't repaint, we just buzz.
-struct HapticTapStyle: PrimitiveButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
+public struct HapticTapStyle: PrimitiveButtonStyle {
+    public init() {}
+
+    public func makeBody(configuration: Configuration) -> some View {
         Button(role: configuration.role) {
             Haptic.tap()
             configuration.trigger()

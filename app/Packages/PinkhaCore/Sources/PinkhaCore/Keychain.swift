@@ -4,7 +4,7 @@ import Security
 /// Minimal Keychain wrapper for storing short-lived secrets (API tokens, OAuth
 /// access tokens) tied to a single device. All entries use
 /// `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` — never synced to iCloud.
-enum Keychain {
+public enum Keychain {
 
     /// Account key prefix to avoid collisions with other apps sharing the same
     /// access group. Each call site picks its own suffix (e.g. "notion.token").
@@ -14,7 +14,7 @@ enum Keychain {
     /// Returns `true` on success. Logs but does not throw on failure — the
     /// caller can fall back to in-memory storage transparently.
     @discardableResult
-    static func save(_ value: String, for key: String) -> Bool {
+    public static func save(_ value: String, for key: String) -> Bool {
         guard let data = value.data(using: .utf8) else { return false }
         let query: [String: Any] = [
             kSecClass as String:           kSecClassGenericPassword,
@@ -37,7 +37,7 @@ enum Keychain {
     }
 
     /// Read the value previously stored under `key`, or `nil` if absent.
-    static func load(_ key: String) -> String? {
+    public static func load(_ key: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String:       kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -57,7 +57,7 @@ enum Keychain {
 
     /// Remove the entry for `key`. No-op if it does not exist.
     @discardableResult
-    static func remove(_ key: String) -> Bool {
+    public static func remove(_ key: String) -> Bool {
         let query: [String: Any] = [
             kSecClass as String:       kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -69,7 +69,7 @@ enum Keychain {
 }
 
 /// Keys used by Pinkha. Defined here so call sites cannot typo them.
-enum KeychainKey {
+public enum KeychainKey {
     /// Notion integration token (`secret_xxx…`) entered manually by the user.
-    static let notionToken = "notion.token"
+    public static let notionToken = "notion.token"
 }

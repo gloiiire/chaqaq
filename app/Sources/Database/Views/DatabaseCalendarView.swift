@@ -1,5 +1,6 @@
 import SwiftUI
 import PinkhaFFI
+import PinkhaCore
 
 /// Month-grid calendar layout — each cell shows the date number and a
 /// stack of the entries whose `propertyId` date falls on that day.

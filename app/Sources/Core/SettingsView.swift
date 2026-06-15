@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaCore
 
 /// App-level preferences sheet. Reached from the Notes home view's
 /// 3-dot overflow menu. Sections grow as more settings get added — for

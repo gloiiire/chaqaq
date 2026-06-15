@@ -13,8 +13,8 @@ import UIKit
 // for power users with many open tabs.
 
 @MainActor
-final class TabSnapshotCache {
-    static let shared = TabSnapshotCache()
+public final class TabSnapshotCache {
+    public static let shared = TabSnapshotCache()
 
     private let cache: NSCache<NSString, UIImage> = {
         let c = NSCache<NSString, UIImage>()
@@ -28,20 +28,20 @@ final class TabSnapshotCache {
     /// Stores `image` keyed by `docId`. Cost = approximate pixel
     /// memory so `NSCache`'s `totalCostLimit` heuristic kicks in
     /// properly.
-    func store(_ image: UIImage, for docId: String) {
+    public func store(_ image: UIImage, for docId: String) {
         let scale = image.scale
         let cost = Int(image.size.width * image.size.height * 4 * scale * scale)
         cache.setObject(image, forKey: docId as NSString, cost: cost)
     }
 
-    func snapshot(for docId: String) -> UIImage? {
+    public func snapshot(for docId: String) -> UIImage? {
         cache.object(forKey: docId as NSString)
     }
 
     /// Drops the cached snapshot for `docId`. Called from the
     /// switcher when the user closes a tab so memory comes back
     /// immediately.
-    func invalidate(_ docId: String) {
+    public func invalidate(_ docId: String) {
         cache.removeObject(forKey: docId as NSString)
     }
 }
@@ -59,19 +59,22 @@ final class TabSnapshotCache {
 /// we want to capture. `viewWillDisappear` is the last frame the
 /// content is still on screen — exactly what Safari uses for tab
 /// thumbnails.
-struct DocumentSnapshotHook: UIViewControllerRepresentable {
-    let docId: String
+public struct DocumentSnapshotHook: UIViewControllerRepresentable {
+    public init(docId: String) {
+        self.docId = docId
+    }
+    public let docId: String
 
-    func makeUIViewController(context: Context) -> SnapshotHookViewController {
+    public func makeUIViewController(context: Context) -> SnapshotHookViewController {
         SnapshotHookViewController(docId: docId)
     }
 
-    func updateUIViewController(_ vc: SnapshotHookViewController, context: Context) {
+    public func updateUIViewController(_ vc: SnapshotHookViewController, context: Context) {
         vc.docId = docId
     }
 }
 
-final class SnapshotHookViewController: UIViewController {
+public final class SnapshotHookViewController: UIViewController {
     fileprivate var docId: String
 
     init(docId: String) {
@@ -83,7 +86,7 @@ final class SnapshotHookViewController: UIViewController {
     }
     required init?(coder: NSCoder) { fatalError() }
 
-    override func viewWillDisappear(_ animated: Bool) {
+    public override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         captureSnapshot()
     }

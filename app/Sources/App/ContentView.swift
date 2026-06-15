@@ -1,5 +1,6 @@
 import SwiftUI
 import PinkhaFFI
+import PinkhaCore
 
 // ── Root view: 4-tab layout ──────────────────────────────────────────────────
 

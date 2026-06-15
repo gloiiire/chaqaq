@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaCore
 
 /// Collapsible group header rendered above each group in a List /
 /// Gallery view : disclosure chevron, group title, entry count, and a

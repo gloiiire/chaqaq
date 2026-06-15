@@ -1,5 +1,6 @@
 import SwiftUI
 import PinkhaFFI
+import PinkhaCore
 
 // ── Attach existing doc → database row ────────────────────────────────────────
 //
