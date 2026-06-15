@@ -114,6 +114,32 @@ extension DocumentView {
         // per-doc settings; first occupant is the accent color picker.
         ToolbarItem(placement: .primaryAction) {
             Menu {
+                // Apple-Music-style icon-and-label row at the top of the
+                // overflow menu : `.controlGroupStyle(.menu)` lays the
+                // two actions out horizontally as labeled icon buttons
+                // inside the menu. Lock duplicates the standalone
+                // padlock in the toolbar (Notes-app pattern : a
+                // primary action that's important enough to be one
+                // tap and also live next to the other doc settings).
+                ControlGroup {
+                    Button {
+                        Haptic.toggle()
+                        vm.saveLocked(!vm.locked)
+                    } label: {
+                        Label(vm.locked ? "Unlock" : "Lock",
+                              systemImage: vm.locked ? "lock.fill" : "lock.open.fill")
+                    }
+                    if let shareURL = URL(string: "pinkha://doc/\(vm.docId)") {
+                        ShareLink(item: shareURL,
+                                  subject: Text(vm.title.isEmpty
+                                                ? String(localized: "Untitled")
+                                                : vm.title)) {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                        }
+                    }
+                }
+                .controlGroupStyle(.menu)
+
                 Menu {
                     Button {
                         Haptic.tap()
