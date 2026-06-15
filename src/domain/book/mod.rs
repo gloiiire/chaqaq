@@ -1,11 +1,11 @@
 #![allow(dead_code)]
 #[allow(clippy::module_inception)]
-mod database;
+mod book;
 mod entry;
 mod property;
 mod view;
 
-pub use database::*;
+pub use book::*;
 pub use entry::*;
 pub use property::*;
 pub use view::*;

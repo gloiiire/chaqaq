@@ -1,16 +1,16 @@
 use crate::application::error::PinkhaError;
 use crate::application::unit_of_work::UnitOfWork;
-use crate::domain::database::Property;
+use crate::domain::book::Property;
 use uuid::Uuid;
 
-/// Adds a new column definition to the database and persists.
+/// Adds a new column definition to the book and persists.
 pub fn add_property(
     uow: &dyn UnitOfWork,
-    db_id: Uuid,
+    book_id: Uuid,
     property: Property,
 ) -> Result<(), PinkhaError> {
-    let repo = uow.databases();
-    let mut db = repo.load(db_id)?;
+    let repo = uow.books();
+    let mut db = repo.load(book_id)?;
     db.properties.push(property);
     repo.save(&db)
 }
@@ -18,12 +18,12 @@ pub fn add_property(
 /// Renames an existing property and persists.
 pub fn rename_property(
     uow: &dyn UnitOfWork,
-    db_id: Uuid,
+    book_id: Uuid,
     prop_id: Uuid,
     new_name: &str,
 ) -> Result<(), PinkhaError> {
-    let repo = uow.databases();
-    let mut db = repo.load(db_id)?;
+    let repo = uow.books();
+    let mut db = repo.load(book_id)?;
     let prop = db
         .properties
         .iter_mut()
@@ -36,11 +36,11 @@ pub fn rename_property(
 /// Removes a property column and clears its values from all existing entries, then persists.
 pub fn delete_property(
     uow: &dyn UnitOfWork,
-    db_id: Uuid,
+    book_id: Uuid,
     prop_id: Uuid,
 ) -> Result<(), PinkhaError> {
-    let repo = uow.databases();
-    let mut db = repo.load(db_id)?;
+    let repo = uow.books();
+    let mut db = repo.load(book_id)?;
     let before = db.properties.len();
     db.properties.retain(|p| p.id != prop_id);
     if db.properties.len() == before {
@@ -55,17 +55,17 @@ pub fn delete_property(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::application::database_repository::DatabaseRepository;
+    use crate::application::book_repository::BookRepository;
     use crate::application::error::PinkhaError;
     use crate::application::unit_of_work::test_support::MockUnitOfWork;
-    use crate::domain::database::{Database, DatabaseMeta, Entry, PropertyType, PropertyValue};
-    use crate::domain::document::InlineText;
+    use crate::domain::book::{Book, BookMeta, Entry, PropertyType, PropertyValue};
+    use crate::domain::leaf::InlineText;
 
     use std::collections::HashMap;
     use uuid::Uuid;
 
     struct MockDbRepo {
-        dbs: std::sync::Mutex<std::collections::HashMap<Uuid, Database>>,
+        dbs: std::sync::Mutex<std::collections::HashMap<Uuid, Book>>,
     }
 
     impl MockDbRepo {
@@ -76,12 +76,12 @@ mod tests {
         }
     }
 
-    impl DatabaseRepository for MockDbRepo {
-        fn save(&self, db: &Database) -> Result<(), PinkhaError> {
+    impl BookRepository for MockDbRepo {
+        fn save(&self, db: &Book) -> Result<(), PinkhaError> {
             self.dbs.lock().unwrap().insert(db.id, db.clone());
             Ok(())
         }
-        fn load(&self, id: Uuid) -> Result<Database, PinkhaError> {
+        fn load(&self, id: Uuid) -> Result<Book, PinkhaError> {
             self.dbs
                 .lock()
                 .unwrap()
@@ -89,7 +89,7 @@ mod tests {
                 .cloned()
                 .ok_or(PinkhaError::NotFound(id))
         }
-        fn list_meta(&self) -> Result<Vec<DatabaseMeta>, PinkhaError> {
+        fn list_meta(&self) -> Result<Vec<BookMeta>, PinkhaError> {
             Ok(self
                 .dbs
                 .lock()
@@ -115,8 +115,8 @@ mod tests {
         }]
     }
 
-    fn db_uow(repo: &MockDbRepo) -> MockUnitOfWork<'_> {
-        MockUnitOfWork::with_dbs(repo)
+    fn book_uow(repo: &MockDbRepo) -> MockUnitOfWork<'_> {
+        MockUnitOfWork::with_books(repo)
     }
 
     #[test]
@@ -124,10 +124,10 @@ mod tests {
         let repo = MockDbRepo::new();
         let prop = Property::new("Ancien", PropertyType::Text);
         let prop_id = prop.id;
-        let db = Database::new(title("DB"), vec![prop]);
+        let db = Book::new(title("DB"), vec![prop]);
         repo.save(&db).unwrap();
 
-        rename_property(&db_uow(&repo), db.id, prop_id, "Nouveau").unwrap();
+        rename_property(&book_uow(&repo), db.id, prop_id, "Nouveau").unwrap();
 
         let db = repo.load(db.id).unwrap();
         assert_eq!(db.properties[0].name, "Nouveau");
@@ -136,10 +136,10 @@ mod tests {
     #[test]
     fn test_rename_property_inexistante_erreur() {
         let repo = MockDbRepo::new();
-        let db = Database::new(title("DB"), vec![]);
+        let db = Book::new(title("DB"), vec![]);
         repo.save(&db).unwrap();
 
-        let res = rename_property(&db_uow(&repo), db.id, Uuid::new_v4(), "X");
+        let res = rename_property(&book_uow(&repo), db.id, Uuid::new_v4(), "X");
         assert!(matches!(res, Err(PinkhaError::NotFound(_))));
     }
 
@@ -148,13 +148,13 @@ mod tests {
         let repo = MockDbRepo::new();
         let prop = Property::new("Statut", PropertyType::Text);
         let prop_id = prop.id;
-        let mut db = Database::new(title("DB"), vec![prop]);
+        let mut db = Book::new(title("DB"), vec![prop]);
         let mut values = HashMap::new();
         values.insert(prop_id, PropertyValue::Text("En cours".to_string()));
         db.entries.push(Entry::new(values));
         repo.save(&db).unwrap();
 
-        delete_property(&db_uow(&repo), db.id, prop_id).unwrap();
+        delete_property(&book_uow(&repo), db.id, prop_id).unwrap();
 
         let db = repo.load(db.id).unwrap();
         assert!(db.properties.is_empty());
@@ -164,10 +164,10 @@ mod tests {
     #[test]
     fn test_delete_property_inexistante_erreur() {
         let repo = MockDbRepo::new();
-        let db = Database::new(title("DB"), vec![]);
+        let db = Book::new(title("DB"), vec![]);
         repo.save(&db).unwrap();
 
-        let res = delete_property(&db_uow(&repo), db.id, Uuid::new_v4());
+        let res = delete_property(&book_uow(&repo), db.id, Uuid::new_v4());
         assert!(matches!(res, Err(PinkhaError::NotFound(_))));
     }
 }

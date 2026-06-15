@@ -1,16 +1,16 @@
-use crate::application::database_use_cases::query::calculate_aggregate;
+use crate::application::book_use_cases::query::calculate_aggregate;
 use crate::application::error::PinkhaError;
 use crate::application::unit_of_work::UnitOfWork;
-use crate::domain::database::{Aggregate, Database, Entry, PropertyType, PropertyValue};
+use crate::domain::book::{Aggregate, Book, Entry, PropertyType, PropertyValue};
 use uuid::Uuid;
 
-/// Case-insensitive search across all text-bearing property values of a database's entries.
+/// Case-insensitive search across all text-bearing property values of a book's entries.
 pub fn search_entries(
     uow: &dyn UnitOfWork,
-    db_id: Uuid,
+    book_id: Uuid,
     query: &str,
 ) -> Result<Vec<Entry>, PinkhaError> {
-    let db = uow.databases().load(db_id)?;
+    let db = uow.books().load(book_id)?;
     let q = query.to_lowercase();
     Ok(db
         .entries
@@ -42,7 +42,7 @@ fn value_contains(v: &PropertyValue, query: &str) -> bool {
 /// Rollup values are not persisted — they are recalculated at read time.
 pub fn evaluate_rollups(
     uow: &dyn UnitOfWork,
-    db: &Database,
+    db: &Book,
     mut entries: Vec<Entry>,
 ) -> Result<Vec<Entry>, PinkhaError> {
     let rollups: Vec<(Uuid, Uuid, Uuid, Aggregate)> = db
@@ -63,24 +63,24 @@ pub fn evaluate_rollups(
     }
 
     for (rollup_id, relation_prop_id, target_prop_id, aggregate) in rollups {
-        let linked_db_id = db
+        let linked_book_id = db
             .properties
             .iter()
             .find(|p| p.id == relation_prop_id)
             .and_then(|p| match &p.type_ {
-                PropertyType::Relation { db_id } => Some(*db_id),
+                PropertyType::Relation { book_id } => Some(*book_id),
                 _ => None,
             })
             .ok_or(PinkhaError::NotFound(relation_prop_id))?;
 
-        let linked_db = uow.databases().load(linked_db_id)?;
+        let linked_book = uow.books().load(linked_book_id)?;
 
         for entry in &mut entries {
             let linked_ids = match entry.values.get(&relation_prop_id) {
                 Some(PropertyValue::Relation(ids)) => ids.clone(),
                 _ => vec![],
             };
-            let linked_entries: Vec<&Entry> = linked_db
+            let linked_entries: Vec<&Entry> = linked_book
                 .entries
                 .iter()
                 .filter(|e| !e.is_deleted())
@@ -99,15 +99,15 @@ pub fn evaluate_rollups(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::application::database_repository::DatabaseRepository;
+    use crate::application::book_repository::BookRepository;
     use crate::application::error::PinkhaError;
     use crate::application::unit_of_work::test_support::MockUnitOfWork;
-    use crate::domain::database::{Database, DatabaseMeta};
+    use crate::domain::book::{Book, BookMeta};
 
     use uuid::Uuid;
 
     struct MockDbRepo {
-        dbs: std::sync::Mutex<std::collections::HashMap<Uuid, Database>>,
+        dbs: std::sync::Mutex<std::collections::HashMap<Uuid, Book>>,
     }
 
     impl MockDbRepo {
@@ -118,12 +118,12 @@ mod tests {
         }
     }
 
-    impl DatabaseRepository for MockDbRepo {
-        fn save(&self, db: &Database) -> Result<(), PinkhaError> {
+    impl BookRepository for MockDbRepo {
+        fn save(&self, db: &Book) -> Result<(), PinkhaError> {
             self.dbs.lock().unwrap().insert(db.id, db.clone());
             Ok(())
         }
-        fn load(&self, id: Uuid) -> Result<Database, PinkhaError> {
+        fn load(&self, id: Uuid) -> Result<Book, PinkhaError> {
             self.dbs
                 .lock()
                 .unwrap()
@@ -131,7 +131,7 @@ mod tests {
                 .cloned()
                 .ok_or(PinkhaError::NotFound(id))
         }
-        fn list_meta(&self) -> Result<Vec<DatabaseMeta>, PinkhaError> {
+        fn list_meta(&self) -> Result<Vec<BookMeta>, PinkhaError> {
             Ok(self
                 .dbs
                 .lock()
@@ -177,10 +177,10 @@ mod tests {
     }
 
     #[test]
-    fn test_search_entries_db_vide() {
-        use crate::domain::document::InlineText;
+    fn test_search_entries_book_vide() {
+        use crate::domain::leaf::InlineText;
         let repo = MockDbRepo::new();
-        let db = Database::new(
+        let db = Book::new(
             vec![InlineText {
                 content: "DB".to_string(),
                 styles: vec![],
@@ -189,7 +189,7 @@ mod tests {
         );
         repo.save(&db).unwrap();
 
-        let uow = MockUnitOfWork::with_dbs(&repo);
+        let uow = MockUnitOfWork::with_books(&repo);
         let results = search_entries(&uow, db.id, "test").unwrap();
         assert!(results.is_empty());
     }

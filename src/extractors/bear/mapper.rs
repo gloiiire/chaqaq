@@ -6,7 +6,7 @@
 use chaqaq::parse_inline;
 use chrono::{DateTime, TimeZone, Utc};
 
-use crate::domain::document::{BlockContent, InlineText};
+use crate::domain::leaf::{BlockContent, InlineText};
 
 /// Number of seconds between the Core Data epoch (2001-01-01) and
 /// the Unix epoch (1970-01-01).
@@ -48,7 +48,7 @@ pub fn bear_date_to_iso(timestamp: f64) -> String {
 /// Parses a Bear note body into a list of [`ParsedBlock`] values.
 ///
 /// Bear includes the note title as the first `# Heading` in the body — that
-/// line is skipped because the title is already used as the document title.
+/// line is skipped because the title is already used as the leaf title.
 ///
 /// Indented list items (`    - ` / `    * `) become children of the immediately
 /// preceding block (one level of nesting).
@@ -419,7 +419,7 @@ mod tests {
             assert!(!spans.is_empty(), "expected at least one span");
             let has_bold = spans.iter().any(|s| {
                 s.styles
-                    .contains(&crate::domain::document::InlineStyle::Bold)
+                    .contains(&crate::domain::leaf::InlineStyle::Bold)
             });
             assert!(has_bold, "expected Bold style in spans");
         } else {

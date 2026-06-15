@@ -24,7 +24,7 @@ impl fmt::Display for PinkhaError {
             PinkhaError::InvalidOperation(msg) => write!(f, "invalid operation: {msg}"),
             PinkhaError::Io(e) => write!(f, "I/O error: {e}"),
             PinkhaError::Json(e) => write!(f, "JSON error: {e}"),
-            PinkhaError::Db(msg) => write!(f, "database error: {msg}"),
+            PinkhaError::Db(msg) => write!(f, "book error: {msg}"),
         }
     }
 }

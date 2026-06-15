@@ -1,9 +1,9 @@
-/// End-to-end flow: create a document, edit its title via the editor,
+/// End-to-end flow: create a leaf, edit its title via the editor,
 /// save, reload, and verify the persisted state.
-use pinkha::application::repository::DocumentRepository;
-use pinkha::application::use_cases::{create_document, get_document};
+use pinkha::application::repository::LeafRepository;
+use pinkha::application::use_cases::{create_leaf, get_leaf};
 use pinkha::domain::commands::{ApplyStyle, History, Insert};
-use pinkha::domain::document::InlineStyle;
+use pinkha::domain::leaf::InlineStyle;
 use pinkha::domain::editor::EditorState;
 use pinkha::domain::rich_text::RichText;
 use pinkha::infrastructure::json_store::JsonStore;
@@ -20,9 +20,9 @@ fn store_temp() -> (JsonStore, PathBuf) {
 fn test_editer_title_puis_sauvegarder() {
     let (store, dir) = store_temp();
 
-    // create the document
-    let mut doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    // create the leaf
+    let mut doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Titre",
     )
     .unwrap();
@@ -34,13 +34,13 @@ fn test_editer_title_puis_sauvegarder() {
     hist.apply(Box::new(Insert::new(5, '!')), &mut state);
     assert_eq!(state.text.content(), "Titre!");
 
-    // write the new title back into the document and save
+    // write the new title back into the leaf and save
     doc.title = Vec::from(&state.text);
     store.save(&doc).unwrap();
 
     // reload and verify
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();
@@ -53,8 +53,8 @@ fn test_editer_title_puis_sauvegarder() {
 fn test_style_persisté_apres_sauvegarde() {
     let (store, dir) = store_temp();
 
-    let mut doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let mut doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Notes",
     )
     .unwrap();
@@ -70,8 +70,8 @@ fn test_style_persisté_apres_sauvegarde() {
     doc.title = Vec::from(&state.text);
     store.save(&doc).unwrap();
 
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();
@@ -89,8 +89,8 @@ fn test_style_persisté_apres_sauvegarde() {
 fn test_undo_avant_sauvegarde() {
     let (store, dir) = store_temp();
 
-    let mut doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let mut doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Brouillon",
     )
     .unwrap();
@@ -108,8 +108,8 @@ fn test_undo_avant_sauvegarde() {
     doc.title = Vec::from(&state.text);
     store.save(&doc).unwrap();
 
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();

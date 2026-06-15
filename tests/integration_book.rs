@@ -1,19 +1,19 @@
-use pinkha::application::database_use_cases::{
-    add_entry, add_view, column_aggregate, create_database, delete_entry, evaluate_rollups,
-    get_database, grouped_query, list_databases, query, update_entry,
+use pinkha::application::book_use_cases::{
+    add_entry, add_view, column_aggregate, create_book, delete_entry, evaluate_rollups,
+    get_book, grouped_query, list_books, query, update_entry,
 };
-use pinkha::domain::database::{
+use pinkha::domain::book::{
     Aggregate, Filter, FilterCondition, Order, Property, PropertyType, PropertyValue, Sort, View,
     ViewType,
 };
-use pinkha::domain::document::InlineText;
-use pinkha::infrastructure::database_store::DatabaseStore;
+use pinkha::domain::leaf::InlineText;
+use pinkha::infrastructure::book_store::BookStore;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-fn store_temp() -> DatabaseStore {
-    let dir = std::env::temp_dir().join(format!("pinkha_db_integ_{}", Uuid::new_v4()));
-    DatabaseStore::new(dir).unwrap()
+fn store_temp() -> BookStore {
+    let dir = std::env::temp_dir().join(format!("pinkha_book_integ_{}", Uuid::new_v4()));
+    BookStore::new(dir).unwrap()
 }
 
 fn title(s: &str) -> Vec<InlineText> {
@@ -30,17 +30,17 @@ fn entry_nombre(prop_id: Uuid, n: f64) -> HashMap<Uuid, PropertyValue> {
 }
 
 #[test]
-fn test_creer_et_get_database() {
+fn test_creer_et_get_book() {
     let store = store_temp();
     let props = vec![Property::new("Nom", PropertyType::Title)];
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         title("Projets"),
         props,
     )
     .unwrap();
-    let chargee = get_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let chargee = get_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
     )
     .unwrap();
@@ -53,28 +53,28 @@ fn test_add_entry_persiste() {
     let store = store_temp();
     let prop = Property::new("Score", PropertyType::Number);
     let prop_id = prop.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         title("Scores"),
         vec![prop],
     )
     .unwrap();
 
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         entry_nombre(prop_id, 10.0),
     )
     .unwrap();
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         entry_nombre(prop_id, 20.0),
     )
     .unwrap();
 
-    let chargee = get_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let chargee = get_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
     )
     .unwrap();
@@ -86,8 +86,8 @@ fn test_filtrer_entries_par_valeur() {
     let store = store_temp();
     let prop = Property::new("Statut", PropertyType::Text);
     let prop_id = prop.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         title("Tâches"),
         vec![prop],
     )
@@ -98,13 +98,13 @@ fn test_filtrer_entries_par_valeur() {
     let mut v2 = HashMap::new();
     v2.insert(prop_id, PropertyValue::Text("Terminé".to_string()));
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         v1,
     )
     .unwrap();
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         v2,
     )
@@ -117,14 +117,14 @@ fn test_filtrer_entries_par_valeur() {
         condition: FilterCondition::Contains("cours".to_string()),
     });
     let vue = add_view(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         vue,
     )
     .unwrap();
 
     let resultats = query(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         vue.id,
     )
@@ -137,27 +137,27 @@ fn test_trier_entries_par_nombre() {
     let store = store_temp();
     let prop = Property::new("Priorité", PropertyType::Number);
     let prop_id = prop.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         title("Items"),
         vec![prop],
     )
     .unwrap();
 
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         entry_nombre(prop_id, 3.0),
     )
     .unwrap();
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         entry_nombre(prop_id, 1.0),
     )
     .unwrap();
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         entry_nombre(prop_id, 2.0),
     )
@@ -166,14 +166,14 @@ fn test_trier_entries_par_nombre() {
     let mut vue = View::new("Par priorité", ViewType::Table);
     vue.sorts.push(Sort::by_property(prop_id, Order::Ascending));
     let vue = add_view(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         vue,
     )
     .unwrap();
 
     let resultats = query(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         vue.id,
     )
@@ -193,71 +193,71 @@ fn test_modifier_et_delete_entry() {
     let store = store_temp();
     let prop = Property::new("Note", PropertyType::Number);
     let prop_id = prop.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         title("Notes"),
         vec![prop],
     )
     .unwrap();
 
     let entry = add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         entry_nombre(prop_id, 5.0),
     )
     .unwrap();
 
     update_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         entry.id,
         entry_nombre(prop_id, 10.0),
     )
     .unwrap();
-    let db_modifiee = get_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let book_modifiee = get_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
     )
     .unwrap();
     assert_eq!(
-        db_modifiee.entries[0].values[&prop_id],
+        book_modifiee.entries[0].values[&prop_id],
         PropertyValue::Number(10.0)
     );
 
     delete_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         entry.id,
     )
     .unwrap();
-    let db_finale = get_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let book_finale = get_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
     )
     .unwrap();
     // Soft delete: the row stays but is marked deleted_at. Use `is_deleted()`
     // to assert it's hidden from active views without losing the data.
-    assert_eq!(db_finale.entries.len(), 1);
-    assert!(db_finale.entries[0].is_deleted());
+    assert_eq!(book_finale.entries.len(), 1);
+    assert!(book_finale.entries[0].is_deleted());
 }
 
 #[test]
-fn test_list_databases() {
+fn test_list_books() {
     let store = store_temp();
-    create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         title("DB1"),
         vec![],
     )
     .unwrap();
-    create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         title("DB2"),
         vec![],
     )
     .unwrap();
-    let metas = list_databases(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let metas = list_books(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
     )
     .unwrap();
     assert_eq!(metas.len(), 2);
@@ -269,10 +269,10 @@ fn test_list_databases() {
 fn test_rollup_compte_entries_liees() {
     let store = store_temp();
 
-    // Tasks database
+    // Tasks book
     let prop_title = Property::new("Titre", PropertyType::Title);
-    let db_taches = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let book_taches = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         title("Tâches"),
         vec![prop_title],
     )
@@ -281,47 +281,47 @@ fn test_rollup_compte_entries_liees() {
     // Add 2 tasks
     let mut v1 = HashMap::new();
     v1.insert(
-        db_taches.properties[0].id,
+        book_taches.properties[0].id,
         PropertyValue::Title(title("T1")),
     );
     let t1 = add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
-        db_taches.id,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
+        book_taches.id,
         v1,
     )
     .unwrap();
 
     let mut v2 = HashMap::new();
     v2.insert(
-        db_taches.properties[0].id,
+        book_taches.properties[0].id,
         PropertyValue::Title(title("T2")),
     );
     let t2 = add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
-        db_taches.id,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
+        book_taches.id,
         v2,
     )
     .unwrap();
 
-    // Projects database with Relation → Tasks and Rollup (Count)
+    // Projects book with Relation → Tasks and Rollup (Count)
     let prop_rel = Property::new(
         "Tâches liées",
         PropertyType::Relation {
-            db_id: db_taches.id,
+            book_id: book_taches.id,
         },
     );
     let prop_nb = Property::new(
         "Nb tâches",
         PropertyType::Rollup {
             relation_prop_id: prop_rel.id,
-            target_prop_id: db_taches.properties[0].id,
+            target_prop_id: book_taches.properties[0].id,
             aggregate: Aggregate::Count,
         },
     );
     let nb_id = prop_nb.id;
     let rel_id = prop_rel.id;
-    let db_projets = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let book_projets = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         title("Projets"),
         vec![prop_rel, prop_nb],
     )
@@ -331,20 +331,20 @@ fn test_rollup_compte_entries_liees() {
     let mut vp = HashMap::new();
     vp.insert(rel_id, PropertyValue::Relation(vec![t1.id, t2.id]));
     let entry = add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
-        db_projets.id,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
+        book_projets.id,
         vp,
     )
     .unwrap();
 
     // Evaluate rollups
-    let db = get_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
-        db_projets.id,
+    let db = get_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
+        book_projets.id,
     )
     .unwrap();
     let enrichies = evaluate_rollups(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         &db,
         vec![entry],
     )
@@ -358,34 +358,34 @@ fn test_column_aggregate_somme() {
     let store = store_temp();
     let prop = Property::new("Score", PropertyType::Number);
     let prop_id = prop.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         title("Scores"),
         vec![prop],
     )
     .unwrap();
 
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         entry_nombre(prop_id, 10.0),
     )
     .unwrap();
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         entry_nombre(prop_id, 20.0),
     )
     .unwrap();
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         entry_nombre(prop_id, 30.0),
     )
     .unwrap();
 
     let total = column_aggregate(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         prop_id,
         Aggregate::Sum,
@@ -399,28 +399,28 @@ fn test_column_aggregate_moyenne() {
     let store = store_temp();
     let prop = Property::new("Note", PropertyType::Number);
     let prop_id = prop.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         title("Notes"),
         vec![prop],
     )
     .unwrap();
 
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         entry_nombre(prop_id, 8.0),
     )
     .unwrap();
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         entry_nombre(prop_id, 12.0),
     )
     .unwrap();
 
     let moy = column_aggregate(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         prop_id,
         Aggregate::Average,
@@ -439,8 +439,8 @@ fn test_grouped_query_par_selection() {
         PropertyType::Selection(vec!["En cours".into(), "Terminé".into()]),
     );
     let prop_id = prop.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         title("Tâches"),
         vec![prop],
     )
@@ -452,7 +452,7 @@ fn test_grouped_query_par_selection() {
         let mut v = HashMap::new();
         v.insert(prop_id, PropertyValue::Selection(Some(s.to_string())));
         add_entry(
-            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
             db.id,
             v,
         )
@@ -460,7 +460,7 @@ fn test_grouped_query_par_selection() {
     }
 
     let groups = grouped_query(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         view_id,
         prop_id,
@@ -480,8 +480,8 @@ fn test_grouped_query_vide_en_dernier() {
     let store = store_temp();
     let prop = Property::new("Statut", PropertyType::Text);
     let prop_id = prop.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         title("Items"),
         vec![prop],
     )
@@ -492,20 +492,20 @@ fn test_grouped_query_vide_en_dernier() {
     let mut v1 = HashMap::new();
     v1.insert(prop_id, PropertyValue::Text("Actif".to_string()));
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         v1,
     )
     .unwrap();
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         HashMap::new(),
     )
     .unwrap(); // Empty
 
     let groups = grouped_query(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         view_id,
         prop_id,
@@ -521,24 +521,24 @@ fn test_grouped_query_vide_en_dernier() {
 #[test]
 fn test_tri_by_creation_auto() {
     let store = store_temp();
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         title("Journal"),
         vec![],
     )
     .unwrap();
     // 3 entries with manually spaced created_at values for deterministic ordering
-    let mut e1 = pinkha::domain::database::Entry::new(HashMap::new());
+    let mut e1 = pinkha::domain::book::Entry::new(HashMap::new());
     e1.created_at = "2023-01-01T00:00:00+00:00".to_string();
-    let mut e2 = pinkha::domain::database::Entry::new(HashMap::new());
+    let mut e2 = pinkha::domain::book::Entry::new(HashMap::new());
     e2.created_at = "2023-06-15T00:00:00+00:00".to_string();
-    let mut e3 = pinkha::domain::database::Entry::new(HashMap::new());
+    let mut e3 = pinkha::domain::book::Entry::new(HashMap::new());
     e3.created_at = "2022-12-01T00:00:00+00:00".to_string();
 
     // Persist via direct save
-    use pinkha::application::database_repository::DatabaseRepository;
-    let mut db = get_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    use pinkha::application::book_repository::BookRepository;
+    let mut db = get_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
     )
     .unwrap();
@@ -548,14 +548,14 @@ fn test_tri_by_creation_auto() {
     let mut vue = View::new("Chronologique", ViewType::Table);
     vue.sorts.push(Sort::by_creation(Order::Ascending));
     let vue = add_view(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         vue,
     )
     .unwrap();
 
     let resultats = query(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         vue.id,
     )
@@ -570,8 +570,8 @@ fn test_tri_manual_then_creation_cas_journal() {
     let store = store_temp();
     let prop_date = Property::new("Date", PropertyType::Date);
     let date_id = prop_date.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         title("Journal"),
         vec![prop_date],
     )
@@ -580,16 +580,16 @@ fn test_tri_manual_then_creation_cas_journal() {
     // Old note: manual date filled in, recent created_at (imported retroactively)
     let mut v_ancienne = HashMap::new();
     v_ancienne.insert(date_id, PropertyValue::Date("2020-05-10".to_string()));
-    let mut e_ancienne = pinkha::domain::database::Entry::new(v_ancienne);
+    let mut e_ancienne = pinkha::domain::book::Entry::new(v_ancienne);
     e_ancienne.created_at = "2024-01-01T00:00:00+00:00".to_string(); // imported recently
 
     // New note: no manual date, created_at = actual writing date
-    let mut e_new = pinkha::domain::database::Entry::new(HashMap::new());
+    let mut e_new = pinkha::domain::book::Entry::new(HashMap::new());
     e_new.created_at = "2024-06-01T00:00:00+00:00".to_string();
 
-    use pinkha::application::database_repository::DatabaseRepository;
-    let mut db = get_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    use pinkha::application::book_repository::BookRepository;
+    let mut db = get_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
     )
     .unwrap();
@@ -601,14 +601,14 @@ fn test_tri_manual_then_creation_cas_journal() {
     vue.sorts
         .push(Sort::manual_then_creation(date_id, Order::Ascending));
     let vue = add_view(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         vue,
     )
     .unwrap();
 
     let resultats = query(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         vue.id,
     )

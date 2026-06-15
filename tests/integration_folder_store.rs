@@ -1,13 +1,13 @@
-use pinkha::application::folder_repository::FolderRepository;
-use pinkha::infrastructure::sqlite_folder_store::SqliteFolderStore;
+use pinkha::application::shelf_repository::ShelfRepository;
+use pinkha::infrastructure::sqlite_shelf_store::SqliteShelfStore;
 use uuid::Uuid;
 
-fn store() -> SqliteFolderStore {
-    SqliteFolderStore::in_memory().expect("create in-memory store")
+fn store() -> SqliteShelfStore {
+    SqliteShelfStore::in_memory().expect("create in-memory store")
 }
 
 #[test]
-fn create_root_folder() {
+fn create_root_shelf() {
     let s = store();
     let f = s.create("Inbox", None).expect("create");
     assert_eq!(f.name, "Inbox");
@@ -15,7 +15,7 @@ fn create_root_folder() {
 }
 
 #[test]
-fn create_nested_folder() {
+fn create_nested_shelf() {
     let s = store();
     let parent = s.create("Parent", None).expect("create parent");
     let child = s.create("Child", Some(parent.id)).expect("create child");
@@ -23,7 +23,7 @@ fn create_nested_folder() {
 }
 
 #[test]
-fn get_existing_folder() {
+fn get_existing_shelf() {
     let s = store();
     let f = s.create("X", None).expect("create");
     let loaded = s.get(f.id).expect("get");
@@ -32,7 +32,7 @@ fn get_existing_folder() {
 }
 
 #[test]
-fn get_missing_folder_returns_not_found() {
+fn get_missing_shelf_returns_not_found() {
     let s = store();
     let err = s.get(Uuid::new_v4()).expect_err("should be missing");
     assert!(matches!(
@@ -42,7 +42,7 @@ fn get_missing_folder_returns_not_found() {
 }
 
 #[test]
-fn list_returns_all_folders_sorted_by_name() {
+fn list_returns_all_shelves_sorted_by_name() {
     let s = store();
     s.create("Zebra", None).expect("z");
     s.create("Alpha", None).expect("a");
@@ -54,7 +54,7 @@ fn list_returns_all_folders_sorted_by_name() {
 }
 
 #[test]
-fn list_excludes_deleted_folders() {
+fn list_excludes_deleted_shelves() {
     let s = store();
     let f = s.create("Doomed", None).expect("create");
     s.create("Keep", None).expect("keep");
@@ -77,7 +77,7 @@ fn rename_changes_name_and_updated_at() {
 }
 
 #[test]
-fn rename_missing_folder_fails() {
+fn rename_missing_shelf_fails() {
     let s = store();
     let err = s.rename(Uuid::new_v4(), "X").expect_err("should fail");
     assert!(matches!(
@@ -87,7 +87,7 @@ fn rename_missing_folder_fails() {
 }
 
 #[test]
-fn rename_deleted_folder_fails() {
+fn rename_deleted_shelf_fails() {
     let s = store();
     let f = s.create("Doomed", None).expect("create");
     s.delete(f.id).expect("delete");
@@ -99,7 +99,7 @@ fn rename_deleted_folder_fails() {
 }
 
 #[test]
-fn delete_marks_folder_as_deleted() {
+fn delete_marks_shelf_as_deleted() {
     let s = store();
     let f = s.create("Doomed", None).expect("create");
     s.delete(f.id).expect("delete");
@@ -111,7 +111,7 @@ fn delete_marks_folder_as_deleted() {
 }
 
 #[test]
-fn delete_missing_folder_fails() {
+fn delete_missing_shelf_fails() {
     let s = store();
     let err = s.delete(Uuid::new_v4()).expect_err("should fail");
     assert!(matches!(
@@ -133,7 +133,7 @@ fn delete_twice_fails_second_time() {
 }
 
 #[test]
-fn delete_reparents_child_folders() {
+fn delete_reparents_child_shelves() {
     let s = store();
     let grand = s.create("Grand", None).expect("grand");
     let parent = s.create("Parent", Some(grand.id)).expect("parent");
@@ -144,7 +144,7 @@ fn delete_reparents_child_folders() {
 }
 
 #[test]
-fn delete_root_folder_reparents_children_to_root() {
+fn delete_root_shelf_reparents_children_to_root() {
     let s = store();
     let parent = s.create("Parent", None).expect("parent");
     let child = s.create("Child", Some(parent.id)).expect("child");
@@ -154,30 +154,30 @@ fn delete_root_folder_reparents_children_to_root() {
 }
 
 #[test]
-fn move_folder_to_new_parent() {
+fn move_shelf_to_new_parent() {
     let s = store();
     let a = s.create("A", None).expect("a");
     let b = s.create("B", None).expect("b");
-    s.move_folder(a.id, Some(b.id)).expect("move");
+    s.move_shelf(a.id, Some(b.id)).expect("move");
     let reloaded = s.get(a.id).expect("get");
     assert_eq!(reloaded.parent_id, Some(b.id));
 }
 
 #[test]
-fn move_folder_to_root() {
+fn move_shelf_to_root() {
     let s = store();
     let parent = s.create("Parent", None).expect("parent");
     let child = s.create("Child", Some(parent.id)).expect("child");
-    s.move_folder(child.id, None).expect("move to root");
+    s.move_shelf(child.id, None).expect("move to root");
     let reloaded = s.get(child.id).expect("get");
     assert!(reloaded.parent_id.is_none());
 }
 
 #[test]
-fn move_missing_folder_fails() {
+fn move_missing_shelf_fails() {
     let s = store();
     let err = s
-        .move_folder(Uuid::new_v4(), None)
+        .move_shelf(Uuid::new_v4(), None)
         .expect_err("should fail");
     assert!(matches!(
         err,
@@ -186,11 +186,11 @@ fn move_missing_folder_fails() {
 }
 
 #[test]
-fn move_deleted_folder_fails() {
+fn move_deleted_shelf_fails() {
     let s = store();
     let f = s.create("X", None).expect("create");
     s.delete(f.id).expect("delete");
-    let err = s.move_folder(f.id, None).expect_err("should fail");
+    let err = s.move_shelf(f.id, None).expect_err("should fail");
     assert!(matches!(
         err,
         pinkha::application::error::PinkhaError::NotFound(_)
@@ -199,14 +199,14 @@ fn move_deleted_folder_fails() {
 
 #[test]
 fn new_on_disk_creates_file_and_persists() {
-    let path = std::env::temp_dir().join(format!("pinkha-folders-{}.db", Uuid::new_v4()));
+    let path = std::env::temp_dir().join(format!("pinkha-shelves-{}.db", Uuid::new_v4()));
     let path_str = path.to_str().expect("utf8 path").to_string();
     let id = {
-        let s = SqliteFolderStore::new(&path_str).expect("open store");
+        let s = SqliteShelfStore::new(&path_str).expect("open store");
         let f = s.create("Persisted", None).expect("create");
         f.id
     };
-    let s2 = SqliteFolderStore::new(&path_str).expect("reopen store");
+    let s2 = SqliteShelfStore::new(&path_str).expect("reopen store");
     let f = s2.get(id).expect("still there after reopen");
     assert_eq!(f.name, "Persisted");
     let _ = std::fs::remove_file(&path);
@@ -214,6 +214,6 @@ fn new_on_disk_creates_file_and_persists() {
 
 #[test]
 fn new_on_invalid_path_fails() {
-    let result = SqliteFolderStore::new("/nonexistent_dir_xyz/no.db");
+    let result = SqliteShelfStore::new("/nonexistent_dir_xyz/no.db");
     assert!(result.is_err());
 }

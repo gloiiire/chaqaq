@@ -1,18 +1,18 @@
-use crate::domain::database::property::PropertyValue;
+use crate::domain::book::property::PropertyValue;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-/// A single row in a database.
+/// A single row in a book.
 ///
-/// `document_id` links the row back to a full Pinkha [`Document`] when the
+/// `leaf_id` links the row back to a full Pinkha [`Leaf`] when the
 /// row represents a page (Notion-style — every row IS a page). When set,
-/// orchestration code propagates Title changes from the row to the document
+/// orchestration code propagates Title changes from the row to the leaf
 /// so renaming a row in the DB view also renames the underlying note.
 /// `None` for rows that are pure tabular data without an attached page.
 ///
-/// [`Document`]: crate::domain::document::Document
+/// [`Leaf`]: crate::domain::leaf::Leaf
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Entry {
     /// Unique identifier for this entry.
@@ -24,19 +24,19 @@ pub struct Entry {
     /// insert (so untouched entries behave exactly like before), but
     /// the user can override it to surface an entry as if it were
     /// published on a different date — useful for journals where a
-    /// page is *written* one day but documents an *event* from
+    /// page is *written* one day but leaves an *event* from
     /// another. Backward-compatible : empty string on existing rows
     /// is treated as "fall back to `created_at`" by the query path.
     #[serde(default)]
     pub published_at: String,
     /// Cell values keyed by property ID.
     pub values: HashMap<Uuid, PropertyValue>,
-    /// Optional link to the [`Document`] this row represents. `#[serde(default)]`
+    /// Optional link to the [`Leaf`] this row represents. `#[serde(default)]`
     /// keeps the field backward-compatible with entries serialised before it existed.
     ///
-    /// [`Document`]: crate::domain::document::Document
+    /// [`Leaf`]: crate::domain::leaf::Leaf
     #[serde(default)]
-    pub document_id: Option<Uuid>,
+    pub leaf_id: Option<Uuid>,
     /// Soft-delete timestamp. `None` when the entry is live; `Some(iso8601)`
     /// when it has been deleted but is still recoverable. Soft-deleted entries
     /// are filtered out of `query` / `query_with_rollups` / `search_entries` /
@@ -47,7 +47,7 @@ pub struct Entry {
 }
 
 impl Entry {
-    /// Creates a new standalone entry (no document attached).
+    /// Creates a new standalone entry (no leaf attached).
     pub fn new(values: HashMap<Uuid, PropertyValue>) -> Self {
         let now = Utc::now().to_rfc3339();
         Self {
@@ -55,22 +55,22 @@ impl Entry {
             created_at: now.clone(),
             published_at: now,
             values,
-            document_id: None,
+            leaf_id: None,
             deleted_at: None,
         }
     }
 
-    /// Creates a new entry linked to an existing document — used by import
-    /// pipelines (Notion, Craft) where every page becomes both a Document and
-    /// a row in its parent database.
-    pub fn with_document(values: HashMap<Uuid, PropertyValue>, document_id: Uuid) -> Self {
+    /// Creates a new entry linked to an existing leaf — used by import
+    /// pipelines (Notion, Craft) where every page becomes both a Leaf and
+    /// a row in its parent book.
+    pub fn with_leaf(values: HashMap<Uuid, PropertyValue>, leaf_id: Uuid) -> Self {
         let now = Utc::now().to_rfc3339();
         Self {
             id: Uuid::new_v4(),
             created_at: now.clone(),
             published_at: now,
             values,
-            document_id: Some(document_id),
+            leaf_id: Some(leaf_id),
             deleted_at: None,
         }
     }

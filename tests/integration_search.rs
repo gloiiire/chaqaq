@@ -1,21 +1,21 @@
-use pinkha::application::database_use_cases::{add_entry, create_database, search_entries};
-use pinkha::application::use_cases::{create_document, search_documents};
-use pinkha::domain::database::{Property, PropertyType, PropertyValue};
-use pinkha::domain::document::InlineText;
-use pinkha::infrastructure::database_store::DatabaseStore;
+use pinkha::application::book_use_cases::{add_entry, create_book, search_entries};
+use pinkha::application::use_cases::{create_leaf, search_leaves};
+use pinkha::domain::book::{Property, PropertyType, PropertyValue};
+use pinkha::domain::leaf::InlineText;
+use pinkha::infrastructure::book_store::BookStore;
 use pinkha::infrastructure::json_store::JsonStore;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-fn doc_store_temp() -> JsonStore {
-    let dir = std::env::temp_dir().join(format!("pinkha_search_doc_{}", Uuid::new_v4()));
+fn leaf_store_temp() -> JsonStore {
+    let dir = std::env::temp_dir().join(format!("pinkha_search_leaf_{}", Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
     JsonStore::new(dir)
 }
 
-fn db_store_temp() -> DatabaseStore {
-    let dir = std::env::temp_dir().join(format!("pinkha_search_db_{}", Uuid::new_v4()));
-    DatabaseStore::new(dir).unwrap()
+fn book_store_temp() -> BookStore {
+    let dir = std::env::temp_dir().join(format!("pinkha_search_book_{}", Uuid::new_v4()));
+    BookStore::new(dir).unwrap()
 }
 
 fn inlines(s: &str) -> Vec<InlineText> {
@@ -25,29 +25,29 @@ fn inlines(s: &str) -> Vec<InlineText> {
     }]
 }
 
-// ── Document search ───────────────────────────────────────────────────────────
+// ── Leaf search ───────────────────────────────────────────────────────────
 
 #[test]
-fn test_search_documents_par_title() {
-    let store = doc_store_temp();
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+fn test_search_leaves_par_title() {
+    let store = leaf_store_temp();
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Journal de voyage",
     )
     .unwrap();
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Recettes de cuisine",
     )
     .unwrap();
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Journal personnel",
     )
     .unwrap();
 
-    let resultats = search_documents(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let resultats = search_leaves(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "journal",
     )
     .unwrap();
@@ -55,21 +55,21 @@ fn test_search_documents_par_title() {
 }
 
 #[test]
-fn test_search_documents_insensible_casse() {
-    let store = doc_store_temp();
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+fn test_search_leaves_insensible_casse() {
+    let store = leaf_store_temp();
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Notes de Réunion",
     )
     .unwrap();
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Todo list",
     )
     .unwrap();
 
-    let resultats = search_documents(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let resultats = search_leaves(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "NOTES",
     )
     .unwrap();
@@ -77,16 +77,16 @@ fn test_search_documents_insensible_casse() {
 }
 
 #[test]
-fn test_search_documents_aucun_resultat() {
-    let store = doc_store_temp();
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+fn test_search_leaves_aucun_resultat() {
+    let store = leaf_store_temp();
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Journal",
     )
     .unwrap();
 
-    let resultats = search_documents(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let resultats = search_leaves(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "xyzzy",
     )
     .unwrap();
@@ -94,36 +94,36 @@ fn test_search_documents_aucun_resultat() {
 }
 
 #[test]
-fn test_search_documents_query_vide_retourne_tout() {
-    let store = doc_store_temp();
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+fn test_search_leaves_query_vide_retourne_tout() {
+    let store = leaf_store_temp();
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Doc A",
     )
     .unwrap();
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Doc B",
     )
     .unwrap();
 
-    let resultats = search_documents(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let resultats = search_leaves(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "",
     )
     .unwrap();
     assert_eq!(resultats.len(), 2);
 }
 
-// ── Database entry search ─────────────────────────────────────────────────────
+// ── Book entry search ─────────────────────────────────────────────────────
 
 #[test]
 fn test_search_entries_par_texte() {
-    let store = db_store_temp();
+    let store = book_store_temp();
     let prop = Property::new("Contenu", PropertyType::Text);
     let prop_id = prop.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         inlines("Notes"),
         vec![prop],
     )
@@ -133,7 +133,7 @@ fn test_search_entries_par_texte() {
         let mut v = HashMap::new();
         v.insert(prop_id, PropertyValue::Text(texte.to_string()));
         add_entry(
-            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
             db.id,
             v,
         )
@@ -141,7 +141,7 @@ fn test_search_entries_par_texte() {
     }
 
     let resultats = search_entries(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         "pensée",
     )
@@ -151,11 +151,11 @@ fn test_search_entries_par_texte() {
 
 #[test]
 fn test_search_entries_insensible_casse() {
-    let store = db_store_temp();
+    let store = book_store_temp();
     let prop = Property::new("Titre", PropertyType::Text);
     let prop_id = prop.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         inlines("DB"),
         vec![prop],
     )
@@ -164,14 +164,14 @@ fn test_search_entries_insensible_casse() {
     let mut v = HashMap::new();
     v.insert(prop_id, PropertyValue::Text("Vacances d'Été".to_string()));
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         v,
     )
     .unwrap();
 
     let resultats = search_entries(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         "été",
     )
@@ -181,13 +181,13 @@ fn test_search_entries_insensible_casse() {
 
 #[test]
 fn test_search_entries_multi_champs() {
-    let store = db_store_temp();
+    let store = book_store_temp();
     let prop_title = Property::new("Titre", PropertyType::Text);
     let prop_tags = Property::new("Tags", PropertyType::SelectionMultiple(vec![]));
     let title_id = prop_title.id;
     let tags_id = prop_tags.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         inlines("Articles"),
         vec![prop_title, prop_tags],
     )
@@ -214,13 +214,13 @@ fn test_search_entries_multi_champs() {
     );
 
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         v1,
     )
     .unwrap();
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         v2,
     )
@@ -228,7 +228,7 @@ fn test_search_entries_multi_champs() {
 
     // "tech" appears in the tag of both entries
     let resultats = search_entries(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         "tech",
     )
@@ -237,7 +237,7 @@ fn test_search_entries_multi_champs() {
 
     // "rust" only appears in the title of the first entry
     let resultats = search_entries(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         "rust",
     )
@@ -247,11 +247,11 @@ fn test_search_entries_multi_champs() {
 
 #[test]
 fn test_search_entries_aucun_resultat() {
-    let store = db_store_temp();
+    let store = book_store_temp();
     let prop = Property::new("Texte", PropertyType::Text);
     let prop_id = prop.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         inlines("DB"),
         vec![prop],
     )
@@ -260,14 +260,14 @@ fn test_search_entries_aucun_resultat() {
     let mut v = HashMap::new();
     v.insert(prop_id, PropertyValue::Text("bonjour".to_string()));
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         v,
     )
     .unwrap();
 
     let resultats = search_entries(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
         db.id,
         "xyzzy",
     )

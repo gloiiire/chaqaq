@@ -1,15 +1,15 @@
-use pinkha::application::database_use_cases::{
-    add_entry, add_property, add_view, column_aggregate, create_database, evaluate_rollups,
-    get_database, grouped_query, query,
+use pinkha::application::book_use_cases::{
+    add_entry, add_property, add_view, column_aggregate, create_book, evaluate_rollups,
+    get_book, grouped_query, query,
 };
-use pinkha::application::repository::DocumentRepository;
-use pinkha::application::use_cases::create_document;
-use pinkha::domain::database::{
+use pinkha::application::repository::LeafRepository;
+use pinkha::application::use_cases::create_leaf;
+use pinkha::domain::book::{
     Aggregate, Filter, FilterCondition, Order, Property, PropertyType, PropertyValue, Sort, View,
     ViewType,
 };
-use pinkha::domain::document::{BlockContent, InlineText};
-use pinkha::infrastructure::database_store::DatabaseStore;
+use pinkha::domain::leaf::{BlockContent, InlineText};
+use pinkha::infrastructure::book_store::BookStore;
 use pinkha::infrastructure::json_store::JsonStore;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -21,26 +21,26 @@ fn title(s: &str) -> Vec<InlineText> {
     }]
 }
 
-fn store_temp() -> (JsonStore, DatabaseStore) {
+fn store_temp() -> (JsonStore, BookStore) {
     let id = Uuid::new_v4();
-    let doc_dir = std::env::temp_dir().join(format!("pinkha_e2e_docs_{id}"));
-    let db_dir = std::env::temp_dir().join(format!("pinkha_e2e_dbs_{id}"));
-    std::fs::create_dir_all(&doc_dir).unwrap();
-    (JsonStore::new(doc_dir), DatabaseStore::new(db_dir).unwrap())
+    let leaf_dir = std::env::temp_dir().join(format!("pinkha_e2e_leaves_{id}"));
+    let book_dir = std::env::temp_dir().join(format!("pinkha_e2e_books_{id}"));
+    std::fs::create_dir_all(&leaf_dir).unwrap();
+    (JsonStore::new(leaf_dir), BookStore::new(book_dir).unwrap())
 }
 
 #[test]
-fn test_flux_complet_database() {
-    let (_doc_store, db_store) = store_temp();
+fn test_flux_complet_book() {
+    let (_leaf_store, book_store) = store_temp();
 
-    // create a database with two properties
+    // create a book with two properties
     let prop_nom = Property::new("Nom", PropertyType::Title);
     let prop_score = Property::new("Score", PropertyType::Number);
     let nom_id = prop_nom.id;
     let score_id = prop_score.id;
 
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         title("Classement"),
         vec![prop_nom, prop_score],
     )
@@ -60,19 +60,19 @@ fn test_flux_complet_database() {
     v3.insert(score_id, PropertyValue::Number(88.0));
 
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         v1,
     )
     .unwrap();
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         v2,
     )
     .unwrap();
     add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         v3,
     )
@@ -83,14 +83,14 @@ fn test_flux_complet_database() {
     vue.sorts
         .push(Sort::by_property(score_id, Order::Descending));
     let vue = add_view(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         vue,
     )
     .unwrap();
 
     let resultats = query(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         vue.id,
     )
@@ -100,43 +100,43 @@ fn test_flux_complet_database() {
 }
 
 #[test]
-fn test_database_liee_a_document() {
-    let (doc_store, db_store) = store_temp();
+fn test_book_liee_a_leaf() {
+    let (leaf_store, book_store) = store_temp();
 
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         title("Tâches"),
         vec![],
     )
     .unwrap();
 
-    // document referencing the database via a block
-    let mut doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&doc_store),
+    // leaf referencing the book via a block
+    let mut doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&leaf_store),
         "Mon projet",
     )
     .unwrap();
-    doc.add_block(BlockContent::Database { id: db.id });
-    doc_store.save(&doc).unwrap();
+    doc.add_block(BlockContent::Book { id: db.id });
+    leaf_store.save(&doc).unwrap();
 
-    let recharge = doc_store.load(doc.id).unwrap();
+    let recharge = leaf_store.load(doc.id).unwrap();
     assert!(matches!(
         &recharge.blocks[0].content,
-        BlockContent::Database { id } if *id == db.id
+        BlockContent::Book { id } if *id == db.id
     ));
 }
 
 #[test]
 fn test_vue_avec_filtre_et_tri_combines() {
-    let (_doc_store, db_store) = store_temp();
+    let (_leaf_store, book_store) = store_temp();
 
     let prop_statut = Property::new("Statut", PropertyType::Text);
     let prop_priorite = Property::new("Priorité", PropertyType::Number);
     let statut_id = prop_statut.id;
     let priorite_id = prop_priorite.id;
 
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         title("Backlog"),
         vec![prop_statut, prop_priorite],
     )
@@ -153,7 +153,7 @@ fn test_vue_avec_filtre_et_tri_combines() {
         v.insert(statut_id, PropertyValue::Text(s.to_string()));
         v.insert(priorite_id, PropertyValue::Number(p));
         add_entry(
-            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
             db.id,
             v,
         )
@@ -168,14 +168,14 @@ fn test_vue_avec_filtre_et_tri_combines() {
     vue.sorts
         .push(Sort::by_property(priorite_id, Order::Ascending));
     let vue = add_view(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         vue,
     )
     .unwrap();
 
     let resultats = query(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         vue.id,
     )
@@ -188,17 +188,17 @@ fn test_vue_avec_filtre_et_tri_combines() {
 }
 
 #[test]
-fn test_add_property_a_database_existante() {
-    let (_doc_store, db_store) = store_temp();
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+fn test_add_property_a_book_existante() {
+    let (_leaf_store, book_store) = store_temp();
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         title("Notes"),
         vec![],
     )
     .unwrap();
     assert_eq!(
-        get_database(
-            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        get_book(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
             db.id
         )
         .unwrap()
@@ -208,14 +208,14 @@ fn test_add_property_a_database_existante() {
     );
 
     add_property(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         Property::new("Date", PropertyType::Date),
     )
     .unwrap();
     assert_eq!(
-        get_database(
-            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        get_book(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
             db.id
         )
         .unwrap()
@@ -228,14 +228,14 @@ fn test_add_property_a_database_existante() {
 // ── E2E Relations & Rollups ──────────────────────────────────────────────────
 
 #[test]
-fn test_flux_rollup_entre_deux_databases() {
-    let (_doc_store, db_store) = store_temp();
+fn test_flux_rollup_entre_deux_books() {
+    let (_leaf_store, book_store) = store_temp();
 
-    // Sprints (source database for relations)
+    // Sprints (source book for relations)
     let prop_points = Property::new("Points", PropertyType::Number);
     let points_id = prop_points.id;
-    let db_sprints = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+    let book_sprints = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         title("Sprints"),
         vec![prop_points],
     )
@@ -246,14 +246,14 @@ fn test_flux_rollup_entre_deux_databases() {
     let mut s2 = HashMap::new();
     s2.insert(points_id, PropertyValue::Number(13.0));
     let sprint1 = add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
-        db_sprints.id,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
+        book_sprints.id,
         s1,
     )
     .unwrap();
     let sprint2 = add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
-        db_sprints.id,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
+        book_sprints.id,
         s2,
     )
     .unwrap();
@@ -262,7 +262,7 @@ fn test_flux_rollup_entre_deux_databases() {
     let prop_rel = Property::new(
         "Sprints",
         PropertyType::Relation {
-            db_id: db_sprints.id,
+            book_id: book_sprints.id,
         },
     );
     let prop_total = Property::new(
@@ -275,8 +275,8 @@ fn test_flux_rollup_entre_deux_databases() {
     );
     let total_id = prop_total.id;
     let rel_id = prop_rel.id;
-    let db_projets = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+    let book_projets = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         title("Projets"),
         vec![prop_rel, prop_total],
     )
@@ -288,19 +288,19 @@ fn test_flux_rollup_entre_deux_databases() {
         PropertyValue::Relation(vec![sprint1.id, sprint2.id]),
     );
     let projet = add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
-        db_projets.id,
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
+        book_projets.id,
         vp,
     )
     .unwrap();
 
-    let db = get_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
-        db_projets.id,
+    let db = get_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
+        book_projets.id,
     )
     .unwrap();
     let enrichies = evaluate_rollups(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         &db,
         vec![projet],
     )
@@ -313,15 +313,15 @@ fn test_flux_rollup_entre_deux_databases() {
 
 #[test]
 fn test_flux_kanban_complet() {
-    let (_doc_store, db_store) = store_temp();
+    let (_leaf_store, book_store) = store_temp();
 
     let prop_statut = Property::new(
         "Statut",
         PropertyType::Selection(vec!["Todo".into(), "En cours".into(), "Terminé".into()]),
     );
     let statut_id = prop_statut.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         title("Backlog"),
         vec![prop_statut],
     )
@@ -335,7 +335,7 @@ fn test_flux_kanban_complet() {
         },
     );
     let vue_kanban = add_view(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         vue_kanban,
     )
@@ -350,7 +350,7 @@ fn test_flux_kanban_complet() {
                 PropertyValue::Selection(Some(statut.to_string())),
             );
             add_entry(
-                &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+                &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
                 db.id,
                 v,
             )
@@ -359,7 +359,7 @@ fn test_flux_kanban_complet() {
     }
 
     let groups = grouped_query(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         vue_kanban.id,
         statut_id,
@@ -374,12 +374,12 @@ fn test_flux_kanban_complet() {
 
 #[test]
 fn test_aggregate_min_max_colonne() {
-    let (_doc_store, db_store) = store_temp();
+    let (_leaf_store, book_store) = store_temp();
 
     let prop = Property::new("Durée", PropertyType::Number);
     let prop_id = prop.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         title("Tâches"),
         vec![prop],
     )
@@ -389,7 +389,7 @@ fn test_aggregate_min_max_colonne() {
         let mut v = HashMap::new();
         v.insert(prop_id, PropertyValue::Number(n));
         add_entry(
-            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
             db.id,
             v,
         )
@@ -397,14 +397,14 @@ fn test_aggregate_min_max_colonne() {
     }
 
     let min = column_aggregate(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         prop_id,
         Aggregate::Min,
     )
     .unwrap();
     let max = column_aggregate(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         prop_id,
         Aggregate::Max,
@@ -422,15 +422,15 @@ fn test_aggregate_min_max_colonne() {
 /// puts everything in the right chronological order.
 #[test]
 fn test_journal_intime_dates_mixtes() {
-    let (_doc_store, db_store) = store_temp();
+    let (_leaf_store, book_store) = store_temp();
 
     let prop_date = Property::new("Date", PropertyType::Date);
     let prop_content = Property::new("Texte", PropertyType::Text);
     let date_id = prop_date.id;
     let content_id = prop_content.id;
 
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         title("Journal"),
         vec![prop_date, prop_content],
     )
@@ -447,7 +447,7 @@ fn test_journal_intime_dates_mixtes() {
         v.insert(date_id, PropertyValue::Date(date.to_string()));
         v.insert(content_id, PropertyValue::Text(texte.to_string()));
         add_entry(
-            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
             db.id,
             v,
         )
@@ -460,7 +460,7 @@ fn test_journal_intime_dates_mixtes() {
         let mut v = HashMap::new();
         v.insert(content_id, PropertyValue::Text(texte.to_string()));
         add_entry(
-            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
             db.id,
             v,
         )
@@ -472,14 +472,14 @@ fn test_journal_intime_dates_mixtes() {
     vue.sorts
         .push(Sort::manual_then_creation(date_id, Order::Ascending));
     let vue = add_view(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         vue,
     )
     .unwrap();
 
     let resultats = query(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         vue.id,
     )

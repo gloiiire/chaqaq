@@ -1,6 +1,6 @@
 use crate::application::error::PinkhaError;
 use crate::application::unit_of_work::UnitOfWork;
-use crate::domain::database::{
+use crate::domain::book::{
     Entry, Filter, FilterCondition, Group, Order, PropertyValue, SortSource,
 };
 use std::cmp::Ordering;
@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 /// Returns the entries visible in a view after applying its filters and sorts.
-pub fn query(uow: &dyn UnitOfWork, db_id: Uuid, view_id: Uuid) -> Result<Vec<Entry>, PinkhaError> {
-    let db = uow.databases().load(db_id)?;
+pub fn query(uow: &dyn UnitOfWork, book_id: Uuid, view_id: Uuid) -> Result<Vec<Entry>, PinkhaError> {
+    let db = uow.books().load(book_id)?;
     let view = db
         .views
         .iter()
@@ -81,22 +81,22 @@ pub fn query(uow: &dyn UnitOfWork, db_id: Uuid, view_id: Uuid) -> Result<Vec<Ent
 /// Runs `query` then enriches the result with computed Rollup values.
 pub fn query_with_rollups(
     uow: &dyn UnitOfWork,
-    db_id: Uuid,
+    book_id: Uuid,
     view_id: Uuid,
 ) -> Result<Vec<Entry>, PinkhaError> {
-    let db = uow.databases().load(db_id)?;
-    let entries = query(uow, db_id, view_id)?;
-    crate::application::database_use_cases::evaluate_rollups(uow, &db, entries)
+    let db = uow.books().load(book_id)?;
+    let entries = query(uow, book_id, view_id)?;
+    crate::application::book_use_cases::evaluate_rollups(uow, &db, entries)
 }
 
-/// Aggregates all values of a numeric column across every entry in the database.
+/// Aggregates all values of a numeric column across every entry in the book.
 pub fn column_aggregate(
     uow: &dyn UnitOfWork,
-    db_id: Uuid,
+    book_id: Uuid,
     prop_id: Uuid,
-    aggregate: crate::domain::database::Aggregate,
+    aggregate: crate::domain::book::Aggregate,
 ) -> Result<PropertyValue, PinkhaError> {
-    let db = uow.databases().load(db_id)?;
+    let db = uow.books().load(book_id)?;
     let refs: Vec<&Entry> = db.entries.iter().filter(|e| !e.is_deleted()).collect();
     Ok(calculate_aggregate(&refs, prop_id, &aggregate))
 }
@@ -104,11 +104,11 @@ pub fn column_aggregate(
 /// Groups the entries of a view by the value of a given property.
 pub fn grouped_query(
     uow: &dyn UnitOfWork,
-    db_id: Uuid,
+    book_id: Uuid,
     view_id: Uuid,
     group_by: Uuid,
 ) -> Result<Vec<Group>, PinkhaError> {
-    let entries = query(uow, db_id, view_id)?;
+    let entries = query(uow, book_id, view_id)?;
     let mut map: HashMap<String, Group> = HashMap::new();
 
     for entry in entries {
@@ -145,9 +145,9 @@ pub(super) fn effective_date<'a>(v: &'a PropertyValue, created_at: &'a str) -> &
 pub(super) fn calculate_aggregate(
     entries: &[&Entry],
     prop_id: Uuid,
-    aggregate: &crate::domain::database::Aggregate,
+    aggregate: &crate::domain::book::Aggregate,
 ) -> PropertyValue {
-    use crate::domain::database::Aggregate;
+    use crate::domain::book::Aggregate;
     let nums: Vec<f64> = entries
         .iter()
         .filter_map(|e| e.values.get(&prop_id))
@@ -310,7 +310,7 @@ mod tests {
 
     #[test]
     fn test_calculer_aggregate_somme() {
-        use crate::domain::database::Aggregate;
+        use crate::domain::book::Aggregate;
         let prop_id = Uuid::new_v4();
         let entries = [
             entry_with_number(prop_id, 10.0),
@@ -326,7 +326,7 @@ mod tests {
 
     #[test]
     fn test_calculer_aggregate_compter() {
-        use crate::domain::database::Aggregate;
+        use crate::domain::book::Aggregate;
         let prop_id = Uuid::new_v4();
         let e1 = entry_with_number(prop_id, 1.0);
         let e2 = entry_with_number(prop_id, 2.0);
@@ -339,7 +339,7 @@ mod tests {
 
     #[test]
     fn test_calculer_aggregate_moyenne() {
-        use crate::domain::database::Aggregate;
+        use crate::domain::book::Aggregate;
         let prop_id = Uuid::new_v4();
         let entries = [
             entry_with_number(prop_id, 10.0),

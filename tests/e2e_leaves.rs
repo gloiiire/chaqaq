@@ -1,6 +1,6 @@
 use pinkha::application::error::PinkhaError;
-use pinkha::application::use_cases::{add_block, create_document, get_document, list_documents};
-use pinkha::domain::document::BlockContent;
+use pinkha::application::use_cases::{add_block, create_leaf, get_leaf, list_leaves};
+use pinkha::domain::leaf::BlockContent;
 use pinkha::domain::parser::parse_inline;
 use pinkha::infrastructure::json_store::JsonStore;
 use std::path::PathBuf;
@@ -16,13 +16,13 @@ fn store_temp() -> (JsonStore, PathBuf) {
 fn test_creer_puis_obtenir() {
     let (store, dir) = store_temp();
 
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Mon title",
     )
     .unwrap();
-    let obtenu = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let obtenu = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();
@@ -38,15 +38,15 @@ fn test_flux_complet() {
     let (store, dir) = store_temp();
 
     // création
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Journal",
     )
     .unwrap();
 
-    // listing : 1 document, bon id
-    let liste = list_documents(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    // listing : 1 leaf, bon id
+    let liste = list_leaves(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
     )
     .unwrap();
     assert_eq!(liste.len(), 1);
@@ -54,7 +54,7 @@ fn test_flux_complet() {
 
     // ajout d'un bloc
     let mis_a_jour = add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Text(parse_inline("Premier bloc")),
     )
@@ -62,8 +62,8 @@ fn test_flux_complet() {
     assert_eq!(mis_a_jour.blocks.len(), 1);
 
     // rechargement : le bloc est bien persisté
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();
@@ -73,27 +73,27 @@ fn test_flux_complet() {
 }
 
 #[test]
-fn test_lister_plusieurs_documents() {
+fn test_lister_plusieurs_leaves() {
     let (store, dir) = store_temp();
 
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Alpha",
     )
     .unwrap();
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Beta",
     )
     .unwrap();
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Gamma",
     )
     .unwrap();
 
-    let liste = list_documents(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let liste = list_leaves(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
     )
     .unwrap();
     assert_eq!(liste.len(), 3);
@@ -102,11 +102,11 @@ fn test_lister_plusieurs_documents() {
 }
 
 #[test]
-fn test_get_document_inexistant() {
+fn test_get_leaf_inexistant() {
     let (store, dir) = store_temp();
 
-    let result = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let result = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         Uuid::new_v4(),
     );
     assert!(matches!(result, Err(PinkhaError::NotFound(_))));
@@ -118,20 +118,20 @@ fn test_get_document_inexistant() {
 fn test_ajouter_plusieurs_blocs() {
     let (store, dir) = store_temp();
 
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Notes",
     )
     .unwrap();
 
     add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Text(parse_inline("Bloc 1")),
     )
     .unwrap();
     add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Heading {
             text: parse_inline("Titre"),
@@ -140,14 +140,14 @@ fn test_ajouter_plusieurs_blocs() {
     )
     .unwrap();
     add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Divider,
     )
     .unwrap();
 
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();

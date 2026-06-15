@@ -1,31 +1,31 @@
 use crate::application::error::PinkhaError;
-use crate::application::repository::DocumentRepository;
+use crate::application::repository::LeafRepository;
 use crate::application::resilience::retry_with_backoff;
-use crate::domain::document::{Document, DocumentMeta, InlineText};
-use crate::infrastructure::migrations::apply_document_migrations;
+use crate::domain::leaf::{Leaf, LeafMeta, InlineText};
+use crate::infrastructure::migrations::apply_leaf_migrations;
 use rusqlite::{Connection, params};
 use std::sync::Mutex;
 use uuid::Uuid;
 
-/// SQLite-backed document store.
+/// SQLite-backed leaf store.
 ///
 /// All write and read operations go through a [`Mutex`]-protected connection
 /// so the store can be shared across threads. WAL mode is enabled at
 /// construction time for better concurrent read performance. Deletes are
 /// soft (a `deleted_at` timestamp is set rather than removing the row),
 /// which prepares the data for future CRDT-based sync.
-pub struct SqliteDocumentStore {
+pub struct SqliteLeafStore {
     conn: Mutex<Connection>,
 }
 
-impl SqliteDocumentStore {
-    /// Opens (or creates) a SQLite database at `path`, enables WAL mode, and
+impl SqliteLeafStore {
+    /// Opens (or creates) a SQLite book at `path`, enables WAL mode, and
     /// applies all pending schema migrations.
     pub fn new(path: &str) -> Result<Self, PinkhaError> {
         let mut conn = Connection::open(path).map_err(|e| PinkhaError::Db(e.to_string()))?;
         conn.execute_batch("PRAGMA journal_mode=WAL;")
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
-        apply_document_migrations(&mut conn)?;
+        apply_leaf_migrations(&mut conn)?;
         Ok(Self {
             conn: Mutex::new(conn),
         })
@@ -37,8 +37,8 @@ impl SqliteDocumentStore {
     }
 }
 
-impl DocumentRepository for SqliteDocumentStore {
-    fn save(&self, doc: &Document) -> Result<(), PinkhaError> {
+impl LeafRepository for SqliteLeafStore {
+    fn save(&self, doc: &Leaf) -> Result<(), PinkhaError> {
         // Pre-compute outside the retry closure: no extra cost on retries.
         let data = serde_json::to_string(doc)?;
         let title_text: String = doc
@@ -59,8 +59,8 @@ impl DocumentRepository for SqliteDocumentStore {
         let id = doc.id.to_string();
         let cover = doc.cover.clone();
 
-        let folder_id = doc.folder_id.map(|u| u.to_string());
-        let parent_doc_id = doc.parent_doc_id.map(|u| u.to_string());
+        let shelf_id = doc.shelf_id.map(|u| u.to_string());
+        let parent_leaf_id = doc.parent_leaf_id.map(|u| u.to_string());
         let icon = doc.icon.clone();
         // `published_at` defaults to the row's creation timestamp when the
         // caller hasn't overridden it ; that way fresh docs sort identically
@@ -73,31 +73,31 @@ impl DocumentRepository for SqliteDocumentStore {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             conn.execute(
-                "INSERT INTO documents (id, title_text, title_json, cover, updated_at, created_at, published_at, folder_id, parent_doc_id, icon, data)
+                "INSERT INTO leaves (id, title_text, title_json, cover, updated_at, created_at, published_at, shelf_id, parent_leaf_id, icon, data)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, CASE WHEN ?7 = '' THEN ?6 ELSE ?7 END, ?8, ?9, ?10, ?11)
                  ON CONFLICT(id) DO UPDATE SET
                     title_text    = excluded.title_text,
                     title_json    = excluded.title_json,
                     cover         = excluded.cover,
                     updated_at    = excluded.updated_at,
-                    published_at  = CASE WHEN ?7 = '' THEN documents.created_at ELSE ?7 END,
-                    folder_id     = excluded.folder_id,
-                    parent_doc_id = excluded.parent_doc_id,
+                    published_at  = CASE WHEN ?7 = '' THEN leaves.created_at ELSE ?7 END,
+                    shelf_id     = excluded.shelf_id,
+                    parent_leaf_id = excluded.parent_leaf_id,
                     icon          = excluded.icon,
                     data          = excluded.data,
                     deleted_at    = NULL",
-                params![id, title_text, title_json, cover, now, created_at, published_at, folder_id, parent_doc_id, icon, data],
+                params![id, title_text, title_json, cover, now, created_at, published_at, shelf_id, parent_leaf_id, icon, data],
             )
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
             Ok(())
         })
     }
 
-    fn load(&self, id: Uuid) -> Result<Document, PinkhaError> {
+    fn load(&self, id: Uuid) -> Result<Leaf, PinkhaError> {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let result = conn.query_row(
-                "SELECT data FROM documents WHERE id = ?1 AND deleted_at IS NULL",
+                "SELECT data FROM leaves WHERE id = ?1 AND deleted_at IS NULL",
                 params![id.to_string()],
                 |row| row.get::<_, String>(0),
             );
@@ -109,31 +109,31 @@ impl DocumentRepository for SqliteDocumentStore {
         })
     }
 
-    fn list(&self) -> Result<Vec<DocumentMeta>, PinkhaError> {
-        self.list_by_folder_inner(None, false)
+    fn list(&self) -> Result<Vec<LeafMeta>, PinkhaError> {
+        self.list_by_shelf_inner(None, false)
     }
 
-    fn move_to_folder(&self, doc_id: Uuid, folder_id: Option<Uuid>) -> Result<(), PinkhaError> {
+    fn move_to_shelf(&self, leaf_id: Uuid, shelf_id: Option<Uuid>) -> Result<(), PinkhaError> {
         let now = chrono::Utc::now().to_rfc3339();
-        let fid = folder_id.map(|u| u.to_string());
+        let fid = shelf_id.map(|u| u.to_string());
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let affected = conn
                 .execute(
-                    "UPDATE documents SET folder_id = ?1, updated_at = ?2
+                    "UPDATE leaves SET shelf_id = ?1, updated_at = ?2
                      WHERE id = ?3 AND deleted_at IS NULL",
-                    params![fid, now, doc_id.to_string()],
+                    params![fid, now, leaf_id.to_string()],
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
             if affected == 0 {
-                return Err(PinkhaError::NotFound(doc_id));
+                return Err(PinkhaError::NotFound(leaf_id));
             }
             Ok(())
         })
     }
 
-    fn list_by_folder(&self, folder_id: Option<Uuid>) -> Result<Vec<DocumentMeta>, PinkhaError> {
-        self.list_by_folder_inner(folder_id, true)
+    fn list_by_shelf(&self, shelf_id: Option<Uuid>) -> Result<Vec<LeafMeta>, PinkhaError> {
+        self.list_by_shelf_inner(shelf_id, true)
     }
 
     fn delete(&self, id: Uuid) -> Result<(), PinkhaError> {
@@ -141,7 +141,7 @@ impl DocumentRepository for SqliteDocumentStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let affected = conn
                 .execute(
-                    "UPDATE documents SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
+                    "UPDATE leaves SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
                     params![chrono::Utc::now().to_rfc3339(), id.to_string()],
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
@@ -152,13 +152,13 @@ impl DocumentRepository for SqliteDocumentStore {
         })
     }
 
-    fn list_deleted(&self) -> Result<Vec<DocumentMeta>, PinkhaError> {
+    fn list_deleted(&self) -> Result<Vec<LeafMeta>, PinkhaError> {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let mut stmt = conn
                 .prepare(
-                    "SELECT id, title_json, cover, updated_at, created_at, folder_id, parent_doc_id, icon, published_at
-                     FROM documents WHERE deleted_at IS NOT NULL
+                    "SELECT id, title_json, cover, updated_at, created_at, shelf_id, parent_leaf_id, icon, published_at
+                     FROM leaves WHERE deleted_at IS NOT NULL
                      ORDER BY deleted_at DESC",
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
@@ -194,7 +194,7 @@ impl DocumentRepository for SqliteDocumentStore {
                     PinkhaError::InvalidOperation(format!("invalid UUID: {id_str}"))
                 })?;
                 let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
-                metas.push(DocumentMeta {
+                metas.push(LeafMeta {
                     id,
                     title,
                     cover,
@@ -202,8 +202,8 @@ impl DocumentRepository for SqliteDocumentStore {
                     updated_at,
                     created_at,
                     published_at,
-                    folder_id: fid.and_then(|s| Uuid::parse_str(&s).ok()),
-                    parent_doc_id: pdid.and_then(|s| Uuid::parse_str(&s).ok()),
+                    shelf_id: fid.and_then(|s| Uuid::parse_str(&s).ok()),
+                    parent_leaf_id: pdid.and_then(|s| Uuid::parse_str(&s).ok()),
                 });
             }
             Ok(metas)
@@ -215,7 +215,7 @@ impl DocumentRepository for SqliteDocumentStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let affected = conn
                 .execute(
-                    "UPDATE documents SET deleted_at = NULL, updated_at = ?1
+                    "UPDATE leaves SET deleted_at = NULL, updated_at = ?1
                      WHERE id = ?2 AND deleted_at IS NOT NULL",
                     params![chrono::Utc::now().to_rfc3339(), id.to_string()],
                 )
@@ -232,13 +232,13 @@ impl DocumentRepository for SqliteDocumentStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let affected = conn
                 .execute(
-                    "DELETE FROM documents WHERE id = ?1 AND deleted_at IS NOT NULL",
+                    "DELETE FROM leaves WHERE id = ?1 AND deleted_at IS NOT NULL",
                     params![id.to_string()],
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
             if affected == 0 {
                 return Err(PinkhaError::InvalidOperation(format!(
-                    "document {id} must be soft-deleted before it can be purged"
+                    "leaf {id} must be soft-deleted before it can be purged"
                 )));
             }
             Ok(())
@@ -246,30 +246,30 @@ impl DocumentRepository for SqliteDocumentStore {
     }
 }
 
-impl SqliteDocumentStore {
-    fn list_by_folder_inner(
+impl SqliteLeafStore {
+    fn list_by_shelf_inner(
         &self,
-        folder_id: Option<Uuid>,
+        shelf_id: Option<Uuid>,
         filter: bool,
-    ) -> Result<Vec<DocumentMeta>, PinkhaError> {
+    ) -> Result<Vec<LeafMeta>, PinkhaError> {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let sql = if filter {
-                if folder_id.is_some() {
-                    "SELECT id, title_json, cover, updated_at, created_at, folder_id, parent_doc_id, icon, published_at
-                     FROM documents WHERE deleted_at IS NULL AND folder_id = ?1
+                if shelf_id.is_some() {
+                    "SELECT id, title_json, cover, updated_at, created_at, shelf_id, parent_leaf_id, icon, published_at
+                     FROM leaves WHERE deleted_at IS NULL AND shelf_id = ?1
                      ORDER BY updated_at DESC"
                 } else {
-                    "SELECT id, title_json, cover, updated_at, created_at, folder_id, parent_doc_id, icon, published_at
-                     FROM documents WHERE deleted_at IS NULL AND folder_id IS NULL
+                    "SELECT id, title_json, cover, updated_at, created_at, shelf_id, parent_leaf_id, icon, published_at
+                     FROM leaves WHERE deleted_at IS NULL AND shelf_id IS NULL
                      ORDER BY updated_at DESC"
                 }
             } else {
-                "SELECT id, title_json, cover, updated_at, created_at, folder_id, parent_doc_id, icon, published_at
-                 FROM documents WHERE deleted_at IS NULL
+                "SELECT id, title_json, cover, updated_at, created_at, shelf_id, parent_leaf_id, icon, published_at
+                 FROM leaves WHERE deleted_at IS NULL
                  ORDER BY updated_at DESC"
             };
-            let fid_str = folder_id.map(|u| u.to_string());
+            let fid_str = shelf_id.map(|u| u.to_string());
             let mut stmt = conn
                 .prepare(sql)
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
@@ -286,7 +286,7 @@ impl SqliteDocumentStore {
                     row.get::<_, String>(8)?,
                 ))
             };
-            let rows = if filter && folder_id.is_some() {
+            let rows = if filter && shelf_id.is_some() {
                 stmt.query_map(params![fid_str], mapper)
             } else {
                 stmt.query_map([], mapper)
@@ -309,7 +309,7 @@ impl SqliteDocumentStore {
                     PinkhaError::InvalidOperation(format!("invalid UUID: {id_str}"))
                 })?;
                 let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
-                metas.push(DocumentMeta {
+                metas.push(LeafMeta {
                     id,
                     title,
                     cover,
@@ -317,8 +317,8 @@ impl SqliteDocumentStore {
                     updated_at,
                     created_at,
                     published_at,
-                    folder_id: fid.and_then(|s| Uuid::parse_str(&s).ok()),
-                    parent_doc_id: pdid.and_then(|s| Uuid::parse_str(&s).ok()),
+                    shelf_id: fid.and_then(|s| Uuid::parse_str(&s).ok()),
+                    parent_leaf_id: pdid.and_then(|s| Uuid::parse_str(&s).ok()),
                 });
             }
             Ok(metas)
@@ -329,14 +329,14 @@ impl SqliteDocumentStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::document::Document;
+    use crate::domain::leaf::Leaf;
 
-    fn store() -> SqliteDocumentStore {
-        SqliteDocumentStore::in_memory().unwrap()
+    fn store() -> SqliteLeafStore {
+        SqliteLeafStore::in_memory().unwrap()
     }
 
-    fn doc(title: &str) -> Document {
-        Document::new(vec![InlineText {
+    fn doc(title: &str) -> Leaf {
+        Leaf::new(vec![InlineText {
             content: title.to_string(),
             styles: vec![],
         }])
@@ -362,7 +362,7 @@ mod tests {
     }
 
     #[test]
-    fn test_list_retourne_documents_actifs() {
+    fn test_list_retourne_leaves_actifs() {
         let store = store();
         store.save(&doc("Doc 1")).unwrap();
         store.save(&doc("Doc 2")).unwrap();
@@ -446,7 +446,7 @@ mod tests {
     fn test_list_meta_sans_deserialiser_les_blocs() {
         let store = store();
         let mut d = doc("Titre riche");
-        d.add_block(crate::domain::document::BlockContent::Text(vec![
+        d.add_block(crate::domain::leaf::BlockContent::Text(vec![
             InlineText {
                 content: "content".to_string(),
                 styles: vec![],

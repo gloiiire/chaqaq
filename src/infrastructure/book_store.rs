@@ -1,34 +1,34 @@
-use crate::application::database_repository::DatabaseRepository;
+use crate::application::book_repository::BookRepository;
 use crate::application::error::PinkhaError;
-use crate::domain::database::{Database, DatabaseMeta};
+use crate::domain::book::{Book, BookMeta};
 use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-/// File-system database store that persists each [`Database`] as a
+/// File-system book store that persists each [`Book`] as a
 /// pretty-printed JSON file named `<uuid>.json` inside a directory.
 ///
 /// Kept alongside the SQLite store for tests and prototyping. Production code
-/// should prefer [`SqliteDatabaseStore`].
-pub struct DatabaseStore {
+/// should prefer [`SqliteBookStore`].
+pub struct BookStore {
     dir: PathBuf,
 }
 
-impl DatabaseStore {
+impl BookStore {
     /// Creates a new store rooted at `dir`, creating the directory if needed.
     pub fn new(dir: PathBuf) -> Result<Self, PinkhaError> {
         fs::create_dir_all(&dir)?;
         Ok(Self { dir })
     }
 
-    /// Returns the expected file path for a database identified by `id`.
+    /// Returns the expected file path for a book identified by `id`.
     fn path(&self, id: Uuid) -> PathBuf {
         self.dir.join(format!("{id}.json"))
     }
 }
 
-impl DatabaseRepository for DatabaseStore {
-    fn save(&self, db: &Database) -> Result<(), PinkhaError> {
+impl BookRepository for BookStore {
+    fn save(&self, db: &Book) -> Result<(), PinkhaError> {
         let json = serde_json::to_string_pretty(db)?;
         // Atomic write: write to a .tmp file then rename — the store remains
         // consistent if the process dies mid-write.
@@ -39,7 +39,7 @@ impl DatabaseRepository for DatabaseStore {
         Ok(())
     }
 
-    fn load(&self, id: Uuid) -> Result<Database, PinkhaError> {
+    fn load(&self, id: Uuid) -> Result<Book, PinkhaError> {
         let p = self.path(id);
         let content = fs::read_to_string(&p).map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
@@ -52,7 +52,7 @@ impl DatabaseRepository for DatabaseStore {
         Ok(db)
     }
 
-    fn list_meta(&self) -> Result<Vec<DatabaseMeta>, PinkhaError> {
+    fn list_meta(&self) -> Result<Vec<BookMeta>, PinkhaError> {
         // Tolerate corrupted files: skip them rather than failing the whole listing.
         let mut metas = Vec::new();
         for entry in fs::read_dir(&self.dir)? {
@@ -61,7 +61,7 @@ impl DatabaseRepository for DatabaseStore {
                 continue;
             }
             if let Ok(content) = fs::read_to_string(&p)
-                && let Ok(db) = serde_json::from_str::<Database>(&content)
+                && let Ok(db) = serde_json::from_str::<Book>(&content)
             {
                 metas.push(db.meta());
             }
@@ -84,13 +84,13 @@ impl DatabaseRepository for DatabaseStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::database::{Entry, Property, PropertyType, PropertyValue};
-    use crate::domain::document::InlineText;
+    use crate::domain::book::{Entry, Property, PropertyType, PropertyValue};
+    use crate::domain::leaf::InlineText;
     use std::collections::HashMap;
 
-    fn temp_store() -> DatabaseStore {
-        let dir = std::env::temp_dir().join(format!("pinkha_db_test_{}", Uuid::new_v4()));
-        DatabaseStore::new(dir).unwrap()
+    fn temp_store() -> BookStore {
+        let dir = std::env::temp_dir().join(format!("pinkha_book_test_{}", Uuid::new_v4()));
+        BookStore::new(dir).unwrap()
     }
 
     fn title(s: &str) -> Vec<InlineText> {
@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn test_save_puis_load() {
         let store = temp_store();
-        let db = Database::new(title("Projets"), vec![]);
+        let db = Book::new(title("Projets"), vec![]);
         store.save(&db).unwrap();
         let loaded = store.load(db.id).unwrap();
         assert_eq!(loaded.id, db.id);
@@ -118,10 +118,10 @@ mod tests {
     }
 
     #[test]
-    fn test_list_meta_retourne_toutes_les_databases() {
+    fn test_list_meta_retourne_toutes_les_books() {
         let store = temp_store();
-        let db1 = Database::new(title("Projets"), vec![]);
-        let db2 = Database::new(title("Tâches"), vec![]);
+        let db1 = Book::new(title("Projets"), vec![]);
+        let db2 = Book::new(title("Tâches"), vec![]);
         store.save(&db1).unwrap();
         store.save(&db2).unwrap();
         let metas = store.list_meta().unwrap();
@@ -129,9 +129,9 @@ mod tests {
     }
 
     #[test]
-    fn test_delete_supprime_la_database() {
+    fn test_delete_supprime_la_book() {
         let store = temp_store();
-        let db = Database::new(title("Temp"), vec![]);
+        let db = Book::new(title("Temp"), vec![]);
         store.save(&db).unwrap();
         store.delete(db.id).unwrap();
         assert!(matches!(store.load(db.id), Err(PinkhaError::NotFound(_))));
@@ -149,7 +149,7 @@ mod tests {
         let store = temp_store();
         let prop = Property::new("Statut", PropertyType::Text);
         let prop_id = prop.id;
-        let mut db = Database::new(title("Test"), vec![prop]);
+        let mut db = Book::new(title("Test"), vec![prop]);
         store.save(&db).unwrap();
 
         let mut values = HashMap::new();

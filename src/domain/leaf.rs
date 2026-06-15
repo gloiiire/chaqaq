@@ -3,8 +3,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 use uuid::Uuid;
 
 /// Maps a JSON `null` or missing field to `String::default()` (empty),
-/// otherwise expects a normal string. Used by `DocumentMeta`'s
-/// timestamp fields so JSON files written by [`crate::domain::document::Document`]
+/// otherwise expects a normal string. Used by `LeafMeta`'s
+/// timestamp fields so JSON files written by [`crate::domain::leaf::Leaf`]
 /// — whose timestamps are `Option<String>` and serialise to `null` when
 /// `None` — can still be re-read into the non-optional `String` typed
 /// meta view without serde rejecting the row.
@@ -45,9 +45,9 @@ pub enum BlockContent {
     },
     /// Breadcrumb navigation placeholder — no editable content.
     Breadcrumb,
-    /// Embedded database reference.
-    Database {
-        /// ID of the referenced `Database`.
+    /// Embedded book reference.
+    Book {
+        /// ID of the referenced `Book`.
         id: Uuid,
     },
     /// Bulleted list item (rendered with a bullet point •).
@@ -63,18 +63,18 @@ pub enum BlockContent {
         text: String,
     },
     /// Reference to a child page (Notion-style "child_page" block).
-    /// Renders as a clickable row pointing to another Document. The child
-    /// document remains autonomous (its own title, blocks, color, …); this
+    /// Renders as a clickable row pointing to another Leaf. The child
+    /// leaf remains autonomous (its own title, blocks, color, …); this
     /// block only places it inline at a chosen position in the parent.
     Page {
-        /// ID of the referenced child `Document`.
+        /// ID of the referenced child `Leaf`.
         id: Uuid,
     },
     /// Rich card preview for a single URL (Notion-style "web bookmark").
     /// Renders with the destination's title / description / image fetched
     /// from OpenGraph tags for external URLs; `pinkha://doc/{uuid}` URLs
     /// resolve instantly against the local store and show the target
-    /// document's title + icon. The block's content is just the URL —
+    /// leaf's title + icon. The block's content is just the URL —
     /// metadata is recomputed at render time so the card stays fresh.
     Embed {
         /// Destination URL. Can be a `pinkha://doc/{uuid}` for internal
@@ -83,7 +83,7 @@ pub enum BlockContent {
     },
 }
 
-/// A node in a document's block tree — may contain nested child blocks.
+/// A node in a leaf's block tree — may contain nested child blocks.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Block {
     /// Unique block identifier.
@@ -97,7 +97,7 @@ pub struct Block {
     /// inline color overrides block color at render time. `None` means the
     /// block inherits the default theme color.
     ///
-    /// `#[serde(default)]` keeps the field backward-compatible with documents
+    /// `#[serde(default)]` keeps the field backward-compatible with leaves
     /// serialised before this field existed (they decode as `None`).
     #[serde(default)]
     pub color: Option<String>,
@@ -110,9 +110,9 @@ pub struct Block {
     #[serde(default)]
     pub background_color: Option<String>,
     /// Per-block writing direction override. Values: `"ltr"`,
-    /// `"rtl"`, or `None` to inherit the document-level setting
+    /// `"rtl"`, or `None` to inherit the leaf-level setting
     /// (which itself defaults to the system locale). Lets a single
-    /// Arabic paragraph live inside an otherwise LTR document, or
+    /// Arabic paragraph live inside an otherwise LTR leaf, or
     /// vice versa. `#[serde(default)]` for backward compatibility.
     #[serde(default)]
     pub text_direction: Option<String>,
@@ -133,14 +133,14 @@ impl Block {
     }
 }
 
-/// Lightweight document descriptor returned by list operations (no blocks loaded).
+/// Lightweight leaf descriptor returned by list operations (no blocks loaded).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DocumentMeta {
-    /// Document identifier.
+pub struct LeafMeta {
+    /// Leaf identifier.
     pub id: Uuid,
     /// Optional cover image URL or emoji.
     pub cover: Option<String>,
-    /// Optional page icon (emoji or filename). Mirrors `Document.icon`.
+    /// Optional page icon (emoji or filename). Mirrors `Leaf.icon`.
     #[serde(default)]
     pub icon: Option<String>,
     /// Rich-text title.
@@ -148,7 +148,7 @@ pub struct DocumentMeta {
     /// ISO 8601 timestamp of the last modification, managed by the infrastructure layer.
     /// Empty when the backend does not provide it (JsonStore, mock).
     /// `deserialize_with` tolerates an explicit `null` from a JSON
-    /// document whose Document-side timestamp is `None` — without it,
+    /// leaf whose Leaf-side timestamp is `None` — without it,
     /// `JsonStore.list()` silently drops every doc that was natively
     /// created in-app (those serialise `created_at: null`).
     #[serde(default, deserialize_with = "deserialize_string_or_null")]
@@ -165,19 +165,19 @@ pub struct DocumentMeta {
     /// by the sort path.
     #[serde(default, deserialize_with = "deserialize_string_or_null")]
     pub published_at: String,
-    /// Folder this document belongs to. None = root level.
+    /// Shelf this leaf belongs to. None = root level.
     #[serde(default)]
-    pub folder_id: Option<Uuid>,
-    /// Parent document for Notion-style page-in-page hierarchy. `None` means
-    /// the document is a root page; otherwise it is a child page reachable
+    pub shelf_id: Option<Uuid>,
+    /// Parent leaf for Notion-style page-in-page hierarchy. `None` means
+    /// the leaf is a root page; otherwise it is a child page reachable
     /// either by tapping its [`BlockContent::Page`] block inside the parent,
     /// or by navigating through the breadcrumbs from any descendant.
     #[serde(default)]
-    pub parent_doc_id: Option<Uuid>,
+    pub parent_leaf_id: Option<Uuid>,
 }
 
-impl From<&Document> for DocumentMeta {
-    fn from(doc: &Document) -> Self {
+impl From<&Leaf> for LeafMeta {
+    fn from(doc: &Leaf) -> Self {
         Self {
             id: doc.id,
             cover: doc.cover.clone(),
@@ -186,23 +186,23 @@ impl From<&Document> for DocumentMeta {
             updated_at: String::new(),
             created_at: String::new(),
             published_at: doc.published_at.clone(),
-            folder_id: doc.folder_id,
-            parent_doc_id: doc.parent_doc_id,
+            shelf_id: doc.shelf_id,
+            parent_leaf_id: doc.parent_leaf_id,
         }
     }
 }
 
-/// A document: a title, an optional cover, and an ordered list of top-level blocks.
+/// A leaf: a title, an optional cover, and an ordered list of top-level blocks.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Document {
-    /// Document identifier.
+pub struct Leaf {
+    /// Leaf identifier.
     pub id: Uuid,
     /// Optional cover image URL or emoji.
     pub cover: Option<String>,
     /// Page icon. Small visual identifier shown next to the title — an emoji
     /// (`"📕"`), a local filename inside the covers directory, or a remote
     /// URL. Distinct from `cover` which is the big banner image at the top.
-    /// `#[serde(default)]` keeps backward compatibility with documents
+    /// `#[serde(default)]` keeps backward compatibility with leaves
     /// serialised before this field existed.
     #[serde(default)]
     pub icon: Option<String>,
@@ -210,24 +210,24 @@ pub struct Document {
     pub title: Vec<InlineText>,
     /// Top-level blocks (each may have nested children).
     pub blocks: Vec<Block>,
-    /// Folder this document belongs to. None = root level.
+    /// Shelf this leaf belongs to. None = root level.
     #[serde(default)]
-    pub folder_id: Option<Uuid>,
-    /// Parent document for Notion-style page-in-page hierarchy. `None` means
-    /// the document is a root page; otherwise it is a child page placed
+    pub shelf_id: Option<Uuid>,
+    /// Parent leaf for Notion-style page-in-page hierarchy. `None` means
+    /// the leaf is a root page; otherwise it is a child page placed
     /// inside its parent via a [`BlockContent::Page`] block.
     #[serde(default)]
-    pub parent_doc_id: Option<Uuid>,
+    pub parent_leaf_id: Option<Uuid>,
     /// Read-only flag. When `true`, the editor disables every interactive
     /// element (blocks become non-editable, the keyboard accessory hides,
     /// the FAB and "+New block" footer go away). Used by data-extract
-    /// imports (Notion/Bear/Craft) to default new documents to a safe view
+    /// imports (Notion/Bear/Craft) to default new leaves to a safe view
     /// mode so the user reads first and unlocks before editing imported
-    /// content. `#[serde(default)]` keeps backward compat with documents
+    /// content. `#[serde(default)]` keeps backward compat with leaves
     /// saved before this field existed.
     #[serde(default)]
     pub locked: bool,
-    /// Optional override for the document's `created_at` timestamp at
+    /// Optional override for the leaf's `created_at` timestamp at
     /// **first save**. When `Some`, the store uses this value (RFC 3339
     /// string) for the initial INSERT instead of `now()`. Used by
     /// importers (Notion / Bear / Craft) so the imported doc keeps the
@@ -237,24 +237,24 @@ pub struct Document {
     /// row's `created_at` is immutable).
     #[serde(default)]
     pub created_at: Option<String>,
-    /// Per-document accent color name (e.g. `"red"`, `"teal"`). When
+    /// Per-leaf accent color name (e.g. `"red"`, `"teal"`). When
     /// `Some`, the editor renders its chrome (toolbar, FAB, cursor,
     /// selection lozenge, etc.) in this color instead of the
-    /// app-wide accent from settings. `None` means the document
+    /// app-wide accent from settings. `None` means the leaf
     /// inherits the global accent. Same naming scheme as
     /// [`Block::color`] — the rendering layer maps the name to a
     /// concrete `UIColor` / `Color`. `#[serde(default)]` keeps
-    /// backward compatibility with pre-feature documents.
+    /// backward compatibility with pre-feature leaves.
     #[serde(default)]
     pub accent_color: Option<String>,
-    /// Document-level writing direction. Values: `"ltr"`, `"rtl"`,
+    /// Leaf-level writing direction. Values: `"ltr"`, `"rtl"`,
     /// or `None` to let the system locale decide. Acts as the
     /// default for every block; individual blocks can still override
     /// via [`Block::text_direction`]. `#[serde(default)]` for
     /// backward compatibility.
     #[serde(default)]
     pub text_direction: Option<String>,
-    /// Per-document theme name (`"original"`, `"tranquille"`,
+    /// Per-leaf theme name (`"original"`, `"tranquille"`,
     /// `"papier"`, `"gras"`, `"calme"`, `"attention"`). When
     /// `Some`, the editor paints the doc background + text in the
     /// matching palette regardless of the app-wide setting. `None`
@@ -263,7 +263,7 @@ pub struct Document {
     #[serde(default)]
     pub theme: Option<String>,
     /// User-editable publish timestamp. Defaults to `created_at`
-    /// at the SQLite insert path (see `SqliteDocumentStore`), but
+    /// at the SQLite insert path (see `SqliteLeafStore`), but
     /// the user can override it from the doc toolbar to make the
     /// doc surface as if it had been published on a different
     /// date — useful for backdated articles. Empty string on
@@ -273,8 +273,8 @@ pub struct Document {
     pub published_at: String,
 }
 
-impl Document {
-    /// Creates a new empty document with a freshly generated UUID.
+impl Leaf {
+    /// Creates a new empty leaf with a freshly generated UUID.
     pub fn new(title: Vec<InlineText>) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -282,8 +282,8 @@ impl Document {
             cover: None,
             icon: None,
             blocks: vec![],
-            folder_id: None,
-            parent_doc_id: None,
+            shelf_id: None,
+            parent_leaf_id: None,
             locked: false,
             created_at: None,
             accent_color: None,
@@ -319,7 +319,7 @@ mod tests {
         assert_eq!(decoded.id, block.id);
     }
 
-    /// Documents serialised before the `color` field existed must still decode
+    /// Leaves serialised before the `color` field existed must still decode
     /// — `#[serde(default)]` on the new field makes the absence equivalent to
     /// `None`. Regression guard: removing the attribute would break every
     /// existing user's data file.

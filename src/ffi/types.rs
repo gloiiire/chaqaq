@@ -1,18 +1,18 @@
 //! Dictionary types crossing the FFI boundary and their converters.
 
-use crate::domain::database::DatabaseMeta;
-use crate::domain::document::DocumentMeta;
-use crate::domain::folder::FolderMeta;
+use crate::domain::book::BookMeta;
+use crate::domain::leaf::LeafMeta;
+use crate::domain::shelf::ShelfMeta;
 
 // ── Dictionary types ──────────────────────────────────────────────────────────
 
-/// Lightweight document metadata passed across the FFI boundary.
+/// Lightweight leaf metadata passed across the FFI boundary.
 ///
 /// Carries pre-computed plain-text and JSON representations of the title so
-/// that Swift does not need to decode the full document to display a list item.
+/// that Swift does not need to decode the full leaf to display a list item.
 #[derive(Debug, Clone, serde::Serialize)]
-pub struct DocumentMetaFfi {
-    /// UUID string of the document.
+pub struct LeafMetaFfi {
+    /// UUID string of the leaf.
     pub id: String,
     /// Concatenated plain-text title (all inline spans joined).
     pub title_plain: String,
@@ -28,23 +28,23 @@ pub struct DocumentMetaFfi {
     /// fresh docs ; empty string on legacy rows is treated as "follow
     /// `created_at`" by the home view's sort path.
     pub published_at: String,
-    /// UUID of the folder this document belongs to, or `None` for root.
-    pub folder_id: Option<String>,
-    /// UUID of the parent document (Notion-style page-in-page), or `None`
+    /// UUID of the shelf this leaf belongs to, or `None` for root.
+    pub shelf_id: Option<String>,
+    /// UUID of the parent leaf (Notion-style page-in-page), or `None`
     /// when this is a root page.
-    pub parent_doc_id: Option<String>,
-    /// Optional page icon — emoji or filename. Mirrors `Document.icon`.
+    pub parent_leaf_id: Option<String>,
+    /// Optional page icon — emoji or filename. Mirrors `Leaf.icon`.
     pub icon: Option<String>,
 }
 
-/// Lightweight folder metadata passed across the FFI boundary.
+/// Lightweight shelf metadata passed across the FFI boundary.
 #[derive(Debug, Clone, serde::Serialize)]
-pub struct FolderMetaFfi {
-    /// UUID string of the folder.
+pub struct ShelfMetaFfi {
+    /// UUID string of the shelf.
     pub id: String,
     /// Display name.
     pub name: String,
-    /// UUID of the parent folder, or `None` for a top-level folder.
+    /// UUID of the parent shelf, or `None` for a top-level shelf.
     pub parent_id: Option<String>,
     /// RFC 3339 creation timestamp.
     pub created_at: String,
@@ -59,14 +59,14 @@ pub struct FolderMetaFfi {
 pub struct ImportResultFfi {
     /// Human-readable name of the source application (e.g. `"Notion"`, `"Bear"`).
     pub app: String,
-    /// UUID string of the Pinkha database created by this import, or empty if
-    /// the source had no database structure (plain notes only).
-    pub database_id: String,
-    /// Number of Pinkha documents created.
-    pub documents: u32,
-    /// Number of database entries created.
+    /// UUID string of the Pinkha book created by this import, or empty if
+    /// the source had no book structure (plain notes only).
+    pub book_id: String,
+    /// Number of Pinkha leaves created.
+    pub leaves: u32,
+    /// Number of book entries created.
     pub entries: u32,
-    /// Number of blocks added across all documents.
+    /// Number of blocks added across all leaves.
     pub blocks: u32,
     /// Number of source items skipped (unsupported block type, etc.).
     pub skipped: u32,
@@ -78,39 +78,39 @@ pub struct ImportResultFfi {
     pub textbundle_only: u32,
 }
 
-/// Lightweight Notion database summary returned by `list_notion_databases`.
+/// Lightweight Notion book summary returned by `list_notion_databases`.
 /// Carries just enough for the picker UI to render a row (title + icon) and
 /// kick off an import.
 #[derive(Debug, Clone)]
 pub struct NotionDatabaseSummaryFfi {
-    /// 32-char hex ID. Pass to [`import_from_notion`] as `database_id`.
+    /// 32-char hex ID. Pass to [`import_from_notion`] as `book_id`.
     pub id: String,
     /// Plain-text title concatenated from Notion's rich-text title runs.
     pub title: String,
     /// Optional emoji icon. Image icons aren't surfaced — the picker uses a
-    /// generic database icon when this is empty.
+    /// generic book icon when this is empty.
     pub icon_emoji: Option<String>,
     /// ISO 8601 last-edited timestamp from Notion. Already sorted recent-
     /// first by the Rust list call.
     pub last_edited: String,
 }
 
-/// One match from a block-content search. Carries the document metadata
+/// One match from a block-content search. Carries the leaf metadata
 /// plus a short snippet of the matching block so the UI can preview
 /// where the hit occurs, Notion-style.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct BlockSearchHitFfi {
-    pub doc: DocumentMetaFfi,
+    pub doc: LeafMetaFfi,
     /// UUID string of the matching block — lets Swift scroll directly
-    /// to it when opening the document from a search result.
+    /// to it when opening the leaf from a search result.
     pub block_id: String,
     pub snippet: String,
 }
 
-/// Lightweight database metadata passed across the FFI boundary.
+/// Lightweight book metadata passed across the FFI boundary.
 #[derive(Debug, Clone, serde::Serialize)]
-pub struct DatabaseMetaFfi {
-    /// UUID string of the database.
+pub struct BookMetaFfi {
+    /// UUID string of the book.
     pub id: String,
     /// Concatenated plain-text title.
     pub title_plain: String,
@@ -126,8 +126,8 @@ pub struct DatabaseMetaFfi {
     pub created_at: String,
 }
 
-/// Converts a [`DocumentMeta`] to its FFI representation.
-pub(crate) fn doc_meta_to_ffi(m: DocumentMeta) -> DocumentMetaFfi {
+/// Converts a [`LeafMeta`] to its FFI representation.
+pub(crate) fn leaf_meta_to_ffi(m: LeafMeta) -> LeafMetaFfi {
     let title_plain = m
         .title
         .iter()
@@ -136,7 +136,7 @@ pub(crate) fn doc_meta_to_ffi(m: DocumentMeta) -> DocumentMetaFfi {
         .join("");
     let title_json = serde_json::to_string(&m.title).unwrap_or_default();
     let published_at = m.published_at;
-    DocumentMetaFfi {
+    LeafMetaFfi {
         id: m.id.to_string(),
         title_plain,
         title_json,
@@ -144,15 +144,15 @@ pub(crate) fn doc_meta_to_ffi(m: DocumentMeta) -> DocumentMetaFfi {
         updated_at: m.updated_at,
         created_at: m.created_at,
         published_at,
-        folder_id: m.folder_id.map(|id| id.to_string()),
-        parent_doc_id: m.parent_doc_id.map(|id| id.to_string()),
+        shelf_id: m.shelf_id.map(|id| id.to_string()),
+        parent_leaf_id: m.parent_leaf_id.map(|id| id.to_string()),
         icon: m.icon,
     }
 }
 
-/// Converts a [`FolderMeta`] to its FFI representation.
-pub(crate) fn folder_meta_to_ffi(m: FolderMeta) -> FolderMetaFfi {
-    FolderMetaFfi {
+/// Converts a [`ShelfMeta`] to its FFI representation.
+pub(crate) fn shelf_meta_to_ffi(m: ShelfMeta) -> ShelfMetaFfi {
+    ShelfMetaFfi {
         id: m.id.to_string(),
         name: m.name,
         parent_id: m.parent_id.map(|id| id.to_string()),
@@ -162,8 +162,8 @@ pub(crate) fn folder_meta_to_ffi(m: FolderMeta) -> FolderMetaFfi {
     }
 }
 
-/// Converts a [`DatabaseMeta`] to its FFI representation.
-pub(crate) fn db_meta_to_ffi(m: DatabaseMeta) -> DatabaseMetaFfi {
+/// Converts a [`BookMeta`] to its FFI representation.
+pub(crate) fn book_meta_to_ffi(m: BookMeta) -> BookMetaFfi {
     let title_plain = m
         .title
         .iter()
@@ -171,7 +171,7 @@ pub(crate) fn db_meta_to_ffi(m: DatabaseMeta) -> DatabaseMetaFfi {
         .collect::<Vec<_>>()
         .join("");
     let title_json = serde_json::to_string(&m.title).unwrap_or_default();
-    DatabaseMetaFfi {
+    BookMetaFfi {
         id: m.id.to_string(),
         title_plain,
         title_json,
@@ -182,13 +182,13 @@ pub(crate) fn db_meta_to_ffi(m: DatabaseMeta) -> DatabaseMetaFfi {
     }
 }
 
-/// Bundle of search results across every workspace surface, returned by
+/// Bundle of search results across every library surface, returned by
 /// `super_search`. Empty arrays mean "no match in that category".
 #[derive(Debug, Clone)]
 pub struct SuperSearchResultsFfi {
-    pub documents_by_title: Vec<DocumentMetaFfi>,
-    /// Block-level hits for documents that did not already match by title.
-    pub documents_by_content: Vec<BlockSearchHitFfi>,
-    pub databases: Vec<DatabaseMetaFfi>,
-    pub folders: Vec<FolderMetaFfi>,
+    pub leaves_by_title: Vec<LeafMetaFfi>,
+    /// Block-level hits for leaves that did not already match by title.
+    pub leaves_by_content: Vec<BlockSearchHitFfi>,
+    pub books: Vec<BookMetaFfi>,
+    pub shelves: Vec<ShelfMetaFfi>,
 }

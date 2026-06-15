@@ -45,7 +45,7 @@ pub struct NotionRichText {
     #[serde(rename = "type", default = "default_run_type")]
     pub run_type: String,
     /// Body of a `mention` run. Only the page variant is materialised
-    /// — everything else (`user`, `date`, `database`, …) decodes into
+    /// — everything else (`user`, `date`, `book`, …) decodes into
     /// `Unknown` via `#[serde(other)]`.
     #[serde(default)]
     pub mention: Option<NotionMention>,
@@ -73,10 +73,10 @@ pub struct NotionMentionPage {
     pub id: String,
 }
 
-// ── Search response (database picker) ─────────────────────────────────────────
+// ── Search response (book picker) ─────────────────────────────────────────
 
-/// Paginated response from `POST /v1/search` filtered to databases. Only the
-/// fields the picker UI needs are deserialised — the actual database schema
+/// Paginated response from `POST /v1/search` filtered to books. Only the
+/// fields the picker UI needs are deserialised — the actual book schema
 /// is fetched lazily by the existing per-import flow.
 #[derive(Debug, Deserialize)]
 pub struct NotionSearchResponse {
@@ -88,7 +88,7 @@ pub struct NotionSearchResponse {
 /// Paginated response from `POST /v1/search` filtered to `object: "page"`.
 /// Used by the v2025 picker walker to enumerate every page the
 /// integration can see, then dive into each one's blocks to surface
-/// nested `child_database` blocks that the `object: database` search
+/// nested `child_database` blocks that the `object: book` search
 /// doesn't find on its own.
 #[derive(Debug, Deserialize)]
 pub struct NotionPageSearchResponse {
@@ -118,17 +118,17 @@ pub struct NotionDataSourceSearchResponse {
 }
 
 /// A single data-source hit. Notion's 2025-09-03 API introduced
-/// data sources as a first-class object — each multi-source database
-/// has one data_source per tab. The wrapping database's UUID lives
-/// in `parent.database_id`. For single-source DBs there's still a
-/// 1:1 mapping ; either way we want the database id for our import
-/// path (`/v1/databases/{id}/query` keeps working under the legacy
+/// data sources as a first-class object — each multi-source book
+/// has one data_source per tab. The wrapping book's UUID lives
+/// in `parent.book_id`. For single-source DBs there's still a
+/// 1:1 mapping ; either way we want the book id for our import
+/// path (`/v1/books/{id}/query` keeps working under the legacy
 /// version header).
 #[derive(Debug, Deserialize)]
 pub struct NotionDataSourceSearchHit {
     pub id: String,
     /// Plain-text data-source name (data sources don't carry a
-    /// rich-text title like databases do — Notion ships it as a
+    /// rich-text title like books do — Notion ships it as a
     /// single string).
     #[serde(default)]
     pub name: String,
@@ -140,20 +140,20 @@ pub struct NotionDataSourceSearchHit {
 }
 
 /// Discriminated-union parent ref. Almost every data source has a
-/// `database_id` parent — the catch-all `Unknown` covers any
+/// `book_id` parent — the catch-all `Unknown` covers any
 /// future parent shapes Notion might introduce without breaking
 /// our deserialize.
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NotionDataSourceParent {
-    DatabaseId {
-        database_id: String,
+    BookId {
+        book_id: String,
     },
     #[serde(other)]
     Unknown,
 }
 
-/// A single database returned by the search endpoint. Carries enough data for
+/// A single book returned by the search endpoint. Carries enough data for
 /// the picker to render a row (title + icon + freshness) without doing extra
 /// API calls.
 #[derive(Debug, Deserialize)]
@@ -176,9 +176,9 @@ pub struct NotionDatabaseSearchHit {
     pub url: String,
 }
 
-// ── Database schema ───────────────────────────────────────────────────────────
+// ── Book schema ───────────────────────────────────────────────────────────
 
-/// Schema of a Notion database (property definitions + title + chrome).
+/// Schema of a Notion book (property definitions + title + chrome).
 #[derive(Debug, Clone, Deserialize)]
 pub struct NotionDatabaseSchema {
     pub id: String,
@@ -188,24 +188,24 @@ pub struct NotionDatabaseSchema {
     /// fixtures keep parsing.
     #[serde(default)]
     pub description: Vec<NotionRichText>,
-    /// Database cover banner. Same shape as a page cover — Notion
+    /// Book cover banner. Same shape as a page cover — Notion
     /// uses the identical type at both levels.
     #[serde(default)]
     pub cover: Option<NotionPageCover>,
-    /// Database icon (emoji or external image).
+    /// Book icon (emoji or external image).
     #[serde(default)]
     pub icon: Option<NotionPageIcon>,
     pub properties: HashMap<String, NotionPropertyDef>,
 }
 
 impl NotionDatabaseSchema {
-    /// Concatenates the plain-text runs of the database title.
+    /// Concatenates the plain-text runs of the book title.
     pub fn title_plain(&self) -> String {
         self.title.iter().map(|r| r.plain_text.as_str()).collect()
     }
 }
 
-/// Definition of a single column in a Notion database.
+/// Definition of a single column in a Notion book.
 #[derive(Debug, Clone, Deserialize)]
 pub struct NotionPropertyDef {
     pub id: String,
@@ -230,7 +230,7 @@ pub struct NotionSelectOption {
 
 // ── Query response ────────────────────────────────────────────────────────────
 
-/// Paginated response from `POST /v1/databases/{id}/query`.
+/// Paginated response from `POST /v1/books/{id}/query`.
 #[derive(Debug, Deserialize)]
 pub struct NotionQueryResponse {
     pub results: Vec<NotionPageResult>,
@@ -238,7 +238,7 @@ pub struct NotionQueryResponse {
     pub next_cursor: Option<String>,
 }
 
-/// A single page (row) returned by a database query.
+/// A single page (row) returned by a book query.
 #[derive(Debug, Deserialize)]
 pub struct NotionPageResult {
     pub id: String,
@@ -394,15 +394,15 @@ pub struct NotionBlock {
     pub code: Option<CodeBlock>,
     /// Child-page block payload — present when `type_ == "child_page"`. The
     /// block's `id` doubles as the embedded child page's Notion id, fetched
-    /// separately during import to materialise the child document.
+    /// separately during import to materialise the child leaf.
     pub child_page: Option<ChildPageBlock>,
-    /// Child-database block payload — present when `type_ == "child_database"`.
-    /// The block's own `id` is the wrapping database's Notion id, used by
+    /// Child-book block payload — present when `type_ == "child_database"`.
+    /// The block's own `id` is the wrapping book's Notion id, used by
     /// the v2025 picker walker to surface nested DBs that the
-    /// `object: database` search doesn't enumerate on its own.
+    /// `object: book` search doesn't enumerate on its own.
     pub child_database: Option<ChildDatabaseBlock>,
     /// Link-to-page block payload — present when `type_ == "link_to_page"`.
-    /// References an existing page (or database) by id; the importer maps
+    /// References an existing page (or book) by id; the importer maps
     /// it to an inline link that the mention-rewriting pass resolves to a
     /// `pinkha://doc/{uuid}` when the target belongs to the same import.
     pub link_to_page: Option<LinkToPageBlock>,
@@ -414,16 +414,16 @@ pub struct NotionBlock {
 #[derive(Debug, Deserialize)]
 pub struct LinkToPageBlock {
     pub page_id: Option<String>,
-    pub database_id: Option<String>,
+    pub book_id: Option<String>,
 }
 
 /// Body of a `child_database` block — Notion only inlines the title
 /// in the block stream. The rest of the schema is fetched by the
-/// existing import flow via `GET /v1/databases/{block_id}`.
+/// existing import flow via `GET /v1/books/{block_id}`.
 #[derive(Debug, Deserialize)]
 pub struct ChildDatabaseBlock {
     /// Defensive `#[serde(default)]` — Notion has been observed to
-    /// ship `null` titles for unnamed child databases ; without
+    /// ship `null` titles for unnamed child books ; without
     /// this, the whole page-block response would fail to
     /// deserialize and the walker would silently drop the page.
     #[serde(default)]

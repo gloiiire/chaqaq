@@ -1,9 +1,9 @@
-use crate::domain::database::entry::Entry;
-use crate::domain::database::property::PropertyValue;
+use crate::domain::book::entry::Entry;
+use crate::domain::book::property::PropertyValue;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// Layout used to display the entries of a database.
+/// Layout used to display the entries of a book.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ViewType {
     /// Vertical list of cards — mobile-first default. Each row is one
@@ -127,7 +127,7 @@ impl Sort {
     }
 }
 
-/// A named view of a database with its own filters and sort rules.
+/// A named view of a book with its own filters and sort rules.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct View {
     /// Unique identifier for this view.
@@ -191,7 +191,7 @@ mod tests {
 
     #[test]
     fn test_groupe_regroupe_entries() {
-        use crate::domain::database::entry::Entry;
+        use crate::domain::book::entry::Entry;
         use std::collections::HashMap;
         let groupe = Group {
             value: PropertyValue::Text("En cours".to_string()),

@@ -1,30 +1,30 @@
-use crate::application::database_repository::DatabaseRepository;
+use crate::application::book_repository::BookRepository;
 use crate::application::error::PinkhaError;
 use crate::application::resilience::retry_with_backoff;
-use crate::domain::database::{Database, DatabaseMeta};
-use crate::domain::document::InlineText;
-use crate::infrastructure::migrations::apply_database_migrations;
+use crate::domain::book::{Book, BookMeta};
+use crate::domain::leaf::InlineText;
+use crate::infrastructure::migrations::apply_book_migrations;
 use rusqlite::{Connection, params};
 use std::sync::Mutex;
 use uuid::Uuid;
 
-/// SQLite-backed database store.
+/// SQLite-backed book store.
 ///
-/// Mirrors [`SqliteDocumentStore`] but for [`Database`] records. Uses WAL mode,
+/// Mirrors [`SqliteLeafStore`] but for [`Book`] records. Uses WAL mode,
 /// exponential-backoff retries on transient SQLite errors, and soft deletes
 /// (`deleted_at` timestamp) so that records remain recoverable and CRDT-ready.
-pub struct SqliteDatabaseStore {
+pub struct SqliteBookStore {
     conn: Mutex<Connection>,
 }
 
-impl SqliteDatabaseStore {
-    /// Opens (or creates) a SQLite database at `path`, enables WAL mode, and
+impl SqliteBookStore {
+    /// Opens (or creates) a SQLite book at `path`, enables WAL mode, and
     /// applies all pending schema migrations.
     pub fn new(path: &str) -> Result<Self, PinkhaError> {
         let mut conn = Connection::open(path).map_err(|e| PinkhaError::Db(e.to_string()))?;
         conn.execute_batch("PRAGMA journal_mode=WAL;")
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
-        apply_database_migrations(&mut conn)?;
+        apply_book_migrations(&mut conn)?;
         Ok(Self {
             conn: Mutex::new(conn),
         })
@@ -36,8 +36,8 @@ impl SqliteDatabaseStore {
     }
 }
 
-impl DatabaseRepository for SqliteDatabaseStore {
-    fn save(&self, db: &Database) -> Result<(), PinkhaError> {
+impl BookRepository for SqliteBookStore {
+    fn save(&self, db: &Book) -> Result<(), PinkhaError> {
         // Pre-compute outside the retry closure: no extra cost on retries.
         let data = serde_json::to_string(db)?;
         let title_text: String = db
@@ -55,7 +55,7 @@ impl DatabaseRepository for SqliteDatabaseStore {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             conn.execute(
-                "INSERT INTO databases (id, title_text, title_json, cover, icon, updated_at, created_at, data)
+                "INSERT INTO books (id, title_text, title_json, cover, icon, updated_at, created_at, data)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7)
                  ON CONFLICT(id) DO UPDATE SET
                     title_text = excluded.title_text,
@@ -72,11 +72,11 @@ impl DatabaseRepository for SqliteDatabaseStore {
         })
     }
 
-    fn load(&self, id: Uuid) -> Result<Database, PinkhaError> {
+    fn load(&self, id: Uuid) -> Result<Book, PinkhaError> {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let result = conn.query_row(
-                "SELECT data FROM databases WHERE id = ?1 AND deleted_at IS NULL",
+                "SELECT data FROM books WHERE id = ?1 AND deleted_at IS NULL",
                 params![id.to_string()],
                 |row| row.get::<_, String>(0),
             );
@@ -88,11 +88,11 @@ impl DatabaseRepository for SqliteDatabaseStore {
         })
     }
 
-    fn list_meta(&self) -> Result<Vec<DatabaseMeta>, PinkhaError> {
+    fn list_meta(&self) -> Result<Vec<BookMeta>, PinkhaError> {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let mut stmt = conn
-                .prepare("SELECT id, title_json, cover, icon, updated_at, created_at FROM databases WHERE deleted_at IS NULL")
+                .prepare("SELECT id, title_json, cover, icon, updated_at, created_at FROM books WHERE deleted_at IS NULL")
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let rows = stmt
                 .query_map([], |row| {
@@ -114,7 +114,7 @@ impl DatabaseRepository for SqliteDatabaseStore {
                     PinkhaError::InvalidOperation(format!("invalid UUID: {id_str}"))
                 })?;
                 let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
-                metas.push(DatabaseMeta {
+                metas.push(BookMeta {
                     id,
                     title,
                     cover,
@@ -132,7 +132,7 @@ impl DatabaseRepository for SqliteDatabaseStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let affected = conn
                 .execute(
-                    "UPDATE databases SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
+                    "UPDATE books SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
                     params![chrono::Utc::now().to_rfc3339(), id.to_string()],
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
@@ -143,12 +143,12 @@ impl DatabaseRepository for SqliteDatabaseStore {
         })
     }
 
-    fn list_deleted(&self) -> Result<Vec<DatabaseMeta>, PinkhaError> {
+    fn list_deleted(&self) -> Result<Vec<BookMeta>, PinkhaError> {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let mut stmt = conn
                 .prepare(
-                    "SELECT id, title_json, cover, icon, updated_at, created_at FROM databases
+                    "SELECT id, title_json, cover, icon, updated_at, created_at FROM books
                      WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC",
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
@@ -172,7 +172,7 @@ impl DatabaseRepository for SqliteDatabaseStore {
                     PinkhaError::InvalidOperation(format!("invalid UUID: {id_str}"))
                 })?;
                 let title: Vec<InlineText> = serde_json::from_str(&title_json)?;
-                metas.push(DatabaseMeta {
+                metas.push(BookMeta {
                     id,
                     title,
                     cover,
@@ -190,7 +190,7 @@ impl DatabaseRepository for SqliteDatabaseStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let affected = conn
                 .execute(
-                    "UPDATE databases SET deleted_at = NULL, updated_at = ?1
+                    "UPDATE books SET deleted_at = NULL, updated_at = ?1
                      WHERE id = ?2 AND deleted_at IS NOT NULL",
                     params![chrono::Utc::now().to_rfc3339(), id.to_string()],
                 )
@@ -207,13 +207,13 @@ impl DatabaseRepository for SqliteDatabaseStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let affected = conn
                 .execute(
-                    "DELETE FROM databases WHERE id = ?1 AND deleted_at IS NOT NULL",
+                    "DELETE FROM books WHERE id = ?1 AND deleted_at IS NOT NULL",
                     params![id.to_string()],
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
             if affected == 0 {
                 return Err(PinkhaError::InvalidOperation(format!(
-                    "database {id} must be soft-deleted before it can be purged"
+                    "book {id} must be soft-deleted before it can be purged"
                 )));
             }
             Ok(())
@@ -224,10 +224,10 @@ impl DatabaseRepository for SqliteDatabaseStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::database::Database;
+    use crate::domain::book::Book;
 
-    fn store() -> SqliteDatabaseStore {
-        SqliteDatabaseStore::in_memory().unwrap()
+    fn store() -> SqliteBookStore {
+        SqliteBookStore::in_memory().unwrap()
     }
 
     fn title(s: &str) -> Vec<InlineText> {
@@ -237,8 +237,8 @@ mod tests {
         }]
     }
 
-    fn db(name: &str) -> Database {
-        Database::new(title(name), vec![])
+    fn db(name: &str) -> Book {
+        Book::new(title(name), vec![])
     }
 
     #[test]
@@ -261,7 +261,7 @@ mod tests {
     }
 
     #[test]
-    fn test_list_meta_retourne_databases_actives() {
+    fn test_list_meta_retourne_books_actives() {
         let store = store();
         store.save(&db("Tâches")).unwrap();
         store.save(&db("Projets")).unwrap();
@@ -341,11 +341,11 @@ mod tests {
     #[test]
     fn test_list_meta_sans_deserialiser_les_entries() {
         let store = store();
-        use crate::domain::database::{Entry, Property, PropertyType, PropertyValue};
+        use crate::domain::book::{Entry, Property, PropertyType, PropertyValue};
         use std::collections::HashMap;
         let prop = Property::new("Nom", PropertyType::Text);
         let prop_id = prop.id;
-        let mut d = Database::new(title("DB riche"), vec![prop]);
+        let mut d = Book::new(title("DB riche"), vec![prop]);
         let mut values = HashMap::new();
         values.insert(prop_id, PropertyValue::Text("entrée test".to_string()));
         d.entries.push(Entry::new(values));

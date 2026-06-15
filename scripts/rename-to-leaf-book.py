@@ -29,24 +29,21 @@ SKIP_DIRS = {"target", ".build", ".git", "DerivedData",
              "node_modules", ".swiftpm", "build"}
 
 PROTECTIONS = [
-    # Notion-specific: their API uses "database" as terminology.
-    ("NotionDatabase", "NOTION_DATABASE_SENT_P"),
-    ("notion_database", "notion_database_SENT_s"),
-    ("child_database", "child_database_SENT_s"),
-    ("ChildDatabase", "CHILD_DATABASE_SENT_P"),
-    # Realm / Craft external term.
-    ("DocumentDataModel", "DOC_DATA_MODEL_SENT"),
-    # English doc-comment words that derive from "document". Without
-    # these the regex would rewrite "documentation" to "pageation",
-    # "documented" to "pageed", etc.
-    ("documentation", "DOCUMENTATION_SENT_W"),
-    ("documented", "DOCUMENTED_SENT_W"),
-    ("documenting", "DOCUMENTING_SENT_W"),
-    # Storage-layer terms that refer to SQLite, not the Pinkha
-    # domain Database. The Bear/Craft import paths use these too.
-    ("db_path", "DB_PATH_SENT_S"),
-    ("dbg!", "DBG_BANG_SENT"),
-    ("dbg::", "DBG_COLONCOLON_SENT"),
+    # CRITICAL: sentinels must NOT contain any renamed tokens (document,
+    # database, folder, workspace, doc, db, …). Otherwise the bulk pass
+    # rewrites them mid-sentinel and the restoration step misses. We
+    # use opaque alphanumeric tokens that survive every replacement.
+    ("NotionDatabase",      "ZZZP01ZZZ"),
+    ("notion_database",     "zzzs02zzz"),
+    ("child_database",      "zzzs03zzz"),
+    ("ChildDatabase",       "ZZZP04ZZZ"),
+    ("DocumentDataModel",   "ZZZP05ZZZ"),
+    ("documentation",       "zzzw06zzz"),
+    ("documented",          "zzzw07zzz"),
+    ("documenting",         "zzzw08zzz"),
+    ("db_path",             "zzzs09zzz"),
+    ("dbg!",                "zzz10zzz"),
+    ("dbg::",               "zzz11zzz"),
 ]
 
 

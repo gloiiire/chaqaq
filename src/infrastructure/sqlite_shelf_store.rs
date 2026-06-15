@@ -1,17 +1,17 @@
 use crate::application::error::PinkhaError;
-use crate::application::folder_repository::FolderRepository;
+use crate::application::shelf_repository::ShelfRepository;
 use crate::application::resilience::retry_with_backoff;
-use crate::domain::folder::{Folder, FolderMeta};
+use crate::domain::shelf::{Shelf, ShelfMeta};
 use crate::infrastructure::migrations::apply_migrations;
 use rusqlite::{Connection, params};
 use std::sync::Mutex;
 use uuid::Uuid;
 
-pub struct SqliteFolderStore {
+pub struct SqliteShelfStore {
     conn: Mutex<Connection>,
 }
 
-impl SqliteFolderStore {
+impl SqliteShelfStore {
     pub fn new(path: &str) -> Result<Self, PinkhaError> {
         let mut conn = Connection::open(path).map_err(|e| PinkhaError::Db(e.to_string()))?;
         conn.execute_batch("PRAGMA journal_mode=WAL;")
@@ -27,34 +27,34 @@ impl SqliteFolderStore {
     }
 }
 
-impl FolderRepository for SqliteFolderStore {
-    fn create(&self, name: &str, parent_id: Option<Uuid>) -> Result<Folder, PinkhaError> {
-        let folder = Folder::new(name, parent_id);
-        let id = folder.id.to_string();
-        let parent = folder.parent_id.map(|u| u.to_string());
-        let icon = folder.icon.clone();
+impl ShelfRepository for SqliteShelfStore {
+    fn create(&self, name: &str, parent_id: Option<Uuid>) -> Result<Shelf, PinkhaError> {
+        let shelf = Shelf::new(name, parent_id);
+        let id = shelf.id.to_string();
+        let parent = shelf.parent_id.map(|u| u.to_string());
+        let icon = shelf.icon.clone();
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             conn.execute(
-                "INSERT INTO folders (id, name, parent_id, created_at, updated_at, icon)
+                "INSERT INTO shelves (id, name, parent_id, created_at, updated_at, icon)
                  VALUES (?1, ?2, ?3, ?4, ?4, ?5)",
-                params![id, folder.name, parent, folder.created_at, icon],
+                params![id, shelf.name, parent, shelf.created_at, icon],
             )
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
             Ok(())
         })?;
-        Ok(folder)
+        Ok(shelf)
     }
 
-    fn get(&self, id: Uuid) -> Result<Folder, PinkhaError> {
+    fn get(&self, id: Uuid) -> Result<Shelf, PinkhaError> {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let result = conn.query_row(
                 "SELECT id, name, parent_id, created_at, updated_at, icon
-                 FROM folders WHERE id = ?1 AND deleted_at IS NULL",
+                 FROM shelves WHERE id = ?1 AND deleted_at IS NULL",
                 params![id.to_string()],
                 |row| {
-                    Ok(Folder {
+                    Ok(Shelf {
                         id,
                         name: row.get(1)?,
                         parent_id: row
@@ -74,13 +74,13 @@ impl FolderRepository for SqliteFolderStore {
         })
     }
 
-    fn list(&self) -> Result<Vec<FolderMeta>, PinkhaError> {
+    fn list(&self) -> Result<Vec<ShelfMeta>, PinkhaError> {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let mut stmt = conn
                 .prepare(
                     "SELECT id, name, parent_id, created_at, updated_at, icon
-                     FROM folders WHERE deleted_at IS NULL ORDER BY name",
+                     FROM shelves WHERE deleted_at IS NULL ORDER BY name",
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let rows = stmt
@@ -103,7 +103,7 @@ impl FolderRepository for SqliteFolderStore {
                 let id = Uuid::parse_str(&id_str).map_err(|_| {
                     PinkhaError::InvalidOperation(format!("invalid UUID: {id_str}"))
                 })?;
-                metas.push(FolderMeta {
+                metas.push(ShelfMeta {
                     id,
                     name,
                     parent_id: parent_str.and_then(|s| Uuid::parse_str(&s).ok()),
@@ -122,7 +122,7 @@ impl FolderRepository for SqliteFolderStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let affected = conn
                 .execute(
-                    "UPDATE folders SET name = ?1, updated_at = ?2
+                    "UPDATE shelves SET name = ?1, updated_at = ?2
                      WHERE id = ?3 AND deleted_at IS NULL",
                     params![new_name, now, id.to_string()],
                 )
@@ -138,28 +138,28 @@ impl FolderRepository for SqliteFolderStore {
         let now = chrono::Utc::now().to_rfc3339();
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
-            // Move orphaned documents to root before deleting the folder.
+            // Move orphaned leaves to root before deleting the shelf.
             conn.execute(
-                "UPDATE documents SET folder_id = NULL WHERE folder_id = ?1",
+                "UPDATE leaves SET shelf_id = NULL WHERE shelf_id = ?1",
                 params![id.to_string()],
             )
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
-            // Reparent child folders to the deleted folder's parent.
+            // Reparent child shelves to the deleted shelf's parent.
             let parent: Option<String> = conn
                 .query_row(
-                    "SELECT parent_id FROM folders WHERE id = ?1",
+                    "SELECT parent_id FROM shelves WHERE id = ?1",
                     params![id.to_string()],
                     |row| row.get(0),
                 )
                 .unwrap_or(None);
             conn.execute(
-                "UPDATE folders SET parent_id = ?1 WHERE parent_id = ?2 AND deleted_at IS NULL",
+                "UPDATE shelves SET parent_id = ?1 WHERE parent_id = ?2 AND deleted_at IS NULL",
                 params![parent, id.to_string()],
             )
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let affected = conn
                 .execute(
-                    "UPDATE folders SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
+                    "UPDATE shelves SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
                     params![now, id.to_string()],
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
@@ -170,14 +170,14 @@ impl FolderRepository for SqliteFolderStore {
         })
     }
 
-    fn move_folder(&self, id: Uuid, new_parent_id: Option<Uuid>) -> Result<(), PinkhaError> {
+    fn move_shelf(&self, id: Uuid, new_parent_id: Option<Uuid>) -> Result<(), PinkhaError> {
         let now = chrono::Utc::now().to_rfc3339();
         let parent = new_parent_id.map(|u| u.to_string());
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let affected = conn
                 .execute(
-                    "UPDATE folders SET parent_id = ?1, updated_at = ?2
+                    "UPDATE shelves SET parent_id = ?1, updated_at = ?2
                      WHERE id = ?3 AND deleted_at IS NULL",
                     params![parent, now, id.to_string()],
                 )
@@ -189,13 +189,13 @@ impl FolderRepository for SqliteFolderStore {
         })
     }
 
-    fn list_deleted(&self) -> Result<Vec<FolderMeta>, PinkhaError> {
+    fn list_deleted(&self) -> Result<Vec<ShelfMeta>, PinkhaError> {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let mut stmt = conn
                 .prepare(
                     "SELECT id, name, parent_id, created_at, updated_at, icon
-                     FROM folders WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC",
+                     FROM shelves WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC",
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let rows = stmt
@@ -217,7 +217,7 @@ impl FolderRepository for SqliteFolderStore {
                 let id = Uuid::parse_str(&id_str).map_err(|_| {
                     PinkhaError::InvalidOperation(format!("invalid UUID: {id_str}"))
                 })?;
-                metas.push(FolderMeta {
+                metas.push(ShelfMeta {
                     id,
                     name,
                     parent_id: parent_str.and_then(|s| Uuid::parse_str(&s).ok()),
@@ -236,7 +236,7 @@ impl FolderRepository for SqliteFolderStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let affected = conn
                 .execute(
-                    "UPDATE folders SET icon = ?1, updated_at = ?2
+                    "UPDATE shelves SET icon = ?1, updated_at = ?2
                      WHERE id = ?3 AND deleted_at IS NULL",
                     params![icon, now, id.to_string()],
                 )
@@ -253,7 +253,7 @@ impl FolderRepository for SqliteFolderStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let affected = conn
                 .execute(
-                    "UPDATE folders SET deleted_at = NULL, updated_at = ?1
+                    "UPDATE shelves SET deleted_at = NULL, updated_at = ?1
                      WHERE id = ?2 AND deleted_at IS NOT NULL",
                     params![chrono::Utc::now().to_rfc3339(), id.to_string()],
                 )
@@ -270,13 +270,13 @@ impl FolderRepository for SqliteFolderStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let affected = conn
                 .execute(
-                    "DELETE FROM folders WHERE id = ?1 AND deleted_at IS NOT NULL",
+                    "DELETE FROM shelves WHERE id = ?1 AND deleted_at IS NOT NULL",
                     params![id.to_string()],
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
             if affected == 0 {
                 return Err(PinkhaError::InvalidOperation(format!(
-                    "folder {id} must be soft-deleted before it can be purged"
+                    "shelf {id} must be soft-deleted before it can be purged"
                 )));
             }
             Ok(())

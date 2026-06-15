@@ -1,10 +1,10 @@
-use crate::domain::document::InlineText;
+use crate::domain::leaf::InlineText;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// Name of the hidden Text property that links a database row to the
-/// pinkha document backing it (Notion-style "row = page" convention).
-/// Created by imports and by `create_document_in_database`; the UI
+/// Name of the hidden Text property that links a book row to the
+/// pinkha leaf backing it (Notion-style "row = page" convention).
+/// Created by imports and by `create_leaf_in_book`; the UI
 /// hides it from the visible columns.
 pub const PAGE_LINK_PROPERTY: &str = "__pinkha_page__";
 
@@ -23,7 +23,7 @@ pub enum Aggregate {
     Max,
 }
 
-/// Determines the data type and behaviour of a database column.
+/// Determines the data type and behaviour of a book column.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PropertyType {
     /// Primary title column — stores rich text.
@@ -42,23 +42,23 @@ pub enum PropertyType {
     Checkbox,
     /// URL string.
     Url,
-    /// Foreign key pointing at another database.
+    /// Foreign key pointing at another book.
     Relation {
-        /// ID of the target database.
-        db_id: Uuid,
+        /// ID of the target book.
+        book_id: Uuid,
     },
-    /// Computed column that aggregates values from a related database.
+    /// Computed column that aggregates values from a related book.
     Rollup {
         /// Property that holds the relation (foreign key).
         relation_prop_id: Uuid,
-        /// Property in the related database to aggregate.
+        /// Property in the related book to aggregate.
         target_prop_id: Uuid,
         /// Aggregation function to apply.
         aggregate: Aggregate,
     },
 }
 
-/// A column definition in a database.
+/// A column definition in a book.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Property {
     /// Unique identifier for this property.
@@ -99,7 +99,7 @@ pub enum PropertyValue {
     Checkbox(bool),
     /// URL string.
     Url(String),
-    /// Entry IDs in the linked database (foreign keys).
+    /// Entry IDs in the linked book (foreign keys).
     Relation(Vec<Uuid>),
     /// No value — cell is blank.
     Empty,
@@ -118,9 +118,9 @@ mod tests {
 
     #[test]
     fn test_relation_prop_type() {
-        let db_id = Uuid::new_v4();
-        let prop = Property::new("Tâches", PropertyType::Relation { db_id });
-        assert_eq!(prop.type_, PropertyType::Relation { db_id });
+        let book_id = Uuid::new_v4();
+        let prop = Property::new("Tâches", PropertyType::Relation { book_id });
+        assert_eq!(prop.type_, PropertyType::Relation { book_id });
     }
 
     #[test]

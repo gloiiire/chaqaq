@@ -1,31 +1,31 @@
-//! Integration tests for the database-row ↔ document title bridge.
+//! Integration tests for the book-row ↔ leaf title bridge.
 //!
-//! Renaming a row in a database view should rename the underlying note,
-//! provided the row was created with `add_entry_with_document` (i.e. the
+//! Renaming a row in a book view should rename the underlying note,
+//! provided the row was created with `add_entry_with_leaf` (i.e. the
 //! Notion / Craft import path, or any future "row IS a page" semantics).
 
-use pinkha::application::database_use_cases::{
-    add_entry, add_entry_with_document, create_database, get_database,
+use pinkha::application::book_use_cases::{
+    add_entry, add_entry_with_leaf, create_book, get_book,
 };
 use pinkha::application::use_cases::{
-    create_document, get_document, update_entry_propagating_title,
+    create_leaf, get_leaf, update_entry_propagating_title,
 };
-use pinkha::domain::database::{Property, PropertyType, PropertyValue};
-use pinkha::domain::document::InlineText;
-use pinkha::infrastructure::database_store::DatabaseStore;
+use pinkha::domain::book::{Property, PropertyType, PropertyValue};
+use pinkha::domain::leaf::InlineText;
+use pinkha::infrastructure::book_store::BookStore;
 use pinkha::infrastructure::json_store::JsonStore;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-fn doc_store() -> JsonStore {
-    let dir = std::env::temp_dir().join(format!("pinkha_dds_doc_{}", Uuid::new_v4()));
+fn leaf_store() -> JsonStore {
+    let dir = std::env::temp_dir().join(format!("pinkha_dds_leaf_{}", Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
     JsonStore::new(dir)
 }
 
-fn db_store() -> DatabaseStore {
-    let dir = std::env::temp_dir().join(format!("pinkha_dds_db_{}", Uuid::new_v4()));
-    DatabaseStore::new(dir).unwrap()
+fn book_store() -> BookStore {
+    let dir = std::env::temp_dir().join(format!("pinkha_dds_book_{}", Uuid::new_v4()));
+    BookStore::new(dir).unwrap()
 }
 
 fn span(text: &str) -> Vec<InlineText> {
@@ -36,32 +36,32 @@ fn span(text: &str) -> Vec<InlineText> {
 }
 
 #[test]
-fn renaming_a_linked_row_renames_the_underlying_document() {
-    let docs = doc_store();
-    let dbs = db_store();
+fn renaming_a_linked_row_renames_the_underlying_leaf() {
+    let docs = leaf_store();
+    let dbs = book_store();
 
-    // Seed a document.
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&docs),
+    // Seed a leaf.
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&docs),
         "Old name",
     )
     .unwrap();
 
-    // Seed a database with a Title property.
+    // Seed a book with a Title property.
     let title_prop = Property::new("Name", PropertyType::Title);
     let title_prop_id = title_prop.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&dbs),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&dbs),
         span("Notes"),
         vec![title_prop],
     )
     .unwrap();
 
-    // Link the row to the document.
+    // Link the row to the leaf.
     let initial: HashMap<Uuid, PropertyValue> =
         HashMap::from([(title_prop_id, PropertyValue::Title(span("Old name")))]);
-    let entry = add_entry_with_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&dbs),
+    let entry = add_entry_with_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&dbs),
         db.id,
         initial,
         doc.id,
@@ -72,16 +72,16 @@ fn renaming_a_linked_row_renames_the_underlying_document() {
     let renamed: HashMap<Uuid, PropertyValue> =
         HashMap::from([(title_prop_id, PropertyValue::Title(span("New name")))]);
     update_entry_propagating_title(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs_dbs(&docs, &dbs),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves_books(&docs, &dbs),
         db.id,
         entry.id,
         renamed,
     )
     .unwrap();
 
-    // Both the row AND the document reflect the new name.
-    let db = get_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&dbs),
+    // Both the row AND the leaf reflect the new name.
+    let db = get_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&dbs),
         db.id,
     )
     .unwrap();
@@ -93,8 +93,8 @@ fn renaming_a_linked_row_renames_the_underlying_document() {
         other => panic!("expected Title, got {other:?}"),
     }
 
-    let doc = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&docs),
+    let doc = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&docs),
         doc.id,
     )
     .unwrap();
@@ -103,21 +103,21 @@ fn renaming_a_linked_row_renames_the_underlying_document() {
 }
 
 #[test]
-fn renaming_an_unlinked_row_does_not_touch_unrelated_documents() {
-    let docs = doc_store();
-    let dbs = db_store();
+fn renaming_an_unlinked_row_does_not_touch_unrelated_leaves() {
+    let docs = leaf_store();
+    let dbs = book_store();
 
-    // A document that exists but is NOT linked to any row.
-    let bystander = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&docs),
+    // A leaf that exists but is NOT linked to any row.
+    let bystander = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&docs),
         "Should stay",
     )
     .unwrap();
 
     let title_prop = Property::new("Name", PropertyType::Title);
     let title_prop_id = title_prop.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&dbs),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&dbs),
         span("DB"),
         vec![title_prop],
     )
@@ -127,7 +127,7 @@ fn renaming_an_unlinked_row_does_not_touch_unrelated_documents() {
     let initial: HashMap<Uuid, PropertyValue> =
         HashMap::from([(title_prop_id, PropertyValue::Title(span("Row A")))]);
     let entry = add_entry(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&dbs),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&dbs),
         db.id,
         initial,
     )
@@ -136,16 +136,16 @@ fn renaming_an_unlinked_row_does_not_touch_unrelated_documents() {
     let renamed: HashMap<Uuid, PropertyValue> =
         HashMap::from([(title_prop_id, PropertyValue::Title(span("Row A renamed")))]);
     update_entry_propagating_title(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs_dbs(&docs, &dbs),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves_books(&docs, &dbs),
         db.id,
         entry.id,
         renamed,
     )
     .unwrap();
 
-    // Bystander document untouched.
-    let doc = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&docs),
+    // Bystander leaf untouched.
+    let doc = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&docs),
         bystander.id,
     )
     .unwrap();

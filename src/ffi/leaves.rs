@@ -1,77 +1,77 @@
-//! Document, block and search operations on the [`PinkhaApi`] facade.
+//! Leaf, block and search operations on the [`PinkhaApi`] facade.
 
 use crate::application::use_cases;
-use crate::domain::document::BlockContent;
+use crate::domain::leaf::BlockContent;
 
 use super::types::{
-    BlockSearchHitFfi, DatabaseMetaFfi, DocumentMetaFfi, FolderMetaFfi, db_meta_to_ffi,
-    doc_meta_to_ffi, folder_meta_to_ffi,
+    BlockSearchHitFfi, BookMetaFfi, LeafMetaFfi, ShelfMetaFfi, book_meta_to_ffi,
+    leaf_meta_to_ffi, shelf_meta_to_ffi,
 };
 use super::validation::{get_block_id, parse_json, parse_uuid, parse_uuids, validate_string};
 use super::{PinkhaApi, PinkhaError};
 
 impl PinkhaApi {
-    // ── Documents ─────────────────────────────────────────────
+    // ── Leaves ─────────────────────────────────────────────
 
-    /// Creates a new document with the given plain-text title.
-    /// Returns the UUID string of the created document.
-    pub fn create_document(&self, title: String) -> Result<String, PinkhaError> {
+    /// Creates a new leaf with the given plain-text title.
+    /// Returns the UUID string of the created leaf.
+    pub fn create_leaf(&self, title: String) -> Result<String, PinkhaError> {
         validate_string(&title, "title")?;
-        let doc = use_cases::create_document(&self.uow(), &title).map_err(PinkhaError::from)?;
+        let doc = use_cases::create_leaf(&self.uow(), &title).map_err(PinkhaError::from)?;
         Ok(doc.id.to_string())
     }
 
-    /// Returns the full document as a JSON string (decodable as `DocumentFfi` in Swift).
-    pub fn get_document_json(&self, id: String) -> Result<String, PinkhaError> {
+    /// Returns the full leaf as a JSON string (decodable as `LeafFfi` in Swift).
+    pub fn get_leaf_json(&self, id: String) -> Result<String, PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        let doc = use_cases::get_document(&self.uow(), uuid).map_err(PinkhaError::from)?;
+        let doc = use_cases::get_leaf(&self.uow(), uuid).map_err(PinkhaError::from)?;
         serde_json::to_string(&doc).map_err(|e| PinkhaError::Storage {
             detail: e.to_string(),
         })
     }
 
-    /// Returns lightweight metadata for all non-deleted documents.
-    pub fn list_documents(&self) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
-        let metas = use_cases::list_documents(&self.uow()).map_err(PinkhaError::from)?;
-        Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
+    /// Returns lightweight metadata for all non-deleted leaves.
+    pub fn list_leaves(&self) -> Result<Vec<LeafMetaFfi>, PinkhaError> {
+        let metas = use_cases::list_leaves(&self.uow()).map_err(PinkhaError::from)?;
+        Ok(metas.into_iter().map(leaf_meta_to_ffi).collect())
     }
 
-    /// Soft-deletes the document identified by `id`.
-    pub fn delete_document(&self, id: String) -> Result<(), PinkhaError> {
+    /// Soft-deletes the leaf identified by `id`.
+    pub fn delete_leaf(&self, id: String) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        use_cases::delete_document(&self.uow(), uuid).map_err(PinkhaError::from)
+        use_cases::delete_leaf(&self.uow(), uuid).map_err(PinkhaError::from)
     }
 
-    /// Soft-deletes every document. Returns the number of documents deleted.
-    pub fn delete_all_documents(&self) -> Result<u32, PinkhaError> {
-        let metas = use_cases::list_documents(&self.uow()).map_err(PinkhaError::from)?;
+    /// Soft-deletes every leaf. Returns the number of leaves deleted.
+    pub fn delete_all_leaves(&self) -> Result<u32, PinkhaError> {
+        let metas = use_cases::list_leaves(&self.uow()).map_err(PinkhaError::from)?;
         let count = metas.len() as u32;
         for meta in metas {
-            use_cases::delete_document(&self.uow(), meta.id).map_err(PinkhaError::from)?;
+            use_cases::delete_leaf(&self.uow(), meta.id).map_err(PinkhaError::from)?;
         }
         Ok(count)
     }
 
-    /// Replaces the document title with a plain-text string parsed into inline spans.
-    pub fn update_document_title(&self, id: String, new_title: String) -> Result<(), PinkhaError> {
+    /// Replaces the leaf title with a plain-text string parsed into inline spans.
+    pub fn update_leaf_title(&self, id: String, new_title: String) -> Result<(), PinkhaError> {
         validate_string(&new_title, "new_title")?;
         let uuid = parse_uuid(&id)?;
-        use_cases::update_document_title(&self.uow(), uuid, &new_title).map_err(PinkhaError::from)
+        use_cases::update_leaf_title(&self.uow(), uuid, &new_title).map_err(PinkhaError::from)
     }
 
-    /// Sets or clears the cover of a document.
-    pub fn update_document_cover(
+    /// Sets or clears the cover of a leaf.
+    pub fn update_leaf_cover(
         &self,
         id: String,
         cover: Option<String>,
     ) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        use_cases::update_document_cover(&self.uow(), uuid, cover).map_err(PinkhaError::from)
+        use_cases::update_leaf_cover(&self.uow(), uuid, cover).map_err(PinkhaError::from)
     }
 
     /// Sets or clears the page icon. Accepts an emoji, a local cover-dir
     /// filename, or a remote URL — the renderer picks the right strategy.
-    pub fn update_document_icon(
+    pub fn update_leaf_icon(
         &self,
         id: String,
         icon: Option<String>,
@@ -80,14 +80,14 @@ impl PinkhaApi {
             validate_string(i, "icon")?;
         }
         let uuid = parse_uuid(&id)?;
-        use_cases::update_document_icon(&self.uow(), uuid, icon).map_err(PinkhaError::from)
+        use_cases::update_leaf_icon(&self.uow(), uuid, icon).map_err(PinkhaError::from)
     }
 
-    /// Sets (or clears with `None`) the per-document accent color name
+    /// Sets (or clears with `None`) the per-leaf accent color name
     /// (e.g. `"red"`, `"teal"`). Same naming scheme as `set_block_color`.
     /// When set, the editor renders its chrome in this color instead
     /// of the app-wide accent; `None` falls back to the global accent.
-    pub fn update_document_accent_color(
+    pub fn update_leaf_accent_color(
         &self,
         id: String,
         accent_color: Option<String>,
@@ -96,23 +96,23 @@ impl PinkhaApi {
             validate_string(c, "accent_color")?;
         }
         let uuid = parse_uuid(&id)?;
-        use_cases::update_document_accent_color(&self.uow(), uuid, accent_color)
+        use_cases::update_leaf_accent_color(&self.uow(), uuid, accent_color)
             .map_err(PinkhaError::from)
     }
 
-    /// Sets the read-only lock on a document. Used by the editor toggle and
+    /// Sets the read-only lock on a leaf. Used by the editor toggle and
     /// auto-applied by data-extract imports (Notion/Bear/Craft) which lock
-    /// new documents by default — the user reads first, unlocks before
+    /// new leaves by default — the user reads first, unlocks before
     /// editing imported content.
-    pub fn update_document_locked(&self, id: String, locked: bool) -> Result<(), PinkhaError> {
+    pub fn update_leaf_locked(&self, id: String, locked: bool) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        use_cases::update_document_locked(&self.uow(), uuid, locked).map_err(PinkhaError::from)
+        use_cases::update_leaf_locked(&self.uow(), uuid, locked).map_err(PinkhaError::from)
     }
 
-    /// Overrides the document's user-editable `published_at`.
+    /// Overrides the leaf's user-editable `published_at`.
     /// Empty string resets it to the default "follow `created_at`"
     /// behaviour. Mirrors `update_entry_published_at` on Entry.
-    pub fn update_document_published_at(
+    pub fn update_leaf_published_at(
         &self,
         id: String,
         new_published_at: String,
@@ -123,18 +123,18 @@ impl PinkhaApi {
                 detail: "published_at too long".to_string(),
             });
         }
-        use_cases::update_document_published_at(&self.uow(), uuid, new_published_at)
+        use_cases::update_leaf_published_at(&self.uow(), uuid, new_published_at)
             .map_err(PinkhaError::from)
     }
 
-    /// Appends a block to a document. `block_content_json` must be a JSON-encoded
+    /// Appends a block to a leaf. `block_content_json` must be a JSON-encoded
     /// [`BlockContent`]. Returns the UUID string of the newly created block.
     pub fn add_block(
         &self,
-        doc_id: String,
+        leaf_id: String,
         block_content_json: String,
     ) -> Result<String, PinkhaError> {
-        let uuid = parse_uuid(&doc_id)?;
+        let uuid = parse_uuid(&leaf_id)?;
         let content: BlockContent = parse_json(&block_content_json)?;
         let doc = use_cases::add_block(&self.uow(), uuid, content).map_err(PinkhaError::from)?;
         doc.blocks
@@ -149,14 +149,14 @@ impl PinkhaApi {
     /// JSON-encoded [`BlockContent`].
     pub fn update_block(
         &self,
-        doc_id: String,
+        leaf_id: String,
         block_id: String,
         content_json: String,
     ) -> Result<(), PinkhaError> {
-        let doc_uuid = parse_uuid(&doc_id)?;
+        let leaf_uuid = parse_uuid(&leaf_id)?;
         let block_uuid = parse_uuid(&block_id)?;
         let content: BlockContent = parse_json(&content_json)?;
-        use_cases::update_block(&self.uow(), doc_uuid, block_uuid, content)
+        use_cases::update_block(&self.uow(), leaf_uuid, block_uuid, content)
             .map_err(PinkhaError::from)
     }
 
@@ -165,40 +165,40 @@ impl PinkhaApi {
     /// tinted band behind the whole block (highlight style).
     pub fn set_block_background_color(
         &self,
-        doc_id: String,
+        leaf_id: String,
         block_id: String,
         background_color: Option<String>,
     ) -> Result<(), PinkhaError> {
         if let Some(c) = background_color.as_deref() {
             validate_string(c, "background_color")?;
         }
-        let doc_uuid = parse_uuid(&doc_id)?;
+        let leaf_uuid = parse_uuid(&leaf_id)?;
         let block_uuid = parse_uuid(&block_id)?;
-        use_cases::set_block_background_color(&self.uow(), doc_uuid, block_uuid, background_color)
+        use_cases::set_block_background_color(&self.uow(), leaf_uuid, block_uuid, background_color)
             .map_err(PinkhaError::from)
     }
 
     /// Sets the per-block writing direction (`"ltr"` / `"rtl"`), or
-    /// clears with `None` to inherit the document-level setting.
+    /// clears with `None` to inherit the leaf-level setting.
     pub fn set_block_text_direction(
         &self,
-        doc_id: String,
+        leaf_id: String,
         block_id: String,
         text_direction: Option<String>,
     ) -> Result<(), PinkhaError> {
         if let Some(d) = text_direction.as_deref() {
             validate_string(d, "text_direction")?;
         }
-        let doc_uuid = parse_uuid(&doc_id)?;
+        let leaf_uuid = parse_uuid(&leaf_id)?;
         let block_uuid = parse_uuid(&block_id)?;
-        use_cases::set_block_text_direction(&self.uow(), doc_uuid, block_uuid, text_direction)
+        use_cases::set_block_text_direction(&self.uow(), leaf_uuid, block_uuid, text_direction)
             .map_err(PinkhaError::from)
     }
 
-    /// Sets the per-document writing direction (`"ltr"` / `"rtl"`), or
+    /// Sets the per-leaf writing direction (`"ltr"` / `"rtl"`), or
     /// clears with `None` to let the system locale decide. The chosen
     /// direction is the default for every block in the doc.
-    pub fn update_document_text_direction(
+    pub fn update_leaf_text_direction(
         &self,
         id: String,
         text_direction: Option<String>,
@@ -207,13 +207,13 @@ impl PinkhaApi {
             validate_string(d, "text_direction")?;
         }
         let uuid = parse_uuid(&id)?;
-        use_cases::update_document_text_direction(&self.uow(), uuid, text_direction)
+        use_cases::update_leaf_text_direction(&self.uow(), uuid, text_direction)
             .map_err(PinkhaError::from)
     }
 
-    /// Sets the per-document theme name, or clears with `None` to
+    /// Sets the per-leaf theme name, or clears with `None` to
     /// inherit from `AppSettings.theme`.
-    pub fn update_document_theme(
+    pub fn update_leaf_theme(
         &self,
         id: String,
         theme: Option<String>,
@@ -222,7 +222,7 @@ impl PinkhaApi {
             validate_string(t, "theme")?;
         }
         let uuid = parse_uuid(&id)?;
-        use_cases::update_document_theme(&self.uow(), uuid, theme).map_err(PinkhaError::from)
+        use_cases::update_leaf_theme(&self.uow(), uuid, theme).map_err(PinkhaError::from)
     }
 
     /// Sets the block-level text color, or clears it when `color` is `None`.
@@ -232,57 +232,57 @@ impl PinkhaApi {
     /// on individual spans always override the block color.
     pub fn set_block_color(
         &self,
-        doc_id: String,
+        leaf_id: String,
         block_id: String,
         color: Option<String>,
     ) -> Result<(), PinkhaError> {
         if let Some(c) = color.as_deref() {
             validate_string(c, "color")?;
         }
-        let doc_uuid = parse_uuid(&doc_id)?;
+        let leaf_uuid = parse_uuid(&leaf_id)?;
         let block_uuid = parse_uuid(&block_id)?;
-        use_cases::set_block_color(&self.uow(), doc_uuid, block_uuid, color)
+        use_cases::set_block_color(&self.uow(), leaf_uuid, block_uuid, color)
             .map_err(PinkhaError::from)
     }
 
-    /// Removes a block (and all its children) from a document.
-    pub fn delete_block(&self, doc_id: String, block_id: String) -> Result<(), PinkhaError> {
-        let doc_uuid = parse_uuid(&doc_id)?;
+    /// Removes a block (and all its children) from a leaf.
+    pub fn delete_block(&self, leaf_id: String, block_id: String) -> Result<(), PinkhaError> {
+        let leaf_uuid = parse_uuid(&leaf_id)?;
         let block_uuid = parse_uuid(&block_id)?;
-        use_cases::delete_block(&self.uow(), doc_uuid, block_uuid).map_err(PinkhaError::from)
+        use_cases::delete_block(&self.uow(), leaf_uuid, block_uuid).map_err(PinkhaError::from)
     }
 
     /// Duplicates a block (and all its children, with fresh UUIDs) and
     /// inserts the clone right after the original at the same level.
     /// Returns the new top-level block id so the UI can focus / scroll
     /// to it.
-    pub fn duplicate_block(&self, doc_id: String, block_id: String) -> Result<String, PinkhaError> {
-        let doc_uuid = parse_uuid(&doc_id)?;
+    pub fn duplicate_block(&self, leaf_id: String, block_id: String) -> Result<String, PinkhaError> {
+        let leaf_uuid = parse_uuid(&leaf_id)?;
         let block_uuid = parse_uuid(&block_id)?;
-        use_cases::duplicate_block(&self.uow(), doc_uuid, block_uuid)
+        use_cases::duplicate_block(&self.uow(), leaf_uuid, block_uuid)
             .map(|id| id.to_string())
             .map_err(PinkhaError::from)
     }
 
-    /// Reorders the root-level blocks of a document according to `order`.
+    /// Reorders the root-level blocks of a leaf according to `order`.
     /// Blocks not mentioned in `order` are appended at the end.
-    pub fn reorder_blocks(&self, doc_id: String, order: Vec<String>) -> Result<(), PinkhaError> {
-        let doc_uuid = parse_uuid(&doc_id)?;
+    pub fn reorder_blocks(&self, leaf_id: String, order: Vec<String>) -> Result<(), PinkhaError> {
+        let leaf_uuid = parse_uuid(&leaf_id)?;
         let uuids = parse_uuids(order)?;
-        use_cases::reorder_blocks(&self.uow(), doc_uuid, uuids).map_err(PinkhaError::from)
+        use_cases::reorder_blocks(&self.uow(), leaf_uuid, uuids).map_err(PinkhaError::from)
     }
 
     /// Appends a child block under `parent_id`. Returns the new block UUID string.
     pub fn add_child_block(
         &self,
-        doc_id: String,
+        leaf_id: String,
         parent_id: String,
         block_content_json: String,
     ) -> Result<String, PinkhaError> {
-        let doc_uuid = parse_uuid(&doc_id)?;
+        let leaf_uuid = parse_uuid(&leaf_id)?;
         let parent_uuid = parse_uuid(&parent_id)?;
         let content: BlockContent = parse_json(&block_content_json)?;
-        use_cases::add_child_block(&self.uow(), doc_uuid, parent_uuid, content)
+        use_cases::add_child_block(&self.uow(), leaf_uuid, parent_uuid, content)
             .map(get_block_id)
             .map_err(PinkhaError::from)
     }
@@ -290,69 +290,69 @@ impl PinkhaApi {
     /// Reorders the children of `parent_id` according to `order`.
     pub fn reorder_child_blocks(
         &self,
-        doc_id: String,
+        leaf_id: String,
         parent_id: String,
         order: Vec<String>,
     ) -> Result<(), PinkhaError> {
-        let doc_uuid = parse_uuid(&doc_id)?;
+        let leaf_uuid = parse_uuid(&leaf_id)?;
         let parent_uuid = parse_uuid(&parent_id)?;
         let uuids = parse_uuids(order)?;
-        use_cases::reorder_child_blocks(&self.uow(), doc_uuid, parent_uuid, uuids)
+        use_cases::reorder_child_blocks(&self.uow(), leaf_uuid, parent_uuid, uuids)
             .map_err(PinkhaError::from)
     }
 
     /// Moves a block to a new parent. Pass `None` for `new_parent_id` to move
-    /// the block to the document root.
+    /// the block to the leaf root.
     pub fn move_block(
         &self,
-        doc_id: String,
+        leaf_id: String,
         block_id: String,
         new_parent_id: Option<String>,
     ) -> Result<(), PinkhaError> {
-        let doc_uuid = parse_uuid(&doc_id)?;
+        let leaf_uuid = parse_uuid(&leaf_id)?;
         let block_uuid = parse_uuid(&block_id)?;
         let parent_uuid = new_parent_id.as_deref().map(parse_uuid).transpose()?;
-        use_cases::move_block(&self.uow(), doc_uuid, block_uuid, parent_uuid)
+        use_cases::move_block(&self.uow(), leaf_uuid, block_uuid, parent_uuid)
             .map_err(PinkhaError::from)
     }
 
     /// Indents a block — moves it under the previous sibling at the same
     /// level. Fails with `InvalidOperation` when the block is the first of
     /// its level (nothing to indent under).
-    pub fn indent_block(&self, doc_id: String, block_id: String) -> Result<(), PinkhaError> {
-        let doc_uuid = parse_uuid(&doc_id)?;
+    pub fn indent_block(&self, leaf_id: String, block_id: String) -> Result<(), PinkhaError> {
+        let leaf_uuid = parse_uuid(&leaf_id)?;
         let block_uuid = parse_uuid(&block_id)?;
-        use_cases::indent_block(&self.uow(), doc_uuid, block_uuid).map_err(PinkhaError::from)
+        use_cases::indent_block(&self.uow(), leaf_uuid, block_uuid).map_err(PinkhaError::from)
     }
 
     /// Outdents a block — moves it out of its current parent up to the
     /// grandparent level, inserted right after the former parent. Fails with
-    /// `InvalidOperation` when the block is already at the document root.
-    pub fn outdent_block(&self, doc_id: String, block_id: String) -> Result<(), PinkhaError> {
-        let doc_uuid = parse_uuid(&doc_id)?;
+    /// `InvalidOperation` when the block is already at the leaf root.
+    pub fn outdent_block(&self, leaf_id: String, block_id: String) -> Result<(), PinkhaError> {
+        let leaf_uuid = parse_uuid(&leaf_id)?;
         let block_uuid = parse_uuid(&block_id)?;
-        use_cases::outdent_block(&self.uow(), doc_uuid, block_uuid).map_err(PinkhaError::from)
+        use_cases::outdent_block(&self.uow(), leaf_uuid, block_uuid).map_err(PinkhaError::from)
     }
 
-    /// Searches document titles for `query` (case-insensitive).
-    pub fn search_documents(&self, query: String) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
+    /// Searches leaf titles for `query` (case-insensitive).
+    pub fn search_leaves(&self, query: String) -> Result<Vec<LeafMetaFfi>, PinkhaError> {
         validate_string(&query, "query")?;
-        let metas = use_cases::search_documents(&self.uow(), &query).map_err(PinkhaError::from)?;
-        Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
+        let metas = use_cases::search_leaves(&self.uow(), &query).map_err(PinkhaError::from)?;
+        Ok(metas.into_iter().map(leaf_meta_to_ffi).collect())
     }
 
-    /// Full-text search across all block content in all documents (case-insensitive).
-    pub fn search_in_blocks(&self, query: String) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
+    /// Full-text search across all block content in all leaves (case-insensitive).
+    pub fn search_in_blocks(&self, query: String) -> Result<Vec<LeafMetaFfi>, PinkhaError> {
         validate_string(&query, "query")?;
         let metas = use_cases::search_in_blocks(&self.uow(), &query).map_err(PinkhaError::from)?;
-        Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
+        Ok(metas.into_iter().map(leaf_meta_to_ffi).collect())
     }
 
-    /// Case-insensitive search across database titles.
-    pub fn search_databases(&self, query: String) -> Result<Vec<DatabaseMetaFfi>, PinkhaError> {
+    /// Case-insensitive search across book titles.
+    pub fn search_books(&self, query: String) -> Result<Vec<BookMetaFfi>, PinkhaError> {
         validate_string(&query, "query")?;
-        let metas = use_cases::search_databases(&self.uow(), &query).map_err(PinkhaError::from)?;
-        Ok(metas.into_iter().map(db_meta_to_ffi).collect())
+        let metas = use_cases::search_books(&self.uow(), &query).map_err(PinkhaError::from)?;
+        Ok(metas.into_iter().map(book_meta_to_ffi).collect())
     }
 
     /// Block-content search returning each match together with a short
@@ -367,48 +367,48 @@ impl PinkhaApi {
         Ok(hits
             .into_iter()
             .map(|h| BlockSearchHitFfi {
-                doc: doc_meta_to_ffi(h.doc),
+                doc: leaf_meta_to_ffi(h.doc),
                 block_id: h.block_id.to_string(),
                 snippet: h.snippet,
             })
             .collect())
     }
 
-    /// Case-insensitive search across folder names.
-    pub fn search_folders(&self, query: String) -> Result<Vec<FolderMetaFfi>, PinkhaError> {
+    /// Case-insensitive search across shelf names.
+    pub fn search_shelves(&self, query: String) -> Result<Vec<ShelfMetaFfi>, PinkhaError> {
         validate_string(&query, "query")?;
-        let metas = use_cases::search_folders(&self.uow(), &query).map_err(PinkhaError::from)?;
-        Ok(metas.into_iter().map(folder_meta_to_ffi).collect())
+        let metas = use_cases::search_shelves(&self.uow(), &query).map_err(PinkhaError::from)?;
+        Ok(metas.into_iter().map(shelf_meta_to_ffi).collect())
     }
 
-    // ── Trash (soft-deleted documents) ────────────────────────────────────────
+    // ── Trash (soft-deleted leaves) ────────────────────────────────────────
 
-    /// Lists soft-deleted documents (the trash). Newest-deleted first.
-    pub fn list_deleted_documents(&self) -> Result<Vec<DocumentMetaFfi>, PinkhaError> {
-        let metas = use_cases::list_deleted_documents(&self.uow()).map_err(PinkhaError::from)?;
-        Ok(metas.into_iter().map(doc_meta_to_ffi).collect())
+    /// Lists soft-deleted leaves (the trash). Newest-deleted first.
+    pub fn list_deleted_leaves(&self) -> Result<Vec<LeafMetaFfi>, PinkhaError> {
+        let metas = use_cases::list_deleted_leaves(&self.uow()).map_err(PinkhaError::from)?;
+        Ok(metas.into_iter().map(leaf_meta_to_ffi).collect())
     }
 
-    /// Restores a soft-deleted document.
-    pub fn restore_document(&self, id: String) -> Result<(), PinkhaError> {
+    /// Restores a soft-deleted leaf.
+    pub fn restore_leaf(&self, id: String) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        use_cases::restore_document(&self.uow(), uuid).map_err(PinkhaError::from)
+        use_cases::restore_leaf(&self.uow(), uuid).map_err(PinkhaError::from)
     }
 
-    /// Permanently deletes a soft-deleted document (purge from trash).
-    pub fn purge_document(&self, id: String) -> Result<(), PinkhaError> {
+    /// Permanently deletes a soft-deleted leaf (purge from trash).
+    pub fn purge_leaf(&self, id: String) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        use_cases::purge_document(&self.uow(), uuid).map_err(PinkhaError::from)
+        use_cases::purge_leaf(&self.uow(), uuid).map_err(PinkhaError::from)
     }
 
-    /// Returns lightweight metadata for a single document — title, icon,
+    /// Returns lightweight metadata for a single leaf — title, icon,
     /// cover, timestamps — without the block tree. Prefer this over
-    /// `get_document_json` when only the chrome is needed (e.g. showing
-    /// a linked doc's icon next to a database row).
-    pub fn get_document_meta(&self, id: String) -> Result<DocumentMetaFfi, PinkhaError> {
+    /// `get_leaf_json` when only the chrome is needed (e.g. showing
+    /// a linked doc's icon next to a book row).
+    pub fn get_leaf_meta(&self, id: String) -> Result<LeafMetaFfi, PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        use_cases::get_document_meta(&self.uow(), uuid)
-            .map(doc_meta_to_ffi)
+        use_cases::get_leaf_meta(&self.uow(), uuid)
+            .map(leaf_meta_to_ffi)
             .map_err(PinkhaError::from)
     }
 }

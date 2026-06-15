@@ -39,23 +39,23 @@ impl NotionClient {
         Ok(Self { client })
     }
 
-    /// Fetches the schema (property definitions + title) for a Notion database.
-    pub async fn get_database(&self, db_id: &str) -> Result<NotionDatabaseSchema, ExtractorError> {
-        let url = format!("https://api.notion.com/v1/databases/{db_id}");
+    /// Fetches the schema (property definitions + title) for a Notion book.
+    pub async fn get_book(&self, book_id: &str) -> Result<NotionDatabaseSchema, ExtractorError> {
+        let url = format!("https://api.notion.com/v1/books/{book_id}");
         let bytes = self.send_with_backoff(self.client.get(&url)).await?;
         let schema: NotionDatabaseSchema = serde_json::from_slice(&bytes)?;
         Ok(schema)
     }
 
-    /// Queries a database page by page.
+    /// Queries a book page by page.
     ///
     /// Pass `cursor = Some(token)` to resume pagination.
-    pub async fn query_database(
+    pub async fn query_book(
         &self,
-        db_id: &str,
+        book_id: &str,
         cursor: Option<&str>,
     ) -> Result<NotionQueryResponse, ExtractorError> {
-        let url = format!("https://api.notion.com/v1/databases/{db_id}/query");
+        let url = format!("https://api.notion.com/v1/books/{book_id}/query");
 
         let body = if let Some(c) = cursor {
             serde_json::json!({ "start_cursor": c })
@@ -70,15 +70,15 @@ impl NotionClient {
         Ok(result)
     }
 
-    /// Lists every database the current integration has been granted access
+    /// Lists every book the current integration has been granted access
     /// to, across all authorised workspaces. Uses Notion's `POST /v1/search`
-    /// with a filter restricting results to the `database` object type.
+    /// with a filter restricting results to the `book` object type.
     ///
     /// Paginates internally and returns the fully concatenated list — the
     /// caller doesn't deal with cursors. A user with a fresh OAuth grant on
-    /// 3 workspaces with ~10 databases each fits comfortably in a single
+    /// 3 workspaces with ~10 books each fits comfortably in a single
     /// page; pagination is only there to honour the API contract.
-    pub async fn list_accessible_databases(
+    pub async fn list_accessible_books(
         &self,
     ) -> Result<Vec<super::schema::NotionDatabaseSearchHit>, ExtractorError> {
         let url = "https://api.notion.com/v1/search";
@@ -87,11 +87,11 @@ impl NotionClient {
         loop {
             let body = match cursor.as_deref() {
                 None => serde_json::json!({
-                    "filter": { "property": "object", "value": "database" },
+                    "filter": { "property": "object", "value": "book" },
                     "page_size": 100,
                 }),
                 Some(c) => serde_json::json!({
-                    "filter": { "property": "object", "value": "database" },
+                    "filter": { "property": "object", "value": "book" },
                     "page_size": 100,
                     "start_cursor": c,
                 }),
@@ -110,8 +110,8 @@ impl NotionClient {
     }
 
     /// 2025-09-03 API : lists data sources the integration can read.
-    /// Used by the new picker path so multi-source databases (which
-    /// the legacy `database`-filtered search may skip) surface in the
+    /// Used by the new picker path so multi-source books (which
+    /// the legacy `book`-filtered search may skip) surface in the
     /// import dialog. The default `Notion-Version: 2022-06-28` header
     /// baked into the client is overridden per-request so the
     /// existing import flow stays on the legacy contract — only the
@@ -155,7 +155,7 @@ impl NotionClient {
 
     /// Lists every page the integration has been granted access to.
     /// Used by the v2025 picker walker so we can scan each shared
-    /// page for `child_database` blocks that the `object: database`
+    /// page for `child_database` blocks that the `object: book`
     /// search doesn't enumerate by itself.
     pub async fn list_accessible_pages(
         &self,
@@ -190,7 +190,7 @@ impl NotionClient {
 
     /// Shallow scan of a page's top-level block list for
     /// `child_database` entries. Each block's `id` IS the wrapping
-    /// database's Notion id, so the result feeds straight into the
+    /// book's Notion id, so the result feeds straight into the
     /// picker.
     ///
     /// Deliberately :
@@ -200,7 +200,7 @@ impl NotionClient {
     ///     need a deeply-nested DB can share the immediate parent
     ///     page with the integration.
     ///   * Single 100-block request per page — Notion paginates
-    ///     beyond that, but in practice a database hub page has
+    ///     beyond that, but in practice a book hub page has
     ///     its DBs near the top of the block list. Beyond 100
     ///     blocks the user can paste the URL directly.
     pub async fn list_child_databases_in_page(

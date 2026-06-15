@@ -1,6 +1,6 @@
 // ── Bear SQLite reader ─────────────────────────────────────────────────────────
 //
-// Opens Bear's database in read-only mode. The caller is responsible for
+// Opens Bear's book in read-only mode. The caller is responsible for
 // obtaining user consent (via a Swift file picker) before passing the path.
 
 use rusqlite::{Connection, OpenFlags};
@@ -9,7 +9,7 @@ use super::schema::BearNote;
 use crate::application::error::PinkhaError;
 use crate::extractors::ExtractorError;
 
-/// Read-only connection to Bear's `database.sqlite`.
+/// Read-only connection to Bear's `book.sqlite`.
 pub struct BearReader {
     conn: Connection,
 }

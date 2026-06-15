@@ -6,9 +6,9 @@
 // or call concrete types directly from the FFI layer.
 
 use super::{ExtractorError, ImportResult};
-use crate::application::database_repository::DatabaseRepository;
-use crate::application::folder_repository::FolderRepository;
-use crate::application::repository::DocumentRepository;
+use crate::application::book_repository::BookRepository;
+use crate::application::shelf_repository::ShelfRepository;
+use crate::application::repository::LeafRepository;
 
 /// Common interface for all import pipelines.
 ///
@@ -21,7 +21,7 @@ use crate::application::repository::DocumentRepository;
 /// File-based sources (Bear) can still implement the trait — their futures will
 /// simply resolve synchronously after the disk reads.
 pub trait Extractor {
-    /// Source-specific configuration (e.g. OAuth token + database ID for Notion,
+    /// Source-specific configuration (e.g. OAuth token + book ID for Notion,
     /// SQLite path for Bear).
     type Config: Send;
 
@@ -42,8 +42,8 @@ pub trait Extractor {
     fn run(
         &self,
         config: Self::Config,
-        docs: &(dyn DocumentRepository + Send + Sync),
-        dbs: &(dyn DatabaseRepository + Send + Sync),
-        folders: &(dyn FolderRepository + Send + Sync),
+        docs: &(dyn LeafRepository + Send + Sync),
+        dbs: &(dyn BookRepository + Send + Sync),
+        shelves: &(dyn ShelfRepository + Send + Sync),
     ) -> impl std::future::Future<Output = Result<ImportResult, ExtractorError>> + Send;
 }
