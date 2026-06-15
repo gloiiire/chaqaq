@@ -5,16 +5,16 @@ import PinkhaCore
 
 // ── Import from Craft (TextBundle) sheet ──────────────────────────────────────
 //
-// The user selects the root folder exported from Craft ("Export All as TextBundle").
-// On macOS (Catalyst) the folder picker works natively.
-// On iOS the folder must be accessible via the Files app.
+// The user selects the root shelf exported from Craft ("Export All as TextBundle").
+// On macOS (Catalyst) the shelf picker works natively.
+// On iOS the shelf must be accessible via the Files app.
 
 struct CraftTextBundleImportView: View {
     let api: PinkhaApi?
     let onDone: () -> Void
 
     @State private var selectedPath: String?
-    @State private var showingFolderPicker = false
+    @State private var showingShelfPicker = false
     @State private var importState: ImportState = .idle
     @Environment(\.dismiss) private var dismiss
 
@@ -43,7 +43,7 @@ struct CraftTextBundleImportView: View {
                     }
                 }
                 .fileImporter(
-                    isPresented: $showingFolderPicker,
+                    isPresented: $showingShelfPicker,
                     allowedContentTypes: [.folder],
                     allowsMultipleSelection: false
                 ) { result in
@@ -69,17 +69,17 @@ struct CraftTextBundleImportView: View {
         Form {
             Section {
                 Button {
-                    showingFolderPicker = true
+                    showingShelfPicker = true
                 } label: {
                     HStack {
-                        Image(systemName: "folder")
+                        Image(systemName: "shelf")
                             .foregroundStyle(.tint)
                         VStack(alignment: .leading, spacing: 2) {
                             if let path = selectedPath {
                                 Text(URL(fileURLWithPath: path).lastPathComponent)
                                     .foregroundStyle(.primary)
                             } else {
-                                Text("Choose export folder…")
+                                Text("Choose export shelf…")
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -93,9 +93,9 @@ struct CraftTextBundleImportView: View {
                 }
                 .buttonStyle(.plain)
             } header: {
-                Text("TextBundle Export Folder")
+                Text("TextBundle Export Shelf")
             } footer: {
-                Text("In Craft: ··· → Export → Export All → TextBundle. Select the exported folder here.")
+                Text("In Craft: ··· → Export → Export All → TextBundle. Select the exported shelf here.")
                     .font(.caption2)
             }
 
@@ -142,8 +142,8 @@ struct CraftTextBundleImportView: View {
                 VStack(spacing: 8) {
                     Text("Import complete!")
                         .font(.title3.weight(.semibold))
-                    let noun = result.documents == 1 ? "note" : "notes"
-                    Text("\(result.documents) \(noun) imported from Craft.")
+                    let noun = result.leaves == 1 ? "note" : "notes"
+                    Text("\(result.leaves) \(noun) imported from Craft.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

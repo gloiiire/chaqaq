@@ -4,12 +4,12 @@ import PinkhaCore
 
 // ── Cover image view ─────────────────────────────────────────────────────────
 
-/// Renders a document cover from the value stored on `Document.cover` —
+/// Renders a leaf cover from the value stored on `Leaf.cover` —
 /// local filename in the covers directory, `file://` URL, remote
 /// `http(s)://` URL, gradient preset (`cover.aurora` / `forest` /
 /// `sunset` / `ocean`), or a soft default when the value is empty / nil.
 ///
-/// Shared between the document editor's banner and the home view's
+/// Shared between the leaf editor's banner and the home view's
 /// recent cards so a doc looks the same in both places (Notion-style).
 public struct CoverImageView: View {
     public init(cover: String?) { self.cover = cover }

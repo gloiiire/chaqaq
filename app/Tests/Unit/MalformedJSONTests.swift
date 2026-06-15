@@ -63,7 +63,7 @@ struct MalformedJSONTests {
     @Test func styleAliasFromRustOldFormat() throws {
         // The old format could serialize "style" instead of "styles" for InlineText.
         // Rust handles this via #[serde(alias = "style")] on the domain side. The Swift mirror
-        // does not support this (serde alias has no direct Swift equivalent), but we document
+        // does not support this (serde alias has no direct Swift equivalent), but we leaf
         // the current behaviour: the Swift decoder requires "styles".
         let data = "{\"content\":\"x\",\"style\":[]}".data(using: .utf8)!
         #expect(throws: DecodingError.self) {

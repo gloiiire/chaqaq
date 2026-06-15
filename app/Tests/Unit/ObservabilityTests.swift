@@ -19,7 +19,7 @@ struct ObservabilityTests {
 
     @Test("capture(_:) tolerates calls before start()")
     func captureBeforeStartIsSafe() {
-        // The wrapper documents that capture is safe to call before start().
+        // The wrapper leaves that capture is safe to call before start().
         // We rely on the SDK's own no-op behaviour when uninitialized — the
         // wrapper must not add a precondition that breaks this guarantee.
         struct DummyError: Error {}

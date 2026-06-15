@@ -147,7 +147,7 @@ public extension View {
     ///     .systemAlertOverlay(isPresented: $showing) {
     ///         SystemAlertCard(
     ///             title: "Importing from Notion",
-    ///             message: "Database 1 of 1",
+    ///             message: "Book 1 of 1",
     ///             showsProgress: true,
     ///             actions: [.destructive("Cancel import") { … }]
     ///         )

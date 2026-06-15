@@ -7,12 +7,12 @@ import PinkhaFFI
 // targets can reference it without depending on the app target. Same
 // shape as before, only the home module changes.
 
-/// Observable store that owns the `PinkhaApi` connection and the full workspace (notes + databases).
+/// Observable store that owns the `PinkhaApi` connection and the full library (notes + books).
 @MainActor
 @Observable
 public final class PinkhaStore {
-    public var documents: [DocumentMetaFfi] = []
-    public var databases: [DatabaseMetaFfi] = []
+    public var leaves: [LeafMetaFfi] = []
+    public var books: [BookMetaFfi] = []
     public var errorMessage: String?
     /// `true` when the Inbox tab has at least one item awaiting the user's
     /// attention — flips the tab icon to `tray.badge.fill`. Wired manually
@@ -24,10 +24,10 @@ public final class PinkhaStore {
 
     public init() {}
 
-    /// All workspace items merged and sorted by most recently updated.
+    /// All library items merged and sorted by most recently updated.
     public var items: [WorkspaceItem] {
-        let notes = documents.map { WorkspaceItem.note($0) }
-        let dbs   = databases.map { WorkspaceItem.database($0) }
+        let notes = leaves.map { WorkspaceItem.note($0) }
+        let dbs   = books.map { WorkspaceItem.book($0) }
         return (notes + dbs).sorted { $0.updatedAt > $1.updatedAt }
     }
 
@@ -39,7 +39,7 @@ public final class PinkhaStore {
         Array(items.prefix(limit))
     }
 
-    /// Opens the SQLite database and seeds it when running under UI-test launch arguments.
+    /// Opens the SQLite book and seeds it when running under UI-test launch arguments.
     public func connect() {
         guard api == nil else { return }
         tryCatch(into: &errorMessage) {
@@ -51,73 +51,73 @@ public final class PinkhaStore {
             let path = dir.appendingPathComponent(dbName).path
             api = try PinkhaApi(dbPath: path)
             if args.contains("--ui-test-data") {
-                _ = try api?.createDocument(title: "Seeded Note 1")
-                _ = try api?.createDocument(title: "Seeded Note 2")
+                _ = try api?.createLeaf(title: "Seeded Note 1")
+                _ = try api?.createLeaf(title: "Seeded Note 2")
             }
             // --ui-test-clean: empty ephemeral DB, ideal for testing the empty state.
         }
         if api != nil { load() }
     }
 
-    /// Refreshes documents and databases from the SQLite store.
-    /// Only root pages (no `parentDocId`) are surfaced — child pages are
+    /// Refreshes leaves and books from the SQLite store.
+    /// Only root pages (no `parentLeafId`) are surfaced — child pages are
     /// reached by tapping their parent's inline `Page` block.
     public func load() {
-        if let docs = tryCatch(into: &errorMessage, { try api?.listRootDocuments() ?? [] }) {
-            documents = docs
+        if let docs = tryCatch(into: &errorMessage, { try api?.listRootLeaves() ?? [] }) {
+            leaves = docs
         }
-        if let dbs = tryCatch(into: &errorMessage, { try api?.listDatabases() ?? [] }) {
-            databases = dbs
+        if let dbs = tryCatch(into: &errorMessage, { try api?.listBooks() ?? [] }) {
+            books = dbs
         }
     }
 
-    /// Direct child pages of a given parent document. Used by the document
+    /// Direct child pages of a given parent leaf. Used by the leaf
     /// view to surface sub-pages even when they aren't placed inline as
     /// `BlockContent::Page` blocks yet.
-    public func childDocuments(of parentDocId: String) -> [DocumentMetaFfi] {
+    public func childLeaves(of parentLeafId: String) -> [LeafMetaFfi] {
         guard let api else { return [] }
-        return (try? api.listChildDocuments(parentDocId: parentDocId)) ?? []
+        return (try? api.listChildLeaves(parentLeafId: parentLeafId)) ?? []
     }
 
-    /// Moves a document under another parent document, or to root when
-    /// `newParentDocId` is `nil`.
-    public func moveDocumentToParent(docId: String, newParentDocId: String?) {
+    /// Moves a leaf under another parent leaf, or to root when
+    /// `newParentLeafId` is `nil`.
+    public func moveLeafToParent(leafId: String, newParentLeafId: String?) {
         tryCatch(into: &errorMessage) {
-            try api?.updateDocumentParent(docId: docId, newParentDocId: newParentDocId)
+            try api?.updateLeafParent(leafId: leafId, newParentLeafId: newParentLeafId)
         }
         load()
     }
 
-    /// Creates a new note at the workspace root and reloads.
-    /// Context-aware overloads (folder / inside a doc / with a
+    /// Creates a new note at the library root and reloads.
+    /// Context-aware overloads (shelf / inside a doc / with a
     /// `StandaloneStyle`) live in `PinkhaStore+Composer.swift` in the
     /// Notes layer so PinkhaCore stays independent of the
     /// feature-layer `Composer.CreationContext` and
-    /// `CreateDocumentSheet.StandaloneStyle` types.
+    /// `CreateLeafSheet.StandaloneStyle` types.
     public func create(title: String) {
         guard let api else { return }
         tryCatch(into: &errorMessage) {
-            _ = try api.createDocument(title: title)
+            _ = try api.createLeaf(title: title)
         }
         load()
     }
 
-    /// Creates a new database at the workspace root and reloads. See
+    /// Creates a new book at the library root and reloads. See
     /// `create(title:)` for the rationale; the context-aware overload
     /// lives in the Notes-layer extension.
-    public func createDatabase(title: String) {
+    public func createBook(title: String) {
         guard let api else { return }
         tryCatch(into: &errorMessage) {
-            _ = try api.createDatabase(title: title)
+            _ = try api.createBook(title: title)
         }
         load()
     }
 
     /// Renames a note (updates its title) and reloads so the home
     /// list reflects the new value.
-    public func renameDocument(id: String, newTitle: String) {
+    public func renameLeaf(id: String, newTitle: String) {
         if tryCatch(into: &errorMessage, {
-            try api?.updateDocumentTitle(id: id, newTitle: newTitle)
+            try api?.updateLeafTitle(id: id, newTitle: newTitle)
         }) != nil {
             load()
         }
@@ -125,220 +125,220 @@ public final class PinkhaStore {
 
     /// Soft-deletes a note by id and reloads.
     public func delete(id: String) {
-        if tryCatch(into: &errorMessage, { try api?.deleteDocument(id: id) }) != nil {
+        if tryCatch(into: &errorMessage, { try api?.deleteLeaf(id: id) }) != nil {
             load()
         }
     }
 
-    /// Soft-deletes all documents and reloads.
+    /// Soft-deletes all leaves and reloads.
     public func deleteAll() {
-        if tryCatch(into: &errorMessage, { try api?.deleteAllDocuments() }) != nil {
+        if tryCatch(into: &errorMessage, { try api?.deleteAllLeaves() }) != nil {
             load()
         }
     }
 
-    /// Soft-deletes all databases and reloads.
-    public func deleteAllDatabases() {
-        if tryCatch(into: &errorMessage, { try api?.deleteAllDatabases() }) != nil {
+    /// Soft-deletes all books and reloads.
+    public func deleteAllBooks() {
+        if tryCatch(into: &errorMessage, { try api?.deleteAllBooks() }) != nil {
             load()
         }
     }
 
-    /// Soft-deletes all folders (orphan contents fall back to root).
-    /// Used by the "Delete all" flow so a clean wipe includes folders.
-    public func deleteAllFolders() {
-        if tryCatch(into: &errorMessage, { try api?.deleteAllFolders() }) != nil {
+    /// Soft-deletes all shelves (orphan contents fall back to root).
+    /// Used by the "Delete all" flow so a clean wipe includes shelves.
+    public func deleteAllShelves() {
+        if tryCatch(into: &errorMessage, { try api?.deleteAllShelves() }) != nil {
             load()
         }
     }
 
-    /// Soft-deletes a database AND every document its rows are backed
-    /// by — the "Delete database & its pages" path of the delete dialog.
-    /// Returns the number of documents trashed alongside the database.
+    /// Soft-deletes a book AND every leaf its rows are backed
+    /// by — the "Delete book & its pages" path of the delete dialog.
+    /// Returns the number of leaves trashed alongside the book.
     @discardableResult
-    public func deleteDatabaseCascade(id: String) -> Int {
-        let n = tryCatch(into: &errorMessage) { try api?.deleteDatabaseCascade(id: id) ?? 0 } ?? 0
+    public func deleteBookCascade(id: String) -> Int {
+        let n = tryCatch(into: &errorMessage) { try api?.deleteBookCascade(id: id) ?? 0 } ?? 0
         load()
         return Int(n)
     }
 
-    /// Restores a soft-deleted database AND every document its rows are
-    /// backed by — the "Restore database & its pages" path of the
-    /// restore dialog. Returns the number of documents restored.
+    /// Restores a soft-deleted book AND every leaf its rows are
+    /// backed by — the "Restore book & its pages" path of the
+    /// restore dialog. Returns the number of leaves restored.
     @discardableResult
-    public func restoreDatabaseCascade(id: String) -> Int {
-        let n = tryCatch(into: &errorMessage) { try api?.restoreDatabaseCascade(id: id) ?? 0 } ?? 0
+    public func restoreBookCascade(id: String) -> Int {
+        let n = tryCatch(into: &errorMessage) { try api?.restoreBookCascade(id: id) ?? 0 } ?? 0
         load()
         return Int(n)
     }
 
-    /// Soft-deletes a database by id and reloads.
-    public func deleteDatabase(id: String) {
-        if tryCatch(into: &errorMessage, { try api?.deleteDatabase(id: id) }) != nil {
+    /// Soft-deletes a book by id and reloads.
+    public func deleteBook(id: String) {
+        if tryCatch(into: &errorMessage, { try api?.deleteBook(id: id) }) != nil {
             load()
         }
     }
 
     /// Returns notes whose title matches `query` (case-insensitive).
-    public func search(query: String) -> [DocumentMetaFfi] {
+    public func search(query: String) -> [LeafMetaFfi] {
         guard !query.isEmpty, let api else { return [] }
-        return (try? api.searchDocuments(query: query)) ?? []
+        return (try? api.searchLeaves(query: query)) ?? []
     }
 
     /// Runs all available search axes in a single FFI call : titles + block
-    /// content for documents, plus database titles and folder names. The
-    /// document-axis deduplication (a doc matching both title and content
+    /// content for leaves, plus book titles and shelf names. The
+    /// leaf-axis deduplication (a doc matching both title and content
     /// shows up once, in the title hits) happens on the Rust side.
     public func superSearch(query: String) -> SuperSearchResults {
         guard !query.isEmpty, let api else { return .empty }
         guard let results = try? api.superSearch(query: query) else { return .empty }
         return SuperSearchResults(
-            documentsByTitle: results.documentsByTitle,
-            documentsByContent: results.documentsByContent,
-            databases: results.databases,
-            folders: results.folders
+            leavesByTitle: results.leavesByTitle,
+            leavesByContent: results.leavesByContent,
+            books: results.books,
+            shelves: results.shelves
         )
     }
 
-    /// Bundle of search results across every workspace surface. Empty
+    /// Bundle of search results across every library surface. Empty
     /// arrays mean "no match in that category" — callers use the per-
     /// section count to decide whether to render the section.
     public struct SuperSearchResults: Sendable {
-        public let documentsByTitle: [DocumentMetaFfi]
-        public let documentsByContent: [BlockSearchHitFfi]
-        public let databases: [DatabaseMetaFfi]
-        public let folders: [FolderMetaFfi]
+        public let leavesByTitle: [LeafMetaFfi]
+        public let leavesByContent: [BlockSearchHitFfi]
+        public let books: [BookMetaFfi]
+        public let shelves: [ShelfMetaFfi]
 
         public var isEmpty: Bool {
-            documentsByTitle.isEmpty
-                && documentsByContent.isEmpty
-                && databases.isEmpty
-                && folders.isEmpty
+            leavesByTitle.isEmpty
+                && leavesByContent.isEmpty
+                && books.isEmpty
+                && shelves.isEmpty
         }
 
         public static let empty = SuperSearchResults(
-            documentsByTitle: [],
-            documentsByContent: [],
-            databases: [],
-            folders: []
+            leavesByTitle: [],
+            leavesByContent: [],
+            books: [],
+            shelves: []
         )
     }
 
-    // ── Folders ───────────────────────────────────────────────────────────────
+    // ── Shelves ───────────────────────────────────────────────────────────────
 
-    /// Returns all folders sorted by name.
-    public func listFolders() -> [FolderMetaFfi] {
+    /// Returns all shelves sorted by name.
+    public func listShelves() -> [ShelfMetaFfi] {
         guard let api else { return [] }
-        return (try? api.listFolders()) ?? []
+        return (try? api.listShelves()) ?? []
     }
 
-    /// Creates a folder and reloads.
+    /// Creates a shelf and reloads.
     @discardableResult
-    public func createFolder(name: String, parentId: String? = nil) -> FolderMetaFfi? {
+    public func createShelf(name: String, parentId: String? = nil) -> ShelfMetaFfi? {
         guard let api else { return nil }
-        let folder = tryCatch(into: &errorMessage) { try api.createFolder(name: name, parentId: parentId) }
-        return folder
+        let shelf = tryCatch(into: &errorMessage) { try api.createShelf(name: name, parentId: parentId) }
+        return shelf
     }
 
-    /// Renames a folder and reloads.
-    public func renameFolder(id: String, newName: String) {
-        tryCatch(into: &errorMessage) { try api?.renameFolder(id: id, newName: newName) }
+    /// Renames a shelf and reloads.
+    public func renameShelf(id: String, newName: String) {
+        tryCatch(into: &errorMessage) { try api?.renameShelf(id: id, newName: newName) }
         load()
     }
 
-    /// Sets or clears a folder's emoji icon and reloads.
-    public func updateFolderIcon(id: String, icon: String?) {
-        tryCatch(into: &errorMessage) { try api?.updateFolderIcon(id: id, icon: icon) }
+    /// Sets or clears a shelf's emoji icon and reloads.
+    public func updateShelfIcon(id: String, icon: String?) {
+        tryCatch(into: &errorMessage) { try api?.updateShelfIcon(id: id, icon: icon) }
         load()
     }
 
-    /// Deletes a folder (orphaned docs move to root) and reloads.
-    public func deleteFolder(id: String) {
-        tryCatch(into: &errorMessage) { try api?.deleteFolder(id: id) }
+    /// Deletes a shelf (orphaned docs move to root) and reloads.
+    public func deleteShelf(id: String) {
+        tryCatch(into: &errorMessage) { try api?.deleteShelf(id: id) }
         load()
     }
 
-    /// Moves a document into a folder (or to root when `folderId` is nil) and reloads.
-    public func moveDocumentToFolder(docId: String, folderId: String?) {
-        tryCatch(into: &errorMessage) { try api?.moveDocumentToFolder(docId: docId, folderId: folderId) }
+    /// Moves a leaf into a shelf (or to root when `shelfId` is nil) and reloads.
+    public func moveLeafToShelf(leafId: String, shelfId: String?) {
+        tryCatch(into: &errorMessage) { try api?.moveLeafToShelf(leafId: leafId, shelfId: shelfId) }
         load()
     }
 
-    /// Moves a folder under another folder (or to root when `newParentId` is nil)
-    /// and reloads. Used by the folder-in-folder UI.
-    public func moveFolder(id: String, newParentId: String?) {
-        tryCatch(into: &errorMessage) { try api?.moveFolderTo(id: id, newParentId: newParentId) }
+    /// Moves a shelf under another shelf (or to root when `newParentId` is nil)
+    /// and reloads. Used by the shelf-in-shelf UI.
+    public func moveShelf(id: String, newParentId: String?) {
+        tryCatch(into: &errorMessage) { try api?.moveShelfTo(id: id, newParentId: newParentId) }
         load()
     }
 
-    /// Returns the direct children of `parentId` (`nil` = root-level folders).
+    /// Returns the direct children of `parentId` (`nil` = root-level shelves).
     /// The parent/child filtering runs in Rust.
-    public func childFolders(of parentId: String?) -> [FolderMetaFfi] {
+    public func childShelves(of parentId: String?) -> [ShelfMetaFfi] {
         guard let api else { return [] }
-        return (try? api.listChildFolders(parentId: parentId)) ?? []
+        return (try? api.listChildShelves(parentId: parentId)) ?? []
     }
 
-    /// Returns documents in the given folder (`nil` = root level).
-    public func documentsInFolder(folderId: String?) -> [DocumentMetaFfi] {
+    /// Returns leaves in the given shelf (`nil` = root level).
+    public func documentsInShelf(shelfId: String?) -> [LeafMetaFfi] {
         guard let api else { return [] }
-        return (try? api.listDocumentsInFolder(folderId: folderId)) ?? []
+        return (try? api.listLeavesInShelf(shelfId: shelfId)) ?? []
     }
 
     // ── Trash (soft-deleted items) ────────────────────────────────────────────
 
-    /// Returns the trashed documents (newest-deleted first).
-    public func listDeletedDocuments() -> [DocumentMetaFfi] {
+    /// Returns the trashed leaves (newest-deleted first).
+    public func listDeletedLeaves() -> [LeafMetaFfi] {
         guard let api else { return [] }
-        return (try? api.listDeletedDocuments()) ?? []
+        return (try? api.listDeletedLeaves()) ?? []
     }
 
-    /// Returns the trashed databases.
-    public func listDeletedDatabases() -> [DatabaseMetaFfi] {
+    /// Returns the trashed books.
+    public func listDeletedBooks() -> [BookMetaFfi] {
         guard let api else { return [] }
-        return (try? api.listDeletedDatabases()) ?? []
+        return (try? api.listDeletedBooks()) ?? []
     }
 
-    /// Returns the trashed folders.
-    public func listDeletedFolders() -> [FolderMetaFfi] {
+    /// Returns the trashed shelves.
+    public func listDeletedShelves() -> [ShelfMetaFfi] {
         guard let api else { return [] }
-        return (try? api.listDeletedFolders()) ?? []
+        return (try? api.listDeletedShelves()) ?? []
     }
 
-    /// Restores a soft-deleted document.
-    public func restoreDocument(id: String) {
-        tryCatch(into: &errorMessage) { try api?.restoreDocument(id: id) }
+    /// Restores a soft-deleted leaf.
+    public func restoreLeaf(id: String) {
+        tryCatch(into: &errorMessage) { try api?.restoreLeaf(id: id) }
         load()
     }
 
-    /// Permanently deletes a soft-deleted document.
-    public func purgeDocument(id: String) {
-        tryCatch(into: &errorMessage) { try api?.purgeDocument(id: id) }
+    /// Permanently deletes a soft-deleted leaf.
+    public func purgeLeaf(id: String) {
+        tryCatch(into: &errorMessage) { try api?.purgeLeaf(id: id) }
     }
 
-    /// Restores a soft-deleted database.
-    public func restoreDatabase(id: String) {
-        tryCatch(into: &errorMessage) { try api?.restoreDatabase(id: id) }
+    /// Restores a soft-deleted book.
+    public func restoreBook(id: String) {
+        tryCatch(into: &errorMessage) { try api?.restoreBook(id: id) }
         load()
     }
 
-    /// Permanently deletes a soft-deleted database.
-    public func purgeDatabase(id: String) {
-        tryCatch(into: &errorMessage) { try api?.purgeDatabase(id: id) }
+    /// Permanently deletes a soft-deleted book.
+    public func purgeBook(id: String) {
+        tryCatch(into: &errorMessage) { try api?.purgeBook(id: id) }
     }
 
-    /// Restores a soft-deleted folder.
-    public func restoreFolder(id: String) {
-        tryCatch(into: &errorMessage) { try api?.restoreFolder(id: id) }
+    /// Restores a soft-deleted shelf.
+    public func restoreShelf(id: String) {
+        tryCatch(into: &errorMessage) { try api?.restoreShelf(id: id) }
         load()
     }
 
-    /// Permanently deletes a soft-deleted folder.
-    public func purgeFolder(id: String) {
-        tryCatch(into: &errorMessage) { try api?.purgeFolder(id: id) }
+    /// Permanently deletes a soft-deleted shelf.
+    public func purgeShelf(id: String) {
+        tryCatch(into: &errorMessage) { try api?.purgeShelf(id: id) }
     }
 
-    /// Empties the trash by purging every soft-deleted document, database
-    /// and folder in a single bulk FFI call. Returns the total number of
+    /// Empties the trash by purging every soft-deleted leaf, book
+    /// and shelf in a single bulk FFI call. Returns the total number of
     /// items removed.
     @discardableResult
     public func emptyTrash() -> Int {

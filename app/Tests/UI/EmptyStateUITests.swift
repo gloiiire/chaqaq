@@ -1,6 +1,6 @@
 import XCTest
 
-// Verifies the empty state (no documents) — uses --ui-test-clean for an empty DB.
+// Verifies the empty state (no leaves) — uses --ui-test-clean for an empty DB.
 
 final class EmptyStateUITests: XCTestCase {
 
@@ -22,7 +22,7 @@ final class EmptyStateUITests: XCTestCase {
 
     func testFabStillPresentInEmptyState() {
         let app = launchClean()
-        let fab = app.buttons["createDocumentFAB"]
+        let fab = app.buttons["createLeafFAB"]
         XCTAssertTrue(fab.waitForExistence(timeout: 5))
         XCTAssertTrue(fab.isHittable)
     }

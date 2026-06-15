@@ -1,6 +1,6 @@
 import XCTest
 
-// End-to-end flow through the block picker from a seeded document.
+// End-to-end flow through the block picker from a seeded leaf.
 
 final class BlockPickerUITests: XCTestCase {
 

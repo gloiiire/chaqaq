@@ -8,7 +8,7 @@ import PinkhaCore
 /// `UIViewRepresentable` wrapping `ExpandingTextView` with full rich text editing:
 /// bold/italic/underline/strikethrough/color/link via a glass pill toolbar,
 /// markdown shortcuts, Shift+Enter line breaks, and undo/redo integration.
-/// One row in the `@`-mention picker — a document the user can
+/// One row in the `@`-mention picker — a leaf the user can
 /// reference by name. The picker shows `title` and on tap inserts
 /// a `pinkha://doc/{id}` link with `title` as the visible text.
 public struct MentionCandidate {
@@ -51,7 +51,7 @@ public struct RichTextEditor: UIViewRepresentable {
     var canUndoProvider: (() -> Bool)? = nil
     var canRedoProvider: (() -> Bool)? = nil
     /// Indent / outdent the *current block* (whichever owns this editor view).
-    /// The DocumentView owns the block identity, so it wires the closure to
+    /// The LeafView owns the block identity, so it wires the closure to
     /// call the right FFI on the right block. `nil` = button disabled.
     var onIndent: (() -> Void)? = nil
     var onOutdent: (() -> Void)? = nil
@@ -62,7 +62,7 @@ public struct RichTextEditor: UIViewRepresentable {
     var blockColor: String? = nil
     /// Accent color used by the keyboard pill's "active" icon tint
     /// (paste when clipboard has strings, etc.). Caller resolves it
-    /// — typically a per-doc override via `DocumentView.effectiveAccentColor`,
+    /// — typically a per-doc override via `LeafView.effectiveAccentColor`,
     /// falling back to the app-wide accent. `nil` keeps the legacy
     /// `UIColor(named: "Accent") ?? .tintColor` path.
     var accentColor: UIColor? = nil
@@ -77,7 +77,7 @@ public struct RichTextEditor: UIViewRepresentable {
     /// routes through the VM to FFI `set_block_background_color`.
     var onSetBlockBackgroundColor: ((String?) -> Void)? = nil
     /// Resolved writing direction for this block (`"ltr"` / `"rtl"`),
-    /// already combined from per-block override + document default
+    /// already combined from per-block override + leaf default
     /// at the call site. `nil` leaves UIKit's default `.natural`
     /// alignment, which honours the system locale.
     var textDirection: String? = nil
@@ -94,16 +94,16 @@ public struct RichTextEditor: UIViewRepresentable {
     /// keyboard lives in its own window and doesn't pick up the
     /// app-window `overrideUserInterfaceStyle` we just set).
     var keyboardAppearance: UIKeyboardAppearance = .default
-    /// Provides the candidate documents for the `@`-mention picker.
+    /// Provides the candidate leaves for the `@`-mention picker.
     /// Called when the user types `@` at the start of a word — the
     /// coordinator shows the returned list as a chooser; tapping
     /// an entry replaces the `@…` token with a `pinkha://doc/{id}`
-    /// link styled with the document's title. `nil` disables the
+    /// link styled with the leaf's title. `nil` disables the
     /// feature (e.g. title editor, where mentions don't make sense).
     var onMentionLookup: (() -> [MentionCandidate])? = nil
     /// Called when the user taps a `pinkha://doc/{uuid}` link in the
-    /// editor — the value is the destination document UUID. The parent
-    /// view (DocumentView) navigates to that document instead of opening
+    /// editor — the value is the destination leaf UUID. The parent
+    /// view (LeafView) navigates to that leaf instead of opening
     /// the URL in Safari. Notion mentions rewritten at import time
     /// (`feat: 2-pass Notion mention rewrite`) are the main producer of
     /// these URLs.

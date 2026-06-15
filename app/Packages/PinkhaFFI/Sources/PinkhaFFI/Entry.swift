@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-// Entry — one row in a database.
+// Entry — one row in a book.
 
 public struct EntryFfi: Codable, Identifiable {
     public let id: String
@@ -26,14 +26,14 @@ public struct EntryFfi: Codable, Identifiable {
         publishedAt.isEmpty ? createdAt : publishedAt
     }
     public var values: [String: PropertyValueFfi]
-    public let documentId: String?
+    public let leafId: String?
 
     enum CodingKeys: String, CodingKey {
         case id
         case createdAt = "created_at"
         case publishedAt = "published_at"
         case values
-        case documentId = "document_id"
+        case leafId = "leaf_id"
     }
 
     public init(from decoder: Decoder) throws {
@@ -42,7 +42,7 @@ public struct EntryFfi: Codable, Identifiable {
         createdAt   = (try? c.decode(String.self, forKey: .createdAt)) ?? ""
         publishedAt = (try? c.decode(String.self, forKey: .publishedAt)) ?? ""
         values      = try c.decode([String: PropertyValueFfi].self, forKey: .values)
-        documentId  = try c.decodeIfPresent(String.self, forKey: .documentId)
+        leafId  = try c.decodeIfPresent(String.self, forKey: .leafId)
     }
 
     public init(
@@ -50,12 +50,12 @@ public struct EntryFfi: Codable, Identifiable {
         createdAt: String,
         publishedAt: String = "",
         values: [String: PropertyValueFfi],
-        documentId: String?
+        leafId: String?
     ) {
         self.id          = id
         self.createdAt   = createdAt
         self.publishedAt = publishedAt
         self.values      = values
-        self.documentId  = documentId
+        self.leafId  = leafId
     }
 }

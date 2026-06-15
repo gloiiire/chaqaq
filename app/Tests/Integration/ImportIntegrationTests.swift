@@ -33,7 +33,7 @@ struct ImportIntegrationTests {
         var caught = false
         do {
             _ = try await api.importFromBear(dbPath: "/nonexistent.sqlite")
-            Issue.record("Expected PinkhaError for a nonexistent Bear database path, got success instead")
+            Issue.record("Expected PinkhaError for a nonexistent Bear book path, got success instead")
         } catch is PinkhaError {
             caught = true
         } catch {
@@ -84,7 +84,7 @@ struct ImportIntegrationTests {
         // 70_000 chars > MAX_STRING_BYTES (64 KB) — validate_string returns InvalidOperation.
         let hugeToken = String(repeating: "x", count: 70_000)
         do {
-            _ = try api.importFromNotion(token: hugeToken, databaseId: "abc", coversDir: nil)
+            _ = try api.importFromNotion(token: hugeToken, bookId: "abc", coversDir: nil)
             Issue.record("Expected PinkhaError.InvalidOperation for oversized token")
         } catch PinkhaError.InvalidOperation {
             #expect(Bool(true))
@@ -93,13 +93,13 @@ struct ImportIntegrationTests {
         }
     }
 
-    @Test func importFromNotion_rejects_too_long_database_id() async throws {
+    @Test func importFromNotion_rejects_too_long_book_id() async throws {
         let (api, url) = try makeApi(); defer { cleanup(url) }
 
         let hugeId = String(repeating: "y", count: 70_000)
         do {
-            _ = try api.importFromNotion(token: "secret_test", databaseId: hugeId, coversDir: nil)
-            Issue.record("Expected PinkhaError.InvalidOperation for oversized databaseId")
+            _ = try api.importFromNotion(token: "secret_test", bookId: hugeId, coversDir: nil)
+            Issue.record("Expected PinkhaError.InvalidOperation for oversized bookId")
         } catch PinkhaError.InvalidOperation {
             #expect(Bool(true))
         } catch {
@@ -114,7 +114,7 @@ struct ImportIntegrationTests {
         // The test verifies no crash and that a typed PinkhaError is returned.
         var caught = false
         do {
-            _ = try api.importFromNotion(token: "", databaseId: "abc", coversDir: nil)
+            _ = try api.importFromNotion(token: "", bookId: "abc", coversDir: nil)
             Issue.record("Expected PinkhaError for an empty token, got success")
         } catch is PinkhaError {
             caught = true
@@ -131,7 +131,7 @@ struct ImportIntegrationTests {
         let hugeToken = String(repeating: "z", count: 70_000)
         var wasInvalidOperation = false
         do {
-            _ = try api.importFromNotion(token: hugeToken, databaseId: "test", coversDir: nil)
+            _ = try api.importFromNotion(token: hugeToken, bookId: "test", coversDir: nil)
         } catch PinkhaError.InvalidOperation {
             wasInvalidOperation = true
         } catch {

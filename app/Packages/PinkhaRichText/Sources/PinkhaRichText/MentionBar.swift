@@ -4,9 +4,9 @@ import UIKit
 //
 // Floating glass capsule that hovers right above the keyboard pill while
 // the user is composing a `@`-mention. Shows a horizontal scroll of
-// document chips that filter live as the user types more letters after
+// leaf chips that filter live as the user types more letters after
 // the `@`. Tapping a chip lets the parent coordinator insert the picked
-// document as a `pinkha://doc/{id}` link.
+// leaf as a `pinkha://doc/{id}` link.
 //
 // Lives as a subview of the editor's window so it isn't clipped by the
 // `inputAccessoryView` slot — its frame tracks the keyboard's top edge

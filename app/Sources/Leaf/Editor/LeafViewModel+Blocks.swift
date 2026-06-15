@@ -1,0 +1,334 @@
+import SwiftUI
+import PinkhaFFI
+import PinkhaCore
+
+// ── Block management ──────────────────────────────────────────────────────────
+
+extension LeafViewModel {
+
+    func addBlock(type: NewBlockType, initialSpans: [InlineTextFfi] = [], afterId: String? = nil, atStart: Bool = false) {
+        do {
+            let content: BlockContentFfi
+            switch type {
+            case .text:    content = .text([])
+            case .title1:  content = .heading(level: 1, text: [])
+            case .title2:  content = .heading(level: 2, text: [])
+            case .title3:  content = .heading(level: 3, text: [])
+            case .quote:   content = .quote(icon: "", text: [])
+            case .callout: content = .quote(icon: "💡", text: [])
+            case .todo:    content = .todo(done: false, text: [])
+            case .divider: content = .divider
+            }
+            let data  = try JSONEncoder().encode(content)
+            let newId = try api.addBlock(leafId: leafId,
+                                         blockContentJson: String(decoding: data, as: UTF8.self))
+            let newBlock = EditableBlock(id: newId, content: content, spans: initialSpans, done: false)
+
+            if let afterId, let idx = blocks.firstIndex(where: { $0.id == afterId }) {
+                blocks.insert(newBlock, at: idx + 1)
+                try? api.reorderBlocks(leafId: leafId, order: blocks.map(\.id))
+            } else if atStart {
+                blocks.insert(newBlock, at: 0)
+                try? api.reorderBlocks(leafId: leafId, order: blocks.map(\.id))
+            } else {
+                blocks.append(newBlock)
+            }
+            if !initialSpans.isEmpty { persistBlockRaw(newBlock) }
+            blockSnapshots[newId] = snapshotOf(newBlock)
+            autoFocusOffset = 0
+            autoFocusId = newId
+            // Undo: delete the just-created block. deleteBlock auto-registers the redo (reinsertion).
+            undoMgr.registerUndo(withTarget: self) { vm in vm.deleteBlock(id: newId) }
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// Inserts a `Page` block at the end of the leaf — used when a
+    /// child page has been created from the bubble while this doc was on
+    /// screen. Going through this method (instead of a direct FFI call)
+    /// keeps `blocks`, `blockSnapshots` and the undo stack in sync, so
+    /// the next burst flush doesn't overwrite the new block.
+    func addChildPageBlock(childLeafId: String) {
+        do {
+            let content = BlockContentFfi.page(id: childLeafId)
+            let data    = try JSONEncoder().encode(content)
+            let newId   = try api.addBlock(leafId: leafId,
+                                           blockContentJson: String(decoding: data, as: UTF8.self))
+            let newBlock = EditableBlock(id: newId, content: content, spans: [], done: false)
+            blocks.append(newBlock)
+            blockSnapshots[newId] = snapshotOf(newBlock)
+            undoMgr.registerUndo(withTarget: self) { vm in vm.deleteBlock(id: newId) }
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    func deleteBlock(id: String) {
+        flushBurst(blockId: id)
+        guard let block = blocks.first(where: { $0.id == id }),
+              let index = blocks.firstIndex(where: { $0.id == id })
+        else { return }
+        do {
+            try api.deleteBlock(leafId: leafId, blockId: id)
+            blocks.removeAll { $0.id == id }
+            blockSnapshots.removeValue(forKey: id)
+            // Undo: reinsert the block at its original position. reinsertBlock registers the redo.
+            undoMgr.registerUndo(withTarget: self) { vm in
+                vm.reinsertBlock(block, at: index)
+            }
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// Recreates a deleted block via the API (generates a new UUID) then reorders it
+    /// to its original position. The UUID changes across undo cycles but the content
+    /// is preserved — standard iOS undo behaviour.
+    /// Auto-focus on the restored block (cursor at end) — standard UX for undo of a deletion.
+    private func reinsertBlock(_ block: EditableBlock, at index: Int) {
+        do {
+            let content = block.content.withSpans(block.spans, done: block.done)
+            let data = try JSONEncoder().encode(content)
+            let newId = try api.addBlock(leafId: leafId,
+                                         blockContentJson: String(decoding: data, as: UTF8.self))
+            let recreated = EditableBlock(id: newId, content: content,
+                                          spans: block.spans, done: block.done)
+            let safeIndex = min(index, blocks.count)
+            blocks.insert(recreated, at: safeIndex)
+            try api.reorderBlocks(leafId: leafId, order: blocks.map(\.id))
+            blockSnapshots[newId] = snapshotOf(recreated)
+            autoFocusOffset = nil
+            autoFocusId = newId
+            // Redo: re-delete this block.
+            undoMgr.registerUndo(withTarget: self) { vm in vm.deleteBlock(id: newId) }
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    func deleteBlocks(ids: Set<String>) {
+        guard !ids.isEmpty else { return }
+        for id in ids { flushBurst(blockId: id) }
+        // Capture snapshots with their indices (ascending) for ordered restoration.
+        let snapshots: [(Int, EditableBlock)] = blocks.enumerated()
+            .filter { ids.contains($0.element.id) }
+            .map { ($0.offset, $0.element) }
+        do {
+            for id in ids {
+                try api.deleteBlock(leafId: leafId, blockId: id)
+            }
+            blocks.removeAll { ids.contains($0.id) }
+            for id in ids { blockSnapshots.removeValue(forKey: id) }
+            undoMgr.registerUndo(withTarget: self) { vm in
+                vm.undoMgr.beginUndoGrouping()
+                for (index, block) in snapshots {
+                    vm.reinsertBlock(block, at: index)
+                }
+                vm.undoMgr.endUndoGrouping()
+            }
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// Toggles the "done" state of a todo block. Undo toggles it back (auto-re-registration).
+    func toggleBlockDone(id: String) {
+        guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
+        blocks[idx].done.toggle()
+        persistBlock(blocks[idx])
+        undoMgr.registerUndo(withTarget: self) { vm in vm.toggleBlockDone(id: id) }
+    }
+
+    /// Updates the emoji icon of a callout block. Undo restores the previous icon.
+    func updateBlockIcon(id: String, icon: String) {
+        guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
+        guard case .quote(let oldIcon, _) = blocks[idx].content, oldIcon != icon else { return }
+        blocks[idx].content = .quote(icon: icon, text: blocks[idx].spans)
+        persistBlock(blocks[idx])
+        undoMgr.registerUndo(withTarget: self) { vm in
+            vm.updateBlockIcon(id: id, icon: oldIcon)
+        }
+    }
+
+    /// Converts a block's content (markdown shortcut: text → heading, etc.).
+    /// Undo restores the previous content + spans; redo re-applies the conversion.
+    func convertBlockContent(id: String, to newContent: BlockContentFfi) {
+        guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
+        let oldContent = blocks[idx].content
+        let oldSpans = blocks[idx].spans
+        let oldDone = blocks[idx].done
+        blocks[idx].content = newContent
+        // Carry over the spans embedded in `newContent` so a "Change
+        // to" conversion from the context menu keeps the user's text.
+        // Markdown shortcuts pass spans=[] here too (the coordinator
+        // builds the new content with the stripped text), so this
+        // matches both call sites.
+        blocks[idx].spans = newContent.spansOrEmpty
+        blocks[idx].done = false
+        persistBlock(blocks[idx])
+        undoMgr.registerUndo(withTarget: self) { vm in
+            guard let i = vm.blocks.firstIndex(where: { $0.id == id }) else { return }
+            vm.blocks[i].content = oldContent
+            vm.blocks[i].spans = oldSpans
+            vm.blocks[i].done = oldDone
+            vm.persistBlock(vm.blocks[i])
+            vm.undoMgr.registerUndo(withTarget: vm) { vm in
+                vm.convertBlockContent(id: id, to: newContent)
+            }
+        }
+    }
+
+    func startNavigationRepeat(from: String, next: Bool) {
+        guard !repeater.active else { return }
+        focusedBlockId = from
+        repeater.start { [weak self] in self?.navigationStep(next: next) }
+    }
+
+    func stopNavigationRepeat() {
+        repeater.stop()
+        focusedBlockId = nil
+    }
+
+    private func navigationStep(next: Bool) {
+        guard let cid = focusedBlockId,
+              let idx = blocks.firstIndex(where: { $0.id == cid }) else { stopNavigationRepeat(); return }
+        if next {
+            guard idx < blocks.count - 1 else { stopNavigationRepeat(); return }
+            let nid = blocks[idx + 1].id
+            autoFocusOffset = 0; focusedBlockId = nid; autoFocusId = nid
+        } else {
+            guard idx > 0 else { stopNavigationRepeat(); return }
+            let nid = blocks[idx - 1].id
+            autoFocusOffset = nil; focusedBlockId = nid; autoFocusId = nid
+        }
+    }
+
+    func moveBlock(from: IndexSet, to: Int) {
+        let oldOrder = blocks.map(\.id)
+        blocks.move(fromOffsets: from, toOffset: to)
+        let newOrder = blocks.map(\.id)
+        guard oldOrder != newOrder else { return }
+        try? api.reorderBlocks(leafId: leafId, order: newOrder)
+        undoMgr.registerUndo(withTarget: self) { vm in vm.applyBlockOrder(oldOrder) }
+    }
+
+    /// Applies a block order (used by undo/redo of moveBlock).
+    private func applyBlockOrder(_ order: [String]) {
+        let oldOrder = blocks.map(\.id)
+        let lookup = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, $0) })
+        blocks = order.compactMap { lookup[$0] }
+        try? api.reorderBlocks(leafId: leafId, order: order)
+        undoMgr.registerUndo(withTarget: self) { vm in vm.applyBlockOrder(oldOrder) }
+    }
+
+    /// Indents the given block — moves it under the previous sibling at the
+    /// same level. The tree shape changes (not just the order), so we reload
+    /// the full leaf from SQLite afterwards.
+    ///
+    /// `InvalidOperation` from the FFI (block is the first of its level —
+    /// nothing to indent under) surfaces via `errorMessage` like any other
+    /// error; the UI uses `.errorAlert` to show it.
+    func indentBlock(id: String) {
+        flushAllBursts()
+        do {
+            try api.indentBlock(leafId: leafId, blockId: id)
+            reloadBlocksAfterStructuralChange()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Outdents the given block — moves it up to its grandparent level,
+    /// inserted right after the former parent. Same reload semantics as
+    /// `indentBlock`.
+    func outdentBlock(id: String) {
+        flushAllBursts()
+        do {
+            try api.outdentBlock(leafId: leafId, blockId: id)
+            reloadBlocksAfterStructuralChange()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Applies (or clears with `nil`) the per-block writing direction.
+    /// Mutates the in-memory `EditableBlock` so the editor re-orients
+    /// immediately, then persists via the FFI. Registers the inverse
+    /// on the UndoManager.
+    func setBlockTextDirection(id: String, direction: String?) {
+        guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
+        let previous = blocks[idx].textDirection
+        guard previous != direction else { return }
+        blocks[idx].textDirection = direction
+        do {
+            try api.setBlockTextDirection(leafId: leafId, blockId: id, textDirection: direction)
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+        undoMgr.registerUndo(withTarget: self) { vm in
+            vm.setBlockTextDirection(id: id, direction: previous)
+        }
+    }
+
+    /// Applies (or clears with `nil`) the block-level *background* color
+    /// (Craft / Notion highlight). Mutates the in-memory `EditableBlock`
+    /// so the soft tinted band repaints immediately, then persists via
+    /// the FFI. Registers the inverse on the UndoManager.
+    func setBlockBackgroundColor(id: String, color: String?) {
+        guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
+        let previous = blocks[idx].backgroundColor
+        guard previous != color else { return }
+        blocks[idx].backgroundColor = color
+        do {
+            try api.setBlockBackgroundColor(leafId: leafId, blockId: id, backgroundColor: color)
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+        undoMgr.registerUndo(withTarget: self) { vm in
+            vm.setBlockBackgroundColor(id: id, color: previous)
+        }
+    }
+
+    /// Applies (or clears with `nil`) the block-level text colour. Mutates
+    /// the in-memory `EditableBlock` so the re-render picks up the new
+    /// default foreground immediately, then persists via the FFI. Registers
+    /// the inverse on the UndoManager so cmd-Z restores the previous colour.
+    func setBlockColor(id: String, color: String?) {
+        guard let idx = blocks.firstIndex(where: { $0.id == id }) else { return }
+        let previous = blocks[idx].color
+        guard previous != color else { return }
+        blocks[idx].color = color
+        do {
+            try api.setBlockColor(leafId: leafId, blockId: id, color: color)
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+        undoMgr.registerUndo(withTarget: self) { vm in
+            vm.setBlockColor(id: id, color: previous)
+        }
+    }
+
+    /// Duplicates a block (with its descendants, all freshly UUID'd)
+    /// and inserts the clone right after the original at the same
+    /// tree level. Reloads via DFS-flatten so the visible list
+    /// mirrors the Rust tree, then focuses the new block so the user
+    /// sees where the copy landed. The undo inverse is a plain delete
+    /// — the clone has a known UUID, no need to compare snapshots.
+    func duplicateBlock(id: String) {
+        flushAllBursts()
+        do {
+            let newId = try api.duplicateBlock(leafId: leafId, blockId: id)
+            reloadBlocksAfterStructuralChange()
+            autoFocusId = newId
+            undoMgr.registerUndo(withTarget: self) { vm in
+                vm.deleteBlock(id: newId)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Reloads the full leaf from SQLite after a structural mutation
+    /// (indent / outdent). Index-based bookkeeping is no longer enough once
+    /// the tree changes shape — we use the same DFS-flatten as `load()` so
+    /// the visible block list mirrors the Rust tree, with `depth` driving
+    /// the visual indentation in the row view.
+    private func reloadBlocksAfterStructuralChange() {
+        guard let doc = try? api.getLeaf(id: leafId) else { return }
+        blocks = LeafViewModel.flattenBlocks(doc.blocks, depth: 0)
+    }
+}

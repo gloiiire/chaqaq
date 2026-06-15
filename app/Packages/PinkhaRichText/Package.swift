@@ -5,7 +5,7 @@ import PackageDescription
 // (the Rust rich-text core via PinkhaFFI). Owns the entire
 // RichTextEditor coordinator, its toolbar pill, mention bar,
 // markdown shortcut machinery, and span ↔ NSAttributedString
-// conversion. Consumed by DocumentFeature (in Phase 7) and any
+// conversion. Consumed by LeafFeature (in Phase 7) and any
 // other feature that needs an inline editor.
 let package = Package(
     name: "PinkhaRichText",

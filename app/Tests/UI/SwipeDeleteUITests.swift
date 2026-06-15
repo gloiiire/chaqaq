@@ -27,7 +27,7 @@ final class SwipeDeleteUITests: XCTestCase {
             deleteBtn.tap()
             XCTAssertFalse(app.staticTexts["Seeded Note 1"].waitForExistence(timeout: 2),
                            "the deleted doc must no longer appear")
-            // The other seeded document must still be present.
+            // The other seeded leaf must still be present.
             XCTAssertTrue(app.staticTexts["Seeded Note 2"].exists)
         }
     }

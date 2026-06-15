@@ -4,9 +4,9 @@ import PinkhaCore
 
 
 /// Inline editor for a single property — picked based on the property
-/// type. Mirrors the cell widgets used by DatabaseTableView in spirit,
+/// type. Mirrors the cell widgets used by BookTableView in spirit,
 /// but is self-contained so the sheet doesn't reach across the
-/// database internals.
+/// book internals.
 public struct PropertyInputRow: View {
     public init(property: PropertyFfi, value: Binding<PropertyValueFfi>) {
         self.property = property; self._value = value

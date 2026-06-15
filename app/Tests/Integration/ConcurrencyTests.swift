@@ -12,7 +12,7 @@ struct ConcurrencyTests {
         return (try PinkhaApi(dbPath: tmp.path), tmp)
     }
 
-    @Test func concurrentDocumentCreationsAllSucceed() async throws {
+    @Test func concurrentLeafCreationsAllSucceed() async throws {
         let (api, url) = try makeApi()
         defer { try? FileManager.default.removeItem(at: url) }
 
@@ -21,7 +21,7 @@ struct ConcurrencyTests {
         await withTaskGroup(of: String?.self) { group in
             for i in 0..<count {
                 group.addTask {
-                    return try? api.createDocument(title: "Doc \(i)")
+                    return try? api.createLeaf(title: "Doc \(i)")
                 }
             }
             var ids: [String] = []
@@ -31,7 +31,7 @@ struct ConcurrencyTests {
             #expect(ids.count == count,
                     "all concurrent creations must succeed thanks to retry")
         }
-        #expect(try api.listDocuments().count == count)
+        #expect(try api.listLeaves().count == count)
     }
 
     @Test func concurrentReadsWhileWriting() async throws {
@@ -39,14 +39,14 @@ struct ConcurrencyTests {
         defer { try? FileManager.default.removeItem(at: url) }
         // Seed
         for i in 0..<5 {
-            _ = try api.createDocument(title: "Pre \(i)")
+            _ = try api.createLeaf(title: "Pre \(i)")
         }
 
         // Simultaneous reads and writes.
         await withTaskGroup(of: Bool.self) { group in
             for i in 0..<10 {
-                group.addTask { (try? api.createDocument(title: "W \(i)")) != nil }
-                group.addTask { (try? api.listDocuments()) != nil }
+                group.addTask { (try? api.createLeaf(title: "W \(i)")) != nil }
+                group.addTask { (try? api.listLeaves()) != nil }
             }
             var successes = 0
             for await ok in group { if ok { successes += 1 } }

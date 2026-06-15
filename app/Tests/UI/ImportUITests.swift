@@ -101,16 +101,16 @@ final class ImportUITests: XCTestCase {
         )
     }
 
-    func test_bear_import_sheet_shows_choose_database_button() {
+    func test_bear_import_sheet_shows_choose_book_button() {
         let app = launchSeeded()
         openFABAndTapItem(app: app, itemLabel: "Import from Bear")
 
         XCTAssertTrue(app.navigationBars["Import from Bear"].waitForExistence(timeout: 3))
 
-        // The file picker trigger button is labeled "Choose database.sqlite…".
+        // The file picker trigger button is labeled "Choose book.sqlite…".
         XCTAssertTrue(
-            app.buttons["Choose database.sqlite…"].waitForExistence(timeout: 2) ||
-            app.staticTexts["Choose database.sqlite…"].waitForExistence(timeout: 1),
+            app.buttons["Choose book.sqlite…"].waitForExistence(timeout: 2) ||
+            app.staticTexts["Choose book.sqlite…"].waitForExistence(timeout: 1),
             "Bear import form should show the file picker button"
         )
     }
@@ -171,15 +171,15 @@ final class ImportUITests: XCTestCase {
         )
     }
 
-    func test_craft_import_sheet_shows_choose_database_button() {
+    func test_craft_import_sheet_shows_choose_book_button() {
         let app = launchSeeded()
         openFABAndTapItem(app: app, itemLabel: "Import from Craft")
 
         XCTAssertTrue(app.navigationBars["Import from Craft"].waitForExistence(timeout: 3))
 
         XCTAssertTrue(
-            app.buttons["Choose Craft database…"].waitForExistence(timeout: 2) ||
-            app.staticTexts["Choose Craft database…"].waitForExistence(timeout: 1),
+            app.buttons["Choose Craft book…"].waitForExistence(timeout: 2) ||
+            app.staticTexts["Choose Craft book…"].waitForExistence(timeout: 1),
             "Craft import form should show the file picker button"
         )
     }

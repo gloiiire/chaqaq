@@ -6,8 +6,8 @@ import PinkhaCore
 // ── Import from Craft (Combined) sheet ────────────────────────────────────────
 //
 // The user selects both:
-//   • Craft's .realm database (block structure)
-//   • The folder exported via "Export All → TextBundle" (titles + markdown)
+//   • Craft's .realm book (block structure)
+//   • The shelf exported via "Export All → TextBundle" (titles + markdown)
 //
 // Pages with a matching textbundle use its markdown content and filename title.
 // Pages without a textbundle counterpart fall back to realm block content.
@@ -20,7 +20,7 @@ struct CraftCombinedImportView: View {
     @State private var realmAutoDetected = false
     @State private var tbPath: String?
     @State private var showingRealmPicker = false
-    @State private var showingFolderPicker = false
+    @State private var showingShelfPicker = false
     @State private var importState: ImportState = .idle
     @Environment(\.dismiss) private var dismiss
     @Environment(AppSettings.self) private var settings
@@ -61,7 +61,7 @@ struct CraftCombinedImportView: View {
                     }
                 }
                 .fileImporter(
-                    isPresented: $showingFolderPicker,
+                    isPresented: $showingShelfPicker,
                     allowedContentTypes: [.folder],
                     allowsMultipleSelection: false
                 ) { result in
@@ -70,7 +70,7 @@ struct CraftCombinedImportView: View {
                         tbPath = url.path
                     }
                 }
-                .task { detectCraftDatabase() }
+                .task { detectCraftBook() }
         }
         .presentationDetents([.large])
     }
@@ -102,7 +102,7 @@ struct CraftCombinedImportView: View {
                                         .foregroundStyle(.secondary)
                                 }
                             } else {
-                                Text("Choose Craft database…")
+                                Text("Choose Craft book…")
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -116,24 +116,24 @@ struct CraftCombinedImportView: View {
                 }
                 .buttonStyle(.plain)
             } header: {
-                Text("Craft Database (.realm)")
+                Text("Craft Book (.realm)")
             } footer: {
-                Text("Craft's database is in ~/Library/Containers/com.lukilabs.lukiapp/…/LukiMain_*.realm")
+                Text("Craft's book is in ~/Library/Containers/com.lukilabs.lukiapp/…/LukiMain_*.realm")
                     .font(.caption2)
             }
 
-            // TextBundle folder picker
+            // TextBundle shelf picker
             Section {
-                Button { showingFolderPicker = true } label: {
+                Button { showingShelfPicker = true } label: {
                     HStack {
-                        Image(systemName: "folder")
+                        Image(systemName: "shelf")
                             .foregroundStyle(.tint)
                         VStack(alignment: .leading, spacing: 2) {
                             if let path = tbPath {
                                 Text(URL(fileURLWithPath: path).lastPathComponent)
                                     .foregroundStyle(.primary)
                             } else {
-                                Text("Choose export folder…")
+                                Text("Choose export shelf…")
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -147,9 +147,9 @@ struct CraftCombinedImportView: View {
                 }
                 .buttonStyle(.plain)
             } header: {
-                Text("TextBundle Export Folder")
+                Text("TextBundle Export Shelf")
             } footer: {
-                Text("In Craft: ··· → Export → Export All → TextBundle. Select the exported folder here.")
+                Text("In Craft: ··· → Export → Export All → TextBundle. Select the exported shelf here.")
                     .font(.caption2)
             }
 
@@ -194,8 +194,8 @@ struct CraftCombinedImportView: View {
                 .foregroundStyle(.green)
             if case .done(let r) = importState {
                 VStack(spacing: 12) {
-                    let noun = r.documents == 1 ? "note" : "notes"
-                    Text("\(r.documents) \(noun) imported")
+                    let noun = r.leaves == 1 ? "note" : "notes"
+                    Text("\(r.leaves) \(noun) imported")
                         .font(.title3.weight(.semibold))
 
                     VStack(spacing: 6) {
@@ -217,7 +217,7 @@ struct CraftCombinedImportView: View {
                         }
                         if r.textbundleOnly > 0 {
                             BreakdownRow(
-                                icon: "folder",
+                                icon: "shelf",
                                 color: .blue,
                                 label: "TextBundle uniquement",
                                 count: Int(r.textbundleOnly)
@@ -234,7 +234,7 @@ struct CraftCombinedImportView: View {
 
     // ── Auto-detect realm ─────────────────────────────────────────────────────
 
-    private func detectCraftDatabase() {
+    private func detectCraftBook() {
         guard realmPath == nil else { return }
         #if targetEnvironment(macCatalyst)
         let fm = FileManager.default

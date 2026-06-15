@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Animated lock toolbar button shared by `DocumentView` and
-/// `DatabaseView`. Each tap kicks off a keyframe sequence :
+/// Animated lock toolbar button shared by `LeafView` and
+/// `BookView`. Each tap kicks off a keyframe sequence :
 ///
 /// 1. **Wind-up** : the symbol shrinks (0.7) and tilts a little
 ///    counter-clockwise (-22°) — feels like the user is pinching

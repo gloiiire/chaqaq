@@ -521,7 +521,7 @@ final class TabCardView: UIView {
     // ── Body (live thumbnail OR cover+snippet fallback) ──────────────────
 
     /// Live thumbnail of the doc at the user's last scroll position.
-    /// Captured by `DocumentSnapshotHook` in `DocumentView`. Takes the
+    /// Captured by `LeafSnapshotHook` in `LeafView`. Takes the
     /// full body when available — Safari pattern.
     private let liveThumbnailView: UIImageView = {
         let iv = UIImageView()
@@ -703,7 +703,7 @@ final class TabCardView: UIView {
                     systemName: "doc.text", withConfiguration: symbolCfg)
                 belowIconImageView.isHidden = false
             }
-        case .database:
+        case .book:
             belowIcon.text = nil
             belowIcon.isHidden = true
             belowIconImageView.image = UIImage(
@@ -726,16 +726,16 @@ final class TabCardView: UIView {
         snippetLabel.text = ""
         if case .note(let doc) = item, let api = api {
             loaderTask?.cancel()
-            let docId = doc.id
+            let leafId = doc.id
             loaderTask = Task { [weak self] in
-                let snippet = await Self.loadSnippet(api: api, docId: docId)
+                let snippet = await Self.loadSnippet(api: api, leafId: leafId)
                 guard !Task.isCancelled, let self else { return }
                 await MainActor.run {
-                    if self.itemId == docId { self.snippetLabel.text = snippet }
+                    if self.itemId == leafId { self.snippetLabel.text = snippet }
                 }
             }
-        } else if case .database = item {
-            snippetLabel.text = String(localized: "Empty database")
+        } else if case .book = item {
+            snippetLabel.text = String(localized: "Empty book")
         }
 
         setNeedsLayout()
@@ -775,8 +775,8 @@ final class TabCardView: UIView {
         return nil
     }
 
-    private static func loadSnippet(api: PinkhaApi, docId: String) async -> String {
-        guard let doc = try? api.getDocument(id: docId) else { return "" }
+    private static func loadSnippet(api: PinkhaApi, leafId: String) async -> String {
+        guard let doc = try? api.getLeaf(id: leafId) else { return "" }
         return extractText(blocks: doc.blocks, limit: 240)
     }
 

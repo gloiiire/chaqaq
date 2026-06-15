@@ -1,9 +1,9 @@
 import Foundation
 import SwiftUI
 
-// Database property metadata: Aggregate, PropertyType, Property.
+// Book property metadata: Aggregate, PropertyType, Property.
 
-// ── Database models ───────────────────────────────────────────────────────────
+// ── Book models ───────────────────────────────────────────────────────────
 
 /// Aggregation function for Rollup columns.
 public enum AggregateFfi: String, Codable, Equatable {
@@ -15,14 +15,14 @@ public enum PropertyTypeFfi: Codable, Equatable {
     case title, text, number, date, checkbox, url
     case selection([String])
     case selectionMultiple([String])
-    case relation(dbId: String)
+    case relation(bookId: String)
     case rollup(relationPropId: String, targetPropId: String, aggregate: AggregateFfi)
 
     private enum K: String, CodingKey {
         case Title, Text, Number, Date, Checkbox, Url
         case Selection, SelectionMultiple, Relation, Rollup
     }
-    private struct RelationPayload: Codable { let db_id: String }
+    private struct RelationPayload: Codable { let book_id: String }
     private struct RollupPayload: Codable {
         let relation_prop_id: String; let target_prop_id: String; let aggregate: AggregateFfi
     }
@@ -42,7 +42,7 @@ public enum PropertyTypeFfi: Codable, Equatable {
         let c = try decoder.container(keyedBy: K.self)
         if let v = try? c.decode([String].self,        forKey: .Selection)         { self = .selection(v); return }
         if let v = try? c.decode([String].self,        forKey: .SelectionMultiple) { self = .selectionMultiple(v); return }
-        if let v = try? c.decode(RelationPayload.self, forKey: .Relation)          { self = .relation(dbId: v.db_id); return }
+        if let v = try? c.decode(RelationPayload.self, forKey: .Relation)          { self = .relation(bookId: v.book_id); return }
         if let v = try? c.decode(RollupPayload.self,   forKey: .Rollup)            {
             self = .rollup(relationPropId: v.relation_prop_id, targetPropId: v.target_prop_id, aggregate: v.aggregate); return
         }
@@ -61,9 +61,9 @@ public enum PropertyTypeFfi: Codable, Equatable {
             var c = encoder.container(keyedBy: K.self); try c.encode(opts, forKey: .Selection)
         case .selectionMultiple(let opts):
             var c = encoder.container(keyedBy: K.self); try c.encode(opts, forKey: .SelectionMultiple)
-        case .relation(let dbId):
+        case .relation(let bookId):
             var c = encoder.container(keyedBy: K.self)
-            try c.encode(RelationPayload(db_id: dbId), forKey: .Relation)
+            try c.encode(RelationPayload(book_id: bookId), forKey: .Relation)
         case .rollup(let relId, let tgtId, let agg):
             var c = encoder.container(keyedBy: K.self)
             try c.encode(RollupPayload(relation_prop_id: relId, target_prop_id: tgtId, aggregate: agg), forKey: .Rollup)
@@ -86,7 +86,7 @@ public enum PropertyTypeFfi: Codable, Equatable {
     }
 }
 
-/// A column definition in a database. Mirrors Rust `Property`.
+/// A column definition in a book. Mirrors Rust `Property`.
 public struct PropertyFfi: Codable, Identifiable, Equatable {
     public let id: String
     public let name: String

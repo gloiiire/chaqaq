@@ -2,7 +2,7 @@ import Foundation
 
 /// Filesystem helpers for cover-image storage. These are pure path
 /// utilities, not tied to any view model, so they live at the
-/// PinkhaCore layer where every consumer (Notes home, Document
+/// PinkhaCore layer where every consumer (Notes home, Leaf
 /// editor, DesignSystem CoverImageView) can reach them.
 public enum CoverImageStorage {
     /// Storage directory for cover images. Created on first call so
@@ -20,12 +20,12 @@ public enum CoverImageStorage {
     }
 
     /// Writes `data` for the given doc and returns the short filename
-    /// to persist on the meta row. Slashes in `docId` are flattened
+    /// to persist on the meta row. Slashes in `leafId` are flattened
     /// since the on-disk filename can't carry them.
     @discardableResult
-    public static func write(data: Data, docId: String, fileExtension: String) throws -> String {
+    public static func write(data: Data, leafId: String, fileExtension: String) throws -> String {
         let directory = try directory()
-        let name = docId.replacingOccurrences(of: "/", with: "-") + "." + fileExtension
+        let name = leafId.replacingOccurrences(of: "/", with: "-") + "." + fileExtension
         let url = directory.appendingPathComponent(name)
         try data.write(to: url, options: .atomic)
         return name

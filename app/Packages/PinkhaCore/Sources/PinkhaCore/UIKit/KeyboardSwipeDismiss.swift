@@ -124,7 +124,7 @@ public final class GlobalKeyboardDismissPan: NSObject, UIGestureRecognizerDelega
         }
         // Never observe touches inside a UIAlertController. Alerts
         // manage their own keyboard (TextField prompts like "New
-        // Folder") and their action "buttons" are private views —
+        // Shelf") and their action "buttons" are private views —
         // neither UIControl nor UITextInput — so the generic filters
         // below let the tap through. Firing resignFirstResponder
         // there dismisses the keyboard mid-press, the alert

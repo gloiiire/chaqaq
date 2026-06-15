@@ -43,7 +43,7 @@
     "•" : {
 
     },
-    "^[%@ document](inflect: true)" : {
+    "^[%@ leaf](inflect: true)" : {
 
     },
     "1." : {
@@ -188,13 +188,13 @@
         }
       }
     },
-    "Add database URL" : {
+    "Add book URL" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add database URL"
+            "value" : "Add book URL"
           }
         },
         "fr" : {
@@ -239,11 +239,11 @@
         }
       }
     },
-    "Add to a database" : {
+    "Add to a book" : {
 
     },
     "All" : {
-      "comment" : "Section header listing all workspace items (notes + databases). Masculine plural — items are mixed.",
+      "comment" : "Section header listing all library items (notes + books). Masculine plural — items are mixed.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -260,13 +260,13 @@
         }
       }
     },
-    "All databases" : {
+    "All books" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "All databases"
+            "value" : "All books"
           }
         },
         "fr" : {
@@ -277,20 +277,20 @@
         }
       }
     },
-    "All documents" : {
+    "All leaves" : {
       "comment" : "Overflow menu item — opens the Safari-tab-style switcher.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "All documents"
+            "value" : "All leaves"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tous les documents"
+            "value" : "Tous les leaves"
           }
         }
       }
@@ -434,13 +434,13 @@
         }
       }
     },
-    "Bear Database" : {
+    "Bear Book" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bear Database"
+            "value" : "Bear Book"
           }
         },
         "fr" : {
@@ -451,19 +451,19 @@
         }
       }
     },
-    "Bear's database is at:\n~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite" : {
+    "Bear's book is at:\n~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/book.sqlite" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bear's database is at:\n~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite"
+            "value" : "Bear's book is at:\n~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/book.sqlite"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La base Bear se trouve à :\n~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite"
+            "value" : "La base Bear se trouve à :\n~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/book.sqlite"
           }
         }
       }
@@ -672,13 +672,13 @@
         }
       }
     },
-    "Choose Craft database…" : {
+    "Choose Craft book…" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose Craft database…"
+            "value" : "Choose Craft book…"
           }
         },
         "fr" : {
@@ -689,30 +689,30 @@
         }
       }
     },
-    "Choose database.sqlite…" : {
+    "Choose book.sqlite…" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose database.sqlite…"
+            "value" : "Choose book.sqlite…"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choisir database.sqlite…"
+            "value" : "Choisir book.sqlite…"
           }
         }
       }
     },
-    "Choose export folder…" : {
+    "Choose export shelf…" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose export folder…"
+            "value" : "Choose export shelf…"
           }
         },
         "fr" : {
@@ -908,13 +908,13 @@
         }
       }
     },
-    "Craft Database (.realm)" : {
+    "Craft Book (.realm)" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Craft Database (.realm)"
+            "value" : "Craft Book (.realm)"
           }
         },
         "fr" : {
@@ -925,13 +925,13 @@
         }
       }
     },
-    "Craft's database is in ~/Library/Containers/com.lukilabs.lukiapp/…/LukiMain_*.realm" : {
+    "Craft's book is in ~/Library/Containers/com.lukilabs.lukiapp/…/LukiMain_*.realm" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Craft's database is in ~/Library/Containers/com.lukilabs.lukiapp/…/LukiMain_*.realm"
+            "value" : "Craft's book is in ~/Library/Containers/com.lukilabs.lukiapp/…/LukiMain_*.realm"
           }
         },
         "fr" : {
@@ -1013,14 +1013,14 @@
         }
       }
     },
-    "Database" : {
-      "comment" : "Singular — CreateBubble label for the Database action.",
+    "Book" : {
+      "comment" : "Singular — CreateBubble label for the Book action.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Database"
+            "value" : "Book"
           }
         },
         "fr" : {
@@ -1031,13 +1031,13 @@
         }
       }
     },
-    "Database title" : {
+    "Book title" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Database title"
+            "value" : "Book title"
           }
         },
         "fr" : {
@@ -1048,13 +1048,13 @@
         }
       }
     },
-    "Databases" : {
+    "Books" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Databases"
+            "value" : "Books"
           }
         },
         "fr" : {
@@ -1065,13 +1065,13 @@
         }
       }
     },
-    "Databases tab" : {
+    "Books tab" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Databases"
+            "value" : "Books"
           }
         },
         "fr" : {
@@ -1253,13 +1253,13 @@
         }
       }
     },
-    "Deleted notes, databases and folders will appear here." : {
+    "Deleted notes, books and shelves will appear here." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deleted notes, databases and folders will appear here."
+            "value" : "Deleted notes, books and shelves will appear here."
           }
         },
         "fr" : {
@@ -1287,19 +1287,19 @@
         }
       }
     },
-    "Document title" : {
+    "Leaf title" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Document title"
+            "value" : "Leaf title"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Titre du document"
+            "value" : "Titre du leaf"
           }
         }
       }
@@ -1359,13 +1359,13 @@
         }
       }
     },
-    "Empty database" : {
+    "Empty book" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty database"
+            "value" : "Empty book"
           }
         },
         "fr" : {
@@ -1427,14 +1427,14 @@
         }
       }
     },
-    "Folder" : {
-      "comment" : "Singular — CreateBubble label for the Folder action.",
+    "Shelf" : {
+      "comment" : "Singular — CreateBubble label for the Shelf action.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder"
+            "value" : "Shelf"
           }
         },
         "fr" : {
@@ -1445,13 +1445,13 @@
         }
       }
     },
-    "Folders" : {
+    "Shelves" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folders"
+            "value" : "Shelves"
           }
         },
         "fr" : {
@@ -1765,13 +1765,13 @@
         }
       }
     },
-    "In Craft: ··· → Export → Export All → TextBundle. Select the exported folder here." : {
+    "In Craft: ··· → Export → Export All → TextBundle. Select the exported shelf here." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "In Craft: ··· → Export → Export All → TextBundle. Select the exported folder here."
+            "value" : "In Craft: ··· → Export → Export All → TextBundle. Select the exported shelf here."
           }
         },
         "fr" : {
@@ -1890,13 +1890,13 @@
     "List, Board and Gallery views are split by this property." : {
 
     },
-    "Loading your databases…" : {
+    "Loading your books…" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Loading your databases…"
+            "value" : "Loading your books…"
           }
         },
         "fr" : {
@@ -1908,7 +1908,7 @@
       }
     },
     "Lock" : {
-      "comment" : "Title-bubble menu — toggle the document to read-only.",
+      "comment" : "Title-bubble menu — toggle the leaf to read-only.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -2078,13 +2078,13 @@
         }
       }
     },
-    "New Database" : {
+    "New Book" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New Database"
+            "value" : "New Book"
           }
         },
         "fr" : {
@@ -2095,30 +2095,30 @@
         }
       }
     },
-    "New Document" : {
+    "New Leaf" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New Document"
+            "value" : "New Leaf"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nouveau Document"
+            "value" : "Nouveau Leaf"
           }
         }
       }
     },
-    "New Folder" : {
+    "New Shelf" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New Folder"
+            "value" : "New Shelf"
           }
         },
         "fr" : {
@@ -2164,13 +2164,13 @@
         }
       }
     },
-    "New sub-folder" : {
+    "New sub-shelf" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New sub-folder"
+            "value" : "New sub-shelf"
           }
         },
         "fr" : {
@@ -2181,16 +2181,16 @@
         }
       }
     },
-    "No database visible. In Notion, open a database → ⋯ → Connect to → %@." : {
+    "No book visible. In Notion, open a book → ⋯ → Connect to → %@." : {
 
     },
-    "No databases" : {
+    "No books" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No databases"
+            "value" : "No books"
           }
         },
         "fr" : {
@@ -2224,13 +2224,13 @@
         }
       }
     },
-    "No notes in this folder yet." : {
+    "No notes in this shelf yet." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No notes in this folder yet."
+            "value" : "No notes in this shelf yet."
           }
         },
         "fr" : {
@@ -2331,7 +2331,7 @@
         }
       }
     },
-    "Off (default): creates a stand-alone note. On: file the note as a row of an existing database — pick which one and fill the columns inline." : {
+    "Off (default): creates a stand-alone note. On: file the note as a row of an existing book — pick which one and fill the columns inline." : {
 
     },
     "Off (default): the app rotates between portrait and landscape with the device. On: stays in portrait whatever the device does — handy on iPhone while reading in bed." : {
@@ -2504,13 +2504,13 @@
         }
       }
     },
-    "Pick databases" : {
+    "Pick books" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pick databases"
+            "value" : "Pick books"
           }
         },
         "fr" : {
@@ -2612,19 +2612,19 @@
         }
       }
     },
-    "Recent documents" : {
+    "Recent leaves" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recent documents"
+            "value" : "Recent leaves"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Documents récents"
+            "value" : "Leaves récents"
           }
         }
       }
@@ -2891,13 +2891,13 @@
         }
       }
     },
-    "Search documents" : {
+    "Search leaves" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search documents"
+            "value" : "Search leaves"
           }
         },
         "fr" : {
@@ -2908,13 +2908,13 @@
         }
       }
     },
-    "Search notes, content, databases, folders…" : {
+    "Search notes, content, books, shelves…" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search notes, content, databases, folders…"
+            "value" : "Search notes, content, books, shelves…"
           }
         },
         "fr" : {
@@ -2994,13 +2994,13 @@
         }
       }
     },
-    "Sign in to import any database you've granted access to." : {
+    "Sign in to import any book you've granted access to." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign in to import any database you've granted access to."
+            "value" : "Sign in to import any book you've granted access to."
           }
         },
         "fr" : {
@@ -3085,13 +3085,13 @@
     "Tap a row to rename. Title can't be deleted." : {
 
     },
-    "Tap the button at the bottom right\nto create your first database." : {
+    "Tap the button at the bottom right\nto create your first book." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap the button at the bottom right\nto create your first database."
+            "value" : "Tap the button at the bottom right\nto create your first book."
           }
         },
         "fr" : {
@@ -3226,13 +3226,13 @@
         }
       }
     },
-    "TextBundle Export Folder" : {
+    "TextBundle Export Shelf" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "TextBundle Export Folder"
+            "value" : "TextBundle Export Shelf"
           }
         },
         "fr" : {
@@ -3243,10 +3243,10 @@
         }
       }
     },
-    "The created date stays as a fingerprint of when the document came into being. The publish date is what controls how the doc surfaces in date-sorted views." : {
+    "The created date stays as a fingerprint of when the leaf came into being. The publish date is what controls how the doc surfaces in date-sorted views." : {
 
     },
-    "The document becomes a row of the picked database. Its title fills the Title column automatically." : {
+    "The leaf becomes a row of the picked book. Its title fills the Title column automatically." : {
 
     },
     "Theme" : {
@@ -3558,13 +3558,13 @@
     "Use default" : {
 
     },
-    "Useful for databases not yet shared with this integration." : {
+    "Useful for books not yet shared with this integration." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Useful for databases not yet shared with this integration."
+            "value" : "Useful for books not yet shared with this integration."
           }
         },
         "fr" : {

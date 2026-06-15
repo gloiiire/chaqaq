@@ -12,8 +12,8 @@ struct BlockOpsTests {
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("pinkha_blocks_\(UUID().uuidString).db")
         let api = try PinkhaApi(dbPath: tmp.path)
-        let docId = try api.createDocument(title: "Test")
-        return (api, tmp, docId)
+        let leafId = try api.createLeaf(title: "Test")
+        return (api, tmp, leafId)
     }
 
     private func cleanup(_ url: URL) {
@@ -28,63 +28,63 @@ struct BlockOpsTests {
     }
 
     @Test func addBlockReturnsUuidAndPersists() throws {
-        let (api, url, docId) = try makeApi(); defer { cleanup(url) }
-        let blockId = try api.addBlock(docId: docId, blockContentJson: try textBlock("Hello"))
+        let (api, url, leafId) = try makeApi(); defer { cleanup(url) }
+        let blockId = try api.addBlock(leafId: leafId, blockContentJson: try textBlock("Hello"))
         #expect(UUID(uuidString: blockId) != nil)
 
-        let json = try api.getDocumentJson(id: docId)
-        let doc = try JSONDecoder().decode(DocumentFfi.self, from: json.data(using: .utf8)!)
+        let json = try api.getLeafJson(id: leafId)
+        let doc = try JSONDecoder().decode(LeafFfi.self, from: json.data(using: .utf8)!)
         #expect(doc.blocks.count == 1)
         #expect(doc.blocks[0].id == blockId)
         #expect(doc.blocks[0].content.plainText == "Hello")
     }
 
     @Test func updateBlockReplacesContent() throws {
-        let (api, url, docId) = try makeApi(); defer { cleanup(url) }
-        let blockId = try api.addBlock(docId: docId, blockContentJson: try textBlock("Ancien"))
-        try api.updateBlock(docId: docId, blockId: blockId, contentJson: try textBlock("Nouveau"))
+        let (api, url, leafId) = try makeApi(); defer { cleanup(url) }
+        let blockId = try api.addBlock(leafId: leafId, blockContentJson: try textBlock("Ancien"))
+        try api.updateBlock(leafId: leafId, blockId: blockId, contentJson: try textBlock("Nouveau"))
 
-        let json = try api.getDocumentJson(id: docId)
-        let doc = try JSONDecoder().decode(DocumentFfi.self, from: json.data(using: .utf8)!)
+        let json = try api.getLeafJson(id: leafId)
+        let doc = try JSONDecoder().decode(LeafFfi.self, from: json.data(using: .utf8)!)
         #expect(doc.blocks[0].content.plainText == "Nouveau")
     }
 
     @Test func deleteBlockRemovesIt() throws {
-        let (api, url, docId) = try makeApi(); defer { cleanup(url) }
-        let blockId = try api.addBlock(docId: docId, blockContentJson: try textBlock("À supprimer"))
-        try api.deleteBlock(docId: docId, blockId: blockId)
+        let (api, url, leafId) = try makeApi(); defer { cleanup(url) }
+        let blockId = try api.addBlock(leafId: leafId, blockContentJson: try textBlock("À supprimer"))
+        try api.deleteBlock(leafId: leafId, blockId: blockId)
 
-        let json = try api.getDocumentJson(id: docId)
-        let doc = try JSONDecoder().decode(DocumentFfi.self, from: json.data(using: .utf8)!)
+        let json = try api.getLeafJson(id: leafId)
+        let doc = try JSONDecoder().decode(LeafFfi.self, from: json.data(using: .utf8)!)
         #expect(doc.blocks.isEmpty)
     }
 
     @Test func reorderBlocksAppliesNewOrder() throws {
-        let (api, url, docId) = try makeApi(); defer { cleanup(url) }
-        let a = try api.addBlock(docId: docId, blockContentJson: try textBlock("A"))
-        let b = try api.addBlock(docId: docId, blockContentJson: try textBlock("B"))
-        let c = try api.addBlock(docId: docId, blockContentJson: try textBlock("C"))
+        let (api, url, leafId) = try makeApi(); defer { cleanup(url) }
+        let a = try api.addBlock(leafId: leafId, blockContentJson: try textBlock("A"))
+        let b = try api.addBlock(leafId: leafId, blockContentJson: try textBlock("B"))
+        let c = try api.addBlock(leafId: leafId, blockContentJson: try textBlock("C"))
 
-        try api.reorderBlocks(docId: docId, order: [c, a, b])
+        try api.reorderBlocks(leafId: leafId, order: [c, a, b])
 
-        let json = try api.getDocumentJson(id: docId)
-        let doc = try JSONDecoder().decode(DocumentFfi.self, from: json.data(using: .utf8)!)
+        let json = try api.getLeafJson(id: leafId)
+        let doc = try JSONDecoder().decode(LeafFfi.self, from: json.data(using: .utf8)!)
         #expect(doc.blocks.map(\.id) == [c, a, b])
     }
 
     @Test func searchInBlocksFindsByContent() throws {
-        let (api, url, docId) = try makeApi(); defer { cleanup(url) }
-        _ = try api.addBlock(docId: docId, blockContentJson: try textBlock("Rust is great"))
+        let (api, url, leafId) = try makeApi(); defer { cleanup(url) }
+        _ = try api.addBlock(leafId: leafId, blockContentJson: try textBlock("Rust is great"))
 
         let results = try api.searchInBlocks(query: "rust")
-        #expect(results.contains(where: { $0.id == docId }))
+        #expect(results.contains(where: { $0.id == leafId }))
     }
 
     @Test func searchInBlocksMissesIrrelevant() throws {
-        let (api, url, docId) = try makeApi(); defer { cleanup(url) }
-        _ = try api.addBlock(docId: docId, blockContentJson: try textBlock("Hello world"))
+        let (api, url, leafId) = try makeApi(); defer { cleanup(url) }
+        _ = try api.addBlock(leafId: leafId, blockContentJson: try textBlock("Hello world"))
 
         let results = try api.searchInBlocks(query: "flutter")
-        #expect(!results.contains(where: { $0.id == docId }))
+        #expect(!results.contains(where: { $0.id == leafId }))
     }
 }

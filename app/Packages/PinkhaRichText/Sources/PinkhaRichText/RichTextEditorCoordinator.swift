@@ -233,7 +233,7 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
     /// Intercepts taps / long-press-then-open on links inside the editor.
     /// Returns `false` to suppress UIKit's default behaviour (opening the
     /// URL externally) when the scheme is `pinkha://` — we hand the path off
-    /// to the SwiftUI parent, which navigates to the matching document.
+    /// to the SwiftUI parent, which navigates to the matching leaf.
     public func textView(_ tv: UITextView,
                   shouldInteractWith url: URL,
                   in characterRange: NSRange,
@@ -353,7 +353,7 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
         let prevScalar = ns.substring(with: NSRange(location: cursor - 1, length: 1)).unicodeScalars.first
         guard let s = prevScalar, separators.contains(s) else { return false }
         // Walk backwards over non-separator chars to find the word
-        // start. Stop on another separator or the document start.
+        // start. Stop on another separator or the leaf start.
         var start = cursor - 1
         while start > 0 {
             let ch = ns.substring(with: NSRange(location: start - 1, length: 1))

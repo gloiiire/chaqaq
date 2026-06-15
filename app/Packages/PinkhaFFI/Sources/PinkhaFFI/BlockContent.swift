@@ -13,14 +13,14 @@ public enum BlockContentFfi: Codable, Equatable {
     case code(language: String, text: String)
     case divider
     case breadcrumb
-    case database(id: String)
+    case book(id: String)
     /// Reference to a child pinkha page. Mirrors Rust `BlockContent::Page`.
     case page(id: String)
     /// Rich URL bookmark / preview card. Mirrors Rust `BlockContent::Embed`.
     case embed(url: String)
 
     private enum K: String, CodingKey {
-        case Text, Heading, Quote, Todo, BulletedListItem, NumberedListItem, Code, Divider, Breadcrumb, Database, Page, Embed
+        case Text, Heading, Quote, Todo, BulletedListItem, NumberedListItem, Code, Divider, Breadcrumb, Book, Page, Embed
     }
     private struct PayloadHeading: Codable { let level: Int; let text: [InlineTextFfi] }
     private struct PayloadQuote:   Codable { let icon: String?; let text: [InlineTextFfi] }
@@ -44,7 +44,7 @@ public enum BlockContentFfi: Codable, Equatable {
         if let v = try? c.decode([InlineTextFfi].self, forKey: .BulletedListItem) { self = .bulletedListItem(v); return }
         if let v = try? c.decode([InlineTextFfi].self, forKey: .NumberedListItem) { self = .numberedListItem(v); return }
         if let v = try? c.decode(PayloadCode.self,     forKey: .Code)             { self = .code(language: v.language, text: v.text); return }
-        if let v = try? c.decode(PayloadDb.self,       forKey: .Database)         { self = .database(id: v.id); return }
+        if let v = try? c.decode(PayloadDb.self,       forKey: .Book)         { self = .book(id: v.id); return }
         if let v = try? c.decode(PayloadPage.self,     forKey: .Page)             { self = .page(id: v.id); return }
         if let v = try? c.decode(PayloadEmbed.self,    forKey: .Embed)            { self = .embed(url: v.url); return }
         throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown BlockContent"))
@@ -74,9 +74,9 @@ public enum BlockContentFfi: Codable, Equatable {
         case .code(let language, let text):
             var c = encoder.container(keyedBy: K.self)
             try c.encode(PayloadCode(language: language, text: text), forKey: .Code)
-        case .database(let id):
+        case .book(let id):
             var c = encoder.container(keyedBy: K.self)
-            try c.encode(PayloadDb(id: id), forKey: .Database)
+            try c.encode(PayloadDb(id: id), forKey: .Book)
         case .page(let id):
             var c = encoder.container(keyedBy: K.self)
             try c.encode(PayloadPage(id: id), forKey: .Page)
@@ -118,7 +118,7 @@ public enum BlockContentFfi: Codable, Equatable {
     /// `true` if this is a `.todo` block with `done == true`.
     public var isTodoDone: Bool { if case .todo(let d, _) = self { return d }; return false }
     /// `true` if this is a `.page` block (Notion-style child page link).
-    /// The editor keeps these tappable even on a locked document since
+    /// The editor keeps these tappable even on a locked leaf since
     /// they're navigation targets, not editable content.
     public var isPageReference: Bool { if case .page = self { return true }; return false }
 

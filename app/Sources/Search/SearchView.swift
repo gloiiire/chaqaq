@@ -5,8 +5,8 @@ import PinkhaDesignSystem
 
 // ── Search tab ────────────────────────────────────────────────────────────────
 
-/// Search tab — full-workspace super search. Hits four axes in parallel
-/// (note titles, note content, database titles, folder names) and groups
+/// Search tab — full-library super search. Hits four axes in parallel
+/// (note titles, note content, book titles, shelf names) and groups
 /// the matches in sections. Each section is hidden when empty.
 struct SearchView: View {
     @Bindable var store: PinkhaStore
@@ -36,24 +36,24 @@ struct SearchView: View {
                         .listRowSeparator(.hidden)
                         .padding(.top, 32)
                 } else if let api = store.api {
-                    if !results.documentsByTitle.isEmpty {
+                    if !results.leavesByTitle.isEmpty {
                         Section {
-                            ForEach(results.documentsByTitle, id: \.id) { doc in
+                            ForEach(results.leavesByTitle, id: \.id) { doc in
                                 NavigationLink(
-                                    destination: DocumentView(vm: tabManager.open(docId: doc.id, api: api),
+                                    destination: LeafView(vm: tabManager.open(leafId: doc.id, api: api),
                                                               onDisappear: store.load)
-                                ) { WorkspaceRow(item: .note(doc)) }
+                                ) { LibraryRow(item: .note(doc)) }
                             }
                         } header: { SectionHeader(title: "Notes") }
                     }
-                    if !results.documentsByContent.isEmpty {
-                        ForEach(groupHits(results.documentsByContent),
+                    if !results.leavesByContent.isEmpty {
+                        ForEach(groupHits(results.leavesByContent),
                                 id: \.doc.id) { group in
                             Section {
                                 ForEach(group.hits, id: \.blockId) { hit in
                                     NavigationLink(
-                                        destination: DocumentView(
-                                            vm: tabManager.open(docId: hit.doc.id, api: api),
+                                        destination: LeafView(
+                                            vm: tabManager.open(leafId: hit.doc.id, api: api),
                                             onDisappear: store.load,
                                             scrollToBlockId: hit.blockId
                                         )
@@ -62,35 +62,35 @@ struct SearchView: View {
                                     }
                                 }
                             } header: {
-                                DocHitSectionHeader(doc: group.doc)
+                                LeafHitSectionHeader(doc: group.doc)
                             }
                         }
                     }
-                    if !results.databases.isEmpty {
+                    if !results.books.isEmpty {
                         Section {
-                            ForEach(results.databases, id: \.id) { db in
+                            ForEach(results.books, id: \.id) { db in
                                 NavigationLink(
-                                    destination: DatabaseView(dbId: db.id, api: api,
+                                    destination: BookView(bookId: db.id, api: api,
                                                               onDisappear: store.load)
-                                ) { WorkspaceRow(item: .database(db)) }
+                                ) { LibraryRow(item: .book(db)) }
                             }
-                        } header: { SectionHeader(title: "Databases") }
+                        } header: { SectionHeader(title: "Books") }
                     }
-                    if !results.folders.isEmpty {
+                    if !results.shelves.isEmpty {
                         Section {
-                            ForEach(results.folders, id: \.id) { folder in
+                            ForEach(results.shelves, id: \.id) { shelf in
                                 NavigationLink(
-                                    destination: FolderView(store: store, folder: folder)
-                                ) { FolderRow(folder: folder) }
+                                    destination: ShelfView(store: store, shelf: shelf)
+                                ) { ShelfRow(shelf: shelf) }
                             }
-                        } header: { SectionHeader(title: "Folders") }
+                        } header: { SectionHeader(title: "Shelves") }
                     }
                 }
             }
             .listStyle(.insetGrouped)
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Search")
-            .searchable(text: $query, prompt: "Search notes, content, databases, folders…")
+            .searchable(text: $query, prompt: "Search notes, content, books, shelves…")
             // iOS 26 : collapse the search field into the trailing nav icon
             // when the user starts scrolling, matching Photos / Mail. The
             // icon expands back when tapped or scrolled to the top.
@@ -122,22 +122,22 @@ struct SearchView: View {
 
 // ── Search hit grouping ───────────────────────────────────────────────────────
 
-/// One document plus every block-level hit that matched in it. Lets the
+/// One leaf plus every block-level hit that matched in it. Lets the
 /// search UI show a single header per doc with multiple snippet previews
 /// nested underneath instead of duplicating the doc row N times.
-private struct DocHitGroup {
-    let doc: DocumentMetaFfi
+private struct LeafHitGroup {
+    let doc: LeafMetaFfi
     let hits: [BlockSearchHitFfi]
 }
 
 /// Preserves first-seen order while grouping hits by `doc.id`. The Rust
-/// backend returns hits document-by-document, depth-first within each
+/// backend returns hits leaf-by-leaf, depth-first within each
 /// doc — keeping that order means the topmost match in the doc is the
 /// first snippet shown.
-private func groupHits(_ hits: [BlockSearchHitFfi]) -> [DocHitGroup] {
+private func groupHits(_ hits: [BlockSearchHitFfi]) -> [LeafHitGroup] {
     var order: [String] = []
     var bucket: [String: [BlockSearchHitFfi]] = [:]
-    var docs: [String: DocumentMetaFfi] = [:]
+    var docs: [String: LeafMetaFfi] = [:]
     for hit in hits {
         if bucket[hit.doc.id] == nil {
             order.append(hit.doc.id)
@@ -147,7 +147,7 @@ private func groupHits(_ hits: [BlockSearchHitFfi]) -> [DocHitGroup] {
     }
     return order.compactMap { id in
         guard let doc = docs[id], let arr = bucket[id] else { return nil }
-        return DocHitGroup(doc: doc, hits: arr)
+        return LeafHitGroup(doc: doc, hits: arr)
     }
 }
 
@@ -157,8 +157,8 @@ private func groupHits(_ hits: [BlockSearchHitFfi]) -> [DocHitGroup] {
 /// Surfaces the doc icon and title above its snippet rows; doesn't
 /// own a NavigationLink because the snippets themselves are the
 /// navigation targets.
-private struct DocHitSectionHeader: View {
-    let doc: DocumentMetaFfi
+private struct LeafHitSectionHeader: View {
+    let doc: LeafMetaFfi
 
     var body: some View {
         HStack(spacing: 10) {

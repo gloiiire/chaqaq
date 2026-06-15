@@ -3,17 +3,17 @@ import Foundation
 import PinkhaFFI
 @testable import Pinkha
 
-// Advanced database FFI coverage: views, queries, aggregates, grouped queries.
+// Advanced book FFI coverage: views, queries, aggregates, grouped queries.
 
-@Suite("Database queries — views, aggregates, grouping")
-struct DatabaseQueriesTests {
+@Suite("Book queries — views, aggregates, grouping")
+struct BookQueriesTests {
 
     private func makeApi() throws -> (PinkhaApi, URL, String) {
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("pinkha_dbq_\(UUID().uuidString).db")
         let api = try PinkhaApi(dbPath: tmp.path)
-        let dbId = try api.createDatabase(title: "Q")
-        return (api, tmp, dbId)
+        let bookId = try api.createBook(title: "Q")
+        return (api, tmp, bookId)
     }
 
     private func cleanup(_ url: URL) {
@@ -23,95 +23,95 @@ struct DatabaseQueriesTests {
     }
 
     @Test func queryDefaultViewReturnsAllEntries() throws {
-        let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
-        _ = try api.addEntry(dbId: dbId, valuesJson: "{}")
-        _ = try api.addEntry(dbId: dbId, valuesJson: "{}")
+        let (api, url, bookId) = try makeApi(); defer { cleanup(url) }
+        _ = try api.addEntry(bookId: bookId, valuesJson: "{}")
+        _ = try api.addEntry(bookId: bookId, valuesJson: "{}")
 
         // Retrieve the default view id.
-        let dbJson = try api.getDatabaseJson(id: dbId)
+        let dbJson = try api.getBookJson(id: bookId)
         guard let viewId = extractFirstViewId(dbJson) else {
             Issue.record("default view not found"); return
         }
-        let resultJson = try api.queryDatabaseJson(dbId: dbId, viewId: viewId)
+        let resultJson = try api.queryBookJson(bookId: bookId, viewId: viewId)
         // The JSON must be an array of 2 entries.
         let array = try JSONSerialization.jsonObject(with: resultJson.data(using: .utf8)!) as? [Any]
         #expect(array?.count == 2)
     }
 
     @Test func addViewReturnsUuid() throws {
-        let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
+        let (api, url, bookId) = try makeApi(); defer { cleanup(url) }
         let viewJson = """
         {"id":"\(UUID().uuidString)","name":"Kanban view","type_":{"Kanban":{"group_by":"00000000-0000-0000-0000-000000000000"}},"filters":[],"sorts":[]}
         """
-        let viewId = try api.addView(dbId: dbId, viewJson: viewJson)
+        let viewId = try api.addView(bookId: bookId, viewJson: viewJson)
         #expect(UUID(uuidString: viewId) != nil)
     }
 
     @Test func deleteAllViewsExceptDefaultFailsOnLast() throws {
-        let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
-        let dbJson = try api.getDatabaseJson(id: dbId)
+        let (api, url, bookId) = try makeApi(); defer { cleanup(url) }
+        let dbJson = try api.getBookJson(id: bookId)
         guard let viewId = extractFirstViewId(dbJson) else {
             Issue.record("default view not found"); return
         }
         // Business rule: the last view cannot be deleted.
         #expect(throws: PinkhaError.self) {
-            try api.deleteView(dbId: dbId, viewId: viewId)
+            try api.deleteView(bookId: bookId, viewId: viewId)
         }
     }
 
     @Test func updateViewWithEmptyFiltersAndSortsClears() throws {
-        let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
-        let dbJson = try api.getDatabaseJson(id: dbId)
+        let (api, url, bookId) = try makeApi(); defer { cleanup(url) }
+        let dbJson = try api.getBookJson(id: bookId)
         guard let viewId = extractFirstViewId(dbJson) else {
             Issue.record("default view not found"); return
         }
-        try api.updateView(dbId: dbId, viewId: viewId, filtersJson: "[]", sortsJson: "[]")
+        try api.updateView(bookId: bookId, viewId: viewId, filtersJson: "[]", sortsJson: "[]")
         // No error = OK
     }
 
-    @Test func queryWithRollupsWorksOnEmptyDatabase() throws {
-        let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
-        let dbJson = try api.getDatabaseJson(id: dbId)
+    @Test func queryWithRollupsWorksOnEmptyBook() throws {
+        let (api, url, bookId) = try makeApi(); defer { cleanup(url) }
+        let dbJson = try api.getBookJson(id: bookId)
         guard let viewId = extractFirstViewId(dbJson) else {
             Issue.record("default view not found"); return
         }
-        let result = try api.queryDatabaseWithRollupsJson(dbId: dbId, viewId: viewId)
+        let result = try api.queryBookWithRollupsJson(bookId: bookId, viewId: viewId)
         #expect(result == "[]")
     }
 
     @Test func columnAggregateOnNumberProperty() throws {
-        let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
+        let (api, url, bookId) = try makeApi(); defer { cleanup(url) }
         let propId = UUID().uuidString
         let propJson = "{\"id\":\"\(propId)\",\"name\":\"Score\",\"type_\":\"Number\"}"
-        try api.addProperty(dbId: dbId, propertyJson: propJson)
+        try api.addProperty(bookId: bookId, propertyJson: propJson)
 
         // Entry with a Number value.
         let entryJson = "{\"\(propId)\":{\"Number\":42.0}}"
-        _ = try api.addEntry(dbId: dbId, valuesJson: entryJson)
+        _ = try api.addEntry(bookId: bookId, valuesJson: entryJson)
 
         // Count aggregate (alias Count after the rename).
         let aggregateJson = "\"Count\""
-        let result = try api.columnAggregateDatabaseJson(
-            dbId: dbId, propertyId: propId, aggregateJson: aggregateJson
+        let result = try api.columnAggregateBookJson(
+            bookId: bookId, propertyId: propId, aggregateJson: aggregateJson
         )
         // Must contain "1" (1 entry).
         #expect(result.contains("1"))
     }
 
     @Test func searchEntriesFindsByText() throws {
-        let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
+        let (api, url, bookId) = try makeApi(); defer { cleanup(url) }
         let propId = UUID().uuidString
         let propJson = "{\"id\":\"\(propId)\",\"name\":\"Note\",\"type_\":\"Text\"}"
-        try api.addProperty(dbId: dbId, propertyJson: propJson)
+        try api.addProperty(bookId: bookId, propertyJson: propJson)
 
         let entryJson = "{\"\(propId)\":{\"Text\":\"Bonjour le monde\"}}"
-        _ = try api.addEntry(dbId: dbId, valuesJson: entryJson)
+        _ = try api.addEntry(bookId: bookId, valuesJson: entryJson)
 
-        let results = try api.searchDatabaseEntriesJson(dbId: dbId, query: "bonjour")
+        let results = try api.searchBookEntriesJson(bookId: bookId, query: "bonjour")
         #expect(results.contains("Bonjour le monde"))
     }
 
-    // Extracts the first `id` from the first view in the database JSON.
+    // Extracts the first `id` from the first view in the book JSON.
     // Naive search: "views":[{"id":"<uuid>", ...
     private func extractFirstViewId(_ dbJson: String) -> String? {
         guard let viewsRange = dbJson.range(of: "\"views\":[") else { return nil }

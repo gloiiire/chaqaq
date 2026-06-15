@@ -21,11 +21,11 @@ struct NotionImportView: View {
     let onDone: () -> Void
 
     @State private var token = ""
-    @State private var availableDatabases: [NotionDatabaseSummaryFfi] = []
+    @State private var availableBooks: [NotionDatabaseSummaryFfi] = []
     @State private var selectedIds: Set<String> = []
     @State private var extraUrls: [String] = []
     @State private var databasesError: String? = nil
-    @State private var isFetchingDatabases = false
+    @State private var isFetchingBooks = false
     @State private var state: ImportState = .idle
     @State private var oauth = NotionOAuth2()
     @Environment(\.dismiss) private var dismiss
@@ -38,25 +38,25 @@ struct NotionImportView: View {
 
     enum ImportState {
         case idle
-        /// `current` = number of databases already done (0-indexed),
-        /// `total` = total databases to import in this run.
+        /// `current` = number of books already done (0-indexed),
+        /// `total` = total books to import in this run.
         case running(current: Int, total: Int)
         case done(aggregated: ImportTotals)
         case failed(String)
     }
 
-    /// Aggregated counts across every database imported in one Import button
+    /// Aggregated counts across every book imported in one Import button
     /// press — the success screen shows the sum, not per-DB breakdowns.
     struct ImportTotals {
-        var databases: Int
-        var documents: Int
+        var books: Int
+        var leaves: Int
         var entries: Int
         var blocks: Int
         var skipped: Int
 
         mutating func add(_ result: ImportResultFfi) {
-            databases += 1
-            documents += Int(result.documents)
+            books += 1
+            leaves += Int(result.leaves)
             entries += Int(result.entries)
             blocks += Int(result.blocks)
             skipped += Int(result.skipped)
@@ -100,17 +100,17 @@ struct NotionImportView: View {
                         Keychain.save(newToken, for: KeychainKey.notionToken)
                     }
                 }
-                // Auto-fetch the database list whenever the token changes —
+                // Auto-fetch the book list whenever the token changes —
                 // covers both manual paste (debounce-style: every keystroke
                 // would be wasteful, but tokens are pasted at once in practice)
                 // and OAuth completion. The fetch self-cancels if the token is
                 // blank.
                 .onChange(of: token) { _, newToken in
-                    fetchDatabases(token: newToken)
+                    fetchBooks(token: newToken)
                 }
                 .onAppear {
                     loadStoredToken()
-                    if !token.isEmpty { fetchDatabases(token: token) }
+                    if !token.isEmpty { fetchBooks(token: token) }
                 }
         }
         .presentationDetents([.large])
@@ -165,7 +165,7 @@ struct NotionImportView: View {
                 if let err = oauth.error {
                     Text(err).foregroundStyle(.red)
                 } else {
-                    Text("Sign in to import any database you've granted access to.")
+                    Text("Sign in to import any book you've granted access to.")
                 }
             }
         }
@@ -189,23 +189,23 @@ struct NotionImportView: View {
     @ViewBuilder
     private var pickerSection: some View {
         Section {
-            if isFetchingDatabases {
+            if isFetchingBooks {
                 HStack(spacing: 12) {
                     ProgressView().scaleEffect(0.8)
-                    Text("Loading your databases…")
+                    Text("Loading your books…")
                         .foregroundStyle(.secondary)
                 }
             } else if let err = databasesError {
                 Text(err)
                     .font(.footnote)
                     .foregroundStyle(.red)
-            } else if availableDatabases.isEmpty {
-                Text("No database visible. In Notion, open a database → ⋯ → Connect to → \(integrationName).")
+            } else if availableBooks.isEmpty {
+                Text("No book visible. In Notion, open a book → ⋯ → Connect to → \(integrationName).")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(availableDatabases, id: \.id) { db in
-                    DatabasePickerRow(
+                ForEach(availableBooks, id: \.id) { db in
+                    BookPickerRow(
                         db: db,
                         isSelected: selectedIds.contains(db.id),
                         onTap: {
@@ -217,7 +217,7 @@ struct NotionImportView: View {
             }
         } header: {
             HStack {
-                Text("Pick databases")
+                Text("Pick books")
                 Spacer()
                 if !selectedIds.isEmpty {
                     Text("\(selectedIds.count) selected")
@@ -229,7 +229,7 @@ struct NotionImportView: View {
         }
     }
 
-    /// Fallback for databases the integration hasn't been granted access to
+    /// Fallback for books the integration hasn't been granted access to
     /// yet — the user can paste their URL and import them in the same run.
     @ViewBuilder
     private var manualUrlsSection: some View {
@@ -251,12 +251,12 @@ struct NotionImportView: View {
             Button {
                 extraUrls.append("")
             } label: {
-                Label("Add database URL", systemImage: "plus")
+                Label("Add book URL", systemImage: "plus")
             }
         } header: {
             Text("Or paste URLs manually")
         } footer: {
-            Text("Useful for databases not yet shared with this integration.")
+            Text("Useful for books not yet shared with this integration.")
         }
     }
 
@@ -276,7 +276,7 @@ struct NotionImportView: View {
     /// by [`SystemAlertCard`] — a reusable iOS-26-indistinguishable card
     /// derived from `UIAlertControllerVisualStyle`. Cancellation flips a
     /// Rust-side flag; the import loop rolls back everything the current
-    /// database import created before returning. Databases that finished
+    /// book import created before returning. Books that finished
     /// importing before the cancel stay.
     @ViewBuilder
     private var importProgressOverlay: some View {
@@ -286,7 +286,7 @@ struct NotionImportView: View {
                     .ignoresSafeArea()
                 SystemAlertCard(
                     title: "Importing from Notion",
-                    message: "Database \(current + 1) of \(total)",
+                    message: "Book \(current + 1) of \(total)",
                     showsProgress: true,
                     actions: [
                         .destructive("Cancel import") { api?.cancelImport() },
@@ -309,8 +309,8 @@ struct NotionImportView: View {
         }
     }
 
-    /// Total = picked databases + non-empty extra URLs. Drives the button
-    /// label so the user sees "Import 3 databases" instead of just "Import".
+    /// Total = picked books + non-empty extra URLs. Drives the button
+    /// label so the user sees "Import 3 books" instead of just "Import".
     private var totalToImport: Int {
         let urls = extraUrls.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         return selectedIds.count + urls.count
@@ -320,7 +320,7 @@ struct NotionImportView: View {
         switch totalToImport {
         case 0: return "Import"
         case 1: return "Import"
-        case let n: return "Import \(n) databases"
+        case let n: return "Import \(n) books"
         }
     }
 
@@ -364,24 +364,24 @@ struct NotionImportView: View {
     }
 
     private func successSummary(_ t: ImportTotals) -> String {
-        let dbWord = t.databases == 1 ? "database" : "databases"
-        let docWord = t.documents == 1 ? "note" : "notes"
-        return "\(t.databases) \(dbWord), \(t.documents) \(docWord) imported."
+        let dbWord = t.books == 1 ? "book" : "books"
+        let docWord = t.leaves == 1 ? "note" : "notes"
+        return "\(t.books) \(dbWord), \(t.leaves) \(docWord) imported."
     }
 
-    // ── Fetch databases ───────────────────────────────────────────────────────
+    // ── Fetch books ───────────────────────────────────────────────────────
 
     private var isDone: Bool { if case .done = state { return true }; return false }
 
-    private func fetchDatabases(token rawToken: String) {
+    private func fetchBooks(token rawToken: String) {
         let cleaned = rawToken.trimmingCharacters(in: .whitespaces)
         guard !cleaned.isEmpty, let api else {
-            availableDatabases = []
+            availableBooks = []
             selectedIds = []
             databasesError = nil
             return
         }
-        isFetchingDatabases = true
+        isFetchingBooks = true
         databasesError = nil
         Task.detached(priority: .userInitiated) {
             do {
@@ -394,8 +394,8 @@ struct NotionImportView: View {
                 // explicitly opts into deeper discovery.
                 let dbs = try api.listNotionDatabases(token: cleaned)
                 await MainActor.run {
-                    availableDatabases = dbs
-                    isFetchingDatabases = false
+                    availableBooks = dbs
+                    isFetchingBooks = false
                     // Drop selections that no longer exist (e.g. token
                     // changed to a different account).
                     let validIds = Set(dbs.map(\.id))
@@ -404,16 +404,16 @@ struct NotionImportView: View {
             } catch let err as PinkhaError {
                 let message = err.userMessage
                 await MainActor.run {
-                    availableDatabases = []
+                    availableBooks = []
                     databasesError = message
-                    isFetchingDatabases = false
+                    isFetchingBooks = false
                 }
             } catch {
                 let message = error.localizedDescription
                 await MainActor.run {
-                    availableDatabases = []
+                    availableBooks = []
                     databasesError = message
-                    isFetchingDatabases = false
+                    isFetchingBooks = false
                 }
             }
         }
@@ -437,10 +437,10 @@ struct NotionImportView: View {
         guard total > 0 else { return }
 
         state = .running(current: 0, total: total)
-        let coversDir = try? DocumentViewModel.coversDirectory().path
+        let coversDir = try? LeafViewModel.coversDirectory().path
 
         Task.detached(priority: .userInitiated) {
-            var totals = ImportTotals(databases: 0, documents: 0, entries: 0, blocks: 0, skipped: 0)
+            var totals = ImportTotals(books: 0, leaves: 0, entries: 0, blocks: 0, skipped: 0)
             for (index, target) in targets.enumerated() {
                 await MainActor.run {
                     state = .running(current: index, total: total)
@@ -448,7 +448,7 @@ struct NotionImportView: View {
                 do {
                     let result = try api.importFromNotion(
                         token: t,
-                        databaseId: target,
+                        bookId: target,
                         coversDir: coversDir
                     )
                     totals.add(result)
@@ -458,7 +458,7 @@ struct NotionImportView: View {
                     if case .InvalidOperation(let detail) = err, detail == "import cancelled" {
                         await MainActor.run {
                             state = .failed(String(
-                                localized: "Import cancelled — pages from the interrupted database were removed."))
+                                localized: "Import cancelled — pages from the interrupted book were removed."))
                         }
                         return
                     }
@@ -473,7 +473,7 @@ struct NotionImportView: View {
             }
             // All imports succeeded — persist the token for future runs.
             Keychain.save(t, for: KeychainKey.notionToken)
-            // Copy the Rust-side debug log into Documents/ so it shows up
+            // Copy the Rust-side debug log into Leaves/ so it shows up
             // in Files.app for inspection. Best-effort — we silently swallow
             // file-system errors because the visible import shouldn't fail
             // for a missing log file.
@@ -499,9 +499,9 @@ struct NotionImportView: View {
 
 // ── Picker row ────────────────────────────────────────────────────────────────
 
-/// Single row in the database picker. Shows emoji icon (or generic glyph),
+/// Single row in the book picker. Shows emoji icon (or generic glyph),
 /// title, and a checkmark when selected.
-private struct DatabasePickerRow: View {
+private struct BookPickerRow: View {
     @Environment(AppSettings.self) private var settings
     let db: NotionDatabaseSummaryFfi
     let isSelected: Bool
@@ -510,7 +510,7 @@ private struct DatabasePickerRow: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
-                // Icon: emoji if Notion gave one, generic database glyph
+                // Icon: emoji if Notion gave one, generic book glyph
                 // otherwise. Image icons aren't surfaced yet — the picker
                 // never falls into them.
                 if let emoji = db.iconEmoji, !emoji.isEmpty {

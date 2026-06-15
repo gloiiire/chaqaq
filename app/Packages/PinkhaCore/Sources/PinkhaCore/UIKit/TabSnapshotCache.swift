@@ -3,8 +3,8 @@ import UIKit
 
 // ── In-memory snapshot cache for tab cards ────────────────────────────────
 //
-// Stores a `UIImage` per docId — captured when the user navigates away
-// from a document — so the switcher's tab cards can display the exact
+// Stores a `UIImage` per leafId — captured when the user navigates away
+// from a leaf — so the switcher's tab cards can display the exact
 // content (and scroll position) the user was looking at, matching
 // Safari's behaviour.
 //
@@ -25,24 +25,24 @@ public final class TabSnapshotCache {
 
     private init() {}
 
-    /// Stores `image` keyed by `docId`. Cost = approximate pixel
+    /// Stores `image` keyed by `leafId`. Cost = approximate pixel
     /// memory so `NSCache`'s `totalCostLimit` heuristic kicks in
     /// properly.
-    public func store(_ image: UIImage, for docId: String) {
+    public func store(_ image: UIImage, for leafId: String) {
         let scale = image.scale
         let cost = Int(image.size.width * image.size.height * 4 * scale * scale)
-        cache.setObject(image, forKey: docId as NSString, cost: cost)
+        cache.setObject(image, forKey: leafId as NSString, cost: cost)
     }
 
-    public func snapshot(for docId: String) -> UIImage? {
-        cache.object(forKey: docId as NSString)
+    public func snapshot(for leafId: String) -> UIImage? {
+        cache.object(forKey: leafId as NSString)
     }
 
-    /// Drops the cached snapshot for `docId`. Called from the
+    /// Drops the cached snapshot for `leafId`. Called from the
     /// switcher when the user closes a tab so memory comes back
     /// immediately.
-    public func invalidate(_ docId: String) {
-        cache.removeObject(forKey: docId as NSString)
+    public func invalidate(_ leafId: String) {
+        cache.removeObject(forKey: leafId as NSString)
     }
 }
 
@@ -50,35 +50,35 @@ public final class TabSnapshotCache {
 
 /// Drop-in SwiftUI view that captures the current key window the
 /// instant its host VC's `viewWillDisappear` fires. Place it once,
-/// invisibly, inside `DocumentView`. The snapshot ends up in
-/// `TabSnapshotCache` keyed by `docId`.
+/// invisibly, inside `LeafView`. The snapshot ends up in
+/// `TabSnapshotCache` keyed by `leafId`.
 ///
 /// Why a `UIViewControllerRepresentable` : SwiftUI's own
 /// `.onDisappear` fires *after* the view has been removed, by which
-/// point the window's render tree no longer contains the document
+/// point the window's render tree no longer contains the leaf
 /// we want to capture. `viewWillDisappear` is the last frame the
 /// content is still on screen — exactly what Safari uses for tab
 /// thumbnails.
-public struct DocumentSnapshotHook: UIViewControllerRepresentable {
-    public init(docId: String) {
-        self.docId = docId
+public struct LeafSnapshotHook: UIViewControllerRepresentable {
+    public init(leafId: String) {
+        self.leafId = leafId
     }
-    public let docId: String
+    public let leafId: String
 
     public func makeUIViewController(context: Context) -> SnapshotHookViewController {
-        SnapshotHookViewController(docId: docId)
+        SnapshotHookViewController(leafId: leafId)
     }
 
     public func updateUIViewController(_ vc: SnapshotHookViewController, context: Context) {
-        vc.docId = docId
+        vc.leafId = leafId
     }
 }
 
 public final class SnapshotHookViewController: UIViewController {
-    fileprivate var docId: String
+    fileprivate var leafId: String
 
-    init(docId: String) {
-        self.docId = docId
+    init(leafId: String) {
+        self.leafId = leafId
         super.init(nibName: nil, bundle: nil)
         view = UIView()
         view.isUserInteractionEnabled = false
@@ -105,6 +105,6 @@ public final class SnapshotHookViewController: UIViewController {
         let image = renderer.image { _ in
             window.drawHierarchy(in: bounds, afterScreenUpdates: false)
         }
-        TabSnapshotCache.shared.store(image, for: docId)
+        TabSnapshotCache.shared.store(image, for: leafId)
     }
 }

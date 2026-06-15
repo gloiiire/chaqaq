@@ -75,7 +75,7 @@ public enum Haptic {
         notificationGenerator.prepare()
     }
 
-    /// Destructive confirmation — delete a doc / block / database.
+    /// Destructive confirmation — delete a doc / block / book.
     /// Heavier rumble so the user feels the weight of the action.
     @MainActor
     public static func warning() {

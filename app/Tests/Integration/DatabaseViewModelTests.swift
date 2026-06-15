@@ -4,17 +4,17 @@ import PinkhaFFI
 @testable import Pinkha
 
 @MainActor
-@Suite("DatabaseViewModel — integration via real FFI")
-struct DatabaseViewModelTests {
+@Suite("BookViewModel — integration via real FFI")
+struct BookViewModelTests {
 
     // ── Fixture helpers ───────────────────────────────────────────────────────
 
-    private func makeVM() throws -> (DatabaseViewModel, URL) {
+    private func makeVM() throws -> (BookViewModel, URL) {
         let tmp  = FileManager.default.temporaryDirectory
             .appendingPathComponent("pinkha_dbvm_\(UUID().uuidString).db")
         let api  = try PinkhaApi(dbPath: tmp.path)
-        let dbId = try api.createDatabase(title: "Test DB")
-        let vm   = DatabaseViewModel(dbId: dbId, api: api)
+        let bookId = try api.createBook(title: "Test DB")
+        let vm   = BookViewModel(bookId: bookId, api: api)
         return (vm, tmp)
     }
 
@@ -30,7 +30,7 @@ struct DatabaseViewModelTests {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
         #expect(vm.titlePlain == "Test DB")
-        // load() auto-creates the "Name" Title column on fresh databases.
+        // load() auto-creates the "Name" Title column on fresh books.
         #expect(vm.properties.count == 1)
         #expect(vm.properties[0].name == "Name")
         #expect(vm.entries.isEmpty)
@@ -54,25 +54,25 @@ struct DatabaseViewModelTests {
         #expect(vm.pagePropertyId == firstId)
     }
 
-    // ── Entry + document linking ──────────────────────────────────────────────
+    // ── Entry + leaf linking ──────────────────────────────────────────────
 
-    @Test func addEntryCreatesLinkedDocument() throws {
+    @Test func addEntryCreatesLinkedLeaf() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
         vm.addEntry()
         #expect(vm.entries.count == 1)
-        let docId = vm.documentId(forEntryId: vm.entries[0].id)
-        #expect(docId != nil)
-        #expect(!docId!.isEmpty)
+        let leafId = vm.leafId(forEntryId: vm.entries[0].id)
+        #expect(leafId != nil)
+        #expect(!leafId!.isEmpty)
     }
 
-    @Test func linkedDocumentExistsInApi() throws {
+    @Test func linkedLeafExistsInApi() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
         vm.addEntry()
-        let docId = vm.documentId(forEntryId: vm.entries[0].id)!
-        // The document must be loadable from the API.
-        #expect(throws: Never.self) { _ = try vm.api.getDocumentJson(id: docId) }
+        let leafId = vm.leafId(forEntryId: vm.entries[0].id)!
+        // The leaf must be loadable from the API.
+        #expect(throws: Never.self) { _ = try vm.api.getLeafJson(id: leafId) }
     }
 
     @Test func addEntryPersistsLinkAcrossLoad() throws {
@@ -80,23 +80,23 @@ struct DatabaseViewModelTests {
         vm.load()
         vm.addEntry()
         let entryId = vm.entries[0].id
-        let docId   = vm.documentId(forEntryId: entryId)
+        let leafId   = vm.leafId(forEntryId: entryId)
         vm.load()
         #expect(vm.entries.count == 1)
-        #expect(vm.documentId(forEntryId: entryId) == docId)
+        #expect(vm.leafId(forEntryId: entryId) == leafId)
     }
 
-    @Test func deleteEntryAlsoDeletesDocument() throws {
+    @Test func deleteEntryAlsoDeletesLeaf() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()
         vm.addEntry()
         let entryId = vm.entries[0].id
-        let docId   = vm.documentId(forEntryId: entryId)!
+        let leafId   = vm.leafId(forEntryId: entryId)!
         vm.deleteEntry(id: entryId)
         vm.load()
         #expect(vm.entries.isEmpty)
-        // The linked document should be soft-deleted — API returns NotFound.
-        #expect(throws: PinkhaError.self) { _ = try vm.api.getDocumentJson(id: docId) }
+        // The linked leaf should be soft-deleted — API returns NotFound.
+        #expect(throws: PinkhaError.self) { _ = try vm.api.getLeafJson(id: leafId) }
     }
 
     // ── Properties and cells ──────────────────────────────────────────────────

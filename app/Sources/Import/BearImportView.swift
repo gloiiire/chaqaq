@@ -5,13 +5,13 @@ import PinkhaCore
 
 // ── Import from Bear sheet ─────────────────────────────────────────────────────
 //
-// Bear stores notes in a SQLite database inside its app group container:
-//   ~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite
+// Bear stores notes in a SQLite book inside its app group container:
+//   ~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/book.sqlite
 //
 // Flow:
-//   1. User taps "Choose Bear database" → file picker opens
-//   2. User selects Bear's database.sqlite
-//   3. Tap "Import" → Rust extractor reads the SQLite and creates Pinkha documents
+//   1. User taps "Choose Bear book" → file picker opens
+//   2. User selects Bear's book.sqlite
+//   3. Tap "Import" → Rust extractor reads the SQLite and creates Pinkha leaves
 //   4. Success screen shows note count; "Done" refreshes the list.
 
 struct BearImportView: View {
@@ -81,13 +81,13 @@ struct BearImportView: View {
                     showingFilePicker = true
                 } label: {
                     HStack {
-                        Image(systemName: "folder")
+                        Image(systemName: "shelf")
                             .foregroundStyle(.tint)
                         if let path = selectedPath {
                             Text(URL(fileURLWithPath: path).lastPathComponent)
                                 .foregroundStyle(.primary)
                         } else {
-                            Text("Choose database.sqlite…")
+                            Text("Choose book.sqlite…")
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
@@ -100,9 +100,9 @@ struct BearImportView: View {
                 }
                 .buttonStyle(.plain)
             } header: {
-                Text("Bear Database")
+                Text("Bear Book")
             } footer: {
-                Text("Bear's database is at:\n~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite")
+                Text("Bear's book is at:\n~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/book.sqlite")
                     .font(.caption2)
             }
 
@@ -149,8 +149,8 @@ struct BearImportView: View {
                 VStack(spacing: 8) {
                     Text("Import complete!")
                         .font(.title3.weight(.semibold))
-                    let noun = result.documents == 1 ? "note" : "notes"
-                    Text("\(result.documents) \(noun) imported from Bear.")
+                    let noun = result.leaves == 1 ? "note" : "notes"
+                    Text("\(result.leaves) \(noun) imported from Bear.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

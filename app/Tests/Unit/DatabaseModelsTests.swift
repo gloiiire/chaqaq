@@ -3,7 +3,7 @@ import Foundation
 import PinkhaFFI
 @testable import Pinkha
 
-// Tests for the Swift Codable mirrors of Rust database types.
+// Tests for the Swift Codable mirrors of Rust book types.
 // Every test verifies the exact JSON format that serde produces on the Rust side.
 
 @Suite("PropertyTypeFfi — Codable round-trip")
@@ -45,7 +45,7 @@ struct PropertyTypeFfiTests {
 
     @Test func relationEncodesWithDbId() throws {
         let id = "00000000-0000-0000-0000-000000000001"
-        let json = try encode(PropertyTypeFfi.relation(dbId: id))
+        let json = try encode(PropertyTypeFfi.relation(bookId: id))
         #expect(json.contains("\"Relation\""))
         #expect(json.contains(id))
     }
@@ -185,33 +185,33 @@ struct EntryFfiTests {
         #expect(entry.values[propId] == .checkbox(true))
     }
 
-    /// Legacy entries serialised before `document_id` existed must still
+    /// Legacy entries serialised before `leaf_id` existed must still
     /// decode — mirrors the Rust `#[serde(default)]` guarantee.
-    @Test func decodesLegacyEntryWithoutDocumentId() throws {
+    @Test func decodesLegacyEntryWithoutLeafId() throws {
         let json = """
         {"id":"legacy","created_at":"","values":{}}
         """
         let entry = try JSONDecoder().decode(EntryFfi.self, from: Data(json.utf8))
-        #expect(entry.documentId == nil)
+        #expect(entry.leafId == nil)
     }
 
-    @Test func decodesEntryWithDocumentLink() throws {
+    @Test func decodesEntryWithLeafLink() throws {
         let json = """
-        {"id":"e3","created_at":"","values":{},"document_id":"doc-123"}
+        {"id":"e3","created_at":"","values":{},"leaf_id":"doc-123"}
         """
         let entry = try JSONDecoder().decode(EntryFfi.self, from: Data(json.utf8))
-        #expect(entry.documentId == "doc-123")
+        #expect(entry.leafId == "doc-123")
     }
 }
 
-@Suite("DatabaseFfi — Codable decoding")
-struct DatabaseFfiTests {
+@Suite("BookFfi — Codable decoding")
+struct BookFfiTests {
 
-    @Test func decodesEmptyDatabase() throws {
+    @Test func decodesEmptyBook() throws {
         let json = """
         {"id":"db-1","title":[{"content":"My DB","styles":[]}],"properties":[],"entries":[]}
         """
-        let db = try JSONDecoder().decode(DatabaseFfi.self, from: Data(json.utf8))
+        let db = try JSONDecoder().decode(BookFfi.self, from: Data(json.utf8))
         #expect(db.id == "db-1")
         #expect(db.title.first?.content == "My DB")
         #expect(db.properties.isEmpty)
@@ -228,7 +228,7 @@ struct DatabaseFfiTests {
           "entries":[{"id":"e1","created_at":"","values":{"\(propId)":{"Title":[{"content":"Fix bug","styles":[]}]}}}]
         }
         """
-        let db = try JSONDecoder().decode(DatabaseFfi.self, from: Data(json.utf8))
+        let db = try JSONDecoder().decode(BookFfi.self, from: Data(json.utf8))
         #expect(db.properties.count == 1)
         #expect(db.properties[0].name == "Name")
         #expect(db.entries.count == 1)

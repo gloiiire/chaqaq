@@ -268,7 +268,7 @@ public final class AppSettings {
     }
 
     /// Books.app-style reading theme applied at the app root. Per-doc
-    /// `Document.theme` overrides this when set.
+    /// `Leaf.theme` overrides this when set.
     public var theme: Theme {
         didSet {
             UserDefaults.standard.set(theme.rawValue, forKey: themeKey)

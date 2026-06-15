@@ -3,19 +3,19 @@ import Foundation
 import PinkhaFFI
 @testable import Pinkha
 
-// Integration tests for the document view model: real VM + real PinkhaApi
+// Integration tests for the leaf view model: real VM + real PinkhaApi
 // with a temporary SQLite DB destroyed after each test.
 
 @MainActor
-@Suite("DocumentViewModel — main operations")
-struct DocumentViewModelTests {
+@Suite("LeafViewModel — main operations")
+struct LeafViewModelTests {
 
-    private func makeVM() throws -> (DocumentViewModel, URL) {
+    private func makeVM() throws -> (LeafViewModel, URL) {
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("pinkha_vm_\(UUID().uuidString).db")
         let api = try PinkhaApi(dbPath: tmp.path)
-        let docId = try api.createDocument(title: "Test")
-        return (DocumentViewModel(docId: docId, api: api), tmp)
+        let leafId = try api.createLeaf(title: "Test")
+        return (LeafViewModel(leafId: leafId, api: api), tmp)
     }
 
     private func cleanup(_ url: URL) {

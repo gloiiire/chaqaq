@@ -10,12 +10,12 @@ import PinkhaFFI
 @Suite("Color & styles — persistence via VM")
 struct ColorPersistenceTests {
 
-    private func makeVM() throws -> (DocumentViewModel, URL) {
+    private func makeVM() throws -> (LeafViewModel, URL) {
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("pinkha_color_\(UUID().uuidString).db")
         let api = try PinkhaApi(dbPath: tmp.path)
-        let docId = try api.createDocument(title: "Color")
-        return (DocumentViewModel(docId: docId, api: api), tmp)
+        let leafId = try api.createLeaf(title: "Color")
+        return (LeafViewModel(leafId: leafId, api: api), tmp)
     }
 
     private func cleanup(_ url: URL) {

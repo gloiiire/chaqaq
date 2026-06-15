@@ -2,14 +2,14 @@ import Foundation
 
 // ── Typed FFI wrappers ───────────────────────────────────────────────────────
 //
-// UniFFI 0.31 can't express the recursive `Block`/`Document` types in the
-// UDL, so the FFI ships JSON strings for the full document, full database,
+// UniFFI 0.31 can't express the recursive `Block`/`Leaf` types in the
+// UDL, so the FFI ships JSON strings for the full leaf, full book,
 // query results, deleted entries and entry search. Every call site used to
 // repeat the decode dance:
 //
-//     guard let json = try? api.getDocumentJson(id: docId),
+//     guard let json = try? api.getLeafJson(id: leafId),
 //           let data = json.data(using: .utf8),
-//           let doc  = try? JSONDecoder().decode(DocumentFfi.self, from: data)
+//           let doc  = try? JSONDecoder().decode(LeafFfi.self, from: data)
 //     else { return }
 //
 // These extensions hide that boilerplate behind a typed surface. The
@@ -17,39 +17,39 @@ import Foundation
 // caller that genuinely needs the raw JSON.
 
 public extension PinkhaApi {
-    /// Full document (with blocks) decoded from the JSON-returning FFI.
-    public func getDocument(id: String) throws -> DocumentFfi {
-        let json = try getDocumentJson(id: id)
-        return try DocumentFfi.decode(fromJson: json)
+    /// Full leaf (with blocks) decoded from the JSON-returning FFI.
+    public func getLeaf(id: String) throws -> LeafFfi {
+        let json = try getLeafJson(id: id)
+        return try LeafFfi.decode(fromJson: json)
     }
 
-    /// Full database (with entries and views) decoded from the JSON-returning FFI.
-    public func getDatabase(id: String) throws -> DatabaseFfi {
-        let json = try getDatabaseJson(id: id)
-        return try DatabaseFfi.decode(fromJson: json)
+    /// Full book (with entries and views) decoded from the JSON-returning FFI.
+    public func getBook(id: String) throws -> BookFfi {
+        let json = try getBookJson(id: id)
+        return try BookFfi.decode(fromJson: json)
     }
 
     /// Entries returned by a view query (filters + sorts applied server-side).
-    public func queryDatabase(dbId: String, viewId: String) throws -> [EntryFfi] {
-        let json = try queryDatabaseJson(dbId: dbId, viewId: viewId)
+    public func queryBook(bookId: String, viewId: String) throws -> [EntryFfi] {
+        let json = try queryBookJson(bookId: bookId, viewId: viewId)
         return try [EntryFfi].decode(fromJson: json)
     }
 
-    /// Same as `queryDatabase` but with rollup columns computed at read time.
-    public func queryDatabaseWithRollups(dbId: String, viewId: String) throws -> [EntryFfi] {
-        let json = try queryDatabaseWithRollupsJson(dbId: dbId, viewId: viewId)
+    /// Same as `queryBook` but with rollup columns computed at read time.
+    public func queryBookWithRollups(bookId: String, viewId: String) throws -> [EntryFfi] {
+        let json = try queryBookWithRollupsJson(bookId: bookId, viewId: viewId)
         return try [EntryFfi].decode(fromJson: json)
     }
 
-    /// Case-insensitive search across the database's entries.
-    public func searchDatabaseEntries(dbId: String, query: String) throws -> [EntryFfi] {
-        let json = try searchDatabaseEntriesJson(dbId: dbId, query: query)
+    /// Case-insensitive search across the book's entries.
+    public func searchBookEntries(bookId: String, query: String) throws -> [EntryFfi] {
+        let json = try searchBookEntriesJson(bookId: bookId, query: query)
         return try [EntryFfi].decode(fromJson: json)
     }
 
-    /// Trashed entries of a database (newest-deleted first).
-    public func listDeletedEntries(dbId: String) throws -> [EntryFfi] {
-        let json = try listDeletedEntriesJson(dbId: dbId)
+    /// Trashed entries of a book (newest-deleted first).
+    public func listDeletedEntries(bookId: String) throws -> [EntryFfi] {
+        let json = try listDeletedEntriesJson(bookId: bookId)
         return try [EntryFfi].decode(fromJson: json)
     }
 }

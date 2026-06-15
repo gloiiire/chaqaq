@@ -155,7 +155,7 @@ extension RichTextEditorCoordinator {
 
         // Indent / outdent — nests / unnests the current block, calling the
         // FFI `indent_block` / `outdent_block` via closures owned by the
-        // DocumentViewModel (which knows the block identity).
+        // LeafViewModel (which knows the block identity).
         separator()
         addButton(symbolButton("decrease.quotelevel", action: #selector(toolbarOutdent)))
         addButton(symbolButton("increase.quotelevel", action: #selector(toolbarIndent)))

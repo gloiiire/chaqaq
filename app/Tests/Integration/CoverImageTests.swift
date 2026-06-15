@@ -7,12 +7,12 @@ import PinkhaFFI
 @Suite("Cover image — save and persistence via VM")
 struct CoverImageTests {
 
-    private func makeVM() throws -> (DocumentViewModel, URL) {
+    private func makeVM() throws -> (LeafViewModel, URL) {
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("pinkha_cover_\(UUID().uuidString).db")
         let api = try PinkhaApi(dbPath: tmp.path)
-        let docId = try api.createDocument(title: "Cover")
-        return (DocumentViewModel(docId: docId, api: api), tmp)
+        let leafId = try api.createLeaf(title: "Cover")
+        return (LeafViewModel(leafId: leafId, api: api), tmp)
     }
 
     private func cleanup(_ url: URL) {

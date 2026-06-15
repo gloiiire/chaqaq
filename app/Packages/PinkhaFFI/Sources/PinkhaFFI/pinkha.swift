@@ -504,40 +504,40 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     
     /**
      * Appends a block; the content is passed as JSON (serialized BlockContent).
-     * Returns the updated document as JSON.
+     * Returns the updated leaf as JSON.
      */
-    func addBlock(docId: String, blockContentJson: String) throws  -> String
+    func addBlock(leafId: String, blockContentJson: String) throws  -> String
     
     /**
      * Appends a child block; the content is passed as JSON (serialized BlockContent).
      */
-    func addChildBlock(docId: String, parentId: String, blockContentJson: String) throws  -> String
+    func addChildBlock(leafId: String, parentId: String, blockContentJson: String) throws  -> String
     
     /**
      * Adds an entry; `values_json` is a serialized UUID -> PropertyValue map.
      */
-    func addEntry(dbId: String, valuesJson: String) throws  -> String
+    func addEntry(bookId: String, valuesJson: String) throws  -> String
     
     /**
      * Adds a property serialized as JSON.
      */
-    func addProperty(dbId: String, propertyJson: String) throws 
+    func addProperty(bookId: String, propertyJson: String) throws 
     
     /**
      * Adds a view serialized as JSON.
      */
-    func addView(dbId: String, viewJson: String) throws  -> String
+    func addView(bookId: String, viewJson: String) throws  -> String
     
     /**
-     * Files an existing document as a row of an existing database.
+     * Files an existing leaf as a row of an existing book.
      * `values_json` is the same UUID -> PropertyValue map as for
      * `add_entry`. Returns the new entry UUID.
      */
-    func attachDocumentToDatabase(dbId: String, docId: String, valuesJson: String) throws  -> String
+    func attachLeafToBook(bookId: String, leafId: String, valuesJson: String) throws  -> String
     
     /**
      * Asks the in-flight import to stop. The import rolls back everything
-     * it created (documents + database) and returns an "import cancelled"
+     * it created (leaves + book) and returns an "import cancelled"
      * error. No-op when nothing is running.
      */
     func cancelImport() 
@@ -545,104 +545,104 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     /**
      * Returns a column aggregate as JSON.
      */
-    func columnAggregateDatabaseJson(dbId: String, propertyId: String, aggregateJson: String) throws  -> String
+    func columnAggregateBookJson(bookId: String, propertyId: String, aggregateJson: String) throws  -> String
     
     /**
-     * Creates a new database and returns its UUID.
+     * Creates a new book and returns its UUID.
      */
-    func createDatabase(title: String) throws  -> String
+    func createBook(title: String) throws  -> String
     
     /**
-     * Creates a new document and returns its UUID.
+     * Creates a new leaf and returns its UUID.
      */
-    func createDocument(title: String) throws  -> String
+    func createLeaf(title: String) throws  -> String
     
     /**
-     * Creates a fresh document and files it as a new row of the database
+     * Creates a fresh leaf and files it as a new row of the book
      * in one call — fills the hidden page-link column and the Title
      * column automatically. `values_json` carries any extra column
-     * values (same shape as `add_entry`). Returns the document UUID.
+     * values (same shape as `add_entry`). Returns the leaf UUID.
      */
-    func createDocumentInDatabase(dbId: String, title: String, valuesJson: String) throws  -> String
+    func createLeafInBook(bookId: String, title: String, valuesJson: String) throws  -> String
     
-    func createFolder(name: String, parentId: String?) throws  -> FolderMetaFfi
+    func createShelf(name: String, parentId: String?) throws  -> ShelfMetaFfi
     
     /**
-     * Soft-deletes every database. Returns the number deleted.
+     * Soft-deletes every book. Returns the number deleted.
      */
-    func deleteAllDatabases() throws  -> UInt32
+    func deleteAllBooks() throws  -> UInt32
     
     /**
-     * Soft-deletes every document. Returns the number deleted.
+     * Soft-deletes every leaf. Returns the number deleted.
      */
-    func deleteAllDocuments() throws  -> UInt32
+    func deleteAllLeaves() throws  -> UInt32
     
-    func deleteAllFolders() throws  -> UInt32
+    func deleteAllShelves() throws  -> UInt32
     
-    func deleteBlock(docId: String, blockId: String) throws 
+    func deleteBlock(leafId: String, blockId: String) throws 
     
     /**
-     * Soft-deletes the database.
+     * Soft-deletes the book.
      */
-    func deleteDatabase(id: String) throws 
+    func deleteBook(id: String) throws 
     
     /**
-     * Soft-deletes the database AND every document its rows are backed
-     * by. Returns the number of documents deleted alongside it.
+     * Soft-deletes the book AND every leaf its rows are backed
+     * by. Returns the number of leaves deleted alongside it.
      */
-    func deleteDatabaseCascade(id: String) throws  -> UInt32
+    func deleteBookCascade(id: String) throws  -> UInt32
+    
+    func deleteEntry(bookId: String, entryId: String) throws 
     
     /**
-     * Soft-deletes the document.
+     * Soft-deletes the leaf.
      */
-    func deleteDocument(id: String) throws 
+    func deleteLeaf(id: String) throws 
     
-    func deleteEntry(dbId: String, entryId: String) throws 
+    func deleteProperty(bookId: String, propertyId: String) throws 
     
-    func deleteFolder(id: String) throws 
+    func deleteShelf(id: String) throws 
     
-    func deleteProperty(dbId: String, propertyId: String) throws 
-    
-    func deleteView(dbId: String, viewId: String) throws 
+    func deleteView(bookId: String, viewId: String) throws 
     
     /**
      * Duplicates a block (and all its children, with fresh UUIDs) and
      * inserts the clone right after the original at the same level.
      * Returns the new block's UUID.
      */
-    func duplicateBlock(docId: String, blockId: String) throws  -> String
+    func duplicateBlock(leafId: String, blockId: String) throws  -> String
     
     /**
-     * Permanently purges every soft-deleted document, database and folder.
+     * Permanently purges every soft-deleted leaf, book and shelf.
      * Returns the total number of items removed.
      */
     func emptyTrash() throws  -> UInt32
     
     /**
-     * Returns the full database serialized as JSON (with entries and views).
+     * Returns the full book serialized as JSON (with entries and views).
      */
-    func getDatabaseJson(id: String) throws  -> String
+    func getBookJson(id: String) throws  -> String
     
     /**
-     * Returns the full document serialized as JSON (with blocks).
+     * Returns the full leaf serialized as JSON (with blocks).
      */
-    func getDocumentJson(id: String) throws  -> String
+    func getLeafJson(id: String) throws  -> String
     
     /**
-     * Lightweight metadata for a single document (no block tree).
+     * Lightweight metadata for a single leaf (no block tree).
      */
-    func getDocumentMeta(id: String) throws  -> DocumentMetaFfi
+    func getLeafMeta(id: String) throws  -> LeafMetaFfi
     
-    func getFolder(id: String) throws  -> FolderMetaFfi
+    func getShelf(id: String) throws  -> ShelfMetaFfi
     
     /**
      * Returns the grouped entries as JSON.
      */
-    func groupedQueryDatabaseJson(dbId: String, viewId: String, groupBy: String) throws  -> String
+    func groupedQueryBookJson(bookId: String, viewId: String, groupBy: String) throws  -> String
     
     /**
-     * Imports Bear notes from Bear's local SQLite database.
-     * `db_path` is the absolute path to Bear's `database.sqlite`.
+     * Imports Bear notes from Bear's local SQLite book.
+     * `db_path` is the absolute path to Bear's `book.sqlite`.
      */
     func importFromBear(dbPath: String) async throws  -> ImportResultFfi
     
@@ -653,22 +653,22 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func importFromCraft(dbPath: String) async throws  -> ImportResultFfi
     
     /**
-     * Combines Craft's `.realm` file with a folder of `.textbundle` exports:
+     * Combines Craft's `.realm` file with a shelf of `.textbundle` exports:
      * pages with a matching textbundle use its markdown content;
      * the remaining pages use the realm content.
      */
     func importFromCraftCombined(realmPath: String, textbundleRoot: String) async throws  -> ImportResultFfi
     
     /**
-     * Imports Craft pages from a folder of `.textbundle` packages exported by Craft.
-     * `root_dir` is the absolute path to the export's root folder.
+     * Imports Craft pages from a shelf of `.textbundle` packages exported by Craft.
+     * `root_dir` is the absolute path to the export's root shelf.
      */
     func importFromCraftTextbundle(rootDir: String) async throws  -> ImportResultFfi
     
     /**
-     * Imports a full Notion database (schema + pages + blocks).
+     * Imports a full Notion book (schema + pages + blocks).
      * `token` is an OAuth2 bearer token or a private integration token.
-     * `database_id` is a 32-char hex UUID or the full Notion URL.
+     * `book_id` is a 32-char hex UUID or the full Notion URL.
      *
      * Synchronous on the FFI side: Notion uses `reqwest`, which requires a
      * Tokio runtime that UniFFI's executor does not provide. Rust calls
@@ -678,60 +678,58 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * images are downloaded. When null, only the URL is stored — fine for
      * external covers but Notion-hosted ones expire after ~1h.
      */
-    func importFromNotion(token: String, databaseId: String, coversDir: String?) throws  -> ImportResultFfi
+    func importFromNotion(token: String, bookId: String, coversDir: String?) throws  -> ImportResultFfi
     
     /**
      * Indents a block: moves it under the previous sibling at the same level.
      * `InvalidOperation` when the block is the first of its level.
      */
-    func indentBlock(docId: String, blockId: String) throws 
+    func indentBlock(leafId: String, blockId: String) throws 
     
     /**
-     * Lists the direct children of a parent document (page-in-page).
+     * Lists metadata for every active book.
      */
-    func listChildDocuments(parentDocId: String) throws  -> [DocumentMetaFfi]
+    func listBooks() throws  -> [BookMetaFfi]
     
     /**
-     * Direct children of `parent_id` (null = root-level folders).
+     * Lists the direct children of a parent leaf (page-in-page).
      */
-    func listChildFolders(parentId: String?) throws  -> [FolderMetaFfi]
+    func listChildLeaves(parentLeafId: String) throws  -> [LeafMetaFfi]
     
     /**
-     * Lists metadata for every active database.
+     * Direct children of `parent_id` (null = root-level shelves).
      */
-    func listDatabases() throws  -> [DatabaseMetaFfi]
+    func listChildShelves(parentId: String?) throws  -> [ShelfMetaFfi]
     
     /**
-     * Lists trashed databases (soft-deleted), most recently deleted first.
+     * Lists trashed books (soft-deleted), most recently deleted first.
      */
-    func listDeletedDatabases() throws  -> [DatabaseMetaFfi]
+    func listDeletedBooks() throws  -> [BookMetaFfi]
     
     /**
-     * Lists trashed documents (soft-deleted), most recently deleted first.
+     * Lists a book's soft-deleted entries (JSON array).
      */
-    func listDeletedDocuments() throws  -> [DocumentMetaFfi]
+    func listDeletedEntriesJson(bookId: String) throws  -> String
     
     /**
-     * Lists a database's soft-deleted entries (JSON array).
+     * Lists trashed leaves (soft-deleted), most recently deleted first.
      */
-    func listDeletedEntriesJson(dbId: String) throws  -> String
+    func listDeletedLeaves() throws  -> [LeafMetaFfi]
     
     /**
-     * Lists trashed folders (soft-deleted), most recently deleted first.
+     * Lists trashed shelves (soft-deleted), most recently deleted first.
      */
-    func listDeletedFolders() throws  -> [FolderMetaFfi]
+    func listDeletedShelves() throws  -> [ShelfMetaFfi]
     
     /**
-     * Lists metadata for every active document.
+     * Lists metadata for every active leaf.
      */
-    func listDocuments() throws  -> [DocumentMetaFfi]
+    func listLeaves() throws  -> [LeafMetaFfi]
     
-    func listDocumentsInFolder(folderId: String?) throws  -> [DocumentMetaFfi]
-    
-    func listFolders() throws  -> [FolderMetaFfi]
+    func listLeavesInShelf(shelfId: String?) throws  -> [LeafMetaFfi]
     
     /**
-     * Lists the Notion databases reachable with the given token. Used by
+     * Lists the Notion books reachable with the given token. Used by
      * the Swift-side picker so the user never has to paste URLs.
      */
     func listNotionDatabases(token: String) throws  -> [NotionDatabaseSummaryFfi]
@@ -745,120 +743,112 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func listNotionDatabasesV2025(token: String) throws  -> [NotionDatabaseSummaryFfi]
     
     /**
-     * Lists root pages (documents with no parent). Drives the home view.
+     * Lists root pages (leaves with no parent). Drives the home view.
      */
-    func listRootDocuments() throws  -> [DocumentMetaFfi]
+    func listRootLeaves() throws  -> [LeafMetaFfi]
+    
+    func listShelves() throws  -> [ShelfMetaFfi]
     
     /**
      * Moves a block under a parent, or to the root when `new_parent_id` is null.
      */
-    func moveBlock(docId: String, blockId: String, newParentId: String?) throws 
+    func moveBlock(leafId: String, blockId: String, newParentId: String?) throws 
     
-    func moveDocumentToFolder(docId: String, folderId: String?) throws 
+    func moveLeafToShelf(leafId: String, shelfId: String?) throws 
     
-    func moveFolderTo(id: String, newParentId: String?) throws 
+    func moveShelfTo(id: String, newParentId: String?) throws 
     
     /**
      * Outdents a block: moves it out of its parent up to the grandparent
      * level, right after the former parent. `InvalidOperation` when the
      * block is already at the root.
      */
-    func outdentBlock(docId: String, blockId: String) throws 
+    func outdentBlock(leafId: String, blockId: String) throws 
     
     /**
-     * Permanently deletes a database from the trash (hard delete).
+     * Permanently deletes a book from the trash (hard delete).
      */
-    func purgeDatabase(id: String) throws 
-    
-    /**
-     * Permanently deletes a document from the trash (hard delete).
-     */
-    func purgeDocument(id: String) throws 
+    func purgeBook(id: String) throws 
     
     /**
      * Permanently deletes a soft-deleted entry (hard delete).
      */
-    func purgeEntry(dbId: String, entryId: String) throws 
+    func purgeEntry(bookId: String, entryId: String) throws 
     
     /**
-     * Permanently deletes a folder from the trash (hard delete).
+     * Permanently deletes a leaf from the trash (hard delete).
      */
-    func purgeFolder(id: String) throws 
+    func purgeLeaf(id: String) throws 
+    
+    /**
+     * Permanently deletes a shelf from the trash (hard delete).
+     */
+    func purgeShelf(id: String) throws 
     
     /**
      * Returns the filtered/sorted entries as JSON.
      */
-    func queryDatabaseJson(dbId: String, viewId: String) throws  -> String
+    func queryBookJson(bookId: String, viewId: String) throws  -> String
     
     /**
      * Returns the filtered/sorted entries with computed rollups as JSON.
      */
-    func queryDatabaseWithRollupsJson(dbId: String, viewId: String) throws  -> String
+    func queryBookWithRollupsJson(bookId: String, viewId: String) throws  -> String
     
-    func renameFolder(id: String, newName: String) throws 
+    func renameProperty(bookId: String, propertyId: String, newName: String) throws 
     
-    func renameProperty(dbId: String, propertyId: String, newName: String) throws 
+    func renameShelf(id: String, newName: String) throws 
     
     /**
      * Reorders the root blocks according to the supplied UUID list.
      */
-    func reorderBlocks(docId: String, order: [String]) throws 
+    func reorderBlocks(leafId: String, order: [String]) throws 
     
     /**
      * Reorders the direct children of a parent block.
      */
-    func reorderChildBlocks(docId: String, parentId: String, order: [String]) throws 
+    func reorderChildBlocks(leafId: String, parentId: String, order: [String]) throws 
     
     /**
-     * Restores a database from the trash.
+     * Restores a book from the trash.
      */
-    func restoreDatabase(id: String) throws 
+    func restoreBook(id: String) throws 
     
     /**
-     * Restores a soft-deleted database AND every document its rows are
-     * backed by. Returns the number of documents restored alongside it.
+     * Restores a soft-deleted book AND every leaf its rows are
+     * backed by. Returns the number of leaves restored alongside it.
      */
-    func restoreDatabaseCascade(id: String) throws  -> UInt32
+    func restoreBookCascade(id: String) throws  -> UInt32
     
     /**
-     * Restores a document from the trash.
+     * Restores an entry from its book's trash.
      */
-    func restoreDocument(id: String) throws 
+    func restoreEntry(bookId: String, entryId: String) throws 
     
     /**
-     * Restores an entry from its database's trash.
+     * Restores a leaf from the trash.
      */
-    func restoreEntry(dbId: String, entryId: String) throws 
+    func restoreLeaf(id: String) throws 
     
     /**
-     * Restores a folder from the trash.
+     * Restores a shelf from the trash.
      */
-    func restoreFolder(id: String) throws 
+    func restoreShelf(id: String) throws 
     
     /**
      * Returns the entries matching the search query as JSON.
      */
-    func searchDatabaseEntriesJson(dbId: String, query: String) throws  -> String
+    func searchBookEntriesJson(bookId: String, query: String) throws  -> String
     
     /**
-     * Search across database titles.
+     * Search across book titles.
      */
-    func searchDatabases(query: String) throws  -> [DatabaseMetaFfi]
-    
-    /**
-     * Case-insensitive search across document titles.
-     */
-    func searchDocuments(query: String) throws  -> [DocumentMetaFfi]
-    
-    /**
-     * Search across folder names.
-     */
-    func searchFolders(query: String) throws  -> [FolderMetaFfi]
+    func searchBooks(query: String) throws  -> [BookMetaFfi]
     
     /**
      * Full-text search across block content.
      */
-    func searchInBlocks(query: String) throws  -> [DocumentMetaFfi]
+    func searchInBlocks(query: String) throws  -> [LeafMetaFfi]
     
     /**
      * Full-text search returning a snippet of each matching block.
@@ -866,138 +856,148 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func searchInBlocksWithSnippets(query: String) throws  -> [BlockSearchHitFfi]
     
     /**
+     * Case-insensitive search across leaf titles.
+     */
+    func searchLeaves(query: String) throws  -> [LeafMetaFfi]
+    
+    /**
+     * Search across shelf names.
+     */
+    func searchShelves(query: String) throws  -> [ShelfMetaFfi]
+    
+    /**
      * Sets or clears the block's background color (Craft-style highlight).
      */
-    func setBlockBackgroundColor(docId: String, blockId: String, backgroundColor: String?) throws 
+    func setBlockBackgroundColor(leafId: String, blockId: String, backgroundColor: String?) throws 
     
     /**
      * Sets or clears a block's text color. `color` is a color name
      * (`"red"`, `"blue"`, etc.) or `null` to revert to the theme.
      * Inline colors on spans always take priority.
      */
-    func setBlockColor(docId: String, blockId: String, color: String?) throws 
+    func setBlockColor(leafId: String, blockId: String, color: String?) throws 
     
     /**
      * Sets or clears the block's writing direction ("ltr" / "rtl").
-     * `null` = inherit from the document.
+     * `null` = inherit from the leaf.
      */
-    func setBlockTextDirection(docId: String, blockId: String, textDirection: String?) throws 
+    func setBlockTextDirection(leafId: String, blockId: String, textDirection: String?) throws 
     
     /**
      * Sets (or clears with null) the Date column that drives every
      * row's published_at. Adopting backfills all rows and their backing
-     * documents; clearing resets them to "follow created_at". Returns
+     * leaves; clearing resets them to "follow created_at". Returns
      * the number of rows whose publish date changed.
      */
-    func setPublishedAtSource(dbId: String, propertyId: String?) throws  -> UInt32
+    func setPublishedAtSource(bookId: String, propertyId: String?) throws  -> UInt32
     
     /**
      * Sets the view's sort to the entry-level created_at or published_at.
      * `kind` = "created" or "published". No property_id (the timestamps
      * live on Entry, not on a column).
      */
-    func setViewDateSort(dbId: String, viewId: String, kind: String, ascending: Bool) throws 
+    func setViewDateSort(bookId: String, viewId: String, kind: String, ascending: Bool) throws 
     
     /**
      * Sets a single sort on a view, replacing any existing ones.
      * `property_id = null` clears the sort.
      */
-    func setViewSort(dbId: String, viewId: String, propertyId: String?, ascending: Bool) throws 
+    func setViewSort(bookId: String, viewId: String, propertyId: String?, ascending: Bool) throws 
     
     /**
      * Runs every search axis in one call (titles, block content with
-     * snippets, databases, folders) with the document axis deduplicated.
+     * snippets, books, shelves) with the leaf axis deduplicated.
      */
     func superSearch(query: String) throws  -> SuperSearchResultsFfi
     
     /**
      * Replaces the content of an existing block (BlockContent JSON).
      */
-    func updateBlock(docId: String, blockId: String, contentJson: String) throws 
+    func updateBlock(leafId: String, blockId: String, contentJson: String) throws 
     
     /**
-     * Replaces or clears the database's cover image.
+     * Replaces or clears the book's cover image.
      */
-    func updateDatabaseCover(id: String, cover: String?) throws 
+    func updateBookCover(id: String, cover: String?) throws 
     
     /**
-     * Replaces the database's rich-text description (empty string clears it).
+     * Replaces the book's rich-text description (empty string clears it).
      */
-    func updateDatabaseDescription(id: String, description: String) throws 
+    func updateBookDescription(id: String, description: String) throws 
     
     /**
-     * Replaces or clears the database's icon (emoji / file / URL).
+     * Replaces or clears the book's icon (emoji / file / URL).
      */
-    func updateDatabaseIcon(id: String, icon: String?) throws 
+    func updateBookIcon(id: String, icon: String?) throws 
     
     /**
-     * Flips the database's read-only flag.
+     * Flips the book's read-only flag.
      */
-    func updateDatabaseLocked(id: String, locked: Bool) throws 
+    func updateBookLocked(id: String, locked: Bool) throws 
     
     /**
-     * Replaces the database's rich-text title.
+     * Replaces the book's rich-text title.
      */
-    func updateDatabaseTitle(id: String, newTitle: String) throws 
+    func updateBookTitle(id: String, newTitle: String) throws 
     
-    /**
-     * Sets or clears the document's accent color (per-doc override of
-     * the global accent). Color name ("red", "teal"...) or null to
-     * fall back to the Settings accent.
-     */
-    func updateDocumentAccentColor(id: String, accentColor: String?) throws 
-    
-    func updateDocumentCover(id: String, cover: String?) throws 
-    
-    /**
-     * Sets or clears a document's icon (emoji, local filename, or URL).
-     */
-    func updateDocumentIcon(id: String, icon: String?) throws 
-    
-    /**
-     * Enables or disables the read-only lock on a document.
-     * Imports (Notion/Bear/Craft) automatically call this with
-     * `locked = true` at creation time.
-     */
-    func updateDocumentLocked(id: String, locked: Bool) throws 
-    
-    /**
-     * Sets the parent document (Notion-style nested page). `None` to
-     * promote the document back to the root. Rejects cycles.
-     */
-    func updateDocumentParent(docId: String, newParentDocId: String?) throws 
-    
-    /**
-     * Overrides a document's published_at timestamp. Empty string =
-     * reset to the default (follows created_at).
-     */
-    func updateDocumentPublishedAt(id: String, newPublishedAt: String) throws 
-    
-    /**
-     * Sets or clears the document's default writing direction.
-     * `null` = system locale. Every block can override.
-     */
-    func updateDocumentTextDirection(id: String, textDirection: String?) throws 
-    
-    /**
-     * Sets or clears the per-document theme.
-     * `null` = inherit from AppSettings.theme.
-     */
-    func updateDocumentTheme(id: String, theme: String?) throws 
-    
-    func updateDocumentTitle(id: String, newTitle: String) throws 
-    
-    func updateEntry(dbId: String, entryId: String, valuesJson: String) throws 
+    func updateEntry(bookId: String, entryId: String, valuesJson: String) throws 
     
     /**
      * Overrides an entry's published_at timestamp.
      * Empty string = reset to the default (follows created_at).
      */
-    func updateEntryPublishedAt(dbId: String, entryId: String, newPublishedAt: String) throws 
+    func updateEntryPublishedAt(bookId: String, entryId: String, newPublishedAt: String) throws 
     
-    func updateFolderIcon(id: String, icon: String?) throws 
+    /**
+     * Sets or clears the leaf's accent color (per-doc override of
+     * the global accent). Color name ("red", "teal"...) or null to
+     * fall back to the Settings accent.
+     */
+    func updateLeafAccentColor(id: String, accentColor: String?) throws 
     
-    func updateView(dbId: String, viewId: String, filtersJson: String, sortsJson: String) throws 
+    func updateLeafCover(id: String, cover: String?) throws 
+    
+    /**
+     * Sets or clears a leaf's icon (emoji, local filename, or URL).
+     */
+    func updateLeafIcon(id: String, icon: String?) throws 
+    
+    /**
+     * Enables or disables the read-only lock on a leaf.
+     * Imports (Notion/Bear/Craft) automatically call this with
+     * `locked = true` at creation time.
+     */
+    func updateLeafLocked(id: String, locked: Bool) throws 
+    
+    /**
+     * Sets the parent leaf (Notion-style nested page). `None` to
+     * promote the leaf back to the root. Rejects cycles.
+     */
+    func updateLeafParent(leafId: String, newParentLeafId: String?) throws 
+    
+    /**
+     * Overrides a leaf's published_at timestamp. Empty string =
+     * reset to the default (follows created_at).
+     */
+    func updateLeafPublishedAt(id: String, newPublishedAt: String) throws 
+    
+    /**
+     * Sets or clears the leaf's default writing direction.
+     * `null` = system locale. Every block can override.
+     */
+    func updateLeafTextDirection(id: String, textDirection: String?) throws 
+    
+    /**
+     * Sets or clears the per-leaf theme.
+     * `null` = inherit from AppSettings.theme.
+     */
+    func updateLeafTheme(id: String, theme: String?) throws 
+    
+    func updateLeafTitle(id: String, newTitle: String) throws 
+    
+    func updateShelfIcon(id: String, icon: String?) throws 
+    
+    func updateView(bookId: String, viewId: String, filtersJson: String, sortsJson: String) throws 
     
 }
 open class PinkhaApi: PinkhaApiProtocol, @unchecked Sendable {
@@ -1040,7 +1040,7 @@ open class PinkhaApi: PinkhaApiProtocol, @unchecked Sendable {
         return try! rustCall { uniffi_pinkha_fn_clone_pinkhaapi(self.handle, $0) }
     }
     /**
-     * Opens (or creates) the SQLite database at the given path.
+     * Opens (or creates) the SQLite book at the given path.
      */
 public convenience init(dbPath: String)throws  {
     let handle =
@@ -1066,13 +1066,13 @@ public convenience init(dbPath: String)throws  {
     
     /**
      * Appends a block; the content is passed as JSON (serialized BlockContent).
-     * Returns the updated document as JSON.
+     * Returns the updated leaf as JSON.
      */
-open func addBlock(docId: String, blockContentJson: String)throws  -> String  {
+open func addBlock(leafId: String, blockContentJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_add_block(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(docId),
+        FfiConverterString.lower(leafId),
         FfiConverterString.lower(blockContentJson),$0
     )
 })
@@ -1081,11 +1081,11 @@ open func addBlock(docId: String, blockContentJson: String)throws  -> String  {
     /**
      * Appends a child block; the content is passed as JSON (serialized BlockContent).
      */
-open func addChildBlock(docId: String, parentId: String, blockContentJson: String)throws  -> String  {
+open func addChildBlock(leafId: String, parentId: String, blockContentJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_add_child_block(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(docId),
+        FfiConverterString.lower(leafId),
         FfiConverterString.lower(parentId),
         FfiConverterString.lower(blockContentJson),$0
     )
@@ -1095,11 +1095,11 @@ open func addChildBlock(docId: String, parentId: String, blockContentJson: Strin
     /**
      * Adds an entry; `values_json` is a serialized UUID -> PropertyValue map.
      */
-open func addEntry(dbId: String, valuesJson: String)throws  -> String  {
+open func addEntry(bookId: String, valuesJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_add_entry(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(valuesJson),$0
     )
 })
@@ -1108,10 +1108,10 @@ open func addEntry(dbId: String, valuesJson: String)throws  -> String  {
     /**
      * Adds a property serialized as JSON.
      */
-open func addProperty(dbId: String, propertyJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func addProperty(bookId: String, propertyJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_add_property(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(propertyJson),$0
     )
 }
@@ -1120,27 +1120,27 @@ open func addProperty(dbId: String, propertyJson: String)throws   {try rustCallW
     /**
      * Adds a view serialized as JSON.
      */
-open func addView(dbId: String, viewJson: String)throws  -> String  {
+open func addView(bookId: String, viewJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_add_view(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(viewJson),$0
     )
 })
 }
     
     /**
-     * Files an existing document as a row of an existing database.
+     * Files an existing leaf as a row of an existing book.
      * `values_json` is the same UUID -> PropertyValue map as for
      * `add_entry`. Returns the new entry UUID.
      */
-open func attachDocumentToDatabase(dbId: String, docId: String, valuesJson: String)throws  -> String  {
+open func attachLeafToBook(bookId: String, leafId: String, valuesJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_attach_document_to_database(
+    uniffi_pinkha_fn_method_pinkhaapi_attach_leaf_to_book(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
-        FfiConverterString.lower(docId),
+        FfiConverterString.lower(bookId),
+        FfiConverterString.lower(leafId),
         FfiConverterString.lower(valuesJson),$0
     )
 })
@@ -1148,7 +1148,7 @@ open func attachDocumentToDatabase(dbId: String, docId: String, valuesJson: Stri
     
     /**
      * Asks the in-flight import to stop. The import rolls back everything
-     * it created (documents + database) and returns an "import cancelled"
+     * it created (leaves + book) and returns an "import cancelled"
      * error. No-op when nothing is running.
      */
 open func cancelImport()  {try! rustCall() {
@@ -1161,11 +1161,11 @@ open func cancelImport()  {try! rustCall() {
     /**
      * Returns a column aggregate as JSON.
      */
-open func columnAggregateDatabaseJson(dbId: String, propertyId: String, aggregateJson: String)throws  -> String  {
+open func columnAggregateBookJson(bookId: String, propertyId: String, aggregateJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_column_aggregate_database_json(
+    uniffi_pinkha_fn_method_pinkhaapi_column_aggregate_book_json(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(propertyId),
         FfiConverterString.lower(aggregateJson),$0
     )
@@ -1173,11 +1173,11 @@ open func columnAggregateDatabaseJson(dbId: String, propertyId: String, aggregat
 }
     
     /**
-     * Creates a new database and returns its UUID.
+     * Creates a new book and returns its UUID.
      */
-open func createDatabase(title: String)throws  -> String  {
+open func createBook(title: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_create_database(
+    uniffi_pinkha_fn_method_pinkhaapi_create_book(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(title),$0
     )
@@ -1185,11 +1185,11 @@ open func createDatabase(title: String)throws  -> String  {
 }
     
     /**
-     * Creates a new document and returns its UUID.
+     * Creates a new leaf and returns its UUID.
      */
-open func createDocument(title: String)throws  -> String  {
+open func createLeaf(title: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_create_document(
+    uniffi_pinkha_fn_method_pinkhaapi_create_leaf(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(title),$0
     )
@@ -1197,25 +1197,25 @@ open func createDocument(title: String)throws  -> String  {
 }
     
     /**
-     * Creates a fresh document and files it as a new row of the database
+     * Creates a fresh leaf and files it as a new row of the book
      * in one call — fills the hidden page-link column and the Title
      * column automatically. `values_json` carries any extra column
-     * values (same shape as `add_entry`). Returns the document UUID.
+     * values (same shape as `add_entry`). Returns the leaf UUID.
      */
-open func createDocumentInDatabase(dbId: String, title: String, valuesJson: String)throws  -> String  {
+open func createLeafInBook(bookId: String, title: String, valuesJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_create_document_in_database(
+    uniffi_pinkha_fn_method_pinkhaapi_create_leaf_in_book(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(title),
         FfiConverterString.lower(valuesJson),$0
     )
 })
 }
     
-open func createFolder(name: String, parentId: String?)throws  -> FolderMetaFfi  {
-    return try  FfiConverterTypeFolderMetaFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_create_folder(
+open func createShelf(name: String, parentId: String?)throws  -> ShelfMetaFfi  {
+    return try  FfiConverterTypeShelfMetaFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_create_shelf(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(name),
         FfiConverterOptionString.lower(parentId),$0
@@ -1224,49 +1224,49 @@ open func createFolder(name: String, parentId: String?)throws  -> FolderMetaFfi 
 }
     
     /**
-     * Soft-deletes every database. Returns the number deleted.
+     * Soft-deletes every book. Returns the number deleted.
      */
-open func deleteAllDatabases()throws  -> UInt32  {
+open func deleteAllBooks()throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_delete_all_databases(
+    uniffi_pinkha_fn_method_pinkhaapi_delete_all_books(
             self.uniffiCloneHandle(),$0
     )
 })
 }
     
     /**
-     * Soft-deletes every document. Returns the number deleted.
+     * Soft-deletes every leaf. Returns the number deleted.
      */
-open func deleteAllDocuments()throws  -> UInt32  {
+open func deleteAllLeaves()throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_delete_all_documents(
+    uniffi_pinkha_fn_method_pinkhaapi_delete_all_leaves(
             self.uniffiCloneHandle(),$0
     )
 })
 }
     
-open func deleteAllFolders()throws  -> UInt32  {
+open func deleteAllShelves()throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_delete_all_folders(
+    uniffi_pinkha_fn_method_pinkhaapi_delete_all_shelves(
             self.uniffiCloneHandle(),$0
     )
 })
 }
     
-open func deleteBlock(docId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func deleteBlock(leafId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_delete_block(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(docId),
+        FfiConverterString.lower(leafId),
         FfiConverterString.lower(blockId),$0
     )
 }
 }
     
     /**
-     * Soft-deletes the database.
+     * Soft-deletes the book.
      */
-open func deleteDatabase(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_delete_database(
+open func deleteBook(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_book(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
@@ -1274,59 +1274,59 @@ open func deleteDatabase(id: String)throws   {try rustCallWithError(FfiConverter
 }
     
     /**
-     * Soft-deletes the database AND every document its rows are backed
-     * by. Returns the number of documents deleted alongside it.
+     * Soft-deletes the book AND every leaf its rows are backed
+     * by. Returns the number of leaves deleted alongside it.
      */
-open func deleteDatabaseCascade(id: String)throws  -> UInt32  {
+open func deleteBookCascade(id: String)throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_delete_database_cascade(
+    uniffi_pinkha_fn_method_pinkhaapi_delete_book_cascade(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
 })
 }
     
-    /**
-     * Soft-deletes the document.
-     */
-open func deleteDocument(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_delete_document(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
-    )
-}
-}
-    
-open func deleteEntry(dbId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func deleteEntry(bookId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_delete_entry(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(entryId),$0
     )
 }
 }
     
-open func deleteFolder(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_delete_folder(
+    /**
+     * Soft-deletes the leaf.
+     */
+open func deleteLeaf(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_leaf(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
 }
 }
     
-open func deleteProperty(dbId: String, propertyId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func deleteProperty(bookId: String, propertyId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_delete_property(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(propertyId),$0
     )
 }
 }
     
-open func deleteView(dbId: String, viewId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func deleteShelf(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_shelf(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+open func deleteView(bookId: String, viewId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_delete_view(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(viewId),$0
     )
 }
@@ -1337,18 +1337,18 @@ open func deleteView(dbId: String, viewId: String)throws   {try rustCallWithErro
      * inserts the clone right after the original at the same level.
      * Returns the new block's UUID.
      */
-open func duplicateBlock(docId: String, blockId: String)throws  -> String  {
+open func duplicateBlock(leafId: String, blockId: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_duplicate_block(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(docId),
+        FfiConverterString.lower(leafId),
         FfiConverterString.lower(blockId),$0
     )
 })
 }
     
     /**
-     * Permanently purges every soft-deleted document, database and folder.
+     * Permanently purges every soft-deleted leaf, book and shelf.
      * Returns the total number of items removed.
      */
 open func emptyTrash()throws  -> UInt32  {
@@ -1360,11 +1360,11 @@ open func emptyTrash()throws  -> UInt32  {
 }
     
     /**
-     * Returns the full database serialized as JSON (with entries and views).
+     * Returns the full book serialized as JSON (with entries and views).
      */
-open func getDatabaseJson(id: String)throws  -> String  {
+open func getBookJson(id: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_get_database_json(
+    uniffi_pinkha_fn_method_pinkhaapi_get_book_json(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
@@ -1372,11 +1372,11 @@ open func getDatabaseJson(id: String)throws  -> String  {
 }
     
     /**
-     * Returns the full document serialized as JSON (with blocks).
+     * Returns the full leaf serialized as JSON (with blocks).
      */
-open func getDocumentJson(id: String)throws  -> String  {
+open func getLeafJson(id: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_get_document_json(
+    uniffi_pinkha_fn_method_pinkhaapi_get_leaf_json(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
@@ -1384,20 +1384,20 @@ open func getDocumentJson(id: String)throws  -> String  {
 }
     
     /**
-     * Lightweight metadata for a single document (no block tree).
+     * Lightweight metadata for a single leaf (no block tree).
      */
-open func getDocumentMeta(id: String)throws  -> DocumentMetaFfi  {
-    return try  FfiConverterTypeDocumentMetaFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_get_document_meta(
+open func getLeafMeta(id: String)throws  -> LeafMetaFfi  {
+    return try  FfiConverterTypeLeafMetaFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_get_leaf_meta(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
 })
 }
     
-open func getFolder(id: String)throws  -> FolderMetaFfi  {
-    return try  FfiConverterTypeFolderMetaFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_get_folder(
+open func getShelf(id: String)throws  -> ShelfMetaFfi  {
+    return try  FfiConverterTypeShelfMetaFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_get_shelf(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
@@ -1407,11 +1407,11 @@ open func getFolder(id: String)throws  -> FolderMetaFfi  {
     /**
      * Returns the grouped entries as JSON.
      */
-open func groupedQueryDatabaseJson(dbId: String, viewId: String, groupBy: String)throws  -> String  {
+open func groupedQueryBookJson(bookId: String, viewId: String, groupBy: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_grouped_query_database_json(
+    uniffi_pinkha_fn_method_pinkhaapi_grouped_query_book_json(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(viewId),
         FfiConverterString.lower(groupBy),$0
     )
@@ -1419,8 +1419,8 @@ open func groupedQueryDatabaseJson(dbId: String, viewId: String, groupBy: String
 }
     
     /**
-     * Imports Bear notes from Bear's local SQLite database.
-     * `db_path` is the absolute path to Bear's `database.sqlite`.
+     * Imports Bear notes from Bear's local SQLite book.
+     * `db_path` is the absolute path to Bear's `book.sqlite`.
      */
 open func importFromBear(dbPath: String)async throws  -> ImportResultFfi  {
     return
@@ -1461,7 +1461,7 @@ open func importFromCraft(dbPath: String)async throws  -> ImportResultFfi  {
 }
     
     /**
-     * Combines Craft's `.realm` file with a folder of `.textbundle` exports:
+     * Combines Craft's `.realm` file with a shelf of `.textbundle` exports:
      * pages with a matching textbundle use its markdown content;
      * the remaining pages use the realm content.
      */
@@ -1483,8 +1483,8 @@ open func importFromCraftCombined(realmPath: String, textbundleRoot: String)asyn
 }
     
     /**
-     * Imports Craft pages from a folder of `.textbundle` packages exported by Craft.
-     * `root_dir` is the absolute path to the export's root folder.
+     * Imports Craft pages from a shelf of `.textbundle` packages exported by Craft.
+     * `root_dir` is the absolute path to the export's root shelf.
      */
 open func importFromCraftTextbundle(rootDir: String)async throws  -> ImportResultFfi  {
     return
@@ -1504,9 +1504,9 @@ open func importFromCraftTextbundle(rootDir: String)async throws  -> ImportResul
 }
     
     /**
-     * Imports a full Notion database (schema + pages + blocks).
+     * Imports a full Notion book (schema + pages + blocks).
      * `token` is an OAuth2 bearer token or a private integration token.
-     * `database_id` is a 32-char hex UUID or the full Notion URL.
+     * `book_id` is a 32-char hex UUID or the full Notion URL.
      *
      * Synchronous on the FFI side: Notion uses `reqwest`, which requires a
      * Tokio runtime that UniFFI's executor does not provide. Rust calls
@@ -1516,12 +1516,12 @@ open func importFromCraftTextbundle(rootDir: String)async throws  -> ImportResul
      * images are downloaded. When null, only the URL is stored — fine for
      * external covers but Notion-hosted ones expire after ~1h.
      */
-open func importFromNotion(token: String, databaseId: String, coversDir: String?)throws  -> ImportResultFfi  {
+open func importFromNotion(token: String, bookId: String, coversDir: String?)throws  -> ImportResultFfi  {
     return try  FfiConverterTypeImportResultFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(token),
-        FfiConverterString.lower(databaseId),
+        FfiConverterString.lower(bookId),
         FfiConverterOptionString.lower(coversDir),$0
     )
 })
@@ -1531,33 +1531,44 @@ open func importFromNotion(token: String, databaseId: String, coversDir: String?
      * Indents a block: moves it under the previous sibling at the same level.
      * `InvalidOperation` when the block is the first of its level.
      */
-open func indentBlock(docId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func indentBlock(leafId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_indent_block(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(docId),
+        FfiConverterString.lower(leafId),
         FfiConverterString.lower(blockId),$0
     )
 }
 }
     
     /**
-     * Lists the direct children of a parent document (page-in-page).
+     * Lists metadata for every active book.
      */
-open func listChildDocuments(parentDocId: String)throws  -> [DocumentMetaFfi]  {
-    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_list_child_documents(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(parentDocId),$0
+open func listBooks()throws  -> [BookMetaFfi]  {
+    return try  FfiConverterSequenceTypeBookMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_books(
+            self.uniffiCloneHandle(),$0
     )
 })
 }
     
     /**
-     * Direct children of `parent_id` (null = root-level folders).
+     * Lists the direct children of a parent leaf (page-in-page).
      */
-open func listChildFolders(parentId: String?)throws  -> [FolderMetaFfi]  {
-    return try  FfiConverterSequenceTypeFolderMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_list_child_folders(
+open func listChildLeaves(parentLeafId: String)throws  -> [LeafMetaFfi]  {
+    return try  FfiConverterSequenceTypeLeafMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_child_leaves(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(parentLeafId),$0
+    )
+})
+}
+    
+    /**
+     * Direct children of `parent_id` (null = root-level shelves).
+     */
+open func listChildShelves(parentId: String?)throws  -> [ShelfMetaFfi]  {
+    return try  FfiConverterSequenceTypeShelfMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_child_shelves(
             self.uniffiCloneHandle(),
         FfiConverterOptionString.lower(parentId),$0
     )
@@ -1565,91 +1576,72 @@ open func listChildFolders(parentId: String?)throws  -> [FolderMetaFfi]  {
 }
     
     /**
-     * Lists metadata for every active database.
+     * Lists trashed books (soft-deleted), most recently deleted first.
      */
-open func listDatabases()throws  -> [DatabaseMetaFfi]  {
-    return try  FfiConverterSequenceTypeDatabaseMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_list_databases(
+open func listDeletedBooks()throws  -> [BookMetaFfi]  {
+    return try  FfiConverterSequenceTypeBookMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_deleted_books(
             self.uniffiCloneHandle(),$0
     )
 })
 }
     
     /**
-     * Lists trashed databases (soft-deleted), most recently deleted first.
+     * Lists a book's soft-deleted entries (JSON array).
      */
-open func listDeletedDatabases()throws  -> [DatabaseMetaFfi]  {
-    return try  FfiConverterSequenceTypeDatabaseMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_list_deleted_databases(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Lists trashed documents (soft-deleted), most recently deleted first.
-     */
-open func listDeletedDocuments()throws  -> [DocumentMetaFfi]  {
-    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_list_deleted_documents(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Lists a database's soft-deleted entries (JSON array).
-     */
-open func listDeletedEntriesJson(dbId: String)throws  -> String  {
+open func listDeletedEntriesJson(bookId: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_list_deleted_entries_json(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),$0
+        FfiConverterString.lower(bookId),$0
     )
 })
 }
     
     /**
-     * Lists trashed folders (soft-deleted), most recently deleted first.
+     * Lists trashed leaves (soft-deleted), most recently deleted first.
      */
-open func listDeletedFolders()throws  -> [FolderMetaFfi]  {
-    return try  FfiConverterSequenceTypeFolderMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_list_deleted_folders(
+open func listDeletedLeaves()throws  -> [LeafMetaFfi]  {
+    return try  FfiConverterSequenceTypeLeafMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_deleted_leaves(
             self.uniffiCloneHandle(),$0
     )
 })
 }
     
     /**
-     * Lists metadata for every active document.
+     * Lists trashed shelves (soft-deleted), most recently deleted first.
      */
-open func listDocuments()throws  -> [DocumentMetaFfi]  {
-    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_list_documents(
+open func listDeletedShelves()throws  -> [ShelfMetaFfi]  {
+    return try  FfiConverterSequenceTypeShelfMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_deleted_shelves(
             self.uniffiCloneHandle(),$0
     )
 })
 }
     
-open func listDocumentsInFolder(folderId: String?)throws  -> [DocumentMetaFfi]  {
-    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_list_documents_in_folder(
+    /**
+     * Lists metadata for every active leaf.
+     */
+open func listLeaves()throws  -> [LeafMetaFfi]  {
+    return try  FfiConverterSequenceTypeLeafMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_leaves(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func listLeavesInShelf(shelfId: String?)throws  -> [LeafMetaFfi]  {
+    return try  FfiConverterSequenceTypeLeafMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_leaves_in_shelf(
             self.uniffiCloneHandle(),
-        FfiConverterOptionString.lower(folderId),$0
-    )
-})
-}
-    
-open func listFolders()throws  -> [FolderMetaFfi]  {
-    return try  FfiConverterSequenceTypeFolderMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_list_folders(
-            self.uniffiCloneHandle(),$0
+        FfiConverterOptionString.lower(shelfId),$0
     )
 })
 }
     
     /**
-     * Lists the Notion databases reachable with the given token. Used by
+     * Lists the Notion books reachable with the given token. Used by
      * the Swift-side picker so the user never has to paste URLs.
      */
 open func listNotionDatabases(token: String)throws  -> [NotionDatabaseSummaryFfi]  {
@@ -1677,11 +1669,19 @@ open func listNotionDatabasesV2025(token: String)throws  -> [NotionDatabaseSumma
 }
     
     /**
-     * Lists root pages (documents with no parent). Drives the home view.
+     * Lists root pages (leaves with no parent). Drives the home view.
      */
-open func listRootDocuments()throws  -> [DocumentMetaFfi]  {
-    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_list_root_documents(
+open func listRootLeaves()throws  -> [LeafMetaFfi]  {
+    return try  FfiConverterSequenceTypeLeafMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_root_leaves(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func listShelves()throws  -> [ShelfMetaFfi]  {
+    return try  FfiConverterSequenceTypeShelfMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_shelves(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -1690,27 +1690,27 @@ open func listRootDocuments()throws  -> [DocumentMetaFfi]  {
     /**
      * Moves a block under a parent, or to the root when `new_parent_id` is null.
      */
-open func moveBlock(docId: String, blockId: String, newParentId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func moveBlock(leafId: String, blockId: String, newParentId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_move_block(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(docId),
+        FfiConverterString.lower(leafId),
         FfiConverterString.lower(blockId),
         FfiConverterOptionString.lower(newParentId),$0
     )
 }
 }
     
-open func moveDocumentToFolder(docId: String, folderId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_move_document_to_folder(
+open func moveLeafToShelf(leafId: String, shelfId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_move_leaf_to_shelf(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(docId),
-        FfiConverterOptionString.lower(folderId),$0
+        FfiConverterString.lower(leafId),
+        FfiConverterOptionString.lower(shelfId),$0
     )
 }
 }
     
-open func moveFolderTo(id: String, newParentId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_move_folder_to(
+open func moveShelfTo(id: String, newParentId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_move_shelf_to(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
         FfiConverterOptionString.lower(newParentId),$0
@@ -1723,31 +1723,20 @@ open func moveFolderTo(id: String, newParentId: String?)throws   {try rustCallWi
      * level, right after the former parent. `InvalidOperation` when the
      * block is already at the root.
      */
-open func outdentBlock(docId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func outdentBlock(leafId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_outdent_block(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(docId),
+        FfiConverterString.lower(leafId),
         FfiConverterString.lower(blockId),$0
     )
 }
 }
     
     /**
-     * Permanently deletes a database from the trash (hard delete).
+     * Permanently deletes a book from the trash (hard delete).
      */
-open func purgeDatabase(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_purge_database(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
-    )
-}
-}
-    
-    /**
-     * Permanently deletes a document from the trash (hard delete).
-     */
-open func purgeDocument(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_purge_document(
+open func purgeBook(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_purge_book(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
@@ -1757,20 +1746,31 @@ open func purgeDocument(id: String)throws   {try rustCallWithError(FfiConverterT
     /**
      * Permanently deletes a soft-deleted entry (hard delete).
      */
-open func purgeEntry(dbId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func purgeEntry(bookId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_purge_entry(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(entryId),$0
     )
 }
 }
     
     /**
-     * Permanently deletes a folder from the trash (hard delete).
+     * Permanently deletes a leaf from the trash (hard delete).
      */
-open func purgeFolder(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_purge_folder(
+open func purgeLeaf(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_purge_leaf(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+    /**
+     * Permanently deletes a shelf from the trash (hard delete).
+     */
+open func purgeShelf(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_purge_shelf(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
@@ -1780,11 +1780,11 @@ open func purgeFolder(id: String)throws   {try rustCallWithError(FfiConverterTyp
     /**
      * Returns the filtered/sorted entries as JSON.
      */
-open func queryDatabaseJson(dbId: String, viewId: String)throws  -> String  {
+open func queryBookJson(bookId: String, viewId: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_query_database_json(
+    uniffi_pinkha_fn_method_pinkhaapi_query_book_json(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(viewId),$0
     )
 })
@@ -1793,30 +1793,30 @@ open func queryDatabaseJson(dbId: String, viewId: String)throws  -> String  {
     /**
      * Returns the filtered/sorted entries with computed rollups as JSON.
      */
-open func queryDatabaseWithRollupsJson(dbId: String, viewId: String)throws  -> String  {
+open func queryBookWithRollupsJson(bookId: String, viewId: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_query_database_with_rollups_json(
+    uniffi_pinkha_fn_method_pinkhaapi_query_book_with_rollups_json(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(viewId),$0
     )
 })
 }
     
-open func renameFolder(id: String, newName: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_rename_folder(
+open func renameProperty(bookId: String, propertyId: String, newName: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_rename_property(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),
+        FfiConverterString.lower(bookId),
+        FfiConverterString.lower(propertyId),
         FfiConverterString.lower(newName),$0
     )
 }
 }
     
-open func renameProperty(dbId: String, propertyId: String, newName: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_rename_property(
+open func renameShelf(id: String, newName: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_rename_shelf(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
-        FfiConverterString.lower(propertyId),
+        FfiConverterString.lower(id),
         FfiConverterString.lower(newName),$0
     )
 }
@@ -1825,10 +1825,10 @@ open func renameProperty(dbId: String, propertyId: String, newName: String)throw
     /**
      * Reorders the root blocks according to the supplied UUID list.
      */
-open func reorderBlocks(docId: String, order: [String])throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func reorderBlocks(leafId: String, order: [String])throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_reorder_blocks(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(docId),
+        FfiConverterString.lower(leafId),
         FfiConverterSequenceString.lower(order),$0
     )
 }
@@ -1837,10 +1837,10 @@ open func reorderBlocks(docId: String, order: [String])throws   {try rustCallWit
     /**
      * Reorders the direct children of a parent block.
      */
-open func reorderChildBlocks(docId: String, parentId: String, order: [String])throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func reorderChildBlocks(leafId: String, parentId: String, order: [String])throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_reorder_child_blocks(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(docId),
+        FfiConverterString.lower(leafId),
         FfiConverterString.lower(parentId),
         FfiConverterSequenceString.lower(order),$0
     )
@@ -1848,10 +1848,10 @@ open func reorderChildBlocks(docId: String, parentId: String, order: [String])th
 }
     
     /**
-     * Restores a database from the trash.
+     * Restores a book from the trash.
      */
-open func restoreDatabase(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_restore_database(
+open func restoreBook(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_restore_book(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
@@ -1859,12 +1859,12 @@ open func restoreDatabase(id: String)throws   {try rustCallWithError(FfiConverte
 }
     
     /**
-     * Restores a soft-deleted database AND every document its rows are
-     * backed by. Returns the number of documents restored alongside it.
+     * Restores a soft-deleted book AND every leaf its rows are
+     * backed by. Returns the number of leaves restored alongside it.
      */
-open func restoreDatabaseCascade(id: String)throws  -> UInt32  {
+open func restoreBookCascade(id: String)throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_restore_database_cascade(
+    uniffi_pinkha_fn_method_pinkhaapi_restore_book_cascade(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
@@ -1872,10 +1872,22 @@ open func restoreDatabaseCascade(id: String)throws  -> UInt32  {
 }
     
     /**
-     * Restores a document from the trash.
+     * Restores an entry from its book's trash.
      */
-open func restoreDocument(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_restore_document(
+open func restoreEntry(bookId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_restore_entry(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(bookId),
+        FfiConverterString.lower(entryId),$0
+    )
+}
+}
+    
+    /**
+     * Restores a leaf from the trash.
+     */
+open func restoreLeaf(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_restore_leaf(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
@@ -1883,22 +1895,10 @@ open func restoreDocument(id: String)throws   {try rustCallWithError(FfiConverte
 }
     
     /**
-     * Restores an entry from its database's trash.
+     * Restores a shelf from the trash.
      */
-open func restoreEntry(dbId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_restore_entry(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
-        FfiConverterString.lower(entryId),$0
-    )
-}
-}
-    
-    /**
-     * Restores a folder from the trash.
-     */
-open func restoreFolder(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_restore_folder(
+open func restoreShelf(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_restore_shelf(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),$0
     )
@@ -1908,46 +1908,22 @@ open func restoreFolder(id: String)throws   {try rustCallWithError(FfiConverterT
     /**
      * Returns the entries matching the search query as JSON.
      */
-open func searchDatabaseEntriesJson(dbId: String, query: String)throws  -> String  {
+open func searchBookEntriesJson(bookId: String, query: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_search_database_entries_json(
+    uniffi_pinkha_fn_method_pinkhaapi_search_book_entries_json(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(query),$0
     )
 })
 }
     
     /**
-     * Search across database titles.
+     * Search across book titles.
      */
-open func searchDatabases(query: String)throws  -> [DatabaseMetaFfi]  {
-    return try  FfiConverterSequenceTypeDatabaseMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_search_databases(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(query),$0
-    )
-})
-}
-    
-    /**
-     * Case-insensitive search across document titles.
-     */
-open func searchDocuments(query: String)throws  -> [DocumentMetaFfi]  {
-    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_search_documents(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(query),$0
-    )
-})
-}
-    
-    /**
-     * Search across folder names.
-     */
-open func searchFolders(query: String)throws  -> [FolderMetaFfi]  {
-    return try  FfiConverterSequenceTypeFolderMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_search_folders(
+open func searchBooks(query: String)throws  -> [BookMetaFfi]  {
+    return try  FfiConverterSequenceTypeBookMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_search_books(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(query),$0
     )
@@ -1957,8 +1933,8 @@ open func searchFolders(query: String)throws  -> [FolderMetaFfi]  {
     /**
      * Full-text search across block content.
      */
-open func searchInBlocks(query: String)throws  -> [DocumentMetaFfi]  {
-    return try  FfiConverterSequenceTypeDocumentMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func searchInBlocks(query: String)throws  -> [LeafMetaFfi]  {
+    return try  FfiConverterSequenceTypeLeafMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_search_in_blocks(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(query),$0
@@ -1979,12 +1955,36 @@ open func searchInBlocksWithSnippets(query: String)throws  -> [BlockSearchHitFfi
 }
     
     /**
+     * Case-insensitive search across leaf titles.
+     */
+open func searchLeaves(query: String)throws  -> [LeafMetaFfi]  {
+    return try  FfiConverterSequenceTypeLeafMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_search_leaves(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(query),$0
+    )
+})
+}
+    
+    /**
+     * Search across shelf names.
+     */
+open func searchShelves(query: String)throws  -> [ShelfMetaFfi]  {
+    return try  FfiConverterSequenceTypeShelfMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_search_shelves(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(query),$0
+    )
+})
+}
+    
+    /**
      * Sets or clears the block's background color (Craft-style highlight).
      */
-open func setBlockBackgroundColor(docId: String, blockId: String, backgroundColor: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func setBlockBackgroundColor(leafId: String, blockId: String, backgroundColor: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_set_block_background_color(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(docId),
+        FfiConverterString.lower(leafId),
         FfiConverterString.lower(blockId),
         FfiConverterOptionString.lower(backgroundColor),$0
     )
@@ -1996,10 +1996,10 @@ open func setBlockBackgroundColor(docId: String, blockId: String, backgroundColo
      * (`"red"`, `"blue"`, etc.) or `null` to revert to the theme.
      * Inline colors on spans always take priority.
      */
-open func setBlockColor(docId: String, blockId: String, color: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func setBlockColor(leafId: String, blockId: String, color: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_set_block_color(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(docId),
+        FfiConverterString.lower(leafId),
         FfiConverterString.lower(blockId),
         FfiConverterOptionString.lower(color),$0
     )
@@ -2008,12 +2008,12 @@ open func setBlockColor(docId: String, blockId: String, color: String?)throws   
     
     /**
      * Sets or clears the block's writing direction ("ltr" / "rtl").
-     * `null` = inherit from the document.
+     * `null` = inherit from the leaf.
      */
-open func setBlockTextDirection(docId: String, blockId: String, textDirection: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func setBlockTextDirection(leafId: String, blockId: String, textDirection: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_set_block_text_direction(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(docId),
+        FfiConverterString.lower(leafId),
         FfiConverterString.lower(blockId),
         FfiConverterOptionString.lower(textDirection),$0
     )
@@ -2023,14 +2023,14 @@ open func setBlockTextDirection(docId: String, blockId: String, textDirection: S
     /**
      * Sets (or clears with null) the Date column that drives every
      * row's published_at. Adopting backfills all rows and their backing
-     * documents; clearing resets them to "follow created_at". Returns
+     * leaves; clearing resets them to "follow created_at". Returns
      * the number of rows whose publish date changed.
      */
-open func setPublishedAtSource(dbId: String, propertyId: String?)throws  -> UInt32  {
+open func setPublishedAtSource(bookId: String, propertyId: String?)throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_set_published_at_source(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterOptionString.lower(propertyId),$0
     )
 })
@@ -2041,10 +2041,10 @@ open func setPublishedAtSource(dbId: String, propertyId: String?)throws  -> UInt
      * `kind` = "created" or "published". No property_id (the timestamps
      * live on Entry, not on a column).
      */
-open func setViewDateSort(dbId: String, viewId: String, kind: String, ascending: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func setViewDateSort(bookId: String, viewId: String, kind: String, ascending: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_set_view_date_sort(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(viewId),
         FfiConverterString.lower(kind),
         FfiConverterBool.lower(ascending),$0
@@ -2056,10 +2056,10 @@ open func setViewDateSort(dbId: String, viewId: String, kind: String, ascending:
      * Sets a single sort on a view, replacing any existing ones.
      * `property_id = null` clears the sort.
      */
-open func setViewSort(dbId: String, viewId: String, propertyId: String?, ascending: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func setViewSort(bookId: String, viewId: String, propertyId: String?, ascending: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_set_view_sort(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(viewId),
         FfiConverterOptionString.lower(propertyId),
         FfiConverterBool.lower(ascending),$0
@@ -2069,7 +2069,7 @@ open func setViewSort(dbId: String, viewId: String, propertyId: String?, ascendi
     
     /**
      * Runs every search axis in one call (titles, block content with
-     * snippets, databases, folders) with the document axis deduplicated.
+     * snippets, books, shelves) with the leaf axis deduplicated.
      */
 open func superSearch(query: String)throws  -> SuperSearchResultsFfi  {
     return try  FfiConverterTypeSuperSearchResultsFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -2083,10 +2083,10 @@ open func superSearch(query: String)throws  -> SuperSearchResultsFfi  {
     /**
      * Replaces the content of an existing block (BlockContent JSON).
      */
-open func updateBlock(docId: String, blockId: String, contentJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func updateBlock(leafId: String, blockId: String, contentJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_block(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(docId),
+        FfiConverterString.lower(leafId),
         FfiConverterString.lower(blockId),
         FfiConverterString.lower(contentJson),$0
     )
@@ -2094,10 +2094,10 @@ open func updateBlock(docId: String, blockId: String, contentJson: String)throws
 }
     
     /**
-     * Replaces or clears the database's cover image.
+     * Replaces or clears the book's cover image.
      */
-open func updateDatabaseCover(id: String, cover: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_update_database_cover(
+open func updateBookCover(id: String, cover: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_book_cover(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
         FfiConverterOptionString.lower(cover),$0
@@ -2106,10 +2106,10 @@ open func updateDatabaseCover(id: String, cover: String?)throws   {try rustCallW
 }
     
     /**
-     * Replaces the database's rich-text description (empty string clears it).
+     * Replaces the book's rich-text description (empty string clears it).
      */
-open func updateDatabaseDescription(id: String, description: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_update_database_description(
+open func updateBookDescription(id: String, description: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_book_description(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
         FfiConverterString.lower(description),$0
@@ -2118,10 +2118,10 @@ open func updateDatabaseDescription(id: String, description: String)throws   {tr
 }
     
     /**
-     * Replaces or clears the database's icon (emoji / file / URL).
+     * Replaces or clears the book's icon (emoji / file / URL).
      */
-open func updateDatabaseIcon(id: String, icon: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_update_database_icon(
+open func updateBookIcon(id: String, icon: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_book_icon(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
         FfiConverterOptionString.lower(icon),$0
@@ -2130,10 +2130,10 @@ open func updateDatabaseIcon(id: String, icon: String?)throws   {try rustCallWit
 }
     
     /**
-     * Flips the database's read-only flag.
+     * Flips the book's read-only flag.
      */
-open func updateDatabaseLocked(id: String, locked: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_update_database_locked(
+open func updateBookLocked(id: String, locked: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_book_locked(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
         FfiConverterBool.lower(locked),$0
@@ -2142,10 +2142,10 @@ open func updateDatabaseLocked(id: String, locked: Bool)throws   {try rustCallWi
 }
     
     /**
-     * Replaces the database's rich-text title.
+     * Replaces the book's rich-text title.
      */
-open func updateDatabaseTitle(id: String, newTitle: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_update_database_title(
+open func updateBookTitle(id: String, newTitle: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_book_title(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
         FfiConverterString.lower(newTitle),$0
@@ -2153,120 +2153,10 @@ open func updateDatabaseTitle(id: String, newTitle: String)throws   {try rustCal
 }
 }
     
-    /**
-     * Sets or clears the document's accent color (per-doc override of
-     * the global accent). Color name ("red", "teal"...) or null to
-     * fall back to the Settings accent.
-     */
-open func updateDocumentAccentColor(id: String, accentColor: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_update_document_accent_color(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),
-        FfiConverterOptionString.lower(accentColor),$0
-    )
-}
-}
-    
-open func updateDocumentCover(id: String, cover: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_update_document_cover(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),
-        FfiConverterOptionString.lower(cover),$0
-    )
-}
-}
-    
-    /**
-     * Sets or clears a document's icon (emoji, local filename, or URL).
-     */
-open func updateDocumentIcon(id: String, icon: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_update_document_icon(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),
-        FfiConverterOptionString.lower(icon),$0
-    )
-}
-}
-    
-    /**
-     * Enables or disables the read-only lock on a document.
-     * Imports (Notion/Bear/Craft) automatically call this with
-     * `locked = true` at creation time.
-     */
-open func updateDocumentLocked(id: String, locked: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_update_document_locked(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),
-        FfiConverterBool.lower(locked),$0
-    )
-}
-}
-    
-    /**
-     * Sets the parent document (Notion-style nested page). `None` to
-     * promote the document back to the root. Rejects cycles.
-     */
-open func updateDocumentParent(docId: String, newParentDocId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_update_document_parent(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(docId),
-        FfiConverterOptionString.lower(newParentDocId),$0
-    )
-}
-}
-    
-    /**
-     * Overrides a document's published_at timestamp. Empty string =
-     * reset to the default (follows created_at).
-     */
-open func updateDocumentPublishedAt(id: String, newPublishedAt: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_update_document_published_at(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),
-        FfiConverterString.lower(newPublishedAt),$0
-    )
-}
-}
-    
-    /**
-     * Sets or clears the document's default writing direction.
-     * `null` = system locale. Every block can override.
-     */
-open func updateDocumentTextDirection(id: String, textDirection: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_update_document_text_direction(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),
-        FfiConverterOptionString.lower(textDirection),$0
-    )
-}
-}
-    
-    /**
-     * Sets or clears the per-document theme.
-     * `null` = inherit from AppSettings.theme.
-     */
-open func updateDocumentTheme(id: String, theme: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_update_document_theme(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),
-        FfiConverterOptionString.lower(theme),$0
-    )
-}
-}
-    
-open func updateDocumentTitle(id: String, newTitle: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_update_document_title(
-            self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),
-        FfiConverterString.lower(newTitle),$0
-    )
-}
-}
-    
-open func updateEntry(dbId: String, entryId: String, valuesJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func updateEntry(bookId: String, entryId: String, valuesJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_entry(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(entryId),
         FfiConverterString.lower(valuesJson),$0
     )
@@ -2277,18 +2167,44 @@ open func updateEntry(dbId: String, entryId: String, valuesJson: String)throws  
      * Overrides an entry's published_at timestamp.
      * Empty string = reset to the default (follows created_at).
      */
-open func updateEntryPublishedAt(dbId: String, entryId: String, newPublishedAt: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+open func updateEntryPublishedAt(bookId: String, entryId: String, newPublishedAt: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_entry_published_at(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(entryId),
         FfiConverterString.lower(newPublishedAt),$0
     )
 }
 }
     
-open func updateFolderIcon(id: String, icon: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_update_folder_icon(
+    /**
+     * Sets or clears the leaf's accent color (per-doc override of
+     * the global accent). Color name ("red", "teal"...) or null to
+     * fall back to the Settings accent.
+     */
+open func updateLeafAccentColor(id: String, accentColor: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_leaf_accent_color(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(accentColor),$0
+    )
+}
+}
+    
+open func updateLeafCover(id: String, cover: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_leaf_cover(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(cover),$0
+    )
+}
+}
+    
+    /**
+     * Sets or clears a leaf's icon (emoji, local filename, or URL).
+     */
+open func updateLeafIcon(id: String, icon: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_leaf_icon(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
         FfiConverterOptionString.lower(icon),$0
@@ -2296,10 +2212,94 @@ open func updateFolderIcon(id: String, icon: String?)throws   {try rustCallWithE
 }
 }
     
-open func updateView(dbId: String, viewId: String, filtersJson: String, sortsJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    /**
+     * Enables or disables the read-only lock on a leaf.
+     * Imports (Notion/Bear/Craft) automatically call this with
+     * `locked = true` at creation time.
+     */
+open func updateLeafLocked(id: String, locked: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_leaf_locked(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterBool.lower(locked),$0
+    )
+}
+}
+    
+    /**
+     * Sets the parent leaf (Notion-style nested page). `None` to
+     * promote the leaf back to the root. Rejects cycles.
+     */
+open func updateLeafParent(leafId: String, newParentLeafId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_leaf_parent(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(leafId),
+        FfiConverterOptionString.lower(newParentLeafId),$0
+    )
+}
+}
+    
+    /**
+     * Overrides a leaf's published_at timestamp. Empty string =
+     * reset to the default (follows created_at).
+     */
+open func updateLeafPublishedAt(id: String, newPublishedAt: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_leaf_published_at(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterString.lower(newPublishedAt),$0
+    )
+}
+}
+    
+    /**
+     * Sets or clears the leaf's default writing direction.
+     * `null` = system locale. Every block can override.
+     */
+open func updateLeafTextDirection(id: String, textDirection: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_leaf_text_direction(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(textDirection),$0
+    )
+}
+}
+    
+    /**
+     * Sets or clears the per-leaf theme.
+     * `null` = inherit from AppSettings.theme.
+     */
+open func updateLeafTheme(id: String, theme: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_leaf_theme(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(theme),$0
+    )
+}
+}
+    
+open func updateLeafTitle(id: String, newTitle: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_leaf_title(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterString.lower(newTitle),$0
+    )
+}
+}
+    
+open func updateShelfIcon(id: String, icon: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_update_shelf_icon(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(icon),$0
+    )
+}
+}
+    
+open func updateView(bookId: String, viewId: String, filtersJson: String, sortsJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_update_view(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(dbId),
+        FfiConverterString.lower(bookId),
         FfiConverterString.lower(viewId),
         FfiConverterString.lower(filtersJson),
         FfiConverterString.lower(sortsJson),$0
@@ -2356,17 +2356,17 @@ public func FfiConverterTypePinkhaApi_lower(_ value: PinkhaApi) -> UInt64 {
 
 
 /**
- * One hit from a block-content search — the document metadata plus a
+ * One hit from a block-content search — the leaf metadata plus a
  * snippet of the matching block for a Notion-style preview.
  */
 public struct BlockSearchHitFfi: Equatable, Hashable {
-    public var doc: DocumentMetaFfi
+    public var doc: LeafMetaFfi
     public var blockId: String
     public var snippet: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(doc: DocumentMetaFfi, blockId: String, snippet: String) {
+    public init(doc: LeafMetaFfi, blockId: String, snippet: String) {
         self.doc = doc
         self.blockId = blockId
         self.snippet = snippet
@@ -2388,14 +2388,14 @@ public struct FfiConverterTypeBlockSearchHitFfi: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BlockSearchHitFfi {
         return
             try BlockSearchHitFfi(
-                doc: FfiConverterTypeDocumentMetaFfi.read(from: &buf), 
+                doc: FfiConverterTypeLeafMetaFfi.read(from: &buf), 
                 blockId: FfiConverterString.read(from: &buf), 
                 snippet: FfiConverterString.read(from: &buf)
         )
     }
 
     public static func write(_ value: BlockSearchHitFfi, into buf: inout [UInt8]) {
-        FfiConverterTypeDocumentMetaFfi.write(value.doc, into: &buf)
+        FfiConverterTypeLeafMetaFfi.write(value.doc, into: &buf)
         FfiConverterString.write(value.blockId, into: &buf)
         FfiConverterString.write(value.snippet, into: &buf)
     }
@@ -2418,9 +2418,9 @@ public func FfiConverterTypeBlockSearchHitFfi_lower(_ value: BlockSearchHitFfi) 
 
 
 /**
- * Lightweight database metadata (no entries).
+ * Lightweight book metadata (no entries).
  */
-public struct DatabaseMetaFfi: Equatable, Hashable {
+public struct BookMetaFfi: Equatable, Hashable {
     public var id: String
     public var titlePlain: String
     public var titleJson: String
@@ -2447,16 +2447,16 @@ public struct DatabaseMetaFfi: Equatable, Hashable {
 }
 
 #if compiler(>=6)
-extension DatabaseMetaFfi: Sendable {}
+extension BookMetaFfi: Sendable {}
 #endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeDatabaseMetaFfi: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DatabaseMetaFfi {
+public struct FfiConverterTypeBookMetaFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BookMetaFfi {
         return
-            try DatabaseMetaFfi(
+            try BookMetaFfi(
                 id: FfiConverterString.read(from: &buf), 
                 titlePlain: FfiConverterString.read(from: &buf), 
                 titleJson: FfiConverterString.read(from: &buf), 
@@ -2467,7 +2467,7 @@ public struct FfiConverterTypeDatabaseMetaFfi: FfiConverterRustBuffer {
         )
     }
 
-    public static func write(_ value: DatabaseMetaFfi, into buf: inout [UInt8]) {
+    public static func write(_ value: BookMetaFfi, into buf: inout [UInt8]) {
         FfiConverterString.write(value.id, into: &buf)
         FfiConverterString.write(value.titlePlain, into: &buf)
         FfiConverterString.write(value.titleJson, into: &buf)
@@ -2482,177 +2482,15 @@ public struct FfiConverterTypeDatabaseMetaFfi: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeDatabaseMetaFfi_lift(_ buf: RustBuffer) throws -> DatabaseMetaFfi {
-    return try FfiConverterTypeDatabaseMetaFfi.lift(buf)
+public func FfiConverterTypeBookMetaFfi_lift(_ buf: RustBuffer) throws -> BookMetaFfi {
+    return try FfiConverterTypeBookMetaFfi.lift(buf)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeDatabaseMetaFfi_lower(_ value: DatabaseMetaFfi) -> RustBuffer {
-    return FfiConverterTypeDatabaseMetaFfi.lower(value)
-}
-
-
-/**
- * Lightweight document metadata (no blocks).
- */
-public struct DocumentMetaFfi: Equatable, Hashable {
-    public var id: String
-    public var titlePlain: String
-    public var titleJson: String
-    public var cover: String?
-    public var updatedAt: String
-    public var createdAt: String
-    public var publishedAt: String
-    public var folderId: String?
-    public var parentDocId: String?
-    public var icon: String?
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(id: String, titlePlain: String, titleJson: String, cover: String?, updatedAt: String, createdAt: String, publishedAt: String, folderId: String?, parentDocId: String?, icon: String?) {
-        self.id = id
-        self.titlePlain = titlePlain
-        self.titleJson = titleJson
-        self.cover = cover
-        self.updatedAt = updatedAt
-        self.createdAt = createdAt
-        self.publishedAt = publishedAt
-        self.folderId = folderId
-        self.parentDocId = parentDocId
-        self.icon = icon
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension DocumentMetaFfi: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeDocumentMetaFfi: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocumentMetaFfi {
-        return
-            try DocumentMetaFfi(
-                id: FfiConverterString.read(from: &buf), 
-                titlePlain: FfiConverterString.read(from: &buf), 
-                titleJson: FfiConverterString.read(from: &buf), 
-                cover: FfiConverterOptionString.read(from: &buf), 
-                updatedAt: FfiConverterString.read(from: &buf), 
-                createdAt: FfiConverterString.read(from: &buf), 
-                publishedAt: FfiConverterString.read(from: &buf), 
-                folderId: FfiConverterOptionString.read(from: &buf), 
-                parentDocId: FfiConverterOptionString.read(from: &buf), 
-                icon: FfiConverterOptionString.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: DocumentMetaFfi, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.id, into: &buf)
-        FfiConverterString.write(value.titlePlain, into: &buf)
-        FfiConverterString.write(value.titleJson, into: &buf)
-        FfiConverterOptionString.write(value.cover, into: &buf)
-        FfiConverterString.write(value.updatedAt, into: &buf)
-        FfiConverterString.write(value.createdAt, into: &buf)
-        FfiConverterString.write(value.publishedAt, into: &buf)
-        FfiConverterOptionString.write(value.folderId, into: &buf)
-        FfiConverterOptionString.write(value.parentDocId, into: &buf)
-        FfiConverterOptionString.write(value.icon, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeDocumentMetaFfi_lift(_ buf: RustBuffer) throws -> DocumentMetaFfi {
-    return try FfiConverterTypeDocumentMetaFfi.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeDocumentMetaFfi_lower(_ value: DocumentMetaFfi) -> RustBuffer {
-    return FfiConverterTypeDocumentMetaFfi.lower(value)
-}
-
-
-/**
- * Lightweight folder metadata.
- */
-public struct FolderMetaFfi: Equatable, Hashable {
-    public var id: String
-    public var name: String
-    public var parentId: String?
-    public var createdAt: String
-    public var updatedAt: String
-    public var icon: String?
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(id: String, name: String, parentId: String?, createdAt: String, updatedAt: String, icon: String?) {
-        self.id = id
-        self.name = name
-        self.parentId = parentId
-        self.createdAt = createdAt
-        self.updatedAt = updatedAt
-        self.icon = icon
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension FolderMetaFfi: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeFolderMetaFfi: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FolderMetaFfi {
-        return
-            try FolderMetaFfi(
-                id: FfiConverterString.read(from: &buf), 
-                name: FfiConverterString.read(from: &buf), 
-                parentId: FfiConverterOptionString.read(from: &buf), 
-                createdAt: FfiConverterString.read(from: &buf), 
-                updatedAt: FfiConverterString.read(from: &buf), 
-                icon: FfiConverterOptionString.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: FolderMetaFfi, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.id, into: &buf)
-        FfiConverterString.write(value.name, into: &buf)
-        FfiConverterOptionString.write(value.parentId, into: &buf)
-        FfiConverterString.write(value.createdAt, into: &buf)
-        FfiConverterString.write(value.updatedAt, into: &buf)
-        FfiConverterOptionString.write(value.icon, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeFolderMetaFfi_lift(_ buf: RustBuffer) throws -> FolderMetaFfi {
-    return try FfiConverterTypeFolderMetaFfi.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeFolderMetaFfi_lower(_ value: FolderMetaFfi) -> RustBuffer {
-    return FfiConverterTypeFolderMetaFfi.lower(value)
+public func FfiConverterTypeBookMetaFfi_lower(_ value: BookMetaFfi) -> RustBuffer {
+    return FfiConverterTypeBookMetaFfi.lower(value)
 }
 
 
@@ -2661,8 +2499,8 @@ public func FfiConverterTypeFolderMetaFfi_lower(_ value: FolderMetaFfi) -> RustB
  */
 public struct ImportResultFfi: Equatable, Hashable {
     public var app: String
-    public var databaseId: String
-    public var documents: UInt32
+    public var bookId: String
+    public var leaves: UInt32
     public var entries: UInt32
     public var blocks: UInt32
     public var skipped: UInt32
@@ -2681,7 +2519,7 @@ public struct ImportResultFfi: Equatable, Hashable {
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(app: String, databaseId: String, documents: UInt32, entries: UInt32, blocks: UInt32, skipped: UInt32, 
+    public init(app: String, bookId: String, leaves: UInt32, entries: UInt32, blocks: UInt32, skipped: UInt32, 
         /**
          * Combined importer only: pages imported via textbundle content (0 otherwise).
          */matchedTextbundle: UInt32, 
@@ -2692,8 +2530,8 @@ public struct ImportResultFfi: Equatable, Hashable {
          * Combined importer only: textbundles with no matching realm page (0 otherwise).
          */textbundleOnly: UInt32) {
         self.app = app
-        self.databaseId = databaseId
-        self.documents = documents
+        self.bookId = bookId
+        self.leaves = leaves
         self.entries = entries
         self.blocks = blocks
         self.skipped = skipped
@@ -2719,8 +2557,8 @@ public struct FfiConverterTypeImportResultFfi: FfiConverterRustBuffer {
         return
             try ImportResultFfi(
                 app: FfiConverterString.read(from: &buf), 
-                databaseId: FfiConverterString.read(from: &buf), 
-                documents: FfiConverterUInt32.read(from: &buf), 
+                bookId: FfiConverterString.read(from: &buf), 
+                leaves: FfiConverterUInt32.read(from: &buf), 
                 entries: FfiConverterUInt32.read(from: &buf), 
                 blocks: FfiConverterUInt32.read(from: &buf), 
                 skipped: FfiConverterUInt32.read(from: &buf), 
@@ -2732,8 +2570,8 @@ public struct FfiConverterTypeImportResultFfi: FfiConverterRustBuffer {
 
     public static func write(_ value: ImportResultFfi, into buf: inout [UInt8]) {
         FfiConverterString.write(value.app, into: &buf)
-        FfiConverterString.write(value.databaseId, into: &buf)
-        FfiConverterUInt32.write(value.documents, into: &buf)
+        FfiConverterString.write(value.bookId, into: &buf)
+        FfiConverterUInt32.write(value.leaves, into: &buf)
         FfiConverterUInt32.write(value.entries, into: &buf)
         FfiConverterUInt32.write(value.blocks, into: &buf)
         FfiConverterUInt32.write(value.skipped, into: &buf)
@@ -2760,7 +2598,96 @@ public func FfiConverterTypeImportResultFfi_lower(_ value: ImportResultFfi) -> R
 
 
 /**
- * Summary of a Notion database returned by `list_notion_databases` for
+ * Lightweight leaf metadata (no blocks).
+ */
+public struct LeafMetaFfi: Equatable, Hashable {
+    public var id: String
+    public var titlePlain: String
+    public var titleJson: String
+    public var cover: String?
+    public var updatedAt: String
+    public var createdAt: String
+    public var publishedAt: String
+    public var shelfId: String?
+    public var parentLeafId: String?
+    public var icon: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, titlePlain: String, titleJson: String, cover: String?, updatedAt: String, createdAt: String, publishedAt: String, shelfId: String?, parentLeafId: String?, icon: String?) {
+        self.id = id
+        self.titlePlain = titlePlain
+        self.titleJson = titleJson
+        self.cover = cover
+        self.updatedAt = updatedAt
+        self.createdAt = createdAt
+        self.publishedAt = publishedAt
+        self.shelfId = shelfId
+        self.parentLeafId = parentLeafId
+        self.icon = icon
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LeafMetaFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLeafMetaFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LeafMetaFfi {
+        return
+            try LeafMetaFfi(
+                id: FfiConverterString.read(from: &buf), 
+                titlePlain: FfiConverterString.read(from: &buf), 
+                titleJson: FfiConverterString.read(from: &buf), 
+                cover: FfiConverterOptionString.read(from: &buf), 
+                updatedAt: FfiConverterString.read(from: &buf), 
+                createdAt: FfiConverterString.read(from: &buf), 
+                publishedAt: FfiConverterString.read(from: &buf), 
+                shelfId: FfiConverterOptionString.read(from: &buf), 
+                parentLeafId: FfiConverterOptionString.read(from: &buf), 
+                icon: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LeafMetaFfi, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.titlePlain, into: &buf)
+        FfiConverterString.write(value.titleJson, into: &buf)
+        FfiConverterOptionString.write(value.cover, into: &buf)
+        FfiConverterString.write(value.updatedAt, into: &buf)
+        FfiConverterString.write(value.createdAt, into: &buf)
+        FfiConverterString.write(value.publishedAt, into: &buf)
+        FfiConverterOptionString.write(value.shelfId, into: &buf)
+        FfiConverterOptionString.write(value.parentLeafId, into: &buf)
+        FfiConverterOptionString.write(value.icon, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLeafMetaFfi_lift(_ buf: RustBuffer) throws -> LeafMetaFfi {
+    return try FfiConverterTypeLeafMetaFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLeafMetaFfi_lower(_ value: LeafMetaFfi) -> RustBuffer {
+    return FfiConverterTypeLeafMetaFfi.lower(value)
+}
+
+
+/**
+ * Summary of a Notion book returned by `list_notion_databases` for
  * the picker UI.
  */
 public struct NotionDatabaseSummaryFfi: Equatable, Hashable {
@@ -2826,22 +2753,95 @@ public func FfiConverterTypeNotionDatabaseSummaryFfi_lower(_ value: NotionDataba
 
 
 /**
- * Bundle of search results across every workspace surface, returned by
- * `super_search`. Empty arrays mean "no match in that category".
+ * Lightweight shelf metadata.
  */
-public struct SuperSearchResultsFfi: Equatable, Hashable {
-    public var documentsByTitle: [DocumentMetaFfi]
-    public var documentsByContent: [BlockSearchHitFfi]
-    public var databases: [DatabaseMetaFfi]
-    public var folders: [FolderMetaFfi]
+public struct ShelfMetaFfi: Equatable, Hashable {
+    public var id: String
+    public var name: String
+    public var parentId: String?
+    public var createdAt: String
+    public var updatedAt: String
+    public var icon: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(documentsByTitle: [DocumentMetaFfi], documentsByContent: [BlockSearchHitFfi], databases: [DatabaseMetaFfi], folders: [FolderMetaFfi]) {
-        self.documentsByTitle = documentsByTitle
-        self.documentsByContent = documentsByContent
-        self.databases = databases
-        self.folders = folders
+    public init(id: String, name: String, parentId: String?, createdAt: String, updatedAt: String, icon: String?) {
+        self.id = id
+        self.name = name
+        self.parentId = parentId
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.icon = icon
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ShelfMetaFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeShelfMetaFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ShelfMetaFfi {
+        return
+            try ShelfMetaFfi(
+                id: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                parentId: FfiConverterOptionString.read(from: &buf), 
+                createdAt: FfiConverterString.read(from: &buf), 
+                updatedAt: FfiConverterString.read(from: &buf), 
+                icon: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ShelfMetaFfi, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterOptionString.write(value.parentId, into: &buf)
+        FfiConverterString.write(value.createdAt, into: &buf)
+        FfiConverterString.write(value.updatedAt, into: &buf)
+        FfiConverterOptionString.write(value.icon, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShelfMetaFfi_lift(_ buf: RustBuffer) throws -> ShelfMetaFfi {
+    return try FfiConverterTypeShelfMetaFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShelfMetaFfi_lower(_ value: ShelfMetaFfi) -> RustBuffer {
+    return FfiConverterTypeShelfMetaFfi.lower(value)
+}
+
+
+/**
+ * Bundle of search results across every library surface, returned by
+ * `super_search`. Empty arrays mean "no match in that category".
+ */
+public struct SuperSearchResultsFfi: Equatable, Hashable {
+    public var leavesByTitle: [LeafMetaFfi]
+    public var leavesByContent: [BlockSearchHitFfi]
+    public var books: [BookMetaFfi]
+    public var shelves: [ShelfMetaFfi]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(leavesByTitle: [LeafMetaFfi], leavesByContent: [BlockSearchHitFfi], books: [BookMetaFfi], shelves: [ShelfMetaFfi]) {
+        self.leavesByTitle = leavesByTitle
+        self.leavesByContent = leavesByContent
+        self.books = books
+        self.shelves = shelves
     }
 
     
@@ -2860,18 +2860,18 @@ public struct FfiConverterTypeSuperSearchResultsFfi: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SuperSearchResultsFfi {
         return
             try SuperSearchResultsFfi(
-                documentsByTitle: FfiConverterSequenceTypeDocumentMetaFfi.read(from: &buf), 
-                documentsByContent: FfiConverterSequenceTypeBlockSearchHitFfi.read(from: &buf), 
-                databases: FfiConverterSequenceTypeDatabaseMetaFfi.read(from: &buf), 
-                folders: FfiConverterSequenceTypeFolderMetaFfi.read(from: &buf)
+                leavesByTitle: FfiConverterSequenceTypeLeafMetaFfi.read(from: &buf), 
+                leavesByContent: FfiConverterSequenceTypeBlockSearchHitFfi.read(from: &buf), 
+                books: FfiConverterSequenceTypeBookMetaFfi.read(from: &buf), 
+                shelves: FfiConverterSequenceTypeShelfMetaFfi.read(from: &buf)
         )
     }
 
     public static func write(_ value: SuperSearchResultsFfi, into buf: inout [UInt8]) {
-        FfiConverterSequenceTypeDocumentMetaFfi.write(value.documentsByTitle, into: &buf)
-        FfiConverterSequenceTypeBlockSearchHitFfi.write(value.documentsByContent, into: &buf)
-        FfiConverterSequenceTypeDatabaseMetaFfi.write(value.databases, into: &buf)
-        FfiConverterSequenceTypeFolderMetaFfi.write(value.folders, into: &buf)
+        FfiConverterSequenceTypeLeafMetaFfi.write(value.leavesByTitle, into: &buf)
+        FfiConverterSequenceTypeBlockSearchHitFfi.write(value.leavesByContent, into: &buf)
+        FfiConverterSequenceTypeBookMetaFfi.write(value.books, into: &buf)
+        FfiConverterSequenceTypeShelfMetaFfi.write(value.shelves, into: &buf)
     }
 }
 
@@ -3061,23 +3061,23 @@ fileprivate struct FfiConverterSequenceTypeBlockSearchHitFfi: FfiConverterRustBu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterSequenceTypeDatabaseMetaFfi: FfiConverterRustBuffer {
-    typealias SwiftType = [DatabaseMetaFfi]
+fileprivate struct FfiConverterSequenceTypeBookMetaFfi: FfiConverterRustBuffer {
+    typealias SwiftType = [BookMetaFfi]
 
-    public static func write(_ value: [DatabaseMetaFfi], into buf: inout [UInt8]) {
+    public static func write(_ value: [BookMetaFfi], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
         for item in value {
-            FfiConverterTypeDatabaseMetaFfi.write(item, into: &buf)
+            FfiConverterTypeBookMetaFfi.write(item, into: &buf)
         }
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DatabaseMetaFfi] {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BookMetaFfi] {
         let len: Int32 = try readInt(&buf)
-        var seq = [DatabaseMetaFfi]()
+        var seq = [BookMetaFfi]()
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeDatabaseMetaFfi.read(from: &buf))
+            seq.append(try FfiConverterTypeBookMetaFfi.read(from: &buf))
         }
         return seq
     }
@@ -3086,48 +3086,23 @@ fileprivate struct FfiConverterSequenceTypeDatabaseMetaFfi: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterSequenceTypeDocumentMetaFfi: FfiConverterRustBuffer {
-    typealias SwiftType = [DocumentMetaFfi]
+fileprivate struct FfiConverterSequenceTypeLeafMetaFfi: FfiConverterRustBuffer {
+    typealias SwiftType = [LeafMetaFfi]
 
-    public static func write(_ value: [DocumentMetaFfi], into buf: inout [UInt8]) {
+    public static func write(_ value: [LeafMetaFfi], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
         for item in value {
-            FfiConverterTypeDocumentMetaFfi.write(item, into: &buf)
+            FfiConverterTypeLeafMetaFfi.write(item, into: &buf)
         }
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DocumentMetaFfi] {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LeafMetaFfi] {
         let len: Int32 = try readInt(&buf)
-        var seq = [DocumentMetaFfi]()
+        var seq = [LeafMetaFfi]()
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeDocumentMetaFfi.read(from: &buf))
-        }
-        return seq
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterSequenceTypeFolderMetaFfi: FfiConverterRustBuffer {
-    typealias SwiftType = [FolderMetaFfi]
-
-    public static func write(_ value: [FolderMetaFfi], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeFolderMetaFfi.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FolderMetaFfi] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [FolderMetaFfi]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeFolderMetaFfi.read(from: &buf))
+            seq.append(try FfiConverterTypeLeafMetaFfi.read(from: &buf))
         }
         return seq
     }
@@ -3153,6 +3128,31 @@ fileprivate struct FfiConverterSequenceTypeNotionDatabaseSummaryFfi: FfiConverte
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeNotionDatabaseSummaryFfi.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeShelfMetaFfi: FfiConverterRustBuffer {
+    typealias SwiftType = [ShelfMetaFfi]
+
+    public static func write(_ value: [ShelfMetaFfi], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeShelfMetaFfi.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ShelfMetaFfi] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ShelfMetaFfi]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeShelfMetaFfi.read(from: &buf))
         }
         return seq
     }
@@ -3221,94 +3221,94 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_add_block() != 50968) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_add_block() != 17705) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_add_child_block() != 20377) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_add_child_block() != 30487) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_add_entry() != 43529) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_add_entry() != 56603) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_add_property() != 52071) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_add_property() != 40898) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_add_view() != 30183) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_add_view() != 27188) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_attach_document_to_database() != 39592) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_attach_leaf_to_book() != 4008) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_cancel_import() != 54498) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_column_aggregate_database_json() != 24533) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_column_aggregate_book_json() != 5376) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_create_database() != 62218) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_create_book() != 5578) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_create_document() != 6653) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_create_leaf() != 29933) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_create_document_in_database() != 54278) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_create_leaf_in_book() != 49773) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_create_folder() != 49423) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_create_shelf() != 54532) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_databases() != 61257) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_books() != 63564) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_documents() != 3995) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_leaves() != 22441) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_folders() != 2097) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_shelves() != 22621) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_block() != 14109) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_block() != 56812) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_database() != 12776) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_book() != 65232) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_database_cascade() != 39766) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_book_cascade() != 37741) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_document() != 39039) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_entry() != 30657) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_entry() != 44863) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_leaf() != 1699) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_folder() != 31554) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_property() != 46469) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_property() != 45324) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_shelf() != 57679) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_view() != 42172) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_view() != 33860) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_duplicate_block() != 40850) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_duplicate_block() != 16574) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_empty_trash() != 53275) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_get_database_json() != 53195) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_get_book_json() != 33136) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_get_document_json() != 23306) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_get_leaf_json() != 3641) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_get_document_meta() != 61299) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_get_leaf_meta() != 26256) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_get_folder() != 38177) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_get_shelf() != 26827) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_grouped_query_database_json() != 2473) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_grouped_query_book_json() != 9171) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_bear() != 65442) {
@@ -3323,40 +3323,37 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_craft_textbundle() != 42783) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion() != 18771) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion() != 10185) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_indent_block() != 34803) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_indent_block() != 18250) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_child_documents() != 23819) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_books() != 49165) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_child_folders() != 35721) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_child_leaves() != 33811) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_databases() != 58802) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_child_shelves() != 10879) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_databases() != 23880) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_books() != 20973) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_documents() != 36222) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_entries_json() != 36939) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_entries_json() != 45731) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_leaves() != 14453) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_folders() != 33419) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_shelves() != 41889) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_documents() != 62408) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_leaves() != 36463) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_documents_in_folder() != 8688) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_folders() != 40736) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_leaves_in_shelf() != 56139) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases() != 31016) {
@@ -3365,160 +3362,163 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases_v2025() != 45793) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_root_documents() != 63012) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_root_leaves() != 63016) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_move_block() != 56333) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_shelves() != 41346) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_move_document_to_folder() != 22257) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_move_block() != 25411) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_move_folder_to() != 28416) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_move_leaf_to_shelf() != 53668) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_outdent_block() != 55400) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_move_shelf_to() != 41134) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_database() != 13513) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_outdent_block() != 58366) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_document() != 62109) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_book() != 28814) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_entry() != 63480) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_entry() != 1272) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_folder() != 8367) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_leaf() != 37630) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_query_database_json() != 4012) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_shelf() != 47728) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_query_database_with_rollups_json() != 38250) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_query_book_json() != 10776) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_rename_folder() != 49667) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_query_book_with_rollups_json() != 46582) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_rename_property() != 36506) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_rename_property() != 44071) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_reorder_blocks() != 14489) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_rename_shelf() != 43187) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_reorder_child_blocks() != 60852) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_reorder_blocks() != 50925) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_database() != 9191) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_reorder_child_blocks() != 53714) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_database_cascade() != 31844) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_book() != 13460) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_document() != 33151) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_book_cascade() != 16551) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_entry() != 19357) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_entry() != 41177) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_folder() != 11915) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_leaf() != 48720) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_search_database_entries_json() != 53101) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_shelf() != 11802) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_search_databases() != 59051) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_book_entries_json() != 37409) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_search_documents() != 4353) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_books() != 36834) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_search_folders() != 50429) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks() != 65038) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks() != 7835) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks_with_snippets() != 57833) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_background_color() != 3931) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_leaves() != 1587) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_color() != 56489) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_shelves() != 28852) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_text_direction() != 63451) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_background_color() != 42996) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_set_published_at_source() != 27495) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_color() != 58506) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_date_sort() != 784) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_text_direction() != 61302) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_sort() != 45579) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_published_at_source() != 52307) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_date_sort() != 19614) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_sort() != 19242) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_super_search() != 47711) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_block() != 49420) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_block() != 56777) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_database_cover() != 15810) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_book_cover() != 24858) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_database_description() != 59844) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_book_description() != 14821) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_database_icon() != 46833) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_book_icon() != 62843) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_database_locked() != 2347) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_book_locked() != 7875) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_database_title() != 8063) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_book_title() != 13197) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_accent_color() != 46266) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_entry() != 8405) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_cover() != 31520) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_entry_published_at() != 47774) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_icon() != 32890) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_accent_color() != 46091) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_locked() != 6614) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_cover() != 5054) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_parent() != 28850) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_icon() != 14875) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_published_at() != 4051) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_locked() != 16587) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_text_direction() != 9380) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_parent() != 10650) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_theme() != 4251) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_published_at() != 25203) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_document_title() != 35631) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_text_direction() != 8415) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_entry() != 34034) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_theme() != 65452) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_entry_published_at() != 24453) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_title() != 12197) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_folder_icon() != 31954) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_shelf_icon() != 30754) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_view() != 6165) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_view() != 24922) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_constructor_pinkhaapi_new() != 22429) {

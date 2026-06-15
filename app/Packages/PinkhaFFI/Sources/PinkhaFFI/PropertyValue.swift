@@ -78,8 +78,8 @@ public enum PropertyValueFfi: Codable, Equatable {
     }
 }
 
-/// A database row. Mirrors Rust `Entry`.
+/// A book row. Mirrors Rust `Entry`.
 ///
-/// `documentId` is set for rows imported from Notion / Craft (where every page
-/// becomes both a Document and a row). When set, renaming the row via the FFI
+/// `leafId` is set for rows imported from Notion / Craft (where every page
+/// becomes both a Leaf and a row). When set, renaming the row via the FFI
 /// `updateEntry` call propagates the new title to the underlying note. `nil`
