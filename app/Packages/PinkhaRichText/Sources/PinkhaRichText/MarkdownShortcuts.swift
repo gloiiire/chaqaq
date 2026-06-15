@@ -15,7 +15,7 @@ import PinkhaFFI
 /// shortcut and produces a `.divider` with no carry-over content.
 ///
 /// Pure function — independently testable without a UI layer.
-func markdownShortcut(for text: String) -> BlockContentFfi? {
+public func markdownShortcut(for text: String) -> BlockContentFfi? {
     // Whole-line shortcuts (no trailing content)
     if text == "---" { return .divider }
 
@@ -46,7 +46,7 @@ func markdownShortcut(for text: String) -> BlockContentFfi? {
 /// single plain span. The editor calls this from `textViewDidChange`
 /// with the just-extracted `attributedToSpans(...)` so a conversion
 /// like `# **Hello**` → H1 with the bold preserved.
-func markdownShortcut(for text: String,
+public func markdownShortcut(for text: String,
                       spans: [InlineTextFfi]) -> BlockContentFfi? {
     if text == "---" { return .divider }
 
@@ -69,7 +69,7 @@ func markdownShortcut(for text: String,
 /// Drops the first `count` characters from a span sequence while
 /// preserving the styles of any partially-cut span. Unicode-safe
 /// (uses `String.Index` arithmetic, not byte offsets).
-func stripLeadingChars(_ count: Int,
+public func stripLeadingChars(_ count: Int,
                        from spans: [InlineTextFfi]) -> [InlineTextFfi] {
     var remaining = count
     var result: [InlineTextFfi] = []

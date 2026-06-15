@@ -1,4 +1,5 @@
 import Testing
+import PinkhaRichText
 @testable import Pinkha
 
 @Suite("markdownShortcut — Notion shortcut conversion")

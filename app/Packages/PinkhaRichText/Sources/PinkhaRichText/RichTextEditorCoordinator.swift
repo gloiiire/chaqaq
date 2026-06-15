@@ -7,7 +7,7 @@ import PinkhaCore
 
 /// Coordinator for `RichTextEditor`: UITextView delegate + pill toolbar manager.
 /// Defined at module level to allow extensions in separate files.
-final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate {
+public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate {
 
     var parent: RichTextEditor
     weak var tv: ExpandingTextView?
@@ -110,7 +110,7 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
         parent.onLongPressSelection?()
     }
 
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
                            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
         true
     }
@@ -124,7 +124,7 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
 
     // ── UITextViewDelegate ────────────────────────────────────────────────────
 
-    func textViewDidBeginEditing(_ tv: UITextView) {
+    public func textViewDidBeginEditing(_ tv: UITextView) {
         isEditing = true
         parent.isFocused = true
         rememberSelection(tv.selectedRange, length: tv.attributedText.length)
@@ -144,7 +144,7 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
         updateToolbar()
     }
 
-    func textViewDidChangeSelection(_ tv: UITextView) {
+    public func textViewDidChangeSelection(_ tv: UITextView) {
         let selection = normalizedSelection(tv.selectedRange, length: tv.attributedText.length)
         if selection.length > 0 {
             rememberSelection(selection, length: tv.attributedText.length)
@@ -161,7 +161,7 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
         setToolbarHidden(false)
     }
 
-    func textView(_ tv: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+    public func textView(_ tv: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
         // Backspace on an empty block → delete the block
         if text.isEmpty, range == NSRange(location: 0, length: 0), tv.text.isEmpty {
             isDeleting = true
@@ -210,7 +210,7 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
         return true
     }
 
-    func textViewDidEndEditing(_ tv: UITextView) {
+    public func textViewDidEndEditing(_ tv: UITextView) {
         isEditing = false
         parent.isFocused = false
         guard !isDeleting else { return }
@@ -234,7 +234,7 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
     /// Returns `false` to suppress UIKit's default behaviour (opening the
     /// URL externally) when the scheme is `pinkha://` — we hand the path off
     /// to the SwiftUI parent, which navigates to the matching document.
-    func textView(_ tv: UITextView,
+    public func textView(_ tv: UITextView,
                   shouldInteractWith url: URL,
                   in characterRange: NSRange,
                   interaction: UITextItemInteraction) -> Bool {
@@ -256,7 +256,7 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
     /// enumeration crashes with `NSRangeException` on certain attributed
     /// strings (Sentry APPLE-IOS-9). Returning `nil` here skips the
     /// menu altogether.
-    func textView(_ textView: UITextView,
+    public func textView(_ textView: UITextView,
                   menuConfigurationFor textItem: UITextItem,
                   defaultMenu: UIMenu) -> UITextItem.MenuConfiguration? {
         return nil
@@ -269,7 +269,7 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
     ///   - any other URL → `UIApplication.shared.open` (Safari)
     /// Non-link text items (data detectors, etc.) keep their
     /// default action.
-    func textView(_ textView: UITextView,
+    public func textView(_ textView: UITextView,
                   primaryActionFor textItem: UITextItem,
                   defaultAction: UIAction) -> UIAction? {
         if case .link(let url) = textItem.content {
@@ -287,7 +287,7 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
         return defaultAction
     }
 
-    func textViewDidChange(_ tv: UITextView) {
+    public func textViewDidChange(_ tv: UITextView) {
         let text = tv.text ?? ""
 
         // Extract styled spans up front so the shortcut path can keep

@@ -368,7 +368,7 @@ extension RichTextEditorCoordinator {
 /// hits, so a tap on the bar would otherwise fall through to the
 /// editor underneath.
 final class OverflowingAccessoryContainer: UIView {
-    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+    public override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
         if super.point(inside: point, with: event) { return true }
         for sub in subviews where !sub.isHidden && sub.alpha > 0 {
             if sub.frame.contains(point) { return true }

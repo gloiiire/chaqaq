@@ -1,5 +1,6 @@
 import SwiftUI
 import PinkhaCore
+import PinkhaRichText
 
 // ── Document title ────────────────────────────────────────────────────────────
 

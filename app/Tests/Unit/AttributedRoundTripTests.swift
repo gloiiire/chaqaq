@@ -1,6 +1,7 @@
 import Testing
 import UIKit
 import PinkhaFFI
+import PinkhaRichText
 @testable import Pinkha
 
 // The spans ↔ NSAttributedString round-trip is the heart of rich text:

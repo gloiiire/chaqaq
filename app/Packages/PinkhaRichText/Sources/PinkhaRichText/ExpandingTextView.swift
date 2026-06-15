@@ -9,7 +9,7 @@ import UIKit
 final class MenuButton: UIButton {
     var onMenuWillEnd: (() -> Void)?
 
-    override func contextMenuInteraction(
+    public override func contextMenuInteraction(
         _ interaction: UIContextMenuInteraction,
         willEndFor configuration: UIContextMenuConfiguration,
         animator: (any UIContextMenuInteractionAnimating)?
@@ -23,7 +23,7 @@ final class MenuButton: UIButton {
 
 /// `UITextView` subclass that resizes vertically and intercepts hardware keyboard shortcuts
 /// for Shift+Enter, bold/italic/underline toggles, and inter-block navigation.
-final class ExpandingTextView: UITextView {
+public final class ExpandingTextView: UITextView {
     var onShiftEnter: (() -> Void)?
     var onToggleBold: (() -> Void)?
     var onToggleItalic: (() -> Void)?
@@ -32,7 +32,7 @@ final class ExpandingTextView: UITextView {
     var onNavigateNext: (() -> Void)?
     var onStopNavigationRepeat: (() -> Void)?
 
-    override var keyCommands: [UIKeyCommand]? {
+    public override var keyCommands: [UIKeyCommand]? {
         let cmd = UIKeyCommand(input: "\r", modifierFlags: .shift, action: #selector(handleShiftEnter))
         // Target is iOS 26, so the iOS 15+ availability guard around
         // `wantsPriorityOverSystemBehavior` is dead code — set it directly.
@@ -42,27 +42,27 @@ final class ExpandingTextView: UITextView {
 
     @objc private func handleShiftEnter() { onShiftEnter?() }
 
-    override func toggleBoldface(_ sender: Any?) { onToggleBold?() }
-    override func toggleItalics(_ sender: Any?) { onToggleItalic?() }
-    override func toggleUnderline(_ sender: Any?) { onToggleUnderline?() }
+    public override func toggleBoldface(_ sender: Any?) { onToggleBold?() }
+    public override func toggleItalics(_ sender: Any?) { onToggleItalic?() }
+    public override func toggleUnderline(_ sender: Any?) { onToggleUnderline?() }
 
-    override var intrinsicContentSize: CGSize {
+    public override var intrinsicContentSize: CGSize {
         let w = bounds.width > 0 ? bounds.width : (window?.screen.bounds.width ?? 390)
         let h = sizeThatFits(CGSize(width: w, height: .greatestFiniteMagnitude)).height
         return CGSize(width: UIView.noIntrinsicMetric, height: max(h, font?.lineHeight ?? 20))
     }
 
-    override func layoutSubviews() {
+    public override func layoutSubviews() {
         super.layoutSubviews()
         invalidateIntrinsicContentSize()
     }
 
-    override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+    public override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         let unhandled = handleArrows(presses)
         if !unhandled.isEmpty { super.pressesBegan(unhandled, with: event) }
     }
 
-    override func pressesChanged(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+    public override func pressesChanged(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         let unhandled = handleArrows(presses)
         if !unhandled.isEmpty { super.pressesChanged(unhandled, with: event) }
     }
@@ -89,7 +89,7 @@ final class ExpandingTextView: UITextView {
         return unhandled
     }
 
-    override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+    public override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         for press in presses {
             switch press.key?.keyCode {
             case .keyboardLeftArrow, .keyboardRightArrow, .keyboardUpArrow, .keyboardDownArrow:

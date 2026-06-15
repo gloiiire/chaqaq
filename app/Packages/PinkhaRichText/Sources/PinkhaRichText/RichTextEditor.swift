@@ -11,13 +11,17 @@ import PinkhaCore
 /// One row in the `@`-mention picker — a document the user can
 /// reference by name. The picker shows `title` and on tap inserts
 /// a `pinkha://doc/{id}` link with `title` as the visible text.
-struct MentionCandidate {
-    let id: String
-    let title: String
+public struct MentionCandidate {
+    public let id: String
+    public let title: String
+    public init(id: String, title: String) {
+        self.id = id
+        self.title = title
+    }
 }
 
-struct RichTextEditor: UIViewRepresentable {
-    typealias Coordinator = RichTextEditorCoordinator
+public struct RichTextEditor: UIViewRepresentable {
+    public typealias Coordinator = RichTextEditorCoordinator
 
     @Binding var spans: [InlineTextFfi]
     @Binding var isFocused: Bool
@@ -105,7 +109,75 @@ struct RichTextEditor: UIViewRepresentable {
     /// these URLs.
     var onOpenInternalDoc: ((String) -> Void)? = nil
 
-    func makeUIView(context: Context) -> ExpandingTextView {
+    public init(
+        spans: Binding<[InlineTextFfi]>,
+        isFocused: Binding<Bool>,
+        placeholder: String = "",
+        baseFont: UIFont = .preferredFont(forTextStyle: .body),
+        extraAttrs: [NSAttributedString.Key: Any]? = nil,
+        focusCursorAt: Int? = nil,
+        onSave: (() -> Void)? = nil,
+        onSaveSpans: (([InlineTextFfi]) -> Void)? = nil,
+        onNewBlock: (([InlineTextFfi]) -> Void)? = nil,
+        onDeleteBloc: (() -> Void)? = nil,
+        onMergeAvecPrecedent: (([InlineTextFfi]) -> Void)? = nil,
+        onConvert: ((BlockContentFfi) -> Void)? = nil,
+        onLongPressSelection: (() -> Void)? = nil,
+        onNavigatePrevious: (() -> Void)? = nil,
+        onNavigateNext: (() -> Void)? = nil,
+        onStopNavigationRepeat: (() -> Void)? = nil,
+        onUndo: (() -> Void)? = nil,
+        onRedo: (() -> Void)? = nil,
+        canUndoProvider: (() -> Bool)? = nil,
+        canRedoProvider: (() -> Bool)? = nil,
+        onIndent: (() -> Void)? = nil,
+        onOutdent: (() -> Void)? = nil,
+        blockColor: String? = nil,
+        accentColor: UIColor? = nil,
+        onSetBlockColor: ((String?) -> Void)? = nil,
+        blockBackgroundColor: String? = nil,
+        onSetBlockBackgroundColor: ((String?) -> Void)? = nil,
+        textDirection: String? = nil,
+        themeForegroundColor: UIColor? = nil,
+        keyboardAppearance: UIKeyboardAppearance = .default,
+        onMentionLookup: (() -> [MentionCandidate])? = nil,
+        onOpenInternalDoc: ((String) -> Void)? = nil
+    ) {
+        self._spans = spans
+        self._isFocused = isFocused
+        self.placeholder = placeholder
+        self.baseFont = baseFont
+        self.extraAttrs = extraAttrs
+        self.focusCursorAt = focusCursorAt
+        self.onSave = onSave
+        self.onSaveSpans = onSaveSpans
+        self.onNewBlock = onNewBlock
+        self.onDeleteBloc = onDeleteBloc
+        self.onMergeAvecPrecedent = onMergeAvecPrecedent
+        self.onConvert = onConvert
+        self.onLongPressSelection = onLongPressSelection
+        self.onNavigatePrevious = onNavigatePrevious
+        self.onNavigateNext = onNavigateNext
+        self.onStopNavigationRepeat = onStopNavigationRepeat
+        self.onUndo = onUndo
+        self.onRedo = onRedo
+        self.canUndoProvider = canUndoProvider
+        self.canRedoProvider = canRedoProvider
+        self.onIndent = onIndent
+        self.onOutdent = onOutdent
+        self.blockColor = blockColor
+        self.accentColor = accentColor
+        self.onSetBlockColor = onSetBlockColor
+        self.blockBackgroundColor = blockBackgroundColor
+        self.onSetBlockBackgroundColor = onSetBlockBackgroundColor
+        self.textDirection = textDirection
+        self.themeForegroundColor = themeForegroundColor
+        self.keyboardAppearance = keyboardAppearance
+        self.onMentionLookup = onMentionLookup
+        self.onOpenInternalDoc = onOpenInternalDoc
+    }
+
+    public func makeUIView(context: Context) -> ExpandingTextView {
         let tv = ExpandingTextView()
         tv.delegate = context.coordinator
         tv.backgroundColor = .clear
@@ -145,7 +217,7 @@ struct RichTextEditor: UIViewRepresentable {
         return tv
     }
 
-    func updateUIView(_ tv: ExpandingTextView, context: Context) {
+    public func updateUIView(_ tv: ExpandingTextView, context: Context) {
         let coord = context.coordinator
         coord.parent = self
         // Gate every setter behind an equality check : SwiftUI calls
@@ -297,5 +369,5 @@ struct RichTextEditor: UIViewRepresentable {
         return m
     }
 
-    func makeCoordinator() -> RichTextEditorCoordinator { RichTextEditorCoordinator(parent: self) }
+    public func makeCoordinator() -> RichTextEditorCoordinator { RichTextEditorCoordinator(parent: self) }
 }

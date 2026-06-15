@@ -11,7 +11,7 @@ import PinkhaFFI
 /// color is *not* persisted as `.pinkhaColor` on spans that only
 /// inherit a higher tier, so removing the inline color naturally
 /// falls back to whichever default applies at the next render.
-func spansToAttributed(
+public func spansToAttributed(
     _ spans: [InlineTextFfi],
     police: UIFont,
     blockColor: String? = nil,
@@ -50,7 +50,7 @@ func spansToAttributed(
 /// Converts an `NSAttributedString` into an array of `InlineTextFfi` spans.
 /// Detects bold/italic via custom keys (`.pinkhaBold`/`.pinkhaItalic`) and
 /// via font symbolic traits (relative to `police` to avoid confusing a heading already bold by design).
-func attributedToSpans(_ attrStr: NSAttributedString, police: UIFont) -> [InlineTextFfi] {
+public func attributedToSpans(_ attrStr: NSAttributedString, police: UIFont) -> [InlineTextFfi] {
     guard !attrStr.string.isEmpty else { return [] }
     var spans: [InlineTextFfi] = []
     let traitsBase = police.fontDescriptor.symbolicTraits
