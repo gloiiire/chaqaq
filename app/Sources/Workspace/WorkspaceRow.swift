@@ -19,7 +19,7 @@ func formattedRelativeDate(_ iso: String) -> String? {
 struct WorkspaceRow: View {
     let item: WorkspaceItem
     /// ISO date shown under the title. Defaults to `updatedAt` (the
-    /// historical behaviour) but callers can override — `NotesHomeView`
+    /// historical behaviour) but callers can override — `WorkspaceView`
     /// passes `createdAt` when the user sorts by Created so the visible
     /// timestamp matches the active sort key.
     var displayDateIso: String? = nil

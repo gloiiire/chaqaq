@@ -18,7 +18,7 @@ struct DatabasesHomeView: View {
     /// Apple-Music-style zoom transition source ; the destination
     /// `DatabaseView` pairs it with `.navigationTransition(.zoom(...))`
     /// so opening a row reads as the card expanding into the editor.
-    /// Same surface as `NotesHomeView.docZoom`.
+    /// Same surface as `WorkspaceView.docZoom`.
     @Namespace private var dbZoom
 
     var body: some View {

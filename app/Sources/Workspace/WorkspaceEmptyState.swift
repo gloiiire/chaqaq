@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Placeholder shown when there are no documents yet.
-struct NotesEmptyState: View {
+struct WorkspaceEmptyState: View {
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "doc.text")

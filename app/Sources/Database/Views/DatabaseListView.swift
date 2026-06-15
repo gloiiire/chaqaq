@@ -46,7 +46,7 @@ struct DatabaseListView: View {
                             onDisappear: onDisappear
                         )
                         // Card-style background per row — same vocabulary
-                        // as the NotesHomeView insetGrouped rows so the
+                        // as the WorkspaceView insetGrouped rows so the
                         // two list surfaces feel unified.
                         .background(
                             Color(.secondarySystemGroupedBackground),

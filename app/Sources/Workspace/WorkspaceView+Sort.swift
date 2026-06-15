@@ -5,12 +5,12 @@ import PinkhaDesignSystem
 
 // ── Sort + group derivation for the "All" list ────────────────────────────
 //
-// Extracted into its own file so the body of `NotesHomeView` doesn't
+// Extracted into its own file so the body of `WorkspaceView` doesn't
 // trip the SwiftUI type checker — adding the toolbar Menu with three
 // nested Pickers + the grouping branches inline pushed `body` past the
 // "unable to type-check in reasonable time" wall on first attempt.
 
-extension NotesHomeView {
+extension WorkspaceView {
 
     /// One contiguous Section of items the List can render. Title is the
     /// header (e.g. "Today", "B"); `id` is stable so SwiftUI diffs cells
@@ -176,7 +176,7 @@ extension NotesHomeView {
     // ── Row + Section rendering ───────────────────────────────────────────
 
     /// One Section of the grouped "All" list — extracted so the body of
-    /// `NotesHomeView` doesn't push the SwiftUI type checker past the
+    /// `WorkspaceView` doesn't push the SwiftUI type checker past the
     /// "unable to type-check in reasonable time" wall.
     @ViewBuilder
     func groupSection(_ group: ItemGroup, api: PinkhaApi) -> some View {

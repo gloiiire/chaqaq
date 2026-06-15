@@ -33,7 +33,7 @@ struct AllDocumentsSwitcher: View {
                 .ignoresSafeArea()
 
             if filteredItems.isEmpty {
-                NotesEmptyState()
+                WorkspaceEmptyState()
             } else {
                 grid
             }

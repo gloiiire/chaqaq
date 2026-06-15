@@ -10,7 +10,7 @@ import PinkhaDesignSystem
 /// hosted by `ContentView.tabViewBottomAccessory`, so this view focuses on
 /// presenting the workspace content. Sibling files in this folder own the
 /// recent strip (`RecentStrip.swift`) and the list row (`WorkspaceRow.swift`).
-struct NotesHomeView: View {
+struct WorkspaceView: View {
     @Bindable var store: PinkhaStore
     @Environment(Composer.self) var composer
     @Environment(AppSettings.self) var settings
@@ -170,7 +170,7 @@ struct NotesHomeView: View {
 
                 if store.items.isEmpty {
                     Section {
-                        NotesEmptyState()
+                        WorkspaceEmptyState()
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 48)
                             .listRowBackground(Color.clear)

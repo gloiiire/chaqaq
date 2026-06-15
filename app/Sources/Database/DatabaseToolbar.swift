@@ -175,7 +175,7 @@ struct DatabaseToolbarView: View {
                             // iOS strips the destructive-role tint from SF
                             // Symbols inside a Menu's Button label when an
                             // accent .tint sits above — same quirk as the
-                            // sort pickers in NotesHomeView+Sort. Pre-bake
+                            // sort pickers in WorkspaceView+Sort. Pre-bake
                             // the red into a UIImage so UIKit can't
                             // re-tint what it didn't generate.
                             Image(uiImage: Self.tintedSymbol("xmark.circle",
@@ -217,7 +217,7 @@ struct DatabaseToolbarView: View {
                 // (UIKit strips foregroundStyle from SF Symbols inside a
                 // Menu). Unselected rows keep their icon neutral via the
                 // .tint(.primary) on the Menu — same vocabulary as the
-                // sort menu in NotesHomeView+Sort.
+                // sort menu in WorkspaceView+Sort.
                 if vm.isDateSort(kind, ascending: ascending) {
                     Image(uiImage: Self.tintedSymbol(
                         "checkmark", color: UIColor(settings.accentColor)))

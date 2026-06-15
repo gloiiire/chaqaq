@@ -198,7 +198,7 @@ struct FolderRow: View {
 
 // ── Folders section ───────────────────────────────────────────────────────────
 
-/// Section that lists top-level folders in `NotesHomeView`.
+/// Section that lists top-level folders in `WorkspaceView`.
 struct FoldersSectionView: View {
     @Bindable var store: PinkhaStore
     @State private var showingNewFolder = false

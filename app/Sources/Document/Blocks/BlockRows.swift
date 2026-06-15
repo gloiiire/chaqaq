@@ -338,7 +338,7 @@ struct BlockRowView: View {
             // Rendered as a `Picker(.inline)` rather than plain
             // Buttons — that's the only Menu construct iOS 26
             // actually colours the icons inside (verified pattern
-            // from `NotesHomeView` sort menu).
+            // from `WorkspaceView` sort menu).
             if let onSetColor = cb.onSetBlockColor {
                 Menu {
                     // Plain Buttons + UIImage circles : iOS 26 strips

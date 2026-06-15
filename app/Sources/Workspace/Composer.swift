@@ -67,7 +67,7 @@ final class Composer {
 
     /// Posted by the DocumentView breadcrumb when the user taps an
     /// ancestor segment. `userInfo["docId"]` carries the target —
-    /// NotesHomeView truncates its NavigationStack `path` to keep
+    /// WorkspaceView truncates its NavigationStack `path` to keep
     /// only entries up to and including that doc.
     static let popToDocNotification = Notification.Name("pinkha.popToDoc")
 
@@ -84,11 +84,11 @@ final class Composer {
     /// Notes after closing all open docs).
     var selectedTab: TabKind = .notes
 
-    // NavigationStack path lives back in `NotesHomeView.@State` because
+    // NavigationStack path lives back in `WorkspaceView.@State` because
     // `NavigationStack(path: $model.path)` is buggy in iOS — it doesn't
     // visibly pop when the binding is mutated, while `@State` does.
 
-    /// Bump this to force-recreate `NotesHomeView` via `.id(notesHomeKey)`.
+    /// Bump this to force-recreate `WorkspaceView` via `.id(notesHomeKey)`.
     /// Used by the switcher's ✓ button to nuke a stuck NavStack
     /// (Apple SwiftUI bug : path mutation from outside doesn't always
     /// visibly pop even when the binding fires). Recreating the view

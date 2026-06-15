@@ -83,7 +83,7 @@ struct ContentView: View {
         )) {
             Tab("Notes", systemImage: "note.text",
                 value: Composer.TabKind.notes) {
-                NotesHomeView(store: store)
+                WorkspaceView(store: store)
                     // Bumping `notesHomeKey` from outside (the
                     // switcher's ✓ when all tabs are closed)
                     // force-recreates this view with fresh @State —

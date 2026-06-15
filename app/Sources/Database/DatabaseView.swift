@@ -40,7 +40,7 @@ struct DatabaseView: View {
         }
         // Dim base behind the cards so each row's
         // `.secondarySystemGroupedBackground` reads as elevated,
-        // matching the inset-grouped vocabulary of `NotesHomeView`.
+        // matching the inset-grouped vocabulary of `WorkspaceView`.
         .background(Color(.systemGroupedBackground))
         .scrollContentBackground(.hidden)
         // Mirror the document treatment : when a cover is present, let
