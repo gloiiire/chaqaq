@@ -14,13 +14,13 @@ A personal note-taking app combining the fluidity of Craft with the structure of
 pinkha is a note-taking app with two ambitions:
 
 - **Beauty and fluidity** à la Craft: native rendering, rich blocks, inline styles
-- **Structure and power** à la Notion: databases, views, filters, relations, rollups
+- **Structure and power** à la Notion: books, views, filters, relations, rollups
 
 The project is entirely written in Rust for the core. Target platforms: iPhone, iPad, Mac.
 
 ---
 
-## Workspace
+## Library
 
 The repo is a **Cargo workspace** with two crates:
 
@@ -58,7 +58,7 @@ infrastructure → application → domain → chaqaq
 ```
 crates/chaqaq/     — standalone rich text editor crate (MIT OR Apache-2.0)
   src/
-    document.rs    — InlineStyle, InlineText
+    document.rs — InlineStyle, InlineText
     rich_text.rs   — RichText + Span
     editor.rs      — EditorState
     commands.rs    — Command, Insert, Delete, ApplyStyle, History
@@ -66,23 +66,23 @@ crates/chaqaq/     — standalone rich text editor crate (MIT OR Apache-2.0)
 
 src/
   domain/
-    document.rs    — re-exports InlineStyle/InlineText + Block, Document, DocumentMeta
+    leaf.rs    — re-exports InlineStyle/InlineText + Block, Leaf, LeafMeta
     parser.rs      — re-exports parse_inline
     rich_text.rs   — re-exports RichText, Span
     editor.rs      — re-exports EditorState
     commandes.rs   — re-exports Command, Insert, Delete, ApplyStyle, History
-    database.rs    — Notion-like database engine
+    book.rs    — Notion-like book engine
   application/
-    repository.rs          — DocumentRepository trait
-    use_cases.rs           — document and block use cases
-    database_repository.rs — DatabaseRepository trait
-    database_use_cases.rs  — database use cases
+    repository.rs          — LeafRepository trait
+    use_cases.rs           — leaf and block use cases
+    book_repository.rs — BookRepository trait
+    book_use_cases.rs  — book use cases
     resilience.rs          — retry_with_backoff (SQLite transient errors)
     error.rs               — PinkhaError
   infrastructure/
     migrations.rs            — versioned SQLite migrations
-    sqlite_document_store.rs — SqliteDocumentStore (local-first, recommended)
-    sqlite_database_store.rs — SqliteDatabaseStore (local-first, recommended)
+    sqlite_leaf_store.rs — SqliteLeafStore (local-first, recommended)
+    sqlite_book_store.rs — SqliteBookStore (local-first, recommended)
     json_store.rs            — JsonStore (kept for tests)
   extractors/
     traits.rs          — Extractor trait (async run, associated Config)
@@ -97,7 +97,7 @@ app/                 — SwiftUI application
   Sources/
     PinkhaApp.swift          — @main
     ContentView.swift        — home screen + PinkhaStore
-    DocumentView.swift       — document editor + DocumentViewModel + undo burst
+    LeafView.swift       — leaf editor + LeafViewModel + undo burst
     Models.swift             — Swift Codable mirrors of Rust types
     RichTextEditor.swift     — UIViewRepresentable + formatting toolbar pill
     Resilience.swift         — UI-side error handling
@@ -114,14 +114,14 @@ app/                 — SwiftUI application
 ### Rust backend
 
 - **Inline parser**: `**bold**`, `_italic_`, `__underline__`, `{color:text}`, `[text](url)` + combinations
-- **Recursive blocks**: Text, Heading, Quote, Todo, Divider, Breadcrumb, Database, BulletedListItem, NumberedListItem, Code — with nested children
+- **Recursive blocks**: Text, Heading, Quote, Todo, Divider, Breadcrumb, Book, BulletedListItem, NumberedListItem, Code — with nested children
 - **Full CRUD**: create, update, delete, reorder, move between parents
-- **Lightweight metadata** (`DocumentMeta`) — fast listing without loading blocks, with `updated_at`
+- **Lightweight metadata** (`LeafMeta`) — fast listing without loading blocks, with `updated_at`
 - **In-memory rich text editor**: `RichText` + `EditorState` (cursor, selection, style toggle)
 - **Undo/redo**: Command pattern, capacity 1000 (`History`)
-- **Notion-like Database**: properties (Title, Text, Number, Selection, Date, Checkbox, URL, Relation, Rollup), views (Table, Kanban, Calendar, Gallery), filters, sorts, groups, rollups computed at read time
-- **Search**: title, full-text in blocks (recursive), text values of database entries
-- **Local-first SQLite storage**: document-as-JSON + indexed columns for listing, soft delete, `updated_at`, versioned migrations, WAL for concurrency, exponential backoff retry on transient errors
+- **Notion-like Book**: properties (Title, Text, Number, Selection, Date, Checkbox, URL, Relation, Rollup), views (Table, Kanban, Calendar, Gallery), filters, sorts, groups, rollups computed at read time
+- **Search**: title, full-text in blocks (recursive), text values of book entries
+- **Local-first SQLite storage**: leaf-as-JSON + indexed columns for listing, soft delete, `updated_at`, versioned migrations, WAL for concurrency, exponential backoff retry on transient errors
 - **Typed errors** (`PinkhaError`): `NotFound`, `InvalidOperation`, `Io`, `Json`, `Db` — never `unwrap()` in production
 - **Import pipelines** (`src/extractors/`):
   - **Notion** — `reqwest` + `rustls-tls`, API v1 paginée (schema → properties → pages → blocks récursifs), mapping complet types/valeurs/blocs, `[Async]` UniFFI
@@ -186,7 +186,7 @@ After cloning, run these two scripts once to wire up the local git environment:
 ./scripts/install-hooks.sh   # installs the pre-commit hook (fmt)
 ```
 
-The **pre-commit hook** runs `cargo fmt --all --check` + `cargo clippy --workspace --all-targets -- -D warnings` whenever a commit touches a `.rs` file. Mirrors what CI enforces, so most red builds are caught locally before push. Commits with no Rust changes are skipped instantly.
+The **pre-commit hook** runs `cargo fmt --all --check` + `cargo clippy --library --all-targets -- -D warnings` whenever a commit touches a `.rs` file. Mirrors what CI enforces, so most red builds are caught locally before push. Commits with no Rust changes are skipped instantly.
 
 Hook sources live in [`scripts/hooks/`](scripts/hooks) and are symlinked into `.git/hooks/`, so editing them in-place takes effect immediately. Emergency bypass: `git commit --no-verify` — but the repo rule is to fix the root cause instead.
 
@@ -232,7 +232,7 @@ When Alice taps "Import from Notion" inside the published app:
  1. App opens Notion's authorize URL with YOUR client_id and
     redirect_uri = https://<proxy>/oauth/callback
  2. Alice logs in with HER own Notion account
- 3. Notion asks her "Authorize pinkha to access your workspace?"
+ 3. Notion asks her "Authorize pinkha to access your library?"
  4. Alice taps "Allow"
  5. Notion redirects the browser to https://<proxy>/oauth/callback?code=...
  6. The proxy answers a 302 → pinkha://oauth/notion?code=...
@@ -240,7 +240,7 @@ When Alice taps "Import from Notion" inside the published app:
     and returns the URL to the app
  8. App POSTs `code` → https://<proxy>/oauth/token (signed with HMAC)
  9. Proxy combines `code` + your client_secret → asks Notion
-10. Notion returns an `access_token` scoped to Alice's workspace
+10. Notion returns an `access_token` scoped to Alice's library
 11. Proxy returns the token to the app
 12. App stores it in Keychain (per-device, never iCloud-synced) and uses
     it to read Alice's pages
@@ -280,16 +280,16 @@ End users never touch any of this.
 
 ### Done
 - [x] Complete inline parser (bold, italic, underline, color, link, combinations)
-- [x] Block types, documents, recursive blocks with children
+- [x] Block types, leaves, recursive blocks with children
 - [x] Rich text editor (`RichText`, `EditorState`, undo/redo)
-- [x] Notion-like database engine
-- [x] Full CRUD documents, blocks, databases
-- [x] Search (titles, content, database entries)
+- [x] Notion-like book engine
+- [x] Full CRUD leaves, blocks, books
+- [x] Search (titles, content, book entries)
 - [x] Custom errors (`PinkhaError`)
 - [x] Local-first SQLite storage (soft delete, `updated_at`, migrations, bundled, WAL, retry)
 - [x] UniFFI FFI layer — `PinkhaApi` exposed to Swift
 - [x] Swift bindings + XCFramework + Xcode project
-- [x] SwiftUI home screen + document editor
+- [x] SwiftUI home screen + leaf editor
 - [x] Rich text, toolbar pill, markdown shortcuts
 - [x] Full UI undo/redo (1000 levels, burst typing, toolbar + bottom pill)
 - [x] Performance: deferred persist, span cache, undo button cache
@@ -299,13 +299,13 @@ End users never touch any of this.
 - [x] **OAuth2 Notion end-to-end** — multi-tenant, proxy Railway, HMAC-signed token exchange, Keychain-persisted access token, validated on device 2026-06-02
 - [x] **Block-level colour** — `Block.color` field, FFI `set_block_color`, toolbar ¶ palette with inline-over-block priority at render time
 - [x] **Toolbar indent / outdent** — `increase.quotelevel` / `decrease.quotelevel` buttons backed by dedicated `indent_block` / `outdent_block` Rust use cases
-- [x] **DB row rename propagates to document title** — `Entry.document_id` + `update_entry_propagating_title` orchestration use case fixes the long-standing UX bug
+- [x] **DB row rename propagates to leaf title** — `Entry.leaf_id` + `update_entry_propagating_title` orchestration use case fixes the long-standing UX bug
 - [x] **DB column sort** — tap header to cycle asc/desc/none, arrow indicator, Rust-first via dedicated `set_view_sort` FFI
 - [x] **Notion mention rewriting** — 2-pass import rewrites `notion.so/...` links inside imported docs to `pinkha://doc/{uuid}` internal links
 - [x] **Import fidelity — block colours** — Notion `block.color` field + Craft best-effort column probe both mapped to `Block.color`
 
 ### Still to build
-- [ ] Databases UI (Table view, Kanban — full backend exists)
+- [ ] Books UI (Table view, Kanban — full backend exists)
 - [ ] Search bar (full-text — full backend exists)
 - [ ] iPad / Mac view (NavigationSplitView)
 - [ ] Cross-device sync (CRDT, inspired by y-octo)
@@ -317,7 +317,7 @@ End users never touch any of this.
 
 | Crate / tool | Role |
 |---|---|
-| [`chaqaq`](https://crates.io/crates/chaqaq) | Rich text editor core (local workspace) |
+| [`chaqaq`](https://crates.io/crates/chaqaq) | Rich text editor core (local library) |
 | `serde` + `serde_json` | Serialization / JSON persistence |
 | `uuid` | Unique identifiers |
 | `chrono` | ISO 8601 timestamps |

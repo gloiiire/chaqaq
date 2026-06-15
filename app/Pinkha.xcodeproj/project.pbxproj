@@ -23,6 +23,7 @@
 		1687C7C9610D2298A8E55177 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A65640724338B9AA4AAF343F /* InfoPlist.xcstrings */; };
 		1A4DEC54505A2348CADF2CD6 /* ImportUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E2E7F51D0CD04EEBC8FE493 /* ImportUITests.swift */; };
 		1C64A61967845313AF105FB2 /* BookCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34C175A782543CE2AAEF939C /* BookCalendarView.swift */; };
+		1CE20FE676E22410B6FC97F6 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3B3C6E79636C2AC11AD5710F /* Pinkha.icon */; };
 		1F0E5D20EFE23B239AF1EDC4 /* BookBoardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 697B616E0D7F19754AEC2D05 /* BookBoardView.swift */; };
 		225DCA93EF679C9B13EB1234 /* BooksHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DDB7D7DABD7A89CE15A77B0 /* BooksHomeView.swift */; };
 		27212F96EDE1DB2A69E5DC8A /* CodableRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2D794592BEC81AB2CB5E99B /* CodableRoundTripTests.swift */; };
@@ -81,7 +82,6 @@
 		A32780975D044C64A0C31E28 /* CreateBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BF2BCFF29DB2FCF3CEEE997 /* CreateBubble.swift */; };
 		A56785ADE2F127B5EBA0AAB7 /* BlockOpsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 738ECE1D72957495F50518E6 /* BlockOpsTests.swift */; };
 		A893BF2B6557990E80C255DA /* BookGalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB9E94A45FFADE2422632731 /* BookGalleryView.swift */; };
-		B18895E5B209CFE60255B100 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = E1AE918247D93823D182F4F8 /* Pinkha.icon */; };
 		B44F29957A1D8A27E587259A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D8D5D391D7106F7C2E577E4 /* AppDelegate.swift */; };
 		B556E66BE4E6BC0B8897387E /* LeafView+BlockCallbacks.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB45144EFE56A36E589296D3 /* LeafView+BlockCallbacks.swift */; };
 		B5EDB93B6CA034D9F8DE9839 /* BookPropertiesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B004F82BC138F6C973DA51D /* BookPropertiesSheet.swift */; };
@@ -162,6 +162,7 @@
 		37F625607CAB79FD313EB3D6 /* BindLeafToBookSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BindLeafToBookSheet.swift; sourceTree = "<group>"; };
 		3A607D0D83EBE8EBBB227981 /* Composer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Composer.swift; sourceTree = "<group>"; };
 		3A60E26C682CDF2E9F9704C6 /* EditableBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditableBlock.swift; sourceTree = "<group>"; };
+		3B3C6E79636C2AC11AD5710F /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		3DDB7D7DABD7A89CE15A77B0 /* BooksHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BooksHomeView.swift; sourceTree = "<group>"; };
 		3ECCFBB1D36FD338D8DC4F19 /* EmojiPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmojiPicker.swift; sourceTree = "<group>"; };
 		3FD63652AFD0D42CDE57170D /* TabManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabManager.swift; sourceTree = "<group>"; };
@@ -240,7 +241,6 @@
 		D9368C19C4C76886E6A03917 /* EdgeCasesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeCasesTests.swift; sourceTree = "<group>"; };
 		DB45144EFE56A36E589296D3 /* LeafView+BlockCallbacks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LeafView+BlockCallbacks.swift"; sourceTree = "<group>"; };
 		DFAC90E1DDD43CD6D0909061 /* LeafViewModel+TitleCover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LeafViewModel+TitleCover.swift"; sourceTree = "<group>"; };
-		E1AE918247D93823D182F4F8 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		E2C07ADA01E894E83B574ABA /* HomeScreenUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreenUITests.swift; sourceTree = "<group>"; };
 		E4487CE8B66D75479DAD9C47 /* BookTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookTableView.swift; sourceTree = "<group>"; };
 		E4CE1B82B64C77244F8BD2A7 /* CraftCombinedImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CraftCombinedImportView.swift; sourceTree = "<group>"; };
@@ -267,14 +267,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		0AA89C609C126CBA0D7BDD2D /* app */ = {
-			isa = PBXGroup;
-			children = (
-				E1AE918247D93823D182F4F8 /* Pinkha.icon */,
-			);
-			name = app;
-			sourceTree = "<group>";
-		};
 		104ADA4A22206C1D49D999FA /* Library */ = {
 			isa = PBXGroup;
 			children = (
@@ -444,6 +436,14 @@
 			path = Blocks;
 			sourceTree = "<group>";
 		};
+		8E48470D66C201966795AA4B /* app */ = {
+			isa = PBXGroup;
+			children = (
+				3B3C6E79636C2AC11AD5710F /* Pinkha.icon */,
+			);
+			name = app;
+			sourceTree = "<group>";
+		};
 		8FB7F1288CD331FA0F093783 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
@@ -530,7 +530,7 @@
 				8FB7F1288CD331FA0F093783 /* Sources */,
 				7CE19974FB0E7C2FE24CED36 /* Tests */,
 				7459E38DDB42FA0567FB08BE /* Products */,
-				0AA89C609C126CBA0D7BDD2D /* app */,
+				8E48470D66C201966795AA4B /* app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -680,7 +680,7 @@
 				57155F8A05B7C7EA1ED129AF /* Assets.xcassets in Resources */,
 				1687C7C9610D2298A8E55177 /* InfoPlist.xcstrings in Resources */,
 				D878D8EB398C5B2F7E67F418 /* Localizable.xcstrings in Resources */,
-				B18895E5B209CFE60255B100 /* Pinkha.icon in Resources */,
+				1CE20FE676E22410B6FC97F6 /* Pinkha.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
