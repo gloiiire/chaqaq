@@ -132,7 +132,14 @@ struct ContentView: View {
     /// bottom of the screen, moving up, and the motion is dominantly
     /// vertical. Doesn't require past-threshold — that's the commit.
     private func isCandidateSwipeUp(_ value: DragGesture.Value) -> Bool {
-        let screenH = UIScreen.main.bounds.height
+        // `UIScreen.main` is deprecated since iOS 16 — read the active
+        // window scene's screen instead. Falls back to 0 (gesture never
+        // qualifies) if no scene is foreground, which is the safer
+        // default than acting on a guessed height.
+        let screenH = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first(where: { $0.activationState == .foregroundActive })?
+            .screen.bounds.height ?? 0
         let startedNearBottom = value.startLocation.y > screenH - Self.swipeUpStartBand
         let upward = value.translation.height < 0
         let mostlyVertical = abs(value.translation.height)

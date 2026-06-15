@@ -7,24 +7,20 @@ extension Notification.Name {
     static let pinkhaQuickAction = Notification.Name("PinkhaQuickAction")
 }
 
-/// Thin `UIApplicationDelegate` bridge that catches the Home Screen
-/// Quick Action and forwards it through `NotificationCenter`. Wired
-/// into the SwiftUI app via `@UIApplicationDelegateAdaptor` so we don't
-/// have to give up the `App` lifecycle. The `Composer` listens on the
-/// other end and drives the matching creation flow.
+/// Thin `UIApplicationDelegate` bridge — only present so we can wire a
+/// custom `SceneDelegate` (which is where every quick-action callback
+/// actually lives, post-iOS 13) and serve the rotation-lock override
+/// that `requestGeometryUpdate` polls on every layout pass. Wired into
+/// the SwiftUI app via `@UIApplicationDelegateAdaptor` so we don't have
+/// to give up the `App` lifecycle.
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    /// Set on cold launch when the user taps a Quick Action while the
-    /// app was suspended. `Composer.bindQuickActions()` consumes it as
-    /// soon as the scene wakes up.
+    /// Set when the user cold-launches the app via a Home Screen Quick
+    /// Action — captured by `SceneDelegate.scene(_:willConnectTo:options:)`
+    /// from the modern `UIScene.ConnectionOptions.shortcutItem`. Drained
+    /// by `Composer.bindQuickActions()` as soon as the scene wakes up.
+    /// (The legacy `UIApplication.LaunchOptionsKey.shortcutItem` path
+    /// is deprecated since iOS 13 and intentionally not used.)
     static var pendingShortcutType: String?
-
-    func application(_ application: UIApplication,
-                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        if let shortcut = launchOptions?[.shortcutItem] as? UIApplicationShortcutItem {
-            AppDelegate.pendingShortcutType = shortcut.type
-        }
-        return true
-    }
 
     func application(_ application: UIApplication,
                      configurationForConnecting connectingSceneSession: UISceneSession,
@@ -47,10 +43,24 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     }
 }
 
-/// Catches the shortcut when the app is already running (warm launch).
-/// Cold launches go through `AppDelegate.application(_:didFinishLaunching…)`
-/// instead and store the shortcut on the static property.
+/// Owns every Home Screen Quick Action callback :
+/// - **Cold launch** : `scene(_:willConnectTo:options:)` reads
+///   `connectionOptions.shortcutItem` (iOS 13+ replacement of the
+///   deprecated `UIApplication.LaunchOptionsKey.shortcutItem`). The
+///   item is parked on `AppDelegate.pendingShortcutType` and drained
+///   by `Composer.bindQuickActions()` once the SwiftUI scene is alive.
+/// - **Warm launch** : `windowScene(_:performActionFor:)` posts on
+///   `NotificationCenter` straight away — `Composer` is already
+///   listening.
 final class SceneDelegate: NSObject, UIWindowSceneDelegate {
+    func scene(_ scene: UIScene,
+               willConnectTo session: UISceneSession,
+               options connectionOptions: UIScene.ConnectionOptions) {
+        if let shortcut = connectionOptions.shortcutItem {
+            AppDelegate.pendingShortcutType = shortcut.type
+        }
+    }
+
     func windowScene(_ windowScene: UIWindowScene,
                      performActionFor shortcutItem: UIApplicationShortcutItem,
                      completionHandler: @escaping (Bool) -> Void) {
