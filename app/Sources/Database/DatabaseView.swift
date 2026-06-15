@@ -8,17 +8,17 @@ import SwiftUI
 /// The chrome (nav title, back chevron, error alert) lives here ;
 /// the body components only render rows/cards/calendars/etc.
 struct DatabaseView: View {
-    @StateObject private var vm: DatabaseViewModel
+    @State private var vm: DatabaseViewModel
     let api: PinkhaApi
     var onDisappear: (() -> Void)? = nil
 
-    @EnvironmentObject private var settings: AppSettings
-    @EnvironmentObject private var tabManager: TabManager
+    @Environment(AppSettings.self) private var settings
+    @Environment(TabManager.self) private var tabManager
     @State private var searchVisible = false
     @State private var recentEmojis: [String] = []
 
     init(dbId: String, api: PinkhaApi, onDisappear: (() -> Void)? = nil) {
-        _vm = StateObject(wrappedValue: DatabaseViewModel(dbId: dbId, api: api))
+        _vm = State(wrappedValue: DatabaseViewModel(dbId: dbId, api: api))
         self.api = api
         self.onDisappear = onDisappear
     }

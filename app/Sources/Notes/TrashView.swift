@@ -7,7 +7,7 @@ import SwiftUI
 /// purge only — no auto-purge is wired up). Backed by the Rust FFI
 /// `list_deleted_*` / `restore_*` / `purge_*` calls exposed via PinkhaStore.
 struct TrashView: View {
-    @EnvironmentObject private var store: PinkhaStore
+    @Environment(PinkhaStore.self) private var store
     @State private var deletedDocs: [DocumentMetaFfi] = []
     @State private var deletedDatabases: [DatabaseMetaFfi] = []
     @State private var deletedFolders: [FolderMetaFfi] = []

@@ -419,6 +419,16 @@ Tout dans le repo est en **anglais** : identifiants, commentaires, doc-comments,
 - Nommage idiomatique : Rust `snake_case`/`PascalCase`, Swift `camelCase`/`PascalCase`
 - `flush()` pattern pour les parsers
 
+### Règle Doc-first (non négociable)
+
+**Avant tout plan ou implémentation, consulter la doc officielle.**
+
+Pour SwiftUI / UIKit / iOS APIs : `developer.apple.com/documentation`, les forums développeur Apple (`developer.apple.com/forums`), et les notes de WWDC les plus récentes. Pour Rust crates : `docs.rs`. Pour les frameworks SDK side : leur doc publique.
+
+**Pourquoi non négociable** : sans la doc en main, on bricole. Exemple coûteux : le 2026-06-15, j'ai désactivé une douzaine de modifiers SwiftUI dans pinkha pour traquer un rendu menu gris en iOS 26. Une recherche initiale sur la doc Apple aurait immédiatement révélé que c'est un bug iOS 26 confirmé (FB19221675, thread Apple Developer Forums) sans workaround SwiftUI. ~2h de tâtonnement évitable.
+
+**How to apply** : avant chaque chantier impliquant une API système ou une lib externe, premier réflexe = WebFetch/WebSearch la doc officielle + parcourir les issues/forums pertinents. Le diagnostic empirique vient APRÈS la lecture, pas avant.
+
 ### Règle Rust-first (non négociable)
 
 **Toute opération sur les données appartient à Rust, jamais à Swift.**

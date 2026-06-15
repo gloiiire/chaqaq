@@ -96,10 +96,10 @@ struct SystemAlertCard: View {
     }
 
     /// Builds one alert action button. Native iOS 26 alert actions use a
-    /// neutral material-fill capsule with the role colour applied to the
-    /// label only ; `.buttonStyle(.glass)` layered on the card's own glass
-    /// has nothing transparent to refract and reads as an invisible label
-    /// floating in space, so we paint the capsule explicitly.
+    /// glass-fill capsule with the role colour applied to the label only ;
+    /// `.buttonStyle(.glass)` layered on the card's own glass would refract
+    /// nothing, so we paint the capsule with a dedicated `.glassEffect` to
+    /// match the action sheet look (`UIAlertActionVisualStyleGlassTV`).
     @ViewBuilder
     private static func actionButton(_ action: Action) -> some View {
         Button {
@@ -110,11 +110,8 @@ struct SystemAlertCard: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(labelStyle(for: action.role))
                 .frame(maxWidth: .infinity, minHeight: 50)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(.regularMaterial)
-                        .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
-                )
+                .glassEffect(.regular, in: Capsule(style: .continuous))
+                .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
         }
         .buttonStyle(.plain)
     }

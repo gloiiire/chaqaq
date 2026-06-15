@@ -4,7 +4,7 @@ import SwiftUI
 /// which one drives the active view's group-by. Mirror of the Notion
 /// "Properties" panel.
 struct DatabasePropertiesSheet: View {
-    @ObservedObject var vm: DatabaseViewModel
+    @Bindable var vm: DatabaseViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showAddColumn = false
 
@@ -113,7 +113,7 @@ struct DatabasePropertiesSheet: View {
 
 private struct PropertyRow: View {
     let prop: PropertyFfi
-    @ObservedObject var vm: DatabaseViewModel
+    @Bindable var vm: DatabaseViewModel
     @State private var showRename = false
     @State private var renameDraft = ""
 

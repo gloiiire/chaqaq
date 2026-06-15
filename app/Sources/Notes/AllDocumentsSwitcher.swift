@@ -10,11 +10,11 @@ import SwiftUI
 /// cover image), a small favicon-style label underneath, and a
 /// top-right search icon that filters the visible cards in place.
 struct AllDocumentsSwitcher: View {
-    @ObservedObject var store: PinkhaStore
+    @Bindable var store: PinkhaStore
     let onSelect: (String) -> Void
-    @EnvironmentObject private var settings: AppSettings
-    @EnvironmentObject private var tabManager: TabManager
-    @EnvironmentObject private var composer: Composer
+    @Environment(AppSettings.self) private var settings
+    @Environment(TabManager.self) private var tabManager
+    @Environment(Composer.self) private var composer
     @Environment(\.dismiss) private var dismiss
 
     @State private var searching = false

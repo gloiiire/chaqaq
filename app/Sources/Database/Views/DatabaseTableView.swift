@@ -12,7 +12,7 @@ import SwiftUI
 // `DatabaseView` — this component only renders the grid.
 
 struct DatabaseTableView: View {
-    @ObservedObject var vm: DatabaseViewModel
+    @Bindable var vm: DatabaseViewModel
     let api: PinkhaApi
     let onDisappear: () -> Void
 
@@ -123,7 +123,7 @@ struct DatabaseTableView: View {
 private struct PropertyHeaderCell: View {
     enum SortDirection { case ascending, descending }
 
-    @EnvironmentObject private var settings: AppSettings
+    @Environment(AppSettings.self) private var settings
     let name: String
     let icon: String
     let width: CGFloat
@@ -248,7 +248,7 @@ private struct TitleCell: View {
     let api: PinkhaApi
     let width: CGFloat
     let onDisappear: () -> Void
-    @EnvironmentObject private var tabManager: TabManager
+    @Environment(TabManager.self) private var tabManager
 
     @State private var draft = ""
     @FocusState private var focused: Bool

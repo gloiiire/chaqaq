@@ -19,50 +19,51 @@ struct DatabaseFilter: Identifiable, Equatable {
 }
 
 @MainActor
-final class DatabaseViewModel: ObservableObject {
+@Observable
+final class DatabaseViewModel {
     let dbId: String
-    let api: PinkhaApi
+    @ObservationIgnored let api: PinkhaApi
 
     // ── Header ────────────────────────────────────────────────────────────────
 
-    @Published var titlePlain: String = ""
-    @Published var descriptionPlain: String = ""
-    @Published var cover: String?
-    @Published var icon: String?
+    var titlePlain: String = ""
+    var descriptionPlain: String = ""
+    var cover: String?
+    var icon: String?
     /// Read-only flag — propagated from the persisted `Database.locked`.
     /// When `true`, the toolbar's add button is dimmed and every
     /// view component hides its mutation affordances.
-    @Published var locked: Bool = false
+    var locked: Bool = false
 
     // ── Schema + data ─────────────────────────────────────────────────────────
 
-    @Published var properties: [PropertyFfi] = []
-    @Published var entries: [EntryFfi] = []
-    @Published var views: [ViewFfi] = []
-    @Published var errorMessage: String?
+    var properties: [PropertyFfi] = []
+    var entries: [EntryFfi] = []
+    var views: [ViewFfi] = []
+    var errorMessage: String?
 
     /// UUID of the view currently driving the body. Defaults to the
     /// first view in `views` after load.
-    @Published var activeViewId: String?
+    var activeViewId: String?
 
     /// Currently active sort. `nil` means insertion order.
-    @Published private(set) var activeSort: ActiveSort? = nil
+    private(set) var activeSort: ActiveSort? = nil
 
     /// UUID of the Date property driving every row's publish date —
     /// mirrors `Database.published_at_source`. `nil` = publish dates
     /// follow `created_at` unless overridden per row.
-    @Published private(set) var publishedAtSource: String? = nil
+    private(set) var publishedAtSource: String? = nil
 
     /// Which entry-level date the active sort is keyed by, if any.
     /// `.none` when no date sort is active (either column sort or
     /// no sort at all). Drives the checkmark in the toolbar's date
     /// sort menu.
-    @Published private(set) var activeDateSort: DateSortKind? = nil
+    private(set) var activeDateSort: DateSortKind? = nil
 
     /// Direction of the active date sort. `nil` whenever
     /// `activeDateSort` is `nil`. Kept separate (not folded into the
     /// enum) so the toolbar can match kind and direction independently.
-    @Published private(set) var activeDateSortAscending: Bool? = nil
+    private(set) var activeDateSortAscending: Bool? = nil
 
     /// `true` when the active sort is exactly this date sort — kind AND
     /// direction. Drives the per-row checkmark in the toolbar's date
@@ -79,14 +80,14 @@ final class DatabaseViewModel: ObservableObject {
     }
 
     /// In-memory filter clauses applied client-side to `entries`.
-    @Published var filters: [DatabaseFilter] = []
+    var filters: [DatabaseFilter] = []
     /// Inline search box content. Empty means "no search applied".
-    @Published var searchQuery: String = ""
+    var searchQuery: String = ""
     /// Property used to bucket entries in List / Board / Gallery views.
     /// `nil` means "no grouping" — one synthetic bucket holds all entries.
-    @Published var groupByPropertyId: String?
+    var groupByPropertyId: String?
     /// Which group titles the user has collapsed. Session-scoped.
-    @Published private(set) var collapsedGroups: Set<String> = []
+    private(set) var collapsedGroups: Set<String> = []
 
     struct ActiveSort: Equatable {
         let propertyId: String
@@ -96,15 +97,15 @@ final class DatabaseViewModel: ObservableObject {
     // ── Hidden plumbing ───────────────────────────────────────────────────────
 
     /// ID of the hidden system property storing each entry's linked document ID.
-    private(set) var pagePropertyId: String? = nil
-    private var primaryViewId: String? = nil
+    @ObservationIgnored private(set) var pagePropertyId: String? = nil
+    @ObservationIgnored private var primaryViewId: String? = nil
 
-    private let pagePropName = "__pinkha_page__"
-    private let namePropName = "Name"
+    @ObservationIgnored private let pagePropName = "__pinkha_page__"
+    @ObservationIgnored private let namePropName = "Name"
 
     // Cache of doc icons per entry id — lazily filled on demand to keep
     // the list scroll fast.
-    private var iconCache: [String: String?] = [:]
+    @ObservationIgnored private var iconCache: [String: String?] = [:]
 
     init(dbId: String, api: PinkhaApi) {
         self.dbId = dbId

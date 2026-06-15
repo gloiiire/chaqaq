@@ -7,10 +7,10 @@ import SwiftUI
 /// the auto-positioned search bubble at the same vertical level as the
 /// tab bar (iOS 26 multi-bubble layout, à la Photos / Music).
 struct ContentView: View {
-    @StateObject private var store = PinkhaStore()
-    @StateObject private var composer = Composer()
-    @StateObject private var tabManager = TabManager()
-    @EnvironmentObject private var settings: AppSettings
+    @State private var store = PinkhaStore()
+    @State private var composer = Composer()
+    @State private var tabManager = TabManager()
+    @Environment(AppSettings.self) private var settings
 
     /// Tracks crossing of the swipe-up haptic threshold so we fire
     /// the "ready to commit" tap exactly once per drag, not on every
@@ -34,9 +34,9 @@ struct ContentView: View {
             // (FolderView, DocumentView) can flip the creation context
             // when they appear / disappear without having to be passed
             // through every NavigationLink call site.
-            .environmentObject(composer)
-            .environmentObject(tabManager)
-            .environmentObject(store)
+            .environment(composer)
+            .environment(tabManager)
+            .environment(store)
             .simultaneousGesture(swipeUpGesture)
             // Create bubble : single glass accessory hosting the four primary
             // entry points — new note, new database, new folder and an
@@ -132,7 +132,14 @@ struct ContentView: View {
     /// bottom of the screen, moving up, and the motion is dominantly
     /// vertical. Doesn't require past-threshold — that's the commit.
     private func isCandidateSwipeUp(_ value: DragGesture.Value) -> Bool {
-        let screenH = UIScreen.main.bounds.height
+        // `UIScreen.main` is deprecated since iOS 16 — read the active
+        // window scene's screen instead. Falls back to 0 (gesture never
+        // qualifies) if no scene is foreground, which is the safer
+        // default than acting on a guessed height.
+        let screenH = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first(where: { $0.activationState == .foregroundActive })?
+            .screen.bounds.height ?? 0
         let startedNearBottom = value.startLocation.y > screenH - Self.swipeUpStartBand
         let upward = value.translation.height < 0
         let mostlyVertical = abs(value.translation.height)
@@ -182,29 +189,29 @@ struct ContentView: View {
 /// the "unable to type-check in reasonable time" wall when chained on top of
 /// the alerts and the tab bar accessory.
 private struct ContentSheets: ViewModifier {
-    @ObservedObject var composer: Composer
-    @ObservedObject var store: PinkhaStore
-    @ObservedObject var settings: AppSettings
-    @ObservedObject var tabManager: TabManager
+    @Bindable var composer: Composer
+    @Bindable var store: PinkhaStore
+    @Bindable var settings: AppSettings
+    @Bindable var tabManager: TabManager
 
     func body(content: Content) -> some View {
         content
             .sheet(isPresented: $composer.showingCreateDoc) { createDocSheet }
             .sheet(isPresented: $composer.showingTrash) {
-                TrashView().environmentObject(store)
+                TrashView().environment(store)
             }
             .fullScreenCover(isPresented: $composer.showingAllDocs) {
                 AllDocumentsSwitcher(store: store) { docId in
                     composer.showingAllDocs = false
                     composer.pendingOpenDoc = docId
                 }
-                .environmentObject(settings)
-                .environmentObject(tabManager)
+                .environment(settings)
+                .environment(tabManager)
                 // The switcher's `+` bottom-bar action needs `composer`
                 // to trigger the create-doc sheet. `fullScreenCover`
                 // doesn't always propagate env objects to its content
                 // root in iOS 26 — explicit injection is required.
-                .environmentObject(composer)
+                .environment(composer)
             }
             .sheet(isPresented: $composer.showingNotionImport) {
                 NotionImportView(api: store.api) { store.load() }
@@ -319,8 +326,8 @@ private struct ContentSheets: ViewModifier {
 /// / `.fullScreenCover` already stacked there blew the "unable to
 /// type-check in reasonable time" budget.
 private struct ContentAlerts: ViewModifier {
-    @ObservedObject var composer: Composer
-    @ObservedObject var store: PinkhaStore
+    @Bindable var composer: Composer
+    @Bindable var store: PinkhaStore
 
     func body(content: Content) -> some View {
         content
@@ -371,7 +378,7 @@ private struct ContentAlerts: ViewModifier {
 /// best for in-view edits (typography, spacing inside content, etc.).
 #Preview {
     ContentView()
-        .environmentObject(AppSettings())
+        .environment(AppSettings())
         .tint(AppSettings().accentColor)
 }
 #endif

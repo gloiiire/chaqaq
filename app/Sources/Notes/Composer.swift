@@ -7,61 +7,62 @@ import SwiftUI
 /// the bubble inside `tabViewBottomAccessory` can drive create / trash /
 /// import flows regardless of which tab is currently selected.
 @MainActor
-final class Composer: ObservableObject {
+@Observable
+final class Composer {
     /// Whether the document/database title prompt is on screen.
-    @Published var showingCreateDoc = false
+    var showingCreateDoc = false
     /// Whether the new-folder alert is on screen.
-    @Published var showingNewFolder = false
+    var showingNewFolder = false
     /// Whether the trash sheet is on screen.
-    @Published var showingTrash = false
+    var showingTrash = false
     /// Whether the Safari-tab-style "All documents" full-screen
     /// switcher is on screen — opened from the overflow menu in the
     /// bottom accessory.
-    @Published var showingAllDocs = false
+    var showingAllDocs = false
     /// Whether the Notion import sheet is on screen.
-    @Published var showingNotionImport = false
+    var showingNotionImport = false
     /// Whether the Bear import sheet is on screen.
-    @Published var showingBearImport = false
+    var showingBearImport = false
     /// Whether the Craft TextBundle import sheet is on screen.
-    @Published var showingCraftTextBundleImport = false
+    var showingCraftTextBundleImport = false
     /// Whether the Craft combined import sheet is on screen.
-    @Published var showingCraftCombinedImport = false
+    var showingCraftCombinedImport = false
     /// First-step Delete All confirmation alert.
-    @Published var showingDeleteAllConfirm = false
+    var showingDeleteAllConfirm = false
     /// Second-step Delete All confirmation alert.
-    @Published var showingDeleteAllConfirm2 = false
+    var showingDeleteAllConfirm2 = false
     /// Title draft for the create document sheet.
-    @Published var newTitle = ""
+    var newTitle = ""
     /// Name draft for the new-folder alert.
-    @Published var newFolderName = ""
+    var newFolderName = ""
     /// Which kind of document the create sheet should produce.
-    @Published var createMode: CreateMode = .note
+    var createMode: CreateMode = .note
     /// Where the next `New …` should land. Driven by the navigation
     /// stack — `FolderView` flips it to `.folder(id)` on appear (and
     /// back to `.root` on disappear), `DocumentView` flips it to
     /// `.document(id)`. The home, databases and inbox screens leave the
     /// default `.root`, so anything created from there lands at the
     /// top of the workspace.
-    @Published var currentContext: CreationContext = .root
+    var currentContext: CreationContext = .root
     /// Signals that a child page has just been created from inside a
     /// document and needs to be embedded as a `Page` block in the active
     /// editor. The DocumentView observes this and routes the insertion
     /// through its VM — otherwise the next burst flush would overwrite
     /// a block written behind the VM's back via a direct FFI call.
-    @Published var pendingChildPage: PendingChildPage? = nil
+    var pendingChildPage: PendingChildPage? = nil
     /// Signals that a newly-created note should be pushed onto the
     /// Notes navigation stack right after the create sheet dismisses,
     /// so the user lands in the editor instead of back on the home
     /// list. Only set for `.root` / `.folder` contexts — the
     /// `.document` context routes through `pendingChildPage` instead.
-    @Published var pendingOpenDoc: String? = nil
+    var pendingOpenDoc: String? = nil
 
     /// NotificationCenter signal — when the switcher dismisses with
     /// zero open tabs, posts this so the active `NavigationStack`
     /// pops to root. Going through `NotificationCenter` instead of an
-    /// `@Published` counter sidesteps the SwiftUI binding propagation
-    /// quirks we hit (`.onChange` not firing reliably while a
-    /// fullScreenCover is dismissing).
+    /// observation-driven counter sidesteps the SwiftUI binding
+    /// propagation quirks we hit (`.onChange` not firing reliably
+    /// while a fullScreenCover is dismissing).
     static let popHomeNotification = Notification.Name("pinkha.popHomeRequest")
 
     /// Posted by the DocumentView breadcrumb when the user taps an
@@ -81,7 +82,7 @@ final class Composer: ObservableObject {
     /// `selection:` so we can programmatically switch tabs from
     /// anywhere (e.g. the switcher's ✓ button forcing a return to
     /// Notes after closing all open docs).
-    @Published var selectedTab: TabKind = .notes
+    var selectedTab: TabKind = .notes
 
     // NavigationStack path lives back in `NotesHomeView.@State` because
     // `NavigationStack(path: $model.path)` is buggy in iOS — it doesn't
@@ -92,7 +93,7 @@ final class Composer: ObservableObject {
     /// (Apple SwiftUI bug : path mutation from outside doesn't always
     /// visibly pop even when the binding fires). Recreating the view
     /// instantiates fresh `@State` → path starts at `[]` → home shown.
-    @Published var notesHomeKey: Int = 0
+    var notesHomeKey: Int = 0
 
     /// The four pinkha tabs. `rawValue` is stable for `Codable` use if
     /// we ever persist the last-selected tab; the enum itself is

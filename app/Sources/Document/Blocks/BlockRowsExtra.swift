@@ -86,7 +86,7 @@ struct TodoRowView: View {
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     let cb: BlockCallbacks
-    @EnvironmentObject private var settings: AppSettings
+    @Environment(AppSettings.self) private var settings
 
     /// Extra text attributes applied when the item is checked (strikethrough + secondary color).
     private var checkedAttrs: [NSAttributedString.Key: Any]? {

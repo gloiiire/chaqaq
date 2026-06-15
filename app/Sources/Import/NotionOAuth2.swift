@@ -6,7 +6,8 @@ import SwiftUI
 /// Handles the Notion OAuth2 authorization code flow via ASWebAuthenticationSession.
 /// Credentials must be configured before use — see constants below.
 @MainActor
-final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresentationContextProviding {
+@Observable
+final class NotionOAuth2: NSObject, ASWebAuthenticationPresentationContextProviding {
 
     // MARK: - Configuration (fill in once you have a public Notion integration)
 
@@ -41,9 +42,9 @@ final class NotionOAuth2: NSObject, ObservableObject, ASWebAuthenticationPresent
     /// session picks it up.
     static let callbackScheme = "pinkha"
 
-    @Published var token: String?
-    @Published var isLoading = false
-    @Published var error: String?
+    var token: String?
+    var isLoading = false
+    var error: String?
 
     /// Builds the Notion OAuth2 authorization URL for the given client ID and redirect URI.
     /// Extracted as a static helper so it can be unit-tested without launching an authentication session.

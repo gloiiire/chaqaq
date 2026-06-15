@@ -34,7 +34,9 @@ final class ExpandingTextView: UITextView {
 
     override var keyCommands: [UIKeyCommand]? {
         let cmd = UIKeyCommand(input: "\r", modifierFlags: .shift, action: #selector(handleShiftEnter))
-        if #available(iOS 15, *) { cmd.wantsPriorityOverSystemBehavior = true }
+        // Target is iOS 26, so the iOS 15+ availability guard around
+        // `wantsPriorityOverSystemBehavior` is dead code — set it directly.
+        cmd.wantsPriorityOverSystemBehavior = true
         return [cmd]
     }
 

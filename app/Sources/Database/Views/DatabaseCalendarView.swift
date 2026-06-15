@@ -5,11 +5,11 @@ import SwiftUI
 /// Tapping a day opens a sheet with the full entry list ; tapping an
 /// entry inside opens the linked doc.
 struct DatabaseCalendarView: View {
-    @ObservedObject var vm: DatabaseViewModel
+    @Bindable var vm: DatabaseViewModel
     let api: PinkhaApi
     let onDisappear: () -> Void
 
-    @EnvironmentObject private var settings: AppSettings
+    @Environment(AppSettings.self) private var settings
     @State private var displayedMonth: Date = Date()
     @State private var selectedDay: Date?
 
@@ -185,7 +185,7 @@ private struct DayCell: View {
     let entries: [EntryFfi]
     let onTap: () -> Void
 
-    @EnvironmentObject private var settings: AppSettings
+    @Environment(AppSettings.self) private var settings
 
     var body: some View {
         Button(action: onTap) {
@@ -263,7 +263,7 @@ private struct DayDetailSheet: View {
         let api: PinkhaApi
         let onDisappear: () -> Void
 
-        @EnvironmentObject private var tabManager: TabManager
+        @Environment(TabManager.self) private var tabManager
 
         var body: some View {
             Group {

@@ -4,25 +4,25 @@ import SwiftUI
 
 /// Full-screen document editor: cover + icon, title, block list, FAB, undo/redo pill.
 struct DocumentView: View {
-    /// `@ObservedObject` (not `@StateObject`) because the VM is owned
-    /// by `TabManager` — DocumentView is recreated on every push but
-    /// the VM lives for as long as the tab is open, keeping its
-    /// blocks/undo/burst state alive across navigations à la Safari.
-    @ObservedObject var vm: DocumentViewModel
+    /// `@Bindable` (not `@State`) because the VM is owned by `TabManager`
+    /// — DocumentView is recreated on every push but the VM lives for as
+    /// long as the tab is open, keeping its blocks/undo/burst state alive
+    /// across navigations à la Safari.
+    @Bindable var vm: DocumentViewModel
     /// Injected by `ContentView` so we can flip the global creation
     /// context to this document while it's on screen — `New …` from
     /// the bubble then creates child pages or embedded databases inside
     /// this doc, à la Notion.
-    @EnvironmentObject var composer: Composer
-    @EnvironmentObject var tabManager: TabManager
+    @Environment(Composer.self) var composer
+    @Environment(TabManager.self) var tabManager
     /// Read-only here — drives the optional spotlight tint applied in
     /// `blockListRow`. The setting is owned at the app level so every
     /// document picks the same look without having to re-fetch it.
-    @EnvironmentObject var settings: AppSettings
+    @Environment(AppSettings.self) var settings
     /// Used by the breadcrumb in the toolbar to walk up the
     /// parent-doc chain (`parentDocId` is on the metadata, not on
     /// the active VM).
-    @EnvironmentObject var store: PinkhaStore
+    @Environment(PinkhaStore.self) var store
     /// Tracks whether the iOS 26 bottom accessory is rendered inline
     /// (collapsed into the tab bar) or expanded above it. Drives the
     /// floating-button bottom padding so the visual gap to the
@@ -387,7 +387,7 @@ struct DocumentView: View {
         }
         .sheet(isPresented: $showingAttachToDatabaseSheet) {
             AttachDocToDatabaseSheet(docId: vm.docId)
-                .environmentObject(store)
+                .environment(store)
                 .presentationDetents([.large])
         }
         .alert("Error", isPresented: Binding(

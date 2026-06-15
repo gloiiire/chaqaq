@@ -4,7 +4,7 @@ import SwiftUI
 /// 3-dot overflow menu. Sections grow as more settings get added — for
 /// now: appearance (accent color) + reading aids (search spotlight).
 struct SettingsView: View {
-    @EnvironmentObject var settings: AppSettings
+    @Environment(AppSettings.self) var settings
     @Environment(\.dismiss) private var dismiss
     @State private var showingResetConfirm = false
 
@@ -34,7 +34,10 @@ struct SettingsView: View {
     }
 
     private var form: some View {
-        Form {
+        // Local `@Bindable` proxy onto the `@Environment` value — iOS 26
+        // pattern when an Observable env value needs `$foo` bindings.
+        @Bindable var settings = settings
+        return Form {
                 Section {
                     Picker(selection: $settings.appearance) {
                         ForEach(AppSettings.AppearanceMode.allCases) { mode in

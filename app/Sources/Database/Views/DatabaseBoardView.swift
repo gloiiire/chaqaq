@@ -4,7 +4,7 @@ import SwiftUI
 /// of the `groupBy` property ; entries with that value stack vertically
 /// as cards inside the column. Notion's "Board view".
 struct DatabaseBoardView: View {
-    @ObservedObject var vm: DatabaseViewModel
+    @Bindable var vm: DatabaseViewModel
     let api: PinkhaApi
     let onDisappear: () -> Void
 
@@ -89,7 +89,7 @@ private struct BoardCard: View {
     let api: PinkhaApi
     let onDisappear: () -> Void
 
-    @EnvironmentObject private var tabManager: TabManager
+    @Environment(TabManager.self) private var tabManager
 
     var body: some View {
         Group {

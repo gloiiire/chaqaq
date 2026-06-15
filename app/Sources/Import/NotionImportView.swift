@@ -24,7 +24,7 @@ struct NotionImportView: View {
     @State private var databasesError: String? = nil
     @State private var isFetchingDatabases = false
     @State private var state: ImportState = .idle
-    @StateObject private var oauth = NotionOAuth2()
+    @State private var oauth = NotionOAuth2()
     @Environment(\.dismiss) private var dismiss
 
     private func loadStoredToken() {
@@ -499,7 +499,7 @@ struct NotionImportView: View {
 /// Single row in the database picker. Shows emoji icon (or generic glyph),
 /// title, and a checkmark when selected.
 private struct DatabasePickerRow: View {
-    @EnvironmentObject private var settings: AppSettings
+    @Environment(AppSettings.self) private var settings
     let db: NotionDatabaseSummaryFfi
     let isSelected: Bool
     let onTap: () -> Void

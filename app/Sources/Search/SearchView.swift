@@ -6,9 +6,9 @@ import SwiftUI
 /// (note titles, note content, database titles, folder names) and groups
 /// the matches in sections. Each section is hidden when empty.
 struct SearchView: View {
-    @ObservedObject var store: PinkhaStore
-    @EnvironmentObject private var settings: AppSettings
-    @EnvironmentObject private var tabManager: TabManager
+    @Bindable var store: PinkhaStore
+    @Environment(AppSettings.self) private var settings
+    @Environment(TabManager.self) private var tabManager
     @State private var query = ""
 
     private var results: PinkhaStore.SuperSearchResults {
@@ -88,6 +88,10 @@ struct SearchView: View {
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Search")
             .searchable(text: $query, prompt: "Search notes, content, databases, folders…")
+            // iOS 26 : collapse the search field into the trailing nav icon
+            // when the user starts scrolling, matching Photos / Mail. The
+            // icon expands back when tapped or scrolled to the top.
+            .searchToolbarBehavior(.minimize)
             .autocorrectionDisabled()
             // `.searchable` is backed by `UISearchTextField` which
             // ignores SwiftUI's `.tint` env. We push the colour

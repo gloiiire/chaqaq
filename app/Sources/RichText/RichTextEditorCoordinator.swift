@@ -603,7 +603,7 @@ final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGestureRe
     func save(_ spans: [InlineTextFfi]) {
         // When `onSaveSpans` is wired (block editors), prefer the ID-safe
         // callback path: the VM looks up the block by ID, updates its `spans`,
-        // and the @Published change re-renders the editor. Writing
+        // and the observation re-renders the editor. Writing
         // `parent.spans = spans` directly would crash with "Index out of
         // range" after a structural mutation (indent/outdent/delete) because
         // the binding still points at a stale array index — `textViewDidEndEditing`

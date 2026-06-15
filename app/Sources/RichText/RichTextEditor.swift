@@ -20,7 +20,7 @@ struct RichTextEditor: UIViewRepresentable {
     @Binding var spans: [InlineTextFfi]
     @Binding var isFocused: Bool
     @Environment(\.isEnabled) var isEnabled
-    @EnvironmentObject var settings: AppSettings
+    @Environment(AppSettings.self) var settings
     var placeholder: String = ""
     var baseFont: UIFont = .preferredFont(forTextStyle: .body)
     var extraAttrs: [NSAttributedString.Key: Any]? = nil

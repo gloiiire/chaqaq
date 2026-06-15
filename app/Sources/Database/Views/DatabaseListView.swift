@@ -13,7 +13,7 @@ import SwiftUI
 /// via `groupedRows` ; this view just renders the result with
 /// collapsible group headers.
 struct DatabaseListView: View {
-    @ObservedObject var vm: DatabaseViewModel
+    @Bindable var vm: DatabaseViewModel
     let api: PinkhaApi
     let onDisappear: () -> Void
 
@@ -130,7 +130,7 @@ private struct ListRow: View {
     let onSetPublishDate: (String) -> Void
     let onDisappear: () -> Void
 
-    @EnvironmentObject private var tabManager: TabManager
+    @Environment(TabManager.self) private var tabManager
     @State private var showingPublishDateSheet = false
 
     var body: some View {
