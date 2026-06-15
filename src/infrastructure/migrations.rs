@@ -7,6 +7,16 @@ use rusqlite::Connection;
 /// then adds any columns introduced in later schema versions, and bumps
 /// `PRAGMA user_version` to 4.
 pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
+    // Pre-rename legacy tables and columns so existing user databases
+    // survive the Pinkha v0.2 vocabulary migration (documents → leaves,
+    // databases → books, folders → shelves, folder_id → shelf_id,
+    // parent_doc_id → parent_leaf_id). Idempotent — skips when the
+    // legacy artefacts are already gone or when the new ones already
+    // exist. Must run before the CREATE TABLE IF NOT EXISTS below,
+    // otherwise SQLite would create empty `leaves`/`books`/`shelves`
+    // alongside the still-populated legacy tables.
+    rename_legacy_schema(conn)?;
+
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS shelves (
             id          TEXT PRIMARY KEY,
@@ -120,6 +130,74 @@ pub fn apply_leaf_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
 /// Applies book-table migrations. Delegates to [`apply_migrations`].
 pub fn apply_book_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
     apply_migrations(conn)
+}
+
+/// Renames legacy Document/Database/Folder tables and their columns
+/// to the new Leaf/Book/Shelf vocabulary. Idempotent — silently skips
+/// each rename if the source table/column is already gone (post-
+/// migration) or the destination already exists (would conflict).
+///
+/// Order matters: we rename tables first, then columns, because
+/// SQLite's `ALTER TABLE RENAME COLUMN` operates on the current name
+/// of the table. Doing columns after the table-rename means the
+/// column lookups see `leaves` not `documents`.
+fn rename_legacy_schema(conn: &Connection) -> Result<(), PinkhaError> {
+    fn table_exists(conn: &Connection, name: &str) -> Result<bool, PinkhaError> {
+        let count: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?",
+                [name],
+                |r| r.get(0),
+            )
+            .map_err(|e| PinkhaError::Db(e.to_string()))?;
+        Ok(count > 0)
+    }
+
+    fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool, PinkhaError> {
+        let mut stmt = conn
+            .prepare(&format!("PRAGMA table_info({table})"))
+            .map_err(|e| PinkhaError::Db(e.to_string()))?;
+        let rows = stmt
+            .query_map([], |row| row.get::<_, String>(1))
+            .map_err(|e| PinkhaError::Db(e.to_string()))?;
+        for r in rows {
+            let name = r.map_err(|e| PinkhaError::Db(e.to_string()))?;
+            if name == column {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    // Tables.
+    for (old, new) in [
+        ("documents", "leaves"),
+        ("databases", "books"),
+        ("folders", "shelves"),
+    ] {
+        if table_exists(conn, old)? && !table_exists(conn, new)? {
+            conn.execute_batch(&format!("ALTER TABLE {old} RENAME TO {new};"))
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+        }
+    }
+
+    // Columns. Each tuple = (table, old_column, new_column).
+    for (table, old_col, new_col) in [
+        ("leaves", "folder_id", "shelf_id"),
+        ("leaves", "parent_doc_id", "parent_leaf_id"),
+    ] {
+        if table_exists(conn, table)?
+            && column_exists(conn, table, old_col)?
+            && !column_exists(conn, table, new_col)?
+        {
+            conn.execute_batch(&format!(
+                "ALTER TABLE {table} RENAME COLUMN {old_col} TO {new_col};"
+            ))
+            .map_err(|e| PinkhaError::Db(e.to_string()))?;
+        }
+    }
+
+    Ok(())
 }
 
 /// Adds a column to a table only if it does not already exist.
