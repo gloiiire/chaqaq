@@ -7,7 +7,7 @@ import LeafFeature
 /// stack of the entries whose `propertyId` date falls on that day.
 /// Tapping a day opens a sheet with the full entry list ; tapping an
 /// entry inside opens the linked doc.
-struct BookCalendarView: View {
+public struct BookCalendarView: View {
     @Bindable var vm: BookViewModel
     let api: PinkhaApi
     let onDisappear: () -> Void
@@ -16,7 +16,7 @@ struct BookCalendarView: View {
     @State private var displayedMonth: Date = Date()
     @State private var selectedDay: Date?
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 0) {
             header
             Divider()
@@ -190,7 +190,7 @@ private struct DayCell: View {
 
     @Environment(AppSettings.self) private var settings
 
-    var body: some View {
+    public var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(day, format: .dateTime.day())
@@ -229,7 +229,7 @@ private struct DayDetailSheet: View {
     let onDisappear: () -> Void
     @Environment(\.dismiss) private var dismiss
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             List {
                 if entries.isEmpty {

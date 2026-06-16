@@ -15,12 +15,12 @@ import LeafFeature
 /// context menu with "Delete row". Grouping is delegated to the VM
 /// via `groupedRows` ; this view just renders the result with
 /// collapsible group headers.
-struct BookListView: View {
+public struct BookListView: View {
     @Bindable var vm: BookViewModel
     let api: PinkhaApi
     let onDisappear: () -> Void
 
-    var body: some View {
+    public var body: some View {
         LazyVStack(alignment: .leading, spacing: 8) {
             ForEach(vm.groupedRows, id: \.title) { group in
                 if vm.groupByPropertyId != nil {
@@ -81,7 +81,7 @@ private struct PublishDatePickerSheet: View {
         self._selected = State(initialValue: initial)
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             Form {
                 DatePicker("Publish date",
@@ -125,7 +125,7 @@ private struct ListRow: View {
     @Environment(TabManager.self) private var tabManager
     @State private var showingPublishDateSheet = false
 
-    var body: some View {
+    public var body: some View {
         Group {
             if let leafId {
                 NavigationLink(destination: LeafView(

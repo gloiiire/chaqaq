@@ -6,7 +6,7 @@ import LeafFeature
 /// linked leaf's cover (or a colored placeholder), title and the
 /// first multi-select chip. Notion's "Gallery view" — mobile-friendly
 /// because cards reflow into a 2-column grid below the breakpoint.
-struct BookGalleryView: View {
+public struct BookGalleryView: View {
     @Bindable var vm: BookViewModel
     let api: PinkhaApi
     let onDisappear: () -> Void
@@ -18,7 +18,7 @@ struct BookGalleryView: View {
         return Array(repeating: GridItem(.flexible(), spacing: 14), count: count)
     }
 
-    var body: some View {
+    public var body: some View {
         LazyVGrid(columns: columns, spacing: 14) {
             ForEach(vm.filteredEntries) { entry in
                 GalleryCard(
@@ -46,7 +46,7 @@ private struct GalleryCard: View {
 
     @Environment(TabManager.self) private var tabManager
 
-    var body: some View {
+    public var body: some View {
         Group {
             if let leafId {
                 NavigationLink(destination: LeafView(

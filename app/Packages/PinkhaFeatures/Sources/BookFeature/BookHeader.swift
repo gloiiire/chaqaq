@@ -7,7 +7,7 @@ import LeafFeature
 /// the visual treatment of `LeafDecorView` so a book opens
 /// with the same hero it would have as a Notion page. All edits route
 /// through the view model — no direct FFI call inside the view.
-struct BookHeaderView: View {
+public struct BookHeaderView: View {
     @Bindable var vm: BookViewModel
     let recentEmojis: [String]
 
@@ -30,7 +30,7 @@ struct BookHeaderView: View {
         ("cover.ocean",  "Ocean"),
     ]
 
-    var body: some View {
+    public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let coverId = vm.cover {
                 coverBanner(coverId)

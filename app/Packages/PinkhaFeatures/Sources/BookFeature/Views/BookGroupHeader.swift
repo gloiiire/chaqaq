@@ -5,14 +5,14 @@ import PinkhaCore
 /// Gallery view : disclosure chevron, group title, entry count, and a
 /// quick-add "+" that inserts a new entry already typed to the group's
 /// value. Matches the Notion "▼ 2023 (11) +" affordance.
-struct BookGroupHeader: View {
+public struct BookGroupHeader: View {
     let title: String
     let count: Int
     let collapsed: Bool
     let onToggle: () -> Void
     let onAdd: () -> Void
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 8) {
             Button {
                 Haptic.tap()

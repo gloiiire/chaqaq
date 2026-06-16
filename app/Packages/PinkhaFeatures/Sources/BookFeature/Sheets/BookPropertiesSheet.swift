@@ -4,12 +4,12 @@ import PinkhaFFI
 /// Sheet to manage properties (columns) : add, rename, delete, choose
 /// which one drives the active view's group-by. Mirror of the Notion
 /// "Properties" panel.
-struct BookPropertiesSheet: View {
+public struct BookPropertiesSheet: View {
     @Bindable var vm: BookViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showAddColumn = false
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             List {
                 Section {
@@ -118,7 +118,7 @@ private struct PropertyRow: View {
     @State private var showRename = false
     @State private var renameDraft = ""
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 10) {
             Image(systemName: prop.propertyType.icon)
                 .foregroundStyle(.secondary)

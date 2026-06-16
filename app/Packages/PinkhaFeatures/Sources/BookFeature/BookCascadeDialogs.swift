@@ -11,7 +11,7 @@ import PinkhaCore
 // home, the Notes home rows and the Trash so the vocabulary stays
 // identical everywhere.
 
-extension View {
+public extension View {
     /// Confirmation dialog for deleting `pending`. "…& its pages" routes
     /// through the cascade FFI (pages land in the trash with the
     /// book); "only" keeps the pages as standalone notes.

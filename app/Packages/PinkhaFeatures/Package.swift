@@ -17,7 +17,8 @@ let package = Package(
     name: "PinkhaFeatures",
     platforms: [.iOS("26.0"), .macOS("14.0")],
     products: [
-        .library(name: "LeafFeature", targets: ["LeafFeature"])
+        .library(name: "LeafFeature", targets: ["LeafFeature"]),
+        .library(name: "BookFeature", targets: ["BookFeature"])
     ],
     dependencies: [
         .package(path: "../PinkhaFFI"),
@@ -37,6 +38,17 @@ let package = Package(
                 .product(name: "PinkhaComposer",     package: "PinkhaComposer")
             ],
             path: "Sources/LeafFeature"
+        ),
+        .target(
+            name: "BookFeature",
+            dependencies: [
+                "LeafFeature",
+                .product(name: "PinkhaFFI",          package: "PinkhaFFI"),
+                .product(name: "PinkhaCore",         package: "PinkhaCore"),
+                .product(name: "PinkhaDesignSystem", package: "PinkhaDesignSystem"),
+                .product(name: "PinkhaComposer",     package: "PinkhaComposer")
+            ],
+            path: "Sources/BookFeature"
         )
     ]
 )

@@ -3,6 +3,7 @@ import PinkhaFFI
 import PinkhaCore
 import PinkhaComposer
 import LeafFeature
+import BookFeature
 
 // ── Root view: 4-tab layout ──────────────────────────────────────────────────
 

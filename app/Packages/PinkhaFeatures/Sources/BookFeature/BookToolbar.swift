@@ -13,7 +13,7 @@ import PinkhaCore
 /// 4. **Sliders** — opens a sheet to reorder / hide properties.
 /// 5. **Add** — split button : tap the "+" creates a blank entry, tap
 ///    the chevron opens the quick-add menu (presets, future feature).
-struct BookToolbarView: View {
+public struct BookToolbarView: View {
     @Bindable var vm: BookViewModel
     @Binding var searchVisible: Bool
     /// Read from the environment so the toolbar always renders the
@@ -27,7 +27,7 @@ struct BookToolbarView: View {
     @State private var showFilterSheet = false
     @State private var showPropertiesSheet = false
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 12) {
                 viewPicker

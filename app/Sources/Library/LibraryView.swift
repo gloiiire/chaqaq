@@ -4,6 +4,7 @@ import PinkhaCore
 import PinkhaDesignSystem
 import PinkhaComposer
 import LeafFeature
+import BookFeature
 
 // ── Tab 1: Notes (unified library) ──────────────────────────────────────────
 

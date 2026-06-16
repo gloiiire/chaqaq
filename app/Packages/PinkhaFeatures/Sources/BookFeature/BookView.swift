@@ -11,7 +11,7 @@ import LeafFeature
 ///
 /// The chrome (nav title, back chevron, error alert) lives here ;
 /// the body components only render rows/cards/calendars/etc.
-struct BookView: View {
+public struct BookView: View {
     @State private var vm: BookViewModel
     let api: PinkhaApi
     var onDisappear: (() -> Void)? = nil
@@ -21,13 +21,13 @@ struct BookView: View {
     @State private var searchVisible = false
     @State private var recentEmojis: [String] = []
 
-    init(bookId: String, api: PinkhaApi, onDisappear: (() -> Void)? = nil) {
+    public init(bookId: String, api: PinkhaApi, onDisappear: (() -> Void)? = nil) {
         _vm = State(wrappedValue: BookViewModel(bookId: bookId, api: api))
         self.api = api
         self.onDisappear = onDisappear
     }
 
-    var body: some View {
+    public var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                 BookHeaderView(vm: vm, recentEmojis: recentEmojis)

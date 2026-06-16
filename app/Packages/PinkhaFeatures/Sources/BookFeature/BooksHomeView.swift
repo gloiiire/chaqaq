@@ -8,20 +8,24 @@ import PinkhaDesignSystem
 /// Home screen for the Books tab — lists all books. Creation is
 /// global, hosted by `ContentView`'s create bubble accessory; this view
 /// keeps only the list, the empty state and the destructive overflow.
-struct BooksHomeView: View {
+public struct BooksHomeView: View {
     /// Book awaiting the delete confirmation dialog — swiping Delete
     /// stages the row here instead of deleting straight away so the user
     /// chooses whether the pages inside go with it.
     @State private var pendingDeletion: BookMetaFfi?
 
-    @Bindable var store: PinkhaStore
+    @Bindable public var store: PinkhaStore
+
+    public init(store: PinkhaStore) {
+        self.store = store
+    }
     /// Apple-Music-style zoom transition source ; the destination
     /// `BookView` pairs it with `.navigationTransition(.zoom(...))`
     /// so opening a row reads as the card expanding into the editor.
     /// Same surface as `LibraryView.docZoom`.
     @Namespace private var dbZoom
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             List {
                     if store.books.isEmpty {
@@ -77,7 +81,7 @@ struct BooksHomeView: View {
 private struct BookRow: View {
     let db: BookMetaFfi
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 12) {
             iconView
             VStack(alignment: .leading, spacing: 4) {
@@ -124,7 +128,7 @@ private struct BookRow: View {
 // ── Empty state ───────────────────────────────────────────────────────────────
 
 private struct BooksEmptyState: View {
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "tablecells")
                 .font(.system(size: 48))

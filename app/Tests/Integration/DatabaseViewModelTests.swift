@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 import PinkhaFFI
+@testable import BookFeature
 @testable import Pinkha
 
 @MainActor

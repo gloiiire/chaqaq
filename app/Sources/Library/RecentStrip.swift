@@ -2,6 +2,7 @@ import SwiftUI
 import PinkhaFFI
 import PinkhaCore
 import PinkhaDesignSystem
+import BookFeature
 
 // ── Recent strip ──────────────────────────────────────────────────────────────
 

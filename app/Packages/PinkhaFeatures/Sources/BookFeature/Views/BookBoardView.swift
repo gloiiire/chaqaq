@@ -6,12 +6,12 @@ import LeafFeature
 /// Kanban-style horizontally scrolling board. Each column is a value
 /// of the `groupBy` property ; entries with that value stack vertically
 /// as cards inside the column. Notion's "Board view".
-struct BookBoardView: View {
+public struct BookBoardView: View {
     @Bindable var vm: BookViewModel
     let api: PinkhaApi
     let onDisappear: () -> Void
 
-    var body: some View {
+    public var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(alignment: .top, spacing: 14) {
                 ForEach(vm.groupedRows, id: \.title) { group in
@@ -39,7 +39,7 @@ private struct BoardColumn: View {
     let api: PinkhaApi
     let onDisappear: () -> Void
 
-    var body: some View {
+    public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(title.isEmpty ? "Untitled" : title)
@@ -94,7 +94,7 @@ private struct BoardCard: View {
 
     @Environment(TabManager.self) private var tabManager
 
-    var body: some View {
+    public var body: some View {
         Group {
             if let leafId {
                 NavigationLink(destination: LeafView(

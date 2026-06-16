@@ -97,6 +97,8 @@ targets:
         product: PinkhaComposer
       - package: PinkhaFeatures
         product: LeafFeature
+      - package: PinkhaFeatures
+        product: BookFeature
       - package: Sentry
         product: Sentry
 

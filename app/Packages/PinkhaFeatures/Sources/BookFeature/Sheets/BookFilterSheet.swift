@@ -6,12 +6,12 @@ import PinkhaCore
 /// surface only takes property + condition ; this sheet keeps things
 /// minimal (one filter per property, equals or contains). Multi-clause
 /// filters land in a future PR.
-struct BookFilterSheet: View {
+public struct BookFilterSheet: View {
     @Bindable var vm: BookViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showAddPropertyMenu = false
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             List {
                 if vm.filters.isEmpty {
@@ -69,7 +69,7 @@ private struct FilterRow: View {
     let filter: BookFilter
     @Bindable var vm: BookViewModel
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 10) {
             Image(systemName: property?.propertyType.icon ?? "questionmark.circle")
                 .foregroundStyle(.secondary)

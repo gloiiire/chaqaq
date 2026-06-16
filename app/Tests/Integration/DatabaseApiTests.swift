@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 import PinkhaFFI
+@testable import BookFeature
 @testable import Pinkha
 
 // Book FFI tests: even though the UI does not exist yet, the API must work.

@@ -14,7 +14,7 @@ import LeafFeature
 // surrounding chrome (header / toolbar / nav-title) belongs to
 // `BookView` — this component only renders the grid.
 
-struct BookTableView: View {
+public struct BookTableView: View {
     @Bindable var vm: BookViewModel
     let api: PinkhaApi
     let onDisappear: () -> Void
@@ -41,7 +41,7 @@ struct BookTableView: View {
 
     // ── Body ──────────────────────────────────────────────────────────────────
 
-    var body: some View {
+    public var body: some View {
         ScrollView([.horizontal, .vertical], showsIndicators: true) {
             VStack(alignment: .leading, spacing: 0) {
                 headerRow
@@ -143,7 +143,7 @@ private struct PropertyHeaderCell: View {
     @State private var showRename = false
     @State private var renameDraft = ""
 
-    var body: some View {
+    public var body: some View {
         Button(action: onTapSort) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
@@ -204,7 +204,7 @@ private struct EntryRowView: View {
     let onDelete: () -> Void
     let onDisappear: () -> Void
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 0) {
             ForEach(properties) { prop in
                 let binding = Binding<PropertyValueFfi>(
@@ -256,7 +256,7 @@ private struct TitleCell: View {
     @State private var draft = ""
     @FocusState private var focused: Bool
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 0) {
             TextField("Untitled", text: $draft)
                 .font(.body.weight(.medium))
@@ -302,7 +302,7 @@ private struct CellView: View {
     let propertyType: PropertyTypeFfi
     let width: CGFloat
 
-    var body: some View {
+    public var body: some View {
         Group {
             switch propertyType {
             case .checkbox:
@@ -335,7 +335,7 @@ private struct CheckboxCell: View {
     @Binding var value: PropertyValueFfi
     var isOn: Bool { if case .checkbox(let b) = value { return b }; return false }
 
-    var body: some View {
+    public var body: some View {
         Toggle("", isOn: Binding(get: { isOn }, set: { value = .checkbox($0) }))
             .labelsHidden()
             .padding(.horizontal, 10)
@@ -348,7 +348,7 @@ private struct TextCell: View {
     @State private var draft = ""
     @FocusState private var focused: Bool
 
-    var body: some View {
+    public var body: some View {
         TextField("", text: $draft)
             .focused($focused)
             .padding(.horizontal, 10)
@@ -369,7 +369,7 @@ private struct NumberCell: View {
     @FocusState private var focused: Bool
     private var num: Double? { if case .number(let n) = value { return n }; return nil }
 
-    var body: some View {
+    public var body: some View {
         TextField("", text: $draft)
             .keyboardType(.decimalPad)
             .multilineTextAlignment(.trailing)
@@ -388,7 +388,7 @@ private struct NumberCell: View {
 
 private struct ReadOnlyCell: View {
     let text: String
-    var body: some View {
+    public var body: some View {
         Text(text.isEmpty ? "—" : text)
             .foregroundStyle(text.isEmpty ? .tertiary : .primary)
             .lineLimit(1)
@@ -409,7 +409,7 @@ private struct SelectionCell: View {
         return s
     }
 
-    var body: some View {
+    public var body: some View {
         Button { showPicker = true } label: {
             HStack(spacing: 0) {
                 if let s = selected { SelectionChip(label: s) } else { Color.clear }
@@ -439,7 +439,7 @@ private struct MultiSelectCell: View {
         return s
     }
 
-    var body: some View {
+    public var body: some View {
         Button { showPicker = true } label: {
             if selected.isEmpty {
                 Color.clear
@@ -476,7 +476,7 @@ private struct DateCell: View {
         return fmt.date(from: s)
     }
 
-    var body: some View {
+    public var body: some View {
         Button { showPicker = true } label: {
             Text(date.map { $0.formatted(date: .abbreviated, time: .omitted) } ?? "")
                 .foregroundStyle(date == nil ? .tertiary : .primary)
@@ -502,7 +502,7 @@ private struct SelectionPickerSheet: View {
     let selected: String?
     let onSelect: (String?) -> Void
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             List {
                 if selected != nil {
@@ -547,7 +547,7 @@ private struct MultiSelectPickerSheet: View {
         self._current = State(initialValue: Set(selected))
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             List {
                 ForEach(options, id: \.self) { opt in
@@ -587,7 +587,7 @@ private struct DatePickerSheet: View {
         self._selected = State(initialValue: current ?? .now)
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             Form {
                 DatePicker("Date", selection: $selected, displayedComponents: .date)
@@ -626,7 +626,7 @@ private struct UrlCell: View {
         return ""
     }
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 0) {
             TextField("https://", text: $draft)
                 .keyboardType(.URL)
@@ -661,7 +661,7 @@ private struct UrlCell: View {
 
 // ── Add-column sheet ──────────────────────────────────────────────────────────
 
-struct AddColumnSheet: View {
+public struct AddColumnSheet: View {
     let onAdd: (String, PropertyTypeFfi) -> Void
     let onCancel: () -> Void
 
@@ -708,7 +708,7 @@ struct AddColumnSheet: View {
         }
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             Form {
                 Section {
@@ -784,7 +784,7 @@ struct AddColumnSheet: View {
 
 // ── Shared chip ───────────────────────────────────────────────────────────────
 
-struct SelectionChip: View {
+public struct SelectionChip: View {
     let label: String
 
     private var color: Color {
@@ -792,7 +792,7 @@ struct SelectionChip: View {
         return palette[abs(label.hashValue) % palette.count]
     }
 
-    var body: some View {
+    public var body: some View {
         Text(label)
             .font(.caption.weight(.medium))
             .padding(.horizontal, 8)

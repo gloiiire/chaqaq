@@ -15,15 +15,15 @@ import LeafFeature
 /// translates it into a `Contains` condition when running the search
 /// path. Persisted filters land in a follow-up PR — for now the user's
 /// filter list is session-scoped.
-struct BookFilter: Identifiable, Equatable {
-    let id: UUID
+public struct BookFilter: Identifiable, Equatable {
+    public let id: UUID
     var propertyId: String
     var queryDraft: String
 }
 
 @MainActor
 @Observable
-final class BookViewModel {
+public final class BookViewModel {
     let bookId: String
     @ObservationIgnored let api: PinkhaApi
 
