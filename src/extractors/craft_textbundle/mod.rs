@@ -1,21 +1,21 @@
 // ── Craft TextBundle extractor ────────────────────────────────────────────────
 //
-// Reads a folder of `.textbundle` packages exported from Craft ("Export All").
+// Reads a shelf of `.textbundle` packages exported from Craft ("Export All").
 //
 // Pipeline:
 //   → walk root_dir recursively for *.textbundle directories
 //   → title   = filename stem (e.g. "My Note.textbundle" → "My Note")
 //   → content = text.markdown parsed by the Bear markdown parser (same dialect)
-//   → persist one pinkha Document per textbundle, mirroring subdirectory → folder
+//   → persist one pinkha Leaf per textbundle, mirroring subdirectory → shelf
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use crate::application::database_repository::DatabaseRepository;
-use crate::application::folder_repository::FolderRepository;
-use crate::application::repository::DocumentRepository;
+use crate::application::book_repository::BookRepository;
+use crate::application::shelf_repository::ShelfRepository;
+use crate::application::repository::LeafRepository;
 use crate::extractors::bear::mapper::parse_note_blocks;
-use crate::extractors::craft::flush_document;
+use crate::extractors::craft::flush_leaf;
 use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
 use uuid::Uuid;
@@ -23,8 +23,8 @@ use uuid::Uuid;
 // ── Config ────────────────────────────────────────────────────────────────────
 
 pub struct CraftTextBundleConfig {
-    /// Path to the root folder that contains `.textbundle` packages
-    /// (may be nested in sub-folders).
+    /// Path to the root shelf that contains `.textbundle` packages
+    /// (may be nested in sub-shelves).
     pub root_dir: String,
 }
 
@@ -54,9 +54,9 @@ impl Extractor for CraftTextBundleExtractor {
     async fn run(
         &self,
         config: CraftTextBundleConfig,
-        docs: &(dyn DocumentRepository + Send + Sync),
-        _dbs: &(dyn DatabaseRepository + Send + Sync),
-        folders: &(dyn FolderRepository + Send + Sync),
+        docs: &(dyn LeafRepository + Send + Sync),
+        _books: &(dyn BookRepository + Send + Sync),
+        shelves: &(dyn ShelfRepository + Send + Sync),
     ) -> Result<ImportResult, ExtractorError> {
         let root = Path::new(&config.root_dir);
         if !root.exists() {
@@ -73,9 +73,9 @@ impl Extractor for CraftTextBundleExtractor {
         }
         let bundles = find_textbundles(root);
 
-        let mut doc_count = 0usize;
+        let mut leaf_count = 0usize;
         let mut block_count = 0usize;
-        let mut folder_cache: HashMap<Vec<String>, Uuid> = HashMap::new();
+        let mut shelf_cache: HashMap<Vec<String>, Uuid> = HashMap::new();
 
         for bundle_path in &bundles {
             let title = textbundle_title(bundle_path);
@@ -84,18 +84,18 @@ impl Extractor for CraftTextBundleExtractor {
             let parsed_blocks = parse_note_blocks(&markdown);
             block_count += parsed_blocks.len();
 
-            let components = relative_folder_components(bundle_path, root);
-            let folder_id = ensure_folder(&components, folders, &mut folder_cache)
-                .map_err(|e| ExtractorError::Parse(format!("folder creation failed: {e}")))?;
+            let components = relative_shelf_components(bundle_path, root);
+            let shelf_id = ensure_shelf(&components, shelves, &mut shelf_cache)
+                .map_err(|e| ExtractorError::Parse(format!("shelf creation failed: {e}")))?;
 
-            flush_document(docs, &title, parsed_blocks, folder_id)?;
-            doc_count += 1;
+            flush_leaf(docs, &title, parsed_blocks, shelf_id)?;
+            leaf_count += 1;
         }
 
         Ok(ImportResult {
             app: "Craft (TextBundle)",
-            database_id: None,
-            documents: doc_count,
+            book_id: None,
+            leaves: leaf_count,
             entries: 0,
             blocks: block_count,
             skipped: 0,
@@ -126,7 +126,7 @@ pub fn find_textbundles(dir: &Path) -> Vec<PathBuf> {
     result
 }
 
-/// Extracts the document title from a `.textbundle` path (the filename stem).
+/// Extracts the leaf title from a `.textbundle` path (the filename stem).
 pub fn textbundle_title(path: &Path) -> String {
     path.file_stem()
         .and_then(|s| s.to_str())
@@ -135,11 +135,11 @@ pub fn textbundle_title(path: &Path) -> String {
         .to_string()
 }
 
-/// Returns the folder path components for a bundle relative to the export root.
+/// Returns the shelf path components for a bundle relative to the export root.
 ///
-/// e.g. `/root/SpaceA/SubFolder/Note.textbundle` with root `/root`
-/// → `["SpaceA", "SubFolder"]`
-pub fn relative_folder_components(bundle_path: &Path, root: &Path) -> Vec<String> {
+/// e.g. `/root/SpaceA/SubShelf/Note.textbundle` with root `/root`
+/// → `["SpaceA", "SubShelf"]`
+pub fn relative_shelf_components(bundle_path: &Path, root: &Path) -> Vec<String> {
     let rel = bundle_path.strip_prefix(root).unwrap_or(bundle_path);
     let parent = rel.parent().unwrap_or(Path::new(""));
     parent
@@ -150,13 +150,13 @@ pub fn relative_folder_components(bundle_path: &Path, root: &Path) -> Vec<String
         .collect()
 }
 
-/// Gets or creates the folder for `components`, returning its UUID.
+/// Gets or creates the shelf for `components`, returning its UUID.
 ///
 /// Parents are created recursively, deepest last. Results are cached so each
 /// unique path is created only once per import run.
-fn ensure_folder(
+fn ensure_shelf(
     components: &[String],
-    folders: &dyn FolderRepository,
+    shelves: &dyn ShelfRepository,
     cache: &mut HashMap<Vec<String>, Uuid>,
 ) -> Result<Option<Uuid>, crate::application::error::PinkhaError> {
     if components.is_empty() {
@@ -166,11 +166,11 @@ fn ensure_folder(
     if let Some(&id) = cache.get(&key) {
         return Ok(Some(id));
     }
-    let parent_id = ensure_folder(&components[..components.len() - 1], folders, cache)?;
+    let parent_id = ensure_shelf(&components[..components.len() - 1], shelves, cache)?;
     let name = &components[components.len() - 1];
-    let folder = folders.create(name, parent_id)?;
-    cache.insert(key, folder.id);
-    Ok(Some(folder.id))
+    let shelf = shelves.create(name, parent_id)?;
+    cache.insert(key, shelf.id);
+    Ok(Some(shelf.id))
 }
 
 // ── Unit tests ────────────────────────────────────────────────────────────────
@@ -229,7 +229,7 @@ mod tests {
 
     #[test]
     fn textbundle_title_from_path() {
-        let p = Path::new("/some/folder/My Note.textbundle");
+        let p = Path::new("/some/shelf/My Note.textbundle");
         assert_eq!(textbundle_title(p), "My Note");
     }
 
@@ -246,26 +246,26 @@ mod tests {
     }
 
     #[test]
-    fn relative_folder_components_root_level() {
+    fn relative_shelf_components_root_level() {
         let root = Path::new("/export");
         let bundle = Path::new("/export/Note.textbundle");
-        let components = relative_folder_components(bundle, root);
+        let components = relative_shelf_components(bundle, root);
         assert!(components.is_empty());
     }
 
     #[test]
-    fn relative_folder_components_one_level() {
+    fn relative_shelf_components_one_level() {
         let root = Path::new("/export");
         let bundle = Path::new("/export/SpaceA/Note.textbundle");
-        let components = relative_folder_components(bundle, root);
+        let components = relative_shelf_components(bundle, root);
         assert_eq!(components, vec!["SpaceA"]);
     }
 
     #[test]
-    fn relative_folder_components_nested() {
+    fn relative_shelf_components_nested() {
         let root = Path::new("/export");
-        let bundle = Path::new("/export/SpaceA/SubFolder/Note.textbundle");
-        let components = relative_folder_components(bundle, root);
-        assert_eq!(components, vec!["SpaceA", "SubFolder"]);
+        let bundle = Path::new("/export/SpaceA/SubShelf/Note.textbundle");
+        let components = relative_shelf_components(bundle, root);
+        assert_eq!(components, vec!["SpaceA", "SubShelf"]);
     }
 }

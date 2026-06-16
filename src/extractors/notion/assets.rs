@@ -7,7 +7,7 @@ use super::schema;
 
 // ── Cover image download ──────────────────────────────────────────────────────
 
-/// Downloads `url` to `covers_dir/{doc_id}.{ext}` and returns the file name
+/// Downloads `url` to `covers_dir/{leaf_id}.{ext}` and returns the file name
 /// (relative — the Swift renderer resolves it via its covers directory).
 ///
 /// Notion serves cover images at unauthenticated URLs (even for Notion-hosted
@@ -18,7 +18,7 @@ pub(super) async fn download_cover(
     _client: &NotionClient,
     url: &str,
     covers_dir: &str,
-    doc_id: Uuid,
+    leaf_id: Uuid,
 ) -> Result<String, String> {
     // The auth-less client: Notion covers don't accept the `Authorization`
     // header (especially on the S3 redirect step), and we don't want to leak
@@ -47,7 +47,7 @@ pub(super) async fn download_cover(
         .bytes()
         .await
         .map_err(|e| format!("read body: {e}"))?;
-    let filename = format!("{doc_id}.{extension}");
+    let filename = format!("{leaf_id}.{extension}");
     let mut path = std::path::PathBuf::from(covers_dir);
     path.push(&filename);
     std::fs::write(&path, &bytes).map_err(|e| format!("write {path:?}: {e}"))?;
@@ -61,12 +61,12 @@ pub(super) async fn download_or_keep_icon(
     client: &NotionClient,
     url: &str,
     covers_dir: Option<&str>,
-    doc_id: Uuid,
+    leaf_id: Uuid,
 ) -> String {
     let Some(dir) = covers_dir else {
         return url.to_owned();
     };
-    match download_icon(client, url, dir, doc_id).await {
+    match download_icon(client, url, dir, leaf_id).await {
         Ok(filename) => filename,
         Err(_) => url.to_owned(),
     }
@@ -78,7 +78,7 @@ async fn download_icon(
     _client: &NotionClient,
     url: &str,
     covers_dir: &str,
-    doc_id: Uuid,
+    leaf_id: Uuid,
 ) -> Result<String, String> {
     let http = reqwest::Client::builder()
         .build()
@@ -96,7 +96,7 @@ async fn download_icon(
         .unwrap_or("png")
         .to_owned();
     let bytes = response.bytes().await.map_err(|e| e.to_string())?;
-    let filename = format!("{doc_id}-icon.{extension}");
+    let filename = format!("{leaf_id}-icon.{extension}");
     let mut path = std::path::PathBuf::from(covers_dir);
     path.push(&filename);
     std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
@@ -104,7 +104,7 @@ async fn download_icon(
 }
 
 /// Reduces a `NotionPageIcon` to the string we persist in
-/// `Database.icon` / `Document.icon` : the emoji glyph for `Emoji`
+/// `Book.icon` / `Leaf.icon` : the emoji glyph for `Emoji`
 /// icons, the URL for `External` / `File` (image) icons, or `None`
 /// for the catch-all unknown variant.
 pub(super) fn notion_icon_identifier(icon: &schema::NotionPageIcon) -> Option<String> {

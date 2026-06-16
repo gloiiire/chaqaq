@@ -1,9 +1,9 @@
 use pinkha::application::error::PinkhaError;
 use pinkha::application::use_cases::{
-    add_block, add_child_block, create_document, delete_block, get_document, reorder_blocks,
-    save_edited_block, update_block, update_document_cover, update_document_title,
+    add_block, add_child_block, create_leaf, delete_block, get_leaf, reorder_blocks,
+    save_edited_block, update_block, update_leaf_cover, update_leaf_title,
 };
-use pinkha::domain::document::{BlockContent, InlineText};
+use pinkha::domain::leaf::{BlockContent, InlineText};
 use pinkha::domain::editor::EditorState;
 use pinkha::domain::rich_text::RichText;
 use pinkha::infrastructure::json_store::JsonStore;
@@ -32,13 +32,13 @@ fn state_from(s: &str) -> EditorState {
 #[test]
 fn test_save_edited_block_text() {
     let store = store_temp();
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Doc",
     )
     .unwrap();
     let doc = add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Text(inlines("initial")),
     )
@@ -46,15 +46,15 @@ fn test_save_edited_block_text() {
     let block_id = doc.blocks[0].id;
 
     save_edited_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         block_id,
         &state_from("modifié"),
     )
     .unwrap();
 
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();
@@ -66,13 +66,13 @@ fn test_save_edited_block_text() {
 #[test]
 fn test_save_edited_block_heading() {
     let store = store_temp();
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Doc",
     )
     .unwrap();
     let doc = add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Heading {
             text: inlines("title initial"),
@@ -83,15 +83,15 @@ fn test_save_edited_block_heading() {
     let block_id = doc.blocks[0].id;
 
     save_edited_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         block_id,
         &state_from("title modifié"),
     )
     .unwrap();
 
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();
@@ -104,13 +104,13 @@ fn test_save_edited_block_heading() {
 #[test]
 fn test_sauvegarder_bloc_non_textuel_retourne_erreur() {
     let store = store_temp();
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Doc",
     )
     .unwrap();
     let doc = add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Divider,
     )
@@ -118,7 +118,7 @@ fn test_sauvegarder_bloc_non_textuel_retourne_erreur() {
     let block_id = doc.blocks[0].id;
 
     let result = save_edited_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         block_id,
         &state_from("x"),
@@ -131,13 +131,13 @@ fn test_sauvegarder_bloc_non_textuel_retourne_erreur() {
 #[test]
 fn test_update_block_toggle_todo() {
     let store = store_temp();
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Tâches",
     )
     .unwrap();
     let doc = add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Todo {
             text: inlines("faire la vaisselle"),
@@ -148,7 +148,7 @@ fn test_update_block_toggle_todo() {
     let block_id = doc.blocks[0].id;
 
     update_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         block_id,
         BlockContent::Todo {
@@ -158,8 +158,8 @@ fn test_update_block_toggle_todo() {
     )
     .unwrap();
 
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();
@@ -172,15 +172,15 @@ fn test_update_block_toggle_todo() {
 #[test]
 fn test_update_block_inexistant_retourne_non_trouve() {
     let store = store_temp();
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Doc",
     )
     .unwrap();
     let faux_id = Uuid::new_v4();
 
     let result = update_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         faux_id,
         BlockContent::Divider,
@@ -191,19 +191,19 @@ fn test_update_block_inexistant_retourne_non_trouve() {
 #[test]
 fn test_delete_block() {
     let store = store_temp();
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Doc",
     )
     .unwrap();
     let doc = add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Text(inlines("A")),
     )
     .unwrap();
     let doc = add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Text(inlines("B")),
     )
@@ -211,14 +211,14 @@ fn test_delete_block() {
     let id_a = doc.blocks[0].id;
 
     delete_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         id_a,
     )
     .unwrap();
 
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();
@@ -229,13 +229,13 @@ fn test_delete_block() {
 #[test]
 fn test_delete_block_inexistant_retourne_non_trouve() {
     let store = store_temp();
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Doc",
     )
     .unwrap();
     let result = delete_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         Uuid::new_v4(),
     );
@@ -245,25 +245,25 @@ fn test_delete_block_inexistant_retourne_non_trouve() {
 #[test]
 fn test_reorder_blocks() {
     let store = store_temp();
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Doc",
     )
     .unwrap();
     let doc = add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Text(inlines("A")),
     )
     .unwrap();
     let doc = add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Text(inlines("B")),
     )
     .unwrap();
     let doc = add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Text(inlines("C")),
     )
@@ -273,14 +273,14 @@ fn test_reorder_blocks() {
     let id_c = doc.blocks[2].id;
 
     reorder_blocks(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         vec![id_c, id_a, id_b],
     )
     .unwrap();
 
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();
@@ -292,25 +292,25 @@ fn test_reorder_blocks() {
 #[test]
 fn test_reorder_blocks_partiels_conserve_le_reste() {
     let store = store_temp();
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Doc",
     )
     .unwrap();
     let doc = add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Text(inlines("A")),
     )
     .unwrap();
     let doc = add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Text(inlines("B")),
     )
     .unwrap();
     let doc = add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Text(inlines("C")),
     )
@@ -320,14 +320,14 @@ fn test_reorder_blocks_partiels_conserve_le_reste() {
 
     // Reorder only A and C; B is not mentioned → appended at the end
     reorder_blocks(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         vec![id_c, id_a],
     )
     .unwrap();
 
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();
@@ -336,26 +336,26 @@ fn test_reorder_blocks_partiels_conserve_le_reste() {
     assert_eq!(recharge.blocks[1].id, id_a);
 }
 
-// ── Document metadata ─────────────────────────────────────────────────────────
+// ── Leaf metadata ─────────────────────────────────────────────────────────
 
 #[test]
-fn test_update_document_title() {
+fn test_update_leaf_title() {
     let store = store_temp();
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Titre initial",
     )
     .unwrap();
 
-    update_document_title(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    update_leaf_title(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         "Nouveau title",
     )
     .unwrap();
 
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();
@@ -363,36 +363,36 @@ fn test_update_document_title() {
 }
 
 #[test]
-fn test_update_document_cover() {
+fn test_update_leaf_cover() {
     let store = store_temp();
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Doc",
     )
     .unwrap();
     assert!(doc.cover.is_none());
 
-    update_document_cover(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    update_leaf_cover(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         Some("🌄".to_string()),
     )
     .unwrap();
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();
     assert_eq!(recharge.cover, Some("🌄".to_string()));
 
-    update_document_cover(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    update_leaf_cover(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         None,
     )
     .unwrap();
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();
@@ -404,13 +404,13 @@ fn test_update_document_cover() {
 #[test]
 fn test_add_child_block() {
     let store = store_temp();
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Doc",
     )
     .unwrap();
     let doc = add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Text(inlines("parent")),
     )
@@ -418,15 +418,15 @@ fn test_add_child_block() {
     let parent_id = doc.blocks[0].id;
 
     let enfant = add_child_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         parent_id,
         BlockContent::Text(inlines("enfant")),
     )
     .unwrap();
 
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();
@@ -437,13 +437,13 @@ fn test_add_child_block() {
 #[test]
 fn test_ajouter_plusieurs_enfants() {
     let store = store_temp();
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Doc",
     )
     .unwrap();
     let doc = add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Text(inlines("parent")),
     )
@@ -451,22 +451,22 @@ fn test_ajouter_plusieurs_enfants() {
     let parent_id = doc.blocks[0].id;
 
     add_child_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         parent_id,
         BlockContent::Text(inlines("enfant 1")),
     )
     .unwrap();
     add_child_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         parent_id,
         BlockContent::Text(inlines("enfant 2")),
     )
     .unwrap();
 
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();
@@ -476,14 +476,14 @@ fn test_ajouter_plusieurs_enfants() {
 #[test]
 fn test_add_child_block_parent_inexistant() {
     let store = store_temp();
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Doc",
     )
     .unwrap();
 
     let result = add_child_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         Uuid::new_v4(),
         BlockContent::Text(inlines("orphelin")),
@@ -494,13 +494,13 @@ fn test_add_child_block_parent_inexistant() {
 #[test]
 fn test_delete_block_enfant_recursif() {
     let store = store_temp();
-    let doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Doc",
     )
     .unwrap();
     let doc = add_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         BlockContent::Text(inlines("parent")),
     )
@@ -508,7 +508,7 @@ fn test_delete_block_enfant_recursif() {
     let parent_id = doc.blocks[0].id;
 
     let enfant = add_child_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         parent_id,
         BlockContent::Text(inlines("enfant")),
@@ -516,14 +516,14 @@ fn test_delete_block_enfant_recursif() {
     .unwrap();
 
     delete_block(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
         enfant.id,
     )
     .unwrap();
 
-    let recharge = get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let recharge = get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();

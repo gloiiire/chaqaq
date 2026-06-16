@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PinkhaFFI
 @testable import Pinkha
 
 // Verifies the Codable round-trip of the Swift mirrors of Rust types.

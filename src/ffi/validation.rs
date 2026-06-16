@@ -4,7 +4,7 @@ use serde::de::DeserializeOwned;
 use uuid::Uuid;
 
 use super::PinkhaError;
-use crate::domain::document::Block;
+use crate::domain::leaf::Block;
 
 /// Maximum size of JSON payloads accepted at the FFI boundary (5 MB).
 ///

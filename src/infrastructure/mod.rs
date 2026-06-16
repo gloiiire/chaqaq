@@ -1,7 +1,7 @@
-pub mod database_store;
+pub mod book_store;
 pub mod json_store;
 pub mod migrations;
 pub mod no_op_unit_of_work;
-pub mod sqlite_database_store;
-pub mod sqlite_document_store;
-pub mod sqlite_folder_store;
+pub mod sqlite_book_store;
+pub mod sqlite_leaf_store;
+pub mod sqlite_shelf_store;

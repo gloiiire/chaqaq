@@ -3,7 +3,7 @@
 // One extractor per source application. Each extractor:
 //   1. Owns an HTTP client (or file reader) specific to its source API.
 //   2. Maps the source's data model to Pinkha domain types.
-//   3. Persists via DocumentRepository + DatabaseRepository — no direct SQLite.
+//   3. Persists via LeafRepository + BookRepository — no direct SQLite.
 //
 // The trait lives in `traits.rs`. Concrete implementations live in submodules.
 // OAuth2 token exchange (browser flow, Keychain) stays in Swift; Rust only
@@ -132,13 +132,13 @@ impl From<reqwest::Error> for ExtractorError {
 pub struct ImportResult {
     /// Human-readable name of the source app (e.g. "Notion", "Bear").
     pub app: &'static str,
-    /// ID of the Pinkha database created during this import, if any.
-    pub database_id: Option<Uuid>,
-    /// Number of Pinkha documents created.
-    pub documents: usize,
-    /// Number of database entries created.
+    /// ID of the Pinkha book created during this import, if any.
+    pub book_id: Option<Uuid>,
+    /// Number of Pinkha leaves created.
+    pub leaves: usize,
+    /// Number of book entries created.
     pub entries: usize,
-    /// Number of blocks added across all documents.
+    /// Number of blocks added across all leaves.
     pub blocks: usize,
     /// Number of source items dropped because they had no Pinkha equivalent.
     pub skipped: usize,

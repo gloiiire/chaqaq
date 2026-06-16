@@ -5,20 +5,20 @@
 use super::schema::{
     NotionAnnotations, NotionBlock, NotionPagePropValue, NotionPropertyDef, NotionRichText,
 };
-use crate::domain::database::{Property, PropertyType, PropertyValue};
-use crate::domain::document::{BlockContent, InlineStyle, InlineText};
+use crate::domain::book::{Property, PropertyType, PropertyValue};
+use crate::domain::leaf::{BlockContent, InlineStyle, InlineText};
 
-// ── Database ID extraction ────────────────────────────────────────────────────
+// ── Book ID extraction ────────────────────────────────────────────────────
 
-/// Normalises a Notion database ID from a full URL or a raw ID.
+/// Normalises a Notion book ID from a full URL or a raw ID.
 ///
 /// Accepts:
-/// - `https://www.notion.so/workspace/MyPage-{id}?pvs=4`
+/// - `https://www.notion.so/library/MyPage-{id}?pvs=4`
 /// - `https://notion.so/{id}`
 /// - A bare 32-char hex string (with or without dashes).
 ///
 /// Returns the 32-char hex string (no dashes).
-pub fn extract_database_id(input: &str) -> String {
+pub fn extract_book_id(input: &str) -> String {
     // Strip URL prefix.
     let stripped = input
         .trim_start_matches("https://www.notion.so/")
@@ -243,7 +243,7 @@ pub fn map_block(block: &NotionBlock) -> Option<BlockContent> {
             })
         }
         "divider" => Some(BlockContent::Divider),
-        // A reference to an existing page (or database). Mapped to a
+        // A reference to an existing page (or book). Mapped to a
         // paragraph holding a single notion.so link: the post-import
         // mention-rewriting pass turns it into `pinkha://doc/{uuid}` when
         // the target is part of the same import, and the promotion pass
@@ -254,7 +254,7 @@ pub fn map_block(block: &NotionBlock) -> Option<BlockContent> {
             let id = target
                 .page_id
                 .as_deref()
-                .or(target.database_id.as_deref())?;
+                .or(target.book_id.as_deref())?;
             Some(BlockContent::Text(vec![InlineText {
                 content: "Linked page".to_string(),
                 styles: vec![InlineStyle::Link(format!(
@@ -336,7 +336,7 @@ pub fn map_property_value(val: &NotionPagePropValue) -> Option<PropertyValue> {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 /// Column names (lowercased, trimmed) that mark a Date property as the
-/// database's publish date. Exact match only — substring matching would
+/// book's publish date. Exact match only — substring matching would
 /// hijack columns like "Due date".
 const PUBLISH_SOURCE_NAMES: [&str; 9] = [
     "publication",
@@ -351,7 +351,7 @@ const PUBLISH_SOURCE_NAMES: [&str; 9] = [
 ];
 
 /// Detects the Date column that should drive `published_at` for an
-/// imported database. Returns `Some(property_id)` only when exactly one
+/// imported book. Returns `Some(property_id)` only when exactly one
 /// Date property carries a publish-flavored name — zero or several
 /// candidates means no auto-adoption (no magic on ambiguous schemas).
 pub fn detect_publish_source(properties: &[Property]) -> Option<uuid::Uuid> {
@@ -371,22 +371,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_extract_database_id_from_url() {
+    fn test_extract_book_id_from_url() {
         let url =
-            "https://www.notion.so/workspace/My-Page-Title-1234567890abcdef1234567890abcdef?pvs=4";
-        let id = extract_database_id(url);
+            "https://www.notion.so/library/My-Page-Title-1234567890abcdef1234567890abcdef?pvs=4";
+        let id = extract_book_id(url);
         assert_eq!(id, "1234567890abcdef1234567890abcdef");
     }
 
     #[test]
-    fn test_extract_database_id_bare() {
-        let id = extract_database_id("1234567890abcdef1234567890abcdef");
+    fn test_extract_book_id_bare() {
+        let id = extract_book_id("1234567890abcdef1234567890abcdef");
         assert_eq!(id, "1234567890abcdef1234567890abcdef");
     }
 
     #[test]
-    fn test_extract_database_id_with_dashes() {
-        let id = extract_database_id("12345678-90ab-cdef-1234-567890abcdef");
+    fn test_extract_book_id_with_dashes() {
+        let id = extract_book_id("12345678-90ab-cdef-1234-567890abcdef");
         assert_eq!(id, "1234567890abcdef1234567890abcdef");
     }
 
@@ -514,7 +514,7 @@ mod tests {
         let result = map_block(&block);
         assert!(matches!(
             result,
-            Some(crate::domain::document::BlockContent::Text(_))
+            Some(crate::domain::leaf::BlockContent::Text(_))
         ));
     }
 
@@ -524,7 +524,7 @@ mod tests {
         let result = map_block(&block);
         assert!(matches!(
             result,
-            Some(crate::domain::document::BlockContent::Heading { level: 1, .. })
+            Some(crate::domain::leaf::BlockContent::Heading { level: 1, .. })
         ));
     }
 
@@ -534,7 +534,7 @@ mod tests {
         let result = map_block(&block);
         assert!(matches!(
             result,
-            Some(crate::domain::document::BlockContent::BulletedListItem(_))
+            Some(crate::domain::leaf::BlockContent::BulletedListItem(_))
         ));
     }
 
@@ -572,7 +572,7 @@ mod tests {
         };
         let result = map_block(&block);
         match result {
-            Some(crate::domain::document::BlockContent::Code { language, text }) => {
+            Some(crate::domain::leaf::BlockContent::Code { language, text }) => {
                 assert_eq!(language, "rust");
                 assert_eq!(text, "fn main() {}");
             }
@@ -608,7 +608,7 @@ mod tests {
     #[test]
     fn test_map_property_type_number() {
         use super::super::schema::NotionPropertyDef;
-        use crate::domain::database::PropertyType;
+        use crate::domain::book::PropertyType;
         let def = NotionPropertyDef {
             id: "abc".to_string(),
             name: "Score".to_string(),
@@ -656,7 +656,7 @@ mod tests {
         let result = map_block(&block);
         assert!(matches!(
             result,
-            Some(crate::domain::document::BlockContent::Todo { done: true, .. })
+            Some(crate::domain::leaf::BlockContent::Todo { done: true, .. })
         ));
     }
 
@@ -695,7 +695,7 @@ mod tests {
         let result = map_block(&block);
         assert!(matches!(
             result,
-            Some(crate::domain::document::BlockContent::Todo { done: false, .. })
+            Some(crate::domain::leaf::BlockContent::Todo { done: false, .. })
         ));
     }
 
@@ -736,7 +736,7 @@ mod tests {
         };
         let result = map_block(&block);
         match result {
-            Some(crate::domain::document::BlockContent::Quote { icon, .. }) => {
+            Some(crate::domain::leaf::BlockContent::Quote { icon, .. }) => {
                 assert_eq!(icon, Some("🔥".to_string()));
             }
             _ => panic!("expected Quote block"),
@@ -777,7 +777,7 @@ mod tests {
         };
         let result = map_block(&block);
         match result {
-            Some(crate::domain::document::BlockContent::Quote { icon, .. }) => {
+            Some(crate::domain::leaf::BlockContent::Quote { icon, .. }) => {
                 // No icon in the Notion block → icon is None (no default injected by mapper).
                 assert!(icon.is_none());
             }
@@ -817,7 +817,7 @@ mod tests {
         };
         let result = map_block(&block);
         match result {
-            Some(crate::domain::document::BlockContent::Quote { icon, text }) => {
+            Some(crate::domain::leaf::BlockContent::Quote { icon, text }) => {
                 assert!(icon.is_none());
                 assert_eq!(text.len(), 1);
                 assert_eq!(text[0].content, "wisdom");
@@ -849,7 +849,7 @@ mod tests {
         let result = map_block(&block);
         assert!(matches!(
             result,
-            Some(crate::domain::document::BlockContent::Divider)
+            Some(crate::domain::leaf::BlockContent::Divider)
         ));
     }
 
@@ -861,7 +861,7 @@ mod tests {
         let val = NotionPagePropValue::Select { select: None };
         assert_eq!(
             map_property_value(&val),
-            Some(crate::domain::database::PropertyValue::Selection(None))
+            Some(crate::domain::book::PropertyValue::Selection(None))
         );
     }
 
@@ -879,7 +879,7 @@ mod tests {
             ],
         };
         match map_property_value(&val) {
-            Some(crate::domain::database::PropertyValue::SelectionMultiple(names)) => {
+            Some(crate::domain::book::PropertyValue::SelectionMultiple(names)) => {
                 assert_eq!(names, vec!["a", "b"]);
             }
             _ => panic!("expected SelectionMultiple"),
@@ -893,7 +893,7 @@ mod tests {
         };
         assert_eq!(
             map_property_value(&val),
-            Some(crate::domain::database::PropertyValue::Url(
+            Some(crate::domain::book::PropertyValue::Url(
                 "https://example.com".to_string()
             ))
         );
@@ -918,7 +918,7 @@ mod tests {
         assert!(
             result[0]
                 .styles
-                .contains(&crate::domain::document::InlineStyle::Bold)
+                .contains(&crate::domain::leaf::InlineStyle::Bold)
         );
     }
 
@@ -939,7 +939,7 @@ mod tests {
         assert!(
             result[0]
                 .styles
-                .contains(&crate::domain::document::InlineStyle::Color(
+                .contains(&crate::domain::leaf::InlineStyle::Color(
                     "red".to_string()
                 ))
         );
@@ -960,17 +960,17 @@ mod tests {
         assert!(
             result[0]
                 .styles
-                .contains(&crate::domain::document::InlineStyle::Link(url.to_string()))
+                .contains(&crate::domain::leaf::InlineStyle::Link(url.to_string()))
         );
     }
 
-    // ── extract_database_id with workspace slug ───────────────────────────────
+    // ── extract_book_id with library slug ───────────────────────────────
 
     #[test]
-    fn test_extract_database_id_with_workspace() {
+    fn test_extract_book_id_with_library() {
         // URL format: notion.so/myworkspace/Title-{32hexchars}
         let url = "https://www.notion.so/myworkspace/Title-abc123def456abc123def456abc123de";
-        let id = extract_database_id(url);
+        let id = extract_book_id(url);
         assert_eq!(id, "abc123def456abc123def456abc123de");
     }
 
@@ -1096,7 +1096,7 @@ mod link_to_page_tests {
     use super::*;
     use crate::extractors::notion::schema::LinkToPageBlock;
 
-    fn make_link_to_page_block(page_id: Option<&str>, database_id: Option<&str>) -> NotionBlock {
+    fn make_link_to_page_block(page_id: Option<&str>, book_id: Option<&str>) -> NotionBlock {
         NotionBlock {
             id: "block-1".to_string(),
             type_: "link_to_page".to_string(),
@@ -1115,7 +1115,7 @@ mod link_to_page_tests {
             child_database: None,
             link_to_page: Some(LinkToPageBlock {
                 page_id: page_id.map(str::to_string),
-                database_id: database_id.map(str::to_string),
+                book_id: book_id.map(str::to_string),
             }),
         }
     }
@@ -1124,7 +1124,7 @@ mod link_to_page_tests {
     fn test_map_block_link_to_page_becomes_notion_link_paragraph() {
         let block = make_link_to_page_block(Some("12345678-90ab-cdef-1234-567890abcdef"), None);
         let result = map_block(&block);
-        let Some(crate::domain::document::BlockContent::Text(spans)) = result else {
+        let Some(crate::domain::leaf::BlockContent::Text(spans)) = result else {
             panic!("expected a Text block");
         };
         assert_eq!(spans.len(), 1);
@@ -1135,12 +1135,12 @@ mod link_to_page_tests {
     }
 
     #[test]
-    fn test_map_block_link_to_database_uses_database_id() {
+    fn test_map_block_link_to_book_uses_book_id() {
         let block = make_link_to_page_block(None, Some("abcdefab-cdef-abcd-efab-cdefabcdefab"));
         let result = map_block(&block);
         assert!(matches!(
             result,
-            Some(crate::domain::document::BlockContent::Text(_))
+            Some(crate::domain::leaf::BlockContent::Text(_))
         ));
     }
 

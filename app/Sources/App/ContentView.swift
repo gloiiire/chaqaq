@@ -1,16 +1,24 @@
 import SwiftUI
+import PinkhaFFI
+import PinkhaCore
+import PinkhaComposer
+import LeafFeature
+import SearchFeature
+import BookFeature
+import LibraryFeature
+import ImportFeature
 
 // ── Root view: 4-tab layout ──────────────────────────────────────────────────
 
-/// Root view — four tabs: Notes, Databases, Inbox, Search. The create
+/// Root view — four tabs: Notes, Books, Inbox, Search. The create
 /// bubble lives in the TabView's bottom accessory so it docks alongside
 /// the auto-positioned search bubble at the same vertical level as the
 /// tab bar (iOS 26 multi-bubble layout, à la Photos / Music).
 struct ContentView: View {
-    @StateObject private var store = PinkhaStore()
-    @StateObject private var composer = Composer()
-    @StateObject private var tabManager = TabManager()
-    @EnvironmentObject private var settings: AppSettings
+    @State private var store = PinkhaStore()
+    @State private var composer = Composer()
+    @State private var tabManager = TabManager()
+    @Environment(AppSettings.self) private var settings
 
     /// Tracks crossing of the swipe-up haptic threshold so we fire
     /// the "ready to commit" tap exactly once per drag, not on every
@@ -31,22 +39,22 @@ struct ContentView: View {
             // env and repaint their default Buttons.
             .tint(settings.accentColor)
             // Inject the Composer so deep navigation destinations
-            // (FolderView, DocumentView) can flip the creation context
+            // (ShelfView, LeafView) can flip the creation context
             // when they appear / disappear without having to be passed
             // through every NavigationLink call site.
-            .environmentObject(composer)
-            .environmentObject(tabManager)
-            .environmentObject(store)
+            .environment(composer)
+            .environment(tabManager)
+            .environment(store)
             .simultaneousGesture(swipeUpGesture)
             // Create bubble : single glass accessory hosting the four primary
-            // entry points — new note, new database, new folder and an
+            // entry points — new note, new book, new shelf and an
             // overflow menu (trash + imports). Stays visible across all tabs
             // so creation is always one tap away, à la Apple Music mini-player.
             .tabViewBottomAccessory {
                 CreateBubble(
                     onNewNote: { composer.openNewNote() },
-                    onNewDatabase: { composer.openNewDatabase() },
-                    onNewFolder: { composer.openNewFolder() },
+                    onNewBook: { composer.openNewBook() },
+                    onNewShelf: { composer.openNewShelf() },
                     onShowTrash: { composer.showingTrash = true },
                     onDeleteAll: { composer.showingDeleteAllConfirm = true },
                     hasItemsForDeleteAll: !store.items.isEmpty,
@@ -81,7 +89,7 @@ struct ContentView: View {
         )) {
             Tab("Notes", systemImage: "note.text",
                 value: Composer.TabKind.notes) {
-                NotesHomeView(store: store)
+                LibraryView(store: store)
                     // Bumping `notesHomeKey` from outside (the
                     // switcher's ✓ when all tabs are closed)
                     // force-recreates this view with fresh @State —
@@ -89,9 +97,9 @@ struct ContentView: View {
                     // whose path mutation didn't take (SwiftUI bug).
                     .id(composer.notesHomeKey)
             }
-            Tab("Databases tab", systemImage: "tablecells",
-                value: Composer.TabKind.databases) {
-                DatabasesHomeView(store: store)
+            Tab("Books tab", systemImage: "tablecells",
+                value: Composer.TabKind.books) {
+                BooksHomeView(store: store)
             }
             Tab("Inbox",
                 systemImage: store.hasInboxNotification ? "tray.badge.fill" : "tray.fill",
@@ -117,7 +125,7 @@ struct ContentView: View {
     /// "mostly vertical". Smaller = stricter.
     private static let swipeUpDirectionRatio: CGFloat = 1.4
 
-    /// Swipe-up from the tab bar opens the "All documents" switcher
+    /// Swipe-up from the tab bar opens the "All leaves" switcher
     /// (Safari pattern : the bottom toolbar zone is the canonical
     /// entry into the tab grid). `simultaneousGesture` lets it coexist
     /// with tab taps (no movement = tab tap fires; movement = our
@@ -132,7 +140,14 @@ struct ContentView: View {
     /// bottom of the screen, moving up, and the motion is dominantly
     /// vertical. Doesn't require past-threshold — that's the commit.
     private func isCandidateSwipeUp(_ value: DragGesture.Value) -> Bool {
-        let screenH = UIScreen.main.bounds.height
+        // `UIScreen.main` is deprecated since iOS 16 — read the active
+        // window scene's screen instead. Falls back to 0 (gesture never
+        // qualifies) if no scene is foreground, which is the safer
+        // default than acting on a guessed height.
+        let screenH = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first(where: { $0.activationState == .foregroundActive })?
+            .screen.bounds.height ?? 0
         let startedNearBottom = value.startLocation.y > screenH - Self.swipeUpStartBand
         let upward = value.translation.height < 0
         let mostlyVertical = abs(value.translation.height)
@@ -166,7 +181,7 @@ struct ContentView: View {
     }
 
     /// Centralised "open the switcher" path. Card thumbnails come from
-    /// `DocumentSnapshotHook`'s `viewWillDisappear` capture, not from
+    /// `LeafSnapshotHook`'s `viewWillDisappear` capture, not from
     /// a live grab — re-opening a doc just shows its top, which is
     /// what the user prefers over a half-restored scroll mid-page.
     private func openSwitcher() {
@@ -182,29 +197,29 @@ struct ContentView: View {
 /// the "unable to type-check in reasonable time" wall when chained on top of
 /// the alerts and the tab bar accessory.
 private struct ContentSheets: ViewModifier {
-    @ObservedObject var composer: Composer
-    @ObservedObject var store: PinkhaStore
-    @ObservedObject var settings: AppSettings
-    @ObservedObject var tabManager: TabManager
+    @Bindable var composer: Composer
+    @Bindable var store: PinkhaStore
+    @Bindable var settings: AppSettings
+    @Bindable var tabManager: TabManager
 
     func body(content: Content) -> some View {
         content
             .sheet(isPresented: $composer.showingCreateDoc) { createDocSheet }
             .sheet(isPresented: $composer.showingTrash) {
-                TrashView().environmentObject(store)
+                TrashView().environment(store)
             }
             .fullScreenCover(isPresented: $composer.showingAllDocs) {
-                AllDocumentsSwitcher(store: store) { docId in
+                AllLeavesSwitcher(store: store) { leafId in
                     composer.showingAllDocs = false
-                    composer.pendingOpenDoc = docId
+                    composer.pendingOpenDoc = leafId
                 }
-                .environmentObject(settings)
-                .environmentObject(tabManager)
+                .environment(settings)
+                .environment(tabManager)
                 // The switcher's `+` bottom-bar action needs `composer`
                 // to trigger the create-doc sheet. `fullScreenCover`
                 // doesn't always propagate env objects to its content
                 // root in iOS 26 — explicit injection is required.
-                .environmentObject(composer)
+                .environment(composer)
             }
             .sheet(isPresented: $composer.showingNotionImport) {
                 NotionImportView(api: store.api) { store.load() }
@@ -242,17 +257,17 @@ private struct ContentSheets: ViewModifier {
     /// `composer` and `store` are captured without re-passing them.
     @ViewBuilder
     private var createDocSheet: some View {
-        CreateDocumentSheet(
+        CreateLeafSheet(
             title: $composer.newTitle,
-            prompt: composer.createMode == .note ? "Note title" : "Database title",
-            navigationTitle: composer.createMode == .note ? "New Document" : "New Database",
-            // Only the Note flow can attach to a database — the
-            // Database creation flow doesn't make sense to nest
+            prompt: composer.createMode == .note ? "Note title" : "Book title",
+            navigationTitle: composer.createMode == .note ? "New Leaf" : "New Book",
+            // Only the Note flow can attach to a book — the
+            // Book creation flow doesn't make sense to nest
             // inside another DB.
-            availableDatabases: composer.createMode == .note ? store.databases : [],
+            availableBooks: composer.createMode == .note ? store.books : [],
             api: composer.createMode == .note ? store.api : nil
-        ) { databaseId, propertyValues, standaloneStyle in
-            handleCreateCommit(databaseId: databaseId,
+        ) { bookId, propertyValues, standaloneStyle in
+            handleCreateCommit(bookId: bookId,
                                propertyValues: propertyValues,
                                standaloneStyle: standaloneStyle)
         } onCancel: {
@@ -262,22 +277,22 @@ private struct ContentSheets: ViewModifier {
     }
 
     private func handleCreateCommit(
-        databaseId: String?,
+        bookId: String?,
         propertyValues: [String: PropertyValueFfi],
-        standaloneStyle: CreateDocumentSheet.StandaloneStyle
+        standaloneStyle: StandaloneStyle
     ) {
         switch composer.createMode {
         case .note:
             let newId: String?
-            if let dbId = databaseId {
+            if let bookId = bookId {
                 // User opted to file the note as a row of an
-                // existing database — the store handles both the
+                // existing book — the store handles both the
                 // doc creation AND the entry insert. We still
                 // propagate the chosen style so the doc carries its
                 // cover / icon / theme when opened from the DB.
-                newId = store.createNoteInDatabase(
+                newId = store.createNoteInBook(
                     title: composer.newTitle,
-                    databaseId: dbId,
+                    bookId: bookId,
                     propertyValues: propertyValues,
                     style: standaloneStyle
                 )
@@ -286,25 +301,25 @@ private struct ContentSheets: ViewModifier {
                                          in: composer.currentContext,
                                          style: standaloneStyle)
             }
-            if case .document(let parentId) = composer.currentContext, let newId {
-                // For `.document` context, the active editor's VM
+            if case .leaf(let parentId) = composer.currentContext, let newId {
+                // For `.leaf` context, the active editor's VM
                 // owns the in-memory blocks. Signal it via the
                 // composer so *it* performs the `addBlock` for the
                 // Page reference — doing it from here behind the
                 // VM's back would race with the next burst flush
                 // and get overwritten.
                 composer.pendingChildPage = Composer.PendingChildPage(
-                    parentDocId: parentId,
-                    childDocId: newId
+                    parentLeafId: parentId,
+                    childLeafId: newId
                 )
             } else if let newId {
-                // Root or folder context — open the doc right after
+                // Root or shelf context — open the doc right after
                 // the sheet dismisses so the user lands in the
                 // editor (Apple Notes / Bear pattern).
                 composer.pendingOpenDoc = newId
             }
-        case .database:
-            store.createDatabase(title: composer.newTitle, in: composer.currentContext)
+        case .book:
+            store.createBook(title: composer.newTitle, in: composer.currentContext)
         }
         composer.newTitle = ""
         composer.showingCreateDoc = false
@@ -313,27 +328,27 @@ private struct ContentSheets: ViewModifier {
 
 // ── Alert stack ──────────────────────────────────────────────────────────────
 
-/// Bundles the three top-level alerts (new folder, delete-all step 1,
+/// Bundles the three top-level alerts (new shelf, delete-all step 1,
 /// delete-all step 2) into a single modifier so the SwiftUI type-checker
 /// can chew through `body` — inlining the alerts on top of every `.sheet`
 /// / `.fullScreenCover` already stacked there blew the "unable to
 /// type-check in reasonable time" budget.
 private struct ContentAlerts: ViewModifier {
-    @ObservedObject var composer: Composer
-    @ObservedObject var store: PinkhaStore
+    @Bindable var composer: Composer
+    @Bindable var store: PinkhaStore
 
     func body(content: Content) -> some View {
         content
-            .alert("New Folder", isPresented: $composer.showingNewFolder) {
-                TextField("Name", text: $composer.newFolderName)
+            .alert("New Shelf", isPresented: $composer.showingNewShelf) {
+                TextField("Name", text: $composer.newShelfName)
                 Button("Create") {
-                    let trimmed = composer.newFolderName
+                    let trimmed = composer.newShelfName
                         .trimmingCharacters(in: .whitespaces)
                     guard !trimmed.isEmpty else { return }
-                    store.createFolder(name: trimmed, in: composer.currentContext)
-                    composer.newFolderName = ""
+                    store.createShelf(name: trimmed, in: composer.currentContext)
+                    composer.newShelfName = ""
                 }
-                Button("Cancel", role: .cancel) { composer.newFolderName = "" }
+                Button("Cancel", role: .cancel) { composer.newShelfName = "" }
             }
             .alert("Delete all \(store.items.count) notes?",
                    isPresented: $composer.showingDeleteAllConfirm) {
@@ -350,8 +365,8 @@ private struct ContentAlerts: ViewModifier {
             .alert("Are you sure?", isPresented: $composer.showingDeleteAllConfirm2) {
                 Button("Yes, delete everything", role: .destructive) {
                     store.deleteAll()
-                    store.deleteAllDatabases()
-                    store.deleteAllFolders()
+                    store.deleteAllBooks()
+                    store.deleteAllShelves()
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
@@ -371,7 +386,7 @@ private struct ContentAlerts: ViewModifier {
 /// best for in-view edits (typography, spacing inside content, etc.).
 #Preview {
     ContentView()
-        .environmentObject(AppSettings())
+        .environment(AppSettings())
         .tint(AppSettings().accentColor)
 }
 #endif

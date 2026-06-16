@@ -1,5 +1,6 @@
 import Testing
 import UIKit
+import PinkhaRichText
 @testable import Pinkha
 
 @Suite("uiColorFromName — color name to UIColor mapping")

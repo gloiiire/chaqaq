@@ -17,6 +17,18 @@ packages:
   Sentry:
     url: https://github.com/getsentry/sentry-cocoa
     from: "8.49.0"
+  PinkhaFFI:
+    path: Packages/PinkhaFFI
+  PinkhaCore:
+    path: Packages/PinkhaCore
+  PinkhaDesignSystem:
+    path: Packages/PinkhaDesignSystem
+  PinkhaRichText:
+    path: Packages/PinkhaRichText
+  PinkhaComposer:
+    path: Packages/PinkhaComposer
+  PinkhaFeatures:
+    path: Packages/PinkhaFeatures
 
 schemes:
   Pinkha:
@@ -51,7 +63,6 @@ targets:
           # iCloud Drive conflict copies ("Foo 2.swift", "Foo 3.swift") must
           # never enter the build — they're not real source files.
           - "**/* [2-9].swift"
-      - path: ../swift-bindings/pinkha.swift
     resources:
       # The app icon is an Icon Composer bundle (Xcode 26) living at
       # app/Pinkha.icon — NOT inside Assets.xcassets. AppIcon.appiconset
@@ -74,8 +85,26 @@ targets:
           # Required so test targets can `@testable import Pinkha`.
           ENABLE_TESTABILITY: YES
     dependencies:
-      - framework: ../pinkha.xcframework
-        embed: false
+      - package: PinkhaFFI
+        product: PinkhaFFI
+      - package: PinkhaCore
+        product: PinkhaCore
+      - package: PinkhaDesignSystem
+        product: PinkhaDesignSystem
+      - package: PinkhaRichText
+        product: PinkhaRichText
+      - package: PinkhaComposer
+        product: PinkhaComposer
+      - package: PinkhaFeatures
+        product: LeafFeature
+      - package: PinkhaFeatures
+        product: BookFeature
+      - package: PinkhaFeatures
+        product: LibraryFeature
+      - package: PinkhaFeatures
+        product: ImportFeature
+      - package: PinkhaFeatures
+        product: SearchFeature
       - package: Sentry
         product: Sentry
 

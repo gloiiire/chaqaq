@@ -16,13 +16,13 @@ final class SeededDataUITests: XCTestCase {
         return app
     }
 
-    func testSeededDocumentsAppearInList() {
+    func testSeededLeavesAppearInList() {
         let app = launchWithSeed()
         XCTAssertTrue(app.staticTexts["Seeded Note 1"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Seeded Note 2"].exists)
     }
 
-    func testTapSeededDocumentOpensEditor() {
+    func testTapSeededLeafOpensEditor() {
         let app = launchWithSeed()
         let row = app.staticTexts["Seeded Note 1"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
@@ -47,7 +47,7 @@ final class SeededDataUITests: XCTestCase {
 
     func testFabRemainsVisibleOnHome() {
         let app = launchWithSeed()
-        let fab = app.buttons["createDocumentFAB"]
+        let fab = app.buttons["createLeafFAB"]
         XCTAssertTrue(fab.waitForExistence(timeout: 3))
         XCTAssertTrue(fab.isHittable)
     }

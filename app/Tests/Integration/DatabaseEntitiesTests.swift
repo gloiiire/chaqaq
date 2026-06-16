@@ -1,19 +1,20 @@
 import Testing
 import Foundation
+import PinkhaFFI
 @testable import Pinkha
 
-// Advanced database FFI: properties, entries, views.
+// Advanced book FFI: properties, entries, views.
 // No UI yet, but the API must be correct (Notion-like preparation).
 
-@Suite("Database — properties, entries, views via FFI")
-struct DatabaseEntitiesTests {
+@Suite("Book — properties, entries, views via FFI")
+struct BookEntitiesTests {
 
     private func makeApi() throws -> (PinkhaApi, URL, String) {
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("pinkha_dbent_\(UUID().uuidString).db")
         let api = try PinkhaApi(dbPath: tmp.path)
-        let dbId = try api.createDatabase(title: "Test DB")
-        return (api, tmp, dbId)
+        let bookId = try api.createBook(title: "Test DB")
+        return (api, tmp, bookId)
     }
 
     private func cleanup(_ url: URL) {
@@ -28,47 +29,47 @@ struct DatabaseEntitiesTests {
     }
 
     @Test func addPropertyDoesNotThrow() throws {
-        let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
-        try api.addProperty(dbId: dbId, propertyJson: propertyJson(name: "Status"))
+        let (api, url, bookId) = try makeApi(); defer { cleanup(url) }
+        try api.addProperty(bookId: bookId, propertyJson: propertyJson(name: "Status"))
     }
 
     @Test func addEntryWithEmptyValuesReturnsId() throws {
-        let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
-        let entryId = try api.addEntry(dbId: dbId, valuesJson: "{}")
+        let (api, url, bookId) = try makeApi(); defer { cleanup(url) }
+        let entryId = try api.addEntry(bookId: bookId, valuesJson: "{}")
         #expect(UUID(uuidString: entryId) != nil)
     }
 
     @Test func deleteEntryRemovesIt() throws {
-        let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
-        let entryId = try api.addEntry(dbId: dbId, valuesJson: "{}")
-        try api.deleteEntry(dbId: dbId, entryId: entryId)
+        let (api, url, bookId) = try makeApi(); defer { cleanup(url) }
+        let entryId = try api.addEntry(bookId: bookId, valuesJson: "{}")
+        try api.deleteEntry(bookId: bookId, entryId: entryId)
     }
 
     @Test func renamePropertyApplies() throws {
-        let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
+        let (api, url, bookId) = try makeApi(); defer { cleanup(url) }
         let propId = UUID().uuidString
         let json = "{\"id\":\"\(propId)\",\"name\":\"Before\",\"type_\":\"Text\"}"
-        try api.addProperty(dbId: dbId, propertyJson: json)
-        try api.renameProperty(dbId: dbId, propertyId: propId, newName: "After")
-        let dbJson = try api.getDatabaseJson(id: dbId)
+        try api.addProperty(bookId: bookId, propertyJson: json)
+        try api.renameProperty(bookId: bookId, propertyId: propId, newName: "After")
+        let dbJson = try api.getBookJson(id: bookId)
         #expect(dbJson.contains("After"))
         #expect(!dbJson.contains("\"Before\""))
     }
 
     @Test func deletePropertyRemovesIt() throws {
-        let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
+        let (api, url, bookId) = try makeApi(); defer { cleanup(url) }
         let propId = UUID().uuidString
         let json = "{\"id\":\"\(propId)\",\"name\":\"Temp\",\"type_\":\"Text\"}"
-        try api.addProperty(dbId: dbId, propertyJson: json)
-        try api.deleteProperty(dbId: dbId, propertyId: propId)
-        let dbJson = try api.getDatabaseJson(id: dbId)
+        try api.addProperty(bookId: bookId, propertyJson: json)
+        try api.deleteProperty(bookId: bookId, propertyId: propId)
+        let dbJson = try api.getBookJson(id: bookId)
         #expect(!dbJson.contains(propId))
     }
 
-    @Test func defaultDatabaseHasOneListView() throws {
-        // Mobile-first default — fresh databases ship a List view.
-        let (api, url, dbId) = try makeApi(); defer { cleanup(url) }
-        let dbJson = try api.getDatabaseJson(id: dbId)
+    @Test func defaultBookHasOneListView() throws {
+        // Mobile-first default — fresh books ship a List view.
+        let (api, url, bookId) = try makeApi(); defer { cleanup(url) }
+        let dbJson = try api.getBookJson(id: bookId)
         #expect(dbJson.contains("\"List\""))
     }
 }

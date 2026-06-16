@@ -24,23 +24,23 @@ final class HomeScreenUITests: XCTestCase {
         app.launch()
         // The home FAB uses the "square.and.pencil" icon — its default accessibilityLabel
         // is sufficient to locate it, or target the button by icon.
-        let fab = app.buttons["createDocumentFAB"]
+        let fab = app.buttons["createLeafFAB"]
         XCTAssertTrue(fab.waitForExistence(timeout: 3))
         fab.tap()
-        // The creation sheet must display "New document".
-        XCTAssertTrue(app.staticTexts["New document"].waitForExistence(timeout: 3))
+        // The creation sheet must display "New leaf".
+        XCTAssertTrue(app.staticTexts["New leaf"].waitForExistence(timeout: 3))
     }
 
     func testCancelCreateSheetClosesIt() {
         let app = XCUIApplication()
         app.launch()
-        let fab = app.buttons["createDocumentFAB"]
+        let fab = app.buttons["createLeafFAB"]
         XCTAssertTrue(fab.waitForExistence(timeout: 3))
         fab.tap()
         let cancel = app.buttons["Cancel"]
         XCTAssertTrue(cancel.waitForExistence(timeout: 1))
         cancel.tap()
-        XCTAssertFalse(app.staticTexts["New document"].waitForExistence(timeout: 1))
+        XCTAssertFalse(app.staticTexts["New leaf"].waitForExistence(timeout: 1))
     }
 }
 

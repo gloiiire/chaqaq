@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PinkhaFFI
 @testable import Pinkha
 
 @Suite("InlineTextFfi — round-trip JSON")
@@ -30,14 +31,14 @@ struct InlineTextFfiTests {
     }
 }
 
-@Suite("DocumentFfi — full JSON round-trip")
-struct DocumentFfiTests {
+@Suite("LeafFfi — full JSON round-trip")
+struct LeafFfiTests {
 
-    @Test func emptyDocumentRoundTrips() throws {
+    @Test func emptyLeafRoundTrips() throws {
         let id = UUID().uuidString
-        let doc = DocumentFfi(id: id, cover: nil, icon: nil, title: [], blocks: [], locked: nil)
+        let doc = LeafFfi(id: id, cover: nil, icon: nil, title: [], blocks: [], locked: nil)
         let data = try JSONEncoder().encode(doc)
-        let decoded = try JSONDecoder().decode(DocumentFfi.self, from: data)
+        let decoded = try JSONDecoder().decode(LeafFfi.self, from: data)
         #expect(decoded.id == id)
         #expect(decoded.cover == nil)
         #expect(decoded.title.isEmpty)
@@ -45,9 +46,9 @@ struct DocumentFfiTests {
     }
 
     @Test func documentWithCoverEncodes() throws {
-        let doc = DocumentFfi(id: "x", cover: "aurora.jpg", icon: nil, title: [], blocks: [], locked: nil)
+        let doc = LeafFfi(id: "x", cover: "aurora.jpg", icon: nil, title: [], blocks: [], locked: nil)
         let data = try JSONEncoder().encode(doc)
-        let decoded = try JSONDecoder().decode(DocumentFfi.self, from: data)
+        let decoded = try JSONDecoder().decode(LeafFfi.self, from: data)
         #expect(decoded.cover == "aurora.jpg")
     }
 
@@ -58,11 +59,11 @@ struct DocumentFfiTests {
             children: [],
             color: nil
         )
-        let doc = DocumentFfi(id: "d1", cover: nil, icon: nil,
+        let doc = LeafFfi(id: "d1", cover: nil, icon: nil,
                               title: [InlineTextFfi(content: "Titre", styles: [])],
                               blocks: [block], locked: nil)
         let data = try JSONEncoder().encode(doc)
-        let decoded = try JSONDecoder().decode(DocumentFfi.self, from: data)
+        let decoded = try JSONDecoder().decode(LeafFfi.self, from: data)
         #expect(decoded.blocks.count == 1)
         #expect(decoded.blocks[0].id == "b1")
         #expect(decoded.blocks[0].content.plainText == "Hello")
@@ -71,9 +72,9 @@ struct DocumentFfiTests {
     @Test func nestedChildrenRoundTrip() throws {
         let child = BlockFfi(id: "c", content: .text([]), children: [], color: nil)
         let parent = BlockFfi(id: "p", content: .text([]), children: [child], color: nil)
-        let doc = DocumentFfi(id: "d", cover: nil, icon: nil, title: [], blocks: [parent], locked: nil)
+        let doc = LeafFfi(id: "d", cover: nil, icon: nil, title: [], blocks: [parent], locked: nil)
         let data = try JSONEncoder().encode(doc)
-        let decoded = try JSONDecoder().decode(DocumentFfi.self, from: data)
+        let decoded = try JSONDecoder().decode(LeafFfi.self, from: data)
         #expect(decoded.blocks[0].children.count == 1)
         #expect(decoded.blocks[0].children[0].id == "c")
     }
@@ -90,7 +91,7 @@ struct DocumentFfiTests {
         #expect(decoded.color == "red")
     }
 
-    /// Documents serialised before `color` existed must still decode (mirrors
+    /// Leaves serialised before `color` existed must still decode (mirrors
     /// the Rust `#[serde(default)]` guarantee on `Block.color`).
     @Test func blockDecodesLegacyJsonWithoutColor() throws {
         let legacy = #"{"id":"b1","content":"Divider","children":[]}"#

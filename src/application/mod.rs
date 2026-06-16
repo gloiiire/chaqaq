@@ -1,8 +1,8 @@
-pub mod database_repository;
-pub mod database_use_cases;
+pub mod book_repository;
+pub mod book_use_cases;
 pub mod error;
-pub mod folder_repository;
-pub mod folder_use_cases;
+pub mod shelf_repository;
+pub mod shelf_use_cases;
 pub mod repository;
 pub mod resilience;
 pub mod unit_of_work;

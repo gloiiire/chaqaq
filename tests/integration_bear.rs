@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 /// Creates a temporary SQLite file with the minimal Bear schema and returns
 /// its path.  The caller is responsible for deleting it.
-fn create_bear_db(path: &PathBuf) -> Result<(), rusqlite::Error> {
+fn create_bear_book(path: &PathBuf) -> Result<(), rusqlite::Error> {
     let conn = rusqlite::Connection::open(path)?;
 
     conn.execute_batch(
@@ -67,7 +67,7 @@ impl Drop for TempFile {
 fn test_bear_reader_skips_trashed_notes() -> Result<(), Box<dyn std::error::Error>> {
     let tmp = TempFile::new();
 
-    create_bear_db(&tmp.path).map_err(|e| format!("schema setup failed: {e}"))?;
+    create_bear_book(&tmp.path).map_err(|e| format!("schema setup failed: {e}"))?;
 
     let reader = BearReader::new(tmp.path.to_str().ok_or("non-UTF-8 path")?)?;
 
@@ -85,7 +85,7 @@ fn test_bear_reader_skips_trashed_notes() -> Result<(), Box<dyn std::error::Erro
 fn test_bear_reader_note_fields() -> Result<(), Box<dyn std::error::Error>> {
     let tmp = TempFile::new();
 
-    create_bear_db(&tmp.path).map_err(|e| format!("schema setup failed: {e}"))?;
+    create_bear_book(&tmp.path).map_err(|e| format!("schema setup failed: {e}"))?;
 
     let reader = BearReader::new(tmp.path.to_str().ok_or("non-UTF-8 path")?)?;
 

@@ -1,6 +1,6 @@
 use pinkha::application::error::PinkhaError;
-use pinkha::application::repository::DocumentRepository;
-use pinkha::domain::document::Document;
+use pinkha::application::repository::LeafRepository;
+use pinkha::domain::leaf::Leaf;
 use pinkha::domain::parser::parse_inline;
 use pinkha::infrastructure::json_store::JsonStore;
 use std::path::PathBuf;
@@ -17,7 +17,7 @@ fn test_save_puis_load() {
     let dir = dossier_temp();
     let store = JsonStore::new(dir.clone());
 
-    let doc = Document::new(parse_inline("Mon document"));
+    let doc = Leaf::new(parse_inline("Mon leaf"));
     store.save(&doc).unwrap();
 
     let charge = store.load(doc.id).unwrap();
@@ -31,8 +31,8 @@ fn test_list_retourne_toutes_les_metadonnees() {
     let dir = dossier_temp();
     let store = JsonStore::new(dir.clone());
 
-    let doc1 = Document::new(parse_inline("Premier"));
-    let doc2 = Document::new(parse_inline("Deuxième"));
+    let doc1 = Leaf::new(parse_inline("Premier"));
+    let doc2 = Leaf::new(parse_inline("Deuxième"));
     store.save(&doc1).unwrap();
     store.save(&doc2).unwrap();
 
@@ -58,7 +58,7 @@ fn test_list_vide() {
 }
 
 #[test]
-fn test_load_document_inexistant() {
+fn test_load_leaf_inexistant() {
     let dir = dossier_temp();
     let store = JsonStore::new(dir.clone());
 
@@ -73,7 +73,7 @@ fn test_save_ecrase_la_version_precedente() {
     let dir = dossier_temp();
     let store = JsonStore::new(dir.clone());
 
-    let mut doc = Document::new(parse_inline("Titre initial"));
+    let mut doc = Leaf::new(parse_inline("Titre initial"));
     store.save(&doc).unwrap();
 
     // modify the title in memory and save again

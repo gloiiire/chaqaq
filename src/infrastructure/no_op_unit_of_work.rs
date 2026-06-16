@@ -1,7 +1,7 @@
-use crate::application::database_repository::DatabaseRepository;
+use crate::application::book_repository::BookRepository;
 use crate::application::error::PinkhaError;
-use crate::application::folder_repository::FolderRepository;
-use crate::application::repository::DocumentRepository;
+use crate::application::shelf_repository::ShelfRepository;
+use crate::application::repository::LeafRepository;
 use crate::application::unit_of_work::UnitOfWork;
 
 /// A non-transactional `UnitOfWork` that simply borrows three independent
@@ -13,85 +13,85 @@ use crate::application::unit_of_work::UnitOfWork;
 /// real `rusqlite::Transaction`) will provide true atomic cross-store writes
 /// without changing any use-case signature.
 pub struct NoOpUnitOfWork<'a> {
-    docs: &'a dyn DocumentRepository,
-    dbs: &'a dyn DatabaseRepository,
-    folders: &'a dyn FolderRepository,
+    docs: &'a dyn LeafRepository,
+    dbs: &'a dyn BookRepository,
+    shelves: &'a dyn ShelfRepository,
 }
 
 impl<'a> NoOpUnitOfWork<'a> {
     /// Wraps the three repositories without any transaction setup.
     pub fn new(
-        docs: &'a dyn DocumentRepository,
-        dbs: &'a dyn DatabaseRepository,
-        folders: &'a dyn FolderRepository,
+        docs: &'a dyn LeafRepository,
+        dbs: &'a dyn BookRepository,
+        shelves: &'a dyn ShelfRepository,
     ) -> Self {
-        Self { docs, dbs, folders }
+        Self { docs, dbs, shelves }
     }
 
     /// Partial constructor for callers (notably the import extractors) that
-    /// only have document + database repos in scope. The folder accessor will
+    /// only have leaf + book repos in scope. The shelf accessor will
     /// panic if any use case reaches into it — by design: extractors must
-    /// never touch folders. If a future use case does need folders, switch
+    /// never touch shelves. If a future use case does need shelves, switch
     /// the caller to [`NoOpUnitOfWork::new`] instead.
-    pub fn with_docs_dbs(
-        docs: &'a dyn DocumentRepository,
-        dbs: &'a dyn DatabaseRepository,
+    pub fn with_leaves_books(
+        docs: &'a dyn LeafRepository,
+        dbs: &'a dyn BookRepository,
     ) -> Self {
-        static PANIC_FOLDERS: PanickingFolderRepo = PanickingFolderRepo;
+        static PANIC_FOLDERS: PanickingShelfRepo = PanickingShelfRepo;
         Self {
             docs,
             dbs,
-            folders: &PANIC_FOLDERS,
+            shelves: &PANIC_FOLDERS,
         }
     }
 
-    /// Document-only partial constructor. Both other accessors panic on
+    /// Leaf-only partial constructor. Both other accessors panic on
     /// access — only call when the use case demonstrably touches only the
-    /// document repository (e.g. `flush_document` in the Craft extractor).
-    pub fn with_docs(docs: &'a dyn DocumentRepository) -> Self {
-        static PANIC_DBS: PanickingDatabaseRepo = PanickingDatabaseRepo;
-        static PANIC_FOLDERS: PanickingFolderRepo = PanickingFolderRepo;
+    /// leaf repository (e.g. `flush_leaf` in the Craft extractor).
+    pub fn with_leaves(docs: &'a dyn LeafRepository) -> Self {
+        static PANIC_DBS: PanickingBookRepo = PanickingBookRepo;
+        static PANIC_FOLDERS: PanickingShelfRepo = PanickingShelfRepo;
         Self {
             docs,
             dbs: &PANIC_DBS,
-            folders: &PANIC_FOLDERS,
+            shelves: &PANIC_FOLDERS,
         }
     }
 
-    /// Database-only partial constructor. Both other accessors panic.
-    pub fn with_dbs(dbs: &'a dyn DatabaseRepository) -> Self {
-        static PANIC_DOCS: PanickingDocumentRepo = PanickingDocumentRepo;
-        static PANIC_FOLDERS: PanickingFolderRepo = PanickingFolderRepo;
+    /// Book-only partial constructor. Both other accessors panic.
+    pub fn with_books(dbs: &'a dyn BookRepository) -> Self {
+        static PANIC_DOCS: PanickingLeafRepo = PanickingLeafRepo;
+        static PANIC_FOLDERS: PanickingShelfRepo = PanickingShelfRepo;
         Self {
             docs: &PANIC_DOCS,
             dbs,
-            folders: &PANIC_FOLDERS,
+            shelves: &PANIC_FOLDERS,
         }
     }
 
-    /// Folder-only partial constructor. Both other accessors panic.
-    pub fn with_folders(folders: &'a dyn FolderRepository) -> Self {
-        static PANIC_DOCS: PanickingDocumentRepo = PanickingDocumentRepo;
-        static PANIC_DBS: PanickingDatabaseRepo = PanickingDatabaseRepo;
+    /// Shelf-only partial constructor. Both other accessors panic.
+    pub fn with_shelves(shelves: &'a dyn ShelfRepository) -> Self {
+        static PANIC_DOCS: PanickingLeafRepo = PanickingLeafRepo;
+        static PANIC_DBS: PanickingBookRepo = PanickingBookRepo;
         Self {
             docs: &PANIC_DOCS,
             dbs: &PANIC_DBS,
-            folders,
+            shelves,
         }
     }
 }
 
 impl<'a> UnitOfWork for NoOpUnitOfWork<'a> {
-    fn documents(&self) -> &dyn DocumentRepository {
+    fn leaves(&self) -> &dyn LeafRepository {
         self.docs
     }
 
-    fn databases(&self) -> &dyn DatabaseRepository {
+    fn books(&self) -> &dyn BookRepository {
         self.dbs
     }
 
-    fn folders(&self) -> &dyn FolderRepository {
-        self.folders
+    fn shelves(&self) -> &dyn ShelfRepository {
+        self.shelves
     }
 
     fn commit(self: Box<Self>) -> Result<(), PinkhaError> {
@@ -99,83 +99,83 @@ impl<'a> UnitOfWork for NoOpUnitOfWork<'a> {
     }
 }
 
-/// Placeholder document repository whose every method panics. Used as a
-/// defensive default inside [`NoOpUnitOfWork::with_dbs`] / `with_folders`.
-struct PanickingDocumentRepo;
+/// Placeholder leaf repository whose every method panics. Used as a
+/// defensive default inside [`NoOpUnitOfWork::with_books`] / `with_shelves`.
+struct PanickingLeafRepo;
 
-impl DocumentRepository for PanickingDocumentRepo {
-    fn save(&self, _: &crate::domain::document::Document) -> Result<(), PinkhaError> {
-        panic!("documents repo not bound on this NoOpUnitOfWork");
+impl LeafRepository for PanickingLeafRepo {
+    fn save(&self, _: &crate::domain::leaf::Leaf) -> Result<(), PinkhaError> {
+        panic!("leaves repo not bound on this NoOpUnitOfWork");
     }
-    fn load(&self, _: uuid::Uuid) -> Result<crate::domain::document::Document, PinkhaError> {
-        panic!("documents repo not bound on this NoOpUnitOfWork");
+    fn load(&self, _: uuid::Uuid) -> Result<crate::domain::leaf::Leaf, PinkhaError> {
+        panic!("leaves repo not bound on this NoOpUnitOfWork");
     }
-    fn list(&self) -> Result<Vec<crate::domain::document::DocumentMeta>, PinkhaError> {
-        panic!("documents repo not bound on this NoOpUnitOfWork");
+    fn list(&self) -> Result<Vec<crate::domain::leaf::LeafMeta>, PinkhaError> {
+        panic!("leaves repo not bound on this NoOpUnitOfWork");
     }
     fn delete(&self, _: uuid::Uuid) -> Result<(), PinkhaError> {
-        panic!("documents repo not bound on this NoOpUnitOfWork");
+        panic!("leaves repo not bound on this NoOpUnitOfWork");
     }
-    fn move_to_folder(&self, _: uuid::Uuid, _: Option<uuid::Uuid>) -> Result<(), PinkhaError> {
-        panic!("documents repo not bound on this NoOpUnitOfWork");
+    fn move_to_shelf(&self, _: uuid::Uuid, _: Option<uuid::Uuid>) -> Result<(), PinkhaError> {
+        panic!("leaves repo not bound on this NoOpUnitOfWork");
     }
-    fn list_by_folder(
+    fn list_by_shelf(
         &self,
         _: Option<uuid::Uuid>,
-    ) -> Result<Vec<crate::domain::document::DocumentMeta>, PinkhaError> {
-        panic!("documents repo not bound on this NoOpUnitOfWork");
+    ) -> Result<Vec<crate::domain::leaf::LeafMeta>, PinkhaError> {
+        panic!("leaves repo not bound on this NoOpUnitOfWork");
     }
 }
 
-/// Placeholder database repository whose every method panics. Used as a
-/// defensive default inside [`NoOpUnitOfWork::with_docs`] — callers must
+/// Placeholder book repository whose every method panics. Used as a
+/// defensive default inside [`NoOpUnitOfWork::with_leaves`] — callers must
 /// guarantee no use case reaches into it.
-struct PanickingDatabaseRepo;
+struct PanickingBookRepo;
 
-impl DatabaseRepository for PanickingDatabaseRepo {
-    fn save(&self, _: &crate::domain::database::Database) -> Result<(), PinkhaError> {
-        panic!("databases repo not bound on this NoOpUnitOfWork (constructed via with_docs)");
+impl BookRepository for PanickingBookRepo {
+    fn save(&self, _: &crate::domain::book::Book) -> Result<(), PinkhaError> {
+        panic!("books repo not bound on this NoOpUnitOfWork (constructed via with_leaves)");
     }
-    fn load(&self, _: uuid::Uuid) -> Result<crate::domain::database::Database, PinkhaError> {
-        panic!("databases repo not bound on this NoOpUnitOfWork (constructed via with_docs)");
+    fn load(&self, _: uuid::Uuid) -> Result<crate::domain::book::Book, PinkhaError> {
+        panic!("books repo not bound on this NoOpUnitOfWork (constructed via with_leaves)");
     }
-    fn list_meta(&self) -> Result<Vec<crate::domain::database::DatabaseMeta>, PinkhaError> {
-        panic!("databases repo not bound on this NoOpUnitOfWork (constructed via with_docs)");
+    fn list_meta(&self) -> Result<Vec<crate::domain::book::BookMeta>, PinkhaError> {
+        panic!("books repo not bound on this NoOpUnitOfWork (constructed via with_leaves)");
     }
     fn delete(&self, _: uuid::Uuid) -> Result<(), PinkhaError> {
-        panic!("databases repo not bound on this NoOpUnitOfWork (constructed via with_docs)");
+        panic!("books repo not bound on this NoOpUnitOfWork (constructed via with_leaves)");
     }
 }
 
-/// Placeholder folder repository whose every method panics. Used as a defensive
-/// default inside [`NoOpUnitOfWork::with_docs_dbs`] — extractors don't operate
-/// on folders today, so reaching this would indicate a logic error.
-struct PanickingFolderRepo;
+/// Placeholder shelf repository whose every method panics. Used as a defensive
+/// default inside [`NoOpUnitOfWork::with_leaves_books`] — extractors don't operate
+/// on shelves today, so reaching this would indicate a logic error.
+struct PanickingShelfRepo;
 
-impl FolderRepository for PanickingFolderRepo {
+impl ShelfRepository for PanickingShelfRepo {
     fn create(
         &self,
         _: &str,
         _: Option<uuid::Uuid>,
-    ) -> Result<crate::domain::folder::Folder, PinkhaError> {
-        panic!("folders repo not bound on this NoOpUnitOfWork (constructed via with_docs_dbs)");
+    ) -> Result<crate::domain::shelf::Shelf, PinkhaError> {
+        panic!("shelves repo not bound on this NoOpUnitOfWork (constructed via with_leaves_books)");
     }
-    fn get(&self, _: uuid::Uuid) -> Result<crate::domain::folder::Folder, PinkhaError> {
-        panic!("folders repo not bound on this NoOpUnitOfWork (constructed via with_docs_dbs)");
+    fn get(&self, _: uuid::Uuid) -> Result<crate::domain::shelf::Shelf, PinkhaError> {
+        panic!("shelves repo not bound on this NoOpUnitOfWork (constructed via with_leaves_books)");
     }
-    fn list(&self) -> Result<Vec<crate::domain::folder::FolderMeta>, PinkhaError> {
-        panic!("folders repo not bound on this NoOpUnitOfWork (constructed via with_docs_dbs)");
+    fn list(&self) -> Result<Vec<crate::domain::shelf::ShelfMeta>, PinkhaError> {
+        panic!("shelves repo not bound on this NoOpUnitOfWork (constructed via with_leaves_books)");
     }
     fn rename(&self, _: uuid::Uuid, _: &str) -> Result<(), PinkhaError> {
-        panic!("folders repo not bound on this NoOpUnitOfWork (constructed via with_docs_dbs)");
+        panic!("shelves repo not bound on this NoOpUnitOfWork (constructed via with_leaves_books)");
     }
     fn delete(&self, _: uuid::Uuid) -> Result<(), PinkhaError> {
-        panic!("folders repo not bound on this NoOpUnitOfWork (constructed via with_docs_dbs)");
+        panic!("shelves repo not bound on this NoOpUnitOfWork (constructed via with_leaves_books)");
     }
-    fn move_folder(&self, _: uuid::Uuid, _: Option<uuid::Uuid>) -> Result<(), PinkhaError> {
-        panic!("folders repo not bound on this NoOpUnitOfWork (constructed via with_docs_dbs)");
+    fn move_shelf(&self, _: uuid::Uuid, _: Option<uuid::Uuid>) -> Result<(), PinkhaError> {
+        panic!("shelves repo not bound on this NoOpUnitOfWork (constructed via with_leaves_books)");
     }
     fn update_icon(&self, _: uuid::Uuid, _: Option<&str>) -> Result<(), PinkhaError> {
-        panic!("folders repo not bound on this NoOpUnitOfWork (constructed via with_docs_dbs)");
+        panic!("shelves repo not bound on this NoOpUnitOfWork (constructed via with_leaves_books)");
     }
 }

@@ -1,5 +1,6 @@
 import Testing
 import UIKit
+import PinkhaRichText
 @testable import Pinkha
 
 @Suite("italicFontWithWeight — italic with controlled weight")

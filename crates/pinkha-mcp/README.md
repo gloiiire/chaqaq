@@ -40,15 +40,15 @@ Restart the client and the `pinkha` tools should appear in the tool picker.
 
 The server exposes the full `PinkhaApi` surface — ~65 tools across:
 
-- **Documents** — `list_documents`, `list_root_documents`, `list_child_documents`, `get_document`, `create_document`, `delete_document`, `delete_all_documents`, `update_document_*`
+- **Leaves** — `list_leaves`, `list_root_leaves`, `list_child_leaves`, `get_leaf`, `create_leaf`, `delete_leaf`, `delete_all_leaves`, `update_leaf_*`
 - **Blocks** — `add_block`, `add_child_block`, `update_block`, `delete_block`, `duplicate_block`, `reorder_blocks`, `reorder_child_blocks`, `move_block`, `indent_block`, `outdent_block`, `set_block_color`, `set_block_background_color`, `set_block_text_direction`
-- **Trash** — `list_deleted_documents`, `restore_document`, `purge_document` (and the folder / database / entry equivalents)
-- **Search** — `search_documents`, `search_in_blocks`, `search_in_blocks_with_snippets`, `search_databases`, `search_folders`
-- **Folders** — `create_folder`, `list_folders`, `get_folder`, `rename_folder`, `update_folder_icon`, `delete_folder`, `move_folder_to`, `move_document_to_folder`, `list_documents_in_folder`
-- **Databases** — `list_databases`, `get_database`, `create_database`, `delete_database`, `delete_all_databases`
-- **Database entries** — `add_entry`, `update_entry`, `delete_entry`, `restore_entry`, `purge_entry`, `list_deleted_entries`
-- **Database properties + views** — `add_property`, `rename_property`, `delete_property`, `add_view`, `update_view`, `set_view_sort`, `delete_view`
-- **Database queries** — `query_database`, `query_database_with_rollups`, `grouped_query_database`, `column_aggregate_database`, `search_database_entries`
+- **Trash** — `list_deleted_leaves`, `restore_leaf`, `purge_leaf` (and the shelf / book / entry equivalents)
+- **Search** — `search_leaves`, `search_in_blocks`, `search_in_blocks_with_snippets`, `search_books`, `search_shelves`
+- **Shelves** — `create_shelf`, `list_shelves`, `get_shelf`, `rename_shelf`, `update_shelf_icon`, `delete_shelf`, `move_shelf_to`, `move_leaf_to_shelf`, `list_leaves_in_shelf`
+- **Books** — `list_books`, `get_book`, `create_book`, `delete_book`, `delete_all_books`
+- **Book entries** — `add_entry`, `update_entry`, `delete_entry`, `restore_entry`, `purge_entry`, `list_deleted_entries`
+- **Book properties + views** — `add_property`, `rename_property`, `delete_property`, `add_view`, `update_view`, `set_view_sort`, `delete_view`
+- **Book queries** — `query_book`, `query_book_with_rollups`, `grouped_query_book`, `column_aggregate_book`, `search_book_entries`
 
 Each tool's full input schema lives in `tools/list`; the binary advertises it on startup.
 
