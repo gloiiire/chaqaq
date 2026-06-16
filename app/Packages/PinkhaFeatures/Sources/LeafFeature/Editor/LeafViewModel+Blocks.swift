@@ -4,7 +4,7 @@ import PinkhaCore
 
 // ── Block management ──────────────────────────────────────────────────────────
 
-extension LeafViewModel {
+public extension LeafViewModel {
 
     func addBlock(type: NewBlockType, initialSpans: [InlineTextFfi] = [], afterId: String? = nil, atStart: Bool = false) {
         do {

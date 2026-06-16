@@ -2,6 +2,7 @@ import SwiftUI
 import PinkhaFFI
 import PinkhaCore
 import PinkhaComposer
+import LeafFeature
 
 // ── Root view: 4-tab layout ──────────────────────────────────────────────────
 

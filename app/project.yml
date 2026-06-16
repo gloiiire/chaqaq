@@ -27,6 +27,8 @@ packages:
     path: Packages/PinkhaRichText
   PinkhaComposer:
     path: Packages/PinkhaComposer
+  PinkhaFeatures:
+    path: Packages/PinkhaFeatures
 
 schemes:
   Pinkha:
@@ -93,6 +95,8 @@ targets:
         product: PinkhaRichText
       - package: PinkhaComposer
         product: PinkhaComposer
+      - package: PinkhaFeatures
+        product: LeafFeature
       - package: Sentry
         product: Sentry
 

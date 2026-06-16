@@ -22,7 +22,7 @@ private struct SelectionTapModifier: ViewModifier {
     }
 }
 
-extension LeafView {
+public extension LeafView {
 
     /// Builds the full row for a block in the List: selection HStack + content + gestures.
     @ViewBuilder

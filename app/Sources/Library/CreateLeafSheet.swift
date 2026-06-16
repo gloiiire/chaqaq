@@ -5,6 +5,7 @@ import PinkhaFFI
 import PinkhaCore
 import PinkhaDesignSystem
 import PinkhaComposer
+import LeafFeature
 
 /// Sheet for creating a new note or book. Accepts a title and calls `onCreate` or `onCancel`.
 ///

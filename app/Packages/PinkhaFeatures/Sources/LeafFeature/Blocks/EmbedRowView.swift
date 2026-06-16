@@ -12,7 +12,7 @@ import SwiftUI
 //     via `EmbedMetadataStore`. Falls back to host + URL while
 //     loading or when the fetch fails.
 
-struct EmbedRowView: View {
+public struct EmbedRowView: View {
     let url: String
     let cb: BlockCallbacks
     /// Resolved metadata for the external case — populated once the
@@ -21,7 +21,7 @@ struct EmbedRowView: View {
     @State private var external: EmbedMetadata?
     @State private var loadedImage: UIImage?
 
-    var body: some View {
+    public var body: some View {
         Group {
             if let parsed = URL(string: url),
                parsed.scheme == "pinkha", parsed.host == "doc" {

@@ -3,7 +3,7 @@ import PhotosUI
 import UniformTypeIdentifiers
 
 /// Displays the leaf cover and emoji icon, with associated action menus.
-struct LeafDecorView: View {
+public struct LeafDecorView: View {
     let cover: String?
     let icone: String?
     let recentEmojis: [String]
@@ -32,7 +32,7 @@ struct LeafDecorView: View {
         ("cover.forest", "Forest"), ("cover.sunset", "Sunset"), ("cover.ocean", "Ocean")
     ]
 
-    var body: some View {
+    public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let coverId = cover {
                 coverView(coverId)

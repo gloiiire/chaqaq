@@ -7,7 +7,7 @@ import PinkhaComposer
 
 // ── Toolbar and overlay buttons ───────────────────────────────────────────────
 
-extension LeafView {
+public extension LeafView {
 
     /// Resolves the accent the editor should paint with. A per-doc
     /// `accentColor` overrides the app-wide setting; `nil` (the default

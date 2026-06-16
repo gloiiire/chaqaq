@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import LeafFeature
 
 /// Doc-like header for a Book : cover banner (optional) + icon
 /// (optional) + large editable title + rich-text description. Mirrors

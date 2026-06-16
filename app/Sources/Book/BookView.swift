@@ -2,6 +2,7 @@ import SwiftUI
 import PinkhaFFI
 import PinkhaCore
 import PinkhaDesignSystem
+import LeafFeature
 
 /// Orchestrates the full book screen :
 ///   1. Scrollable doc-like header (cover + icon + title + description).

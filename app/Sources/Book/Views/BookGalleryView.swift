@@ -1,5 +1,6 @@
 import SwiftUI
 import PinkhaFFI
+import LeafFeature
 
 /// Card-grid layout. Each entry renders as a large tile with the
 /// linked leaf's cover (or a colored placeholder), title and the

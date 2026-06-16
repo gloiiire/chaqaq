@@ -13,7 +13,7 @@ import UIKit
 /// optional cover image URL. Empty values are tolerated and rendered
 /// as "missing" in the UI (we show the host instead of the title for
 /// instance).
-struct EmbedMetadata: Equatable {
+public struct EmbedMetadata: Equatable, Sendable {
     var title: String
     var description: String?
     var imageURL: URL?
@@ -25,13 +25,13 @@ struct EmbedMetadata: Equatable {
 /// Process-wide cache + fetcher. Lives behind an actor so multiple
 /// `EmbedRowView`s pointing at the same URL share one in-flight
 /// request and one result. Cleared automatically on memory warning.
-actor EmbedMetadataStore {
+public actor EmbedMetadataStore {
     static let shared = EmbedMetadataStore()
 
     private var cache: [URL: EmbedMetadata] = [:]
     private var inflight: [URL: Task<EmbedMetadata?, Never>] = [:]
 
-    init() {
+    public init() {
         // Drop the cache on memory warnings so a long editing session
         // doesn't accumulate unbounded HTML payloads.
         NotificationCenter.default.addObserver(

@@ -10,7 +10,7 @@ import PinkhaCore
 /// between Circle and Capsule with the system's Liquid Glass motion,
 /// rather than a crossfade. The `GlassEffectContainer` is what wires
 /// the morph — bare `.glassEffect(...)` modifiers don't share state.
-struct ExpandingBlockFAB: View {
+public struct ExpandingBlockFAB: View {
     @Binding var isExpanded: Bool
     /// Called when the user taps one of the quick block icons. The
     /// FAB collapses itself right after.
@@ -28,7 +28,7 @@ struct ExpandingBlockFAB: View {
 
     private let glassID = "block-fab-glass"
 
-    var body: some View {
+    public var body: some View {
         GlassEffectContainer(spacing: 8) {
             if isExpanded {
                 expandedCapsule

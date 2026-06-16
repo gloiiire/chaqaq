@@ -3,6 +3,7 @@ import PinkhaFFI
 import PinkhaCore
 import PinkhaDesignSystem
 import PinkhaComposer
+import LeafFeature
 
 // ── Tab 1: Notes (unified library) ──────────────────────────────────────────
 
@@ -122,172 +123,211 @@ struct LibraryView: View {
         }
     }
 
+    private var bulkDeleteConfirmTitle: String {
+        let n = selectedIds.count
+        return "Delete \(n) item\(n == 1 ? "" : "s")?"
+    }
+
+    @ViewBuilder
+    private var listContent: some View {
+        if !recentlyViewedItems.isEmpty {
+            Section {
+                RecentStrip(
+                    items: recentlyViewedItems,
+                    api: store.api,
+                    zoomNamespace: docZoom,
+                    onDisappear: { store.load() },
+                    onOpenNote: { leafId in
+                        path.append(leafId)
+                    },
+                    onRenameNote: { doc in
+                        renameDraft = doc.titlePlain
+                        renamingDoc = doc
+                    },
+                    onDeleteNote: { doc in
+                        store.delete(id: doc.id)
+                    },
+                    onAddToBook: store.books.isEmpty ? nil : { doc in
+                        attachDocId = doc.id
+                    }
+                )
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets())
+            } header: {
+                SectionHeader(title: "Recent")
+            }
+        }
+
+        if !store.listShelves().isEmpty {
+            ShelvesSectionView(store: store)
+        }
+
+        if store.items.isEmpty {
+            Section {
+                LibraryEmptyState()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 48)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+        } else {
+            if let api = store.api {
+                ForEach(groupedItems) { group in
+                    groupSection(group, api: api)
+                }
+            } else {
+                Section { ProgressView() }
+            }
+        }
+    }
+
+    /// Toolbar content extracted out of the main `body` because the
+    /// nested `ToolbarItem` / `Button` / conditional chains push Swift's
+    /// type-checker past its budget on the iOS 26 SDK when inlined.
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            if !store.items.isEmpty {
+                Button(editMode == .active ? "Done" : "Select") {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        if editMode == .active {
+                            editMode = .inactive
+                            selectedIds.removeAll()
+                        } else {
+                            editMode = .active
+                        }
+                    }
+                }
+                .tint(.primary)
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            if editMode != .active && !store.items.isEmpty {
+                sortMenuButton
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            if editMode == .active {
+                // In edit mode the trailing slot becomes the
+                // primary bulk-delete action. Bottom-bar placement
+                // collides with the TabView's search bubble, so we
+                // surface the action up here.
+                Button(role: .destructive) {
+                    showingBulkDeleteConfirm = true
+                } label: {
+                    Label(
+                        selectedIds.isEmpty ? "Delete" : "Delete (\(selectedIds.count))",
+                        systemImage: "trash"
+                    )
+                }
+                .tint(.red)
+                .disabled(selectedIds.isEmpty)
+            } else {
+                Button {
+                    showingSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                // Settings is neutral chrome — never adopts the
+                // accent that the TabView spreads through its env.
+                .tint(.primary)
+                .accessibilityLabel("Settings")
+            }
+        }
+    }
+
+    /// Conditional selection binding — we only let the List track
+    /// selection while edit mode is active. Outside of it,
+    /// `selectedIds` is forced to empty (writes are dropped), which
+    /// prevents the iOS 26 default behaviour of leaving a
+    /// NavigationLink-pushed row visually "focused" after the user
+    /// pops back. Extracted as a computed property because inlining
+    /// the `Binding(get:set:)` in `List(selection:)` blows past Swift's
+    /// type-checker timeout budget on iOS 26 SDK.
+    private var selectionBinding: Binding<Set<String>> {
+        Binding(
+            get: { editMode == .active ? selectedIds : [] },
+            set: { newValue in
+                if editMode == .active { selectedIds = newValue }
+            }
+        )
+    }
+
+    /// Single binding for the "Bind to a book" sheet — needs to be a
+    /// `Binding<Item?>` so the sheet's `item:` overload fires the
+    /// right open/close transitions. Extracted out of body to keep
+    /// the chain Swift's type checker can crunch.
+    private var attachSheetItemBinding: Binding<BindLeafIdentifier?> {
+        Binding(
+            get: { attachDocId.map(BindLeafIdentifier.init) },
+            set: { attachDocId = $0?.id }
+        )
+    }
+
+    /// The whole List + every chained modifier (style, tint,
+    /// environment, navigation title, edge effects, dialogs, toolbar,
+    /// sheets, navigationDestination). Inlined this used to blow past
+    /// Swift's type-checker budget on iOS 26 SDK — broken out here so
+    /// `body` only handles the NavigationStack wrapper and the global
+    /// `onChange/onReceive` notifications.
+    @ViewBuilder
+    private var stackContent: some View {
+        List(selection: selectionBinding) {
+            listContent
+        }
+        .listStyle(.insetGrouped)
+        // Re-tint the List with the accent so the edit-mode
+        // selection circles stay readable. Without this they'd
+        // inherit the `.tint(.primary)` set just before the rename
+        // alert later in the chain and render white.
+        .tint(settings.accentColor)
+        .environment(\.editMode, $editMode)
+        .navigationTitle(greeting)
+        .navigationBarTitleDisplayMode(.large)
+        // iOS 26 : let the list edges fade under the large title and
+        // the bottom accessory bar so the chrome floats above the
+        // content instead of slamming a solid bar over it.
+        .scrollEdgeEffectStyle(.soft, for: .all)
+        .databaseDeleteDialog(pending: $pendingBookDeletion, store: store)
+        .toolbar { toolbarContent }
+        .sheet(isPresented: $showingSettings) { SettingsView() }
+        // Surfaced from the "Add to a book" long-press menu on note
+        // rows / recents — files the existing doc as a row of the
+        // picked book with the title pre-seeded.
+        .sheet(item: attachSheetItemBinding) { wrapper in
+            BindLeafToBookSheet(leafId: wrapper.id)
+                .environment(store)
+                .presentationDetents([.large])
+        }
+        // Native confirmation dialog before the bulk delete fires —
+        // matches the Apple Notes / Mail pattern (slide-up sheet
+        // anchored to the row that triggered it).
+        .confirmationDialog(
+            bulkDeleteConfirmTitle,
+            isPresented: $showingBulkDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) { deleteSelected() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("They'll move to the trash.")
+        }
+        // Registered alongside the existing `NavigationLink` rows so
+        // programmatic pushes via `path.append(id)` open the editor —
+        // driven by `composer.pendingOpenDoc` below.
+        .navigationDestination(for: String.self) { leafId in
+            if let api = store.api {
+                LeafView(vm: tabManager.open(leafId: leafId, api: api),
+                         onDisappear: store.load)
+                    .navigationTransition(.zoom(sourceID: leafId, in: docZoom))
+            }
+        }
+    }
+
     var body: some View {
         NavigationStack(path: $path) {
-            // Conditional selection binding — we only let the List
-            // track selection while edit mode is active. Outside of
-            // it, `selectedIds` is forced to empty (writes are
-            // dropped), which prevents the iOS 26 default behaviour
-            // of leaving a NavigationLink-pushed row visually "focused"
-            // after the user pops back.
-            List(selection: Binding(
-                get: { editMode == .active ? selectedIds : [] },
-                set: { newValue in
-                    if editMode == .active { selectedIds = newValue }
-                }
-            )) {
-                if !recentlyViewedItems.isEmpty {
-                    Section {
-                        RecentStrip(
-                            items: recentlyViewedItems,
-                            api: store.api,
-                            zoomNamespace: docZoom,
-                            onDisappear: { store.load() },
-                            onOpenNote: { leafId in
-                                path.append(leafId)
-                            },
-                            onRenameNote: { doc in
-                                renameDraft = doc.titlePlain
-                                renamingDoc = doc
-                            },
-                            onDeleteNote: { doc in
-                                store.delete(id: doc.id)
-                            },
-                            onAddToBook: store.books.isEmpty ? nil : { doc in
-                                attachDocId = doc.id
-                            }
-                        )
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets())
-                    } header: {
-                        SectionHeader(title: "Recent")
-                    }
-                }
-
-                if !store.listShelves().isEmpty {
-                    ShelvesSectionView(store: store)
-                }
-
-                if store.items.isEmpty {
-                    Section {
-                        LibraryEmptyState()
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 48)
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                    }
-                } else {
-                    if let api = store.api {
-                        ForEach(groupedItems) { group in
-                            groupSection(group, api: api)
-                        }
-                    } else {
-                        Section { ProgressView() }
-                    }
-                }
-            }
-            .listStyle(.insetGrouped)
-            // Re-tint the List with the accent so the edit-mode
-            // selection circles stay readable. Without this they'd
-            // inherit the `.tint(.primary)` set just before the
-            // rename alert later in the chain and render white.
-            .tint(settings.accentColor)
-            .environment(\.editMode, $editMode)
-            .navigationTitle(greeting)
-            .navigationBarTitleDisplayMode(.large)
-            // iOS 26 : let the list edges fade under the large title and the
-            // bottom accessory bar so the chrome floats above the content
-            // instead of slamming a solid bar over it.
-            .scrollEdgeEffectStyle(.soft, for: .all)
-            .databaseDeleteDialog(pending: $pendingBookDeletion, store: store)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    if !store.items.isEmpty {
-                        Button(editMode == .active ? "Done" : "Select") {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                if editMode == .active {
-                                    editMode = .inactive
-                                    selectedIds.removeAll()
-                                } else {
-                                    editMode = .active
-                                }
-                            }
-                        }
-                        .tint(.primary)
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    if editMode != .active && !store.items.isEmpty {
-                        sortMenuButton
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    if editMode == .active {
-                        // In edit mode the trailing slot becomes the
-                        // primary bulk-delete action. Bottom-bar
-                        // placement collides with the TabView's search
-                        // bubble, so we surface the action up here.
-                        Button(role: .destructive) {
-                            showingBulkDeleteConfirm = true
-                        } label: {
-                            Label(
-                                selectedIds.isEmpty ? "Delete" : "Delete (\(selectedIds.count))",
-                                systemImage: "trash"
-                            )
-                        }
-                        .tint(.red)
-                        .disabled(selectedIds.isEmpty)
-                    } else {
-                        Button {
-                            showingSettings = true
-                        } label: {
-                            Image(systemName: "gearshape")
-                        }
-                        // Settings is neutral chrome — never adopts the
-                        // accent that the TabView spreads through its env.
-                        .tint(.primary)
-                        .accessibilityLabel("Settings")
-                    }
-                }
-            }
-            .sheet(isPresented: $showingSettings) {
-                SettingsView()
-            }
-            // Surfaced from the "Add to a book" long-press menu
-            // on note rows / recents — files the existing doc as a
-            // row of the picked book with the title pre-seeded.
-            .sheet(item: Binding(
-                get: { attachDocId.map(BindLeafIdentifier.init) },
-                set: { attachDocId = $0?.id }
-            )) { wrapper in
-                BindLeafToBookSheet(leafId: wrapper.id)
-                    .environment(store)
-                    .presentationDetents([.large])
-            }
-            // Native confirmation dialog before the bulk delete fires —
-            // matches the Apple Notes / Mail pattern (slide-up sheet
-            // anchored to the row that triggered it).
-            .confirmationDialog(
-                "Delete \(selectedIds.count) item\(selectedIds.count == 1 ? "" : "s")?",
-                isPresented: $showingBulkDeleteConfirm,
-                titleVisibility: .visible
-            ) {
-                Button("Delete", role: .destructive) { deleteSelected() }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("They'll move to the trash.")
-            }
-            // Registered alongside the existing `NavigationLink` rows
-            // so programmatic pushes via `path.append(id)` open the
-            // editor — driven by `composer.pendingOpenDoc` below.
-            .navigationDestination(for: String.self) { leafId in
-                if let api = store.api {
-                    LeafView(vm: tabManager.open(leafId: leafId, api: api),
-                                 onDisappear: store.load)
-                        .navigationTransition(.zoom(sourceID: leafId, in: docZoom))
-                }
-            }
+            stackContent
         }
         .onChange(of: composer.pendingOpenDoc) { _, newValue in
             // Wait for the create sheet to finish dismissing before

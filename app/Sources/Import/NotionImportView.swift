@@ -2,6 +2,7 @@ import SwiftUI
 import PinkhaFFI
 import PinkhaCore
 import PinkhaDesignSystem
+import LeafFeature
 
 // ── Import from Notion sheet ──────────────────────────────────────────────────
 //

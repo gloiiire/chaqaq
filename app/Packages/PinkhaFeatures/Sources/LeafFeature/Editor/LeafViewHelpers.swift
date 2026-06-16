@@ -4,11 +4,11 @@ import PinkhaRichText
 // ── Tappable empty state ──────────────────────────────────────────────────────
 
 /// Placeholder shown when the leaf has no blocks yet. A tap creates the first block.
-struct EmptyEditorState: View {
+public struct EmptyEditorState: View {
     let onBegin: () -> Void
     @State private var focused = false
 
-    var body: some View {
+    public var body: some View {
         RichTextEditor(
             spans: .constant([]),
             isFocused: $focused,
@@ -27,9 +27,9 @@ struct EmptyEditorState: View {
 // ── Add block button ──────────────────────────────────────────────────────────
 
 /// List footer button that opens the block picker sheet.
-struct AddBlockButton: View {
+public struct AddBlockButton: View {
     let action: () -> Void
-    var body: some View {
+    public var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: "plus.circle")
@@ -48,13 +48,13 @@ struct AddBlockButton: View {
 // in the nav bar: one glass capsule, each icon independently tappable.
 
 /// Glass capsule pill with undo and redo buttons. Shown at the bottom-left when the keyboard is hidden.
-struct UndoRedoPill: View {
+public struct UndoRedoPill: View {
     let canUndo: Bool
     let canRedo: Bool
     let onUndo: () -> Void
     let onRedo: () -> Void
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 0) {
             iconButton(icon: "arrow.uturn.backward", enabled: canUndo, action: onUndo)
             iconButton(icon: "arrow.uturn.forward",  enabled: canRedo, action: onRedo)
@@ -80,11 +80,11 @@ struct UndoRedoPill: View {
 // ── Block type picker sheet ───────────────────────────────────────────────────
 
 /// Sheet listing all available block types for insertion.
-struct BlockPickerSheet: View {
+public struct BlockPickerSheet: View {
     let onSelect: (NewBlockType) -> Void
     @Environment(\.dismiss) private var dismiss
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             List(NewBlockType.allCases) { type in
                 Button {

@@ -8,7 +8,7 @@ import PinkhaFFI
 /// the burst, which is the moment we register the inverse with `undoMgr` and
 /// persist to SQLite (so we get exactly one write per burst, not per
 /// keystroke).
-extension LeafViewModel {
+public extension LeafViewModel {
     /// Snapshot used by the burst engine to remember a block's state at the
     /// start of a burst (the "anchor") and at each flushed checkpoint.
     struct BlockSnapshot: Equatable {

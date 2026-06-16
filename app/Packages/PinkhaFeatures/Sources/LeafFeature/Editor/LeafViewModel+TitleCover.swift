@@ -5,7 +5,7 @@ import PinkhaComposer
 
 // ── Title and cover ───────────────────────────────────────────────────────────
 
-extension LeafViewModel {
+public extension LeafViewModel {
 
     func saveTitle() {
         let oldTitle = lastPersistedTitle

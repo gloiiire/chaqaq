@@ -5,7 +5,7 @@ import PinkhaRichText
 // ── Leaf title ────────────────────────────────────────────────────────────
 
 /// SwiftUI wrapper that manages focus for the leaf title editor.
-struct LeafTitleView: View {
+public struct LeafTitleView: View {
     @Binding var title: String
     @Binding var focusDemande: Bool
     @Binding var focusCursorOffset: Int?
@@ -17,7 +17,7 @@ struct LeafTitleView: View {
     var keyboardAppearance: UIKeyboardAppearance = .default
     @State private var focused = false
 
-    var body: some View {
+    public var body: some View {
         TitleEditor(text: $title, isFocused: $focused,
                     cursorOffset: $focusCursorOffset,
                     onSave: onSave, onNewBlock: onNewBlock,

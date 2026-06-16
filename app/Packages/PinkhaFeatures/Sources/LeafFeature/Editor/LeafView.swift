@@ -6,7 +6,7 @@ import PinkhaComposer
 // ── Leaf view ─────────────────────────────────────────────────────────────
 
 /// Full-screen leaf editor: cover + icon, title, block list, FAB, undo/redo pill.
-struct LeafView: View {
+public struct LeafView: View {
     /// `@Bindable` (not `@State`) because the VM is owned by `TabManager`
     /// — LeafView is recreated on every push but the VM lives for as
     /// long as the tab is open, keeping its blocks/undo/burst state alive
@@ -89,7 +89,7 @@ struct LeafView: View {
     /// Build a LeafView around an existing VM (the typical path —
     /// callers fetch the VM from `TabManager.open(leafId:)` so the
     /// tab keeps its in-memory state).
-    init(vm: LeafViewModel,
+    public init(vm: LeafViewModel,
          onDisappear: (() -> Void)? = nil,
          scrollToBlockId: String? = nil) {
         let leafId = vm.leafId
@@ -104,7 +104,7 @@ struct LeafView: View {
         self.scrollToBlockId = scrollToBlockId
     }
 
-    var body: some View {
+    public var body: some View {
         // ScrollViewReader gives us `proxy.scrollTo(id:)` for search
         // hits, but it doubles as a SwiftUI preference container —
         // when a `.toolbar` modifier and per-row `.background` /

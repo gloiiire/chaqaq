@@ -2,6 +2,7 @@ import Foundation
 import PinkhaFFI
 import PinkhaCore
 import PinkhaComposer
+import LeafFeature
 
 // Context-aware creation overloads on `PinkhaStore`. Kept in the Notes
 // layer because they reference `Composer.CreationContext` and

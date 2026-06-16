@@ -9,7 +9,7 @@ import PinkhaCore
 // Mirrors the per-row PublishDatePickerSheet on the book list view
 // so the UX vocabulary stays consistent across notes and DB rows.
 
-struct LeafPublishDateSheet: View {
+public struct LeafPublishDateSheet: View {
     /// ISO-8601 string of the immutable creation timestamp. Used as
     /// the fallback when the user resets the override and as the
     /// implicit default when the override is empty.
@@ -28,7 +28,7 @@ struct LeafPublishDateSheet: View {
         !publishedAt.isEmpty && publishedAt != createdAt
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             Form {
                 DatePicker("Publish date",

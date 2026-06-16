@@ -10,7 +10,7 @@ import PinkhaCore
 /// concern is reviewable in isolation.
 @MainActor
 @Observable
-final class LeafViewModel {
+public final class LeafViewModel {
     let leafId: String
     var title: String = ""
     var cover: String?
@@ -93,7 +93,7 @@ final class LeafViewModel {
 
     @ObservationIgnored let api: PinkhaApi
 
-    init(leafId: String, api: PinkhaApi) {
+    public init(leafId: String, api: PinkhaApi) {
         self.leafId = leafId
         self.api   = api
         undoMgr.levelsOfUndo = 1000

@@ -3,13 +3,13 @@ import PinkhaCore
 
 // ── Quote ─────────────────────────────────────────────────────────────────────
 
-struct QuoteRowView: View {
+public struct QuoteRowView: View {
     @Binding var block: EditableBlock
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     let cb: BlockCallbacks
 
-    var body: some View {
+    public var body: some View {
         HStack(alignment: .top, spacing: 0) {
             RoundedRectangle(cornerRadius: 2)
                 .fill(Color.secondary.opacity(0.4))
@@ -28,7 +28,7 @@ struct QuoteRowView: View {
 
 // ── Callout ───────────────────────────────────────────────────────────────────
 
-struct CalloutRowView: View {
+public struct CalloutRowView: View {
     @Binding var block: EditableBlock
     let icon: String
     @Binding var autoFocusId: String?
@@ -37,7 +37,7 @@ struct CalloutRowView: View {
     @State private var emojiPickerOpen = false
     @State private var recentEmojis = loadRecentEmojis()
 
-    var body: some View {
+    public var body: some View {
         // First-text-baseline alignment so the emoji sits right next
         // to the text's first line regardless of how many lines the
         // user types — icon stays "fixed" near the top, text grows
@@ -82,7 +82,7 @@ struct CalloutRowView: View {
 
 // ── Todo ──────────────────────────────────────────────────────────────────────
 
-struct TodoRowView: View {
+public struct TodoRowView: View {
     @Binding var block: EditableBlock
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
@@ -97,7 +97,7 @@ struct TodoRowView: View {
         ] : nil
     }
 
-    var body: some View {
+    public var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Button {
                 cb.onToggleDone?()

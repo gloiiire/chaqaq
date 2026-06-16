@@ -3,6 +3,7 @@ import PinkhaFFI
 import PinkhaCore
 import PinkhaDesignSystem
 import PinkhaComposer
+import LeafFeature
 
 // ── Shelf content view ───────────────────────────────────────────────────────
 

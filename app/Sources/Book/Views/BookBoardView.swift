@@ -1,6 +1,7 @@
 import SwiftUI
 import PinkhaFFI
 import PinkhaCore
+import LeafFeature
 
 /// Kanban-style horizontally scrolling board. Each column is a value
 /// of the `groupBy` property ; entries with that value stack vertically

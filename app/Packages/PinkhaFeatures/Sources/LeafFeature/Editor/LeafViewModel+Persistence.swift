@@ -4,7 +4,7 @@ import PinkhaRichText
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 
-extension LeafViewModel {
+public extension LeafViewModel {
 
     /// Writes the block to SQLite without touching burst tracking or blockSnapshots.
     /// Used by `saveBlock` (which manages the burst separately) and by `applyBlockSnapshot`.

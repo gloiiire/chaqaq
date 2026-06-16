@@ -3,16 +3,16 @@ import PinkhaCore
 
 // ── Recent emoji persistence ──────────────────────────────────────────────────
 
-let recentEmojisKey = "leaf.icon.recentEmojis"
+public let recentEmojisKey = "leaf.icon.recentEmojis"
 
 /// Loads the list of recently used emojis from UserDefaults.
-func loadRecentEmojis() -> [String] {
+public func loadRecentEmojis() -> [String] {
     UserDefaults.standard.stringArray(forKey: recentEmojisKey) ?? []
 }
 
 /// Prepends `emoji` to the recents list (capped at 6), persists it, and returns the new list.
 @discardableResult
-func saveRecentEmoji(_ emoji: String) -> [String] {
+public func saveRecentEmoji(_ emoji: String) -> [String] {
     let existing = UserDefaults.standard.stringArray(forKey: recentEmojisKey) ?? []
     let liste = Array(([emoji] + existing.filter { $0 != emoji }).prefix(6))
     UserDefaults.standard.set(liste, forKey: recentEmojisKey)
@@ -22,7 +22,10 @@ func saveRecentEmoji(_ emoji: String) -> [String] {
 // ── Emoji picker ─────────────────────────────────────────────────────────────
 
 /// Full-screen sheet for selecting or entering an emoji as the leaf icon.
-struct EmojiPickerSheet: View {
+public struct EmojiPickerSheet: View {
+    public init(selection: String?, recents: [String], onSelect: @escaping (String) -> Void) {
+        self.selection = selection; self.recents = recents; self.onSelect = onSelect
+    }
     let selection: String?
     let recents: [String]
     let onSelect: (String) -> Void
@@ -39,7 +42,7 @@ struct EmojiPickerSheet: View {
         ("Symboles", ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "💎", "⚡️", "✅", "❌", "‼️", "⁉️", "🔔", "🔕", "♾️", "☮️"])
     ]
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {

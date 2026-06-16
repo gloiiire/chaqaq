@@ -11,9 +11,13 @@ import PinkhaDesignSystem
 // confirming. Same vocabulary as the "Add to a book" toggle of
 // CreateLeafSheet, but works after the doc was created.
 
-struct BindLeafToBookSheet: View {
+public struct BindLeafToBookSheet: View {
     /// UUID of the leaf to file as a row.
-    let leafId: String
+    public let leafId: String
+
+    public init(leafId: String) {
+        self.leafId = leafId
+    }
 
     @Environment(PinkhaStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -25,7 +29,7 @@ struct BindLeafToBookSheet: View {
     @State private var saving: Bool = false
     @State private var errorMessage: String? = nil
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             Form {
                 Section {

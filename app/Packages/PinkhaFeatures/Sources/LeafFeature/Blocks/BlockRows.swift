@@ -4,7 +4,7 @@ import PinkhaRichText
 
 // ── Auto-focus shared extension ───────────────────────────────────────────────
 
-extension View {
+public extension View {
     /// Triggers focus and optionally positions the cursor at `autoFocusOffset` when
     /// `autoFocusId` matches `blockId`. Works both on `.onAppear` and on subsequent
     /// `onChange` updates (e.g. after reinsertion via undo).
@@ -36,82 +36,82 @@ extension View {
 // in every RowView and in BlockRowView.
 
 /// Callback bundle passed from the leaf view to each block row.
-struct BlockCallbacks {
-    var onSave: () -> Void
-    var onSaveSpans: ([InlineTextFfi]) -> Void
-    var onDelete: () -> Void
-    var onNewBlock: ([InlineTextFfi]) -> Void
-    var onMerge: (([InlineTextFfi]) -> Void)? = nil
-    var onNavigatePrevious: (() -> Void)? = nil
-    var onNavigateNext: (() -> Void)? = nil
-    var onStopNavigationRepeat: (() -> Void)? = nil
-    var onLongPressSelection: (() -> Void)? = nil
-    var onFocus: (() -> Void)? = nil
+public struct BlockCallbacks {
+    public var onSave: () -> Void
+    public var onSaveSpans: ([InlineTextFfi]) -> Void
+    public var onDelete: () -> Void
+    public var onNewBlock: ([InlineTextFfi]) -> Void
+    public var onMerge: (([InlineTextFfi]) -> Void)? = nil
+    public var onNavigatePrevious: (() -> Void)? = nil
+    public var onNavigateNext: (() -> Void)? = nil
+    public var onStopNavigationRepeat: (() -> Void)? = nil
+    public var onLongPressSelection: (() -> Void)? = nil
+    public var onFocus: (() -> Void)? = nil
     // Atomic mutations with undo: routed via the VM (toggleBlockDone, etc.)
     // so the inverse is registered on the undo stack.
-    var onToggleDone: (() -> Void)? = nil
-    var onChangeIcon: ((String) -> Void)? = nil
-    var onConvertContent: ((BlockContentFfi) -> Void)? = nil
+    public var onToggleDone: (() -> Void)? = nil
+    public var onChangeIcon: ((String) -> Void)? = nil
+    public var onConvertContent: ((BlockContentFfi) -> Void)? = nil
     // Undo/redo exposed in the keyboard pill. Live closures — the Coordinator
     // calls them in textViewDidChange/textViewDidChangeSelection + updateUIView,
     // covering typing, undo, redo and selection changes.
-    var onUndo: (() -> Void)? = nil
-    var onRedo: (() -> Void)? = nil
-    var canUndoProvider: (() -> Bool)? = nil
-    var canRedoProvider: (() -> Bool)? = nil
+    public var onUndo: (() -> Void)? = nil
+    public var onRedo: (() -> Void)? = nil
+    public var canUndoProvider: (() -> Bool)? = nil
+    public var canRedoProvider: (() -> Bool)? = nil
     /// Wired to FFI `indent_block` / `outdent_block` via the VM. `nil` keeps
     /// the toolbar button visible but inert — the FFI call will still throw
     /// `InvalidOperation` if the block can't move (first in level / at root).
-    var onIndent: (() -> Void)? = nil
-    var onOutdent: (() -> Void)? = nil
+    public var onIndent: (() -> Void)? = nil
+    public var onOutdent: (() -> Void)? = nil
     /// Block-level colour pipeline: provider reads the current value so the
     /// toolbar's ¶ button can highlight the active colour, and the closure
     /// applies a new one (nil = clear back to default) via the VM.
-    var onSetBlockColor: ((String?) -> Void)? = nil
+    public var onSetBlockColor: ((String?) -> Void)? = nil
     /// Block-level *background* colour (Craft highlight). Same shape
     /// as `onSetBlockColor` — the closure persists via the VM, the
     /// row reads the current value off the block and paints the band.
-    var onSetBlockBackgroundColor: ((String?) -> Void)? = nil
+    public var onSetBlockBackgroundColor: ((String?) -> Void)? = nil
     /// Resolved writing direction for this block (per-block override
     /// or leaf default, fallback to system locale). `"ltr"` or
     /// `"rtl"` ; `nil` leaves it to the OS.
-    var effectiveTextDirection: String? = nil
+    public var effectiveTextDirection: String? = nil
     /// Setter for the per-block writing direction. `nil` = inherit
     /// from the leaf. Routes through the VM → FFI.
-    var onSetBlockTextDirection: ((String?) -> Void)? = nil
+    public var onSetBlockTextDirection: ((String?) -> Void)? = nil
     /// Returns the list of leaves available for `@`-mentions —
     /// shown as an action sheet when the user types `@` at the
     /// start of a word. `nil` disables the feature.
-    var onMentionLookup: (() -> [MentionCandidate])? = nil
+    public var onMentionLookup: (() -> [MentionCandidate])? = nil
     /// Deep-clones the block (FFI side regenerates every UUID) and
     /// inserts the copy right after the original. The VM focuses the
     /// new block once the reload settles.
-    var onDuplicate: (() -> Void)? = nil
+    public var onDuplicate: (() -> Void)? = nil
     /// Accent color the row should paint its accented affordances with
     /// (todo checkmark, etc.). Resolved at the LeafView level so a
     /// per-doc accent overrides the global setting; the default falls
     /// back to the SwiftUI env tint when no LeafView is in the
     /// chain (preview / other contexts).
-    var accentColor: Color = .accentColor
+    public var accentColor: Color = .accentColor
     /// Resolved Books-style theme foreground colour. `nil` keeps the
     /// system `.label` fallback. Plumbed all the way down to the
     /// `RichTextEditor` so every span without a more specific colour
     /// inherits the right body-text colour for the active theme.
-    var themeForegroundColor: Color? = nil
+    public var themeForegroundColor: Color? = nil
     /// Forced keyboard appearance for the per-doc theme. UIKit's
     /// keyboard window doesn't pick up the doc-window
     /// `overrideUserInterfaceStyle`, so we set this directly on the
     /// textView.
-    var keyboardAppearance: UIKeyboardAppearance = .default
+    public var keyboardAppearance: UIKeyboardAppearance = .default
     /// Called when an inline `pinkha://doc/{uuid}` link is tapped — the
     /// parent navigates to that leaf. Set by `LeafView` and read by
     /// `RichTextEditor`.
-    var onOpenInternalDoc: ((String) -> Void)? = nil
+    public var onOpenInternalDoc: ((String) -> Void)? = nil
     /// Resolves a child-page block to a display title + optional icon. Used
     /// by `ChildPageRowView` to surface the embedded page's name without
     /// loading the entire child leaf. Returns `nil` for a deleted or
     /// missing child page.
-    var resolveChildPage: ((String) -> (title: String, icon: String?)?)? = nil
+    public var resolveChildPage: ((String) -> (title: String, icon: String?)?)? = nil
 }
 
 // ── Shared text editor for all blocks ────────────────────────────────────────
@@ -119,19 +119,19 @@ struct BlockCallbacks {
 // only provides the placeholder, font, decorations and block-specific options.
 
 /// Wraps `RichTextEditor` with auto-focus logic and focus change tracking.
-struct BlockTextEditor: View {
+public struct BlockTextEditor: View {
     @Binding var block: EditableBlock
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let placeholder: String
-    let baseFont: UIFont
-    var extraAttrs: [NSAttributedString.Key: Any]? = nil
-    var convertible: Bool = true
-    let cb: BlockCallbacks
+    public let placeholder: String
+    public let baseFont: UIFont
+    public var extraAttrs: [NSAttributedString.Key: Any]? = nil
+    public var convertible: Bool = true
+    public let cb: BlockCallbacks
     @State private var focused = false
     @State private var cursorAt: Int?
 
-    var body: some View {
+    public var body: some View {
         RichTextEditor(
             spans: $block.spans,
             isFocused: $focused,
@@ -221,13 +221,13 @@ func extractEmbedURL(from block: EditableBlock) -> String? {
 // ── Block row dispatcher ──────────────────────────────────────────────────────
 
 /// Routes each block to its dedicated row view based on the content type.
-struct BlockRowView: View {
+public struct BlockRowView: View {
     @Binding var block: EditableBlock
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let cb: BlockCallbacks
+    public let cb: BlockCallbacks
 
-    var body: some View {
+    public var body: some View {
         Group {
             switch block.content {
             case .text:
@@ -503,21 +503,21 @@ struct BlockRowView: View {
 // surfaces the same palette to SwiftUI as a stable, identifiable list
 // the menu can iterate over.
 
-struct BlockColorOption: Identifiable {
-    let id: String
-    let name: String
-    let displayName: LocalizedStringKey
-    let uiColor: UIColor
+public struct BlockColorOption: Identifiable, @unchecked Sendable {
+    public let id: String
+    public let name: String
+    public let displayName: LocalizedStringKey
+    public let uiColor: UIColor
 
     /// Pre-rendered filled circle with the color baked into pixels.
     /// Cached at first access — the menu re-renders on every open and
     /// reallocating 10 UIImages each time would show up in the
     /// AttributeGraph trace.
-    var swatchImage: UIImage {
+    public var swatchImage: UIImage {
         BlockColorOption.swatchCache[id] ?? Self.buildSwatch(for: self)
     }
 
-    private static var swatchCache: [String: UIImage] = [:]
+    nonisolated(unsafe) private static var swatchCache: [String: UIImage] = [:]
 
     private static func buildSwatch(for option: BlockColorOption) -> UIImage {
         let size: CGFloat = 18
@@ -553,9 +553,9 @@ private struct TextRowView: View {
     @Binding var block: EditableBlock
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let cb: BlockCallbacks
+    public let cb: BlockCallbacks
 
-    var body: some View {
+    public var body: some View {
         BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
                        placeholder: String(localized: "Text…"), baseFont: .preferredFont(forTextStyle: .body), cb: cb)
     }
@@ -565,10 +565,10 @@ private struct TextRowView: View {
 
 private struct HeadingRowView: View {
     @Binding var block: EditableBlock
-    let level: Int
+    public let level: Int
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let cb: BlockCallbacks
+    public let cb: BlockCallbacks
 
     private var uiFont: UIFont {
         switch level {
@@ -578,7 +578,7 @@ private struct HeadingRowView: View {
         }
     }
 
-    var body: some View {
+    public var body: some View {
         BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
                        placeholder: "Heading…", baseFont: uiFont, cb: cb)
             .padding(.top, level == 1 ? 16 : 10)
@@ -594,9 +594,9 @@ private struct BulletedListItemRowView: View {
     @Binding var block: EditableBlock
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let cb: BlockCallbacks
+    public let cb: BlockCallbacks
 
-    var body: some View {
+    public var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Text("•")
                 .font(.body)
@@ -620,9 +620,9 @@ private struct NumberedListItemRowView: View {
     @Binding var block: EditableBlock
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
-    let cb: BlockCallbacks
+    public let cb: BlockCallbacks
 
-    var body: some View {
+    public var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Text("1.")
                 .font(.body)
@@ -644,13 +644,13 @@ private struct NumberedListItemRowView: View {
 
 private struct CodeBlockEditorView: View {
     @Binding var block: EditableBlock
-    let language: String
-    let text: String
-    let cb: BlockCallbacks
+    public let language: String
+    public let text: String
+    public let cb: BlockCallbacks
 
     @State private var editedText: String
 
-    init(block: Binding<EditableBlock>, language: String, text: String, cb: BlockCallbacks) {
+    public init(block: Binding<EditableBlock>, language: String, text: String, cb: BlockCallbacks) {
         self._block = block
         self.language = language
         self.text = text
@@ -663,7 +663,7 @@ private struct CodeBlockEditorView: View {
         cb.onSave()
     }
 
-    var body: some View {
+    public var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             if !language.isEmpty {
                 Text(language)
@@ -691,13 +691,13 @@ private struct CodeBlockEditorView: View {
 /// Inline reference to a child pinkha leaf — mirrors Notion's child_page
 /// block. Tapping the row pushes the child leaf onto the surrounding
 /// `NavigationStack` via the parent's `onOpenInternalDoc` callback.
-struct ChildPageRowView: View {
-    let childLeafId: String
-    let cb: BlockCallbacks
+public struct ChildPageRowView: View {
+    public let childLeafId: String
+    public let cb: BlockCallbacks
 
     @State private var resolved: (title: String, icon: String?)? = nil
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 12) {
             // Icon slot sized like the home-view row to anchor the eye —
             // emoji when the child has one, generic doc glyph otherwise.

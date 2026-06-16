@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 import PinkhaFFI
+@testable import LeafFeature
 @testable import Pinkha
 
 @MainActor
