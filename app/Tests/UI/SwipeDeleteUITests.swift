@@ -17,7 +17,7 @@ final class SwipeDeleteUITests: XCTestCase {
 
     func testSwipeDeleteRemovesDocFromList() {
         let app = launchWithSeed()
-        let row = app.staticTexts["Seeded Note 1"]
+        let row = app.staticTexts.byLabel("Seeded Note 1")
         XCTAssertTrue(row.waitForExistence(timeout: 5))
 
         // Swipe left then tap Delete
@@ -25,10 +25,10 @@ final class SwipeDeleteUITests: XCTestCase {
         let deleteBtn = app.buttons["Delete"]
         if deleteBtn.waitForExistence(timeout: 2) {
             deleteBtn.tap()
-            XCTAssertFalse(app.staticTexts["Seeded Note 1"].waitForExistence(timeout: 2),
+            XCTAssertFalse(app.staticTexts.byLabel("Seeded Note 1").waitForExistence(timeout: 2),
                            "the deleted doc must no longer appear")
             // The other seeded leaf must still be present.
-            XCTAssertTrue(app.staticTexts["Seeded Note 2"].exists)
+            XCTAssertTrue(app.staticTexts.byLabel("Seeded Note 2").exists)
         }
     }
 }

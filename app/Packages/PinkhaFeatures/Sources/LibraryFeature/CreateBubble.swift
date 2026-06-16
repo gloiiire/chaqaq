@@ -79,13 +79,17 @@ public struct CreateBubble: View {
 								 labelSpacing: 0,
 								 action: onNewNote)
 						.offset(y:isInline ? 2.1 : -1)
+						.accessibilityIdentifier("createLeafFAB")
             icon(systemImage: "tablecells",
                  label: "Book",
                  action: onNewBook)
+						.accessibilityIdentifier("createBookFAB")
             icon(systemImage: "shelf.badge.plus",
                  label: "Shelf",
                  action: onNewShelf)
+						.accessibilityIdentifier("createShelfFAB")
             overflowMenu
+                .accessibilityIdentifier("createFAB")
         }
         .padding(.horizontal, isInline ? 3 : 12)
         .padding(.vertical, 10)

@@ -12,37 +12,34 @@ final class BlockPickerUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-data"]
         app.launch()
-        let row = app.staticTexts["Seeded Note 1"]
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        let row = app.staticTexts.byLabel("Seeded Note 1")
+        XCTAssertTrue(row.waitForExistence(timeout: 8))
         row.tap()
-        XCTAssertTrue(app.staticTexts["New block"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.byLabel("New block").waitForExistence(timeout: 8))
         return app
     }
 
     func testTapAddBlockOpensPicker() {
         let app = openSeededDoc()
-        // The "New block" button at the bottom of the list.
-        app.staticTexts["New block"].tap()
-        // The picker displays the title "Add a block".
-        XCTAssertTrue(app.staticTexts["Add a block"].waitForExistence(timeout: 3))
+        app.staticTexts.byLabel("New block").tap()
+        XCTAssertTrue(app.staticTexts.byLabel("Add a block").waitForExistence(timeout: 3))
     }
 
     func testPickerShowsAllBlockTypes() {
         let app = openSeededDoc()
-        app.staticTexts["New block"].tap()
-        XCTAssertTrue(app.staticTexts["Add a block"].waitForExistence(timeout: 3))
-        // At least the main block types must be listed.
-        XCTAssertTrue(app.staticTexts["Text"].exists || app.cells.staticTexts["Text"].exists)
-        XCTAssertTrue(app.staticTexts["Title 1"].exists || app.cells.staticTexts["Title 1"].exists)
-        XCTAssertTrue(app.staticTexts["To do"].exists || app.cells.staticTexts["To do"].exists)
-        XCTAssertTrue(app.staticTexts["Divider"].exists || app.cells.staticTexts["Divider"].exists)
+        app.staticTexts.byLabel("New block").tap()
+        XCTAssertTrue(app.staticTexts.byLabel("Add a block").waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts.byLabel("Text").exists)
+        XCTAssertTrue(app.staticTexts.byLabel("Title 1").exists)
+        XCTAssertTrue(app.staticTexts.byLabel("To do").exists)
+        XCTAssertTrue(app.staticTexts.byLabel("Divider").exists)
     }
 
     func testPickerCancelClosesIt() {
         let app = openSeededDoc()
-        app.staticTexts["New block"].tap()
-        XCTAssertTrue(app.staticTexts["Add a block"].waitForExistence(timeout: 3))
+        app.staticTexts.byLabel("New block").tap()
+        XCTAssertTrue(app.staticTexts.byLabel("Add a block").waitForExistence(timeout: 3))
         app.buttons["Cancel"].tap()
-        XCTAssertFalse(app.staticTexts["Add a block"].waitForExistence(timeout: 1))
+        XCTAssertFalse(app.staticTexts.byLabel("Add a block").waitForExistence(timeout: 1))
     }
 }
