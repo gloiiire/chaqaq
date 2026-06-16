@@ -8,7 +8,8 @@ import PinkhaCore
 /// Items here are recoverable until the user explicitly purges them (manual
 /// purge only — no auto-purge is wired up). Backed by the Rust FFI
 /// `list_deleted_*` / `restore_*` / `purge_*` calls exposed via PinkhaStore.
-struct TrashView: View {
+public struct TrashView: View {
+    public init() {}
     @Environment(PinkhaStore.self) private var store
     @State private var deletedDocs: [LeafMetaFfi] = []
     @State private var deletedBooks: [BookMetaFfi] = []
@@ -29,7 +30,7 @@ struct TrashView: View {
         deletedDocs.count + deletedBooks.count + deletedShelves.count
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             Group {
                 if totalCount == 0 {
@@ -268,7 +269,7 @@ private struct TrashRow: View {
 
     @State private var showPurgeConfirm = false
 
-    var body: some View {
+    public var body: some View {
         HStack {
             Image(systemName: icon)
                 .foregroundStyle(.secondary)

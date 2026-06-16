@@ -13,24 +13,49 @@ import SwiftUI
 ///
 /// The capsule is the only glass surface; the icons are plain images.
 /// Mirrors Apple Music's mini-player layout (play / next).
-struct CreateBubble: View {
-    let onNewNote: () -> Void
-    let onNewBook: () -> Void
-    let onNewShelf: () -> Void
+public struct CreateBubble: View {
+    public init(
+        onNewNote: @escaping () -> Void,
+        onNewBook: @escaping () -> Void,
+        onNewShelf: @escaping () -> Void,
+        onShowTrash: @escaping () -> Void = {},
+        onDeleteAll: @escaping () -> Void = {},
+        hasItemsForDeleteAll: Bool = false,
+        onImportNotion: @escaping () -> Void = {},
+        onImportBear: @escaping () -> Void = {},
+        onImportCraftTextBundle: @escaping () -> Void = {},
+        onImportCraftCombined: @escaping () -> Void = {},
+        onShowAllDocs: @escaping () -> Void = {}
+    ) {
+        self.onNewNote = onNewNote
+        self.onNewBook = onNewBook
+        self.onNewShelf = onNewShelf
+        self.onShowTrash = onShowTrash
+        self.onDeleteAll = onDeleteAll
+        self.hasItemsForDeleteAll = hasItemsForDeleteAll
+        self.onImportNotion = onImportNotion
+        self.onImportBear = onImportBear
+        self.onImportCraftTextBundle = onImportCraftTextBundle
+        self.onImportCraftCombined = onImportCraftCombined
+        self.onShowAllDocs = onShowAllDocs
+    }
+    public let onNewNote: () -> Void
+    public let onNewBook: () -> Void
+    public let onNewShelf: () -> Void
     // Overflow menu actions — exposed here so the navbar can drop its
     // own ellipsis (the bubble is the new single source of secondary
     // actions). Default to no-op for the visual placement tests.
-    var onShowTrash: () -> Void = {}
-    var onDeleteAll: () -> Void = {}
-    var hasItemsForDeleteAll: Bool = false
-    var onImportNotion: () -> Void = {}
-    var onImportBear: () -> Void = {}
-    var onImportCraftTextBundle: () -> Void = {}
-    var onImportCraftCombined: () -> Void = {}
+    public var onShowTrash: () -> Void = {}
+    public var onDeleteAll: () -> Void = {}
+    public var hasItemsForDeleteAll: Bool = false
+    public var onImportNotion: () -> Void = {}
+    public var onImportBear: () -> Void = {}
+    public var onImportCraftTextBundle: () -> Void = {}
+    public var onImportCraftCombined: () -> Void = {}
     /// Opens the Safari-tab-style "All leaves" switcher. Lives in
     /// the overflow menu next to Trash / Imports — it's a navigation
     /// affordance, not a creation one.
-    var onShowAllDocs: () -> Void = {}
+    public var onShowAllDocs: () -> Void = {}
 
     /// Tracks whether the accessory is rendered next to the minimised tab
     /// bar (`.inline`) or detached above it (`.expanded`). Set automatically
@@ -41,7 +66,7 @@ struct CreateBubble: View {
 
     private var isInline: Bool { placement == .inline }
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: isInline ? 3 : 30) {
             // `doc.badge.plus` is taller than the other three glyphs
             // (because of the badge composition), so we render it one

@@ -16,15 +16,19 @@ func formattedRelativeDate(_ iso: String) -> String? {
 }
 
 /// A row in the unified library list.
-struct LibraryRow: View {
-    let item: WorkspaceItem
+public struct LibraryRow: View {
+    public init(item: WorkspaceItem, displayDateIso: String? = nil) {
+        self.item = item
+        self.displayDateIso = displayDateIso
+    }
+    public let item: WorkspaceItem
     /// ISO date shown under the title. Defaults to `updatedAt` (the
     /// historical behaviour) but callers can override — `LibraryView`
     /// passes `createdAt` when the user sorts by Created so the visible
     /// timestamp matches the active sort key.
-    var displayDateIso: String? = nil
+    public var displayDateIso: String? = nil
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 12) {
             itemIcon
             VStack(alignment: .leading, spacing: 4) {

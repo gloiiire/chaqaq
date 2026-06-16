@@ -12,9 +12,13 @@ import LeafFeature
 /// doc (so the cards are distinguishable even when they share a
 /// cover image), a small favicon-style label underneath, and a
 /// top-right search icon that filters the visible cards in place.
-struct AllLeavesSwitcher: View {
-    @Bindable var store: PinkhaStore
-    let onSelect: (String) -> Void
+public struct AllLeavesSwitcher: View {
+    public init(store: PinkhaStore, onSelect: @escaping (String) -> Void) {
+        self.store = store
+        self.onSelect = onSelect
+    }
+    @Bindable public var store: PinkhaStore
+    public let onSelect: (String) -> Void
     @Environment(AppSettings.self) private var settings
     @Environment(TabManager.self) private var tabManager
     @Environment(Composer.self) private var composer
@@ -29,7 +33,7 @@ struct AllLeavesSwitcher: View {
         GridItem(.flexible(), spacing: 14)
     ]
 
-    var body: some View {
+    public var body: some View {
         ZStack {
             Color(uiColor: .systemBackground)
                 .ignoresSafeArea()

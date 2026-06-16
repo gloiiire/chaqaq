@@ -10,7 +10,7 @@ import LeafFeature
 // PinkhaStore (in PinkhaCore) must not depend on.
 
 @MainActor
-extension PinkhaStore {
+public extension PinkhaStore {
     /// Context-aware note creation. Lands the new leaf in `context`
     /// after creation — moved into a shelf, parented under another
     /// leaf, or left at the root. Returns the new leaf id so

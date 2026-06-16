@@ -10,13 +10,13 @@ import PinkhaDesignSystem
 // nested Pickers + the grouping branches inline pushed `body` past the
 // "unable to type-check in reasonable time" wall on first attempt.
 
-extension LibraryView {
+public extension LibraryView {
 
     /// One contiguous Section of items the List can render. Title is the
     /// header (e.g. "Today", "B"); `id` is stable so SwiftUI diffs cells
     /// correctly across re-sorts.
     struct ItemGroup: Identifiable {
-        let id: String
+        public let id: String
         let title: String?  // nil = no header (used for the .none grouping)
         let items: [WorkspaceItem]
     }

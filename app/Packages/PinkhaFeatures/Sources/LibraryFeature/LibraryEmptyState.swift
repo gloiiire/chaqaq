@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Placeholder shown when there are no leaves yet.
-struct LibraryEmptyState: View {
-    var body: some View {
+public struct LibraryEmptyState: View {
+    public var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "doc.text")
                 .font(.system(size: 48))

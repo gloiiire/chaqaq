@@ -4,6 +4,7 @@ import PinkhaCore
 import PinkhaDesignSystem
 import LeafFeature
 import BookFeature
+import LibraryFeature
 
 // ── Search tab ────────────────────────────────────────────────────────────────
 

@@ -99,6 +99,8 @@ targets:
         product: LeafFeature
       - package: PinkhaFeatures
         product: BookFeature
+      - package: PinkhaFeatures
+        product: LibraryFeature
       - package: Sentry
         product: Sentry
 

@@ -10,9 +10,13 @@ import LeafFeature
 /// Shows the contents of a single shelf: its sub-shelves (Craft-style nesting)
 /// then its leaves. Tapping a sub-shelf pushes another `ShelfView` onto
 /// the same NavigationStack, giving arbitrary-depth navigation for free.
-struct ShelfView: View {
-    @Bindable var store: PinkhaStore
-    let shelf: ShelfMetaFfi
+public struct ShelfView: View {
+    public init(store: PinkhaStore, shelf: ShelfMetaFfi) {
+        self.store = store
+        self.shelf = shelf
+    }
+    @Bindable public var store: PinkhaStore
+    public let shelf: ShelfMetaFfi
     /// Optional Composer — injected by `ContentView`. We read it to flip
     /// `currentContext` to this shelf on appear and back to `.root` on
     /// disappear, so the create bubble's "New …" land inside the shelf
@@ -34,7 +38,7 @@ struct ShelfView: View {
         store.listShelves().first(where: { $0.id == shelf.id }) ?? shelf
     }
 
-    var body: some View {
+    public var body: some View {
         let subShelves = store.childShelves(of: shelf.id)
         let docs = store.documentsInShelf(shelfId: shelf.id)
 
@@ -183,10 +187,11 @@ struct ShelfView: View {
 /// Row used by both `ShelfView` (sub-shelves) and `ShelvesSectionView`
 /// (root-level shelves) — shows the emoji icon when set, falling back to
 /// the system shelf symbol otherwise.
-struct ShelfRow: View {
-    let shelf: ShelfMetaFfi
+public struct ShelfRow: View {
+    public init(shelf: ShelfMetaFfi) { self.shelf = shelf }
+    public let shelf: ShelfMetaFfi
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 12) {
             if let icon = shelf.icon, !icon.isEmpty {
                 Text(icon).font(.title3).frame(width: 28)
@@ -201,12 +206,12 @@ struct ShelfRow: View {
 // ── Shelves section ───────────────────────────────────────────────────────────
 
 /// Section that lists top-level shelves in `LibraryView`.
-struct ShelvesSectionView: View {
-    @Bindable var store: PinkhaStore
+public struct ShelvesSectionView: View {
+    @Bindable public var store: PinkhaStore
     @State private var showingNewShelf = false
     @State private var newShelfName = ""
 
-    var body: some View {
+    public var body: some View {
         let shelves = store.childShelves(of: nil)
         Section {
             ForEach(shelves, id: \.id) { shelf in

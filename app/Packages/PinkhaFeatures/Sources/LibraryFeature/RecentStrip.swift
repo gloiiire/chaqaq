@@ -7,7 +7,7 @@ import BookFeature
 // ── Recent strip ──────────────────────────────────────────────────────────────
 
 /// Horizontal scroll strip displaying the most recently updated library items.
-struct RecentStrip: View {
+public struct RecentStrip: View {
     let items: [WorkspaceItem]
     let api: PinkhaApi?
     /// Geometry namespace for the doc-open zoom transition. Each
@@ -27,7 +27,7 @@ struct RecentStrip: View {
     /// item is hidden (e.g. when no DB exists yet).
     var onAddToBook: ((LeafMetaFfi) -> Void)? = nil
 
-    var body: some View {
+    public var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(alignment: .top, spacing: 12) {
                 ForEach(items) { item in
@@ -88,7 +88,7 @@ private struct RecentNoteCard: View {
     /// Rename and Delete in the context menu.
     var onAddToBook: (() -> Void)? = nil
 
-    var body: some View {
+    public var body: some View {
         // UIKit-backed context menu — SwiftUI's `.contextMenu` has a
         // confirmed iOS 26 bug inside horizontal `ScrollView` where
         // it only registers on the first row. UIKit's
@@ -133,14 +133,14 @@ private struct RecentNoteCard: View {
 /// A card in the recent strip — Notion-style with a cover image
 /// (or fallback gradient) filling the top half, an icon overlapping the
 /// cover/content boundary, and the title plus relative date below.
-struct RecentCard: View {
+public struct RecentCard: View {
     let item: WorkspaceItem
 
     private let cornerRadius: CGFloat = 16
     private let coverHeight: CGFloat = 80
     private let iconSize: CGFloat = 32
 
-    var body: some View {
+    public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             CoverImageView(cover: coverValue)
                 .frame(height: coverHeight)
@@ -227,12 +227,12 @@ struct RecentCard: View {
 /// a note row. Larger, more deliberate than the list row — the title
 /// reads loud, the icon anchors the eye. Sits over a frosted
 /// background while the contextMenu's actions slide up underneath.
-struct NoteCardPreview: View {
+public struct NoteCardPreview: View {
     let doc: LeafMetaFfi
 
     private let iconSize: CGFloat = 44
 
-    var body: some View {
+    public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Cover image (or fallback gradient) on top, exactly
             // like the RecentCard pattern — Notion-style framing.

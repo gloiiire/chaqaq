@@ -13,8 +13,11 @@ import BookFeature
 /// hosted by `ContentView.tabViewBottomAccessory`, so this view focuses on
 /// presenting the library content. Sibling files in this shelf own the
 /// recent strip (`RecentStrip.swift`) and the list row (`LibraryRow.swift`).
-struct LibraryView: View {
-    @Bindable var store: PinkhaStore
+public struct LibraryView: View {
+    public init(store: PinkhaStore) {
+        self.store = store
+    }
+    @Bindable public var store: PinkhaStore
     @Environment(Composer.self) var composer
     @Environment(AppSettings.self) var settings
     @Environment(TabManager.self) var tabManager
@@ -326,7 +329,7 @@ struct LibraryView: View {
         }
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack(path: $path) {
             stackContent
         }

@@ -7,10 +7,13 @@ import PinkhaCore
 /// captures will land before being filed into shelves / books. Empty
 /// state for now; the tab icon flips to `tray.badge.fill` (driven by
 /// `PinkhaStore.hasInboxNotification`) when content appears here.
-struct InboxView: View {
-    @Bindable var store: PinkhaStore
+public struct InboxView: View {
+    public init(store: PinkhaStore) {
+        self.store = store
+    }
+    @Bindable public var store: PinkhaStore
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             List {
                 Section {
@@ -29,7 +32,7 @@ struct InboxView: View {
 }
 
 private struct InboxEmptyState: View {
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 14) {
             Image(systemName: "tray")
                 .font(.system(size: 48))

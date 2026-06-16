@@ -20,28 +20,45 @@ import LeafFeature
 /// `onCreate` then carries `(bookId, propertyValues)` so the
 /// caller can route the create to either the regular notes path or a
 /// DB-entry creation path.
-struct CreateLeafSheet: View {
-    @Binding var title: String
-    var prompt: LocalizedStringKey = "Leaf title"
+public struct CreateLeafSheet: View {
+    public init(
+        title: Binding<String>,
+        prompt: LocalizedStringKey = "Leaf title",
+        navigationTitle: LocalizedStringKey = "New",
+        availableBooks: [BookMetaFfi] = [],
+        api: PinkhaApi? = nil,
+        onCreate: @escaping (String?, [String: PropertyValueFfi], StandaloneStyle) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        self._title = title
+        self.prompt = prompt
+        self.navigationTitle = navigationTitle
+        self.availableBooks = availableBooks
+        self.api = api
+        self.onCreate = onCreate
+        self.onCancel = onCancel
+    }
+    @Binding public var title: String
+    public var prompt: LocalizedStringKey = "Leaf title"
     /// Navigation title — defaults to "New" but each call site sets a
     /// more descriptive label (e.g. "New Leaf", "New Book") so the
     /// user knows what they're creating before they type.
-    var navigationTitle: LocalizedStringKey = "New"
+    public var navigationTitle: LocalizedStringKey = "New"
     /// Available books the user can attach the note to. Pass an
     /// empty array to hide the "Add to a book" toggle entirely
     /// (e.g. for the "New book" flow).
-    var availableBooks: [BookMetaFfi] = []
+    public var availableBooks: [BookMetaFfi] = []
     /// Used to fetch the picked book's schema so we know which
     /// properties to render. `nil` disables the DB-attach flow.
-    var api: PinkhaApi? = nil
+    public var api: PinkhaApi? = nil
     /// `nil` cover / icon / theme = inherit defaults. Only set when
     /// the user explicitly picked something in the style section.
-    let onCreate: (
+    public let onCreate: (
         _ bookId: String?,
         _ propertyValues: [String: PropertyValueFfi],
         _ standalone: StandaloneStyle
     ) -> Void
-    let onCancel: () -> Void
+    public let onCancel: () -> Void
 
     @FocusState private var focused: Bool
     @State private var attachToBook: Bool = false
@@ -55,7 +72,7 @@ struct CreateLeafSheet: View {
     @State private var showingPhotoPicker = false
     @State private var showingFileImporter = false
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             Form {
                 Section {
