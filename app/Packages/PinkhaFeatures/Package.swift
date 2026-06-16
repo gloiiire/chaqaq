@@ -80,6 +80,7 @@ let package = Package(
             dependencies: [
                 "LeafFeature",
                 "BookFeature",
+                "LibraryFeature",
                 .product(name: "PinkhaFFI",          package: "PinkhaFFI"),
                 .product(name: "PinkhaCore",         package: "PinkhaCore"),
                 .product(name: "PinkhaDesignSystem", package: "PinkhaDesignSystem"),

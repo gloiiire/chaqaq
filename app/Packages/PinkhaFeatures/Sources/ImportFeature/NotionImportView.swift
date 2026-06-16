@@ -2,7 +2,7 @@ import SwiftUI
 import PinkhaFFI
 import PinkhaCore
 import PinkhaDesignSystem
-import LeafFeature
+
 
 // ── Import from Notion sheet ──────────────────────────────────────────────────
 //
@@ -442,7 +442,7 @@ public struct NotionImportView: View {
         guard total > 0 else { return }
 
         state = .running(current: 0, total: total)
-        let coversDir = try? LeafViewModel.coversDirectory().path
+        let coversDir = try? CoverImageStorage.directory().path
 
         Task.detached(priority: .userInitiated) {
             var totals = ImportTotals(books: 0, leaves: 0, entries: 0, blocks: 0, skipped: 0)
