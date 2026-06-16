@@ -3,6 +3,7 @@ import PinkhaFFI
 import PinkhaCore
 import PinkhaComposer
 import LeafFeature
+import SearchFeature
 import BookFeature
 import LibraryFeature
 import ImportFeature

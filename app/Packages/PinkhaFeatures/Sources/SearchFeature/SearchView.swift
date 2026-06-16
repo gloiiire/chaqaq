@@ -11,8 +11,9 @@ import LibraryFeature
 /// Search tab — full-library super search. Hits four axes in parallel
 /// (note titles, note content, book titles, shelf names) and groups
 /// the matches in sections. Each section is hidden when empty.
-struct SearchView: View {
-    @Bindable var store: PinkhaStore
+public struct SearchView: View {
+    public init(store: PinkhaStore) { self.store = store }
+    @Bindable public var store: PinkhaStore
     @Environment(AppSettings.self) private var settings
     @Environment(TabManager.self) private var tabManager
     @State private var query = ""
@@ -21,7 +22,7 @@ struct SearchView: View {
         query.isEmpty ? .empty : store.superSearch(query: query)
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             List {
                 if query.isEmpty {
@@ -163,7 +164,7 @@ private func groupHits(_ hits: [BlockSearchHitFfi]) -> [LeafHitGroup] {
 private struct LeafHitSectionHeader: View {
     let doc: LeafMetaFfi
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 10) {
             if let icon = doc.icon, !icon.isEmpty {
                 Text(icon).font(.body)
@@ -194,7 +195,7 @@ private struct SnippetRow: View {
     let hit: BlockSearchHitFfi
     let query: String
 
-    var body: some View {
+    public var body: some View {
         Text(highlightedSnippet)
             .font(.subheadline)
             .foregroundStyle(.secondary)

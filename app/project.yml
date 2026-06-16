@@ -103,6 +103,8 @@ targets:
         product: LibraryFeature
       - package: PinkhaFeatures
         product: ImportFeature
+      - package: PinkhaFeatures
+        product: SearchFeature
       - package: Sentry
         product: Sentry
 
