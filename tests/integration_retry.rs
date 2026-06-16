@@ -2,11 +2,11 @@
 // scenario (multiple threads, simultaneous writes).
 
 use pinkha::application::error::PinkhaError;
-use pinkha::application::repository::DocumentRepository;
+use pinkha::application::repository::LeafRepository;
 use pinkha::application::resilience::{is_transient, retry_with_backoff};
-use pinkha::domain::document::Document;
+use pinkha::domain::leaf::Leaf;
 use pinkha::domain::parser::parse_inline;
-use pinkha::infrastructure::sqlite_document_store::SqliteDocumentStore;
+use pinkha::infrastructure::sqlite_leaf_store::SqliteLeafStore;
 use std::sync::Arc;
 use std::thread;
 use uuid::Uuid;
@@ -21,13 +21,13 @@ fn db_path() -> String {
 #[test]
 fn ecritures_concurrentes_multi_threads_aboutissent_toutes() {
     let path = db_path();
-    let store = Arc::new(SqliteDocumentStore::new(&path).unwrap());
+    let store = Arc::new(SqliteLeafStore::new(&path).unwrap());
 
     let mut handles = vec![];
     for i in 0..30 {
         let store = Arc::clone(&store);
         handles.push(thread::spawn(move || {
-            let doc = Document::new(parse_inline(&format!("Doc {i}")));
+            let doc = Leaf::new(parse_inline(&format!("Doc {i}")));
             store.save(&doc).expect("retry doit absorber les conflits")
         }));
     }
@@ -51,11 +51,11 @@ fn ecritures_concurrentes_multi_threads_aboutissent_toutes() {
 #[test]
 fn lectures_et_ecritures_concurrentes_coexistent() {
     let path = db_path();
-    let store = Arc::new(SqliteDocumentStore::new(&path).unwrap());
+    let store = Arc::new(SqliteLeafStore::new(&path).unwrap());
 
     // Seed
     for i in 0..5 {
-        let doc = Document::new(parse_inline(&format!("Pre {i}")));
+        let doc = Leaf::new(parse_inline(&format!("Pre {i}")));
         store.save(&doc).unwrap();
     }
 
@@ -65,7 +65,7 @@ fn lectures_et_ecritures_concurrentes_coexistent() {
         let h = if i % 2 == 0 {
             thread::spawn(move || {
                 store
-                    .save(&Document::new(parse_inline(&format!("W {i}"))))
+                    .save(&Leaf::new(parse_inline(&format!("W {i}"))))
                     .expect("save doit réussir");
             })
         } else {
@@ -90,7 +90,7 @@ fn lectures_et_ecritures_concurrentes_coexistent() {
 #[test]
 fn retry_n_intervient_pas_sur_not_found() {
     let path = db_path();
-    let store = SqliteDocumentStore::new(&path).unwrap();
+    let store = SqliteLeafStore::new(&path).unwrap();
 
     // No retry expected on NotFound — the error propagates immediately.
     let inconnu = Uuid::new_v4();
@@ -113,7 +113,7 @@ fn retry_helper_remonte_apres_max_tentatives_sur_erreur_persistante() {
     let mut appels = 0u32;
     let result: Result<i32, PinkhaError> = retry_with_backoff(|| {
         appels += 1;
-        Err(PinkhaError::Db("database is locked".to_string()))
+        Err(PinkhaError::Db("book is locked".to_string()))
     });
 
     assert!(matches!(result, Err(PinkhaError::Db(_))));

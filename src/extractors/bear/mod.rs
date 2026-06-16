@@ -1,7 +1,7 @@
 // ── Bear extractor ────────────────────────────────────────────────────────────
 //
-// Bear stores notes in a SQLite database at:
-//   ~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite
+// Bear stores notes in a SQLite book at:
+//   ~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/book.sqlite
 //
 // No public API — we read the SQLite file directly (with user consent via a
 // file picker in Swift that passes us the path).
@@ -10,17 +10,17 @@
 //   → open Bear's SQLite (read-only)
 //   → read ZSFNOTE rows (skip trashed notes: ZTRASHED = 1)
 //   → parse Bear's Markdown subset → Pinkha BlockContent list
-//   → persist as Pinkha documents
+//   → persist as Pinkha leaves
 
 pub mod mapper;
 pub mod reader;
 pub mod schema;
 
-use crate::application::database_repository::DatabaseRepository;
-use crate::application::folder_repository::FolderRepository;
-use crate::application::repository::DocumentRepository;
+use crate::application::book_repository::BookRepository;
+use crate::application::shelf_repository::ShelfRepository;
+use crate::application::repository::LeafRepository;
 use crate::application::use_cases;
-use crate::domain::document::Block;
+use crate::domain::leaf::Block;
 use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
 use crate::infrastructure::no_op_unit_of_work::NoOpUnitOfWork;
@@ -35,7 +35,7 @@ use self::reader::BearReader;
 /// Swift presents a file picker scoped to Bear's group container, then passes
 /// the resolved path here. Pinkha opens the file read-only.
 pub struct BearConfig {
-    /// Absolute path to Bear's `database.sqlite` file.
+    /// Absolute path to Bear's `book.sqlite` file.
     pub db_path: String,
 }
 
@@ -65,9 +65,9 @@ impl Extractor for BearExtractor {
     async fn run(
         &self,
         config: BearConfig,
-        docs: &(dyn DocumentRepository + Send + Sync),
-        dbs: &(dyn DatabaseRepository + Send + Sync),
-        _folders: &(dyn FolderRepository + Send + Sync),
+        docs: &(dyn LeafRepository + Send + Sync),
+        dbs: &(dyn BookRepository + Send + Sync),
+        _shelves: &(dyn ShelfRepository + Send + Sync),
     ) -> Result<ImportResult, ExtractorError> {
         let _ = dbs;
 
@@ -83,12 +83,12 @@ impl Extractor for BearExtractor {
                 &note.title
             };
 
-            let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
-            let mut doc = use_cases::create_document(&uow, title)?;
+            let uow = NoOpUnitOfWork::with_leaves_books(docs, dbs);
+            let mut doc = use_cases::create_leaf(&uow, title)?;
             // Imports default to locked = true so the user reads the
             // extracted content before editing. Set in-memory before the
             // save below so it's persisted in one write rather than a
-            // round-trip via `update_document_locked`.
+            // round-trip via `update_leaf_locked`.
             doc.locked = true;
             let parsed_blocks = parse_note_blocks(&note.text);
             let block_count = parsed_blocks.len();
@@ -107,8 +107,8 @@ impl Extractor for BearExtractor {
 
         Ok(ImportResult {
             app: "Bear",
-            database_id: None,
-            documents: notes.len(),
+            book_id: None,
+            leaves: notes.len(),
             entries: 0,
             blocks: total_blocks,
             skipped: 0,

@@ -1,14 +1,14 @@
 use crate::application::error::PinkhaError;
-use crate::application::repository::DocumentRepository;
-use crate::domain::document::{Document, DocumentMeta};
+use crate::application::repository::LeafRepository;
+use crate::domain::leaf::{Leaf, LeafMeta};
 use std::path::PathBuf;
 use uuid::Uuid;
 
-/// File-system document store that persists each document as a pretty-printed
+/// File-system leaf store that persists each leaf as a pretty-printed
 /// JSON file named `<uuid>.json` inside a directory.
 ///
 /// Kept alongside the SQLite store for tests and prototyping. Production code
-/// should prefer [`SqliteDocumentStore`].
+/// should prefer [`SqliteLeafStore`].
 pub struct JsonStore {
     dir: PathBuf,
 }
@@ -21,8 +21,8 @@ impl JsonStore {
     }
 }
 
-impl DocumentRepository for JsonStore {
-    fn save(&self, doc: &Document) -> Result<(), PinkhaError> {
+impl LeafRepository for JsonStore {
+    fn save(&self, doc: &Leaf) -> Result<(), PinkhaError> {
         std::fs::create_dir_all(&self.dir)?;
         let path = self.dir.join(format!("{}.json", doc.id));
         // Atomic write: write to a .tmp file then rename — the final file
@@ -33,7 +33,7 @@ impl DocumentRepository for JsonStore {
         Ok(())
     }
 
-    fn load(&self, id: Uuid) -> Result<Document, PinkhaError> {
+    fn load(&self, id: Uuid) -> Result<Leaf, PinkhaError> {
         let path = self.dir.join(format!("{}.json", id));
         let json = std::fs::read_to_string(&path).map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
@@ -45,7 +45,7 @@ impl DocumentRepository for JsonStore {
         Ok(serde_json::from_str(&json)?)
     }
 
-    fn list(&self) -> Result<Vec<DocumentMeta>, PinkhaError> {
+    fn list(&self) -> Result<Vec<LeafMeta>, PinkhaError> {
         // Filter on the `.json` extension (in-progress `.tmp` writes are ignored),
         // and silently skip corrupted files so a single bad file does not break
         // the entire listing.
@@ -56,7 +56,7 @@ impl DocumentRepository for JsonStore {
                 continue;
             }
             if let Ok(json) = std::fs::read_to_string(&path)
-                && let Ok(meta) = serde_json::from_str::<DocumentMeta>(&json)
+                && let Ok(meta) = serde_json::from_str::<LeafMeta>(&json)
             {
                 metas.push(meta);
             }
@@ -75,11 +75,11 @@ impl DocumentRepository for JsonStore {
         })
     }
 
-    fn move_to_folder(&self, _doc_id: Uuid, _folder_id: Option<Uuid>) -> Result<(), PinkhaError> {
+    fn move_to_shelf(&self, _leaf_id: Uuid, _shelf_id: Option<Uuid>) -> Result<(), PinkhaError> {
         Ok(())
     }
 
-    fn list_by_folder(&self, _folder_id: Option<Uuid>) -> Result<Vec<DocumentMeta>, PinkhaError> {
+    fn list_by_shelf(&self, _shelf_id: Option<Uuid>) -> Result<Vec<LeafMeta>, PinkhaError> {
         self.list()
     }
 }
@@ -88,7 +88,7 @@ impl DocumentRepository for JsonStore {
 mod tests {
     use super::*;
     use crate::application::error::PinkhaError;
-    use crate::domain::document::{Document, InlineText};
+    use crate::domain::leaf::{Leaf, InlineText};
     use uuid::Uuid;
 
     fn store_temp() -> JsonStore {
@@ -97,8 +97,8 @@ mod tests {
         JsonStore::new(dir)
     }
 
-    fn doc(title: &str) -> Document {
-        Document::new(vec![InlineText {
+    fn doc(title: &str) -> Leaf {
+        Leaf::new(vec![InlineText {
             content: title.to_string(),
             styles: vec![],
         }])

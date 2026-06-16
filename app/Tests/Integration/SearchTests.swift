@@ -1,8 +1,9 @@
 import Testing
 import Foundation
+import PinkhaFFI
 @testable import Pinkha
 
-@Suite("Search — document and block search")
+@Suite("Search — leaf and block search")
 struct SearchTests {
 
     private func makeApi() throws -> (PinkhaApi, URL) {
@@ -16,35 +17,35 @@ struct SearchTests {
         return try String(data: JSONEncoder().encode(c), encoding: .utf8)!
     }
 
-    @Test func searchDocumentsCaseInsensitive() throws {
+    @Test func searchLeavesCaseInsensitive() throws {
         let (api, url) = try makeApi()
         defer { try? FileManager.default.removeItem(at: url) }
-        _ = try api.createDocument(title: "Trip to Paris")
-        _ = try api.createDocument(title: "Good restaurants")
+        _ = try api.createLeaf(title: "Trip to Paris")
+        _ = try api.createLeaf(title: "Good restaurants")
 
-        #expect(try api.searchDocuments(query: "paris").count == 1)
-        #expect(try api.searchDocuments(query: "PARIS").count == 1)
-        #expect(try api.searchDocuments(query: "restaurant").count == 1)
-        #expect(try api.searchDocuments(query: "tokyo").isEmpty)
+        #expect(try api.searchLeaves(query: "paris").count == 1)
+        #expect(try api.searchLeaves(query: "PARIS").count == 1)
+        #expect(try api.searchLeaves(query: "restaurant").count == 1)
+        #expect(try api.searchLeaves(query: "tokyo").isEmpty)
     }
 
-    @Test func searchDocumentsEmptyQueryMatchesAll() throws {
+    @Test func searchLeavesEmptyQueryMatchesAll() throws {
         let (api, url) = try makeApi()
         defer { try? FileManager.default.removeItem(at: url) }
-        _ = try api.createDocument(title: "A")
-        _ = try api.createDocument(title: "B")
+        _ = try api.createLeaf(title: "A")
+        _ = try api.createLeaf(title: "B")
         // An empty string is contained in every title — standard `contains` behaviour.
-        #expect(try api.searchDocuments(query: "").count == 2)
+        #expect(try api.searchLeaves(query: "").count == 2)
     }
 
     @Test func searchInBlocksFindsThroughBlockContent() throws {
         let (api, url) = try makeApi()
         defer { try? FileManager.default.removeItem(at: url) }
-        let docId = try api.createDocument(title: "Empty")
-        _ = try api.addBlock(docId: docId, blockContentJson: try textBlock("Rust is great"))
+        let leafId = try api.createLeaf(title: "Empty")
+        _ = try api.addBlock(leafId: leafId, blockContentJson: try textBlock("Rust is great"))
 
         let hits = try api.searchInBlocks(query: "rust")
-        #expect(hits.contains(where: { $0.id == docId }))
+        #expect(hits.contains(where: { $0.id == leafId }))
         #expect(try api.searchInBlocks(query: "swift").isEmpty)
     }
 }

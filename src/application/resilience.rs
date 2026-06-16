@@ -42,7 +42,7 @@ pub fn is_transient(err: &PinkhaError) -> bool {
             let lower = msg.to_lowercase();
             lower.contains("busy")
                 || lower.contains("locked")
-                || lower.contains("database is locked")
+                || lower.contains("book is locked")
         }
         PinkhaError::Io(io_err) => matches!(
             io_err.kind(),
@@ -72,12 +72,12 @@ mod tests {
     }
 
     #[test]
-    fn retry_sur_erreur_db_locked_puis_reussit() {
+    fn retry_sur_erreur_book_locked_puis_reussit() {
         let appels = Cell::new(0u32);
         let result = retry_with_backoff(|| {
             appels.set(appels.get() + 1);
             if appels.get() < 2 {
-                Err(PinkhaError::Db("database is locked".into()))
+                Err(PinkhaError::Db("book is locked".into()))
             } else {
                 Ok(7)
             }
@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn is_transient_couvre_les_cas_attendus() {
-        assert!(is_transient(&PinkhaError::Db("database is locked".into())));
+        assert!(is_transient(&PinkhaError::Db("book is locked".into())));
         assert!(is_transient(&PinkhaError::Db("BUSY (5)".into())));
         assert!(is_transient(&PinkhaError::Io(std::io::Error::from(
             std::io::ErrorKind::WouldBlock

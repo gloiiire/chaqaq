@@ -5,20 +5,20 @@
 //
 // Pipeline:
 //   → RealmFile::open(db_path)
-//   → read class_DocumentDataModel  → collect the 226 real document IDs
+//   → read class_DocumentDataModel  → collect the 226 real leaf IDs
 //   → read class_BlockDataModel     → group blocks by lastSyncedBlockIds (= doc ID)
 //   → for each doc: first non-empty block → title, remaining blocks → content
-//   → persist one pinkha Document per Craft document
+//   → persist one pinkha Leaf per Craft leaf
 
 use std::collections::HashMap;
 
 use realm_codec::RealmFile;
 
-use crate::application::database_repository::DatabaseRepository;
-use crate::application::folder_repository::FolderRepository;
-use crate::application::repository::DocumentRepository;
+use crate::application::book_repository::BookRepository;
+use crate::application::shelf_repository::ShelfRepository;
+use crate::application::repository::LeafRepository;
 use crate::application::use_cases;
-use crate::domain::document::{Block, BlockContent};
+use crate::domain::leaf::{Block, BlockContent};
 use crate::extractors::bear::mapper::ParsedBlock;
 use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
@@ -58,22 +58,22 @@ impl Extractor for CraftExtractor {
     async fn run(
         &self,
         config: CraftConfig,
-        docs: &(dyn DocumentRepository + Send + Sync),
-        _dbs: &(dyn DatabaseRepository + Send + Sync),
-        _folders: &(dyn FolderRepository + Send + Sync),
+        docs: &(dyn LeafRepository + Send + Sync),
+        _books: &(dyn BookRepository + Send + Sync),
+        _shelves: &(dyn ShelfRepository + Send + Sync),
     ) -> Result<ImportResult, ExtractorError> {
         let realm = RealmFile::open(&config.db_path)
             .map_err(|e| ExtractorError::Parse(format!("cannot open realm file: {e}")))?;
 
-        // ── Step 1: collect real document IDs from DocumentDataModel ──────────
-        let doc_ids: std::collections::HashSet<String> = {
-            let doc_table = realm
+        // ── Step 1: collect real leaf IDs from DocumentDataModel ──────────
+        let leaf_ids: std::collections::HashSet<String> = {
+            let leaf_table = realm
                 .table("class_DocumentDataModel")
                 .ok_or_else(|| ExtractorError::Parse("DocumentDataModel table not found".into()))?;
-            let id_col = doc_table
+            let id_col = leaf_table
                 .column_index("id")
                 .ok_or_else(|| ExtractorError::Parse("DocumentDataModel.id missing".into()))?;
-            doc_table
+            leaf_table
                 .rows
                 .iter()
                 .map(|r| r.get(id_col).as_str().to_lowercase())
@@ -81,10 +81,10 @@ impl Extractor for CraftExtractor {
                 .collect()
         };
 
-        // ── Step 2: group blocks by document ─────────────────────────────────
+        // ── Step 2: group blocks by leaf ─────────────────────────────────
         //
         // `lastSyncedBlockIds` stores the DocumentDataModel.id for every block
-        // (confirmed: 226 unique values = 226 documents, all 6763 blocks matched).
+        // (confirmed: 226 unique values = 226 leaves, all 6763 blocks matched).
         let block_table = realm
             .table("class_BlockDataModel")
             .ok_or_else(|| ExtractorError::Parse("BlockDataModel table not found".into()))?;
@@ -113,20 +113,20 @@ impl Extractor for CraftExtractor {
         .iter()
         .find_map(|name| block_table.column_index(name));
 
-        // doc_id → (title, content_blocks, skipped_count)
-        let mut doc_map: HashMap<String, (Option<String>, Vec<ParsedBlock>, usize)> =
+        // leaf_id → (title, content_blocks, skipped_count)
+        let mut leaf_map: HashMap<String, (Option<String>, Vec<ParsedBlock>, usize)> =
             HashMap::new();
 
         for row in &block_table.rows {
-            let doc_id = row.get(lsb_idx).as_str().to_lowercase();
-            if doc_id.is_empty() || !doc_ids.contains(&doc_id) {
+            let leaf_id = row.get(lsb_idx).as_str().to_lowercase();
+            if leaf_id.is_empty() || !leaf_ids.contains(&leaf_id) {
                 continue;
             }
 
             let content = row.get(content_idx).as_str().to_owned();
             let block_type = row.get(type_idx).as_str();
 
-            let entry = doc_map.entry(doc_id).or_insert((None, vec![], 0));
+            let entry = leaf_map.entry(leaf_id).or_insert((None, vec![], 0));
 
             // Title: first "text" block with non-empty content, first line only.
             if entry.0.is_none()
@@ -151,23 +151,23 @@ impl Extractor for CraftExtractor {
             }
         }
 
-        // ── Step 3: persist one pinkha Document per Craft document ────────────
-        let mut doc_count = 0usize;
+        // ── Step 3: persist one pinkha Leaf per Craft leaf ────────────
+        let mut leaf_count = 0usize;
         let mut block_count = 0usize;
         let mut skipped = 0usize;
 
-        for (_doc_id, (title_opt, blocks, doc_skipped)) in doc_map {
+        for (_leaf_id, (title_opt, blocks, leaf_skipped)) in leaf_map {
             let title = title_opt.unwrap_or_else(|| "Untitled".to_string());
             block_count += blocks.len();
-            skipped += doc_skipped;
-            flush_document(docs, &title, blocks, None)?;
-            doc_count += 1;
+            skipped += leaf_skipped;
+            flush_leaf(docs, &title, blocks, None)?;
+            leaf_count += 1;
         }
 
         Ok(ImportResult {
             app: "Craft",
-            database_id: None,
-            documents: doc_count,
+            book_id: None,
+            leaves: leaf_count,
             entries: 0,
             blocks: block_count,
             skipped,
@@ -215,14 +215,14 @@ pub fn plain(s: &str) -> Vec<InlineText> {
     }]
 }
 
-pub fn flush_document(
-    docs: &(dyn DocumentRepository + Send + Sync),
+pub fn flush_leaf(
+    docs: &(dyn LeafRepository + Send + Sync),
     title: &str,
     blocks: Vec<ParsedBlock>,
-    folder_id: Option<Uuid>,
+    shelf_id: Option<Uuid>,
 ) -> Result<(), ExtractorError> {
-    let uow = NoOpUnitOfWork::with_docs(docs);
-    let mut doc = use_cases::create_document(&uow, title)?;
+    let uow = NoOpUnitOfWork::with_leaves(docs);
+    let mut doc = use_cases::create_leaf(&uow, title)?;
     // Imports default to locked = true so the user reads the extracted
     // content (which they didn't write themselves) before editing. Set
     // in-memory so it's persisted with the rest of the doc in a single
@@ -236,8 +236,8 @@ pub fn flush_document(
         }
         doc.blocks.push(block);
     }
-    if let Some(fid) = folder_id {
-        doc.folder_id = Some(fid);
+    if let Some(fid) = shelf_id {
+        doc.shelf_id = Some(fid);
     }
     docs.save(&doc)?;
     Ok(())

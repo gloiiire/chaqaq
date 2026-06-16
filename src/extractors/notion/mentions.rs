@@ -1,5 +1,5 @@
 //! 2-pass Notion mention rewriting: after the import builds a
-//! `NotionPageId -> PinkhaDocId` map, every imported document is revisited
+//! `NotionPageId -> PinkhaDocId` map, every imported leaf is revisited
 //! and its `notion.so` links are rewritten to `pinkha://doc/{uuid}` so
 //! internal mentions point at the imported notes instead of Notion.
 
@@ -7,8 +7,8 @@ use std::collections::HashMap;
 
 use uuid::Uuid;
 
-use crate::application::repository::DocumentRepository;
-use crate::domain::document::{Block, BlockContent, InlineText};
+use crate::application::repository::LeafRepository;
+use crate::domain::leaf::{Block, BlockContent, InlineText};
 use crate::extractors::ExtractorError;
 
 // ── Mention rewriting ─────────────────────────────────────────────────────────
@@ -25,32 +25,32 @@ pub fn normalize_notion_id(raw: &str) -> String {
         .collect()
 }
 
-/// Walks a Pinkha document loaded from `docs` and rewrites every inline link
+/// Walks a Pinkha leaf loaded from `docs` and rewrites every inline link
 /// whose URL embeds a Notion page ID we just imported. The new URL points to
-/// the corresponding Pinkha document via the `pinkha://doc/{uuid}` scheme.
+/// the corresponding Pinkha leaf via the `pinkha://doc/{uuid}` scheme.
 ///
-/// Persists the document only when at least one link was rewritten — keeps
-/// I/O minimal for documents that don't cross-reference anything.
+/// Persists the leaf only when at least one link was rewritten — keeps
+/// I/O minimal for leaves that don't cross-reference anything.
 pub fn rewrite_notion_mentions(
-    docs: &(dyn DocumentRepository + Send + Sync),
-    doc_id: Uuid,
+    docs: &(dyn LeafRepository + Send + Sync),
+    leaf_id: Uuid,
     notion_to_pinkha: &HashMap<String, Uuid>,
 ) -> Result<(), ExtractorError> {
-    rewrite_notion_mentions_logged(docs, doc_id, notion_to_pinkha, None)
+    rewrite_notion_mentions_logged(docs, leaf_id, notion_to_pinkha, None)
 }
 
 /// Logging variant — same behaviour as `rewrite_notion_mentions` but
 /// appends a one-line summary to `<covers_dir>/notion-debug.log` so the
 /// app can later report on link rewrites and Page-block promotions.
 pub fn rewrite_notion_mentions_logged(
-    docs: &(dyn DocumentRepository + Send + Sync),
-    doc_id: Uuid,
+    docs: &(dyn LeafRepository + Send + Sync),
+    leaf_id: Uuid,
     notion_to_pinkha: &HashMap<String, Uuid>,
     covers_dir: Option<&str>,
 ) -> Result<(), ExtractorError> {
     use crate::application::error::PinkhaError;
-    let mut doc = docs.load(doc_id).map_err(|e: PinkhaError| match e {
-        PinkhaError::NotFound(_) => ExtractorError::Parse(format!("doc {doc_id} not found")),
+    let mut doc = docs.load(leaf_id).map_err(|e: PinkhaError| match e {
+        PinkhaError::NotFound(_) => ExtractorError::Parse(format!("doc {leaf_id} not found")),
         other => ExtractorError::Parse(other.to_string()),
     })?;
     let mut rewrote = false;
@@ -74,7 +74,7 @@ pub fn rewrite_notion_mentions_logged(
         {
             let _ = writeln!(
                 f,
-                "[rewrite] doc={doc_id} links_rewritten={rewrote} promotions={promoted_count}"
+                "[rewrite] doc={leaf_id} links_rewritten={rewrote} promotions={promoted_count}"
             );
             // Also dump non-promoted paragraphs that carry a pinkha link
             // so we can iterate on the promotion criterion. We re-walk
@@ -142,12 +142,12 @@ fn walk_dump<W: std::io::Write>(blocks: &[Block], f: &mut W) {
 }
 
 fn promote_page_link_paragraphs(
-    blocks: &mut [crate::domain::document::Block],
+    blocks: &mut [crate::domain::leaf::Block],
     promoted: &mut usize,
 ) {
     for block in blocks.iter_mut() {
         if let BlockContent::Text(spans) = &block.content
-            && let Some(child_id) = sole_pinkha_doc_link(spans)
+            && let Some(child_id) = sole_pinkha_leaf_link(spans)
         {
             block.content = BlockContent::Page { id: child_id };
             *promoted += 1;
@@ -162,7 +162,7 @@ fn promote_page_link_paragraphs(
 /// pad mentions with empty/blank runs) are ignored. Any non-link
 /// substantive text, or multiple distinct link targets, bail out so
 /// "see also: [link]" or "[a] and [b]" stay as inline paragraphs.
-fn sole_pinkha_doc_link(spans: &[chaqaq::InlineText]) -> Option<Uuid> {
+fn sole_pinkha_leaf_link(spans: &[chaqaq::InlineText]) -> Option<Uuid> {
     let mut target: Option<Uuid> = None;
     for run in spans {
         let mut run_link: Option<&str> = None;
@@ -200,7 +200,7 @@ fn sole_pinkha_doc_link(spans: &[chaqaq::InlineText]) -> Option<Uuid> {
 /// `*rewrote = true` if any link was changed so the caller can skip the
 /// `save` when nothing changed.
 fn rewrite_block_links(
-    block: &mut crate::domain::document::Block,
+    block: &mut crate::domain::leaf::Block,
     notion_to_pinkha: &HashMap<String, Uuid>,
     rewrote: &mut bool,
 ) {
@@ -212,9 +212,9 @@ fn rewrite_block_links(
 
 /// Walks the inline-bearing variants of `BlockContent` and rewrites their
 /// link styles. Variants without inline text (`Divider`, `Breadcrumb`,
-/// `Database`, `Code`) are no-ops.
+/// `Book`, `Code`) are no-ops.
 fn rewrite_inlines_in_content(
-    content: &mut crate::domain::document::BlockContent,
+    content: &mut crate::domain::leaf::BlockContent,
     notion_to_pinkha: &HashMap<String, Uuid>,
     rewrote: &mut bool,
 ) {
@@ -227,7 +227,7 @@ fn rewrite_inlines_in_content(
         BlockContent::NumberedListItem(t) => Some(t),
         BlockContent::Divider
         | BlockContent::Breadcrumb
-        | BlockContent::Database { .. }
+        | BlockContent::Book { .. }
         | BlockContent::Code { .. }
         | BlockContent::Page { .. }
         | BlockContent::Embed { .. } => None,

@@ -1,18 +1,18 @@
-use pinkha::application::database_use_cases::{add_entry, create_database, search_entries};
-use pinkha::application::use_cases::{create_document, search_documents};
-use pinkha::domain::database::{Property, PropertyType, PropertyValue};
-use pinkha::domain::document::InlineText;
-use pinkha::infrastructure::database_store::DatabaseStore;
+use pinkha::application::book_use_cases::{add_entry, create_book, search_entries};
+use pinkha::application::use_cases::{create_leaf, search_leaves};
+use pinkha::domain::book::{Property, PropertyType, PropertyValue};
+use pinkha::domain::leaf::InlineText;
+use pinkha::infrastructure::book_store::BookStore;
 use pinkha::infrastructure::json_store::JsonStore;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-fn stores_temp() -> (JsonStore, DatabaseStore) {
+fn stores_temp() -> (JsonStore, BookStore) {
     let id = Uuid::new_v4();
-    let doc_dir = std::env::temp_dir().join(format!("pinkha_e2e_search_doc_{id}"));
-    let db_dir = std::env::temp_dir().join(format!("pinkha_e2e_search_db_{id}"));
-    std::fs::create_dir_all(&doc_dir).unwrap();
-    (JsonStore::new(doc_dir), DatabaseStore::new(db_dir).unwrap())
+    let leaf_dir = std::env::temp_dir().join(format!("pinkha_e2e_search_leaf_{id}"));
+    let book_dir = std::env::temp_dir().join(format!("pinkha_e2e_search_book_{id}"));
+    std::fs::create_dir_all(&leaf_dir).unwrap();
+    (JsonStore::new(leaf_dir), BookStore::new(book_dir).unwrap())
 }
 
 fn inlines(s: &str) -> Vec<InlineText> {
@@ -22,34 +22,34 @@ fn inlines(s: &str) -> Vec<InlineText> {
     }]
 }
 
-/// Journal scenario: search across page titles AND database entries —
+/// Journal scenario: search across page titles AND book entries —
 /// both coexist in the same result set.
 #[test]
 fn test_recherche_dans_journal_complet() {
-    let (doc_store, db_store) = stores_temp();
+    let (leaf_store, book_store) = stores_temp();
 
     // Free-form note pages
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&doc_store),
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&leaf_store),
         "Réflexions sur Rust",
     )
     .unwrap();
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&doc_store),
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&leaf_store),
         "Recettes végétariennes",
     )
     .unwrap();
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&doc_store),
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&leaf_store),
         "Notes de lecture : Rust book",
     )
     .unwrap();
 
-    // Journal database with entries
+    // Journal book with entries
     let prop = Property::new("Texte", PropertyType::Text);
     let prop_id = prop.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         inlines("Journal"),
         vec![prop],
     )
@@ -63,7 +63,7 @@ fn test_recherche_dans_journal_complet() {
         let mut v = HashMap::new();
         v.insert(prop_id, PropertyValue::Text(texte.to_string()));
         add_entry(
-            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
             db.id,
             v,
         )
@@ -71,8 +71,8 @@ fn test_recherche_dans_journal_complet() {
     }
 
     // Search "rust" in pages
-    let pages = search_documents(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&doc_store),
+    let pages = search_leaves(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&leaf_store),
         "rust",
     )
     .unwrap();
@@ -80,7 +80,7 @@ fn test_recherche_dans_journal_complet() {
 
     // Search "rust" in journal entries
     let entries = search_entries(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         "rust",
     )
@@ -91,28 +91,28 @@ fn test_recherche_dans_journal_complet() {
 /// An empty query returns everything (show-all behaviour).
 #[test]
 fn test_recherche_vide_retourne_tout() {
-    let (doc_store, db_store) = stores_temp();
+    let (leaf_store, book_store) = stores_temp();
 
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&doc_store),
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&leaf_store),
         "A",
     )
     .unwrap();
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&doc_store),
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&leaf_store),
         "B",
     )
     .unwrap();
-    create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&doc_store),
+    create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&leaf_store),
         "C",
     )
     .unwrap();
 
     let prop = Property::new("X", PropertyType::Text);
     let prop_id = prop.id;
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         inlines("DB"),
         vec![prop],
     )
@@ -121,7 +121,7 @@ fn test_recherche_vide_retourne_tout() {
         let mut v = HashMap::new();
         v.insert(prop_id, PropertyValue::Text(t.to_string()));
         add_entry(
-            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
             db.id,
             v,
         )
@@ -129,8 +129,8 @@ fn test_recherche_vide_retourne_tout() {
     }
 
     assert_eq!(
-        search_documents(
-            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&doc_store),
+        search_leaves(
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&leaf_store),
             ""
         )
         .unwrap()
@@ -139,7 +139,7 @@ fn test_recherche_vide_retourne_tout() {
     );
     assert_eq!(
         search_entries(
-            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
             db.id,
             ""
         )
@@ -149,10 +149,10 @@ fn test_recherche_vide_retourne_tout() {
     );
 }
 
-/// Search across a database with mixed property types.
+/// Search across a book with mixed property types.
 #[test]
 fn test_recherche_entries_selection_et_texte() {
-    let (_doc_store, db_store) = stores_temp();
+    let (_leaf_store, book_store) = stores_temp();
 
     let prop_statut = Property::new(
         "Statut",
@@ -162,8 +162,8 @@ fn test_recherche_entries_selection_et_texte() {
     let statut_id = prop_statut.id;
     let title_id = prop_title.id;
 
-    let db = create_database(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+    let db = create_book(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         inlines("Articles"),
         vec![prop_statut, prop_title],
     )
@@ -182,7 +182,7 @@ fn test_recherche_entries_selection_et_texte() {
         );
         v.insert(title_id, PropertyValue::Text(title.to_string()));
         add_entry(
-            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+            &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
             db.id,
             v,
         )
@@ -191,7 +191,7 @@ fn test_recherche_entries_selection_et_texte() {
 
     // "brouillon" matches the 2 draft articles (via the Statut column)
     let brouillons = search_entries(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         "brouillon",
     )
@@ -200,7 +200,7 @@ fn test_recherche_entries_selection_et_texte() {
 
     // "rust" only matches in the title of the second article
     let rust = search_entries(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_dbs(&db_store),
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
         db.id,
         "rust",
     )

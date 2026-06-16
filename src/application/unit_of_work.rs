@@ -1,13 +1,13 @@
-use crate::application::database_repository::DatabaseRepository;
+use crate::application::book_repository::BookRepository;
 use crate::application::error::PinkhaError;
-use crate::application::folder_repository::FolderRepository;
-use crate::application::repository::DocumentRepository;
+use crate::application::shelf_repository::ShelfRepository;
+use crate::application::repository::LeafRepository;
 
 /// Groups the three repositories under a single unit of work boundary.
 ///
 /// Use cases depend on `&dyn UnitOfWork` rather than individual repositories so
-/// that they can compose cross-domain operations (e.g. renaming a document
-/// because a database row's title changed) under a single atomicity boundary.
+/// that they can compose cross-domain operations (e.g. renaming a leaf
+/// because a book row's title changed) under a single atomicity boundary.
 ///
 /// The current `NoOpUnitOfWork` implementation delegates to independent
 /// stores (no real transactionality yet); the trait shape is what matters —
@@ -21,14 +21,14 @@ use crate::application::repository::DocumentRepository;
 ///   4. Dropping the UoW without commit is allowed — in transactional impls
 ///      it must rollback.
 pub trait UnitOfWork {
-    /// Document repository scoped to this unit of work.
-    fn documents(&self) -> &dyn DocumentRepository;
+    /// Leaf repository scoped to this unit of work.
+    fn leaves(&self) -> &dyn LeafRepository;
 
-    /// Database repository scoped to this unit of work.
-    fn databases(&self) -> &dyn DatabaseRepository;
+    /// Book repository scoped to this unit of work.
+    fn books(&self) -> &dyn BookRepository;
 
-    /// Folder repository scoped to this unit of work.
-    fn folders(&self) -> &dyn FolderRepository;
+    /// Shelf repository scoped to this unit of work.
+    fn shelves(&self) -> &dyn ShelfRepository;
 
     /// Finalises the unit of work, persisting any pending changes.
     ///
@@ -40,157 +40,157 @@ pub trait UnitOfWork {
 
 /// Test-only support: a `UnitOfWork` wrapper that takes any three repository
 /// references. Any repo not provided panics on access — use this to force
-/// honesty in test setups (a test that only exercises document use cases
-/// must not silently reach into a stubbed database repo).
+/// honesty in test setups (a test that only exercises leaf use cases
+/// must not silently reach into a stubbed book repo).
 #[cfg(test)]
 pub mod test_support {
     use super::*;
 
     /// Panics when its methods are called — used as a placeholder repository
     /// in test UoWs that should never reach the other domains.
-    pub struct PanickingDocumentRepo;
-    pub struct PanickingDatabaseRepo;
-    pub struct PanickingFolderRepo;
+    pub struct PanickingLeafRepo;
+    pub struct PanickingBookRepo;
+    pub struct PanickingShelfRepo;
 
-    impl DocumentRepository for PanickingDocumentRepo {
-        fn save(&self, _: &crate::domain::document::Document) -> Result<(), PinkhaError> {
-            unreachable!("documents repo not provided to this MockUnitOfWork");
+    impl LeafRepository for PanickingLeafRepo {
+        fn save(&self, _: &crate::domain::leaf::Leaf) -> Result<(), PinkhaError> {
+            unreachable!("leaves repo not provided to this MockUnitOfWork");
         }
-        fn load(&self, _: uuid::Uuid) -> Result<crate::domain::document::Document, PinkhaError> {
-            unreachable!("documents repo not provided to this MockUnitOfWork");
+        fn load(&self, _: uuid::Uuid) -> Result<crate::domain::leaf::Leaf, PinkhaError> {
+            unreachable!("leaves repo not provided to this MockUnitOfWork");
         }
-        fn list(&self) -> Result<Vec<crate::domain::document::DocumentMeta>, PinkhaError> {
-            unreachable!("documents repo not provided to this MockUnitOfWork");
+        fn list(&self) -> Result<Vec<crate::domain::leaf::LeafMeta>, PinkhaError> {
+            unreachable!("leaves repo not provided to this MockUnitOfWork");
         }
         fn delete(&self, _: uuid::Uuid) -> Result<(), PinkhaError> {
-            unreachable!("documents repo not provided to this MockUnitOfWork");
+            unreachable!("leaves repo not provided to this MockUnitOfWork");
         }
-        fn move_to_folder(&self, _: uuid::Uuid, _: Option<uuid::Uuid>) -> Result<(), PinkhaError> {
-            unreachable!("documents repo not provided to this MockUnitOfWork");
+        fn move_to_shelf(&self, _: uuid::Uuid, _: Option<uuid::Uuid>) -> Result<(), PinkhaError> {
+            unreachable!("leaves repo not provided to this MockUnitOfWork");
         }
-        fn list_by_folder(
+        fn list_by_shelf(
             &self,
             _: Option<uuid::Uuid>,
-        ) -> Result<Vec<crate::domain::document::DocumentMeta>, PinkhaError> {
-            unreachable!("documents repo not provided to this MockUnitOfWork");
+        ) -> Result<Vec<crate::domain::leaf::LeafMeta>, PinkhaError> {
+            unreachable!("leaves repo not provided to this MockUnitOfWork");
         }
     }
 
-    impl DatabaseRepository for PanickingDatabaseRepo {
-        fn save(&self, _: &crate::domain::database::Database) -> Result<(), PinkhaError> {
-            unreachable!("databases repo not provided to this MockUnitOfWork");
+    impl BookRepository for PanickingBookRepo {
+        fn save(&self, _: &crate::domain::book::Book) -> Result<(), PinkhaError> {
+            unreachable!("books repo not provided to this MockUnitOfWork");
         }
-        fn load(&self, _: uuid::Uuid) -> Result<crate::domain::database::Database, PinkhaError> {
-            unreachable!("databases repo not provided to this MockUnitOfWork");
+        fn load(&self, _: uuid::Uuid) -> Result<crate::domain::book::Book, PinkhaError> {
+            unreachable!("books repo not provided to this MockUnitOfWork");
         }
-        fn list_meta(&self) -> Result<Vec<crate::domain::database::DatabaseMeta>, PinkhaError> {
-            unreachable!("databases repo not provided to this MockUnitOfWork");
+        fn list_meta(&self) -> Result<Vec<crate::domain::book::BookMeta>, PinkhaError> {
+            unreachable!("books repo not provided to this MockUnitOfWork");
         }
         fn delete(&self, _: uuid::Uuid) -> Result<(), PinkhaError> {
-            unreachable!("databases repo not provided to this MockUnitOfWork");
+            unreachable!("books repo not provided to this MockUnitOfWork");
         }
     }
 
-    impl FolderRepository for PanickingFolderRepo {
+    impl ShelfRepository for PanickingShelfRepo {
         fn create(
             &self,
             _: &str,
             _: Option<uuid::Uuid>,
-        ) -> Result<crate::domain::folder::Folder, PinkhaError> {
-            unreachable!("folders repo not provided to this MockUnitOfWork");
+        ) -> Result<crate::domain::shelf::Shelf, PinkhaError> {
+            unreachable!("shelves repo not provided to this MockUnitOfWork");
         }
-        fn get(&self, _: uuid::Uuid) -> Result<crate::domain::folder::Folder, PinkhaError> {
-            unreachable!("folders repo not provided to this MockUnitOfWork");
+        fn get(&self, _: uuid::Uuid) -> Result<crate::domain::shelf::Shelf, PinkhaError> {
+            unreachable!("shelves repo not provided to this MockUnitOfWork");
         }
-        fn list(&self) -> Result<Vec<crate::domain::folder::FolderMeta>, PinkhaError> {
-            unreachable!("folders repo not provided to this MockUnitOfWork");
+        fn list(&self) -> Result<Vec<crate::domain::shelf::ShelfMeta>, PinkhaError> {
+            unreachable!("shelves repo not provided to this MockUnitOfWork");
         }
         fn rename(&self, _: uuid::Uuid, _: &str) -> Result<(), PinkhaError> {
-            unreachable!("folders repo not provided to this MockUnitOfWork");
+            unreachable!("shelves repo not provided to this MockUnitOfWork");
         }
         fn delete(&self, _: uuid::Uuid) -> Result<(), PinkhaError> {
-            unreachable!("folders repo not provided to this MockUnitOfWork");
+            unreachable!("shelves repo not provided to this MockUnitOfWork");
         }
-        fn move_folder(&self, _: uuid::Uuid, _: Option<uuid::Uuid>) -> Result<(), PinkhaError> {
-            unreachable!("folders repo not provided to this MockUnitOfWork");
+        fn move_shelf(&self, _: uuid::Uuid, _: Option<uuid::Uuid>) -> Result<(), PinkhaError> {
+            unreachable!("shelves repo not provided to this MockUnitOfWork");
         }
         fn update_icon(&self, _: uuid::Uuid, _: Option<&str>) -> Result<(), PinkhaError> {
-            unreachable!("folders repo not provided to this MockUnitOfWork");
+            unreachable!("shelves repo not provided to this MockUnitOfWork");
         }
     }
 
     /// A `UnitOfWork` for tests that selectively provides each repository.
     /// Repos left as `None` panic on access via the corresponding accessor.
     pub struct MockUnitOfWork<'a> {
-        pub docs: Option<&'a dyn DocumentRepository>,
-        pub dbs: Option<&'a dyn DatabaseRepository>,
-        pub folders: Option<&'a dyn FolderRepository>,
+        pub docs: Option<&'a dyn LeafRepository>,
+        pub dbs: Option<&'a dyn BookRepository>,
+        pub shelves: Option<&'a dyn ShelfRepository>,
     }
 
     impl<'a> MockUnitOfWork<'a> {
-        pub fn with_docs(docs: &'a dyn DocumentRepository) -> Self {
+        pub fn with_leaves(docs: &'a dyn LeafRepository) -> Self {
             Self {
                 docs: Some(docs),
                 dbs: None,
-                folders: None,
+                shelves: None,
             }
         }
 
-        pub fn with_dbs(dbs: &'a dyn DatabaseRepository) -> Self {
+        pub fn with_books(dbs: &'a dyn BookRepository) -> Self {
             Self {
                 docs: None,
                 dbs: Some(dbs),
-                folders: None,
+                shelves: None,
             }
         }
 
-        pub fn with_folders(folders: &'a dyn FolderRepository) -> Self {
+        pub fn with_shelves(shelves: &'a dyn ShelfRepository) -> Self {
             Self {
                 docs: None,
                 dbs: None,
-                folders: Some(folders),
+                shelves: Some(shelves),
             }
         }
 
         pub fn all(
-            docs: &'a dyn DocumentRepository,
-            dbs: &'a dyn DatabaseRepository,
-            folders: &'a dyn FolderRepository,
+            docs: &'a dyn LeafRepository,
+            dbs: &'a dyn BookRepository,
+            shelves: &'a dyn ShelfRepository,
         ) -> Self {
             Self {
                 docs: Some(docs),
                 dbs: Some(dbs),
-                folders: Some(folders),
+                shelves: Some(shelves),
             }
         }
     }
 
     impl<'a> UnitOfWork for MockUnitOfWork<'a> {
-        fn documents(&self) -> &dyn DocumentRepository {
+        fn leaves(&self) -> &dyn LeafRepository {
             match self.docs {
                 Some(d) => d,
                 None => {
-                    static PANIC: PanickingDocumentRepo = PanickingDocumentRepo;
+                    static PANIC: PanickingLeafRepo = PanickingLeafRepo;
                     &PANIC
                 }
             }
         }
 
-        fn databases(&self) -> &dyn DatabaseRepository {
+        fn books(&self) -> &dyn BookRepository {
             match self.dbs {
                 Some(d) => d,
                 None => {
-                    static PANIC: PanickingDatabaseRepo = PanickingDatabaseRepo;
+                    static PANIC: PanickingBookRepo = PanickingBookRepo;
                     &PANIC
                 }
             }
         }
 
-        fn folders(&self) -> &dyn FolderRepository {
-            match self.folders {
+        fn shelves(&self) -> &dyn ShelfRepository {
+            match self.shelves {
                 Some(f) => f,
                 None => {
-                    static PANIC: PanickingFolderRepo = PanickingFolderRepo;
+                    static PANIC: PanickingShelfRepo = PanickingShelfRepo;
                     &PANIC
                 }
             }

@@ -1,11 +1,17 @@
 import SwiftUI
+import PinkhaCore
+import PinkhaComposer
 
 /// Application entry point.
 @main
 struct PinkhaApp: App {
     /// Lives at the App level so the accent color and other prefs
     /// propagate to every view in the hierarchy via the environment.
-    @StateObject private var settings = AppSettings()
+    /// `@State` + `.environment(settings)` is the iOS 26 shape for
+    /// owning an `@Observable` class at the app root — the macro
+    /// handles SwiftUI tracking automatically, so the `@StateObject`
+    /// / `.environmentObject(_:)` pair from iOS 17 is no longer needed.
+    @State private var settings = AppSettings()
     /// Bridges Home Screen Quick Actions (long-press the app icon)
     /// back into SwiftUI. The delegate dispatches via NotificationCenter,
     /// `Composer` listens and triggers the matching flow.
@@ -34,7 +40,7 @@ struct PinkhaApp: App {
                 // default for every system control is the neutral
                 // material/label color, matching Apple's own apps.
                 ContentView()
-                    .environmentObject(settings)
+                    .environment(settings)
                     // User-controlled appearance override : `.system`
                     // returns `nil` so iOS keeps its own choice; the
                     // explicit `.light` / `.dark` modes force the

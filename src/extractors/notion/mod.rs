@@ -1,10 +1,10 @@
 // ── Notion extractor ──────────────────────────────────────────────────────────
 //
-// Pipeline: OAuth2 token (obtained by Swift) + database ID
-//   → GET /v1/databases/{id}          (schema: properties + title)
-//   → POST /v1/databases/{id}/query   (entries, paginated)
+// Pipeline: OAuth2 token (obtained by Swift) + book ID
+//   → GET /v1/books/{id}          (schema: properties + title)
+//   → POST /v1/books/{id}/query   (entries, paginated)
 //   → GET /v1/blocks/{page_id}/children (block content, paginated)
-//   → map → persist via DocumentRepository + DatabaseRepository
+//   → map → persist via LeafRepository + BookRepository
 
 mod assets;
 pub mod client;
@@ -23,13 +23,13 @@ use futures_util::{StreamExt, stream};
 
 use uuid::Uuid;
 
-use crate::application::database_repository::DatabaseRepository;
-use crate::application::database_use_cases;
-use crate::application::folder_repository::FolderRepository;
-use crate::application::repository::DocumentRepository;
+use crate::application::book_repository::BookRepository;
+use crate::application::book_use_cases;
+use crate::application::shelf_repository::ShelfRepository;
+use crate::application::repository::LeafRepository;
 use crate::application::use_cases;
-use crate::domain::database::{PAGE_LINK_PROPERTY, Property, PropertyType, PropertyValue};
-use crate::domain::document::InlineText;
+use crate::domain::book::{PAGE_LINK_PROPERTY, Property, PropertyType, PropertyValue};
+use crate::domain::leaf::InlineText;
 use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
 use crate::infrastructure::no_op_unit_of_work::NoOpUnitOfWork;
@@ -42,7 +42,7 @@ const IMPORT_CONCURRENCY: usize = 3;
 
 use self::client::NotionClient;
 use self::mapper::{
-    extract_database_id, map_block, map_block_color, map_property_type, map_property_value,
+    extract_book_id, map_block, map_block_color, map_property_type, map_property_value,
 };
 use self::schema::NotionPagePropValue;
 
@@ -56,8 +56,8 @@ use self::schema::NotionPagePropValue;
 pub struct NotionConfig {
     /// Bearer token for the Notion API.
     pub token: String,
-    /// ID (32-char hex) or URL of the Notion database to import.
-    pub database_id: String,
+    /// ID (32-char hex) or URL of the Notion book to import.
+    pub book_id: String,
     /// Absolute path to an existing directory where page covers will be
     /// downloaded. When `None`, covers are stored as their original URL —
     /// fine for external covers, but Notion-hosted ones expire after ~1h.
@@ -74,29 +74,29 @@ impl NotionExtractor {
     }
 }
 
-/// Public summary of a Notion database, returned by [`list_databases`] for
+/// Public summary of a Notion book, returned by [`list_books`] for
 /// the picker UI. Plain title and emoji-or-`None` icon — no rich text
 /// gymnastics for the caller, the renderer just slots them into a row.
 pub struct NotionDatabaseSummary {
     /// 32-char hex ID (dashed UUID format, matches how `import_from_notion`
     /// expects to receive it).
     pub id: String,
-    /// Concatenated plain-text title runs. Empty string when the database
+    /// Concatenated plain-text title runs. Empty string when the book
     /// has no title.
     pub title: String,
     /// Emoji icon if any (`"📚"`). Image icons aren't yet surfaced — the
-    /// picker falls back to a generic database icon when this is `None`.
+    /// picker falls back to a generic book icon when this is `None`.
     pub icon_emoji: Option<String>,
     /// ISO 8601 last-edited timestamp from Notion (`"2026-06-01T…"`). The
     /// picker sorts recent-first; an empty string sorts to the bottom.
     pub last_edited: String,
 }
 
-/// Lists every Notion database the supplied OAuth token can see. Used by the
-/// Swift picker so the user no longer needs to copy-paste each database URL.
-pub async fn list_databases(token: &str) -> Result<Vec<NotionDatabaseSummary>, ExtractorError> {
+/// Lists every Notion book the supplied OAuth token can see. Used by the
+/// Swift picker so the user no longer needs to copy-paste each book URL.
+pub async fn list_books(token: &str) -> Result<Vec<NotionDatabaseSummary>, ExtractorError> {
     let client = NotionClient::new(token)?;
-    let hits = client.list_accessible_databases().await?;
+    let hits = client.list_accessible_books().await?;
     let mut summaries: Vec<NotionDatabaseSummary> = hits
         .into_iter()
         .map(|hit| {
@@ -123,25 +123,25 @@ pub async fn list_databases(token: &str) -> Result<Vec<NotionDatabaseSummary>, E
     Ok(summaries)
 }
 
-/// 2025-09-03 picker path : merges the legacy `object: database` search
-/// with the new `object: data_source` search so multi-source databases
+/// 2025-09-03 picker path : merges the legacy `object: book` search
+/// with the new `object: data_source` search so multi-source books
 /// that the legacy filter misses come back in.
 ///
 /// Strategy :
-///   1. Call the legacy `list_accessible_databases` — captures every
+///   1. Call the legacy `list_accessible_books` — captures every
 ///      DB created under the old contract.
 ///   2. Call the new `list_accessible_data_sources` (per-request
 ///      `Notion-Version: 2025-09-03` header).
-///   3. For each data source, derive its wrapping database id from
-///      `parent.database_id`. Add to the union only if the legacy
+///   3. For each data source, derive its wrapping book id from
+///      `parent.book_id`. Add to the union only if the legacy
 ///      pass didn't already pick it up — legacy wins on dupes
 ///      because its `title` is richer (rich-text vs plain string).
 ///
-/// The returned `id`s are always database UUIDs, which keeps the
+/// The returned `id`s are always book UUIDs, which keeps the
 /// existing legacy `import_from_notion` flow usable as-is. SOLID :
-/// extend, don't modify ; the original `list_databases` is left
+/// extend, don't modify ; the original `list_books` is left
 /// untouched for any caller that wants the strict legacy behaviour.
-pub async fn list_databases_v2025(
+pub async fn list_books_v2025(
     token: &str,
 ) -> Result<Vec<NotionDatabaseSummary>, ExtractorError> {
     let client = NotionClient::new(token)?;
@@ -149,8 +149,8 @@ pub async fn list_databases_v2025(
     let mut by_id: std::collections::HashMap<String, NotionDatabaseSummary> =
         std::collections::HashMap::new();
 
-    // ── 1. Legacy database hits ──────────────────────────────────────────
-    for hit in client.list_accessible_databases().await? {
+    // ── 1. Legacy book hits ──────────────────────────────────────────
+    for hit in client.list_accessible_books().await? {
         let title: String = hit
             .title
             .iter()
@@ -177,11 +177,11 @@ pub async fn list_databases_v2025(
     // worse than the original picker if the v2025 call fails.
     if let Ok(data_sources) = client.list_accessible_data_sources().await {
         for ds in data_sources {
-            let database_id = match ds.parent {
-                schema::NotionDataSourceParent::DatabaseId { database_id } => database_id,
+            let book_id = match ds.parent {
+                schema::NotionDataSourceParent::BookId { book_id } => book_id,
                 schema::NotionDataSourceParent::Unknown => continue,
             };
-            if by_id.contains_key(&database_id) {
+            if by_id.contains_key(&book_id) {
                 continue;
             }
             let icon_emoji = match ds.icon {
@@ -189,9 +189,9 @@ pub async fn list_databases_v2025(
                 _ => None,
             };
             by_id.insert(
-                database_id.clone(),
+                book_id.clone(),
                 NotionDatabaseSummary {
-                    id: database_id,
+                    id: book_id,
                     title: ds.name,
                     icon_emoji,
                     last_edited: ds.last_edited_time,
@@ -201,22 +201,22 @@ pub async fn list_databases_v2025(
     }
 
     // ── 3. Walk accessible pages for `child_database` blocks ────────────
-    // Notion's `object: database` search doesn't recurse into pages
-    // — it only returns top-level databases the integration was
+    // Notion's `object: book` search doesn't recurse into pages
+    // — it only returns top-level books the integration was
     // granted direct access to. DBs created as `child_database`
     // blocks inside a shared page never appear. We close the gap by
     // listing every accessible page and walking its block tree.
     if let Ok(pages) = client.list_accessible_pages().await {
         for page in pages {
-            if let Ok(child_dbs) = client.list_child_databases_in_page(&page.id).await {
-                for (db_id, title) in child_dbs {
-                    if by_id.contains_key(&db_id) {
+            if let Ok(child_books) = client.list_child_databases_in_page(&page.id).await {
+                for (book_id, title) in child_books {
+                    if by_id.contains_key(&book_id) {
                         continue;
                     }
                     by_id.insert(
-                        db_id.clone(),
+                        book_id.clone(),
                         NotionDatabaseSummary {
-                            id: db_id,
+                            id: book_id,
                             title,
                             icon_emoji: None,
                             last_edited: page.last_edited_time.clone(),
@@ -248,27 +248,27 @@ impl Extractor for NotionExtractor {
     async fn run(
         &self,
         config: NotionConfig,
-        docs: &(dyn DocumentRepository + Send + Sync),
-        dbs: &(dyn DatabaseRepository + Send + Sync),
-        _folders: &(dyn FolderRepository + Send + Sync),
+        docs: &(dyn LeafRepository + Send + Sync),
+        dbs: &(dyn BookRepository + Send + Sync),
+        _shelves: &(dyn ShelfRepository + Send + Sync),
     ) -> Result<ImportResult, ExtractorError> {
-        // 1. Normalise the database ID.
+        // 1. Normalise the book ID.
         // A cancel requested after a previous run must not kill this one.
         crate::extractors::cancel::reset();
 
-        let db_id = extract_database_id(&config.database_id);
+        let book_id = extract_book_id(&config.book_id);
 
         // 2. Build the HTTP client.
         let client = NotionClient::new(&config.token)?;
 
-        // 3. Fetch the database schema.
-        let schema = client.get_database(&db_id).await?;
-        let db_title = schema.title_plain();
+        // 3. Fetch the book schema.
+        let schema = client.get_book(&book_id).await?;
+        let book_title = schema.title_plain();
 
-        // 4. Build the full property list for the Pinkha database.
+        // 4. Build the full property list for the Pinkha book.
         //
         //    Two synthetic properties are always added first:
-        //      - "__pinkha_page__" (Text)  — Pinkha document UUID for back-linking
+        //      - "__pinkha_page__" (Text)  — Pinkha leaf UUID for back-linking
         //      - "Name" (Title)            — the Notion page title
         //
         //    Then all Notion properties (except the built-in "title" type, which
@@ -296,34 +296,34 @@ impl Extractor for NotionExtractor {
             all_properties.push(prop);
         }
 
-        // 5. Create the Pinkha database with all properties at once.
+        // 5. Create the Pinkha book with all properties at once.
         let title_inlines = vec![InlineText {
-            content: db_title,
+            content: book_title,
             styles: vec![],
         }];
-        let pinkha_db = {
-            let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
-            database_use_cases::create_database(&uow, title_inlines, all_properties)?
+        let pinkha_book = {
+            let uow = NoOpUnitOfWork::with_leaves_books(docs, dbs);
+            book_use_cases::create_book(&uow, title_inlines, all_properties)?
         };
-        let pinkha_db_id = pinkha_db.id;
+        let pinkha_book_id = pinkha_book.id;
 
         // 5b. Carry over the Notion-side cover / icon / description so
-        // the imported database opens with the same hero the user
+        // the imported book opens with the same hero the user
         // configured in Notion. Each field is optional and is only
-        // applied when present — silent no-ops for databases without
+        // applied when present — silent no-ops for books without
         // a banner or icon.
         {
-            let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
+            let uow = NoOpUnitOfWork::with_leaves_books(docs, dbs);
             if let Some(cover_url) = schema.cover.as_ref().and_then(|c| c.url()) {
-                let _ = database_use_cases::update_database_cover(
+                let _ = book_use_cases::update_book_cover(
                     &uow,
-                    pinkha_db_id,
+                    pinkha_book_id,
                     Some(cover_url.to_string()),
                 );
             }
             if let Some(icon_value) = schema.icon.as_ref().and_then(notion_icon_identifier) {
                 let _ =
-                    database_use_cases::update_database_icon(&uow, pinkha_db_id, Some(icon_value));
+                    book_use_cases::update_book_icon(&uow, pinkha_book_id, Some(icon_value));
             }
             if !schema.description.is_empty() {
                 let desc = schema
@@ -334,24 +334,24 @@ impl Extractor for NotionExtractor {
                         styles: vec![],
                     })
                     .collect::<Vec<_>>();
-                let _ = database_use_cases::update_database_description(&uow, pinkha_db_id, desc);
+                let _ = book_use_cases::update_book_description(&uow, pinkha_book_id, desc);
             }
-            // Imported databases land locked by default — Notion data
+            // Imported books land locked by default — Notion data
             // is read-only state we don't want to accidentally edit
             // before the user has reviewed the import. They can flip
             // the lock off from the DB header lock button.
-            let _ = database_use_cases::update_database_locked(&uow, pinkha_db_id, true);
+            let _ = book_use_cases::update_book_locked(&uow, pinkha_book_id, true);
         }
 
         // 6. Paginate through all Notion pages (rows) and import each one.
-        let mut total_documents: usize = 0;
+        let mut total_leaves: usize = 0;
         let mut total_entries: usize = 0;
         let mut total_blocks: usize = 0;
         let mut total_skipped: usize = 0;
 
         // Built incrementally as pages are imported. Used in step 7 to rewrite
         // `[label](https://notion.so/...{notion_id})` links so they point to
-        // the matching Pinkha document instead of staying broken Notion URLs.
+        // the matching Pinkha leaf instead of staying broken Notion URLs.
         // Behind a `Mutex` because concurrent page fetches materialise child
         // pages (and register them here) in parallel.
         let notion_to_pinkha: Mutex<HashMap<String, Uuid>> = Mutex::new(HashMap::new());
@@ -359,15 +359,15 @@ impl Extractor for NotionExtractor {
         let mut cursor: Option<String> = None;
 
         loop {
-            let response = client.query_database(&db_id, cursor.as_deref()).await?;
+            let response = client.query_book(&book_id, cursor.as_deref()).await?;
 
             // Fetch page content (blocks, covers, icons) for up to
             // IMPORT_CONCURRENCY pages at a time. `buffered` yields the
             // results in submission order, so the sequential entry
-            // insertions below keep the database rows in Notion's order
+            // insertions below keep the book rows in Notion's order
             // AND avoid concurrent load-modify-write cycles on the
-            // database JSON blob (`add_entry_with_document` reads the
-            // whole database, pushes a row, and saves it back — racing
+            // book JSON blob (`add_entry_with_leaf` reads the
+            // whole book, pushes a row, and saves it back — racing
             // two of those would drop rows).
             // Materialised into a Vec first: `buffered` over an iterator
             // of already-constructed futures sidesteps the higher-ranked
@@ -395,29 +395,29 @@ impl Extractor for NotionExtractor {
             while let Some(result) = imported.next().await {
                 // Cancellation checkpoint: drop the in-flight futures,
                 // purge everything this run created and bail. The
-                // map already contains every materialised document
+                // map already contains every materialised leaf
                 // (top pages register themselves right after their
                 // doc is created) so the rollback is complete.
                 if crate::extractors::cancel::requested() {
                     drop(imported);
-                    purge_partial_import(docs, dbs, pinkha_db_id, &notion_to_pinkha);
+                    purge_partial_import(docs, dbs, pinkha_book_id, &notion_to_pinkha);
                     return Err(ExtractorError::Cancelled);
                 }
                 let page = result?;
                 {
-                    let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
-                    database_use_cases::add_entry_with_document(
+                    let uow = NoOpUnitOfWork::with_leaves_books(docs, dbs);
+                    book_use_cases::add_entry_with_leaf(
                         &uow,
-                        pinkha_db_id,
+                        pinkha_book_id,
                         page.values,
-                        page.doc_id,
+                        page.leaf_id,
                     )?;
                 }
 
-                // The database row contributes the page itself; nested
-                // child_page blocks turn into additional pinkha documents
+                // The book row contributes the page itself; nested
+                // child_page blocks turn into additional pinkha leaves
                 // counted here so the import summary stays truthful.
-                total_documents += 1 + page.child_doc_count;
+                total_leaves += 1 + page.child_leaf_count;
                 total_entries += 1;
                 total_blocks += page.block_count;
                 total_skipped += page.skipped_count;
@@ -438,12 +438,12 @@ impl Extractor for NotionExtractor {
         // 7. Second pass: rewrite Notion page-link URLs to internal
         //    `pinkha://doc/{uuid}` links now that we know every Notion page's
         //    Pinkha equivalent. Done at the very end because mentions can
-        //    point to pages later in the same database — we need the full
-        //    map before rewriting any document.
-        for pinkha_doc_id in notion_to_pinkha.values() {
+        //    point to pages later in the same book — we need the full
+        //    map before rewriting any leaf.
+        for pinkha_leaf_id in notion_to_pinkha.values() {
             rewrite_notion_mentions_logged(
                 docs,
-                *pinkha_doc_id,
+                *pinkha_leaf_id,
                 &notion_to_pinkha,
                 config.covers_dir.as_deref(),
             )?;
@@ -452,22 +452,22 @@ impl Extractor for NotionExtractor {
         // 8. Publish-date source auto-adoption: when the Notion schema
         //    carries a Date column whose name marks it as the publish
         //    date (e.g. "Publication"), adopt it so every imported row
-        //    (and its backing document) sorts by its true date instead
+        //    (and its backing leaf) sorts by its true date instead
         //    of the import timestamp. Best-effort — a failure here must
         //    not fail an otherwise complete import.
         {
-            let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
-            if let Ok(db) = database_use_cases::get_database(&uow, pinkha_db_id)
+            let uow = NoOpUnitOfWork::with_leaves_books(docs, dbs);
+            if let Ok(db) = book_use_cases::get_book(&uow, pinkha_book_id)
                 && let Some(prop_id) = mapper::detect_publish_source(&db.properties)
             {
-                let _ = use_cases::set_published_at_source(&uow, pinkha_db_id, Some(prop_id));
+                let _ = use_cases::set_published_at_source(&uow, pinkha_book_id, Some(prop_id));
             }
         }
 
         Ok(ImportResult {
             app: "Notion",
-            database_id: Some(pinkha_db_id),
-            documents: total_documents,
+            book_id: Some(pinkha_book_id),
+            leaves: total_leaves,
             entries: total_entries,
             blocks: total_blocks,
             skipped: total_skipped,
@@ -475,45 +475,45 @@ impl Extractor for NotionExtractor {
     }
 }
 
-/// Rolls back a cancelled import: hard-deletes every document the run
+/// Rolls back a cancelled import: hard-deletes every leaf the run
 /// created (top pages and nested child pages — all registered in
-/// `notion_to_pinkha`) plus the freshly created database. Best-effort on
+/// `notion_to_pinkha`) plus the freshly created book. Best-effort on
 /// purpose — a rollback must never surface an error of its own.
 fn purge_partial_import(
-    docs: &(dyn DocumentRepository + Send + Sync),
-    dbs: &(dyn DatabaseRepository + Send + Sync),
-    db_id: Uuid,
+    docs: &(dyn LeafRepository + Send + Sync),
+    dbs: &(dyn BookRepository + Send + Sync),
+    book_id: Uuid,
     notion_to_pinkha: &Mutex<HashMap<String, Uuid>>,
 ) {
-    let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
+    let uow = NoOpUnitOfWork::with_leaves_books(docs, dbs);
     let map = notion_to_pinkha.lock().unwrap_or_else(|e| e.into_inner());
-    for doc_id in map.values() {
+    for leaf_id in map.values() {
         // Soft-delete first (purge only touches trashed rows), then purge —
         // a cancelled import should leave no trace, not fill the trash.
-        let _ = use_cases::delete_document(&uow, *doc_id);
-        let _ = use_cases::purge_document(&uow, *doc_id);
+        let _ = use_cases::delete_leaf(&uow, *leaf_id);
+        let _ = use_cases::purge_leaf(&uow, *leaf_id);
     }
-    let _ = database_use_cases::delete_database(&uow, db_id);
-    let _ = database_use_cases::purge_database(&uow, db_id);
+    let _ = book_use_cases::delete_book(&uow, book_id);
+    let _ = book_use_cases::purge_book(&uow, book_id);
 }
 
 // ── Page import helper ────────────────────────────────────────────────────────
 
 /// Everything `import_page` produced for one Notion page. The entry
-/// values are returned (not inserted) so the caller can append database
+/// values are returned (not inserted) so the caller can append book
 /// rows sequentially, in order, outside the concurrent fetch window.
 struct ImportedPage {
-    doc_id: Uuid,
+    leaf_id: Uuid,
     values: HashMap<Uuid, PropertyValue>,
     block_count: usize,
     skipped_count: usize,
-    child_doc_count: usize,
+    child_leaf_count: usize,
 }
 
-/// Imports one Notion page: creates a Pinkha document, fetches its
-/// blocks, and returns the database-entry values the caller inserts —
+/// Imports one Notion page: creates a Pinkha leaf, fetches its
+/// blocks, and returns the book-entry values the caller inserts —
 /// kept out of this function so the concurrent fetch window never races
-/// the database blob's load-modify-write cycle.
+/// the book blob's load-modify-write cycle.
 #[allow(clippy::too_many_arguments)]
 async fn import_page(
     client: &NotionClient,
@@ -521,8 +521,8 @@ async fn import_page(
     name_prop_id: Uuid,
     page_prop_id: Uuid,
     prop_map: &HashMap<String, Uuid>,
-    docs: &(dyn DocumentRepository + Send + Sync),
-    dbs: &(dyn DatabaseRepository + Send + Sync),
+    docs: &(dyn LeafRepository + Send + Sync),
+    dbs: &(dyn BookRepository + Send + Sync),
     covers_dir: Option<&str>,
     notion_to_pinkha: &Mutex<HashMap<String, Uuid>>,
 ) -> Result<ImportedPage, ExtractorError> {
@@ -544,33 +544,33 @@ async fn import_page(
         })
         .unwrap_or_else(|| "Untitled".to_string());
 
-    // Create the Pinkha document, threading Notion's `created_time`
+    // Create the Pinkha leaf, threading Notion's `created_time`
     // through so the imported doc keeps its real creation date in the
     // SQLite row's `created_at` column. Falls back to `now()` (the
-    // default `create_document` path) when Notion didn't send a
+    // default `create_leaf` path) when Notion didn't send a
     // timestamp.
-    let uow = NoOpUnitOfWork::with_docs_dbs(docs, dbs);
+    let uow = NoOpUnitOfWork::with_leaves_books(docs, dbs);
     let doc = if page.created_time.is_empty() {
-        use_cases::create_document(&uow, &plain_title)?
+        use_cases::create_leaf(&uow, &plain_title)?
     } else {
-        use_cases::create_document_with_created_at(&uow, &plain_title, page.created_time.clone())?
+        use_cases::create_leaf_with_created_at(&uow, &plain_title, page.created_time.clone())?
     };
-    let doc_id = doc.id;
+    let leaf_id = doc.id;
     // Register the mapping immediately: if the user cancels while this
-    // future is still in flight, the rollback walks the map — a document
+    // future is still in flight, the rollback walks the map — a leaf
     // created but not yet registered would leak.
     notion_to_pinkha
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .insert(normalize_notion_id(&page.id), doc_id);
+        .insert(normalize_notion_id(&page.id), leaf_id);
 
     // Debug log : record the Notion-side timestamp + what we forwarded
     // so we can verify the createdAt round-trip after import.
     if let Some(dir) = covers_dir {
         use std::io::Write;
         let line = format!(
-            "[createdAt] page={} title={:?} notion_created_time={:?} doc_id={} doc_created_at={:?}\n",
-            page.id, plain_title, page.created_time, doc_id, doc.created_at
+            "[createdAt] page={} title={:?} notion_created_time={:?} leaf_id={} leaf_created_at={:?}\n",
+            page.id, plain_title, page.created_time, leaf_id, doc.created_at
         );
         if let Ok(mut f) = std::fs::OpenOptions::new()
             .create(true)
@@ -584,22 +584,22 @@ async fn import_page(
     // Imports default to locked = true so the user reads the extracted
     // content (which they didn't write themselves) before editing it.
     // They can unlock from the toolbar.
-    use_cases::update_document_locked(&uow, doc_id, true)?;
+    use_cases::update_leaf_locked(&uow, leaf_id, true)?;
 
-    // Carry the Notion cover over to the new Pinkha document. When a covers
+    // Carry the Notion cover over to the new Pinkha leaf. When a covers
     // directory is provided, the image is downloaded and stored locally —
     // critical for Notion-hosted URLs which expire after ~1h. Otherwise we
     // fall back to storing the raw URL (the SwiftUI renderer resolves it
     // via AsyncImage but it'll break once the URL dies).
     if let Some(url) = page.cover.as_ref().and_then(|c| c.url()) {
         let stored = if let Some(dir) = covers_dir {
-            download_cover(client, url, dir, doc_id)
+            download_cover(client, url, dir, leaf_id)
                 .await
                 .unwrap_or_else(|_| url.to_string())
         } else {
             url.to_string()
         };
-        use_cases::update_document_cover(&uow, doc_id, Some(stored))?;
+        use_cases::update_leaf_cover(&uow, leaf_id, Some(stored))?;
     }
 
     // Icons are independent of covers in Notion (a page can have both, one,
@@ -610,25 +610,25 @@ async fn import_page(
         let stored = match icon {
             schema::NotionPageIcon::Emoji { emoji } => Some(emoji.clone()),
             schema::NotionPageIcon::External { external } => {
-                Some(download_or_keep_icon(client, &external.url, covers_dir, doc_id).await)
+                Some(download_or_keep_icon(client, &external.url, covers_dir, leaf_id).await)
             }
             schema::NotionPageIcon::File { file } => {
-                Some(download_or_keep_icon(client, &file.url, covers_dir, doc_id).await)
+                Some(download_or_keep_icon(client, &file.url, covers_dir, leaf_id).await)
             }
             schema::NotionPageIcon::Unknown => None,
         };
         if let Some(value) = stored {
-            use_cases::update_document_icon(&uow, doc_id, Some(value))?;
+            use_cases::update_leaf_icon(&uow, leaf_id, Some(value))?;
         }
     }
 
-    // Fetch and add all blocks to the document efficiently (bulk in-memory, one save).
+    // Fetch and add all blocks to the leaf efficiently (bulk in-memory, one save).
     // Child_page blocks encountered along the way materialise as nested
-    // pinkha documents linked to this one via `parent_doc_id`.
-    let (block_count, skipped_count, child_doc_count) =
-        fetch_and_add_blocks(client, &page.id, doc_id, docs, notion_to_pinkha, covers_dir).await?;
+    // pinkha leaves linked to this one via `parent_leaf_id`.
+    let (block_count, skipped_count, child_leaf_count) =
+        fetch_and_add_blocks(client, &page.id, leaf_id, docs, notion_to_pinkha, covers_dir).await?;
 
-    // Build the database entry values.
+    // Build the book entry values.
     let mut values: HashMap<Uuid, PropertyValue> = HashMap::new();
 
     // Synthetic fields.
@@ -639,7 +639,7 @@ async fn import_page(
             styles: vec![],
         }]),
     );
-    values.insert(page_prop_id, PropertyValue::Text(doc_id.to_string()));
+    values.insert(page_prop_id, PropertyValue::Text(leaf_id.to_string()));
 
     // Notion properties → Pinkha property values.
     for (notion_name, pinkha_id) in prop_map {
@@ -651,65 +651,65 @@ async fn import_page(
     }
 
     Ok(ImportedPage {
-        doc_id,
+        leaf_id,
         values,
         block_count,
         skipped_count,
-        child_doc_count,
+        child_leaf_count,
     })
 }
 
 /// Paginates through a page's block children, fetches nested children
 /// recursively, and saves once.
 ///
-/// Returns `(total_block_count, total_skipped_count, child_doc_count)` where
-/// the counts are recursive (all levels included). `child_doc_count` is the
-/// number of nested pinkha documents materialised from `child_page` blocks
+/// Returns `(total_block_count, total_skipped_count, child_leaf_count)` where
+/// the counts are recursive (all levels included). `child_leaf_count` is the
+/// number of nested pinkha leaves materialised from `child_page` blocks
 /// encountered anywhere in the tree.
 async fn fetch_and_add_blocks(
     client: &NotionClient,
     page_id: &str,
-    doc_id: Uuid,
-    docs: &(dyn DocumentRepository + Send + Sync),
+    leaf_id: Uuid,
+    docs: &(dyn LeafRepository + Send + Sync),
     notion_to_pinkha: &Mutex<HashMap<String, Uuid>>,
     covers_dir: Option<&str>,
 ) -> Result<(usize, usize, usize), ExtractorError> {
-    let (root_blocks, skipped, child_docs) =
-        fetch_blocks_recursive(client, page_id, doc_id, docs, notion_to_pinkha, covers_dir).await?;
+    let (root_blocks, skipped, child_leaves) =
+        fetch_blocks_recursive(client, page_id, leaf_id, docs, notion_to_pinkha, covers_dir).await?;
 
     let count = count_blocks_recursive(&root_blocks);
 
     // Bulk in-memory update: load → extend root blocks → save once.
-    let mut doc = docs.load(doc_id)?;
+    let mut doc = docs.load(leaf_id)?;
     doc.blocks.extend(root_blocks);
     docs.save(&doc)?;
 
-    Ok((count, skipped, child_docs))
+    Ok((count, skipped, child_leaves))
 }
 
 /// Recursively fetches all blocks for a given parent ID (page or block).
 ///
-/// `owning_doc_id` is the pinkha document these blocks belong to — used as
-/// `parent_doc_id` for any nested `child_page` materialised along the way.
+/// `owning_leaf_id` is the pinkha leaf these blocks belong to — used as
+/// `parent_leaf_id` for any nested `child_page` materialised along the way.
 /// `notion_to_pinkha` is grown as new pages are materialised so the post-
 /// import link-rewriting pass picks them up too.
 ///
 /// Returns the fully-built `Block` tree, the total number of skipped
-/// (unmappable) Notion blocks, and the number of pinkha child documents
+/// (unmappable) Notion blocks, and the number of pinkha child leaves
 /// created — all recursive.
 async fn fetch_blocks_recursive(
     client: &NotionClient,
     parent_id: &str,
-    owning_doc_id: Uuid,
-    docs: &(dyn DocumentRepository + Send + Sync),
+    owning_leaf_id: Uuid,
+    docs: &(dyn LeafRepository + Send + Sync),
     notion_to_pinkha: &Mutex<HashMap<String, Uuid>>,
     covers_dir: Option<&str>,
-) -> Result<(Vec<crate::domain::document::Block>, usize, usize), ExtractorError> {
-    use crate::domain::document::{Block, BlockContent};
+) -> Result<(Vec<crate::domain::leaf::Block>, usize, usize), ExtractorError> {
+    use crate::domain::leaf::{Block, BlockContent};
 
     let mut root_blocks: Vec<Block> = Vec::new();
     let mut total_skipped: usize = 0;
-    let mut child_docs_created: usize = 0;
+    let mut child_leaves_created: usize = 0;
     let mut cursor: Option<String> = None;
 
     loop {
@@ -719,7 +719,7 @@ async fn fetch_blocks_recursive(
             // Trace every block type Notion hands us so we can prove whether
             // the early-match on "child_page" actually fires.
             log_block_type(covers_dir, parent_id, &notion_block.type_);
-            // Child-page block — materialise a nested pinkha document and
+            // Child-page block — materialise a nested pinkha leaf and
             // emit a `Page { id }` block in the parent that references it.
             // The child page's own content is fetched immediately so
             // navigation works as soon as the import completes.
@@ -733,13 +733,13 @@ async fn fetch_blocks_recursive(
                     client,
                     &notion_block.id,
                     &title,
-                    owning_doc_id,
+                    owning_leaf_id,
                     docs,
                     notion_to_pinkha,
                     covers_dir,
                 )
                 .await?;
-                child_docs_created += 1;
+                child_leaves_created += 1;
                 // The Page block sits where the child_page appeared in the
                 // parent's flow — keeps the visual position Notion users
                 // expect (e.g. mid-page, not always at the end).
@@ -758,20 +758,20 @@ async fn fetch_blocks_recursive(
                 Some(content) => {
                     let children = if notion_block.has_children {
                         // Recurse into this block's children. Children inherit
-                        // the same `owning_doc_id` because they live inside the
-                        // same pinkha document.
-                        let (child_blocks, child_skipped, child_doc_subcount) =
+                        // the same `owning_leaf_id` because they live inside the
+                        // same pinkha leaf.
+                        let (child_blocks, child_skipped, child_leaf_subcount) =
                             Box::pin(fetch_blocks_recursive(
                                 client,
                                 &notion_block.id,
-                                owning_doc_id,
+                                owning_leaf_id,
                                 docs,
                                 notion_to_pinkha,
                                 covers_dir,
                             ))
                             .await?;
                         total_skipped += child_skipped;
-                        child_docs_created += child_doc_subcount;
+                        child_leaves_created += child_leaf_subcount;
                         child_blocks
                     } else {
                         Vec::new()
@@ -800,32 +800,32 @@ async fn fetch_blocks_recursive(
         cursor = response.next_cursor;
     }
 
-    Ok((root_blocks, total_skipped, child_docs_created))
+    Ok((root_blocks, total_skipped, child_leaves_created))
 }
 
-/// Creates a pinkha document for a Notion `child_page` and fetches its own
+/// Creates a pinkha leaf for a Notion `child_page` and fetches its own
 /// block tree (which may itself contain further nested pages). Returns the
-/// new pinkha document id, ready to be embedded in the parent via a
+/// new pinkha leaf id, ready to be embedded in the parent via a
 /// [`BlockContent::Page`] block.
 async fn import_child_page(
     client: &NotionClient,
     notion_id: &str,
     title: &str,
-    parent_doc_id: Uuid,
-    docs: &(dyn DocumentRepository + Send + Sync),
+    parent_leaf_id: Uuid,
+    docs: &(dyn LeafRepository + Send + Sync),
     notion_to_pinkha: &Mutex<HashMap<String, Uuid>>,
     covers_dir: Option<&str>,
 ) -> Result<Uuid, ExtractorError> {
-    use crate::domain::document::{Document, InlineText};
+    use crate::domain::leaf::{Leaf, InlineText};
 
-    // Build the child document up front so we have its id before fetching
+    // Build the child leaf up front so we have its id before fetching
     // any nested content (a grand-child page that mentions us should rewrite
     // to a known id).
-    let mut child = Document::new(vec![InlineText {
+    let mut child = Leaf::new(vec![InlineText {
         content: title.to_string(),
         styles: Vec::new(),
     }]);
-    child.parent_doc_id = Some(parent_doc_id);
+    child.parent_leaf_id = Some(parent_leaf_id);
     // Imports always default to locked: the user should read the imported
     // content before mutating it. Mirrors `import_page`'s top-level pages.
     child.locked = true;
@@ -935,7 +935,7 @@ fn log_block_type(covers_dir: Option<&str>, parent_id: &str, block_type: &str) {
 }
 
 /// Counts blocks at all levels of the tree (recursive).
-fn count_blocks_recursive(blocks: &[crate::domain::document::Block]) -> usize {
+fn count_blocks_recursive(blocks: &[crate::domain::leaf::Block]) -> usize {
     blocks
         .iter()
         .map(|b| 1 + count_blocks_recursive(&b.children))

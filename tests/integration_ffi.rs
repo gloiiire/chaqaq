@@ -33,11 +33,11 @@ fn new_on_disk_persists_across_reopens() {
     let path = rand_path();
     let id = {
         let api = PinkhaApi::new(path.clone()).expect("open");
-        api.create_document("Persisted".to_string())
+        api.create_leaf("Persisted".to_string())
             .expect("create")
     };
     let api2 = PinkhaApi::new(path.clone()).expect("reopen");
-    let json = api2.get_document_json(id).expect("get");
+    let json = api2.get_leaf_json(id).expect("get");
     assert!(json.contains("Persisted"));
     let _ = std::fs::remove_file(&path);
 }
@@ -48,111 +48,111 @@ fn new_on_invalid_path_fails() {
     assert!(result.is_err());
 }
 
-// ── Documents ───────────────────────────────────────────────────────────────
+// ── Leaves ───────────────────────────────────────────────────────────────
 
 #[test]
-fn create_and_get_document_roundtrip() {
+fn create_and_get_leaf_roundtrip() {
     let a = api();
-    let id = a.create_document("Hello".to_string()).expect("create");
-    let json = a.get_document_json(id.clone()).expect("get");
+    let id = a.create_leaf("Hello".to_string()).expect("create");
+    let json = a.get_leaf_json(id.clone()).expect("get");
     assert!(json.contains("Hello"));
     assert!(json.contains(&id));
 }
 
 #[test]
-fn list_documents_returns_created_docs() {
+fn list_leaves_returns_created_leaves() {
     let a = api();
-    a.create_document("A".to_string()).expect("a");
-    a.create_document("B".to_string()).expect("b");
-    let list = a.list_documents().expect("list");
+    a.create_leaf("A".to_string()).expect("a");
+    a.create_leaf("B".to_string()).expect("b");
+    let list = a.list_leaves().expect("list");
     assert_eq!(list.len(), 2);
 }
 
 #[test]
-fn delete_document_removes_from_list() {
+fn delete_leaf_removes_from_list() {
     let a = api();
-    let id = a.create_document("Trash".to_string()).expect("create");
-    a.delete_document(id.clone()).expect("delete");
+    let id = a.create_leaf("Trash".to_string()).expect("create");
+    a.delete_leaf(id.clone()).expect("delete");
     assert!(matches!(
-        a.get_document_json(id).unwrap_err(),
+        a.get_leaf_json(id).unwrap_err(),
         PinkhaError::NotFound { .. }
     ));
 }
 
 #[test]
-fn delete_document_invalid_uuid_fails() {
+fn delete_leaf_invalid_uuid_fails() {
     let a = api();
-    let err = a.delete_document("not-a-uuid".to_string()).unwrap_err();
+    let err = a.delete_leaf("not-a-uuid".to_string()).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn delete_all_documents_returns_count() {
+fn delete_all_leaves_returns_count() {
     let a = api();
-    a.create_document("a".to_string()).unwrap();
-    a.create_document("b".to_string()).unwrap();
-    a.create_document("c".to_string()).unwrap();
-    let n = a.delete_all_documents().expect("delete all");
+    a.create_leaf("a".to_string()).unwrap();
+    a.create_leaf("b".to_string()).unwrap();
+    a.create_leaf("c".to_string()).unwrap();
+    let n = a.delete_all_leaves().expect("delete all");
     assert_eq!(n, 3);
-    assert_eq!(a.list_documents().unwrap().len(), 0);
+    assert_eq!(a.list_leaves().unwrap().len(), 0);
 }
 
 #[test]
-fn delete_all_documents_on_empty_is_zero() {
+fn delete_all_leaves_on_empty_is_zero() {
     let a = api();
-    assert_eq!(a.delete_all_documents().unwrap(), 0);
+    assert_eq!(a.delete_all_leaves().unwrap(), 0);
 }
 
 #[test]
-fn update_document_title() {
+fn update_leaf_title() {
     let a = api();
-    let id = a.create_document("Old".to_string()).unwrap();
-    a.update_document_title(id.clone(), "New".to_string())
+    let id = a.create_leaf("Old".to_string()).unwrap();
+    a.update_leaf_title(id.clone(), "New".to_string())
         .expect("rename");
-    let json = a.get_document_json(id).unwrap();
+    let json = a.get_leaf_json(id).unwrap();
     assert!(json.contains("New"));
 }
 
 #[test]
-fn update_document_title_too_large_fails() {
+fn update_leaf_title_too_large_fails() {
     let a = api();
-    let id = a.create_document("X".to_string()).unwrap();
+    let id = a.create_leaf("X".to_string()).unwrap();
     let huge = "a".repeat(70 * 1024);
-    let err = a.update_document_title(id, huge).unwrap_err();
+    let err = a.update_leaf_title(id, huge).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn update_document_cover_set_and_clear() {
+fn update_leaf_cover_set_and_clear() {
     let a = api();
-    let id = a.create_document("X".to_string()).unwrap();
-    a.update_document_cover(id.clone(), Some("🌸".to_string()))
+    let id = a.create_leaf("X".to_string()).unwrap();
+    a.update_leaf_cover(id.clone(), Some("🌸".to_string()))
         .expect("set cover");
-    let json = a.get_document_json(id.clone()).unwrap();
+    let json = a.get_leaf_json(id.clone()).unwrap();
     assert!(json.contains("🌸"));
-    a.update_document_cover(id.clone(), None)
+    a.update_leaf_cover(id.clone(), None)
         .expect("clear cover");
 }
 
 #[test]
-fn create_document_title_too_large_fails() {
+fn create_leaf_title_too_large_fails() {
     let a = api();
     let huge = "a".repeat(70 * 1024);
-    let err = a.create_document(huge).unwrap_err();
+    let err = a.create_leaf(huge).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn get_document_invalid_uuid_fails() {
+fn get_leaf_invalid_uuid_fails() {
     let a = api();
-    let err = a.get_document_json("zzz".to_string()).unwrap_err();
+    let err = a.get_leaf_json("zzz".to_string()).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn get_document_not_found_fails() {
+fn get_leaf_not_found_fails() {
     let a = api();
-    let err = a.get_document_json(Uuid::new_v4().to_string()).unwrap_err();
+    let err = a.get_leaf_json(Uuid::new_v4().to_string()).unwrap_err();
     assert!(matches!(err, PinkhaError::NotFound { .. }));
 }
 
@@ -165,7 +165,7 @@ fn text_block_json(text: &str) -> String {
 #[test]
 fn add_block_returns_uuid() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let block_id = a
         .add_block(doc, text_block_json("Hello"))
         .expect("add block");
@@ -175,7 +175,7 @@ fn add_block_returns_uuid() {
 #[test]
 fn add_block_with_malformed_json_fails() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let err = a.add_block(doc, "not json".to_string()).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
@@ -183,7 +183,7 @@ fn add_block_with_malformed_json_fails() {
 #[test]
 fn add_block_oversized_json_fails() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let huge = "a".repeat(6 * 1024 * 1024);
     let err = a.add_block(doc, huge).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
@@ -192,18 +192,18 @@ fn add_block_oversized_json_fails() {
 #[test]
 fn update_block_replaces_content() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let block = a.add_block(doc.clone(), text_block_json("Old")).unwrap();
     a.update_block(doc.clone(), block.clone(), text_block_json("New"))
         .expect("update");
-    let json = a.get_document_json(doc).unwrap();
+    let json = a.get_leaf_json(doc).unwrap();
     assert!(json.contains("New"));
 }
 
 #[test]
 fn set_block_color_sets_and_clears() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let block = a.add_block(doc.clone(), text_block_json("c")).unwrap();
     a.set_block_color(doc.clone(), block.clone(), Some("red".to_string()))
         .expect("set color");
@@ -213,7 +213,7 @@ fn set_block_color_sets_and_clears() {
 #[test]
 fn set_block_color_too_large_fails() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let block = a.add_block(doc.clone(), text_block_json("c")).unwrap();
     let huge = "r".repeat(70 * 1024);
     let err = a.set_block_color(doc, block, Some(huge)).unwrap_err();
@@ -223,7 +223,7 @@ fn set_block_color_too_large_fails() {
 #[test]
 fn delete_block_removes_it() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let block = a.add_block(doc.clone(), text_block_json("x")).unwrap();
     a.delete_block(doc, block).expect("delete");
 }
@@ -231,7 +231,7 @@ fn delete_block_removes_it() {
 #[test]
 fn reorder_blocks() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let b1 = a.add_block(doc.clone(), text_block_json("1")).unwrap();
     let b2 = a.add_block(doc.clone(), text_block_json("2")).unwrap();
     a.reorder_blocks(doc, vec![b2, b1]).expect("reorder");
@@ -240,7 +240,7 @@ fn reorder_blocks() {
 #[test]
 fn reorder_blocks_invalid_uuid_fails() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let err = a
         .reorder_blocks(doc, vec!["not-a-uuid".to_string()])
         .unwrap_err();
@@ -250,7 +250,7 @@ fn reorder_blocks_invalid_uuid_fails() {
 #[test]
 fn add_child_block() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let parent = a.add_block(doc.clone(), text_block_json("p")).unwrap();
     let child = a
         .add_child_block(doc, parent, text_block_json("c"))
@@ -261,7 +261,7 @@ fn add_child_block() {
 #[test]
 fn reorder_child_blocks() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let parent = a.add_block(doc.clone(), text_block_json("p")).unwrap();
     let c1 = a
         .add_child_block(doc.clone(), parent.clone(), text_block_json("1"))
@@ -276,7 +276,7 @@ fn reorder_child_blocks() {
 #[test]
 fn move_block_to_parent_and_root() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let parent = a.add_block(doc.clone(), text_block_json("p")).unwrap();
     let block = a.add_block(doc.clone(), text_block_json("b")).unwrap();
     a.move_block(doc.clone(), block.clone(), Some(parent.clone()))
@@ -287,7 +287,7 @@ fn move_block_to_parent_and_root() {
 #[test]
 fn move_block_invalid_parent_uuid_fails() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let block = a.add_block(doc.clone(), text_block_json("b")).unwrap();
     let err = a
         .move_block(doc, block, Some("not-a-uuid".to_string()))
@@ -298,7 +298,7 @@ fn move_block_invalid_parent_uuid_fails() {
 #[test]
 fn indent_and_outdent_block() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let b1 = a.add_block(doc.clone(), text_block_json("1")).unwrap();
     let b2 = a.add_block(doc.clone(), text_block_json("2")).unwrap();
     a.indent_block(doc.clone(), b2.clone()).expect("indent");
@@ -309,7 +309,7 @@ fn indent_and_outdent_block() {
 #[test]
 fn indent_first_block_fails() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let b1 = a.add_block(doc.clone(), text_block_json("only")).unwrap();
     let err = a.indent_block(doc, b1).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
@@ -318,7 +318,7 @@ fn indent_first_block_fails() {
 #[test]
 fn outdent_root_block_fails() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let b = a.add_block(doc.clone(), text_block_json("x")).unwrap();
     let err = a.outdent_block(doc, b).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
@@ -327,27 +327,27 @@ fn outdent_root_block_fails() {
 // ── Search ──────────────────────────────────────────────────────────────────
 
 #[test]
-fn search_documents_by_title() {
+fn search_leaves_by_title() {
     let a = api();
-    a.create_document("Apple pie".to_string()).unwrap();
-    a.create_document("Banana bread".to_string()).unwrap();
-    a.create_document("Apple cake".to_string()).unwrap();
-    let hits = a.search_documents("apple".to_string()).unwrap();
+    a.create_leaf("Apple pie".to_string()).unwrap();
+    a.create_leaf("Banana bread".to_string()).unwrap();
+    a.create_leaf("Apple cake".to_string()).unwrap();
+    let hits = a.search_leaves("apple".to_string()).unwrap();
     assert_eq!(hits.len(), 2);
 }
 
 #[test]
-fn search_documents_query_too_large_fails() {
+fn search_leaves_query_too_large_fails() {
     let a = api();
     let huge = "a".repeat(70 * 1024);
-    let err = a.search_documents(huge).unwrap_err();
+    let err = a.search_leaves(huge).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
 fn search_in_blocks() {
     let a = api();
-    let doc = a.create_document("Note".to_string()).unwrap();
+    let doc = a.create_leaf("Note".to_string()).unwrap();
     a.add_block(doc.clone(), text_block_json("needle in haystack"))
         .unwrap();
     let hits = a.search_in_blocks("needle".to_string()).unwrap();
@@ -365,7 +365,7 @@ fn search_in_blocks_query_too_large_fails() {
 #[test]
 fn search_in_blocks_with_snippets_returns_one_hit_per_block() {
     let a = api();
-    let doc = a.create_document("Note".to_string()).unwrap();
+    let doc = a.create_leaf("Note".to_string()).unwrap();
     a.add_block(doc.clone(), text_block_json("Rust is great"))
         .unwrap();
     a.add_block(doc.clone(), text_block_json("Nothing here"))
@@ -396,92 +396,92 @@ fn search_in_blocks_with_snippets_query_too_large_fails() {
 }
 
 #[test]
-fn search_databases_by_title() {
+fn search_books_by_title() {
     let a = api();
-    a.create_database("Tasks Tracker".to_string()).unwrap();
-    a.create_database("Recipes".to_string()).unwrap();
-    let hits = a.search_databases("tracker".to_string()).unwrap();
+    a.create_book("Tasks Tracker".to_string()).unwrap();
+    a.create_book("Recipes".to_string()).unwrap();
+    let hits = a.search_books("tracker".to_string()).unwrap();
     assert_eq!(hits.len(), 1);
     assert!(hits[0].title_plain.contains("Tasks"));
 }
 
 #[test]
-fn search_databases_query_too_large_fails() {
+fn search_books_query_too_large_fails() {
     let a = api();
     let huge = "a".repeat(70 * 1024);
-    let err = a.search_databases(huge).unwrap_err();
+    let err = a.search_books(huge).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn search_folders_by_name() {
+fn search_shelves_by_name() {
     let a = api();
-    a.create_folder("Work Notes".to_string(), None).unwrap();
-    a.create_folder("Personal".to_string(), None).unwrap();
-    let hits = a.search_folders("work".to_string()).unwrap();
+    a.create_shelf("Work Notes".to_string(), None).unwrap();
+    a.create_shelf("Personal".to_string(), None).unwrap();
+    let hits = a.search_shelves("work".to_string()).unwrap();
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].name, "Work Notes");
 }
 
 #[test]
-fn search_folders_query_too_large_fails() {
+fn search_shelves_query_too_large_fails() {
     let a = api();
     let huge = "a".repeat(70 * 1024);
-    let err = a.search_folders(huge).unwrap_err();
+    let err = a.search_shelves(huge).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
-// ── Databases ───────────────────────────────────────────────────────────────
+// ── Books ───────────────────────────────────────────────────────────────
 
 #[test]
-fn create_and_list_databases() {
+fn create_and_list_books() {
     let a = api();
-    a.create_database("Tasks".to_string()).unwrap();
-    a.create_database("People".to_string()).unwrap();
-    assert_eq!(a.list_databases().unwrap().len(), 2);
+    a.create_book("Tasks".to_string()).unwrap();
+    a.create_book("People".to_string()).unwrap();
+    assert_eq!(a.list_books().unwrap().len(), 2);
 }
 
 #[test]
-fn create_database_title_too_large_fails() {
+fn create_book_title_too_large_fails() {
     let a = api();
     let huge = "a".repeat(70 * 1024);
-    let err = a.create_database(huge).unwrap_err();
+    let err = a.create_book(huge).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn get_database_returns_json() {
+fn get_book_returns_json() {
     let a = api();
-    let id = a.create_database("Tasks".to_string()).unwrap();
-    let json = a.get_database_json(id.clone()).unwrap();
+    let id = a.create_book("Tasks".to_string()).unwrap();
+    let json = a.get_book_json(id.clone()).unwrap();
     assert!(json.contains(&id));
 }
 
 #[test]
-fn get_database_not_found() {
+fn get_book_not_found() {
     let a = api();
-    let err = a.get_database_json(Uuid::new_v4().to_string()).unwrap_err();
+    let err = a.get_book_json(Uuid::new_v4().to_string()).unwrap_err();
     assert!(matches!(err, PinkhaError::NotFound { .. }));
 }
 
 #[test]
-fn delete_database() {
+fn delete_book() {
     let a = api();
-    let id = a.create_database("Doomed".to_string()).unwrap();
-    a.delete_database(id.clone()).unwrap();
+    let id = a.create_book("Doomed".to_string()).unwrap();
+    a.delete_book(id.clone()).unwrap();
     assert!(matches!(
-        a.get_database_json(id).unwrap_err(),
+        a.get_book_json(id).unwrap_err(),
         PinkhaError::NotFound { .. }
     ));
 }
 
 #[test]
-fn delete_all_databases_returns_count() {
+fn delete_all_books_returns_count() {
     let a = api();
-    a.create_database("a".to_string()).unwrap();
-    a.create_database("b".to_string()).unwrap();
-    assert_eq!(a.delete_all_databases().unwrap(), 2);
-    assert_eq!(a.list_databases().unwrap().len(), 0);
+    a.create_book("a".to_string()).unwrap();
+    a.create_book("b".to_string()).unwrap();
+    assert_eq!(a.delete_all_books().unwrap(), 2);
+    assert_eq!(a.list_books().unwrap().len(), 0);
 }
 
 // ── Properties + entries + views ───────────────────────────────────────────
@@ -507,17 +507,17 @@ fn make_title_property(name: &str) -> (String, String) {
 }
 
 #[test]
-fn add_property_to_database() {
+fn add_property_to_book() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     a.add_property(db.clone(), make_text_property("Notes"))
         .unwrap();
-    let json = a.get_database_json(db).unwrap();
+    let json = a.get_book_json(db).unwrap();
     assert!(json.contains("Notes"));
 }
 
 #[test]
-fn add_property_invalid_db_uuid_fails() {
+fn add_property_invalid_book_uuid_fails() {
     let a = api();
     let err = a
         .add_property("not-uuid".to_string(), make_text_property("X"))
@@ -528,20 +528,20 @@ fn add_property_invalid_db_uuid_fails() {
 #[test]
 fn rename_property_changes_name() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let prop_id = Uuid::new_v4().to_string();
     let prop_json = json!({"id": prop_id, "name": "Old", "type_": "Text"}).to_string();
     a.add_property(db.clone(), prop_json).unwrap();
     a.rename_property(db.clone(), prop_id, "New".to_string())
         .unwrap();
-    let json = a.get_database_json(db).unwrap();
+    let json = a.get_book_json(db).unwrap();
     assert!(json.contains("New"));
 }
 
 #[test]
 fn rename_property_too_large_fails() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let prop_id = Uuid::new_v4().to_string();
     let huge = "a".repeat(70 * 1024);
     let err = a.rename_property(db, prop_id, huge).unwrap_err();
@@ -551,7 +551,7 @@ fn rename_property_too_large_fails() {
 #[test]
 fn delete_property_clears_values() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let prop_id = Uuid::new_v4().to_string();
     let prop_json = json!({"id": prop_id, "name": "C", "type_": "Text"}).to_string();
     a.add_property(db.clone(), prop_json).unwrap();
@@ -559,9 +559,9 @@ fn delete_property_clears_values() {
 }
 
 #[test]
-fn add_entry_to_database() {
+fn add_entry_to_book() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let prop_id = Uuid::new_v4().to_string();
     let prop_json = json!({"id": prop_id, "name": "Note", "type_": "Text"}).to_string();
     a.add_property(db.clone(), prop_json).unwrap();
@@ -573,7 +573,7 @@ fn add_entry_to_database() {
 #[test]
 fn add_entry_with_malformed_json_fails() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let err = a.add_entry(db, "broken".to_string()).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
@@ -581,7 +581,7 @@ fn add_entry_with_malformed_json_fails() {
 #[test]
 fn update_entry_propagates_title_when_linked() {
     let a = api();
-    let db = a.create_database("Tasks".to_string()).unwrap();
+    let db = a.create_book("Tasks".to_string()).unwrap();
     let (title_id, title_prop_json) = make_title_property("Name");
     a.add_property(db.clone(), title_prop_json).unwrap();
     let initial_values = json!({
@@ -599,7 +599,7 @@ fn update_entry_propagates_title_when_linked() {
 #[test]
 fn delete_entry() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let entry = a.add_entry(db.clone(), "{}".to_string()).unwrap();
     a.delete_entry(db, entry).unwrap();
 }
@@ -620,17 +620,17 @@ fn make_view(name: &str) -> (String, String) {
 #[test]
 fn add_and_query_view() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let (_, view_json) = make_view("Default");
     let view = a.add_view(db.clone(), view_json).unwrap();
-    let entries_json = a.query_database_json(db, view).unwrap();
+    let entries_json = a.query_book_json(db, view).unwrap();
     assert_eq!(entries_json, "[]");
 }
 
 #[test]
 fn update_view_filters_and_sorts() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let (_, view_json) = make_view("V");
     let view = a.add_view(db.clone(), view_json).unwrap();
     a.update_view(db, view, "[]".to_string(), "[]".to_string())
@@ -640,7 +640,7 @@ fn update_view_filters_and_sorts() {
 #[test]
 fn set_view_sort_with_and_without_property() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let (_, view_json) = make_view("V");
     let view = a.add_view(db.clone(), view_json).unwrap();
     let prop = Uuid::new_v4().to_string();
@@ -652,7 +652,7 @@ fn set_view_sort_with_and_without_property() {
 #[test]
 fn set_view_sort_invalid_property_uuid_fails() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let (_, view_json) = make_view("V");
     let view = a.add_view(db.clone(), view_json).unwrap();
     let err = a
@@ -664,7 +664,7 @@ fn set_view_sort_invalid_property_uuid_fails() {
 #[test]
 fn delete_view() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let (_, v1) = make_view("V1");
     let view1 = a.add_view(db.clone(), v1).unwrap();
     let (_, v2) = make_view("V2");
@@ -673,19 +673,19 @@ fn delete_view() {
 }
 
 #[test]
-fn query_database_with_rollups() {
+fn query_book_with_rollups() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let (_, view_json) = make_view("V");
     let view = a.add_view(db.clone(), view_json).unwrap();
-    let entries_json = a.query_database_with_rollups_json(db, view).unwrap();
+    let entries_json = a.query_book_with_rollups_json(db, view).unwrap();
     assert_eq!(entries_json, "[]");
 }
 
 #[test]
-fn grouped_query_database() {
+fn grouped_query_book() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let prop_id = Uuid::new_v4();
     let prop_json = json!({
         "id": prop_id.to_string(),
@@ -697,7 +697,7 @@ fn grouped_query_database() {
     let (_, view_json) = make_view("V");
     let view = a.add_view(db.clone(), view_json).unwrap();
     let groups = a
-        .grouped_query_database_json(db, view, prop_id.to_string())
+        .grouped_query_book_json(db, view, prop_id.to_string())
         .unwrap();
     assert!(groups.starts_with('['));
 }
@@ -705,12 +705,12 @@ fn grouped_query_database() {
 #[test]
 fn column_aggregate_count() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let prop_id = Uuid::new_v4().to_string();
     let prop_json = json!({"id": prop_id, "name": "N", "type_": "Number"}).to_string();
     a.add_property(db.clone(), prop_json.clone()).unwrap();
     let result = a
-        .column_aggregate_database_json(db, prop_id, json!("Count").to_string())
+        .column_aggregate_book_json(db, prop_id, json!("Count").to_string())
         .unwrap();
     assert!(result.contains("Number"));
 }
@@ -718,136 +718,136 @@ fn column_aggregate_count() {
 #[test]
 fn column_aggregate_invalid_json_fails() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let err = a
-        .column_aggregate_database_json(db, Uuid::new_v4().to_string(), "garbage".to_string())
+        .column_aggregate_book_json(db, Uuid::new_v4().to_string(), "garbage".to_string())
         .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn search_database_entries() {
+fn search_book_entries() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let prop_id = Uuid::new_v4().to_string();
     let prop_json = json!({"id": prop_id, "name": "Note", "type_": "Text"}).to_string();
     a.add_property(db.clone(), prop_json).unwrap();
     let values = json!({prop_id: {"Text": "needle"}}).to_string();
     a.add_entry(db.clone(), values).unwrap();
     let json = a
-        .search_database_entries_json(db, "needle".to_string())
+        .search_book_entries_json(db, "needle".to_string())
         .unwrap();
     assert!(json.contains("needle"));
 }
 
 #[test]
-fn search_database_entries_query_too_large_fails() {
+fn search_book_entries_query_too_large_fails() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let huge = "a".repeat(70 * 1024);
-    let err = a.search_database_entries_json(db, huge).unwrap_err();
+    let err = a.search_book_entries_json(db, huge).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
-// ── Folders ─────────────────────────────────────────────────────────────────
+// ── Shelves ─────────────────────────────────────────────────────────────────
 
 #[test]
-fn create_and_get_folder() {
+fn create_and_get_shelf() {
     let a = api();
-    let f = a.create_folder("Inbox".to_string(), None).unwrap();
+    let f = a.create_shelf("Inbox".to_string(), None).unwrap();
     assert_eq!(f.name, "Inbox");
     assert!(f.parent_id.is_none());
-    let loaded = a.get_folder(f.id.clone()).unwrap();
+    let loaded = a.get_shelf(f.id.clone()).unwrap();
     assert_eq!(loaded.name, "Inbox");
 }
 
 #[test]
-fn create_nested_folder() {
+fn create_nested_shelf() {
     let a = api();
-    let parent = a.create_folder("Parent".to_string(), None).unwrap();
+    let parent = a.create_shelf("Parent".to_string(), None).unwrap();
     let child = a
-        .create_folder("Child".to_string(), Some(parent.id.clone()))
+        .create_shelf("Child".to_string(), Some(parent.id.clone()))
         .unwrap();
     assert_eq!(child.parent_id.as_deref(), Some(parent.id.as_str()));
 }
 
 #[test]
-fn create_folder_name_too_large_fails() {
+fn create_shelf_name_too_large_fails() {
     let a = api();
     let huge = "a".repeat(70 * 1024);
-    let err = a.create_folder(huge, None).unwrap_err();
+    let err = a.create_shelf(huge, None).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn create_folder_with_invalid_parent_uuid_fails() {
+fn create_shelf_with_invalid_parent_uuid_fails() {
     let a = api();
     let err = a
-        .create_folder("X".to_string(), Some("not-uuid".to_string()))
+        .create_shelf("X".to_string(), Some("not-uuid".to_string()))
         .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn update_folder_icon_sets_and_clears() {
+fn update_shelf_icon_sets_and_clears() {
     let a = api();
-    let folder = a.create_folder("Work".to_string(), None).unwrap();
-    let id = folder.id.clone();
-    a.update_folder_icon(id.clone(), Some("📁".to_string()))
+    let shelf = a.create_shelf("Work".to_string(), None).unwrap();
+    let id = shelf.id.clone();
+    a.update_shelf_icon(id.clone(), Some("📁".to_string()))
         .unwrap();
-    let folders = a.list_folders().unwrap();
+    let shelves = a.list_shelves().unwrap();
     assert_eq!(
-        folders.iter().find(|f| f.id == id).unwrap().icon.as_deref(),
+        shelves.iter().find(|f| f.id == id).unwrap().icon.as_deref(),
         Some("📁")
     );
-    a.update_folder_icon(id.clone(), None).unwrap();
-    let folders = a.list_folders().unwrap();
-    assert!(folders.iter().find(|f| f.id == id).unwrap().icon.is_none());
+    a.update_shelf_icon(id.clone(), None).unwrap();
+    let shelves = a.list_shelves().unwrap();
+    assert!(shelves.iter().find(|f| f.id == id).unwrap().icon.is_none());
 }
 
 #[test]
-fn update_folder_icon_with_invalid_uuid_fails() {
+fn update_shelf_icon_with_invalid_uuid_fails() {
     let a = api();
     let err = a
-        .update_folder_icon("not-uuid".to_string(), Some("📁".to_string()))
+        .update_shelf_icon("not-uuid".to_string(), Some("📁".to_string()))
         .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn delete_all_folders_returns_count_and_clears() {
+fn delete_all_shelves_returns_count_and_clears() {
     let a = api();
-    a.create_folder("A".to_string(), None).unwrap();
-    a.create_folder("B".to_string(), None).unwrap();
-    a.create_folder("C".to_string(), None).unwrap();
-    let n = a.delete_all_folders().unwrap();
+    a.create_shelf("A".to_string(), None).unwrap();
+    a.create_shelf("B".to_string(), None).unwrap();
+    a.create_shelf("C".to_string(), None).unwrap();
+    let n = a.delete_all_shelves().unwrap();
     assert_eq!(n, 3);
-    assert!(a.list_folders().unwrap().is_empty());
+    assert!(a.list_shelves().unwrap().is_empty());
 }
 
 // ── Doc-in-doc hierarchy ────────────────────────────────────────────────────
 
 #[test]
-fn update_document_parent_then_list_root_and_children() {
+fn update_leaf_parent_then_list_root_and_children() {
     let a = api();
-    let parent = a.create_document("Parent".to_string()).unwrap();
-    let child = a.create_document("Child".to_string()).unwrap();
-    a.update_document_parent(child.clone(), Some(parent.clone()))
+    let parent = a.create_leaf("Parent".to_string()).unwrap();
+    let child = a.create_leaf("Child".to_string()).unwrap();
+    a.update_leaf_parent(child.clone(), Some(parent.clone()))
         .unwrap();
 
-    let roots = a.list_root_documents().unwrap();
+    let roots = a.list_root_leaves().unwrap();
     assert!(roots.iter().any(|d| d.id == parent));
     assert!(!roots.iter().any(|d| d.id == child));
 
-    let children = a.list_child_documents(parent.clone()).unwrap();
+    let children = a.list_child_leaves(parent.clone()).unwrap();
     assert_eq!(children.len(), 1);
     assert_eq!(children[0].id, child);
 
     // Promoting the child back to root removes it from the parent's children.
-    a.update_document_parent(child.clone(), None).unwrap();
-    assert!(a.list_child_documents(parent).unwrap().is_empty());
+    a.update_leaf_parent(child.clone(), None).unwrap();
+    assert!(a.list_child_leaves(parent).unwrap().is_empty());
     assert!(
-        a.list_root_documents()
+        a.list_root_leaves()
             .unwrap()
             .iter()
             .any(|d| d.id == child)
@@ -855,130 +855,130 @@ fn update_document_parent_then_list_root_and_children() {
 }
 
 #[test]
-fn update_document_parent_rejects_self() {
+fn update_leaf_parent_rejects_self() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let err = a
-        .update_document_parent(doc.clone(), Some(doc))
+        .update_leaf_parent(doc.clone(), Some(doc))
         .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn update_document_parent_rejects_cycle() {
+fn update_leaf_parent_rejects_cycle() {
     let a = api();
-    let a_id = a.create_document("A".to_string()).unwrap();
-    let b_id = a.create_document("B".to_string()).unwrap();
+    let a_id = a.create_leaf("A".to_string()).unwrap();
+    let b_id = a.create_leaf("B".to_string()).unwrap();
     // B is a child of A.
-    a.update_document_parent(b_id.clone(), Some(a_id.clone()))
+    a.update_leaf_parent(b_id.clone(), Some(a_id.clone()))
         .unwrap();
     // Trying to make A a child of B would create a cycle.
-    let err = a.update_document_parent(a_id, Some(b_id)).unwrap_err();
+    let err = a.update_leaf_parent(a_id, Some(b_id)).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn update_document_parent_with_invalid_uuid_fails() {
+fn update_leaf_parent_with_invalid_uuid_fails() {
     let a = api();
     let err = a
-        .update_document_parent("not-uuid".to_string(), None)
+        .update_leaf_parent("not-uuid".to_string(), None)
         .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn list_child_documents_with_invalid_uuid_fails() {
+fn list_child_leaves_with_invalid_uuid_fails() {
     let a = api();
-    let err = a.list_child_documents("not-uuid".to_string()).unwrap_err();
+    let err = a.list_child_leaves("not-uuid".to_string()).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn list_folders_returns_all() {
+fn list_shelves_returns_all() {
     let a = api();
-    a.create_folder("Alpha".to_string(), None).unwrap();
-    a.create_folder("Beta".to_string(), None).unwrap();
-    assert_eq!(a.list_folders().unwrap().len(), 2);
+    a.create_shelf("Alpha".to_string(), None).unwrap();
+    a.create_shelf("Beta".to_string(), None).unwrap();
+    assert_eq!(a.list_shelves().unwrap().len(), 2);
 }
 
 #[test]
-fn rename_folder_changes_name() {
+fn rename_shelf_changes_name() {
     let a = api();
-    let f = a.create_folder("Old".to_string(), None).unwrap();
-    a.rename_folder(f.id.clone(), "New".to_string()).unwrap();
-    assert_eq!(a.get_folder(f.id).unwrap().name, "New");
+    let f = a.create_shelf("Old".to_string(), None).unwrap();
+    a.rename_shelf(f.id.clone(), "New".to_string()).unwrap();
+    assert_eq!(a.get_shelf(f.id).unwrap().name, "New");
 }
 
 #[test]
-fn rename_folder_name_too_large_fails() {
+fn rename_shelf_name_too_large_fails() {
     let a = api();
-    let f = a.create_folder("X".to_string(), None).unwrap();
+    let f = a.create_shelf("X".to_string(), None).unwrap();
     let huge = "a".repeat(70 * 1024);
-    let err = a.rename_folder(f.id, huge).unwrap_err();
+    let err = a.rename_shelf(f.id, huge).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn delete_folder() {
+fn delete_shelf() {
     let a = api();
-    let f = a.create_folder("X".to_string(), None).unwrap();
-    a.delete_folder(f.id.clone()).unwrap();
-    let err = a.get_folder(f.id).unwrap_err();
+    let f = a.create_shelf("X".to_string(), None).unwrap();
+    a.delete_shelf(f.id.clone()).unwrap();
+    let err = a.get_shelf(f.id).unwrap_err();
     assert!(matches!(err, PinkhaError::NotFound { .. }));
 }
 
 #[test]
-fn move_folder_to_new_parent() {
+fn move_shelf_to_new_parent() {
     let a = api();
-    let a_folder = a.create_folder("A".to_string(), None).unwrap();
-    let b = a.create_folder("B".to_string(), None).unwrap();
-    a.move_folder_to(a_folder.id.clone(), Some(b.id.clone()))
+    let a_shelf = a.create_shelf("A".to_string(), None).unwrap();
+    let b = a.create_shelf("B".to_string(), None).unwrap();
+    a.move_shelf_to(a_shelf.id.clone(), Some(b.id.clone()))
         .unwrap();
     assert_eq!(
-        a.get_folder(a_folder.id).unwrap().parent_id.as_deref(),
+        a.get_shelf(a_shelf.id).unwrap().parent_id.as_deref(),
         Some(b.id.as_str())
     );
 }
 
 #[test]
-fn move_folder_to_root() {
+fn move_shelf_to_root() {
     let a = api();
-    let parent = a.create_folder("P".to_string(), None).unwrap();
+    let parent = a.create_shelf("P".to_string(), None).unwrap();
     let child = a
-        .create_folder("C".to_string(), Some(parent.id.clone()))
+        .create_shelf("C".to_string(), Some(parent.id.clone()))
         .unwrap();
-    a.move_folder_to(child.id.clone(), None).unwrap();
-    assert!(a.get_folder(child.id).unwrap().parent_id.is_none());
+    a.move_shelf_to(child.id.clone(), None).unwrap();
+    assert!(a.get_shelf(child.id).unwrap().parent_id.is_none());
 }
 
 #[test]
-fn move_folder_with_invalid_uuid_fails() {
+fn move_shelf_with_invalid_uuid_fails() {
     let a = api();
-    let err = a.move_folder_to("nope".to_string(), None).unwrap_err();
+    let err = a.move_shelf_to("nope".to_string(), None).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn move_document_to_folder_and_list() {
+fn move_leaf_to_shelf_and_list() {
     let a = api();
-    let f = a.create_folder("Box".to_string(), None).unwrap();
-    let doc = a.create_document("Note".to_string()).unwrap();
-    a.move_document_to_folder(doc.clone(), Some(f.id.clone()))
+    let f = a.create_shelf("Box".to_string(), None).unwrap();
+    let doc = a.create_leaf("Note".to_string()).unwrap();
+    a.move_leaf_to_shelf(doc.clone(), Some(f.id.clone()))
         .unwrap();
-    let in_folder = a.list_documents_in_folder(Some(f.id)).unwrap();
-    assert_eq!(in_folder.len(), 1);
-    let at_root = a.list_documents_in_folder(None).unwrap();
+    let in_shelf = a.list_leaves_in_shelf(Some(f.id)).unwrap();
+    assert_eq!(in_shelf.len(), 1);
+    let at_root = a.list_leaves_in_shelf(None).unwrap();
     assert_eq!(at_root.len(), 0);
-    a.move_document_to_folder(doc, None).unwrap();
-    let at_root = a.list_documents_in_folder(None).unwrap();
+    a.move_leaf_to_shelf(doc, None).unwrap();
+    let at_root = a.list_leaves_in_shelf(None).unwrap();
     assert_eq!(at_root.len(), 1);
 }
 
 #[test]
-fn list_documents_in_folder_with_invalid_uuid_fails() {
+fn list_leaves_in_shelf_with_invalid_uuid_fails() {
     let a = api();
     let err = a
-        .list_documents_in_folder(Some("garbage".to_string()))
+        .list_leaves_in_shelf(Some("garbage".to_string()))
         .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
@@ -986,7 +986,7 @@ fn list_documents_in_folder_with_invalid_uuid_fails() {
 // ── Imports — validation paths only ────────────────────────────────────────
 
 #[test]
-fn import_from_notion_with_empty_token_or_db_id_does_not_panic() {
+fn import_from_notion_with_empty_token_or_book_id_does_not_panic() {
     let a = api();
     // Network call will fail fast; we just want to make sure validation
     // wrapping does not panic and that an error is returned.
@@ -1009,7 +1009,7 @@ fn import_from_notion_token_too_large_fails() {
 }
 
 #[test]
-fn import_from_notion_db_id_too_large_fails() {
+fn import_from_notion_book_id_too_large_fails() {
     let a = api();
     let huge = "a".repeat(70 * 1024);
     let err = a
@@ -1089,7 +1089,7 @@ async fn import_from_craft_textbundle_with_file_path_returns_error() {
 }
 
 #[tokio::test]
-async fn import_from_craft_textbundle_with_empty_dir_succeeds_with_zero_docs() {
+async fn import_from_craft_textbundle_with_empty_dir_succeeds_with_zero_leaves() {
     let a = api();
     // Existing, empty directory → no error, just 0 imports.
     let dir = std::env::temp_dir().join(format!("pinkha-test-empty-{}", Uuid::new_v4()));
@@ -1098,7 +1098,7 @@ async fn import_from_craft_textbundle_with_empty_dir_succeeds_with_zero_docs() {
         .import_from_craft_textbundle(dir.to_string_lossy().to_string())
         .await
         .expect("empty dir should succeed");
-    assert_eq!(result.documents, 0);
+    assert_eq!(result.leaves, 0);
     let _ = std::fs::remove_dir(&dir);
 }
 
@@ -1141,81 +1141,81 @@ fn error_debug_does_not_panic() {
     let _ = format!("{:?}", e);
 }
 
-// ── Folder metadata round-trip ─────────────────────────────────────────────
+// ── Shelf metadata round-trip ─────────────────────────────────────────────
 
 #[test]
-fn folder_metadata_includes_timestamps() {
+fn shelf_metadata_includes_timestamps() {
     let a = api();
-    let f = a.create_folder("X".to_string(), None).unwrap();
+    let f = a.create_shelf("X".to_string(), None).unwrap();
     assert!(!f.created_at.is_empty());
     assert!(!f.updated_at.is_empty());
 }
 
 #[test]
-fn doc_metadata_includes_timestamps_and_folder() {
+fn leaf_metadata_includes_timestamps_and_shelf() {
     let a = api();
-    let folder = a.create_folder("F".to_string(), None).unwrap();
-    let doc_id = a.create_document("D".to_string()).unwrap();
-    a.move_document_to_folder(doc_id.clone(), Some(folder.id.clone()))
+    let shelf = a.create_shelf("F".to_string(), None).unwrap();
+    let leaf_id = a.create_leaf("D".to_string()).unwrap();
+    a.move_leaf_to_shelf(leaf_id.clone(), Some(shelf.id.clone()))
         .unwrap();
-    let in_folder = a.list_documents_in_folder(Some(folder.id.clone())).unwrap();
-    assert_eq!(in_folder.len(), 1);
-    let meta = &in_folder[0];
+    let in_shelf = a.list_leaves_in_shelf(Some(shelf.id.clone())).unwrap();
+    assert_eq!(in_shelf.len(), 1);
+    let meta = &in_shelf[0];
     assert!(!meta.updated_at.is_empty());
     assert!(!meta.created_at.is_empty());
-    assert_eq!(meta.folder_id.as_deref(), Some(folder.id.as_str()));
+    assert_eq!(meta.shelf_id.as_deref(), Some(shelf.id.as_str()));
 }
 
 #[test]
-fn db_metadata_includes_timestamps() {
+fn book_metadata_includes_timestamps() {
     let a = api();
-    a.create_database("X".to_string()).unwrap();
-    let list = a.list_databases().unwrap();
+    a.create_book("X".to_string()).unwrap();
+    let list = a.list_books().unwrap();
     assert_eq!(list.len(), 1);
     let meta = &list[0];
     assert!(!meta.updated_at.is_empty());
     assert!(!meta.created_at.is_empty());
 }
 
-// ── Document chrome: locked / theme / published_at ──────────────────────────
+// ── Leaf chrome: locked / theme / published_at ──────────────────────────
 
 #[test]
-fn update_document_locked_roundtrip() {
+fn update_leaf_locked_roundtrip() {
     let a = api();
-    let id = a.create_document("Lockable".to_string()).unwrap();
-    a.update_document_locked(id.clone(), true).unwrap();
+    let id = a.create_leaf("Lockable".to_string()).unwrap();
+    a.update_leaf_locked(id.clone(), true).unwrap();
     assert!(
-        a.get_document_json(id.clone())
+        a.get_leaf_json(id.clone())
             .unwrap()
             .contains("\"locked\":true")
     );
-    a.update_document_locked(id.clone(), false).unwrap();
+    a.update_leaf_locked(id.clone(), false).unwrap();
     assert!(
-        a.get_document_json(id)
+        a.get_leaf_json(id)
             .unwrap()
             .contains("\"locked\":false")
     );
 }
 
 #[test]
-fn update_document_theme_set_and_clear() {
+fn update_leaf_theme_set_and_clear() {
     let a = api();
-    let id = a.create_document("Themed".to_string()).unwrap();
-    a.update_document_theme(id.clone(), Some("dark".to_string()))
+    let id = a.create_leaf("Themed".to_string()).unwrap();
+    a.update_leaf_theme(id.clone(), Some("dark".to_string()))
         .unwrap();
-    assert!(a.get_document_json(id.clone()).unwrap().contains("dark"));
-    a.update_document_theme(id.clone(), None).unwrap();
-    assert!(!a.get_document_json(id).unwrap().contains("\"dark\""));
+    assert!(a.get_leaf_json(id.clone()).unwrap().contains("dark"));
+    a.update_leaf_theme(id.clone(), None).unwrap();
+    assert!(!a.get_leaf_json(id).unwrap().contains("\"dark\""));
 }
 
 #[test]
-fn update_document_published_at_overrides_and_resets() {
+fn update_leaf_published_at_overrides_and_resets() {
     let a = api();
-    let id = a.create_document("Dated".to_string()).unwrap();
-    a.update_document_published_at(id.clone(), "2026-01-15T10:00:00Z".to_string())
+    let id = a.create_leaf("Dated".to_string()).unwrap();
+    a.update_leaf_published_at(id.clone(), "2026-01-15T10:00:00Z".to_string())
         .unwrap();
     let meta = a
-        .list_documents()
+        .list_leaves()
         .unwrap()
         .into_iter()
         .find(|m| m.id == id)
@@ -1223,10 +1223,10 @@ fn update_document_published_at_overrides_and_resets() {
     assert_eq!(meta.published_at, "2026-01-15T10:00:00Z");
     // Empty string = reset to "follow created_at" — resolved against the
     // row's real creation timestamp, not the save time.
-    a.update_document_published_at(id.clone(), String::new())
+    a.update_leaf_published_at(id.clone(), String::new())
         .unwrap();
     let meta = a
-        .list_documents()
+        .list_leaves()
         .unwrap()
         .into_iter()
         .find(|m| m.id == id)
@@ -1235,92 +1235,92 @@ fn update_document_published_at_overrides_and_resets() {
 }
 
 #[test]
-fn update_document_published_at_rejects_oversized_value() {
+fn update_leaf_published_at_rejects_oversized_value() {
     let a = api();
-    let id = a.create_document("Doc".to_string()).unwrap();
+    let id = a.create_leaf("Doc".to_string()).unwrap();
     let err = a
-        .update_document_published_at(id, "x".repeat(65))
+        .update_leaf_published_at(id, "x".repeat(65))
         .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
-// ── Database chrome: cover / icon / description / locked ────────────────────
+// ── Book chrome: cover / icon / description / locked ────────────────────
 
 #[test]
-fn update_database_cover_icon_description_roundtrip() {
+fn update_book_cover_icon_description_roundtrip() {
     let a = api();
-    let db = a.create_database("Styled".to_string()).unwrap();
-    a.update_database_cover(db.clone(), Some("cover.nebula".to_string()))
+    let db = a.create_book("Styled".to_string()).unwrap();
+    a.update_book_cover(db.clone(), Some("cover.nebula".to_string()))
         .unwrap();
-    a.update_database_icon(db.clone(), Some("📚".to_string()))
+    a.update_book_icon(db.clone(), Some("📚".to_string()))
         .unwrap();
-    a.update_database_description(db.clone(), "A described base".to_string())
+    a.update_book_description(db.clone(), "A described base".to_string())
         .unwrap();
-    let json = a.get_database_json(db.clone()).unwrap();
+    let json = a.get_book_json(db.clone()).unwrap();
     assert!(json.contains("cover.nebula"));
     assert!(json.contains("📚"));
     assert!(json.contains("A described base"));
     // Clearing.
-    a.update_database_cover(db.clone(), None).unwrap();
-    a.update_database_icon(db.clone(), None).unwrap();
-    a.update_database_description(db.clone(), String::new())
+    a.update_book_cover(db.clone(), None).unwrap();
+    a.update_book_icon(db.clone(), None).unwrap();
+    a.update_book_description(db.clone(), String::new())
         .unwrap();
-    let json = a.get_database_json(db).unwrap();
+    let json = a.get_book_json(db).unwrap();
     assert!(!json.contains("cover.nebula"));
     assert!(!json.contains("📚"));
     assert!(!json.contains("A described base"));
 }
 
 #[test]
-fn update_database_locked_roundtrip() {
+fn update_book_locked_roundtrip() {
     let a = api();
-    let db = a.create_database("Lockable".to_string()).unwrap();
-    a.update_database_locked(db.clone(), true).unwrap();
+    let db = a.create_book("Lockable".to_string()).unwrap();
+    a.update_book_locked(db.clone(), true).unwrap();
     assert!(
-        a.get_database_json(db.clone())
+        a.get_book_json(db.clone())
             .unwrap()
             .contains("\"locked\":true")
     );
-    a.update_database_locked(db.clone(), false).unwrap();
+    a.update_book_locked(db.clone(), false).unwrap();
     assert!(
-        a.get_database_json(db)
+        a.get_book_json(db)
             .unwrap()
             .contains("\"locked\":false")
     );
 }
 
 #[test]
-fn update_database_locked_invalid_uuid_fails() {
+fn update_book_locked_invalid_uuid_fails() {
     let a = api();
     let err = a
-        .update_database_locked("not-a-uuid".to_string(), true)
+        .update_book_locked("not-a-uuid".to_string(), true)
         .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
-// ── attach_document_to_database ──────────────────────────────────────────────
+// ── attach_leaf_to_book ──────────────────────────────────────────────
 
 #[test]
-fn attach_document_links_entry_to_document() {
+fn attach_leaf_links_entry_to_leaf() {
     let a = api();
-    let db = a.create_database("Tracker".to_string()).unwrap();
-    let doc = a.create_document("Existing note".to_string()).unwrap();
+    let db = a.create_book("Tracker".to_string()).unwrap();
+    let doc = a.create_leaf("Existing note".to_string()).unwrap();
     let entry_id = a
-        .attach_document_to_database(db.clone(), doc.clone(), "{}".to_string())
+        .attach_leaf_to_book(db.clone(), doc.clone(), "{}".to_string())
         .unwrap();
-    let json = a.get_database_json(db).unwrap();
+    let json = a.get_book_json(db).unwrap();
     let value: serde_json::Value = serde_json::from_str(&json).unwrap();
     let entries = value["entries"].as_array().unwrap();
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0]["id"], entry_id);
-    assert_eq!(entries[0]["document_id"], doc);
+    assert_eq!(entries[0]["leaf_id"], doc);
 }
 
 #[test]
-fn attach_document_invalid_uuids_fail() {
+fn attach_leaf_invalid_uuids_fail() {
     let a = api();
     let err = a
-        .attach_document_to_database("bad".to_string(), "bad".to_string(), "{}".to_string())
+        .attach_leaf_to_book("bad".to_string(), "bad".to_string(), "{}".to_string())
         .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
@@ -1330,7 +1330,7 @@ fn attach_document_invalid_uuids_fail() {
 #[test]
 fn update_entry_published_at_overrides_and_resets() {
     let a = api();
-    let db = a.create_database("Journal".to_string()).unwrap();
+    let db = a.create_book("Journal".to_string()).unwrap();
     let entry = a.add_entry(db.clone(), "{}".to_string()).unwrap();
     a.update_entry_published_at(
         db.clone(),
@@ -1339,14 +1339,14 @@ fn update_entry_published_at_overrides_and_resets() {
     )
     .unwrap();
     assert!(
-        a.get_database_json(db.clone())
+        a.get_book_json(db.clone())
             .unwrap()
             .contains("2026-02-01T08:00:00Z")
     );
     a.update_entry_published_at(db.clone(), entry, String::new())
         .unwrap();
     assert!(
-        !a.get_database_json(db)
+        !a.get_book_json(db)
             .unwrap()
             .contains("2026-02-01T08:00:00Z")
     );
@@ -1355,7 +1355,7 @@ fn update_entry_published_at_overrides_and_resets() {
 #[test]
 fn update_entry_published_at_rejects_oversized_value() {
     let a = api();
-    let db = a.create_database("Journal".to_string()).unwrap();
+    let db = a.create_book("Journal".to_string()).unwrap();
     let entry = a.add_entry(db.clone(), "{}".to_string()).unwrap();
     let err = a
         .update_entry_published_at(db, entry, "x".repeat(65))
@@ -1366,7 +1366,7 @@ fn update_entry_published_at_rejects_oversized_value() {
 #[test]
 fn update_entry_published_at_unknown_entry_fails() {
     let a = api();
-    let db = a.create_database("Journal".to_string()).unwrap();
+    let db = a.create_book("Journal".to_string()).unwrap();
     let err = a
         .update_entry_published_at(db, Uuid::new_v4().to_string(), "2026-01-01".to_string())
         .unwrap_err();
@@ -1376,7 +1376,7 @@ fn update_entry_published_at_unknown_entry_fails() {
 // ── set_view_date_sort ───────────────────────────────────────────────────────
 
 fn first_view_id(a: &PinkhaApi, db: &str) -> String {
-    let json = a.get_database_json(db.to_string()).unwrap();
+    let json = a.get_book_json(db.to_string()).unwrap();
     let value: serde_json::Value = serde_json::from_str(&json).unwrap();
     value["views"][0]["id"].as_str().unwrap().to_string()
 }
@@ -1384,18 +1384,18 @@ fn first_view_id(a: &PinkhaApi, db: &str) -> String {
 #[test]
 fn set_view_date_sort_created_and_published() {
     let a = api();
-    let db = a.create_database("Sorted".to_string()).unwrap();
+    let db = a.create_book("Sorted".to_string()).unwrap();
     let view = first_view_id(&a, &db);
     a.set_view_date_sort(db.clone(), view.clone(), "published".to_string(), true)
         .unwrap();
     assert!(
-        a.get_database_json(db.clone())
+        a.get_book_json(db.clone())
             .unwrap()
             .contains("\"Published\"")
     );
     a.set_view_date_sort(db.clone(), view, "created".to_string(), false)
         .unwrap();
-    let json = a.get_database_json(db).unwrap();
+    let json = a.get_book_json(db).unwrap();
     assert!(json.contains("\"Created\""));
     assert!(json.contains("\"Descending\""));
 }
@@ -1403,7 +1403,7 @@ fn set_view_date_sort_created_and_published() {
 #[test]
 fn set_view_date_sort_rejects_unknown_kind() {
     let a = api();
-    let db = a.create_database("Sorted".to_string()).unwrap();
+    let db = a.create_book("Sorted".to_string()).unwrap();
     let view = first_view_id(&a, &db);
     let err = a
         .set_view_date_sort(db, view, "modified".to_string(), true)
@@ -1414,7 +1414,7 @@ fn set_view_date_sort_rejects_unknown_kind() {
 #[test]
 fn set_view_date_sort_unknown_view_fails() {
     let a = api();
-    let db = a.create_database("Sorted".to_string()).unwrap();
+    let db = a.create_book("Sorted".to_string()).unwrap();
     let err = a
         .set_view_date_sort(db, Uuid::new_v4().to_string(), "created".to_string(), true)
         .unwrap_err();
@@ -1426,7 +1426,7 @@ fn set_view_date_sort_unknown_view_fails() {
 #[test]
 fn entry_delete_restore_purge_cycle() {
     let a = api();
-    let db = a.create_database("Rows".to_string()).unwrap();
+    let db = a.create_book("Rows".to_string()).unwrap();
     let entry = a.add_entry(db.clone(), "{}".to_string()).unwrap();
 
     a.delete_entry(db.clone(), entry.clone()).unwrap();
@@ -1442,7 +1442,7 @@ fn entry_delete_restore_purge_cycle() {
             .unwrap()
             .contains(&entry)
     );
-    assert!(a.get_database_json(db.clone()).unwrap().contains(&entry));
+    assert!(a.get_book_json(db.clone()).unwrap().contains(&entry));
 
     a.delete_entry(db.clone(), entry.clone()).unwrap();
     a.purge_entry(db.clone(), entry.clone()).unwrap();
@@ -1451,7 +1451,7 @@ fn entry_delete_restore_purge_cycle() {
             .unwrap()
             .contains(&entry)
     );
-    assert!(!a.get_database_json(db).unwrap().contains(&entry));
+    assert!(!a.get_book_json(db).unwrap().contains(&entry));
 }
 
 // ── duplicate_block ──────────────────────────────────────────────────────────
@@ -1459,7 +1459,7 @@ fn entry_delete_restore_purge_cycle() {
 #[test]
 fn duplicate_block_inserts_clone_after_original() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let block = a
         .add_block(
             doc.clone(),
@@ -1468,7 +1468,7 @@ fn duplicate_block_inserts_clone_after_original() {
         .unwrap();
     let clone = a.duplicate_block(doc.clone(), block.clone()).unwrap();
     assert_ne!(clone, block);
-    let json = a.get_document_json(doc).unwrap();
+    let json = a.get_leaf_json(doc).unwrap();
     assert!(json.contains(&block));
     assert!(json.contains(&clone));
     assert_eq!(json.matches("original").count(), 2);
@@ -1477,7 +1477,7 @@ fn duplicate_block_inserts_clone_after_original() {
 #[test]
 fn duplicate_block_unknown_block_fails() {
     let a = api();
-    let doc = a.create_document("Doc".to_string()).unwrap();
+    let doc = a.create_leaf("Doc".to_string()).unwrap();
     let err = a
         .duplicate_block(doc, Uuid::new_v4().to_string())
         .unwrap_err();
@@ -1502,97 +1502,97 @@ fn list_notion_databases_rejects_oversized_token() {
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
-// ── get_document_meta ───────────────────────────────────────────────────────
+// ── get_leaf_meta ───────────────────────────────────────────────────────
 
 #[test]
-fn get_document_meta_returns_chrome_without_blocks() {
+fn get_leaf_meta_returns_chrome_without_blocks() {
     let a = api();
-    let id = a.create_document("Meta doc".to_string()).unwrap();
-    a.update_document_icon(id.clone(), Some("🌸".to_string()))
+    let id = a.create_leaf("Meta doc".to_string()).unwrap();
+    a.update_leaf_icon(id.clone(), Some("🌸".to_string()))
         .unwrap();
-    let meta = a.get_document_meta(id.clone()).unwrap();
+    let meta = a.get_leaf_meta(id.clone()).unwrap();
     assert_eq!(meta.id, id);
     assert_eq!(meta.title_plain, "Meta doc");
     assert_eq!(meta.icon.as_deref(), Some("🌸"));
 }
 
 #[test]
-fn get_document_meta_invalid_uuid_fails() {
+fn get_leaf_meta_invalid_uuid_fails() {
     let a = api();
-    let err = a.get_document_meta("not-a-uuid".to_string()).unwrap_err();
+    let err = a.get_leaf_meta("not-a-uuid".to_string()).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
 #[test]
-fn get_document_meta_unknown_id_fails() {
+fn get_leaf_meta_unknown_id_fails() {
     let a = api();
-    let err = a.get_document_meta(Uuid::new_v4().to_string()).unwrap_err();
+    let err = a.get_leaf_meta(Uuid::new_v4().to_string()).unwrap_err();
     assert!(matches!(err, PinkhaError::NotFound { .. }));
 }
 
 // ── super_search ────────────────────────────────────────────────────────────
 
 #[test]
-fn super_search_covers_every_axis_and_dedupes_documents() {
+fn super_search_covers_every_axis_and_dedupes_leaves() {
     let a = api();
     // Title hit that ALSO matches in content — must surface once, in titles.
-    let both = a.create_document("alpha report".to_string()).unwrap();
+    let both = a.create_leaf("alpha report".to_string()).unwrap();
     a.add_block(
         both.clone(),
         json!({"Text": [{"content": "alpha is here too", "styles": []}]}).to_string(),
     )
     .unwrap();
     // Content-only hit.
-    let content_only = a.create_document("plain notes".to_string()).unwrap();
+    let content_only = a.create_leaf("plain notes".to_string()).unwrap();
     a.add_block(
         content_only.clone(),
         json!({"Text": [{"content": "mentions alpha inside", "styles": []}]}).to_string(),
     )
     .unwrap();
-    // Database + folder hits.
-    let _db = a.create_database("alpha base".to_string()).unwrap();
-    let _folder = a.create_folder("alpha folder".to_string(), None).unwrap();
+    // Book + shelf hits.
+    let _book = a.create_book("alpha base".to_string()).unwrap();
+    let _shelf = a.create_shelf("alpha shelf".to_string(), None).unwrap();
 
     let results = a.super_search("alpha".to_string()).unwrap();
-    assert_eq!(results.documents_by_title.len(), 1);
-    assert_eq!(results.documents_by_title[0].id, both);
+    assert_eq!(results.leaves_by_title.len(), 1);
+    assert_eq!(results.leaves_by_title[0].id, both);
     // The title-matching doc is deduplicated out of the content hits.
-    assert_eq!(results.documents_by_content.len(), 1);
-    assert_eq!(results.documents_by_content[0].doc.id, content_only);
-    assert!(results.documents_by_content[0].snippet.contains("alpha"));
-    assert_eq!(results.databases.len(), 1);
-    assert_eq!(results.folders.len(), 1);
+    assert_eq!(results.leaves_by_content.len(), 1);
+    assert_eq!(results.leaves_by_content[0].doc.id, content_only);
+    assert!(results.leaves_by_content[0].snippet.contains("alpha"));
+    assert_eq!(results.books.len(), 1);
+    assert_eq!(results.shelves.len(), 1);
 }
 
 #[test]
 fn super_search_empty_everywhere_returns_empty_buckets() {
     let a = api();
     let results = a.super_search("nothing".to_string()).unwrap();
-    assert!(results.documents_by_title.is_empty());
-    assert!(results.documents_by_content.is_empty());
-    assert!(results.databases.is_empty());
-    assert!(results.folders.is_empty());
+    assert!(results.leaves_by_title.is_empty());
+    assert!(results.leaves_by_content.is_empty());
+    assert!(results.books.is_empty());
+    assert!(results.shelves.is_empty());
 }
 
 // ── empty_trash ─────────────────────────────────────────────────────────────
 
 #[test]
-fn empty_trash_purges_docs_databases_and_folders() {
+fn empty_trash_purges_leaves_books_and_shelves() {
     let a = api();
-    let d1 = a.create_document("Doc 1".to_string()).unwrap();
-    let d2 = a.create_document("Doc 2".to_string()).unwrap();
-    let db = a.create_database("DB".to_string()).unwrap();
-    let folder = a.create_folder("Folder".to_string(), None).unwrap();
-    a.delete_document(d1).unwrap();
-    a.delete_document(d2).unwrap();
-    a.delete_database(db).unwrap();
-    a.delete_folder(folder.id).unwrap();
+    let d1 = a.create_leaf("Doc 1".to_string()).unwrap();
+    let d2 = a.create_leaf("Doc 2".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
+    let shelf = a.create_shelf("Shelf".to_string(), None).unwrap();
+    a.delete_leaf(d1).unwrap();
+    a.delete_leaf(d2).unwrap();
+    a.delete_book(db).unwrap();
+    a.delete_shelf(shelf.id).unwrap();
 
     let purged = a.empty_trash().unwrap();
     assert_eq!(purged, 4);
-    assert!(a.list_deleted_documents().unwrap().is_empty());
-    assert!(a.list_deleted_databases().unwrap().is_empty());
-    assert!(a.list_deleted_folders().unwrap().is_empty());
+    assert!(a.list_deleted_leaves().unwrap().is_empty());
+    assert!(a.list_deleted_books().unwrap().is_empty());
+    assert!(a.list_deleted_shelves().unwrap().is_empty());
 }
 
 #[test]
@@ -1601,43 +1601,43 @@ fn empty_trash_on_empty_trash_returns_zero() {
     assert_eq!(a.empty_trash().unwrap(), 0);
 }
 
-// ── list_child_folders ──────────────────────────────────────────────────────
+// ── list_child_shelves ──────────────────────────────────────────────────────
 
 #[test]
-fn list_child_folders_filters_by_parent() {
+fn list_child_shelves_filters_by_parent() {
     let a = api();
-    let root = a.create_folder("Root".to_string(), None).unwrap();
+    let root = a.create_shelf("Root".to_string(), None).unwrap();
     let child = a
-        .create_folder("Child".to_string(), Some(root.id.clone()))
+        .create_shelf("Child".to_string(), Some(root.id.clone()))
         .unwrap();
 
-    let top = a.list_child_folders(None).unwrap();
+    let top = a.list_child_shelves(None).unwrap();
     assert_eq!(top.len(), 1);
     assert_eq!(top[0].id, root.id);
 
-    let children = a.list_child_folders(Some(root.id.clone())).unwrap();
+    let children = a.list_child_shelves(Some(root.id.clone())).unwrap();
     assert_eq!(children.len(), 1);
     assert_eq!(children[0].id, child.id);
 
-    let none = a.list_child_folders(Some(child.id)).unwrap();
+    let none = a.list_child_shelves(Some(child.id)).unwrap();
     assert!(none.is_empty());
 }
 
 #[test]
-fn list_child_folders_invalid_parent_uuid_fails() {
+fn list_child_shelves_invalid_parent_uuid_fails() {
     let a = api();
     let err = a
-        .list_child_folders(Some("not-a-uuid".to_string()))
+        .list_child_shelves(Some("not-a-uuid".to_string()))
         .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
-// ── create_document_in_database ─────────────────────────────────────────────
+// ── create_leaf_in_book ─────────────────────────────────────────────
 
 #[test]
-fn create_document_in_database_fills_title_and_page_link() {
+fn create_leaf_in_book_fills_title_and_page_link() {
     let a = api();
-    let db = a.create_database("Tasks".to_string()).unwrap();
+    let db = a.create_book("Tasks".to_string()).unwrap();
     let (title_id, title_json) = make_title_property("Name");
     a.add_property(db.clone(), title_json).unwrap();
     let page_prop_id = Uuid::new_v4().to_string();
@@ -1647,56 +1647,56 @@ fn create_document_in_database_fills_title_and_page_link() {
     )
     .unwrap();
 
-    let doc_id = a
-        .create_document_in_database(db.clone(), "My new row".to_string(), "{}".to_string())
+    let leaf_id = a
+        .create_leaf_in_book(db.clone(), "My new row".to_string(), "{}".to_string())
         .unwrap();
 
-    // The document exists with the right title.
-    let meta = a.get_document_meta(doc_id.clone()).unwrap();
+    // The leaf exists with the right title.
+    let meta = a.get_leaf_meta(leaf_id.clone()).unwrap();
     assert_eq!(meta.title_plain, "My new row");
 
-    // The database gained one entry whose Title and page-link are filled.
-    let db_json = a.get_database_json(db).unwrap();
-    let db_value: serde_json::Value = serde_json::from_str(&db_json).unwrap();
-    let entries = db_value["entries"].as_array().unwrap();
+    // The book gained one entry whose Title and page-link are filled.
+    let book_json = a.get_book_json(db).unwrap();
+    let book_value: serde_json::Value = serde_json::from_str(&book_json).unwrap();
+    let entries = book_value["entries"].as_array().unwrap();
     assert_eq!(entries.len(), 1);
     let values = &entries[0]["values"];
-    assert_eq!(values[&page_prop_id]["Text"], doc_id);
+    assert_eq!(values[&page_prop_id]["Text"], leaf_id);
     assert_eq!(values[&title_id]["Title"][0]["content"], "My new row");
-    // The entry is linked to the document for title propagation.
-    assert_eq!(entries[0]["document_id"], doc_id);
+    // The entry is linked to the leaf for title propagation.
+    assert_eq!(entries[0]["leaf_id"], leaf_id);
 }
 
 #[test]
-fn create_document_in_database_unknown_db_fails_without_creating_doc() {
+fn create_leaf_in_book_unknown_book_fails_without_creating_leaf() {
     let a = api();
-    let before = a.list_documents().unwrap().len();
+    let before = a.list_leaves().unwrap().len();
     let err = a
-        .create_document_in_database(
+        .create_leaf_in_book(
             Uuid::new_v4().to_string(),
             "Orphan".to_string(),
             "{}".to_string(),
         )
         .unwrap_err();
     assert!(matches!(err, PinkhaError::NotFound { .. }));
-    assert_eq!(a.list_documents().unwrap().len(), before);
+    assert_eq!(a.list_leaves().unwrap().len(), before);
 }
 
 // ── set_published_at_source ──────────────────────────────────────────────────
 
 /// Builds a DB with a Date column + one doc-backed row whose cell holds
-/// `date`. Returns (db_id, date_prop_id, entry_id, doc_id).
+/// `date`. Returns (book_id, date_prop_id, entry_id, leaf_id).
 fn make_publish_source_fixture(a: &PinkhaApi, date: &str) -> (String, String, String, String) {
-    let db = a.create_database("Journal".to_string()).unwrap();
+    let db = a.create_book("Journal".to_string()).unwrap();
     let prop_id = Uuid::new_v4().to_string();
     a.add_property(
         db.clone(),
         json!({"id": prop_id, "name": "Publication", "type_": "Date"}).to_string(),
     )
     .unwrap();
-    let doc = a.create_document("Old text".to_string()).unwrap();
+    let doc = a.create_leaf("Old text".to_string()).unwrap();
     let entry = a
-        .attach_document_to_database(
+        .attach_leaf_to_book(
             db.clone(),
             doc.clone(),
             json!({ prop_id.clone(): {"Date": date} }).to_string(),
@@ -1705,22 +1705,22 @@ fn make_publish_source_fixture(a: &PinkhaApi, date: &str) -> (String, String, St
     (db, prop_id, entry, doc)
 }
 
-fn doc_published_at(a: &PinkhaApi, doc_id: &str) -> String {
-    a.get_document_meta(doc_id.to_string())
+fn leaf_published_at(a: &PinkhaApi, leaf_id: &str) -> String {
+    a.get_leaf_meta(leaf_id.to_string())
         .unwrap()
         .published_at
 }
 
 #[test]
-fn adopting_a_date_column_backfills_entries_and_documents() {
+fn adopting_a_date_column_backfills_entries_and_leaves() {
     let a = api();
     let (db, prop, entry, doc) = make_publish_source_fixture(&a, "2023-11-08");
 
     let touched = a.set_published_at_source(db.clone(), Some(prop)).unwrap();
     assert_eq!(touched, 1);
 
-    let db_json = a.get_database_json(db).unwrap();
-    let value: serde_json::Value = serde_json::from_str(&db_json).unwrap();
+    let book_json = a.get_book_json(db).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&book_json).unwrap();
     let row = value["entries"]
         .as_array()
         .unwrap()
@@ -1729,7 +1729,7 @@ fn adopting_a_date_column_backfills_entries_and_documents() {
         .unwrap()
         .clone();
     assert_eq!(row["published_at"], "2023-11-08");
-    assert_eq!(doc_published_at(&a, &doc), "2023-11-08");
+    assert_eq!(leaf_published_at(&a, &doc), "2023-11-08");
 }
 
 #[test]
@@ -1741,9 +1741,9 @@ fn clearing_the_source_resets_rows_to_follow_created_at() {
     let touched = a.set_published_at_source(db.clone(), None).unwrap();
     assert_eq!(touched, 1);
 
-    // The document falls back to its creation date (SQL CASE resolves
+    // The leaf falls back to its creation date (SQL CASE resolves
     // the empty sentinel against the row's real created_at).
-    let meta = a.get_document_meta(doc).unwrap();
+    let meta = a.get_leaf_meta(doc).unwrap();
     assert_eq!(meta.published_at, meta.created_at);
 }
 
@@ -1754,7 +1754,7 @@ fn editing_the_source_cell_keeps_publish_date_in_sync() {
     a.set_published_at_source(db.clone(), Some(prop.clone()))
         .unwrap();
 
-    // Live sync: editing the date cell re-dates the row + its document.
+    // Live sync: editing the date cell re-dates the row + its leaf.
     a.update_entry(
         db.clone(),
         entry.clone(),
@@ -1762,15 +1762,15 @@ fn editing_the_source_cell_keeps_publish_date_in_sync() {
     )
     .unwrap();
 
-    let db_json = a.get_database_json(db.clone()).unwrap();
-    assert!(db_json.contains("2024-01-20"));
-    assert_eq!(doc_published_at(&a, &doc), "2024-01-20");
+    let book_json = a.get_book_json(db.clone()).unwrap();
+    assert!(book_json.contains("2024-01-20"));
+    assert_eq!(leaf_published_at(&a, &doc), "2024-01-20");
 }
 
 #[test]
 fn new_rows_inherit_publish_date_from_the_source_cell() {
     let a = api();
-    let (db, prop, _entry, _doc) = make_publish_source_fixture(&a, "2023-11-08");
+    let (db, prop, _entry, _leaf) = make_publish_source_fixture(&a, "2023-11-08");
     a.set_published_at_source(db.clone(), Some(prop.clone()))
         .unwrap();
 
@@ -1780,8 +1780,8 @@ fn new_rows_inherit_publish_date_from_the_source_cell() {
             json!({ prop: {"Date": "2022-05-01"} }).to_string(),
         )
         .unwrap();
-    let db_json = a.get_database_json(db).unwrap();
-    let value: serde_json::Value = serde_json::from_str(&db_json).unwrap();
+    let book_json = a.get_book_json(db).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&book_json).unwrap();
     let row = value["entries"]
         .as_array()
         .unwrap()
@@ -1795,7 +1795,7 @@ fn new_rows_inherit_publish_date_from_the_source_cell() {
 #[test]
 fn adopting_a_non_date_property_fails() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let prop_id = Uuid::new_v4().to_string();
     a.add_property(db.clone(), make_text_property("Notes"))
         .unwrap();
@@ -1811,7 +1811,7 @@ fn adopting_a_non_date_property_fails() {
 #[test]
 fn adopting_known_text_property_is_invalid_operation() {
     let a = api();
-    let db = a.create_database("DB".to_string()).unwrap();
+    let db = a.create_book("DB".to_string()).unwrap();
     let prop_id = Uuid::new_v4().to_string();
     a.add_property(
         db.clone(),
@@ -1822,103 +1822,103 @@ fn adopting_known_text_property_is_invalid_operation() {
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
-// ── delete_database_cascade / restore_database_cascade ──────────────────────
+// ── delete_book_cascade / restore_book_cascade ──────────────────────
 
 #[test]
-fn delete_cascade_trashes_database_and_backing_documents() {
+fn delete_cascade_trashes_book_and_backing_leaves() {
     let a = api();
-    let db = a.create_database("Book".to_string()).unwrap();
-    let d1 = a.create_document("Page 1".to_string()).unwrap();
-    let d2 = a.create_document("Page 2".to_string()).unwrap();
-    a.attach_document_to_database(db.clone(), d1.clone(), "{}".to_string())
+    let db = a.create_book("Book".to_string()).unwrap();
+    let d1 = a.create_leaf("Page 1".to_string()).unwrap();
+    let d2 = a.create_leaf("Page 2".to_string()).unwrap();
+    a.attach_leaf_to_book(db.clone(), d1.clone(), "{}".to_string())
         .unwrap();
-    a.attach_document_to_database(db.clone(), d2.clone(), "{}".to_string())
+    a.attach_leaf_to_book(db.clone(), d2.clone(), "{}".to_string())
         .unwrap();
-    // A standalone row with no backing document must not break the cascade.
+    // A standalone row with no backing leaf must not break the cascade.
     a.add_entry(db.clone(), "{}".to_string()).unwrap();
 
-    let deleted = a.delete_database_cascade(db.clone()).unwrap();
+    let deleted = a.delete_book_cascade(db.clone()).unwrap();
     assert_eq!(deleted, 2);
-    assert!(a.list_databases().unwrap().is_empty());
-    assert!(a.list_documents().unwrap().is_empty());
+    assert!(a.list_books().unwrap().is_empty());
+    assert!(a.list_leaves().unwrap().is_empty());
     // Everything is recoverable from the trash.
-    assert_eq!(a.list_deleted_documents().unwrap().len(), 2);
-    assert_eq!(a.list_deleted_databases().unwrap().len(), 1);
+    assert_eq!(a.list_deleted_leaves().unwrap().len(), 2);
+    assert_eq!(a.list_deleted_books().unwrap().len(), 1);
 }
 
 #[test]
-fn delete_cascade_skips_documents_already_in_the_trash() {
+fn delete_cascade_skips_leaves_already_in_the_trash() {
     let a = api();
-    let db = a.create_database("Book".to_string()).unwrap();
-    let d1 = a.create_document("Page 1".to_string()).unwrap();
-    a.attach_document_to_database(db.clone(), d1.clone(), "{}".to_string())
+    let db = a.create_book("Book".to_string()).unwrap();
+    let d1 = a.create_leaf("Page 1".to_string()).unwrap();
+    a.attach_leaf_to_book(db.clone(), d1.clone(), "{}".to_string())
         .unwrap();
-    a.delete_document(d1).unwrap();
+    a.delete_leaf(d1).unwrap();
 
-    let deleted = a.delete_database_cascade(db).unwrap();
+    let deleted = a.delete_book_cascade(db).unwrap();
     assert_eq!(deleted, 0);
 }
 
 #[test]
-fn restore_cascade_brings_back_database_and_documents() {
+fn restore_cascade_brings_back_book_and_leaves() {
     let a = api();
-    let db = a.create_database("Book".to_string()).unwrap();
-    let d1 = a.create_document("Page 1".to_string()).unwrap();
-    a.attach_document_to_database(db.clone(), d1.clone(), "{}".to_string())
+    let db = a.create_book("Book".to_string()).unwrap();
+    let d1 = a.create_leaf("Page 1".to_string()).unwrap();
+    a.attach_leaf_to_book(db.clone(), d1.clone(), "{}".to_string())
         .unwrap();
-    a.delete_database_cascade(db.clone()).unwrap();
+    a.delete_book_cascade(db.clone()).unwrap();
 
-    let restored = a.restore_database_cascade(db).unwrap();
+    let restored = a.restore_book_cascade(db).unwrap();
     assert_eq!(restored, 1);
-    assert_eq!(a.list_databases().unwrap().len(), 1);
-    assert_eq!(a.list_documents().unwrap().len(), 1);
-    assert!(a.list_deleted_documents().unwrap().is_empty());
+    assert_eq!(a.list_books().unwrap().len(), 1);
+    assert_eq!(a.list_leaves().unwrap().len(), 1);
+    assert!(a.list_deleted_leaves().unwrap().is_empty());
 }
 
 #[test]
-fn restore_cascade_skips_documents_that_stayed_active() {
+fn restore_cascade_skips_leaves_that_stayed_active() {
     let a = api();
-    let db = a.create_database("Book".to_string()).unwrap();
-    let d1 = a.create_document("Page 1".to_string()).unwrap();
-    a.attach_document_to_database(db.clone(), d1, "{}".to_string())
+    let db = a.create_book("Book".to_string()).unwrap();
+    let d1 = a.create_leaf("Page 1".to_string()).unwrap();
+    a.attach_leaf_to_book(db.clone(), d1, "{}".to_string())
         .unwrap();
     // DB-only delete: the doc stays active.
-    a.delete_database(db.clone()).unwrap();
+    a.delete_book(db.clone()).unwrap();
 
-    let restored = a.restore_database_cascade(db).unwrap();
+    let restored = a.restore_book_cascade(db).unwrap();
     assert_eq!(restored, 0);
-    assert_eq!(a.list_documents().unwrap().len(), 1);
+    assert_eq!(a.list_leaves().unwrap().len(), 1);
 }
 
 #[test]
-fn delete_cascade_unknown_database_fails() {
+fn delete_cascade_unknown_book_fails() {
     let a = api();
     let err = a
-        .delete_database_cascade(Uuid::new_v4().to_string())
+        .delete_book_cascade(Uuid::new_v4().to_string())
         .unwrap_err();
     assert!(matches!(err, PinkhaError::NotFound { .. }));
 }
 
-// ── Locked database guards ───────────────────────────────────────────────────
+// ── Locked book guards ───────────────────────────────────────────────────
 
 #[test]
-fn locked_database_rejects_title_and_description_edits() {
+fn locked_book_rejects_title_and_description_edits() {
     let a = api();
-    let db = a.create_database("Sealed".to_string()).unwrap();
-    a.update_database_locked(db.clone(), true).unwrap();
+    let db = a.create_book("Sealed".to_string()).unwrap();
+    a.update_book_locked(db.clone(), true).unwrap();
 
     let err = a
-        .update_database_title(db.clone(), "New title".to_string())
+        .update_book_title(db.clone(), "New title".to_string())
         .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
     let err = a
-        .update_database_description(db.clone(), "New description".to_string())
+        .update_book_description(db.clone(), "New description".to_string())
         .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 
     // Unlocking lifts the wall.
-    a.update_database_locked(db.clone(), false).unwrap();
-    a.update_database_title(db.clone(), "New title".to_string())
+    a.update_book_locked(db.clone(), false).unwrap();
+    a.update_book_title(db.clone(), "New title".to_string())
         .unwrap();
-    assert!(a.get_database_json(db).unwrap().contains("New title"));
+    assert!(a.get_book_json(db).unwrap().contains("New title"));
 }

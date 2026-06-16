@@ -2,12 +2,12 @@
 //!
 //! The full Notion import is async + hits the real API, so we exercise the
 //! pure post-pass step (`rewrite_notion_mentions`) directly here: seed a
-//! document containing a Notion-style `[label](https://www.notion.so/...)`
+//! leaf containing a Notion-style `[label](https://www.notion.so/...)`
 //! link, run the rewriter with a Notion→Pinkha map, and verify the link now
 //! points at the matching `pinkha://doc/…`.
 
-use pinkha::application::use_cases::create_document;
-use pinkha::domain::document::{Block, BlockContent, InlineStyle, InlineText};
+use pinkha::application::use_cases::create_leaf;
+use pinkha::domain::leaf::{Block, BlockContent, InlineStyle, InlineText};
 use pinkha::extractors::notion::{normalize_notion_id, rewrite_notion_mentions};
 use pinkha::infrastructure::json_store::JsonStore;
 use std::collections::HashMap;
@@ -27,45 +27,45 @@ fn span_with_link(text: &str, url: &str) -> InlineText {
 }
 
 #[test]
-fn rewrite_replaces_notion_url_with_pinkha_doc_link() {
+fn rewrite_replaces_notion_url_with_pinkha_leaf_link() {
     let store = store_temp();
 
     // The "target" page that the link points to — already imported.
-    let target_doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let target_leaf = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Target page",
     )
     .unwrap();
 
     // The "source" page that links to the target.
-    let mut source_doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let mut source_leaf = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Source page",
     )
     .unwrap();
     let notion_target_id = "abc123def456abc123def456abc123de"; // 32 hex
-    let notion_url = format!("https://www.notion.so/My-Workspace/Target-page-{notion_target_id}");
-    source_doc.blocks.push(Block::new(BlockContent::Text(vec![
+    let notion_url = format!("https://www.notion.so/My-Library/Target-page-{notion_target_id}");
+    source_leaf.blocks.push(Block::new(BlockContent::Text(vec![
         InlineText {
             content: "See ".into(),
             styles: vec![],
         },
         span_with_link("Target page", &notion_url),
     ])));
-    use pinkha::application::repository::DocumentRepository;
-    store.save(&source_doc).unwrap();
+    use pinkha::application::repository::LeafRepository;
+    store.save(&source_leaf).unwrap();
 
     // Build the import map (Notion id → Pinkha doc UUID).
     let mut map: HashMap<String, Uuid> = HashMap::new();
-    map.insert(normalize_notion_id(notion_target_id), target_doc.id);
+    map.insert(normalize_notion_id(notion_target_id), target_leaf.id);
 
-    // Run the rewriter on the source document.
-    rewrite_notion_mentions(&store, source_doc.id, &map).unwrap();
+    // Run the rewriter on the source leaf.
+    rewrite_notion_mentions(&store, source_leaf.id, &map).unwrap();
 
     // The link URL should now point at the target Pinkha doc.
-    let reloaded = pinkha::application::use_cases::get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
-        source_doc.id,
+    let reloaded = pinkha::application::use_cases::get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
+        source_leaf.id,
     )
     .unwrap();
     if let BlockContent::Text(spans) = &reloaded.blocks[0].content {
@@ -73,7 +73,7 @@ fn rewrite_replaces_notion_url_with_pinkha_doc_link() {
         let Some(InlineStyle::Link(url)) = link_span.styles.first() else {
             panic!("expected link style on span, got {:?}", link_span.styles);
         };
-        assert_eq!(url, &format!("pinkha://doc/{}", target_doc.id));
+        assert_eq!(url, &format!("pinkha://doc/{}", target_leaf.id));
     } else {
         panic!("expected Text block");
     }
@@ -82,8 +82,8 @@ fn rewrite_replaces_notion_url_with_pinkha_doc_link() {
 #[test]
 fn rewrite_leaves_unknown_links_alone() {
     let store = store_temp();
-    let mut doc = create_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let mut doc = create_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         "Page",
     )
     .unwrap();
@@ -93,13 +93,13 @@ fn rewrite_leaves_unknown_links_alone() {
             "Read more",
             foreign_url,
         )])));
-    use pinkha::application::repository::DocumentRepository;
+    use pinkha::application::repository::LeafRepository;
     store.save(&doc).unwrap();
 
     rewrite_notion_mentions(&store, doc.id, &HashMap::new()).unwrap();
 
-    let reloaded = pinkha::application::use_cases::get_document(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_docs(&store),
+    let reloaded = pinkha::application::use_cases::get_leaf(
+        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_leaves(&store),
         doc.id,
     )
     .unwrap();

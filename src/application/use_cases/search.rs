@@ -1,15 +1,15 @@
 use crate::application::error::PinkhaError;
 use crate::application::unit_of_work::UnitOfWork;
-use crate::domain::document::{Block, BlockContent, DocumentMeta};
+use crate::domain::leaf::{Block, BlockContent, LeafMeta};
 
-/// Case-insensitive search across document titles.
-pub fn search_documents(
+/// Case-insensitive search across leaf titles.
+pub fn search_leaves(
     uow: &dyn UnitOfWork,
     query: &str,
-) -> Result<Vec<DocumentMeta>, PinkhaError> {
+) -> Result<Vec<LeafMeta>, PinkhaError> {
     let q = query.to_lowercase();
     Ok(uow
-        .documents()
+        .leaves()
         .list()?
         .into_iter()
         .filter(|m| {
@@ -20,14 +20,14 @@ pub fn search_documents(
         .collect())
 }
 
-/// Case-insensitive full-text search across the block content of all documents.
+/// Case-insensitive full-text search across the block content of all leaves.
 ///
-/// Returns the metadata of documents that contain at least one matching block.
+/// Returns the metadata of leaves that contain at least one matching block.
 pub fn search_in_blocks(
     uow: &dyn UnitOfWork,
     query: &str,
-) -> Result<Vec<DocumentMeta>, PinkhaError> {
-    let repo = uow.documents();
+) -> Result<Vec<LeafMeta>, PinkhaError> {
+    let repo = uow.leaves();
     let q = query.to_lowercase();
     let metas = repo.list()?;
     let mut results = Vec::new();
@@ -40,14 +40,14 @@ pub fn search_in_blocks(
     Ok(results)
 }
 
-/// Case-insensitive search across database titles.
-pub fn search_databases(
+/// Case-insensitive search across book titles.
+pub fn search_books(
     uow: &dyn UnitOfWork,
     query: &str,
-) -> Result<Vec<crate::domain::database::DatabaseMeta>, PinkhaError> {
+) -> Result<Vec<crate::domain::book::BookMeta>, PinkhaError> {
     let q = query.to_lowercase();
     Ok(uow
-        .databases()
+        .books()
         .list_meta()?
         .into_iter()
         .filter(|m| {
@@ -58,14 +58,14 @@ pub fn search_databases(
         .collect())
 }
 
-/// A single hit from a block-content search — the document metadata
+/// A single hit from a block-content search — the leaf metadata
 /// plus a short snippet of the matching block, ready to surface in the
 /// UI alongside a Notion-style highlight.
 #[derive(Debug, Clone)]
 pub struct BlockSearchHit {
-    pub doc: DocumentMeta,
+    pub doc: LeafMeta,
     /// UUID of the block where the snippet was extracted. Lets the UI
-    /// scroll directly to the match when opening the document.
+    /// scroll directly to the match when opening the leaf.
     pub block_id: uuid::Uuid,
     pub snippet: String,
 }
@@ -77,7 +77,7 @@ pub fn search_in_blocks_with_snippets(
     uow: &dyn UnitOfWork,
     query: &str,
 ) -> Result<Vec<BlockSearchHit>, PinkhaError> {
-    let repo = uow.documents();
+    let repo = uow.leaves();
     let q = query.to_lowercase();
     let metas = repo.list()?;
     let mut hits = Vec::new();
@@ -162,54 +162,54 @@ fn extract_snippet(text: &str, query_lower: &str) -> Option<String> {
     Some(snippet)
 }
 
-/// Case-insensitive search across folder names.
-pub fn search_folders(
+/// Case-insensitive search across shelf names.
+pub fn search_shelves(
     uow: &dyn UnitOfWork,
     query: &str,
-) -> Result<Vec<crate::domain::folder::FolderMeta>, PinkhaError> {
+) -> Result<Vec<crate::domain::shelf::ShelfMeta>, PinkhaError> {
     let q = query.to_lowercase();
     Ok(uow
-        .folders()
+        .shelves()
         .list()?
         .into_iter()
         .filter(|m| m.name.to_lowercase().contains(&q))
         .collect())
 }
 
-/// Bundle of search results across every workspace surface: document
-/// titles, block content (with snippets), database titles and folder
+/// Bundle of search results across every library surface: leaf
+/// titles, block content (with snippets), book titles and shelf
 /// names. Returned by [`super_search`].
 #[derive(Debug, Clone)]
 pub struct SuperSearchResults {
-    pub documents_by_title: Vec<DocumentMeta>,
-    /// Block-level hits for documents that did **not** already match by
-    /// title — a doc matching both surfaces once in `documents_by_title`.
-    pub documents_by_content: Vec<BlockSearchHit>,
-    pub databases: Vec<crate::domain::database::DatabaseMeta>,
-    pub folders: Vec<crate::domain::folder::FolderMeta>,
+    pub leaves_by_title: Vec<LeafMeta>,
+    /// Block-level hits for leaves that did **not** already match by
+    /// title — a doc matching both surfaces once in `leaves_by_title`.
+    pub leaves_by_content: Vec<BlockSearchHit>,
+    pub books: Vec<crate::domain::book::BookMeta>,
+    pub shelves: Vec<crate::domain::shelf::ShelfMeta>,
 }
 
-/// Runs every search axis in a single call and deduplicates the document
-/// axis: a document matching by title is excluded from the content hits
+/// Runs every search axis in a single call and deduplicates the leaf
+/// axis: a leaf matching by title is excluded from the content hits
 /// so it surfaces exactly once in the title section.
 pub fn super_search(uow: &dyn UnitOfWork, query: &str) -> Result<SuperSearchResults, PinkhaError> {
-    let documents_by_title = search_documents(uow, query)?;
+    let leaves_by_title = search_leaves(uow, query)?;
     let block_hits = search_in_blocks_with_snippets(uow, query)?;
-    let databases = search_databases(uow, query)?;
-    let folders = search_folders(uow, query)?;
+    let books = search_books(uow, query)?;
+    let shelves = search_shelves(uow, query)?;
 
     let title_ids: std::collections::HashSet<uuid::Uuid> =
-        documents_by_title.iter().map(|m| m.id).collect();
-    let documents_by_content = block_hits
+        leaves_by_title.iter().map(|m| m.id).collect();
+    let leaves_by_content = block_hits
         .into_iter()
         .filter(|h| !title_ids.contains(&h.doc.id))
         .collect();
 
     Ok(SuperSearchResults {
-        documents_by_title,
-        documents_by_content,
-        databases,
-        folders,
+        leaves_by_title,
+        leaves_by_content,
+        books,
+        shelves,
     })
 }
 
@@ -239,13 +239,13 @@ fn block_contains(block: &Block, query: &str) -> bool {
 mod tests {
     use super::*;
     use crate::application::error::PinkhaError;
-    use crate::domain::document::{Block, BlockContent, Document, DocumentMeta, InlineText};
+    use crate::domain::leaf::{Block, BlockContent, Leaf, LeafMeta, InlineText};
 
     use std::collections::HashMap;
     use uuid::Uuid;
 
     struct MockRepo {
-        docs: std::sync::Mutex<HashMap<Uuid, Document>>,
+        docs: std::sync::Mutex<HashMap<Uuid, Leaf>>,
     }
 
     impl MockRepo {
@@ -256,12 +256,12 @@ mod tests {
         }
     }
 
-    impl crate::application::repository::DocumentRepository for MockRepo {
-        fn save(&self, doc: &Document) -> Result<(), PinkhaError> {
+    impl crate::application::repository::LeafRepository for MockRepo {
+        fn save(&self, doc: &Leaf) -> Result<(), PinkhaError> {
             self.docs.lock().unwrap().insert(doc.id, doc.clone());
             Ok(())
         }
-        fn load(&self, id: Uuid) -> Result<Document, PinkhaError> {
+        fn load(&self, id: Uuid) -> Result<Leaf, PinkhaError> {
             self.docs
                 .lock()
                 .unwrap()
@@ -269,13 +269,13 @@ mod tests {
                 .cloned()
                 .ok_or(PinkhaError::NotFound(id))
         }
-        fn list(&self) -> Result<Vec<DocumentMeta>, PinkhaError> {
+        fn list(&self) -> Result<Vec<LeafMeta>, PinkhaError> {
             Ok(self
                 .docs
                 .lock()
                 .unwrap()
                 .values()
-                .map(DocumentMeta::from)
+                .map(LeafMeta::from)
                 .collect())
         }
         fn delete(&self, id: Uuid) -> Result<(), PinkhaError> {
@@ -286,22 +286,22 @@ mod tests {
                 .map(|_| ())
                 .ok_or(PinkhaError::NotFound(id))
         }
-        fn move_to_folder(
+        fn move_to_shelf(
             &self,
-            _doc_id: Uuid,
-            _folder_id: Option<Uuid>,
+            _leaf_id: Uuid,
+            _shelf_id: Option<Uuid>,
         ) -> Result<(), PinkhaError> {
             Ok(())
         }
-        fn list_by_folder(
+        fn list_by_shelf(
             &self,
-            _folder_id: Option<Uuid>,
-        ) -> Result<Vec<DocumentMeta>, PinkhaError> {
+            _shelf_id: Option<Uuid>,
+        ) -> Result<Vec<LeafMeta>, PinkhaError> {
             self.list()
         }
     }
 
-    use crate::application::repository::DocumentRepository;
+    use crate::application::repository::LeafRepository;
     use crate::application::unit_of_work::test_support::MockUnitOfWork;
 
     fn inline(s: &str) -> Vec<InlineText> {
@@ -315,23 +315,23 @@ mod tests {
         Block::new(BlockContent::Text(inline(s)))
     }
 
-    fn doc_with_blocks(title: &str, blocks: Vec<Block>) -> Document {
-        let mut doc = Document::new(inline(title));
+    fn leaf_with_blocks(title: &str, blocks: Vec<Block>) -> Leaf {
+        let mut doc = Leaf::new(inline(title));
         doc.blocks = blocks;
         doc
     }
 
-    fn doc_uow(repo: &MockRepo) -> MockUnitOfWork<'_> {
-        MockUnitOfWork::with_docs(repo)
+    fn leaf_uow(repo: &MockRepo) -> MockUnitOfWork<'_> {
+        MockUnitOfWork::with_leaves(repo)
     }
 
     #[test]
     fn test_search_in_blocks_trouve() {
         let repo = MockRepo::new();
-        let doc = doc_with_blocks("Doc", vec![text_block("Rust est génial")]);
+        let doc = leaf_with_blocks("Doc", vec![text_block("Rust est génial")]);
         repo.save(&doc).unwrap();
 
-        let results = search_in_blocks(&doc_uow(&repo), "rust").unwrap();
+        let results = search_in_blocks(&leaf_uow(&repo), "rust").unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, doc.id);
     }
@@ -339,10 +339,10 @@ mod tests {
     #[test]
     fn test_search_in_blocks_pas_de_resultat() {
         let repo = MockRepo::new();
-        let doc = doc_with_blocks("Doc", vec![text_block("Bonjour monde")]);
+        let doc = leaf_with_blocks("Doc", vec![text_block("Bonjour monde")]);
         repo.save(&doc).unwrap();
 
-        let results = search_in_blocks(&doc_uow(&repo), "flutter").unwrap();
+        let results = search_in_blocks(&leaf_uow(&repo), "flutter").unwrap();
         assert!(results.is_empty());
     }
 
@@ -353,10 +353,10 @@ mod tests {
         parent
             .children
             .push(text_block("texte caché en profondeur"));
-        let doc = doc_with_blocks("Doc", vec![parent]);
+        let doc = leaf_with_blocks("Doc", vec![parent]);
         repo.save(&doc).unwrap();
 
-        let results = search_in_blocks(&doc_uow(&repo), "profondeur").unwrap();
+        let results = search_in_blocks(&leaf_uow(&repo), "profondeur").unwrap();
         assert_eq!(results.len(), 1);
     }
 
@@ -365,7 +365,7 @@ mod tests {
     #[test]
     fn snippets_returns_one_hit_per_matching_block() {
         let repo = MockRepo::new();
-        let doc = doc_with_blocks(
+        let doc = leaf_with_blocks(
             "Doc",
             vec![
                 text_block("Rust is great"),
@@ -375,7 +375,7 @@ mod tests {
         );
         repo.save(&doc).unwrap();
 
-        let hits = search_in_blocks_with_snippets(&doc_uow(&repo), "rust").unwrap();
+        let hits = search_in_blocks_with_snippets(&leaf_uow(&repo), "rust").unwrap();
         // Two block-level hits surface for the same doc, each carrying
         // its own block_id so the UI can jump straight to the line.
         assert_eq!(hits.len(), 2);
@@ -394,20 +394,20 @@ mod tests {
         let child = text_block("the keyword lives here");
         let child_id = child.id;
         parent.children.push(child);
-        let doc = doc_with_blocks("Doc", vec![parent]);
+        let doc = leaf_with_blocks("Doc", vec![parent]);
         repo.save(&doc).unwrap();
 
-        let hits = search_in_blocks_with_snippets(&doc_uow(&repo), "keyword").unwrap();
+        let hits = search_in_blocks_with_snippets(&leaf_uow(&repo), "keyword").unwrap();
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].block_id, child_id);
     }
 
     #[test]
-    fn snippets_skip_docs_without_match() {
+    fn snippets_skip_leaves_without_match() {
         let repo = MockRepo::new();
-        let doc = doc_with_blocks("Doc", vec![text_block("nothing relevant")]);
+        let doc = leaf_with_blocks("Doc", vec![text_block("nothing relevant")]);
         repo.save(&doc).unwrap();
-        let hits = search_in_blocks_with_snippets(&doc_uow(&repo), "missing").unwrap();
+        let hits = search_in_blocks_with_snippets(&leaf_uow(&repo), "missing").unwrap();
         assert!(hits.is_empty());
     }
 
@@ -439,7 +439,7 @@ mod tests {
 
     #[test]
     fn block_plain_text_handles_every_textual_variant() {
-        use crate::domain::document::BlockContent;
+        use crate::domain::leaf::BlockContent;
         let text_inline = inline("plain text");
         let cases: Vec<(BlockContent, &str)> = vec![
             (BlockContent::Text(text_inline.clone()), "plain text"),

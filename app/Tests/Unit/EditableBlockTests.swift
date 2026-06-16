@@ -1,5 +1,7 @@
 import Testing
 import Foundation
+import PinkhaFFI
+@testable import LeafFeature
 @testable import Pinkha
 
 @Suite("EditableBlock — in-memory editing model")

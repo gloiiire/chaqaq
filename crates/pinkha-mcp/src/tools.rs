@@ -21,55 +21,55 @@ use serde_json::{Value, json};
 /// cosmetic (grouped by domain) and has no semantic effect.
 pub fn registry() -> Value {
     json!([
-        // ── Documents ─────────────────────────────────────────
+        // ── Leaves ─────────────────────────────────────────
         tool(
-            "list_documents",
-            "List every non-deleted root document with its metadata.",
+            "list_leaves",
+            "List every non-deleted root leaf with its metadata.",
             obj_schema(&[])
         ),
         tool(
-            "list_root_documents",
-            "Like list_documents but excludes child pages (those reachable only via parent_doc_id).",
+            "list_root_leaves",
+            "Like list_leaves but excludes child pages (those reachable only via parent_leaf_id).",
             obj_schema(&[])
         ),
         tool(
-            "list_child_documents",
-            "List the direct child documents of a parent page.",
-            obj_schema(&[("parent_doc_id", "string", true, "Parent document UUID.")])
+            "list_child_leaves",
+            "List the direct child leaves of a parent page.",
+            obj_schema(&[("parent_leaf_id", "string", true, "Parent leaf UUID.")])
         ),
         tool(
-            "get_document",
-            "Return the full document (title, cover, icon, blocks tree) as a JSON object.",
-            obj_schema(&[("id", "string", true, "Document UUID.")])
+            "get_leaf",
+            "Return the full leaf (title, cover, icon, blocks tree) as a JSON object.",
+            obj_schema(&[("id", "string", true, "Leaf UUID.")])
         ),
         tool(
-            "create_document",
-            "Create a new document with the given title and return its UUID.",
+            "create_leaf",
+            "Create a new leaf with the given title and return its UUID.",
             obj_schema(&[("title", "string", true, "Plain-text title.")])
         ),
         tool(
-            "delete_document",
-            "Soft-delete a document — recoverable via restore_document.",
-            obj_schema(&[("id", "string", true, "Document UUID.")])
+            "delete_leaf",
+            "Soft-delete a leaf — recoverable via restore_leaf.",
+            obj_schema(&[("id", "string", true, "Leaf UUID.")])
         ),
         tool(
-            "delete_all_documents",
-            "Soft-delete every document in the workspace; returns the deleted count.",
+            "delete_all_leaves",
+            "Soft-delete every leaf in the library; returns the deleted count.",
             obj_schema(&[])
         ),
         tool(
-            "update_document_title",
-            "Replace a document's plain-text title.",
+            "update_leaf_title",
+            "Replace a leaf's plain-text title.",
             obj_schema(&[
-                ("id", "string", true, "Document UUID."),
+                ("id", "string", true, "Leaf UUID."),
                 ("new_title", "string", true, "Replacement title."),
             ])
         ),
         tool(
-            "update_document_cover",
-            "Replace or clear the document's cover image (URL, local filename, or null to clear).",
+            "update_leaf_cover",
+            "Replace or clear the leaf's cover image (URL, local filename, or null to clear).",
             obj_schema(&[
-                ("id", "string", true, "Document UUID."),
+                ("id", "string", true, "Leaf UUID."),
                 (
                     "cover",
                     "string",
@@ -79,18 +79,18 @@ pub fn registry() -> Value {
             ])
         ),
         tool(
-            "update_document_icon",
-            "Replace or clear the document's icon (emoji / filename / URL).",
+            "update_leaf_icon",
+            "Replace or clear the leaf's icon (emoji / filename / URL).",
             obj_schema(&[
-                ("id", "string", true, "Document UUID."),
+                ("id", "string", true, "Leaf UUID."),
                 ("icon", "string", false, "Icon identifier or null to clear."),
             ])
         ),
         tool(
-            "update_document_published_at",
-            "Override a document's user-editable publish_at timestamp. Empty string = reset to default (follows created_at).",
+            "update_leaf_published_at",
+            "Override a leaf's user-editable publish_at timestamp. Empty string = reset to default (follows created_at).",
             obj_schema(&[
-                ("id", "string", true, "Document UUID."),
+                ("id", "string", true, "Leaf UUID."),
                 (
                     "new_published_at",
                     "string",
@@ -100,18 +100,18 @@ pub fn registry() -> Value {
             ])
         ),
         tool(
-            "update_document_locked",
-            "Toggle the document's read-only lock.",
+            "update_leaf_locked",
+            "Toggle the leaf's read-only lock.",
             obj_schema(&[
-                ("id", "string", true, "Document UUID."),
+                ("id", "string", true, "Leaf UUID."),
                 ("locked", "boolean", true, "Lock state."),
             ])
         ),
         tool(
-            "update_document_accent_color",
-            "Override or clear the per-document accent color (color name like \"red\" / \"teal\", null to inherit settings).",
+            "update_leaf_accent_color",
+            "Override or clear the per-leaf accent color (color name like \"red\" / \"teal\", null to inherit settings).",
             obj_schema(&[
-                ("id", "string", true, "Document UUID."),
+                ("id", "string", true, "Leaf UUID."),
                 (
                     "accent_color",
                     "string",
@@ -121,10 +121,10 @@ pub fn registry() -> Value {
             ])
         ),
         tool(
-            "update_document_text_direction",
-            "Override or clear the per-document writing direction (\"ltr\" / \"rtl\", null = system locale).",
+            "update_leaf_text_direction",
+            "Override or clear the per-leaf writing direction (\"ltr\" / \"rtl\", null = system locale).",
             obj_schema(&[
-                ("id", "string", true, "Document UUID."),
+                ("id", "string", true, "Leaf UUID."),
                 (
                     "text_direction",
                     "string",
@@ -134,12 +134,12 @@ pub fn registry() -> Value {
             ])
         ),
         tool(
-            "update_document_parent",
-            "Move a document under a new parent page (null = root).",
+            "update_leaf_parent",
+            "Move a leaf under a new parent page (null = root).",
             obj_schema(&[
-                ("doc_id", "string", true, "Document to move."),
+                ("leaf_id", "string", true, "Leaf to move."),
                 (
-                    "new_parent_doc_id",
+                    "new_parent_leaf_id",
                     "string",
                     false,
                     "Target parent UUID, or null for root."
@@ -149,9 +149,9 @@ pub fn registry() -> Value {
         // ── Blocks ────────────────────────────────────────────
         tool(
             "add_block",
-            "Append a block to the document's top-level list. Content is a JSON-encoded BlockContent.",
+            "Append a block to the leaf's top-level list. Content is a JSON-encoded BlockContent.",
             obj_schema(&[
-                ("doc_id", "string", true, "Document UUID."),
+                ("leaf_id", "string", true, "Leaf UUID."),
                 (
                     "block_content_json",
                     "string",
@@ -164,7 +164,7 @@ pub fn registry() -> Value {
             "add_child_block",
             "Add a block as a direct child of an existing block.",
             obj_schema(&[
-                ("doc_id", "string", true, "Document UUID."),
+                ("leaf_id", "string", true, "Leaf UUID."),
                 ("parent_id", "string", true, "Parent block UUID."),
                 (
                     "block_content_json",
@@ -178,7 +178,7 @@ pub fn registry() -> Value {
             "update_block",
             "Replace the content of an existing block.",
             obj_schema(&[
-                ("doc_id", "string", true, "Document UUID."),
+                ("leaf_id", "string", true, "Leaf UUID."),
                 ("block_id", "string", true, "Block UUID."),
                 ("content_json", "string", true, "Serialized BlockContent."),
             ])
@@ -187,7 +187,7 @@ pub fn registry() -> Value {
             "delete_block",
             "Remove a block and all its children.",
             obj_schema(&[
-                ("doc_id", "string", true, "Document UUID."),
+                ("leaf_id", "string", true, "Leaf UUID."),
                 ("block_id", "string", true, "Block UUID."),
             ])
         ),
@@ -195,7 +195,7 @@ pub fn registry() -> Value {
             "duplicate_block",
             "Deep-clone a block and insert the copy right after the original.",
             obj_schema(&[
-                ("doc_id", "string", true, "Document UUID."),
+                ("leaf_id", "string", true, "Leaf UUID."),
                 ("block_id", "string", true, "Block UUID."),
             ])
         ),
@@ -203,7 +203,7 @@ pub fn registry() -> Value {
             "reorder_blocks",
             "Reorder root-level blocks. Blocks omitted from `order` are appended at the end.",
             obj_schema(&[
-                ("doc_id", "string", true, "Document UUID."),
+                ("leaf_id", "string", true, "Leaf UUID."),
                 (
                     "order",
                     "array<string>",
@@ -216,7 +216,7 @@ pub fn registry() -> Value {
             "reorder_child_blocks",
             "Reorder a parent's direct children.",
             obj_schema(&[
-                ("doc_id", "string", true, "Document UUID."),
+                ("leaf_id", "string", true, "Leaf UUID."),
                 ("parent_id", "string", true, "Parent block UUID."),
                 (
                     "order",
@@ -230,7 +230,7 @@ pub fn registry() -> Value {
             "move_block",
             "Move a block to a new parent (null = root).",
             obj_schema(&[
-                ("doc_id", "string", true, "Document UUID."),
+                ("leaf_id", "string", true, "Leaf UUID."),
                 ("block_id", "string", true, "Block UUID."),
                 (
                     "new_parent_id",
@@ -244,7 +244,7 @@ pub fn registry() -> Value {
             "indent_block",
             "Indent a block under its previous sibling.",
             obj_schema(&[
-                ("doc_id", "string", true, "Document UUID."),
+                ("leaf_id", "string", true, "Leaf UUID."),
                 ("block_id", "string", true, "Block UUID."),
             ])
         ),
@@ -252,7 +252,7 @@ pub fn registry() -> Value {
             "outdent_block",
             "Outdent a block to its grandparent's level.",
             obj_schema(&[
-                ("doc_id", "string", true, "Document UUID."),
+                ("leaf_id", "string", true, "Leaf UUID."),
                 ("block_id", "string", true, "Block UUID."),
             ])
         ),
@@ -260,7 +260,7 @@ pub fn registry() -> Value {
             "set_block_color",
             "Set or clear the block-level foreground color name.",
             obj_schema(&[
-                ("doc_id", "string", true, "Document UUID."),
+                ("leaf_id", "string", true, "Leaf UUID."),
                 ("block_id", "string", true, "Block UUID."),
                 ("color", "string", false, "Color name or null to clear."),
             ])
@@ -269,7 +269,7 @@ pub fn registry() -> Value {
             "set_block_background_color",
             "Set or clear the block-level background highlight color.",
             obj_schema(&[
-                ("doc_id", "string", true, "Document UUID."),
+                ("leaf_id", "string", true, "Leaf UUID."),
                 ("block_id", "string", true, "Block UUID."),
                 (
                     "background_color",
@@ -283,7 +283,7 @@ pub fn registry() -> Value {
             "set_block_text_direction",
             "Override or clear the per-block writing direction (\"ltr\" / \"rtl\", null inherits the doc default).",
             obj_schema(&[
-                ("doc_id", "string", true, "Document UUID."),
+                ("leaf_id", "string", true, "Leaf UUID."),
                 ("block_id", "string", true, "Block UUID."),
                 (
                     "text_direction",
@@ -295,29 +295,29 @@ pub fn registry() -> Value {
         ),
         // ── Trash ─────────────────────────────────────────────
         tool(
-            "list_deleted_documents",
-            "List soft-deleted documents.",
+            "list_deleted_leaves",
+            "List soft-deleted leaves.",
             obj_schema(&[])
         ),
         tool(
-            "restore_document",
-            "Restore a soft-deleted document.",
-            obj_schema(&[("id", "string", true, "Document UUID.")])
+            "restore_leaf",
+            "Restore a soft-deleted leaf.",
+            obj_schema(&[("id", "string", true, "Leaf UUID.")])
         ),
         tool(
-            "purge_document",
-            "Permanently delete a soft-deleted document. Irreversible.",
-            obj_schema(&[("id", "string", true, "Document UUID.")])
+            "purge_leaf",
+            "Permanently delete a soft-deleted leaf. Irreversible.",
+            obj_schema(&[("id", "string", true, "Leaf UUID.")])
         ),
         // ── Search ────────────────────────────────────────────
         tool(
-            "search_documents",
-            "Case-insensitive search across document titles.",
+            "search_leaves",
+            "Case-insensitive search across leaf titles.",
             obj_schema(&[("query", "string", true, "Search term.")])
         ),
         tool(
             "search_in_blocks",
-            "Full-text search inside block content. Returns matching documents.",
+            "Full-text search inside block content. Returns matching leaves.",
             obj_schema(&[("query", "string", true, "Search term.")])
         ),
         tool(
@@ -326,65 +326,65 @@ pub fn registry() -> Value {
             obj_schema(&[("query", "string", true, "Search term.")])
         ),
         tool(
-            "search_databases",
-            "Case-insensitive search across database titles.",
+            "search_books",
+            "Case-insensitive search across book titles.",
             obj_schema(&[("query", "string", true, "Search term.")])
         ),
         tool(
-            "search_folders",
-            "Case-insensitive search across folder names.",
+            "search_shelves",
+            "Case-insensitive search across shelf names.",
             obj_schema(&[("query", "string", true, "Search term.")])
         ),
-        // ── Folders ───────────────────────────────────────────
+        // ── Shelves ───────────────────────────────────────────
         tool(
-            "create_folder",
-            "Create a new folder (optionally nested) and return its UUID.",
+            "create_shelf",
+            "Create a new shelf (optionally nested) and return its UUID.",
             obj_schema(&[
-                ("name", "string", true, "Folder name."),
+                ("name", "string", true, "Shelf name."),
                 (
                     "parent_id",
                     "string",
                     false,
-                    "Parent folder UUID, or null for root."
+                    "Parent shelf UUID, or null for root."
                 ),
             ])
         ),
         tool(
-            "list_folders",
-            "List every non-deleted folder.",
+            "list_shelves",
+            "List every non-deleted shelf.",
             obj_schema(&[])
         ),
         tool(
-            "get_folder",
-            "Get a single folder's metadata.",
-            obj_schema(&[("id", "string", true, "Folder UUID.")])
+            "get_shelf",
+            "Get a single shelf's metadata.",
+            obj_schema(&[("id", "string", true, "Shelf UUID.")])
         ),
         tool(
-            "rename_folder",
-            "Rename a folder.",
+            "rename_shelf",
+            "Rename a shelf.",
             obj_schema(&[
-                ("id", "string", true, "Folder UUID."),
+                ("id", "string", true, "Shelf UUID."),
                 ("new_name", "string", true, "Replacement name."),
             ])
         ),
         tool(
-            "update_folder_icon",
-            "Set or clear a folder's icon.",
+            "update_shelf_icon",
+            "Set or clear a shelf's icon.",
             obj_schema(&[
-                ("id", "string", true, "Folder UUID."),
+                ("id", "string", true, "Shelf UUID."),
                 ("icon", "string", false, "Icon identifier or null to clear."),
             ])
         ),
         tool(
-            "delete_folder",
-            "Soft-delete a folder.",
-            obj_schema(&[("id", "string", true, "Folder UUID.")])
+            "delete_shelf",
+            "Soft-delete a shelf.",
+            obj_schema(&[("id", "string", true, "Shelf UUID.")])
         ),
         tool(
-            "move_folder_to",
-            "Move a folder under a new parent (null = root).",
+            "move_shelf_to",
+            "Move a shelf under a new parent (null = root).",
             obj_schema(&[
-                ("folder_id", "string", true, "Folder to move."),
+                ("shelf_id", "string", true, "Shelf to move."),
                 (
                     "new_parent_id",
                     "string",
@@ -394,67 +394,67 @@ pub fn registry() -> Value {
             ])
         ),
         tool(
-            "move_document_to_folder",
-            "Move a document into a folder (null = root).",
+            "move_leaf_to_shelf",
+            "Move a leaf into a shelf (null = root).",
             obj_schema(&[
-                ("doc_id", "string", true, "Document UUID."),
+                ("leaf_id", "string", true, "Leaf UUID."),
                 (
-                    "folder_id",
+                    "shelf_id",
                     "string",
                     false,
-                    "Target folder UUID, or null for root."
+                    "Target shelf UUID, or null for root."
                 ),
             ])
         ),
         tool(
-            "list_documents_in_folder",
-            "List documents inside the given folder (null = root level only).",
+            "list_leaves_in_shelf",
+            "List leaves inside the given shelf (null = root level only).",
             obj_schema(&[(
-                "folder_id",
+                "shelf_id",
                 "string",
                 false,
-                "Folder UUID, or null for root."
+                "Shelf UUID, or null for root."
             ),])
         ),
         tool(
-            "list_deleted_folders",
-            "List soft-deleted folders.",
+            "list_deleted_shelves",
+            "List soft-deleted shelves.",
             obj_schema(&[])
         ),
         tool(
-            "restore_folder",
-            "Restore a soft-deleted folder.",
-            obj_schema(&[("id", "string", true, "Folder UUID.")])
+            "restore_shelf",
+            "Restore a soft-deleted shelf.",
+            obj_schema(&[("id", "string", true, "Shelf UUID.")])
         ),
         tool(
-            "purge_folder",
-            "Permanently delete a soft-deleted folder. Irreversible.",
-            obj_schema(&[("id", "string", true, "Folder UUID.")])
+            "purge_shelf",
+            "Permanently delete a soft-deleted shelf. Irreversible.",
+            obj_schema(&[("id", "string", true, "Shelf UUID.")])
         ),
-        // ── Databases ─────────────────────────────────────────
+        // ── Books ─────────────────────────────────────────
         tool(
-            "list_databases",
-            "List every non-deleted database.",
+            "list_books",
+            "List every non-deleted book.",
             obj_schema(&[])
         ),
         tool(
-            "get_database",
-            "Return the full database (schema + entries) as a JSON object.",
-            obj_schema(&[("id", "string", true, "Database UUID.")])
+            "get_book",
+            "Return the full book (schema + entries) as a JSON object.",
+            obj_schema(&[("id", "string", true, "Book UUID.")])
         ),
         tool(
-            "update_database_title",
-            "Replace a database's plain-text title.",
+            "update_book_title",
+            "Replace a book's plain-text title.",
             obj_schema(&[
-                ("id", "string", true, "Database UUID."),
+                ("id", "string", true, "Book UUID."),
                 ("new_title", "string", true, "Replacement title."),
             ])
         ),
         tool(
-            "update_database_cover",
-            "Replace or clear the database's cover image identifier (URL, local filename, or null to clear).",
+            "update_book_cover",
+            "Replace or clear the book's cover image identifier (URL, local filename, or null to clear).",
             obj_schema(&[
-                ("id", "string", true, "Database UUID."),
+                ("id", "string", true, "Book UUID."),
                 (
                     "cover",
                     "string",
@@ -464,18 +464,18 @@ pub fn registry() -> Value {
             ])
         ),
         tool(
-            "update_database_icon",
-            "Replace or clear the database's icon (emoji / filename / URL).",
+            "update_book_icon",
+            "Replace or clear the book's icon (emoji / filename / URL).",
             obj_schema(&[
-                ("id", "string", true, "Database UUID."),
+                ("id", "string", true, "Book UUID."),
                 ("icon", "string", false, "Icon identifier or null to clear."),
             ])
         ),
         tool(
-            "update_database_description",
-            "Replace the database's rich-text description (empty string clears it).",
+            "update_book_description",
+            "Replace the book's rich-text description (empty string clears it).",
             obj_schema(&[
-                ("id", "string", true, "Database UUID."),
+                ("id", "string", true, "Book UUID."),
                 (
                     "description",
                     "string",
@@ -485,58 +485,58 @@ pub fn registry() -> Value {
             ])
         ),
         tool(
-            "update_database_locked",
-            "Toggle the database's read-only lock.",
+            "update_book_locked",
+            "Toggle the book's read-only lock.",
             obj_schema(&[
-                ("id", "string", true, "Database UUID."),
+                ("id", "string", true, "Book UUID."),
                 ("locked", "boolean", true, "Lock state."),
             ])
         ),
         tool(
-            "create_database",
-            "Create a new database with the given title and return its UUID.",
-            obj_schema(&[("title", "string", true, "Database title.")])
+            "create_book",
+            "Create a new book with the given title and return its UUID.",
+            obj_schema(&[("title", "string", true, "Book title.")])
         ),
         tool(
-            "delete_database",
-            "Soft-delete a database.",
-            obj_schema(&[("id", "string", true, "Database UUID.")])
+            "delete_book",
+            "Soft-delete a book.",
+            obj_schema(&[("id", "string", true, "Book UUID.")])
         ),
         tool(
-            "delete_all_databases",
-            "Soft-delete every database; returns the deleted count.",
+            "delete_all_books",
+            "Soft-delete every book; returns the deleted count.",
             obj_schema(&[])
         ),
         tool(
-            "list_deleted_databases",
-            "List soft-deleted databases.",
+            "list_deleted_books",
+            "List soft-deleted books.",
             obj_schema(&[])
         ),
         tool(
-            "restore_database",
-            "Restore a soft-deleted database.",
-            obj_schema(&[("id", "string", true, "Database UUID.")])
+            "restore_book",
+            "Restore a soft-deleted book.",
+            obj_schema(&[("id", "string", true, "Book UUID.")])
         ),
         tool(
-            "purge_database",
-            "Permanently delete a soft-deleted database. Irreversible.",
-            obj_schema(&[("id", "string", true, "Database UUID.")])
+            "purge_book",
+            "Permanently delete a soft-deleted book. Irreversible.",
+            obj_schema(&[("id", "string", true, "Book UUID.")])
         ),
-        // ── Database entries ──────────────────────────────────
+        // ── Book entries ──────────────────────────────────
         tool(
             "add_entry",
-            "Add an entry to a database. `values_json` = serialized HashMap<PropertyId,Value>.",
+            "Add an entry to a book. `values_json` = serialized HashMap<PropertyId,Value>.",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("values_json", "string", true, "Serialized values map."),
             ])
         ),
         tool(
-            "attach_document_to_database",
-            "File an existing document as a row of an existing database. Same values_json shape as add_entry.",
+            "attach_leaf_to_book",
+            "File an existing leaf as a row of an existing book. Same values_json shape as add_entry.",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
-                ("doc_id", "string", true, "Document UUID."),
+                ("book_id", "string", true, "Book UUID."),
+                ("leaf_id", "string", true, "Leaf UUID."),
                 ("values_json", "string", true, "Serialized values map."),
             ])
         ),
@@ -544,7 +544,7 @@ pub fn registry() -> Value {
             "update_entry_published_at",
             "Override an entry's user-editable publish_at timestamp. Empty string = reset to default (follows created_at).",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("entry_id", "string", true, "Entry UUID."),
                 (
                     "new_published_at",
@@ -558,7 +558,7 @@ pub fn registry() -> Value {
             "update_entry",
             "Replace an entry's values.",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("entry_id", "string", true, "Entry UUID."),
                 ("values_json", "string", true, "Serialized values map."),
             ])
@@ -567,7 +567,7 @@ pub fn registry() -> Value {
             "delete_entry",
             "Soft-delete an entry.",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("entry_id", "string", true, "Entry UUID."),
             ])
         ),
@@ -575,7 +575,7 @@ pub fn registry() -> Value {
             "restore_entry",
             "Restore a soft-deleted entry.",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("entry_id", "string", true, "Entry UUID."),
             ])
         ),
@@ -583,21 +583,21 @@ pub fn registry() -> Value {
             "purge_entry",
             "Permanently delete a soft-deleted entry.",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("entry_id", "string", true, "Entry UUID."),
             ])
         ),
         tool(
             "list_deleted_entries",
-            "List soft-deleted entries in a database.",
-            obj_schema(&[("db_id", "string", true, "Database UUID.")])
+            "List soft-deleted entries in a book.",
+            obj_schema(&[("book_id", "string", true, "Book UUID.")])
         ),
-        // ── Database properties + views ───────────────────────
+        // ── Book properties + views ───────────────────────
         tool(
             "add_property",
-            "Add a property to a database schema.",
+            "Add a property to a book schema.",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("property_json", "string", true, "Serialized Property."),
             ])
         ),
@@ -605,7 +605,7 @@ pub fn registry() -> Value {
             "rename_property",
             "Rename a property.",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("property_id", "string", true, "Property UUID."),
                 ("new_name", "string", true, "Replacement name."),
             ])
@@ -614,7 +614,7 @@ pub fn registry() -> Value {
             "delete_property",
             "Delete a property and every value attached to it.",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("property_id", "string", true, "Property UUID."),
             ])
         ),
@@ -622,7 +622,7 @@ pub fn registry() -> Value {
             "add_view",
             "Add a view (table / kanban / calendar / gallery) and return its UUID.",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("view_json", "string", true, "Serialized View."),
             ])
         ),
@@ -630,7 +630,7 @@ pub fn registry() -> Value {
             "update_view",
             "Replace a view's filters + sorts.",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("view_id", "string", true, "View UUID."),
                 ("filters_json", "string", true, "Serialized filters."),
                 ("sorts_json", "string", true, "Serialized sorts."),
@@ -640,7 +640,7 @@ pub fn registry() -> Value {
             "set_view_sort",
             "Set a single primary sort on a view (property + direction).",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("view_id", "string", true, "View UUID."),
                 (
                     "property_id",
@@ -658,34 +658,34 @@ pub fn registry() -> Value {
         ),
         tool(
             "delete_view",
-            "Delete a view (refuses if it's the database's last view).",
+            "Delete a view (refuses if it's the book's last view).",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("view_id", "string", true, "View UUID."),
             ])
         ),
-        // ── Database queries ──────────────────────────────────
+        // ── Book queries ──────────────────────────────────
         tool(
-            "query_database",
+            "query_book",
             "Run a view's filters + sorts and return the matching entries.",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("view_id", "string", true, "View UUID."),
             ])
         ),
         tool(
-            "query_database_with_rollups",
-            "Like query_database but with rollup columns evaluated.",
+            "query_book_with_rollups",
+            "Like query_book but with rollup columns evaluated.",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("view_id", "string", true, "View UUID."),
             ])
         ),
         tool(
-            "grouped_query_database",
+            "grouped_query_book",
             "Group a view's results by a property.",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("view_id", "string", true, "View UUID."),
                 (
                     "group_by_property_id",
@@ -696,10 +696,10 @@ pub fn registry() -> Value {
             ])
         ),
         tool(
-            "column_aggregate_database",
+            "column_aggregate_book",
             "Run a single aggregation (sum / avg / min / max / count) on one column.",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("property_id", "string", true, "Property UUID."),
                 (
                     "aggregate_json",
@@ -710,10 +710,10 @@ pub fn registry() -> Value {
             ])
         ),
         tool(
-            "search_database_entries",
-            "Case-insensitive full-text search across one database's entries.",
+            "search_book_entries",
+            "Case-insensitive full-text search across one book's entries.",
             obj_schema(&[
-                ("db_id", "string", true, "Database UUID."),
+                ("book_id", "string", true, "Book UUID."),
                 ("query", "string", true, "Search term."),
             ])
         ),
@@ -724,62 +724,62 @@ pub fn registry() -> Value {
 /// body to wrap in the MCP `content` array.
 pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String> {
     match name {
-        // ── Documents ─────────────────────────────────────────
-        "list_documents" => json_of(api.list_documents()?),
-        "list_root_documents" => json_of(api.list_root_documents()?),
-        "list_child_documents" => {
-            let parent: String = take(&args, "parent_doc_id")?;
-            json_of(api.list_child_documents(parent)?)
+        // ── Leaves ─────────────────────────────────────────
+        "list_leaves" => json_of(api.list_leaves()?),
+        "list_root_leaves" => json_of(api.list_root_leaves()?),
+        "list_child_leaves" => {
+            let parent: String = take(&args, "parent_leaf_id")?;
+            json_of(api.list_child_leaves(parent)?)
         }
-        "get_document" => {
+        "get_leaf" => {
             let id: String = take(&args, "id")?;
-            Ok(api.get_document_json(id)?)
+            Ok(api.get_leaf_json(id)?)
         }
-        "create_document" => {
+        "create_leaf" => {
             let title: String = take(&args, "title")?;
-            Ok(json!({ "id": api.create_document(title)? }).to_string())
+            Ok(json!({ "id": api.create_leaf(title)? }).to_string())
         }
-        "delete_document" => {
+        "delete_leaf" => {
             let id: String = take(&args, "id")?;
-            api.delete_document(id)?;
+            api.delete_leaf(id)?;
             ok()
         }
-        "delete_all_documents" => Ok(json!({ "deleted": api.delete_all_documents()? }).to_string()),
-        "update_document_title" => {
-            api.update_document_title(take(&args, "id")?, take(&args, "new_title")?)?;
+        "delete_all_leaves" => Ok(json!({ "deleted": api.delete_all_leaves()? }).to_string()),
+        "update_leaf_title" => {
+            api.update_leaf_title(take(&args, "id")?, take(&args, "new_title")?)?;
             ok()
         }
-        "update_document_cover" => {
-            api.update_document_cover(take(&args, "id")?, take_opt(&args, "cover")?)?;
+        "update_leaf_cover" => {
+            api.update_leaf_cover(take(&args, "id")?, take_opt(&args, "cover")?)?;
             ok()
         }
-        "update_document_icon" => {
-            api.update_document_icon(take(&args, "id")?, take_opt(&args, "icon")?)?;
+        "update_leaf_icon" => {
+            api.update_leaf_icon(take(&args, "id")?, take_opt(&args, "icon")?)?;
             ok()
         }
-        "update_document_locked" => {
-            api.update_document_locked(take(&args, "id")?, take(&args, "locked")?)?;
+        "update_leaf_locked" => {
+            api.update_leaf_locked(take(&args, "id")?, take(&args, "locked")?)?;
             ok()
         }
-        "update_document_published_at" => {
-            api.update_document_published_at(take(&args, "id")?, take(&args, "new_published_at")?)?;
+        "update_leaf_published_at" => {
+            api.update_leaf_published_at(take(&args, "id")?, take(&args, "new_published_at")?)?;
             ok()
         }
-        "update_document_accent_color" => {
-            api.update_document_accent_color(take(&args, "id")?, take_opt(&args, "accent_color")?)?;
+        "update_leaf_accent_color" => {
+            api.update_leaf_accent_color(take(&args, "id")?, take_opt(&args, "accent_color")?)?;
             ok()
         }
-        "update_document_text_direction" => {
-            api.update_document_text_direction(
+        "update_leaf_text_direction" => {
+            api.update_leaf_text_direction(
                 take(&args, "id")?,
                 take_opt(&args, "text_direction")?,
             )?;
             ok()
         }
-        "update_document_parent" => {
-            api.update_document_parent(
-                take(&args, "doc_id")?,
-                take_opt(&args, "new_parent_doc_id")?,
+        "update_leaf_parent" => {
+            api.update_leaf_parent(
+                take(&args, "leaf_id")?,
+                take_opt(&args, "new_parent_leaf_id")?,
             )?;
             ok()
         }
@@ -787,14 +787,14 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
         // ── Blocks ────────────────────────────────────────────
         "add_block" => Ok(json!({
             "block_id": api.add_block(
-                take(&args, "doc_id")?,
+                take(&args, "leaf_id")?,
                 take(&args, "block_content_json")?,
             )?,
         })
         .to_string()),
         "add_child_block" => Ok(json!({
             "block_id": api.add_child_block(
-                take(&args, "doc_id")?,
+                take(&args, "leaf_id")?,
                 take(&args, "parent_id")?,
                 take(&args, "block_content_json")?,
             )?,
@@ -802,30 +802,30 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
         .to_string()),
         "update_block" => {
             api.update_block(
-                take(&args, "doc_id")?,
+                take(&args, "leaf_id")?,
                 take(&args, "block_id")?,
                 take(&args, "content_json")?,
             )?;
             ok()
         }
         "delete_block" => {
-            api.delete_block(take(&args, "doc_id")?, take(&args, "block_id")?)?;
+            api.delete_block(take(&args, "leaf_id")?, take(&args, "block_id")?)?;
             ok()
         }
         "duplicate_block" => Ok(json!({
             "block_id": api.duplicate_block(
-                take(&args, "doc_id")?,
+                take(&args, "leaf_id")?,
                 take(&args, "block_id")?,
             )?,
         })
         .to_string()),
         "reorder_blocks" => {
-            api.reorder_blocks(take(&args, "doc_id")?, take(&args, "order")?)?;
+            api.reorder_blocks(take(&args, "leaf_id")?, take(&args, "order")?)?;
             ok()
         }
         "reorder_child_blocks" => {
             api.reorder_child_blocks(
-                take(&args, "doc_id")?,
+                take(&args, "leaf_id")?,
                 take(&args, "parent_id")?,
                 take(&args, "order")?,
             )?;
@@ -833,23 +833,23 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
         }
         "move_block" => {
             api.move_block(
-                take(&args, "doc_id")?,
+                take(&args, "leaf_id")?,
                 take(&args, "block_id")?,
                 take_opt(&args, "new_parent_id")?,
             )?;
             ok()
         }
         "indent_block" => {
-            api.indent_block(take(&args, "doc_id")?, take(&args, "block_id")?)?;
+            api.indent_block(take(&args, "leaf_id")?, take(&args, "block_id")?)?;
             ok()
         }
         "outdent_block" => {
-            api.outdent_block(take(&args, "doc_id")?, take(&args, "block_id")?)?;
+            api.outdent_block(take(&args, "leaf_id")?, take(&args, "block_id")?)?;
             ok()
         }
         "set_block_color" => {
             api.set_block_color(
-                take(&args, "doc_id")?,
+                take(&args, "leaf_id")?,
                 take(&args, "block_id")?,
                 take_opt(&args, "color")?,
             )?;
@@ -857,7 +857,7 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
         }
         "set_block_background_color" => {
             api.set_block_background_color(
-                take(&args, "doc_id")?,
+                take(&args, "leaf_id")?,
                 take(&args, "block_id")?,
                 take_opt(&args, "background_color")?,
             )?;
@@ -865,7 +865,7 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
         }
         "set_block_text_direction" => {
             api.set_block_text_direction(
-                take(&args, "doc_id")?,
+                take(&args, "leaf_id")?,
                 take(&args, "block_id")?,
                 take_opt(&args, "text_direction")?,
             )?;
@@ -873,129 +873,129 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
         }
 
         // ── Trash ─────────────────────────────────────────────
-        "list_deleted_documents" => json_of(api.list_deleted_documents()?),
-        "restore_document" => {
-            api.restore_document(take(&args, "id")?)?;
+        "list_deleted_leaves" => json_of(api.list_deleted_leaves()?),
+        "restore_leaf" => {
+            api.restore_leaf(take(&args, "id")?)?;
             ok()
         }
-        "purge_document" => {
-            api.purge_document(take(&args, "id")?)?;
+        "purge_leaf" => {
+            api.purge_leaf(take(&args, "id")?)?;
             ok()
         }
 
         // ── Search ────────────────────────────────────────────
-        "search_documents" => json_of(api.search_documents(take(&args, "query")?)?),
+        "search_leaves" => json_of(api.search_leaves(take(&args, "query")?)?),
         "search_in_blocks" => json_of(api.search_in_blocks(take(&args, "query")?)?),
         "search_in_blocks_with_snippets" => {
             json_of(api.search_in_blocks_with_snippets(take(&args, "query")?)?)
         }
-        "search_databases" => json_of(api.search_databases(take(&args, "query")?)?),
-        "search_folders" => json_of(api.search_folders(take(&args, "query")?)?),
+        "search_books" => json_of(api.search_books(take(&args, "query")?)?),
+        "search_shelves" => json_of(api.search_shelves(take(&args, "query")?)?),
 
-        // ── Folders ───────────────────────────────────────────
-        "create_folder" => {
-            let meta = api.create_folder(take(&args, "name")?, take_opt(&args, "parent_id")?)?;
+        // ── Shelves ───────────────────────────────────────────
+        "create_shelf" => {
+            let meta = api.create_shelf(take(&args, "name")?, take_opt(&args, "parent_id")?)?;
             Ok(json!({ "id": meta.id }).to_string())
         }
-        "list_folders" => json_of(api.list_folders()?),
-        "get_folder" => json_of(api.get_folder(take(&args, "id")?)?),
-        "rename_folder" => {
-            api.rename_folder(take(&args, "id")?, take(&args, "new_name")?)?;
+        "list_shelves" => json_of(api.list_shelves()?),
+        "get_shelf" => json_of(api.get_shelf(take(&args, "id")?)?),
+        "rename_shelf" => {
+            api.rename_shelf(take(&args, "id")?, take(&args, "new_name")?)?;
             ok()
         }
-        "update_folder_icon" => {
-            api.update_folder_icon(take(&args, "id")?, take_opt(&args, "icon")?)?;
+        "update_shelf_icon" => {
+            api.update_shelf_icon(take(&args, "id")?, take_opt(&args, "icon")?)?;
             ok()
         }
-        "delete_folder" => {
-            api.delete_folder(take(&args, "id")?)?;
+        "delete_shelf" => {
+            api.delete_shelf(take(&args, "id")?)?;
             ok()
         }
-        "move_folder_to" => {
-            api.move_folder_to(take(&args, "folder_id")?, take_opt(&args, "new_parent_id")?)?;
+        "move_shelf_to" => {
+            api.move_shelf_to(take(&args, "shelf_id")?, take_opt(&args, "new_parent_id")?)?;
             ok()
         }
-        "move_document_to_folder" => {
-            api.move_document_to_folder(take(&args, "doc_id")?, take_opt(&args, "folder_id")?)?;
+        "move_leaf_to_shelf" => {
+            api.move_leaf_to_shelf(take(&args, "leaf_id")?, take_opt(&args, "shelf_id")?)?;
             ok()
         }
-        "list_documents_in_folder" => {
-            json_of(api.list_documents_in_folder(take_opt(&args, "folder_id")?)?)
+        "list_leaves_in_shelf" => {
+            json_of(api.list_leaves_in_shelf(take_opt(&args, "shelf_id")?)?)
         }
-        "list_deleted_folders" => json_of(api.list_deleted_folders()?),
-        "restore_folder" => {
-            api.restore_folder(take(&args, "id")?)?;
+        "list_deleted_shelves" => json_of(api.list_deleted_shelves()?),
+        "restore_shelf" => {
+            api.restore_shelf(take(&args, "id")?)?;
             ok()
         }
-        "purge_folder" => {
-            api.purge_folder(take(&args, "id")?)?;
-            ok()
-        }
-
-        // ── Databases ─────────────────────────────────────────
-        "list_databases" => json_of(api.list_databases()?),
-        "get_database" => Ok(api.get_database_json(take(&args, "id")?)?),
-        "update_database_title" => {
-            api.update_database_title(take(&args, "id")?, take(&args, "new_title")?)?;
-            ok()
-        }
-        "update_database_cover" => {
-            api.update_database_cover(take(&args, "id")?, take_opt(&args, "cover")?)?;
-            ok()
-        }
-        "update_database_icon" => {
-            api.update_database_icon(take(&args, "id")?, take_opt(&args, "icon")?)?;
-            ok()
-        }
-        "update_database_description" => {
-            api.update_database_description(take(&args, "id")?, take(&args, "description")?)?;
-            ok()
-        }
-        "update_database_locked" => {
-            api.update_database_locked(take(&args, "id")?, take(&args, "locked")?)?;
-            ok()
-        }
-        "create_database" => Ok(json!({
-            "id": api.create_database(take(&args, "title")?)?,
-        })
-        .to_string()),
-        "delete_database" => {
-            api.delete_database(take(&args, "id")?)?;
-            ok()
-        }
-        "delete_all_databases" => Ok(json!({
-            "deleted": api.delete_all_databases()?,
-        })
-        .to_string()),
-        "list_deleted_databases" => json_of(api.list_deleted_databases()?),
-        "restore_database" => {
-            api.restore_database(take(&args, "id")?)?;
-            ok()
-        }
-        "purge_database" => {
-            api.purge_database(take(&args, "id")?)?;
+        "purge_shelf" => {
+            api.purge_shelf(take(&args, "id")?)?;
             ok()
         }
 
-        // ── Database entries ──────────────────────────────────
+        // ── Books ─────────────────────────────────────────
+        "list_books" => json_of(api.list_books()?),
+        "get_book" => Ok(api.get_book_json(take(&args, "id")?)?),
+        "update_book_title" => {
+            api.update_book_title(take(&args, "id")?, take(&args, "new_title")?)?;
+            ok()
+        }
+        "update_book_cover" => {
+            api.update_book_cover(take(&args, "id")?, take_opt(&args, "cover")?)?;
+            ok()
+        }
+        "update_book_icon" => {
+            api.update_book_icon(take(&args, "id")?, take_opt(&args, "icon")?)?;
+            ok()
+        }
+        "update_book_description" => {
+            api.update_book_description(take(&args, "id")?, take(&args, "description")?)?;
+            ok()
+        }
+        "update_book_locked" => {
+            api.update_book_locked(take(&args, "id")?, take(&args, "locked")?)?;
+            ok()
+        }
+        "create_book" => Ok(json!({
+            "id": api.create_book(take(&args, "title")?)?,
+        })
+        .to_string()),
+        "delete_book" => {
+            api.delete_book(take(&args, "id")?)?;
+            ok()
+        }
+        "delete_all_books" => Ok(json!({
+            "deleted": api.delete_all_books()?,
+        })
+        .to_string()),
+        "list_deleted_books" => json_of(api.list_deleted_books()?),
+        "restore_book" => {
+            api.restore_book(take(&args, "id")?)?;
+            ok()
+        }
+        "purge_book" => {
+            api.purge_book(take(&args, "id")?)?;
+            ok()
+        }
+
+        // ── Book entries ──────────────────────────────────
         "add_entry" => Ok(json!({
             "entry_id": api.add_entry(
-                take(&args, "db_id")?,
+                take(&args, "book_id")?,
                 take(&args, "values_json")?,
             )?,
         })
         .to_string()),
-        "attach_document_to_database" => Ok(json!({
-            "entry_id": api.attach_document_to_database(
-                take(&args, "db_id")?,
-                take(&args, "doc_id")?,
+        "attach_leaf_to_book" => Ok(json!({
+            "entry_id": api.attach_leaf_to_book(
+                take(&args, "book_id")?,
+                take(&args, "leaf_id")?,
                 take(&args, "values_json")?,
             )?,
         })
         .to_string()),
         "update_entry" => {
             api.update_entry(
-                take(&args, "db_id")?,
+                take(&args, "book_id")?,
                 take(&args, "entry_id")?,
                 take(&args, "values_json")?,
             )?;
@@ -1003,50 +1003,50 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
         }
         "update_entry_published_at" => {
             api.update_entry_published_at(
-                take(&args, "db_id")?,
+                take(&args, "book_id")?,
                 take(&args, "entry_id")?,
                 take(&args, "new_published_at")?,
             )?;
             ok()
         }
         "delete_entry" => {
-            api.delete_entry(take(&args, "db_id")?, take(&args, "entry_id")?)?;
+            api.delete_entry(take(&args, "book_id")?, take(&args, "entry_id")?)?;
             ok()
         }
         "restore_entry" => {
-            api.restore_entry(take(&args, "db_id")?, take(&args, "entry_id")?)?;
+            api.restore_entry(take(&args, "book_id")?, take(&args, "entry_id")?)?;
             ok()
         }
         "purge_entry" => {
-            api.purge_entry(take(&args, "db_id")?, take(&args, "entry_id")?)?;
+            api.purge_entry(take(&args, "book_id")?, take(&args, "entry_id")?)?;
             ok()
         }
-        "list_deleted_entries" => Ok(api.list_deleted_entries_json(take(&args, "db_id")?)?),
+        "list_deleted_entries" => Ok(api.list_deleted_entries_json(take(&args, "book_id")?)?),
 
-        // ── Database properties + views ───────────────────────
+        // ── Book properties + views ───────────────────────
         "add_property" => {
-            api.add_property(take(&args, "db_id")?, take(&args, "property_json")?)?;
+            api.add_property(take(&args, "book_id")?, take(&args, "property_json")?)?;
             ok()
         }
         "rename_property" => {
             api.rename_property(
-                take(&args, "db_id")?,
+                take(&args, "book_id")?,
                 take(&args, "property_id")?,
                 take(&args, "new_name")?,
             )?;
             ok()
         }
         "delete_property" => {
-            api.delete_property(take(&args, "db_id")?, take(&args, "property_id")?)?;
+            api.delete_property(take(&args, "book_id")?, take(&args, "property_id")?)?;
             ok()
         }
         "add_view" => Ok(json!({
-            "view_id": api.add_view(take(&args, "db_id")?, take(&args, "view_json")?)?,
+            "view_id": api.add_view(take(&args, "book_id")?, take(&args, "view_json")?)?,
         })
         .to_string()),
         "update_view" => {
             api.update_view(
-                take(&args, "db_id")?,
+                take(&args, "book_id")?,
                 take(&args, "view_id")?,
                 take(&args, "filters_json")?,
                 take(&args, "sorts_json")?,
@@ -1055,7 +1055,7 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
         }
         "set_view_sort" => {
             api.set_view_sort(
-                take(&args, "db_id")?,
+                take(&args, "book_id")?,
                 take(&args, "view_id")?,
                 take_opt(&args, "property_id")?,
                 take(&args, "ascending")?,
@@ -1063,30 +1063,30 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
             ok()
         }
         "delete_view" => {
-            api.delete_view(take(&args, "db_id")?, take(&args, "view_id")?)?;
+            api.delete_view(take(&args, "book_id")?, take(&args, "view_id")?)?;
             ok()
         }
 
-        // ── Database queries ──────────────────────────────────
-        "query_database" => {
-            Ok(api.query_database_json(take(&args, "db_id")?, take(&args, "view_id")?)?)
+        // ── Book queries ──────────────────────────────────
+        "query_book" => {
+            Ok(api.query_book_json(take(&args, "book_id")?, take(&args, "view_id")?)?)
         }
-        "query_database_with_rollups" => {
+        "query_book_with_rollups" => {
             Ok(api
-                .query_database_with_rollups_json(take(&args, "db_id")?, take(&args, "view_id")?)?)
+                .query_book_with_rollups_json(take(&args, "book_id")?, take(&args, "view_id")?)?)
         }
-        "grouped_query_database" => Ok(api.grouped_query_database_json(
-            take(&args, "db_id")?,
+        "grouped_query_book" => Ok(api.grouped_query_book_json(
+            take(&args, "book_id")?,
             take(&args, "view_id")?,
             take(&args, "group_by_property_id")?,
         )?),
-        "column_aggregate_database" => Ok(api.column_aggregate_database_json(
-            take(&args, "db_id")?,
+        "column_aggregate_book" => Ok(api.column_aggregate_book_json(
+            take(&args, "book_id")?,
             take(&args, "property_id")?,
             take(&args, "aggregate_json")?,
         )?),
-        "search_database_entries" => {
-            Ok(api.search_database_entries_json(take(&args, "db_id")?, take(&args, "query")?)?)
+        "search_book_entries" => {
+            Ok(api.search_book_entries_json(take(&args, "book_id")?, take(&args, "query")?)?)
         }
 
         _ => Err(anyhow!("unknown tool: {name}")),

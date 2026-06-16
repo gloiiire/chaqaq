@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+@testable import ImportFeature
 @testable import Pinkha
 
 // Unit tests for NotionOAuth2 URL construction.

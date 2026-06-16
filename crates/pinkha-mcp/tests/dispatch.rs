@@ -2,8 +2,8 @@
 //!
 //! The strategy is the "representative sample" approach : we don't
 //! exercise every one of the ~60 tools individually, but we cover the
-//! shape of each major branch (documents, blocks, databases,
-//! properties, queries, folders, errors) plus the helper boundary
+//! shape of each major branch (leaves, blocks, books,
+//! properties, queries, shelves, errors) plus the helper boundary
 //! (missing arg, unknown tool, optional null).
 //!
 //! All tests share a single in-memory `PinkhaApi` per test via the
@@ -50,16 +50,16 @@ fn registry_advertises_expected_tools() {
     // Touch one tool per major domain so a future rename surfaces here
     // instead of waiting for an agent to complain.
     for expected in [
-        "list_documents",
-        "create_document",
-        "get_document",
+        "list_leaves",
+        "create_leaf",
+        "get_leaf",
         "add_block",
         "update_block",
         "delete_block",
-        "create_database",
+        "create_book",
         "add_property",
         "add_entry",
-        "query_database",
+        "query_book",
     ] {
         assert!(
             names.contains(&expected),
@@ -76,18 +76,18 @@ fn registry_advertises_expected_tools() {
     }
 }
 
-// ── Documents ──────────────────────────────────────────────────────────────
+// ── Leaves ──────────────────────────────────────────────────────────────
 
 #[test]
-fn create_then_list_then_get_then_delete_document() {
+fn create_then_list_then_get_then_delete_leaf() {
     let a = api();
 
-    // create_document → returns { id }
-    let out = dispatch(&a, "create_document", json!({ "title": "Hello" })).unwrap();
+    // create_leaf → returns { id }
+    let out = dispatch(&a, "create_leaf", json!({ "title": "Hello" })).unwrap();
     let id = field(&out, "id").as_str().unwrap().to_string();
 
-    // list_documents → contains it
-    let listed = dispatch(&a, "list_documents", json!({})).unwrap();
+    // list_leaves → contains it
+    let listed = dispatch(&a, "list_leaves", json!({})).unwrap();
     let arr: Value = serde_json::from_str(&listed).unwrap();
     let titles: Vec<String> = arr
         .as_array()
@@ -104,16 +104,16 @@ fn create_then_list_then_get_then_delete_document() {
         "expected Hello in {titles:?}"
     );
 
-    // get_document → full JSON doc, title round-trips
-    let got = dispatch(&a, "get_document", json!({ "id": id })).unwrap();
+    // get_leaf → full JSON doc, title round-trips
+    let got = dispatch(&a, "get_leaf", json!({ "id": id })).unwrap();
     let parsed: Value = serde_json::from_str(&got).unwrap();
     assert_eq!(parsed.get("id").and_then(Value::as_str), Some(id.as_str()));
 
-    // delete_document → ok envelope, then no longer in list
-    let ok = dispatch(&a, "delete_document", json!({ "id": id })).unwrap();
+    // delete_leaf → ok envelope, then no longer in list
+    let ok = dispatch(&a, "delete_leaf", json!({ "id": id })).unwrap();
     assert_eq!(field(&ok, "ok"), Value::Bool(true));
 
-    let listed = dispatch(&a, "list_documents", json!({})).unwrap();
+    let listed = dispatch(&a, "list_leaves", json!({})).unwrap();
     let arr: Value = serde_json::from_str(&listed).unwrap();
     let still_there = arr
         .as_array()
@@ -124,10 +124,10 @@ fn create_then_list_then_get_then_delete_document() {
 }
 
 #[test]
-fn update_document_title_propagates_to_get() {
+fn update_leaf_title_propagates_to_get() {
     let a = api();
     let id = field(
-        &dispatch(&a, "create_document", json!({ "title": "Old" })).unwrap(),
+        &dispatch(&a, "create_leaf", json!({ "title": "Old" })).unwrap(),
         "id",
     )
     .as_str()
@@ -136,13 +136,13 @@ fn update_document_title_propagates_to_get() {
 
     let ok = dispatch(
         &a,
-        "update_document_title",
+        "update_leaf_title",
         json!({ "id": id, "new_title": "New" }),
     )
     .unwrap();
     assert_eq!(field(&ok, "ok"), Value::Bool(true));
 
-    let got = dispatch(&a, "get_document", json!({ "id": &id })).unwrap();
+    let got = dispatch(&a, "get_leaf", json!({ "id": &id })).unwrap();
     let parsed: Value = serde_json::from_str(&got).unwrap();
     // Title is a Vec<InlineText> in the JSON — the first span's
     // `content` carries the plain text.
@@ -157,10 +157,10 @@ fn update_document_title_propagates_to_get() {
 }
 
 #[test]
-fn update_document_cover_accepts_optional_null() {
+fn update_leaf_cover_accepts_optional_null() {
     let a = api();
     let id = field(
-        &dispatch(&a, "create_document", json!({ "title": "Cover" })).unwrap(),
+        &dispatch(&a, "create_leaf", json!({ "title": "Cover" })).unwrap(),
         "id",
     )
     .as_str()
@@ -170,20 +170,20 @@ fn update_document_cover_accepts_optional_null() {
     // Set a cover string.
     dispatch(
         &a,
-        "update_document_cover",
+        "update_leaf_cover",
         json!({ "id": &id, "cover": "cover-1" }),
     )
     .unwrap();
     // Explicit null clears it — exercises take_opt's `Value::Null` arm.
     dispatch(
         &a,
-        "update_document_cover",
+        "update_leaf_cover",
         json!({ "id": &id, "cover": Value::Null }),
     )
     .unwrap();
     // Omitted key also resolves to None — exercises take_opt's
     // missing-key arm.
-    dispatch(&a, "update_document_cover", json!({ "id": &id })).unwrap();
+    dispatch(&a, "update_leaf_cover", json!({ "id": &id })).unwrap();
 }
 
 // ── Blocks ─────────────────────────────────────────────────────────────────
@@ -191,8 +191,8 @@ fn update_document_cover_accepts_optional_null() {
 #[test]
 fn block_lifecycle_add_update_delete() {
     let a = api();
-    let doc_id = field(
-        &dispatch(&a, "create_document", json!({ "title": "Doc" })).unwrap(),
+    let leaf_id = field(
+        &dispatch(&a, "create_leaf", json!({ "title": "Doc" })).unwrap(),
         "id",
     )
     .as_str()
@@ -209,7 +209,7 @@ fn block_lifecycle_add_update_delete() {
     let added = dispatch(
         &a,
         "add_block",
-        json!({ "doc_id": &doc_id, "block_content_json": text_block }),
+        json!({ "leaf_id": &leaf_id, "block_content_json": text_block }),
     )
     .unwrap();
     let block_id = field(&added, "block_id").as_str().unwrap().to_string();
@@ -224,7 +224,7 @@ fn block_lifecycle_add_update_delete() {
         &a,
         "update_block",
         json!({
-            "doc_id": &doc_id,
+            "leaf_id": &leaf_id,
             "block_id": &block_id,
             "content_json": new_content,
         }),
@@ -236,22 +236,22 @@ fn block_lifecycle_add_update_delete() {
     let ok = dispatch(
         &a,
         "delete_block",
-        json!({ "doc_id": &doc_id, "block_id": &block_id }),
+        json!({ "leaf_id": &leaf_id, "block_id": &block_id }),
     )
     .unwrap();
     assert_eq!(field(&ok, "ok"), Value::Bool(true));
 }
 
-// ── Databases ──────────────────────────────────────────────────────────────
+// ── Books ──────────────────────────────────────────────────────────────
 
 #[test]
-fn database_lifecycle_create_property_entry_query() {
+fn book_lifecycle_create_property_entry_query() {
     let a = api();
 
-    // create_database → returns { id }. Databases start empty —
+    // create_book → returns { id }. Books start empty —
     // properties and views are added explicitly.
-    let db_id = field(
-        &dispatch(&a, "create_database", json!({ "title": "Tasks" })).unwrap(),
+    let book_id = field(
+        &dispatch(&a, "create_book", json!({ "title": "Tasks" })).unwrap(),
         "id",
     )
     .as_str()
@@ -264,7 +264,7 @@ fn database_lifecycle_create_property_entry_query() {
     let ok = dispatch(
         &a,
         "add_property",
-        json!({ "db_id": &db_id, "property_json": prop_json }),
+        json!({ "book_id": &book_id, "property_json": prop_json }),
     )
     .unwrap();
     assert_eq!(field(&ok, "ok"), Value::Bool(true));
@@ -275,7 +275,7 @@ fn database_lifecycle_create_property_entry_query() {
         &dispatch(
             &a,
             "add_entry",
-            json!({ "db_id": &db_id, "values_json": values_json }),
+            json!({ "book_id": &book_id, "values_json": values_json }),
         )
         .unwrap(),
         "entry_id",
@@ -285,7 +285,7 @@ fn database_lifecycle_create_property_entry_query() {
     .to_string();
     assert!(!entry_id.is_empty());
 
-    // Need a view to call query_database (FFI signature requires a
+    // Need a view to call query_book (FFI signature requires a
     // real view_id, not Option). Default empty table view returns
     // the full entry set.
     let view_id = uuid_string();
@@ -300,15 +300,15 @@ fn database_lifecycle_create_property_entry_query() {
     let view_added = dispatch(
         &a,
         "add_view",
-        json!({ "db_id": &db_id, "view_json": view_json }),
+        json!({ "book_id": &book_id, "view_json": view_json }),
     )
     .unwrap();
     let view_id_returned = field(&view_added, "view_id").as_str().unwrap().to_string();
 
     let queried = dispatch(
         &a,
-        "query_database",
-        json!({ "db_id": &db_id, "view_id": &view_id_returned }),
+        "query_book",
+        json!({ "book_id": &book_id, "view_id": &view_id_returned }),
     )
     .unwrap();
     let entries: Value = serde_json::from_str(&queried).unwrap();
@@ -336,8 +336,8 @@ fn uuid_string() -> String {
 
 // ── End-to-end workflow ────────────────────────────────────────────────────
 //
-// One big walk through a representative agent session : document with
-// blocks, folder nesting, full database with property + view +
+// One big walk through a representative agent session : leaf with
+// blocks, shelf nesting, full book with property + view +
 // queries + aggregate, plus a tour of the search / trash surfaces.
 // This is the cheapest way to reach high dispatch-coverage without
 // writing 50+ near-identical tests : every match arm we touch here
@@ -348,37 +348,37 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
     let a = api();
     let txt = |s: &str| json!([{ "content": s, "styles": [] }]).to_string();
 
-    // ── Documents ─────────────────────────────────────────────────
+    // ── Leaves ─────────────────────────────────────────────────
     let doc = field(
-        &dispatch(&a, "create_document", json!({ "title": "Parent" })).unwrap(),
+        &dispatch(&a, "create_leaf", json!({ "title": "Parent" })).unwrap(),
         "id",
     )
     .as_str()
     .unwrap()
     .to_string();
 
-    // Hit each document-update tool to cover the structured-arg path
+    // Hit each leaf-update tool to cover the structured-arg path
     // (including take_opt's `Some(...)` arm everywhere).
     for (tool, args) in [
         (
-            "update_document_title",
+            "update_leaf_title",
             json!({ "id": &doc, "new_title": "Parent renamed" }),
         ),
         (
-            "update_document_cover",
+            "update_leaf_cover",
             json!({ "id": &doc, "cover": "cover-A" }),
         ),
-        ("update_document_icon", json!({ "id": &doc, "icon": "🦊" })),
+        ("update_leaf_icon", json!({ "id": &doc, "icon": "🦊" })),
         (
-            "update_document_locked",
+            "update_leaf_locked",
             json!({ "id": &doc, "locked": false }),
         ),
         (
-            "update_document_accent_color",
+            "update_leaf_accent_color",
             json!({ "id": &doc, "accent_color": "teal" }),
         ),
         (
-            "update_document_text_direction",
+            "update_leaf_text_direction",
             json!({ "id": &doc, "text_direction": "ltr" }),
         ),
     ] {
@@ -386,10 +386,10 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
         assert_eq!(field(&out, "ok"), Value::Bool(true), "{tool} ok");
     }
 
-    // list_root_documents + list_child_documents — the parent_doc_id
+    // list_root_leaves + list_child_leaves — the parent_leaf_id
     // arg path.
-    let _ = dispatch(&a, "list_root_documents", json!({})).unwrap();
-    let _ = dispatch(&a, "list_child_documents", json!({ "parent_doc_id": &doc })).unwrap();
+    let _ = dispatch(&a, "list_root_leaves", json!({})).unwrap();
+    let _ = dispatch(&a, "list_child_leaves", json!({ "parent_leaf_id": &doc })).unwrap();
 
     // ── Blocks ────────────────────────────────────────────────────
     let text_block =
@@ -398,7 +398,7 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
         &dispatch(
             &a,
             "add_block",
-            json!({ "doc_id": &doc, "block_content_json": &text_block }),
+            json!({ "leaf_id": &doc, "block_content_json": &text_block }),
         )
         .unwrap(),
         "block_id",
@@ -411,7 +411,7 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
         &dispatch(
             &a,
             "add_block",
-            json!({ "doc_id": &doc, "block_content_json": &text_block }),
+            json!({ "leaf_id": &doc, "block_content_json": &text_block }),
         )
         .unwrap(),
         "block_id",
@@ -426,7 +426,7 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
             &a,
             "add_child_block",
             json!({
-                "doc_id": &doc,
+                "leaf_id": &doc,
                 "parent_id": &b1,
                 "block_content_json": &text_block,
             }),
@@ -442,30 +442,30 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
     for (tool, args) in [
         (
             "duplicate_block",
-            json!({ "doc_id": &doc, "block_id": &b1 }),
+            json!({ "leaf_id": &doc, "block_id": &b1 }),
         ),
         (
             "reorder_blocks",
-            json!({ "doc_id": &doc, "order": [&b2, &b1] }),
+            json!({ "leaf_id": &doc, "order": [&b2, &b1] }),
         ),
         (
             "set_block_color",
-            json!({ "doc_id": &doc, "block_id": &b1, "color": "red" }),
+            json!({ "leaf_id": &doc, "block_id": &b1, "color": "red" }),
         ),
         (
             "set_block_background_color",
-            json!({ "doc_id": &doc, "block_id": &b1, "background_color": "yellow" }),
+            json!({ "leaf_id": &doc, "block_id": &b1, "background_color": "yellow" }),
         ),
         (
             "set_block_text_direction",
-            json!({ "doc_id": &doc, "block_id": &b1, "text_direction": "rtl" }),
+            json!({ "leaf_id": &doc, "block_id": &b1, "text_direction": "rtl" }),
         ),
         (
             "move_block",
-            json!({ "doc_id": &doc, "block_id": &b2, "new_parent_id": Value::Null }),
+            json!({ "leaf_id": &doc, "block_id": &b2, "new_parent_id": Value::Null }),
         ),
-        ("indent_block", json!({ "doc_id": &doc, "block_id": &b2 })),
-        ("outdent_block", json!({ "doc_id": &doc, "block_id": &b2 })),
+        ("indent_block", json!({ "leaf_id": &doc, "block_id": &b2 })),
+        ("outdent_block", json!({ "leaf_id": &doc, "block_id": &b2 })),
     ] {
         // Some of these touch state that may make later ones a no-op
         // (e.g. outdent after move). We tolerate Err on individual
@@ -474,11 +474,11 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
         let _ = dispatch(&a, tool, args);
     }
 
-    // ── Folders ───────────────────────────────────────────────────
-    let folder = field(
+    // ── Shelves ───────────────────────────────────────────────────
+    let shelf = field(
         &dispatch(
             &a,
-            "create_folder",
+            "create_shelf",
             json!({ "name": "Notes", "parent_id": Value::Null }),
         )
         .unwrap(),
@@ -488,63 +488,63 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
     .unwrap()
     .to_string();
 
-    let _ = dispatch(&a, "list_folders", json!({})).unwrap();
-    let _ = dispatch(&a, "get_folder", json!({ "id": &folder })).unwrap();
+    let _ = dispatch(&a, "list_shelves", json!({})).unwrap();
+    let _ = dispatch(&a, "get_shelf", json!({ "id": &shelf })).unwrap();
     let _ = dispatch(
         &a,
-        "rename_folder",
-        json!({ "id": &folder, "new_name": "Inbox" }),
+        "rename_shelf",
+        json!({ "id": &shelf, "new_name": "Inbox" }),
     )
     .unwrap();
     let _ = dispatch(
         &a,
-        "update_folder_icon",
-        json!({ "id": &folder, "icon": "📥" }),
+        "update_shelf_icon",
+        json!({ "id": &shelf, "icon": "📥" }),
     )
     .unwrap();
     let _ = dispatch(
         &a,
-        "move_document_to_folder",
-        json!({ "doc_id": &doc, "folder_id": &folder }),
+        "move_leaf_to_shelf",
+        json!({ "leaf_id": &doc, "shelf_id": &shelf }),
     )
     .unwrap();
     let _ = dispatch(
         &a,
-        "list_documents_in_folder",
-        json!({ "folder_id": &folder }),
+        "list_leaves_in_shelf",
+        json!({ "shelf_id": &shelf }),
     )
     .unwrap();
     let _ = dispatch(
         &a,
-        "move_folder_to",
-        json!({ "folder_id": &folder, "new_parent_id": Value::Null }),
+        "move_shelf_to",
+        json!({ "shelf_id": &shelf, "new_parent_id": Value::Null }),
     )
     .unwrap();
 
-    // ── Databases full surface ────────────────────────────────────
+    // ── Books full surface ────────────────────────────────────
     let db = field(
-        &dispatch(&a, "create_database", json!({ "title": "Tasks" })).unwrap(),
+        &dispatch(&a, "create_book", json!({ "title": "Tasks" })).unwrap(),
         "id",
     )
     .as_str()
     .unwrap()
     .to_string();
 
-    let _ = dispatch(&a, "list_databases", json!({})).unwrap();
-    let _ = dispatch(&a, "get_database", json!({ "id": &db })).unwrap();
+    let _ = dispatch(&a, "list_books", json!({})).unwrap();
+    let _ = dispatch(&a, "get_book", json!({ "id": &db })).unwrap();
 
     let prop = uuid_string();
     let prop_json = json!({ "id": &prop, "name": "Note", "type_": "Text" }).to_string();
     dispatch(
         &a,
         "add_property",
-        json!({ "db_id": &db, "property_json": &prop_json }),
+        json!({ "book_id": &db, "property_json": &prop_json }),
     )
     .unwrap();
     dispatch(
         &a,
         "rename_property",
-        json!({ "db_id": &db, "property_id": &prop, "new_name": "Memo" }),
+        json!({ "book_id": &db, "property_id": &prop, "new_name": "Memo" }),
     )
     .unwrap();
 
@@ -554,7 +554,7 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
             &a,
             "add_entry",
             json!({
-                "db_id": &db,
+                "book_id": &db,
                 "values_json": json!({ &prop: { "Text": "first" } }).to_string(),
             }),
         )
@@ -568,7 +568,7 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
         &a,
         "update_entry",
         json!({
-            "db_id": &db,
+            "book_id": &db,
             "entry_id": &entry,
             "values_json": json!({ &prop: { "Text": "edited" } }).to_string(),
         }),
@@ -577,14 +577,14 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
     dispatch(
         &a,
         "delete_entry",
-        json!({ "db_id": &db, "entry_id": &entry }),
+        json!({ "book_id": &db, "entry_id": &entry }),
     )
     .unwrap();
-    dispatch(&a, "list_deleted_entries", json!({ "db_id": &db })).unwrap();
+    dispatch(&a, "list_deleted_entries", json!({ "book_id": &db })).unwrap();
     dispatch(
         &a,
         "restore_entry",
-        json!({ "db_id": &db, "entry_id": &entry }),
+        json!({ "book_id": &db, "entry_id": &entry }),
     )
     .unwrap();
 
@@ -602,7 +602,7 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
         &dispatch(
             &a,
             "add_view",
-            json!({ "db_id": &db, "view_json": &view_json }),
+            json!({ "book_id": &db, "view_json": &view_json }),
         )
         .unwrap(),
         "view_id",
@@ -615,7 +615,7 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
         &a,
         "update_view",
         json!({
-            "db_id": &db,
+            "book_id": &db,
             "view_id": &view_id,
             "filters_json": "[]",
             "sorts_json": "[]",
@@ -626,7 +626,7 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
         &a,
         "set_view_sort",
         json!({
-            "db_id": &db,
+            "book_id": &db,
             "view_id": &view_id,
             "property_id": &prop,
             "ascending": true,
@@ -636,21 +636,21 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
 
     let _ = dispatch(
         &a,
-        "query_database",
-        json!({ "db_id": &db, "view_id": &view_id }),
+        "query_book",
+        json!({ "book_id": &db, "view_id": &view_id }),
     )
     .unwrap();
     let _ = dispatch(
         &a,
-        "query_database_with_rollups",
-        json!({ "db_id": &db, "view_id": &view_id }),
+        "query_book_with_rollups",
+        json!({ "book_id": &db, "view_id": &view_id }),
     )
     .unwrap();
     let _ = dispatch(
         &a,
-        "grouped_query_database",
+        "grouped_query_book",
         json!({
-            "db_id": &db,
+            "book_id": &db,
             "view_id": &view_id,
             "group_by_property_id": &prop,
         }),
@@ -658,50 +658,50 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
     .unwrap();
     let _ = dispatch(
         &a,
-        "column_aggregate_database",
+        "column_aggregate_book",
         json!({
-            "db_id": &db,
+            "book_id": &db,
             "property_id": &prop,
             "aggregate_json": json!({ "Count": null }).to_string(),
         }),
     );
     let _ = dispatch(
         &a,
-        "search_database_entries",
-        json!({ "db_id": &db, "query": "edit" }),
+        "search_book_entries",
+        json!({ "book_id": &db, "query": "edit" }),
     )
     .unwrap();
 
     // ── Search surface ────────────────────────────────────────────
     for tool in [
-        "search_documents",
+        "search_leaves",
         "search_in_blocks",
         "search_in_blocks_with_snippets",
-        "search_databases",
-        "search_folders",
+        "search_books",
+        "search_shelves",
     ] {
         dispatch(&a, tool, json!({ "query": "Parent" })).unwrap();
     }
 
     // ── Trash + restore + purge ───────────────────────────────────
     let throwaway = field(
-        &dispatch(&a, "create_document", json!({ "title": "Trash me" })).unwrap(),
+        &dispatch(&a, "create_leaf", json!({ "title": "Trash me" })).unwrap(),
         "id",
     )
     .as_str()
     .unwrap()
     .to_string();
-    dispatch(&a, "delete_document", json!({ "id": &throwaway })).unwrap();
-    dispatch(&a, "list_deleted_documents", json!({})).unwrap();
-    dispatch(&a, "restore_document", json!({ "id": &throwaway })).unwrap();
-    dispatch(&a, "delete_document", json!({ "id": &throwaway })).unwrap();
-    dispatch(&a, "purge_document", json!({ "id": &throwaway })).unwrap();
+    dispatch(&a, "delete_leaf", json!({ "id": &throwaway })).unwrap();
+    dispatch(&a, "list_deleted_leaves", json!({})).unwrap();
+    dispatch(&a, "restore_leaf", json!({ "id": &throwaway })).unwrap();
+    dispatch(&a, "delete_leaf", json!({ "id": &throwaway })).unwrap();
+    dispatch(&a, "purge_leaf", json!({ "id": &throwaway })).unwrap();
 
-    // Folder trash.
-    let throwaway_folder = field(
+    // Shelf trash.
+    let throwaway_shelf = field(
         &dispatch(
             &a,
-            "create_folder",
+            "create_shelf",
             json!({ "name": "Tmp", "parent_id": Value::Null }),
         )
         .unwrap(),
@@ -710,34 +710,34 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
     .as_str()
     .unwrap()
     .to_string();
-    dispatch(&a, "delete_folder", json!({ "id": &throwaway_folder })).unwrap();
-    dispatch(&a, "list_deleted_folders", json!({})).unwrap();
-    dispatch(&a, "restore_folder", json!({ "id": &throwaway_folder })).unwrap();
-    dispatch(&a, "delete_folder", json!({ "id": &throwaway_folder })).unwrap();
-    dispatch(&a, "purge_folder", json!({ "id": &throwaway_folder })).unwrap();
+    dispatch(&a, "delete_shelf", json!({ "id": &throwaway_shelf })).unwrap();
+    dispatch(&a, "list_deleted_shelves", json!({})).unwrap();
+    dispatch(&a, "restore_shelf", json!({ "id": &throwaway_shelf })).unwrap();
+    dispatch(&a, "delete_shelf", json!({ "id": &throwaway_shelf })).unwrap();
+    dispatch(&a, "purge_shelf", json!({ "id": &throwaway_shelf })).unwrap();
 
-    // Database trash.
-    let throwaway_db = field(
-        &dispatch(&a, "create_database", json!({ "title": "Tmp DB" })).unwrap(),
+    // Book trash.
+    let throwaway_book = field(
+        &dispatch(&a, "create_book", json!({ "title": "Tmp DB" })).unwrap(),
         "id",
     )
     .as_str()
     .unwrap()
     .to_string();
-    dispatch(&a, "delete_database", json!({ "id": &throwaway_db })).unwrap();
-    dispatch(&a, "list_deleted_databases", json!({})).unwrap();
-    dispatch(&a, "restore_database", json!({ "id": &throwaway_db })).unwrap();
-    dispatch(&a, "delete_database", json!({ "id": &throwaway_db })).unwrap();
-    dispatch(&a, "purge_database", json!({ "id": &throwaway_db })).unwrap();
+    dispatch(&a, "delete_book", json!({ "id": &throwaway_book })).unwrap();
+    dispatch(&a, "list_deleted_books", json!({})).unwrap();
+    dispatch(&a, "restore_book", json!({ "id": &throwaway_book })).unwrap();
+    dispatch(&a, "delete_book", json!({ "id": &throwaway_book })).unwrap();
+    dispatch(&a, "purge_book", json!({ "id": &throwaway_book })).unwrap();
 
     // Bulk deleters.
-    dispatch(&a, "delete_all_documents", json!({})).unwrap();
-    dispatch(&a, "delete_all_databases", json!({})).unwrap();
+    dispatch(&a, "delete_all_leaves", json!({})).unwrap();
+    dispatch(&a, "delete_all_books", json!({})).unwrap();
 
     // After the bulk delete, db / view / prop are gone so these are
     // safe to call on a fresh entity for cleanup branches.
-    let final_db = field(
-        &dispatch(&a, "create_database", json!({ "title": "Final" })).unwrap(),
+    let final_book = field(
+        &dispatch(&a, "create_book", json!({ "title": "Final" })).unwrap(),
         "id",
     )
     .as_str()
@@ -748,7 +748,7 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
         &a,
         "add_property",
         json!({
-            "db_id": &final_db,
+            "book_id": &final_book,
             "property_json": json!({
                 "id": &final_prop,
                 "name": "X",
@@ -760,7 +760,7 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
     dispatch(
         &a,
         "delete_property",
-        json!({ "db_id": &final_db, "property_id": &final_prop }),
+        json!({ "book_id": &final_book, "property_id": &final_prop }),
     )
     .unwrap();
 
@@ -769,7 +769,7 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
         &a,
         "add_view",
         json!({
-            "db_id": &final_db,
+            "book_id": &final_book,
             "view_json": json!({
                 "id": &final_view,
                 "name": "V",
@@ -787,7 +787,7 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
         &a,
         "add_view",
         json!({
-            "db_id": &final_db,
+            "book_id": &final_book,
             "view_json": json!({
                 "id": &final_view2,
                 "name": "V2",
@@ -801,20 +801,20 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
     dispatch(
         &a,
         "delete_view",
-        json!({ "db_id": &final_db, "view_id": &final_view2 }),
+        json!({ "book_id": &final_book, "view_id": &final_view2 }),
     )
     .unwrap();
 
     // Parent move : create a fresh sibling and move it.
     let sibling = field(
-        &dispatch(&a, "create_document", json!({ "title": "Sibling" })).unwrap(),
+        &dispatch(&a, "create_leaf", json!({ "title": "Sibling" })).unwrap(),
         "id",
     )
     .as_str()
     .unwrap()
     .to_string();
     let host = field(
-        &dispatch(&a, "create_document", json!({ "title": "Host" })).unwrap(),
+        &dispatch(&a, "create_leaf", json!({ "title": "Host" })).unwrap(),
         "id",
     )
     .as_str()
@@ -822,14 +822,14 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
     .to_string();
     dispatch(
         &a,
-        "update_document_parent",
-        json!({ "doc_id": &sibling, "new_parent_doc_id": &host }),
+        "update_leaf_parent",
+        json!({ "leaf_id": &sibling, "new_parent_leaf_id": &host }),
     )
     .unwrap();
     dispatch(
         &a,
-        "update_document_parent",
-        json!({ "doc_id": &sibling, "new_parent_doc_id": Value::Null }),
+        "update_leaf_parent",
+        json!({ "leaf_id": &sibling, "new_parent_leaf_id": Value::Null }),
     )
     .unwrap();
 }
@@ -851,8 +851,8 @@ fn unknown_tool_returns_error() {
 #[test]
 fn missing_required_arg_surfaces_descriptive_error() {
     let a = api();
-    // create_document requires "title".
-    let res = dispatch(&a, "create_document", json!({}));
+    // create_leaf requires "title".
+    let res = dispatch(&a, "create_leaf", json!({}));
     let err = res.expect_err("missing arg must error out");
     assert!(
         err.to_string().contains("title"),
@@ -864,7 +864,7 @@ fn missing_required_arg_surfaces_descriptive_error() {
 fn invalid_arg_type_surfaces_descriptive_error() {
     let a = api();
     // "title" must be a string, not a number.
-    let res = dispatch(&a, "create_document", json!({ "title": 42 }));
+    let res = dispatch(&a, "create_leaf", json!({ "title": 42 }));
     let err = res.expect_err("wrong arg type must error out");
     assert!(
         err.to_string().contains("title"),

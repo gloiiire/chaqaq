@@ -1,11 +1,11 @@
 // ── Craft Combined extractor ──────────────────────────────────────────────────
 //
-// Merges Craft's `.realm` database with a folder of `.textbundle` exports.
+// Merges Craft's `.realm` book with a shelf of `.textbundle` exports.
 //
 // Strategy:
-//   1. Walk textbundle folder → build map (normalized title → display title + path)
-//   2. Open realm → group blocks per document (same logic as CraftExtractor)
-//   3. For each realm document:
+//   1. Walk textbundle shelf → build map (normalized title → display title + path)
+//   2. Open realm → group blocks per leaf (same logic as CraftExtractor)
+//   3. For each realm leaf:
 //      - If a textbundle with matching title exists → import using textbundle
 //        markdown content and the filename stem as the display title.
 //      - Otherwise → import using realm block content.
@@ -24,13 +24,13 @@ use std::path::{Path, PathBuf};
 
 use realm_codec::RealmFile;
 
-use crate::application::database_repository::DatabaseRepository;
-use crate::application::folder_repository::FolderRepository;
-use crate::application::repository::DocumentRepository;
+use crate::application::book_repository::BookRepository;
+use crate::application::shelf_repository::ShelfRepository;
+use crate::application::repository::LeafRepository;
 use crate::extractors::bear::mapper::{ParsedBlock, parse_note_blocks};
-use crate::extractors::craft::{flush_document, map_block, title_candidate};
+use crate::extractors::craft::{flush_leaf, map_block, title_candidate};
 use crate::extractors::craft_textbundle::{
-    find_textbundles, relative_folder_components, textbundle_title,
+    find_textbundles, relative_shelf_components, textbundle_title,
 };
 use crate::extractors::traits::Extractor;
 use crate::extractors::{ExtractorError, ImportResult};
@@ -41,7 +41,7 @@ use uuid::Uuid;
 pub struct CraftCombinedConfig {
     /// Absolute path to Craft's `.realm` file.
     pub realm_path: String,
-    /// Absolute path to the root folder containing `.textbundle` packages.
+    /// Absolute path to the root shelf containing `.textbundle` packages.
     pub textbundle_root: String,
 }
 
@@ -70,9 +70,9 @@ impl CraftCombinedExtractor {
     pub async fn run_detailed(
         &self,
         config: CraftCombinedConfig,
-        docs: &(dyn DocumentRepository + Send + Sync),
-        dbs: &(dyn DatabaseRepository + Send + Sync),
-        folders: &(dyn FolderRepository + Send + Sync),
+        docs: &(dyn LeafRepository + Send + Sync),
+        dbs: &(dyn BookRepository + Send + Sync),
+        shelves: &(dyn ShelfRepository + Send + Sync),
     ) -> Result<(ImportResult, CraftCombinedBreakdown), ExtractorError> {
         let _ = dbs;
 
@@ -101,20 +101,20 @@ impl CraftCombinedExtractor {
                 .or_insert_with(|| (title, bundle.clone()));
         }
 
-        let mut folder_cache: HashMap<Vec<String>, Uuid> = HashMap::new();
+        let mut shelf_cache: HashMap<Vec<String>, Uuid> = HashMap::new();
 
-        // ── Step 2: open realm + collect document IDs ─────────────────────────
+        // ── Step 2: open realm + collect leaf IDs ─────────────────────────
         let realm = RealmFile::open(&config.realm_path)
             .map_err(|e| ExtractorError::Parse(format!("cannot open realm file: {e}")))?;
 
-        let doc_ids: HashSet<String> = {
-            let doc_table = realm
+        let leaf_ids: HashSet<String> = {
+            let leaf_table = realm
                 .table("class_DocumentDataModel")
                 .ok_or_else(|| ExtractorError::Parse("DocumentDataModel table not found".into()))?;
-            let id_col = doc_table
+            let id_col = leaf_table
                 .column_index("id")
                 .ok_or_else(|| ExtractorError::Parse("DocumentDataModel.id missing".into()))?;
-            doc_table
+            leaf_table
                 .rows
                 .iter()
                 .map(|r| r.get(id_col).as_str().to_lowercase())
@@ -122,7 +122,7 @@ impl CraftCombinedExtractor {
                 .collect()
         };
 
-        // ── Step 3: group realm blocks by document ────────────────────────────
+        // ── Step 3: group realm blocks by leaf ────────────────────────────
         let block_table = realm
             .table("class_BlockDataModel")
             .ok_or_else(|| ExtractorError::Parse("BlockDataModel table not found".into()))?;
@@ -137,18 +137,18 @@ impl CraftCombinedExtractor {
             .column_index("lastSyncedBlockIds")
             .ok_or_else(|| ExtractorError::Parse("lastSyncedBlockIds column missing".into()))?;
 
-        // doc_id → (title_opt, content_blocks, skipped_count)
-        let mut doc_map: HashMap<String, (Option<String>, Vec<ParsedBlock>, usize)> =
+        // leaf_id → (title_opt, content_blocks, skipped_count)
+        let mut leaf_map: HashMap<String, (Option<String>, Vec<ParsedBlock>, usize)> =
             HashMap::new();
 
         for row in &block_table.rows {
-            let doc_id = row.get(lsb_idx).as_str().to_lowercase();
-            if doc_id.is_empty() || !doc_ids.contains(&doc_id) {
+            let leaf_id = row.get(lsb_idx).as_str().to_lowercase();
+            if leaf_id.is_empty() || !leaf_ids.contains(&leaf_id) {
                 continue;
             }
             let content = row.get(content_idx).as_str().to_owned();
             let block_type = row.get(type_idx).as_str();
-            let entry = doc_map.entry(doc_id).or_insert((None, vec![], 0));
+            let entry = leaf_map.entry(leaf_id).or_insert((None, vec![], 0));
 
             if entry.0.is_none()
                 && let Some(t) = title_candidate(&content, block_type)
@@ -177,7 +177,7 @@ impl CraftCombinedExtractor {
         let mut tb_matched_count = 0usize;
         let mut realm_fallback_count = 0usize;
 
-        for (_doc_id, (title_opt, realm_blocks, doc_skipped)) in doc_map {
+        for (_leaf_id, (title_opt, realm_blocks, leaf_skipped)) in leaf_map {
             let realm_title = title_opt.unwrap_or_else(|| "Untitled".to_string());
             let key = normalize(&realm_title);
 
@@ -186,15 +186,15 @@ impl CraftCombinedExtractor {
                     std::fs::read_to_string(bundle_path.join("text.markdown")).unwrap_or_default();
                 let blocks = parse_note_blocks(&md);
                 block_count += blocks.len();
-                let components = relative_folder_components(bundle_path, tb_root);
-                let folder_id = ensure_folder_cached(&components, folders, &mut folder_cache)?;
-                flush_document(docs, tb_title, blocks, folder_id)?;
+                let components = relative_shelf_components(bundle_path, tb_root);
+                let shelf_id = ensure_shelf_cached(&components, shelves, &mut shelf_cache)?;
+                flush_leaf(docs, tb_title, blocks, shelf_id)?;
                 matched_tb_keys.insert(key);
                 tb_matched_count += 1;
             } else {
                 block_count += realm_blocks.len();
-                skipped += doc_skipped;
-                flush_document(docs, &realm_title, realm_blocks, None)?;
+                skipped += leaf_skipped;
+                flush_leaf(docs, &realm_title, realm_blocks, None)?;
                 realm_fallback_count += 1;
             }
         }
@@ -210,17 +210,17 @@ impl CraftCombinedExtractor {
             let md = std::fs::read_to_string(bundle.join("text.markdown")).unwrap_or_default();
             let blocks = parse_note_blocks(&md);
             block_count += blocks.len();
-            let components = relative_folder_components(bundle, tb_root);
-            let folder_id = ensure_folder_cached(&components, folders, &mut folder_cache)?;
-            flush_document(docs, &title, blocks, folder_id)?;
+            let components = relative_shelf_components(bundle, tb_root);
+            let shelf_id = ensure_shelf_cached(&components, shelves, &mut shelf_cache)?;
+            flush_leaf(docs, &title, blocks, shelf_id)?;
             tb_only_count += 1;
         }
 
-        let doc_count = tb_matched_count + realm_fallback_count + tb_only_count;
+        let leaf_count = tb_matched_count + realm_fallback_count + tb_only_count;
         let result = ImportResult {
             app: "Craft (Combined)",
-            database_id: None,
-            documents: doc_count,
+            book_id: None,
+            leaves: leaf_count,
             entries: 0,
             blocks: block_count,
             skipped,
@@ -250,11 +250,11 @@ impl Extractor for CraftCombinedExtractor {
     async fn run(
         &self,
         config: CraftCombinedConfig,
-        docs: &(dyn DocumentRepository + Send + Sync),
-        dbs: &(dyn DatabaseRepository + Send + Sync),
-        folders: &(dyn FolderRepository + Send + Sync),
+        docs: &(dyn LeafRepository + Send + Sync),
+        dbs: &(dyn BookRepository + Send + Sync),
+        shelves: &(dyn ShelfRepository + Send + Sync),
     ) -> Result<ImportResult, ExtractorError> {
-        self.run_detailed(config, docs, dbs, folders)
+        self.run_detailed(config, docs, dbs, shelves)
             .await
             .map(|(r, _)| r)
     }
@@ -262,10 +262,10 @@ impl Extractor for CraftCombinedExtractor {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/// Gets or creates the folder for `components`, caching results.
-fn ensure_folder_cached(
+/// Gets or creates the shelf for `components`, caching results.
+fn ensure_shelf_cached(
     components: &[String],
-    folders: &dyn FolderRepository,
+    shelves: &dyn ShelfRepository,
     cache: &mut HashMap<Vec<String>, Uuid>,
 ) -> Result<Option<Uuid>, ExtractorError> {
     if components.is_empty() {
@@ -275,13 +275,13 @@ fn ensure_folder_cached(
     if let Some(&id) = cache.get(&key) {
         return Ok(Some(id));
     }
-    let parent_id = ensure_folder_cached(&components[..components.len() - 1], folders, cache)?;
+    let parent_id = ensure_shelf_cached(&components[..components.len() - 1], shelves, cache)?;
     let name = &components[components.len() - 1];
-    let folder = folders
+    let shelf = shelves
         .create(name, parent_id)
-        .map_err(|e| ExtractorError::Parse(format!("folder creation failed: {e}")))?;
-    cache.insert(key, folder.id);
-    Ok(Some(folder.id))
+        .map_err(|e| ExtractorError::Parse(format!("shelf creation failed: {e}")))?;
+    cache.insert(key, shelf.id);
+    Ok(Some(shelf.id))
 }
 
 /// Normalizes a title for cross-source matching.
