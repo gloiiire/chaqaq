@@ -4,9 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Vision
 
-**pinkha** — app de notes personnelle, mélange Craft (beauté, fluidité, rendu natif) + Notion (books, structure). Full Rust pour le core. Objectif : publication open source, car un rich text editor en Rust n'existe pas encore dans l'écosystème.
+**pinkha** — app de notes personnelle, mélange Craft (beauté, fluidité, rendu natif) + Notion (structure, databases). Full Rust pour le core. Objectif : publication open source, car un rich text editor en Rust n'existe pas encore dans l'écosystème.
 
 Plateformes cibles : iPhone, iPad, Mac. Décision UI : **SwiftUI + UniFFI** — rendu 100 % natif (iOS 26, scroll physics natif, tab bar native), Rust pour le core.
+
+## Vocabulaire métier
+
+Pinkha utilise un vocabulaire orienté "bibliothèque physique" plutôt que les termes génériques de Notion/Apple Notes. Mapping complet + grammaire d'actions + i18n EN/FR : **`docs/VOCABULARY.md`**.
+
+| Concept | Nom (code + UX) | Pair sémantique |
+| --- | --- | --- |
+| Document riche text | **Leaf** | feuille d'un livre |
+| Database / collection | **Book** | recueil relié de feuilles |
+| Row d'un Book | **bound Leaf** | feuille reliée |
+| Document standalone | **loose Leaf** | feuille volante |
+| Folder | **Shelf** | étagère qui contient livres + feuilles |
+| Workspace (la home tab) | **Library** | la bibliothèque |
+| Trash | **Compost** | feuilles tombées en compost |
+
+Grammaire : **take** a leaf, **open** a book, **build** a shelf, **bind** a leaf to a book, **unbind**, **shelve**, **discard to compost**.
+
+Termes externes préservés (ne pas renommer dans le code) : `NotionDatabase*`, `notion_database`, `child_database`, `ChildDatabase*` (terminologie API Notion), `DocumentDataModel` (type Realm/Craft externe), `db_path` (chemin fichier SQLite — pas un Pinkha Book), `documentation`/`documented`/`documenting` (anglais courant).
 
 ## Commands
 
@@ -32,95 +50,173 @@ mv swift-bindings/pinkha.swift app/Packages/PinkhaFFI/Sources/PinkhaFFI/
 cd crates/chaqaq && cargo publish
 ```
 
-## Architecture (Clean Architecture)
+## Architecture (Clean Architecture côté Rust + multi-target SwiftPM côté Swift)
 
-Le repo est un **Cargo workspace** avec trois crates :
-- `crates/chaqaq` — crate autonome open source publié sur crates.io (MIT OR Apache-2.0)
-- `crates/realm-codec` — parser/writer Realm v9 binary, publié sur crates.io (MIT OR Apache-2.0)
-- `.` (pinkha) — application complète, dépend de chaqaq via `{ path = "crates/chaqaq" }`
+Le repo est un **Cargo workspace** avec trois crates Rust + une application Swift modulaire en 11 packages SwiftPM.
+
+### Vue d'ensemble
 
 ```
-crates/chaqaq/     — crate autonome rich text editor (crates.io: chaqaq v0.1.0)
-crates/realm-codec/ — parser/writer Realm v9 binary (crates.io: realm-codec v0.1.0)
-  src/
-    lib.rs     — RealmFile, RealmTable, Row, Value, ColumnType, RealmError
-    format.rs  — NodeHeader, decode_short_string, read_bits_elem (pub(crate))
-    reader.rs  — B-tree traversal, read_tables
-    write.rs   — RealmBuilder, TableBuilder (sérialisation bottom-up)
+pinkha/
+├── crates/                  Cargo workspace
+│   ├── chaqaq/              Rich text editor autonome (crates.io: chaqaq v0.1.0, MIT OR Apache-2.0)
+│   ├── realm-codec/         Parser/writer Realm v9 binary (crates.io: realm-codec v0.1.0)
+│   └── pinkha-mcp/          MCP server pour Claude (tooling interne)
+├── src/                     Le core Rust pinkha (dépend de chaqaq via path)
+├── pinkha.xcframework/      XCFramework généré par ./build-xcframework.sh
+├── swift-bindings/          Headers C (.h + .modulemap) consommés par le xcframework
+└── app/                     Application iOS SwiftUI
+    ├── project.yml          Config xcodegen
+    ├── Pinkha.xcodeproj/    Généré
+    ├── Packages/            11 packages SwiftPM (cf. section dédiée)
+    └── Sources/
+        ├── App/             Composition root uniquement (PinkhaApp, ContentView, AppDelegate, SplashView, Composer+QuickActions)
+        ├── Assets.xcassets
+        ├── Info.plist
+        └── Localizable.xcstrings
+```
 
-crates/chaqaq/     — crate autonome rich text editor (crates.io: chaqaq v0.1.0)
-  src/
-    lib.rs         — API publique + doc crate
-    document.rs — InlineStyle, InlineText
-    rich_text.rs   — RichText + Span (indices chars Unicode)
-    editor.rs      — EditorState (curseur, sélection, toggle style)
-    commands.rs    — Command trait + Insert, Delete, ApplyStyle, History
-    parser.rs      — parse_inline() (state machine markdown)
+### Rust — `src/`
 
+```
 src/
-  domain/          — re-exports depuis chaqaq + types pinkha-spécifiques
-    leaf.rs    — re-exporte InlineStyle/InlineText + Block, Leaf, LeafMeta
-    parser.rs      — re-exporte parse_inline
-    rich_text.rs   — re-exporte RichText, Span
-    editor.rs      — re-exporte EditorState
-    commands.rs    — re-exporte Command, Insert, Delete, ApplyStyle, History
-    book.rs    — types Book/Notion (Property, Entry, View, Filter, Sort…)
-  application/     — traits + use cases
-    repository.rs  — trait LeafRepository (save, load, list, delete)
-    use_cases.rs   — use cases leaves et blocs
-    book_repository.rs — trait BookRepository
-    book_use_cases.rs  — use cases book
-    error.rs       — PinkhaError (NonTrouve, OperationInvalide, Io, Json, Db)
-  infrastructure/
-    migrations.rs            — migrations SQLite versionnées (rusqlite_migration)
-    sqlite_leaf_store.rs — SqliteLeafStore : stockage local-first recommandé
-    sqlite_book_store.rs — SqliteBookStore : stockage local-first recommandé
-    json_store.rs            — JsonStore : conservé pour les tests et le proto
-    book_store.rs        — BookStore JSON : conservé pour les tests
-  extractors/      — pipelines d'import, un par source (Notion, Bear, …)
-    mod.rs         — ExtractorError, ImportResult
-    traits.rs      — trait Extractor (async run, Config associé)
-    notion/        — client reqwest + serde types + mapper + pipeline paginé
-      client.rs    — HTTP client (reqwest, rustls-tls, iOS-compatible)
-      schema.rs    — types serde pour API Notion v1 (book, pages, blocs)
-      mapper.rs    — Notion → domaine Pinkha (propriétés, valeurs, blocs)
-      assets.rs    — téléchargement covers / icons (client sans bearer token)
-      mentions.rs  — réécriture 2-pass des liens notion.so → pinkha://doc/{uuid}
-      mod.rs       — pipeline complet : schéma → DB → pages → blocs récursifs
-    bear/          — lecteur SQLite + parseur Markdown Bear
-      reader.rs    — rusqlite read-only, conversion timestamps Core Data
-      schema.rs    — BearNote row type
-      mapper.rs    — parseur Markdown Bear ligne par ligne
-      mod.rs       — importe toutes les notes non supprimées
-  ffi/             — façade UniFFI éclatée par domaine (composition root)
-    mod.rs         — struct PinkhaApi (stores + uow()), re-exports
-    error.rs       — PinkhaError FFI + From<CoreError>
-    types.rs       — dictionnaires FFI (LeafMetaFfi, SuperSearchResultsFfi…) + converters
-    validation.rs  — parse_uuid, parse_json (5 Mo max), validate_string (64 Ko max)
-    leaves.rs   — impl PinkhaApi : leaves, blocs, recherche, corbeille docs
-    books.rs   — impl PinkhaApi : books, entries, propriétés, vues, requêtes
-    shelves.rs     — impl PinkhaApi : shelves + placement des leaves
-    library.rs   — impl PinkhaApi : opérations cross-domain (super_search, empty_trash)
-    extractors.rs  — impl PinkhaApi : imports Notion / Bear / Craft + runtime Tokio
-  pinkha.udl       — interface UDL déclarant l'API publique Swift/Kotlin
-  bin/
-    uniffi-bindgen.rs — binaire local pour générer les bindings
-  main.rs          — point d'entrée démo
-swift-bindings/    — bindings Swift générés (pinkha.swift, pinkhaFFI.h, .modulemap)
-pinkha.xcframework — XCFramework compilé (ios-arm64, ios-arm64-simulator, macos-arm64)
-build-xcframework.sh — script de compilation du XCFramework
-app/               — application SwiftUI (projet Xcode généré par xcodegen)
-  project.yml      — config xcodegen
-  Pinkha.xcodeproj/
-  Sources/
-    PinkhaApp.swift      — point d'entrée @main
-    ContentView.swift    — TabView 3 onglets (Notes/Bases/Recherche) + PinkhaStore
-    LeafView.swift   — éditeur de leaf + LeafViewModel
-    Models.swift         — miroirs Swift des types Rust (Codable)
-    RichTextEditor.swift — UIViewRepresentable + toolbar de formatage
+  domain/                   types purs, aucune dép externe (sauf chaqaq)
+    leaf.rs                 re-exporte InlineStyle/InlineText depuis chaqaq + Block, Leaf, LeafMeta
+    book/                   moteur type Notion (Property, Entry, View, Filter, Sort, Rollup)
+    shelf.rs                Shelf + ShelfMeta
+    parser.rs / rich_text.rs / editor.rs / commands.rs   re-exports chaqaq
+  application/              traits + use cases (dépend seulement de domain)
+    leaf_repository.rs      trait LeafRepository
+    book_repository.rs      trait BookRepository
+    shelf_repository.rs     trait ShelfRepository
+    book_use_cases/         CRUD + query + properties + views + search/rollup
+    shelf_use_cases.rs
+    use_cases/
+      leaf.rs               CRUD leaves + blocs
+      blocks.rs             ajouter/modifier/supprimer/réordonner/imbriquer/déplacer
+      search.rs             super_search dédupliquée côté Rust
+      trash.rs              empty_trash bulk
+      book_leaf_sync.rs     orchestration cross-domain (Leaf + Book) — update_entry_propagating_title, delete_book_cascade, set_published_at_source…
+    resilience.rs           retry_with_backoff (exponentiel, 3 essais, transient-only)
+    error.rs                PinkhaError (NotFound / InvalidOperation / Io / Json / Db)
+  infrastructure/           stockage (dépend de application)
+    migrations.rs                  migrations SQLite versionnées + rename_legacy_schema (documents→leaves, databases→books, folders→shelves, folder_id→shelf_id, parent_doc_id→parent_leaf_id) idempotent
+    sqlite_leaf_store.rs           SqliteLeafStore : local-first
+    sqlite_book_store.rs           SqliteBookStore
+    sqlite_shelf_store.rs          SqliteShelfStore
+    leaf_store.rs / book_store.rs  JsonStore : tests legacy
+  extractors/               imports (Notion / Bear / Craft)
+    notion/                 reqwest rustls-tls, API v1 paginée, 2-pass mention rewriting
+    bear/                   rusqlite read-only + parseur Markdown Bear
+    craft_textbundle/, craft_combined/  realm-codec read-only
+  ffi/                      façade UniFFI éclatée par domaine (composition root)
+    mod.rs                  struct PinkhaApi (stores + uow()), re-exports
+    error.rs                PinkhaError FFI + From<CoreError>
+    types.rs                dictionnaires FFI (LeafMetaFfi, BookMetaFfi, ShelfMetaFfi, SuperSearchResultsFfi…) + converters
+    validation.rs           parse_uuid, parse_json (5 Mo max), check_string (64 Ko max)
+    leaves.rs / books.rs / shelves.rs / library.rs / extractors.rs   impl PinkhaApi par domaine
+  pinkha.udl                interface UDL déclarant l'API publique Swift/Kotlin
+  bin/uniffi-bindgen.rs     binaire local pour générer les bindings
+  main.rs                   point d'entrée démo
 ```
 
 Règle de dépendance : `infrastructure` → `application` → `domain`. Le domaine ne sait rien du stockage.
+
+### Swift — `app/Packages/` (11 packages SwiftPM)
+
+L'application iOS est éclatée en **11 packages SwiftPM** avec un DAG enforced par le compilateur. Le target Xcode `Pinkha` ne contient plus que la composition root (`App/`) + les ressources.
+
+#### Packages plateforme (5)
+
+```
+PinkhaFFI                   wrappe pinkha.xcframework (binaryTarget) + miroirs Codable des types Rust
+  ├─ pinkha.swift           bindings générés par uniffi-bindgen
+  ├─ {Leaf,Book,Entry,Property,PropertyValue,View,BlockContent}.swift  miroirs Codable
+  └─ PinkhaApi+Typed.swift  extensions typées qui décodent automatiquement les FFI JSON-string
+
+PinkhaCore                  utilitaires cross-cutting (dépend PinkhaFFI)
+  ├─ AppSettings.swift              @Observable @MainActor (accent, appearance, recentCount, hapticsEnabled, theme, rotationLock)
+  ├─ PinkhaStore.swift              @Observable @MainActor — owner du PinkhaApi + ListItems + recents
+  ├─ WorkspaceItem.swift            enum Leaf | Book (nom conservé pour éviter le conflit SwiftUI.LibraryItem)
+  ├─ SettingsView.swift             sheet préférences app-wide
+  ├─ Resilience.swift               tryCatch(into:), errorAlert, PinkhaError userMessage/isRecoverable
+  ├─ Keychain.swift                 wrapper kSecAttrAccessibleWhenUnlockedThisDeviceOnly (tokens Notion)
+  ├─ Observability.swift            wrapper Sentry (start/capture/captureAsEvent)
+  ├─ Haptic.swift                   Haptic.tap/toggle/soft/success/warning + HapticTapStyle PrimitiveButtonStyle
+  ├─ CoversDirectory.swift          CoverImageStorage (FS helpers pour images de cover)
+  ├─ ISO8601DateFormatter+FullRfc.swift   formatter RFC 3339 partagé (round-trip Rust ↔ Swift)
+  └─ UIKit/                         bridges UIKit : SafariSwitcher, UIKitContextMenu, TabSnapshotCache, GlobalKeyboardDismissPan
+
+PinkhaDesignSystem          composants UI réutilisables (dépend PinkhaCore + PinkhaFFI)
+  ├─ SectionHeader.swift            label uppercase semibold avec kerning
+  ├─ CoverImageView.swift           rendu cover (gradient / file / URL / placeholder)
+  ├─ LockToolbarButton.swift        toolbar lock partagé Leaf + Book
+  ├─ SystemAlertCard.swift          alert glass clone iOS 26 + .systemAlertOverlay(isPresented:card:)
+  └─ PropertyInputRow.swift         row d'édition d'une PropertyValueFfi pour les sheets
+
+PinkhaRichText              éditeur chaqaq-backed (dépend PinkhaCore + DesignSystem + FFI)
+  ├─ RichTextEditor.swift                       UIViewRepresentable (33+ closures dans son init public)
+  ├─ RichTextEditorCoordinator.swift           UITextViewDelegate + UIGestureRecognizerDelegate
+  ├─ RichTextEditorCoordinator+{Menus,Selection,Style,Toolbar}.swift
+  ├─ ExpandingTextView.swift                    UITextView custom (hauteur auto, hooks raccourcis)
+  ├─ MentionBar.swift                           picker @-mention au-dessus du clavier
+  ├─ RichTextAttributes.swift                   NSAttributedString.Key.pinkhaColor
+  ├─ RichTextConversion.swift                   spansToAttributed / attributedToSpans
+  └─ MarkdownShortcuts.swift                    markdownShortcut(for:) — H1/H2/H3/Quote/Callout/Todo/Divider
+
+PinkhaComposer              orchestrator composition (dépend PinkhaCore + FFI)
+  ├─ Composer.swift                  @Observable @MainActor (sheets, createMode, CreationContext, Notification.Name, TabKind, PendingChildPage)
+  └─ StandaloneStyle.swift           type partagé Leaf/Library (cover, icon, theme, publishedAt, customCoverData)
+```
+
+#### Package features (PinkhaFeatures, 5 targets)
+
+```
+PinkhaFeatures              5 cibles avec DAG : LeafFeature ← BookFeature ← {LibraryFeature, SearchFeature, ImportFeature}
+  ├─ LeafFeature            éditeur de leaf
+  │   ├─ Editor/LeafView, LeafViewModel (+ Persistence/Blocks/TitleCover/Undo), LeafView+Toolbar, LeafView+BlockCallbacks, LeafTitle, LeafDecor, LeafViewHelpers, EditableBlock, ActionRepeater, EmojiPicker, ExpandingBlockFAB
+  │   ├─ Blocks/BlockRows, BlockRowsExtra, EmbedRowView, EmbedMetadata
+  │   ├─ Sheets/BindLeafToBookSheet, LeafPublishDateSheet
+  │   └─ TabManager.swift   cache MRU des LeafViewModel ouverts (Safari-style tab switcher)
+  │
+  ├─ BookFeature            ← LeafFeature (NavigationLink → LeafView)
+  │   ├─ BookView, BookViewModel, BookHeader, BookToolbar, BookCascadeDialogs, BooksHomeView
+  │   ├─ Sheets/BookFilterSheet, BookPropertiesSheet
+  │   └─ Views/{Board,Calendar,Gallery,List,Table}View + BookGroupHeader
+  │
+  ├─ LibraryFeature         ← LeafFeature + BookFeature
+  │   ├─ LibraryView, LibraryView+Sort, LibraryRow, LibraryEmptyState
+  │   ├─ RecentStrip, AllLeavesSwitcher
+  │   ├─ ShelfView, ShelvesSectionView, ShelfRow
+  │   ├─ CompostView (anciennement TrashView, struct gardée TrashView pour l'instant)
+  │   ├─ InboxView, CreateBubble, CreateLeafSheet
+  │   └─ PinkhaStore+Composer.swift   overloads createNote(in:Composer.CreationContext, style:StandaloneStyle), createNoteInBook, applyStandaloneStyle
+  │
+  ├─ ImportFeature          ← (indépendant — aucune dep feature)
+  │   ├─ NotionImportView, NotionOAuth2
+  │   ├─ BearImportView
+  │   └─ CraftTextBundleImportView, CraftCombinedImportView
+  │
+  └─ SearchFeature          ← LeafFeature + BookFeature + LibraryFeature
+      └─ SearchView         hits leaves + books + shelves, NavigationLink direct vers Leaf/Book/Shelf
+```
+
+### `app/Sources/` — app target
+
+```
+app/Sources/
+├── App/
+│   ├── PinkhaApp.swift              @main — bootstrap @Observable Composer/AppSettings/TabManager/PinkhaStore
+│   ├── AppDelegate.swift            @UIApplicationDelegateAdaptor, drainage Quick Actions
+│   ├── ContentView.swift            TabView 4 onglets : Library | Books | Inbox | Search ; orchestre les sheets et alertes globales
+│   ├── SplashView.swift             écran d'ouverture (fade-in du logo)
+│   └── Composer+QuickActions.swift  extension qui lit AppDelegate.pendingShortcutType (app-side car AppDelegate ne peut pas vivre en package)
+├── Assets.xcassets
+├── Info.plist + InfoPlist.xcstrings
+└── Localizable.xcstrings
+```
+
+Règle : un fichier qui doit lire/écrire `AppDelegate.pendingShortcutType` ou observer le scene lifecycle reste **forcément** dans `app/Sources/App/` — sinon il appartient à un package.
 
 ### `crates/chaqaq` — crate autonome (publié sur crates.io)
 
@@ -237,60 +333,50 @@ Pattern utilisé dans `ffi/extractors.rs` pour contourner :
 
 Cf. `import_from_notion` comme référence — les futurs extractors qui font de l'I/O réseau (Google Keep API, Apple Notes export, etc.) doivent suivre ce pattern. Les extractors purement sync (Bear via `rusqlite`, Craft via `realm-codec`) peuvent rester `async fn` UniFFI sans souci, car ils n'attendent rien qui exige un reactor Tokio.
 
-### `app/Sources/` — Couche UI SwiftUI
+### Détails par package — points d'attention
 
-**`Models.swift`** — miroirs Swift des types Rust sérialisés par serde :
-- `LeafFfi`, `BlockFfi`, `InlineTextFfi`, `InlineStyleFfi`, `BlockContentFfi` — tous `Codable`
-- `InlineStyleFfi` / `BlockContentFfi` : enums avec `init(from:)` / `encode(to:)` custom pour le format externally-tagged de serde
-- Helpers sur `BlockContentFfi` : `texteSimple`, `spansOuVide`, `estTodo`, `doneTodo`, `avecTexte`, `avecSpans`, `toAttributedString`
+**Miroirs Codable FFI** (`PinkhaFFI`) :
+- `LeafFfi`, `BookFfi`, `BlockFfi`, `InlineTextFfi`, `InlineStyleFfi`, `BlockContentFfi`, `PropertyFfi`, `PropertyValueFfi`, `ViewFfi`, etc. — tous `Codable`, avec `init(from:)` / `encode(to:)` custom pour le format externally-tagged de serde.
+- Inits publics memberwise pour `InlineTextFfi`, `BlockFfi`, `PropertyFfi` (auto-synth Swift = internal pour structs publics).
+- Helpers sur `BlockContentFfi` : `plainText`, `spansOrEmpty`, `isTodo`, `doneTodo`, `withText`, `withSpans`, `toAttributedString`.
 
-**`RichTextEditor.swift`** — éditeur de texte riche :
-- `ExpandingTextView : UITextView` — hauteur automatique via `intrinsicContentSize`, hooks pour Shift+Enter et toggles bold/italic/underline (clavier hardware)
-- `RichTextEditor : UIViewRepresentable` — bindings `spans` / `isFocused`, callbacks `onSave`, `onSaveSpans`, `onNewBlock`, `onDeleteBloc`, `onMergeAvecPrecedent`, `onConvert`, `onUndo`/`onRedo` + closures live `canUndoProvider`/`canRedoProvider`
-- `spansToAttributed` / `attributedToSpans` — conversion aller-retour avec `.pinkhaColor` custom key pour préserver le nom de couleur
-- `NSAttributedString.Key.pinkhaColor` — attribut custom pour stocker le nom de couleur (round-trip fiable)
-- `MenuButton : UIButton` — surcharge `contextMenuInteraction(_:willEndFor:)` pour détecter la fermeture des menus déroulants (hide-on-menu façon Notes.app)
-- Toolbar pill (style Notes.app) — `UIView` custom avec `UIVisualEffectView(UIGlassEffect())`, `UIScrollView` horizontal, ordre : Coller / Aa (B/I/U/S via menu déroulant) / Highlighter (palette via menu) / Undo / Redo / Return / Dismiss clavier
-- Hide-on-menu : ouverture d'un menu déroulant via `UIDeferredMenuElement.uncached` qui cache la pill ; `MenuButton.onMenuWillEnd` la restaure à la fermeture (couvre dismiss par tap dehors)
-- `fontWithTraits(_:bold:italic:)` — gras/italique avec fallback `boldSystemFont`/`italicSystemFont` (SF Pro ne propage pas toujours `withSymbolicTraits`)
-- `markdownShortcut(for:)` (free function, testable) : `# ` → H1, `## ` → H2, `### ` → H3, `> ` → Quote, `!! ` → Callout, `[ ] ` → Todo, `---` → Divider
-- Optim : `lastSyncedSpans` par Coordinator — skip la recomputation de `spansToAttributed` quand un autre bloc reçoit la frappe (SwiftUI re-render global mais ce bloc n'a pas changé)
-- Optim : `lastCanUndo`/`lastCanRedo` — évite la recréation d'`UIImage` à chaque keystroke pour les boutons undo/redo de la toolbar
-- `toolbarLineBreak()` : insère un `\n` via `tv.insertText` + reset défensif `shiftEnterTyped = false` après (insertText programmé peut bypass `shouldChangeTextIn`)
-- `textViewDidChange` appelle `save()` à chaque frappe → capture du burst undo côté VM. Le persist SQLite est différé au flush du burst (1 write par burst, pas par caractère)
+**RichTextEditor** (`PinkhaRichText`) :
+- `ExpandingTextView : UITextView` — hauteur auto via `intrinsicContentSize`, hooks pour Shift+Enter et toggles bold/italic/underline (clavier hardware).
+- `RichTextEditor : UIViewRepresentable` — bindings `spans` / `isFocused`, init public à 33 paramètres (callbacks + accent + theme + keyboard appearance + mention lookup…).
+- `spansToAttributed` / `attributedToSpans` — conversion aller-retour avec `NSAttributedString.Key.pinkhaColor` pour préserver le nom de couleur (round-trip fiable).
+- `MenuButton : UIButton` — détecte la fermeture des menus déroulants (hide-on-menu façon Notes.app) via `contextMenuInteraction(_:willEndFor:)`.
+- Toolbar pill iOS 26 : `UIVisualEffectView(UIGlassEffect())`, ordre Coller / Aa (B/I/U/S) / Highlighter / ¶ (block color) / Undo / Redo / Outdent / Indent / Return / Dismiss.
+- `markdownShortcut(for:)` (free function, testable) : `# `→H1, `## `→H2, `### `→H3, `> `→Quote, `!! `→Callout, `[ ] `→Todo, `---`→Divider.
+- Optim : `lastSyncedSpans` par Coordinator (skip recomputation sur blocs non modifiés), `lastCanUndo`/`lastCanRedo` (évite recréation UIImage des boutons toolbar).
+- `textViewDidChange` → `save()` à chaque frappe → burst undo VM-side, persist SQLite différé au flush du burst (1 write par burst, pas par caractère).
 
-**`ContentView.swift`** — racine 3 onglets + store :
-- `PinkhaStore : ObservableObject` — `PinkhaApi`, CRUD leaves, `search(query:)` → `api.searchLeaves`
-- `ContentView` = `TabView { Tab("Notes") Tab("Bases") Tab("Recherche") }` iOS 26
-- `NotesHomeView` : salutation, strip horizontale `RecentStrip` (5 derniers docs, `RecentCard` 150×140 pt), `List` sections avec swipe-to-delete, FAB `square.and.pencil`
-- `BooksHomeView` : placeholder (backend complet, UI à venir)
-- `SearchView` : `.searchable` SwiftUI + résultats temps réel via `store.search(query:)`
-- `SectionHeader` : label uppercase `.caption.weight(.semibold)` avec kerning
+**ContentView** (`app/Sources/App/`) :
+- 4 onglets iOS 26 `TabView` + `Tab` : Library | Books | Inbox | Search.
+- Délègue le rendu à `LibraryView`, `BooksHomeView`, `InboxView`, `SearchView` (chacun dans son feature target).
+- Owner de `Composer`, `AppSettings`, `TabManager`, `PinkhaStore` via `@State`/`@StateObject`.
+- Hoste les sheets globaux (create, import, all-leaves switcher, trash, settings, attach-to-book).
 
-**`LeafView.swift`** — éditeur de leaf :
-- `EditableBlock : Identifiable, Equatable` — modèle en mémoire : `id`, `content: BlockContentFfi`, `spans: [InlineTextFfi]`, `done: Bool`
-- `LeafViewModel : ObservableObject, @MainActor` — `load`, `saveBlock` / `saveBlock(id:spans:)` (burst), `persistBlock` (mutations structurelles), `addBlock`, `deleteBlock` / `deleteBlocks(ids:)`, `moveBlock`, `applyBlockOrder`, `toggleBlockDone`, `updateBlockIcon`, `convertBlockContent`, `saveTitle`, `saveCover`
-- Mutations en mémoire directe (pas de rechargement depuis SQLite après insert/delete — évite l'effacement du contenu en cours d'édition)
-- Blocs supportés : Text, Heading (1/2/3), Quote, Callout (Quote avec icône emoji), Todo, Divider
-- `ForEach($vm.blocks) { $block in }` — two-way binding pour l'édition en place
-- Drag & drop natif via `.onMove` + `EditMode`
-- Swipe-to-delete + menu contextuel
-- `.scrollDismissesKeyboard(.interactively)` — dismiss clavier par swipe natif
-- `autoFocusId` — focus automatique sur le bloc nouvellement créé OU réinséré (undo d'une suppression)
+**LeafView + LeafViewModel** (`LeafFeature/Editor/`) :
+- `EditableBlock : Identifiable, Equatable` — modèle en mémoire : `id`, `content: BlockContentFfi`, `spans: [InlineTextFfi]`, `done: Bool`, `color/backgroundColor/textDirection`.
+- `LeafViewModel : @Observable, @MainActor` — `load`, `saveBlock` / `saveBlock(id:spans:)` (burst), `persistBlock` (structurel), `addBlock`, `deleteBlock`/`deleteBlocks(ids:)`, `moveBlock`, `applyBlockOrder`, `toggleBlockDone`, `updateBlockIcon`, `convertBlockContent`, `saveTitle`, `saveCover`.
+- Mutations en mémoire directe (pas de rechargement SQLite après insert/delete — évite l'effacement du contenu en cours d'édition).
+- Blocs supportés : Text, Heading (1/2/3), Quote, Callout (Quote + icône emoji), Todo, Divider, BulletedListItem, NumberedListItem, Code, Page, Book, Embed, Breadcrumb.
+- `ForEach($vm.blocks) { $block in }` — two-way binding pour l'édition en place.
+- Drag & drop natif via `.onMove` + `EditMode`, swipe-to-delete + menu contextuel, `.scrollDismissesKeyboard(.interactively)`, `autoFocusId` (focus auto sur bloc créé OU réinséré via undo).
 
-**Undo / redo (Swift) :**
-- `UndoManager` natif, `levelsOfUndo = 1000` (aligné sur `CAPACITE_PAR_DEFAUT` du back Rust)
-- 2 UI synchronisées : pill glass en bas-gauche (clavier fermé) + boutons dans la toolbar clavier (clavier ouvert)
-- `canUndoProvider`/`canRedoProvider` = closures live qui lisent `vm.canUndo`/`vm.canRedo` → toujours frais à chaque updateUIView / textViewDidChange / didChangeSelection
-- `vm.canUndo = undoMgr.canUndo || !blockBurstAnchor.isEmpty` — le bouton s'allume aussi quand un burst de typing est pending (l'undo flush d'abord puis annule)
-- Toutes les ops VM enregistrent leur inverse : add/delete/move block, toggle todo, change icon, convert content, save title, save cover, frappe
-- **Burst undo pour la frappe** (style Notes) : une rafale continue de `saveBlock` sur le même bloc = 1 seule étape undo. `burstInterval = 300 ms` d'inactivité → flush + persist SQLite + register undo. Switch de bloc flush l'ancien immédiatement.
-- `BlockSnapshot { content, spans, done }` (Equatable) — état capturé pré-burst (`blockBurstAnchor`) ou stable (`blockSnapshots`)
-- `applyBlockSnapshot(blockId:snapshot:)` remplace l'élément entier dans `blocks` (déclenche `@Published` fiablement) + persiste + re-register la reverse
-- Observer `NSUndoManagerCheckpoint` async-dispatché pour `objectWillChange.send()` — évite le warning « Publishing changes from within view updates »
+**Undo / redo unifié** :
+- `UndoManager` natif, `levelsOfUndo = 1000` (aligné sur la capacité du back Rust).
+- 2 UI synchronisées : pill glass en bas-gauche (clavier fermé) + boutons dans la toolbar clavier (clavier ouvert).
+- `canUndoProvider`/`canRedoProvider` = closures live qui lisent `vm.canUndo`/`vm.canRedo` → toujours frais à chaque `updateUIView` / `textViewDidChange` / `didChangeSelection`.
+- `vm.canUndo = undoMgr.canUndo || !blockBurstAnchor.isEmpty` — le bouton s'allume aussi quand un burst de typing est pending.
+- Toutes les ops VM enregistrent leur inverse : add/delete/move block, toggle todo, change icon, convert content, save title, save cover, frappe.
+- **Burst undo** (style Notes) : rafale continue de `saveBlock` sur même bloc = 1 seule étape undo. `burstInterval = 300 ms` d'inactivité → flush + persist SQLite + register undo. Switch de bloc flush l'ancien immédiatement.
+- `BlockSnapshot { content, spans, done }` (Equatable) — état capturé pré-burst.
+- `applyBlockSnapshot(blockId:snapshot:)` remplace l'élément entier dans `blocks` + persiste + re-register la reverse.
+- Observer `NSUndoManagerCheckpoint` async-dispatché → évite le warning « Publishing changes from within view updates ».
 
-**`Resilience.swift`** — UX erreur :
-- `PinkhaError.userMessage` (FR), `isRecoverable`, `tryCatch(into: &errorMessage)`, `.errorAlert(message:onRetry:)`
+**Resilience** (`PinkhaCore/Resilience.swift`) :
+- `PinkhaError.userMessage` (FR), `isRecoverable`, `tryCatch(into: &errorMessage)`, `.errorAlert(message:onRetry:)`.
 
 ## Roadmap
 
@@ -329,11 +415,13 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
   - Undo/redo unifié (1000 niveaux) : pill bas-gauche + boutons toolbar, burst typing 300 ms style Notes, focus auto sur block réinséré
   - Perf : persist SQLite différé au flush burst, cache spans par bloc, cache état boutons undo
 - **CI** : GitHub Actions `cargo test` sur push/PR vers master/staging/dev (`macos-15`). Swift job suspendu en attendant Xcode 26 sur les runners
+- **Architecture modulaire Swift** : 11 packages SwiftPM avec un DAG enforced par le compilateur (cf. section Architecture). L'app target ne contient plus que le composition root (`App/` + `Resources/`).
+- **Vocabulaire métier "Library/Leaf/Book/Shelf/Compost"** appliqué à tout le code (Rust + Swift + SQLite tables + i18n EN/FR + docs). Cf. `docs/VOCABULARY.md`.
 - **Sécurité repo** : branches protégées (PR obligatoire, force-push bloqué, suppression bloquée, Rust CI requise), Secret Scanning + Push Protection, Dependabot Alerts + Security Updates, Dependabot config mensuelle pour Cargo + Actions, job CI `cargo-audit --deny warnings` (scan CVE à chaque PR)
 - **Stockage secrets** : `Keychain.swift` (wrapper minimal `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, jamais synchronisé iCloud) pour les tokens d'API. Token Notion persisté après import réussi seulement. OAuth2 client secret JAMAIS embarqué dans le binaire iOS — `NotionOAuth2.tokenProxyUrl` pointe vers un backend proxy qui détient le secret.
 - **Architecture OAuth2 Notion** (multi-tenant) — modèle "1 paire de credentials d'app, N tokens utilisateurs" :
   - Credentials de l'app (`NOTION_CLIENT_ID` + `NOTION_CLIENT_SECRET`) = identifient l'app pinkha auprès de Notion. **Une seule paire pour toute l'app, jamais dans le binaire iOS, jamais dans le repo.** Vit uniquement dans les env vars Railway du proxy (et dans `notion-proxy/.env` gitignored en local).
-  - Access token utilisateur = scoped à un library Notion donné. Généré au runtime via le flow authorization-code, retourné par le proxy à l'app, stocké dans le Keychain iOS (par-device, jamais sync iCloud).
+  - Access token utilisateur = scoped à un workspace Notion donné. Généré au runtime via le flow authorization-code, retourné par le proxy à l'app, stocké dans le Keychain iOS (par-device, jamais sync iCloud).
   - **HTTPS callback bridge** : Notion rejette les custom URL schemes en redirect URI depuis 2024. Le `redirectUri` envoyé à Notion pointe sur `https://<proxy>/oauth/callback` ; cette route fait un `302` vers `pinkha://oauth/notion?code=...` que `ASWebAuthenticationSession` (`callbackURLScheme: "pinkha"`) capture pour revenir dans l'app. Pas de HMAC sur ce GET (browser-initiated, `code` Notion single-use et short-lived).
   - Flow concret par user (Alice ouvre l'app distribuée App Store) : (1) `ASWebAuthenticationSession` ouvre `api.notion.com/v1/oauth/authorize?client_id=...&redirect_uri=https://proxy/oauth/callback` (2) Alice login avec son compte Notion → consent screen "Authorize pinkha?" (3) Notion redirige le browser vers `https://proxy/oauth/callback?code=...` (4) le proxy renvoie un `302 pinkha://oauth/notion?code=...` (5) iOS rouvre l'app via le custom scheme (6) app POST `code` à `https://proxy/oauth/token` avec HMAC (7) proxy combine `code` + `client_secret` → `api.notion.com/v1/oauth/token` (8) Notion retourne un `access_token` propre à Alice (9) proxy renvoie le token, app le persiste en Keychain.
   - Bob fait pareil → token distinct. Les users n'ont jamais à connaître les credentials de l'app.
@@ -341,7 +429,7 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
   - **Setup release App Store** : créer une Notion integration **Public** (pas Internal), ajouter `https://<railway-host>/oauth/callback` comme redirect URI (HTTPS obligatoire), configurer les 4 env vars Railway (`NOTION_CLIENT_ID`/`SECRET`, `PROXY_HMAC_SECRET`, `SENTRY_DSN`), mettre l'URL Railway dans `NOTION_PROXY_URL` du `Secrets.xcconfig`. Tout user public est ensuite supporté sans config additionnelle.
 - **Observabilité (Sentry)** : crash reporting + tracing distribué via [sentry-cocoa](https://github.com/getsentry/sentry-cocoa) 8.49+ (SPM).
   - DSN dans `app/Config/Secrets.xcconfig` (gitignored) + `Secrets.xcconfig.example` (template commit), injecté dans `Info.plist` via build setting. `https://` doit être échappé en `https:/$()/` (xcconfig interprète `//` comme commentaire).
-  - Wrapper `app/Sources/Core/Observability.swift` — `start()` no-op silencieux quand DSN absent ou placeholder, `capture(_:)` / `capture(message:)` safe pré-init.
+  - Wrapper `app/Packages/PinkhaCore/Sources/PinkhaCore/Observability.swift` — `start()` no-op silencieux quand DSN absent ou placeholder, `capture(_:)` / `capture(message:)` safe pré-init.
   - Init au démarrage dans `PinkhaApp.init()`. Hook `tryCatch(into:)` dans `Resilience.swift` capture les `PinkhaError.Storage` (transient) + toutes les erreurs non-typées. `NotFound` / `InvalidOperation` restent silencieux (états utilisateur attendus, pas des bugs).
   - **Distributed tracing** : `enableAutoPerformanceTracing` propage automatiquement le header `sentry-trace` sur les requêtes URLSession (vers `notion-proxy` notamment). Aucun code custom requis dans `NotionOAuth2.swift`.
   - 2 projets Sentry séparés dans l'org `Pinkha-app` : `apple-ios` (app) + `notion-proxy` (backend). `tracesSampleRate` à 1.0 en debug, 0.2 en release.
@@ -355,11 +443,12 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
   - FAB menu : "Import from Notion" + "Import from Bear" + "Import from Craft"
 
 Ce qui **reste** à construire :
-1. **UI Books** — vue table + sort par colonne (PR #100), mais manque : filtres UI, switch entre views (Kanban/Calendar/Gallery), tri multi-colonnes, link picker pour Relation. Cf. `docs/UI-AUDIT.md`.
+1. **UI Books** — vue table + sort par colonne, mais manque : filtres UI complets, switch entre views (Kanban/Calendar/Gallery) toujours en cours, tri multi-colonnes, link picker pour Relation. Cf. `docs/UI-AUDIT.md`.
 2. **Vue iPad / Mac** (NavigationSplitView)
 3. **Sync entre appareils** (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
 4. **Réactiver Swift CI** quand Xcode 26 sera dispo sur les runners GitHub Actions
 5. **Import fidelity** — cover/icon Notion, image/file blocks, mapping views/filters Notion. Audit complet dans `docs/IMPORT-AUDIT.md`.
+6. **Localizable.xcstrings polish complet** — pass critique fait (labels les plus visibles + verbes Bind/Unbind/Shelve/Discard), reste 3631 lignes à reviewer une par une pour la cohérence et le ton.
 
 ### Cross-domain orchestration (`application/use_cases/book_leaf_sync.rs`)
 Quand une opération doit toucher plusieurs domaines (Leaf + Book), le module `book_leaf_sync` est le bon endroit — il dépend de `&dyn LeafRepository` ET `&dyn BookRepository` sans coupler les domaines entre eux. Exemple en place : `update_entry_propagating_title(docs, dbs, book_id, entry_id, values)` qui renomme un leaf quand on rename une row de DB (`Entry.leaf_id` est le lien).
@@ -368,7 +457,7 @@ Quand une opération doit toucher plusieurs domaines (Leaf + Book), le module `b
 Lie une row de DB au leaf qui la sous-tend (Notion-style : row = page). Set par les imports (`add_entry_with_leaf`), `None` pour les rows tabulaires purs. Le FFI `update_entry` route désormais vers `update_entry_propagating_title` — la propagation du Title vers le doc est transparente côté Swift. Le FFI `attach_leaf_to_book(book_id, leaf_id, values_json)` expose le même use case à l'UI pour filer une note existante comme row d'une DB après coup (long-press All/Recents + overflow menu de l'éditeur).
 
 ### `published_at` (Leaf + Entry)
-Tous deux exposent `published_at: String` user-éditable, distinct de `created_at` (immuable). Empty string = "follow `created_at`" (sentinel traité côté `SortSource::Published`). SQLite tient une colonne dédiée (backfill = `created_at` à la migration). UI : sheet `LeafPublishDateSheet` (overflow menu du doc) + `PublishDatePickerSheet` (context menu d'une row) + `SortSource::Published` dans le `sortMenu` côté DB + `SortKey.publishedAt` dans NotesHomeView. Use cases : `update_leaf_published_at`, `update_entry_published_at`. FFI tronque à 64 bytes (taille RFC 3339).
+Tous deux exposent `published_at: String` user-éditable, distinct de `created_at` (immuable). Empty string = "follow `created_at`" (sentinel traité côté `SortSource::Published`). SQLite tient une colonne dédiée (backfill = `created_at` à la migration). UI : sheet `LeafPublishDateSheet` (overflow menu du leaf) + `PublishDatePickerSheet` (context menu d'une row de Book) + `SortSource::Published` dans le `sortMenu` côté Book + `SortKey.publishedAt` dans `LibraryView+Sort`. Use cases : `update_leaf_published_at`, `update_entry_published_at`. FFI tronque à 64 bytes (taille RFC 3339).
 
 ### Import Notion — concurrence, annulation, link_to_page
 - **Concurrence** : `stream::buffered(3)` sur le fetch des pages (calé sur la rate limit ~3 req/s de Notion). `import_page` ne crée plus l'entry lui-même — il retourne les valeurs et le consommateur insère séquentiellement dans l'ordre Notion (le load-modify-write du blob book ne race jamais). Map notion→pinkha sous `Mutex`.
@@ -449,7 +538,7 @@ Avant d'écrire un loop ou une logique de traitement en Swift, s'arrêter et imp
 
 **Exceptions acceptables en Swift (UI layer uniquement) :**
 - Formatage pour l'affichage (dates, nombres)
-- Wrapping en enum Swift (`LibraryItem.note($0)`, `LibraryItem.book($0)`)
+- Wrapping en enum Swift (`WorkspaceItem.note($0)`, `WorkspaceItem.book($0)`)
 - `.map(\.id)` pour construire les tableaux d'UUIDs passés aux appels FFI
 - Filtres de présentation sur des données déjà fetchées (ex: filtrer les propriétés système de la UI table view)
 
