@@ -8,7 +8,7 @@ import PinkhaCore
 /// Credentials must be configured before use — see constants below.
 @MainActor
 @Observable
-final class NotionOAuth2: NSObject, ASWebAuthenticationPresentationContextProviding {
+public final class NotionOAuth2: NSObject, ASWebAuthenticationPresentationContextProviding {
 
     // MARK: - Configuration (fill in once you have a public Notion integration)
 
@@ -136,7 +136,7 @@ final class NotionOAuth2: NSObject, ASWebAuthenticationPresentationContextProvid
 
     // MARK: - ASWebAuthenticationPresentationContextProviding
 
-    nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+    public nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         // `ASWebAuthenticationSession` calls this on the main thread (it's the
         // standard contract for `ASWebAuthenticationPresentationContextProviding`).
         // The previous implementation used `DispatchQueue.main.sync { … }`, which

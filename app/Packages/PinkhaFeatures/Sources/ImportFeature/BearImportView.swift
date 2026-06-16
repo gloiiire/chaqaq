@@ -3,18 +3,27 @@ import UniformTypeIdentifiers
 import PinkhaFFI
 import PinkhaCore
 
-// ── Import from Craft (TextBundle) sheet ──────────────────────────────────────
+// ── Import from Bear sheet ─────────────────────────────────────────────────────
 //
-// The user selects the root shelf exported from Craft ("Export All as TextBundle").
-// On macOS (Catalyst) the shelf picker works natively.
-// On iOS the shelf must be accessible via the Files app.
+// Bear stores notes in a SQLite book inside its app group container:
+//   ~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/book.sqlite
+//
+// Flow:
+//   1. User taps "Choose Bear book" → file picker opens
+//   2. User selects Bear's book.sqlite
+//   3. Tap "Import" → Rust extractor reads the SQLite and creates Pinkha leaves
+//   4. Success screen shows note count; "Done" refreshes the list.
 
-struct CraftTextBundleImportView: View {
-    let api: PinkhaApi?
-    let onDone: () -> Void
+public struct BearImportView: View {
+    public init(api: PinkhaApi?, onDone: @escaping () -> Void) {
+        self.api = api
+        self.onDone = onDone
+    }
+    public let api: PinkhaApi?
+    public let onDone: () -> Void
 
     @State private var selectedPath: String?
-    @State private var showingShelfPicker = false
+    @State private var showingFilePicker = false
     @State private var importState: ImportState = .idle
     @Environment(\.dismiss) private var dismiss
 
@@ -25,10 +34,10 @@ struct CraftTextBundleImportView: View {
         case failed(String)
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             content
-                .navigationTitle("Import from Craft")
+                .navigationTitle("Import from Bear")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
@@ -43,13 +52,17 @@ struct CraftTextBundleImportView: View {
                     }
                 }
                 .fileImporter(
-                    isPresented: $showingShelfPicker,
-                    allowedContentTypes: [.folder],
+                    isPresented: $showingFilePicker,
+                    allowedContentTypes: [UTType(filenameExtension: "sqlite") ?? .data],
                     allowsMultipleSelection: false
                 ) { result in
                     if case .success(let urls) = result, let url = urls.first {
-                        _ = url.startAccessingSecurityScopedResource()
-                        selectedPath = url.path
+                        // Start accessing the security-scoped resource so we can read the path.
+                        if url.startAccessingSecurityScopedResource() {
+                            selectedPath = url.path
+                        } else {
+                            selectedPath = url.path
+                        }
                     }
                 }
         }
@@ -69,19 +82,17 @@ struct CraftTextBundleImportView: View {
         Form {
             Section {
                 Button {
-                    showingShelfPicker = true
+                    showingFilePicker = true
                 } label: {
                     HStack {
                         Image(systemName: "shelf")
                             .foregroundStyle(.tint)
-                        VStack(alignment: .leading, spacing: 2) {
-                            if let path = selectedPath {
-                                Text(URL(fileURLWithPath: path).lastPathComponent)
-                                    .foregroundStyle(.primary)
-                            } else {
-                                Text("Choose export shelf…")
-                                    .foregroundStyle(.secondary)
-                            }
+                        if let path = selectedPath {
+                            Text(URL(fileURLWithPath: path).lastPathComponent)
+                                .foregroundStyle(.primary)
+                        } else {
+                            Text("Choose book.sqlite…")
+                                .foregroundStyle(.secondary)
                         }
                         Spacer()
                         if selectedPath != nil {
@@ -93,9 +104,9 @@ struct CraftTextBundleImportView: View {
                 }
                 .buttonStyle(.plain)
             } header: {
-                Text("TextBundle Export Shelf")
+                Text("Bear Book")
             } footer: {
-                Text("In Craft: ··· → Export → Export All → TextBundle. Select the exported shelf here.")
+                Text("Bear's book is at:\n~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/book.sqlite")
                     .font(.caption2)
             }
 
@@ -143,7 +154,7 @@ struct CraftTextBundleImportView: View {
                     Text("Import complete!")
                         .font(.title3.weight(.semibold))
                     let noun = result.leaves == 1 ? "note" : "notes"
-                    Text("\(result.leaves) \(noun) imported from Craft.")
+                    Text("\(result.leaves) \(noun) imported from Bear.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -164,7 +175,7 @@ struct CraftTextBundleImportView: View {
         importState = .running
         Task {
             do {
-                let result = try await api.importFromCraftTextbundle(rootDir: path)
+                let result = try await api.importFromBear(dbPath: path)
                 importState = .done(result)
             } catch let err as PinkhaError {
                 importState = .failed(err.userMessage)

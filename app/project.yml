@@ -101,6 +101,8 @@ targets:
         product: BookFeature
       - package: PinkhaFeatures
         product: LibraryFeature
+      - package: PinkhaFeatures
+        product: ImportFeature
       - package: Sentry
         product: Sentry
 

@@ -9,8 +9,7 @@
 /* Begin PBXBuildFile section */
 		048E816F4477212B390A9656 /* SeededDataUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51F23F0716FCE3363F1AA084 /* SeededDataUITests.swift */; };
 		0D09EEB6D1A6381EEA6CF030 /* AttributedRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EF8382835124C808B432EB7 /* AttributedRoundTripTests.swift */; };
-		0FCA3499700A2CFF25EB841D /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 239C11BB7B359FC141B27B3C /* Sentry */; };
-		1100FDA7AEB6EF5DB87916B7 /* NotionImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B108BFBF56D23F9E75554C4 /* NotionImportView.swift */; };
+		0FCA3499700A2CFF25EB841D /* ImportFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 39EBD01717E41D1EA2F85EA3 /* ImportFeature */; };
 		14BA9A8422E8EF6F3C16266A /* BookFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 719A4120B44E2930DCD0A938 /* BookFeature */; };
 		155B0A7C57DD6BC320421DBB /* ImportIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A87F59E8025954E2D6046E5 /* ImportIntegrationTests.swift */; };
 		16243F8C7FD79BEBE5E8B475 /* EdgeCasesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9368C19C4C76886E6A03917 /* EdgeCasesTests.swift */; };
@@ -34,15 +33,13 @@
 		5898D72B50B77D1D3DBB9008 /* ObservabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EF086F9F0458E7ADBD9C439 /* ObservabilityTests.swift */; };
 		599105D6197DADEB981F1275 /* SwipeDeleteUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB8BDD53EA02FC1A56928B5 /* SwipeDeleteUITests.swift */; };
 		6037AF533565A18E60760F2C /* ConcurrencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83C7E5FB163EC0BCAADD90F1 /* ConcurrencyTests.swift */; };
-		68BC15311DC7E4DACE35F1AC /* CraftCombinedImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4CE1B82B64C77244F8BD2A7 /* CraftCombinedImportView.swift */; };
 		6A61F7F6FC09488712F87FD4 /* DatabaseModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC27E249DFB98A2B03FBBE07 /* DatabaseModelsTests.swift */; };
 		6F1BED5AF109B8A559654E40 /* MalformedJSONTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D00712F93440126D5247D83 /* MalformedJSONTests.swift */; };
 		70E5381BE9FC61F70FFF8428 /* DatabaseQueriesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74758505CF9C5437D290A702 /* DatabaseQueriesTests.swift */; };
-		7506795FB142C78DD3F306B4 /* NotionOAuth2.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3DF3FB26602684300293BDB /* NotionOAuth2.swift */; };
 		7730782D87144200F2C2467F /* HelpersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E4D3F92F639F9E34A27C66 /* HelpersTests.swift */; };
 		806AD95333900E5770567ECB /* EdgeOpsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75D7DCC839125DE7FA5021C1 /* EdgeOpsTests.swift */; };
 		813F95C5C1BA14EC8CE7FE6C /* PinkhaRichText in Frameworks */ = {isa = PBXBuildFile; productRef = 5C3D37A779DD534887934AAB /* PinkhaRichText */; };
-		82CBD128F0251D06CF16E4FC /* BearImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 127DC7F3BA7595FF3A94DE9B /* BearImportView.swift */; };
+		8458B3187E4A73BC3010F518 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 239C11BB7B359FC141B27B3C /* Sentry */; };
 		89E9A7EE05F907BBD55CB712 /* PinkhaDesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 02A56EFCFA9BE0B5D5555148 /* PinkhaDesignSystem */; };
 		8D5FA2C87A10F1A5515A71FF /* BlockContentFfiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36A6032BCBFCFE419E656DCE /* BlockContentFfiTests.swift */; };
 		8EDE253B7197FBC5C68EBBE1 /* DatabaseApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D790938BD86DCD84018B0A63 /* DatabaseApiTests.swift */; };
@@ -59,12 +56,11 @@
 		CADF13DFAEACD69368156D23 /* NotionOAuth2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8829AA3035FF94BD0A3EF7B /* NotionOAuth2Tests.swift */; };
 		CB2ACC1814A777783FADCC91 /* Composer+QuickActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B4887EECF47E4661EA0C63B /* Composer+QuickActions.swift */; };
 		CD4789BCC780C9D68DC8B27D /* PinkhaCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7EAD411614854C81161A96AF /* PinkhaCore */; };
-		CDAFB542D8910694F862A716 /* CraftTextBundleImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A737C5AB9A5CD05DAA78F9E5 /* CraftTextBundleImportView.swift */; };
 		CFD9CAB170B0DA057F17F25B /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2516EE64F9E482E141A0D27E /* SplashView.swift */; };
 		D878D8EB398C5B2F7E67F418 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 1C694413F2C74CAD1272F440 /* Localizable.xcstrings */; };
 		D94EA417E488B890F0BC3AAA /* VMErrorHandlingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AF590FDF89EC393658B2029 /* VMErrorHandlingTests.swift */; };
 		E368FE7BD750360550B347BD /* CoverImageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C90F098980AEF72F3CE8978 /* CoverImageTests.swift */; };
-		EDD0BB522E5A7BEAB10E1789 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 38B73E6EB60DB5844B465CFE /* Pinkha.icon */; };
+		ED5F3816F68672C76349F5E4 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3396216030F6D86C90FF6921 /* Pinkha.icon */; };
 		EDF95358CEFF04EA6FF47BB7 /* DocumentViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7489CFC34A012E88663D5A4E /* DocumentViewModelTests.swift */; };
 		F1F32310563BE3298EAF023A /* PersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2993E55B338F853D7618589 /* PersistenceTests.swift */; };
 		F79CCC9032083583516E9A36 /* SearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28EEC29CAF243FC97EC0EB7C /* SearchTests.swift */; };
@@ -98,10 +94,8 @@
 /* Begin PBXFileReference section */
 		0EF086F9F0458E7ADBD9C439 /* ObservabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObservabilityTests.swift; sourceTree = "<group>"; };
 		0EF8382835124C808B432EB7 /* AttributedRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttributedRoundTripTests.swift; sourceTree = "<group>"; };
-		127DC7F3BA7595FF3A94DE9B /* BearImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BearImportView.swift; sourceTree = "<group>"; };
 		17DA6404045030EB17863040 /* PinkhaFeatures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PinkhaFeatures; path = Packages/PinkhaFeatures; sourceTree = SOURCE_ROOT; };
 		17E4D3F92F639F9E34A27C66 /* HelpersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpersTests.swift; sourceTree = "<group>"; };
-		1B108BFBF56D23F9E75554C4 /* NotionImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionImportView.swift; sourceTree = "<group>"; };
 		1C694413F2C74CAD1272F440 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		1C90F098980AEF72F3CE8978 /* CoverImageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverImageTests.swift; sourceTree = "<group>"; };
 		1D8D5D391D7106F7C2E577E4 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -109,9 +103,9 @@
 		2516EE64F9E482E141A0D27E /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		28EEC29CAF243FC97EC0EB7C /* SearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchTests.swift; sourceTree = "<group>"; };
 		2E2E7F51D0CD04EEBC8FE493 /* ImportUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportUITests.swift; sourceTree = "<group>"; };
+		3396216030F6D86C90FF6921 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		36A6032BCBFCFE419E656DCE /* BlockContentFfiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockContentFfiTests.swift; sourceTree = "<group>"; };
 		37543D1D1AAFB9CE1F61603F /* ResilienceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilienceTests.swift; sourceTree = "<group>"; };
-		38B73E6EB60DB5844B465CFE /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		42515D61067CC8012E26290D /* PinkhaFFI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PinkhaFFI; path = Packages/PinkhaFFI; sourceTree = SOURCE_ROOT; };
 		4A87F59E8025954E2D6046E5 /* ImportIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportIntegrationTests.swift; sourceTree = "<group>"; };
 		51F23F0716FCE3363F1AA084 /* SeededDataUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeededDataUITests.swift; sourceTree = "<group>"; };
@@ -138,14 +132,12 @@
 		A0242538C571C77BB05443CB /* ColorPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorPersistenceTests.swift; sourceTree = "<group>"; };
 		A4E2380661E5813755F120A1 /* Pinkha.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Pinkha.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A65640724338B9AA4AAF343F /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
-		A737C5AB9A5CD05DAA78F9E5 /* CraftTextBundleImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CraftTextBundleImportView.swift; sourceTree = "<group>"; };
 		A873CEC0E65A4BEFCCBBC05E /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		AB990B9A8557D574F681053B /* BlockHierarchyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockHierarchyTests.swift; sourceTree = "<group>"; };
 		BAE708B54C4D296BE09E399D /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		BBCF4EDFC02A470DBC3BA602 /* PinkhaUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PinkhaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BC27E249DFB98A2B03FBBE07 /* DatabaseModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseModelsTests.swift; sourceTree = "<group>"; };
 		BEB8BDD53EA02FC1A56928B5 /* SwipeDeleteUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeDeleteUITests.swift; sourceTree = "<group>"; };
-		C3DF3FB26602684300293BDB /* NotionOAuth2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionOAuth2.swift; sourceTree = "<group>"; };
 		C48A6090EBBFBAB7A44A9513 /* DatabaseEntitiesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseEntitiesTests.swift; sourceTree = "<group>"; };
 		C7C31BC0B000B9D4E7321876 /* BlockPickerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockPickerUITests.swift; sourceTree = "<group>"; };
 		CFA4CB8B18F322F82D34991C /* DatabaseViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseViewModelTests.swift; sourceTree = "<group>"; };
@@ -156,7 +148,6 @@
 		D9368C19C4C76886E6A03917 /* EdgeCasesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeCasesTests.swift; sourceTree = "<group>"; };
 		DC3CE918941B43A282D0FF3D /* PinkhaComposer */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PinkhaComposer; path = Packages/PinkhaComposer; sourceTree = SOURCE_ROOT; };
 		E2C07ADA01E894E83B574ABA /* HomeScreenUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreenUITests.swift; sourceTree = "<group>"; };
-		E4CE1B82B64C77244F8BD2A7 /* CraftCombinedImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CraftCombinedImportView.swift; sourceTree = "<group>"; };
 		F0C5E1D7104E176374A94957 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F2993E55B338F853D7618589 /* PersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceTests.swift; sourceTree = "<group>"; };
 		F2D794592BEC81AB2CB5E99B /* CodableRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableRoundTripTests.swift; sourceTree = "<group>"; };
@@ -176,7 +167,8 @@
 				FBFB686803B28D7733E34D1C /* LeafFeature in Frameworks */,
 				14BA9A8422E8EF6F3C16266A /* BookFeature in Frameworks */,
 				B1CC663C63066A3A8AA2C30E /* LibraryFeature in Frameworks */,
-				0FCA3499700A2CFF25EB841D /* Sentry in Frameworks */,
+				0FCA3499700A2CFF25EB841D /* ImportFeature in Frameworks */,
+				8458B3187E4A73BC3010F518 /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -203,10 +195,10 @@
 			path = Unit;
 			sourceTree = "<group>";
 		};
-		23449015BC22C9C5777C001C /* app */ = {
+		1A96BF4D34292A4AE1202644 /* app */ = {
 			isa = PBXGroup;
 			children = (
-				38B73E6EB60DB5844B465CFE /* Pinkha.icon */,
+				3396216030F6D86C90FF6921 /* Pinkha.icon */,
 			);
 			name = app;
 			sourceTree = "<group>";
@@ -299,7 +291,6 @@
 				A65640724338B9AA4AAF343F /* InfoPlist.xcstrings */,
 				1C694413F2C74CAD1272F440 /* Localizable.xcstrings */,
 				53A5FA7ABDC9C73E74A8706F /* App */,
-				BDC1F9C83F165B227360E2AB /* Import */,
 				E1CE21F8D9EA033102EA6EBB /* Search */,
 			);
 			path = Sources;
@@ -318,18 +309,6 @@
 			path = Packages;
 			sourceTree = "<group>";
 		};
-		BDC1F9C83F165B227360E2AB /* Import */ = {
-			isa = PBXGroup;
-			children = (
-				127DC7F3BA7595FF3A94DE9B /* BearImportView.swift */,
-				E4CE1B82B64C77244F8BD2A7 /* CraftCombinedImportView.swift */,
-				A737C5AB9A5CD05DAA78F9E5 /* CraftTextBundleImportView.swift */,
-				1B108BFBF56D23F9E75554C4 /* NotionImportView.swift */,
-				C3DF3FB26602684300293BDB /* NotionOAuth2.swift */,
-			);
-			path = Import;
-			sourceTree = "<group>";
-		};
 		E1CE21F8D9EA033102EA6EBB /* Search */ = {
 			isa = PBXGroup;
 			children = (
@@ -346,7 +325,7 @@
 				8FB7F1288CD331FA0F093783 /* Sources */,
 				7CE19974FB0E7C2FE24CED36 /* Tests */,
 				7459E38DDB42FA0567FB08BE /* Products */,
-				23449015BC22C9C5777C001C /* app */,
+				1A96BF4D34292A4AE1202644 /* app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -423,6 +402,7 @@
 				FF83B8C3CF8B8AE46DE62FFB /* LeafFeature */,
 				719A4120B44E2930DCD0A938 /* BookFeature */,
 				B0646CF4E56693CA472EB748 /* LibraryFeature */,
+				39EBD01717E41D1EA2F85EA3 /* ImportFeature */,
 				239C11BB7B359FC141B27B3C /* Sentry */,
 			);
 			productName = Pinkha;
@@ -493,7 +473,7 @@
 				57155F8A05B7C7EA1ED129AF /* Assets.xcassets in Resources */,
 				1687C7C9610D2298A8E55177 /* InfoPlist.xcstrings in Resources */,
 				D878D8EB398C5B2F7E67F418 /* Localizable.xcstrings in Resources */,
-				EDD0BB522E5A7BEAB10E1789 /* Pinkha.icon in Resources */,
+				ED5F3816F68672C76349F5E4 /* Pinkha.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -505,13 +485,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				B44F29957A1D8A27E587259A /* AppDelegate.swift in Sources */,
-				82CBD128F0251D06CF16E4FC /* BearImportView.swift in Sources */,
 				CB2ACC1814A777783FADCC91 /* Composer+QuickActions.swift in Sources */,
 				4C416DF2D208DC067FC9A9E1 /* ContentView.swift in Sources */,
-				68BC15311DC7E4DACE35F1AC /* CraftCombinedImportView.swift in Sources */,
-				CDAFB542D8910694F862A716 /* CraftTextBundleImportView.swift in Sources */,
-				1100FDA7AEB6EF5DB87916B7 /* NotionImportView.swift in Sources */,
-				7506795FB142C78DD3F306B4 /* NotionOAuth2.swift in Sources */,
 				9C56A8C90EE5492F7FD49F24 /* PinkhaApp.swift in Sources */,
 				910515FF04B379AFB64D9779 /* SearchView.swift in Sources */,
 				CFD9CAB170B0DA057F17F25B /* SplashView.swift in Sources */,
@@ -987,6 +962,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C7825E2281810F2327BF98FF /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
 			productName = Sentry;
+		};
+		39EBD01717E41D1EA2F85EA3 /* ImportFeature */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ImportFeature;
 		};
 		4FCC938B0E5B94FA0726CFF6 /* PinkhaFFI */ = {
 			isa = XCSwiftPackageProductDependency;

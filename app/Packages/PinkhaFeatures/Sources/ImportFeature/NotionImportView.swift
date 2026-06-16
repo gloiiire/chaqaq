@@ -17,9 +17,13 @@ import LeafFeature
 //      shows current / total. The success screen aggregates the counts.
 //   5. "Done" refreshes the home list.
 
-struct NotionImportView: View {
-    let api: PinkhaApi?
-    let onDone: () -> Void
+public struct NotionImportView: View {
+    public init(api: PinkhaApi?, onDone: @escaping () -> Void) {
+        self.api = api
+        self.onDone = onDone
+    }
+    public let api: PinkhaApi?
+    public let onDone: () -> Void
 
     @State private var token = ""
     @State private var availableBooks: [NotionDatabaseSummaryFfi] = []
@@ -69,7 +73,7 @@ struct NotionImportView: View {
         return false
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             content
                 .overlay { importProgressOverlay }
@@ -508,7 +512,7 @@ private struct BookPickerRow: View {
     let isSelected: Bool
     let onTap: () -> Void
 
-    var body: some View {
+    public var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
                 // Icon: emoji if Notion gave one, generic book glyph

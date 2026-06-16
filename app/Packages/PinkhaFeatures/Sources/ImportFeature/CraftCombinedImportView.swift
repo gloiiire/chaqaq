@@ -12,9 +12,13 @@ import PinkhaCore
 // Pages with a matching textbundle use its markdown content and filename title.
 // Pages without a textbundle counterpart fall back to realm block content.
 
-struct CraftCombinedImportView: View {
-    let api: PinkhaApi?
-    let onDone: () -> Void
+public struct CraftCombinedImportView: View {
+    public init(api: PinkhaApi?, onDone: @escaping () -> Void) {
+        self.api = api
+        self.onDone = onDone
+    }
+    public let api: PinkhaApi?
+    public let onDone: () -> Void
 
     @State private var realmPath: String?
     @State private var realmAutoDetected = false
@@ -32,7 +36,7 @@ struct CraftCombinedImportView: View {
         case failed(String)
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             content
                 .navigationTitle("Import from Craft")
@@ -292,7 +296,7 @@ private struct BreakdownRow: View {
     let label: String
     let count: Int
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
                 .foregroundStyle(color)
