@@ -1,7 +1,7 @@
 //! 2-pass Notion mention rewriting: after the import builds a
-//! `NotionPageId -> PinkhaDocId` map, every imported leaf is revisited
-//! and its `notion.so` links are rewritten to `pinkha://doc/{uuid}` so
-//! internal mentions point at the imported notes instead of Notion.
+//! `NotionPageId -> PinkhaLeafId` map, every imported leaf is revisited
+//! and its `notion.so` links are rewritten to `pinkha://leaf/{uuid}` so
+//! internal mentions point at the imported leaves instead of Notion.
 
 use std::collections::HashMap;
 
@@ -27,7 +27,7 @@ pub fn normalize_notion_id(raw: &str) -> String {
 
 /// Walks a Pinkha leaf loaded from `docs` and rewrites every inline link
 /// whose URL embeds a Notion page ID we just imported. The new URL points to
-/// the corresponding Pinkha leaf via the `pinkha://doc/{uuid}` scheme.
+/// the corresponding Pinkha leaf via the `pinkha://leaf/{uuid}` scheme.
 ///
 /// Persists the leaf only when at least one link was rewritten — keeps
 /// I/O minimal for leaves that don't cross-reference anything.
@@ -41,7 +41,7 @@ pub fn rewrite_notion_mentions(
 
 /// Logging variant — same behaviour as `rewrite_notion_mentions` but
 /// appends a one-line summary to `<covers_dir>/notion-debug.log` so the
-/// app can later report on link rewrites and Page-block promotions.
+/// app can later report on link rewrites and Leaf-block promotions.
 pub fn rewrite_notion_mentions_logged(
     docs: &(dyn LeafRepository + Send + Sync),
     leaf_id: Uuid,
@@ -49,22 +49,22 @@ pub fn rewrite_notion_mentions_logged(
     covers_dir: Option<&str>,
 ) -> Result<(), ExtractorError> {
     use crate::application::error::PinkhaError;
-    let mut doc = docs.load(leaf_id).map_err(|e: PinkhaError| match e {
-        PinkhaError::NotFound(_) => ExtractorError::Parse(format!("doc {leaf_id} not found")),
+    let mut leaf = docs.load(leaf_id).map_err(|e: PinkhaError| match e {
+        PinkhaError::NotFound(_) => ExtractorError::Parse(format!("leaf {leaf_id} not found")),
         other => ExtractorError::Parse(other.to_string()),
     })?;
     let mut rewrote = false;
-    for block in doc.blocks.iter_mut() {
+    for block in leaf.blocks.iter_mut() {
         rewrite_block_links(block, notion_to_pinkha, &mut rewrote);
     }
     // Second sub-pass : promote paragraphs that contain *only* a single
-    // `pinkha://doc/{uuid}` link to a first-class `Page` block. Notion
-    // never returns these references as `child_page` blocks (they're
-    // page mentions inside paragraphs), so without this promotion the
-    // imported docs render their sub-page references as inline links
-    // instead of the chunky tappable rows users expect.
+    // `pinkha://leaf/{uuid}` link to an Embed card. Notion never returns
+    // these references as `child_page` blocks (they're page mentions
+    // inside paragraphs), so without this promotion the imported leaves
+    // would render their cross-references as raw inline links instead of
+    // the chunky tappable cards users expect.
     let mut promoted_count = 0;
-    promote_page_link_paragraphs(&mut doc.blocks, &mut promoted_count);
+    promote_page_link_paragraphs(&mut leaf.blocks, &mut promoted_count);
     if let Some(dir) = covers_dir {
         use std::io::Write;
         if let Ok(mut f) = std::fs::OpenOptions::new()
@@ -74,25 +74,25 @@ pub fn rewrite_notion_mentions_logged(
         {
             let _ = writeln!(
                 f,
-                "[rewrite] doc={leaf_id} links_rewritten={rewrote} promotions={promoted_count}"
+                "[rewrite] leaf={leaf_id} links_rewritten={rewrote} promotions={promoted_count}"
             );
             // Also dump non-promoted paragraphs that carry a pinkha link
             // so we can iterate on the promotion criterion. We re-walk
             // the just-updated tree; a no-op when everything promoted.
-            dump_unpromoted_links(&doc.blocks, dir);
+            dump_unpromoted_links(&leaf.blocks, dir);
         }
     }
     if rewrote || promoted_count > 0 {
-        docs.save(&doc)
+        docs.save(&leaf)
             .map_err(|e| ExtractorError::Parse(e.to_string()))?;
     }
     Ok(())
 }
 
-/// Recursively walks the block tree and replaces paragraphs whose entire
-/// content is a single `pinkha://doc/{uuid}` link with the dedicated
-/// `BlockContent::Page { id }` block. Sets `*promoted = true` when at
-/// least one block changes so the caller can skip a no-op save.
+/// Recursively walks the block tree and replaces paragraphs whose
+/// entire content is a single `pinkha://leaf/{uuid}` link with an Embed
+/// card. Sets `*promoted = true` when at least one block changes so the
+/// caller can skip a no-op save.
 /// Writes the raw span shape of every paragraph that survived rewrite
 /// but failed promotion. Picked up by the next iteration so we can
 /// learn what the Notion data actually looks like.
@@ -112,7 +112,7 @@ fn walk_dump<W: std::io::Write>(blocks: &[Block], f: &mut W) {
         if let BlockContent::Text(spans) = &block.content {
             let has_pinkha_link = spans.iter().any(|s| {
                 s.styles.iter().any(|st| {
-                    matches!(st, chaqaq::InlineStyle::Link(url) if url.starts_with("pinkha://doc/"))
+                    matches!(st, chaqaq::InlineStyle::Link(url) if url.starts_with("pinkha://leaf/"))
                 })
             });
             if has_pinkha_link {
@@ -145,10 +145,10 @@ fn walk_dump<W: std::io::Write>(blocks: &[Block], f: &mut W) {
 /// mentions (`@PageName`) are semantically *references* to existing
 /// pages — distinct from `child_page` blocks which represent true
 /// parent-child nesting (the parent owns the child). Mentions become
-/// `BlockContent::Embed { url: pinkha://doc/<uuid> }` so they render
-/// as a link-style preview card rather than a nested-page card,
+/// `BlockContent::Embed { url: pinkha://leaf/<uuid> }` so they render
+/// as a link-style preview card rather than a nested-leaf card,
 /// matching their actual semantics. True child pages still come in
-/// as `BlockContent::Page { id }` directly during import (step 6) and
+/// as `BlockContent::Leaf { id }` directly during import (step 6) and
 /// are not affected by this pass.
 fn promote_page_link_paragraphs(
     blocks: &mut [crate::domain::leaf::Block],
@@ -159,7 +159,7 @@ fn promote_page_link_paragraphs(
             && let Some(child_id) = sole_pinkha_leaf_link(spans)
         {
             block.content = BlockContent::Embed {
-                url: format!("pinkha://doc/{child_id}"),
+                url: format!("pinkha://leaf/{child_id}"),
             };
             *promoted += 1;
         }
@@ -168,7 +168,7 @@ fn promote_page_link_paragraphs(
 }
 
 /// Returns the doc UUID if `spans` collectively encode a single
-/// `pinkha://doc/{uuid}` link — the signature of a Notion page mention
+/// `pinkha://leaf/{uuid}` link — the signature of a Notion page mention
 /// sitting alone on its line. Whitespace-only runs (Notion likes to
 /// pad mentions with empty/blank runs) are ignored. Any non-link
 /// substantive text, or multiple distinct link targets, bail out so
@@ -187,7 +187,7 @@ fn sole_pinkha_leaf_link(spans: &[chaqaq::InlineText]) -> Option<Uuid> {
         }
         match run_link {
             Some(url) => {
-                let suffix = url.strip_prefix("pinkha://doc/")?;
+                let suffix = url.strip_prefix("pinkha://leaf/")?;
                 let id = Uuid::parse_str(suffix).ok()?;
                 match target {
                     Some(existing) if existing != id => return None,
@@ -240,7 +240,7 @@ fn rewrite_inlines_in_content(
         | BlockContent::Breadcrumb
         | BlockContent::Book { .. }
         | BlockContent::Code { .. }
-        | BlockContent::Page { .. }
+        | BlockContent::Leaf { .. }
         | BlockContent::Embed { .. } => None,
     };
     if let Some(spans) = inlines {
@@ -268,7 +268,7 @@ fn rewrite_url(url: &str, notion_to_pinkha: &HashMap<String, Uuid>) -> Option<St
     // imports (~hundreds of pages).
     for (notion_id, pinkha_id) in notion_to_pinkha {
         if normalized.contains(notion_id) {
-            return Some(format!("pinkha://doc/{pinkha_id}"));
+            return Some(format!("pinkha://leaf/{pinkha_id}"));
         }
     }
     None
@@ -302,7 +302,7 @@ mod mention_tests {
         // normalisation.
         let url = "https://www.notion.so/My-Page-abc123def456abc123def456abc123de";
         let rewritten = rewrite_url(url, &map).expect("expected rewrite");
-        assert_eq!(rewritten, format!("pinkha://doc/{pinkha_id}"));
+        assert_eq!(rewritten, format!("pinkha://leaf/{pinkha_id}"));
     }
 
     #[test]

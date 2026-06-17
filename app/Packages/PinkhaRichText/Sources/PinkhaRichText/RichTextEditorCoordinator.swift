@@ -252,7 +252,7 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
             // Path format: `/{uuid}` — strip the leading slash.
             let uuid = url.path.dropFirst()
             guard !uuid.isEmpty else { return true }
-            parent.onOpenInternalDoc?(String(uuid))
+            parent.onOpenInternalLeaf?(String(uuid))
             return false
         }
         return true
@@ -274,7 +274,7 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
     /// Handles taps on inline text items. On iOS 17+ this is the
     /// only path that fires inside an *editable* UITextView — the
     /// older `shouldInteractWith` delegate is silent. We route:
-    ///   - `pinkha://doc/{uuid}` → parent's `onOpenInternalDoc`
+    ///   - `pinkha://leaf/{uuid}` → parent's `onOpenInternalLeaf`
     ///   - any other URL → `UIApplication.shared.open` (Safari)
     /// Non-link text items (data detectors, etc.) keep their
     /// default action.
@@ -286,7 +286,7 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
                 let uuid = String(url.path.dropFirst())
                 guard !uuid.isEmpty else { return defaultAction }
                 return UIAction { [weak self] _ in
-                    self?.parent.onOpenInternalDoc?(uuid)
+                    self?.parent.onOpenInternalLeaf?(uuid)
                 }
             }
             return UIAction { _ in
@@ -335,7 +335,7 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
         // `@`-mention trigger : the user just typed `@` at the start
         // of the editor or right after whitespace. Show a chooser
         // populated by the parent's `onMentionLookup`. The picked
-        // doc replaces the `@` with a `pinkha://doc/{id}` link
+        // doc replaces the `@` with a `pinkha://leaf/{id}` link
         // carrying the doc's title.
         offerMentionIfTriggered(tv)
 
@@ -513,7 +513,7 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
     }
 
     /// Replaces the `@…` token by the candidate's title styled as a
-    /// `pinkha://doc/{id}` link, then closes the session.
+    /// `pinkha://leaf/{id}` link, then closes the session.
     private func commitMention(_ candidate: MentionCandidate) {
         guard let tv, let session = mentionSession else { return }
         Haptic.tap()
@@ -523,7 +523,7 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
         // id is a UUID we just minted, so the primary path always works.
         // The fallback is paranoia — if it ever did fail we abort the
         // commit instead of force-unwrapping a second URL.
-        guard let url = URL(string: "pinkha://doc/\(candidate.id)") else {
+        guard let url = URL(string: "pinkha://leaf/\(candidate.id)") else {
             return
         }
         let m = NSMutableAttributedString(attributedString: tv.attributedText)

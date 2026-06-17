@@ -14,20 +14,20 @@ public enum BlockContentFfi: Codable, Equatable {
     case divider
     case breadcrumb
     case book(id: String)
-    /// Reference to a child pinkha page. Mirrors Rust `BlockContent::Page`.
-    case page(id: String)
+    /// Reference to a child pinkha leaf. Mirrors Rust `BlockContent::Leaf`.
+    case leaf(id: String)
     /// Rich URL bookmark / preview card. Mirrors Rust `BlockContent::Embed`.
     case embed(url: String)
 
     private enum K: String, CodingKey {
-        case Text, Heading, Quote, Todo, BulletedListItem, NumberedListItem, Code, Divider, Breadcrumb, Book, Page, Embed
+        case Text, Heading, Quote, Todo, BulletedListItem, NumberedListItem, Code, Divider, Breadcrumb, Book, Leaf, Embed
     }
     private struct PayloadHeading: Codable { let level: Int; let text: [InlineTextFfi] }
     private struct PayloadQuote:   Codable { let icon: String?; let text: [InlineTextFfi] }
     private struct PayloadTodo:    Codable { let done: Bool; let text: [InlineTextFfi] }
     private struct PayloadCode:    Codable { let language: String; let text: String }
     private struct PayloadDb:      Codable { let id: String }
-    private struct PayloadPage:    Codable { let id: String }
+    private struct PayloadLeaf:    Codable { let id: String }
     private struct PayloadEmbed:   Codable { let url: String }
 
     public init(from decoder: Decoder) throws {
@@ -45,7 +45,7 @@ public enum BlockContentFfi: Codable, Equatable {
         if let v = try? c.decode([InlineTextFfi].self, forKey: .NumberedListItem) { self = .numberedListItem(v); return }
         if let v = try? c.decode(PayloadCode.self,     forKey: .Code)             { self = .code(language: v.language, text: v.text); return }
         if let v = try? c.decode(PayloadDb.self,       forKey: .Book)         { self = .book(id: v.id); return }
-        if let v = try? c.decode(PayloadPage.self,     forKey: .Page)             { self = .page(id: v.id); return }
+        if let v = try? c.decode(PayloadLeaf.self,     forKey: .Leaf)             { self = .leaf(id: v.id); return }
         if let v = try? c.decode(PayloadEmbed.self,    forKey: .Embed)            { self = .embed(url: v.url); return }
         throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown BlockContent"))
     }
@@ -77,9 +77,9 @@ public enum BlockContentFfi: Codable, Equatable {
         case .book(let id):
             var c = encoder.container(keyedBy: K.self)
             try c.encode(PayloadDb(id: id), forKey: .Book)
-        case .page(let id):
+        case .leaf(let id):
             var c = encoder.container(keyedBy: K.self)
-            try c.encode(PayloadPage(id: id), forKey: .Page)
+            try c.encode(PayloadLeaf(id: id), forKey: .Leaf)
         case .embed(let url):
             var c = encoder.container(keyedBy: K.self)
             try c.encode(PayloadEmbed(url: url), forKey: .Embed)
@@ -117,16 +117,14 @@ public enum BlockContentFfi: Codable, Equatable {
     public var isTodo: Bool { if case .todo = self { return true }; return false }
     /// `true` if this is a `.todo` block with `done == true`.
     public var isTodoDone: Bool { if case .todo(let d, _) = self { return d }; return false }
-    /// `true` for blocks that exist purely to be tapped — child page
+    /// `true` for blocks that exist purely to be tapped — child-leaf
     /// references and embed cards. The editor keeps these interactive
     /// even on a locked leaf or in selection mode : disabling them
-    /// would trap the user with no way to drill into a sub-page or
-    /// open a referenced URL. The name is historical (it only covered
-    /// `.page` originally) ; in current usage "navigation target" is
-    /// the right mental model.
-    public var isPageReference: Bool {
+    /// would trap the user with no way to drill into a sub-leaf or
+    /// open a referenced URL.
+    public var isNavigationTarget: Bool {
         switch self {
-        case .page, .embed: return true
+        case .leaf, .embed: return true
         default:            return false
         }
     }
