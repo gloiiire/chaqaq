@@ -13,7 +13,7 @@ import PinkhaFFI
 public final class PinkhaStore {
     public var leaves: [LeafMetaFfi] = []
     /// Every leaf in the library regardless of where it's been filed —
-    /// root-level, in a shelf, even nested as a child page. Used by the
+    /// root-level, in a shelf, even nested as a child leaf. Used by the
     /// Recent strip and the Pinned section, which both surface activity
     /// across the whole library rather than just the "All" root list.
     public var allLeaves: [LeafMetaFfi] = []
@@ -150,7 +150,7 @@ public final class PinkhaStore {
         load()
     }
 
-    /// Direct child pages of a given parent leaf. Used by the leaf
+    /// Direct child leaves of a given parent leaf. Used by the leaf
     /// view to surface sub-pages even when they aren't placed inline as
     /// `BlockContent::Page` blocks yet.
     public func childLeaves(of parentLeafId: String) -> [LeafMetaFfi] {

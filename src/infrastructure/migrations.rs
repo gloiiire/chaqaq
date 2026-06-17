@@ -131,7 +131,42 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
     // Manual sort index for shelves — parallel to `leaves.manual_order`.
     // Powers the drag-and-drop reorder UI in the SHELVES section.
     add_column_if_missing(conn, "shelves", "manual_order", "INTEGER")?;
-    conn.pragma_update(None, "user_version", 13)
+    // Rewrite the legacy `pinkha://doc/{uuid}` internal-link scheme to
+    // the new `pinkha://leaf/{uuid}` after the page → leaf nomenclature
+    // refactor. Idempotent — `REPLACE` is a no-op when the source
+    // substring is absent. Touches the JSON blob in `data` so previously
+    // imported leaves whose blocks reference each other keep working
+    // after the rename.
+    conn.execute(
+        "UPDATE leaves
+            SET data = REPLACE(data, 'pinkha://doc/', 'pinkha://leaf/')
+          WHERE data LIKE '%pinkha://doc/%'",
+        [],
+    )
+    .map_err(|e| PinkhaError::Db(e.to_string()))?;
+    // Same rewrite on books (some block payloads — code/quote/text —
+    // may carry inline links that mention a leaf).
+    conn.execute(
+        "UPDATE books
+            SET data = REPLACE(data, 'pinkha://doc/', 'pinkha://leaf/')
+          WHERE data LIKE '%pinkha://doc/%'",
+        [],
+    )
+    .map_err(|e| PinkhaError::Db(e.to_string()))?;
+    // Rewrite the legacy `BlockContent::Page { id }` variant tag to the
+    // new `Leaf { id }` discriminant. Serde uses `"Page"` as the JSON
+    // key for the variant in externally-tagged enums (the default).
+    // Match a quoted `"Page":` to avoid touching arbitrary text that
+    // happens to contain the word "Page" — we control how the value is
+    // serialized, so this prefix is stable.
+    conn.execute(
+        "UPDATE leaves
+            SET data = REPLACE(data, '\"Page\":', '\"Leaf\":')
+          WHERE data LIKE '%\"Page\":%'",
+        [],
+    )
+    .map_err(|e| PinkhaError::Db(e.to_string()))?;
+    conn.pragma_update(None, "user_version", 14)
         .map_err(|e| PinkhaError::Db(e.to_string()))?;
     Ok(())
 }

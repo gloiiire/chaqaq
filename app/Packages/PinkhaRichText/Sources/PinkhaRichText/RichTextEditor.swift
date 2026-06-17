@@ -10,7 +10,7 @@ import PinkhaCore
 /// markdown shortcuts, Shift+Enter line breaks, and undo/redo integration.
 /// One row in the `@`-mention picker — a leaf the user can
 /// reference by name. The picker shows `title` and on tap inserts
-/// a `pinkha://doc/{id}` link with `title` as the visible text.
+/// a `pinkha://leaf/{id}` link with `title` as the visible text.
 public struct MentionCandidate {
     public let id: String
     public let title: String
@@ -97,17 +97,17 @@ public struct RichTextEditor: UIViewRepresentable {
     /// Provides the candidate leaves for the `@`-mention picker.
     /// Called when the user types `@` at the start of a word — the
     /// coordinator shows the returned list as a chooser; tapping
-    /// an entry replaces the `@…` token with a `pinkha://doc/{id}`
+    /// an entry replaces the `@…` token with a `pinkha://leaf/{id}`
     /// link styled with the leaf's title. `nil` disables the
     /// feature (e.g. title editor, where mentions don't make sense).
     var onMentionLookup: (() -> [MentionCandidate])? = nil
-    /// Called when the user taps a `pinkha://doc/{uuid}` link in the
+    /// Called when the user taps a `pinkha://leaf/{uuid}` link in the
     /// editor — the value is the destination leaf UUID. The parent
     /// view (LeafView) navigates to that leaf instead of opening
     /// the URL in Safari. Notion mentions rewritten at import time
     /// (`feat: 2-pass Notion mention rewrite`) are the main producer of
     /// these URLs.
-    var onOpenInternalDoc: ((String) -> Void)? = nil
+    var onOpenInternalLeaf: ((String) -> Void)? = nil
 
     public init(
         spans: Binding<[InlineTextFfi]>,
@@ -141,7 +141,7 @@ public struct RichTextEditor: UIViewRepresentable {
         themeForegroundColor: UIColor? = nil,
         keyboardAppearance: UIKeyboardAppearance = .default,
         onMentionLookup: (() -> [MentionCandidate])? = nil,
-        onOpenInternalDoc: ((String) -> Void)? = nil
+        onOpenInternalLeaf: ((String) -> Void)? = nil
     ) {
         self._spans = spans
         self._isFocused = isFocused
@@ -174,7 +174,7 @@ public struct RichTextEditor: UIViewRepresentable {
         self.themeForegroundColor = themeForegroundColor
         self.keyboardAppearance = keyboardAppearance
         self.onMentionLookup = onMentionLookup
-        self.onOpenInternalDoc = onOpenInternalDoc
+        self.onOpenInternalLeaf = onOpenInternalLeaf
     }
 
     public func makeUIView(context: Context) -> ExpandingTextView {

@@ -67,7 +67,7 @@ pub fn map_rich_text(items: &[NotionRichText]) -> Vec<InlineText> {
             // `type: "mention"` and a null `href`. Recover the page id
             // from the `mention.page.id` payload and synthesise the
             // canonical Notion URL so the post-import rewrite pass can
-            // swap it for the matching `pinkha://doc/{uuid}` link.
+            // swap it for the matching `pinkha://leaf/{uuid}` link.
             let href = r.href.clone().or_else(|| mention_href(r));
             InlineText {
                 content: r.plain_text.clone(),
@@ -245,7 +245,7 @@ pub fn map_block(block: &NotionBlock) -> Option<BlockContent> {
         "divider" => Some(BlockContent::Divider),
         // A reference to an existing page (or book). Mapped to a
         // paragraph holding a single notion.so link: the post-import
-        // mention-rewriting pass turns it into `pinkha://doc/{uuid}` when
+        // mention-rewriting pass turns it into `pinkha://leaf/{uuid}` when
         // the target is part of the same import, and the promotion pass
         // then upgrades the sole-link paragraph into a real `Page` block.
         // Targets outside the import keep a working notion.so URL.

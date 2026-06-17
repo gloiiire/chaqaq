@@ -225,7 +225,7 @@ public struct AllLeavesSwitcher: View {
                 // Create new leaf → dismisses the switcher + triggers
                 // the CreateBubble's primary action via Composer.
                 dismiss()
-                composer.showingCreateDoc = true
+                composer.showingCreateLeaf = true
             } label: {
                 Image(systemName: "plus")
                     .font(.title2.weight(.regular))
