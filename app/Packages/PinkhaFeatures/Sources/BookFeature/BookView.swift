@@ -75,7 +75,7 @@ public struct BookView: View {
         }
         .onAppear {
             vm.load()
-            // Track the open so the Notes home Recent strip surfaces
+            // Track the open so the Library home Recent strip surfaces
             // recently-visited books alongside docs. MRU-only push
             // — no phantom leaf tab is created, the DB stays
             // identifiable as a book in `WorkspaceItem`.

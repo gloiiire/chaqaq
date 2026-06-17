@@ -13,7 +13,10 @@
 
 require "xcodeproj"
 
-ROOT          = File.expand_path("..", __dir__)
+# Walk up to the repo root (the directory containing `app/`) — works whether
+# this script lives at scripts/ or utilities/scripts/ in the tree.
+require "shellwords"
+ROOT          = `git -C #{Shellwords.escape(__dir__)} rev-parse --show-toplevel`.strip
 PROJECT_PATH  = File.join(ROOT, "app", "Pinkha.xcodeproj")
 ICON_NAME     = "Pinkha.icon"
 ICON_BASENAME = File.basename(ICON_NAME, ".icon") # → "Pinkha"

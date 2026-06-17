@@ -7,7 +7,7 @@ import PinkhaDesignSystem
 //
 // Files an existing leaf as a row of a chosen book. The doc's
 // title is seeded into the Title column automatically so the row reads
-// the same as the note ; every other property is editable inline before
+// the same as the leaf ; every other property is editable inline before
 // confirming. Same vocabulary as the "Add to a book" toggle of
 // CreateLeafSheet, but works after the doc was created.
 
@@ -134,7 +134,7 @@ public struct BindLeafToBookSheet: View {
               let api = store.api else { return }
         saving = true
         // Seed the Title property with the leaf's current plain
-        // title so the row's Title column matches the note. We fetch
+        // title so the row's Title column matches the leaf. We fetch
         // it here rather than caching on the store so a stale meta
         // can't desync the seeded value.
         var values = propertyValues
@@ -168,7 +168,7 @@ public struct BindLeafToBookSheet: View {
     }
 
     private func currentDocTitle() -> String {
-        // The notes / books list on the store is the cheapest
+        // The leaves / books list on the store is the cheapest
         // source of truth for a single doc's plain title here. Fall
         // back to listLeaves() for sub-pages which don't surface
         // in `store.leaves` (it's root-only).

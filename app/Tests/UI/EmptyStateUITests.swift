@@ -17,7 +17,7 @@ final class EmptyStateUITests: XCTestCase {
 
     func testEmptyStateShowsHelpMessage() {
         let app = launchClean()
-        XCTAssertTrue(app.staticTexts.byLabel("No notes").waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts.byLabel("No leaves").waitForExistence(timeout: 8))
     }
 
     func testFabStillPresentInEmptyState() {

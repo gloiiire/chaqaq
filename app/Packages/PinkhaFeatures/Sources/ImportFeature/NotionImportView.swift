@@ -370,7 +370,7 @@ public struct NotionImportView: View {
 
     private func successSummary(_ t: ImportTotals) -> String {
         let dbWord = t.books == 1 ? "book" : "books"
-        let docWord = t.leaves == 1 ? "note" : "notes"
+        let docWord = t.leaves == 1 ? "leaf" : "leaves"
         return "\(t.books) \(dbWord), \(t.leaves) \(docWord) imported."
     }
 

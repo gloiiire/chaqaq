@@ -13,6 +13,11 @@ pub struct Shelf {
     /// Optional emoji icon, mirrors `Leaf.icon`.
     #[serde(default)]
     pub icon: Option<String>,
+    /// Manual sort index. Same shape as [`crate::domain::leaf::Leaf::manual_order`] :
+    /// `None` falls back to the section's natural sort (name / date),
+    /// `Some` reflects the user's drag-and-drop arrangement.
+    #[serde(default)]
+    pub manual_order: Option<i32>,
 }
 
 /// Lightweight shelf descriptor for list operations.
@@ -25,6 +30,8 @@ pub struct ShelfMeta {
     pub created_at: String,
     #[serde(default)]
     pub icon: Option<String>,
+    #[serde(default)]
+    pub manual_order: Option<i32>,
 }
 
 impl Shelf {
@@ -37,6 +44,7 @@ impl Shelf {
             created_at: now.clone(),
             updated_at: now,
             icon: None,
+            manual_order: None,
         }
     }
 }
@@ -50,6 +58,7 @@ impl From<&Shelf> for ShelfMeta {
             updated_at: f.updated_at.clone(),
             created_at: f.created_at.clone(),
             icon: f.icon.clone(),
+            manual_order: f.manual_order,
         }
     }
 }

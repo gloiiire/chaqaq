@@ -141,6 +141,15 @@ fn walk_dump<W: std::io::Write>(blocks: &[Block], f: &mut W) {
     }
 }
 
+/// Promotes single-link paragraphs into rich embed cards. Notion
+/// mentions (`@PageName`) are semantically *references* to existing
+/// pages — distinct from `child_page` blocks which represent true
+/// parent-child nesting (the parent owns the child). Mentions become
+/// `BlockContent::Embed { url: pinkha://doc/<uuid> }` so they render
+/// as a link-style preview card rather than a nested-page card,
+/// matching their actual semantics. True child pages still come in
+/// as `BlockContent::Page { id }` directly during import (step 6) and
+/// are not affected by this pass.
 fn promote_page_link_paragraphs(
     blocks: &mut [crate::domain::leaf::Block],
     promoted: &mut usize,
@@ -149,7 +158,9 @@ fn promote_page_link_paragraphs(
         if let BlockContent::Text(spans) = &block.content
             && let Some(child_id) = sole_pinkha_leaf_link(spans)
         {
-            block.content = BlockContent::Page { id: child_id };
+            block.content = BlockContent::Embed {
+                url: format!("pinkha://doc/{child_id}"),
+            };
             *promoted += 1;
         }
         promote_page_link_paragraphs(&mut block.children, promoted);

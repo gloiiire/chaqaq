@@ -1,7 +1,7 @@
 import Foundation
 
 /// Per-leaf style overrides the user picks on the creation sheet
-/// when the new note is NOT being filed in a book — cover, icon,
+/// when the new leaf is NOT being filed in a book — cover, icon,
 /// theme, optional backdated publish date, optional custom cover
 /// bytes. Promoted out of `CreateLeafSheet` so the cross-domain
 /// `PinkhaStore+Composer` extension (which lives in the Library

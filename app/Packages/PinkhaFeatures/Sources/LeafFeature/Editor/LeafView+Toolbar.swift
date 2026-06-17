@@ -134,6 +134,24 @@ public extension LeafView {
                         Label(vm.locked ? "Unlock" : "Lock",
                               systemImage: vm.locked ? "lock.fill" : "lock.open.fill")
                     }
+                    // Pin / Unpin — same one-tap affordance as Lock,
+                    // duplicated in the bottom section of the menu for
+                    // discoverability via the row long-press too. Reads
+                    // the live pinned state from `store.allLeaves` so
+                    // the label flips immediately after toggling.
+                    Button {
+                        Haptic.toggle()
+                        let isPinned = (store.allLeaves
+                            .first(where: { $0.id == vm.leafId })?.pinnedAt ?? "")
+                            .isEmpty == false
+                        store.setLeafPinned(leafId: vm.leafId, pinned: !isPinned)
+                    } label: {
+                        let isPinned = (store.allLeaves
+                            .first(where: { $0.id == vm.leafId })?.pinnedAt ?? "")
+                            .isEmpty == false
+                        Label(isPinned ? "Unpin" : "Pin",
+                              systemImage: isPinned ? "pin.slash" : "pin")
+                    }
                     if let shareURL = URL(string: "pinkha://doc/\(vm.leafId)") {
                         ShareLink(item: shareURL,
                                   subject: Text(vm.title.isEmpty

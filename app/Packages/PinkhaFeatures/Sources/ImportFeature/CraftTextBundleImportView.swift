@@ -107,7 +107,7 @@ public struct CraftTextBundleImportView: View {
                 Section {
                     HStack(spacing: 12) {
                         ProgressView()
-                        Text("Importing notes…").foregroundStyle(.secondary)
+                        Text("Importing leaves…").foregroundStyle(.secondary)
                     }
                 }
             }
@@ -146,7 +146,7 @@ public struct CraftTextBundleImportView: View {
                 VStack(spacing: 8) {
                     Text("Import complete!")
                         .font(.title3.weight(.semibold))
-                    let noun = result.leaves == 1 ? "note" : "notes"
+                    let noun = result.leaves == 1 ? "leaf" : "leaves"
                     Text("\(result.leaves) \(noun) imported from Craft.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)

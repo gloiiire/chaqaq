@@ -7,7 +7,7 @@ import PinkhaCore
 // leaf's effective publish date (independent of the immutable
 // creation timestamp) and reset it back to the default at any time.
 // Mirrors the per-row PublishDatePickerSheet on the book list view
-// so the UX vocabulary stays consistent across notes and DB rows.
+// so the UX vocabulary stays consistent across leaves and DB rows.
 
 public struct LeafPublishDateSheet: View {
     /// ISO-8601 string of the immutable creation timestamp. Used as

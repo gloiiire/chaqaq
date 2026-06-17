@@ -12,7 +12,7 @@ import PinkhaCore
 //   1. User taps "Choose Bear book" → file picker opens
 //   2. User selects Bear's book.sqlite
 //   3. Tap "Import" → Rust extractor reads the SQLite and creates Pinkha leaves
-//   4. Success screen shows note count; "Done" refreshes the list.
+//   4. Success screen shows leaf count; "Done" refreshes the list.
 
 public struct BearImportView: View {
     public init(api: PinkhaApi?, onDone: @escaping () -> Void) {
@@ -114,7 +114,7 @@ public struct BearImportView: View {
                 Section {
                     HStack(spacing: 12) {
                         ProgressView()
-                        Text("Importing notes…").foregroundStyle(.secondary)
+                        Text("Importing leaves…").foregroundStyle(.secondary)
                     }
                 }
             }
@@ -153,7 +153,7 @@ public struct BearImportView: View {
                 VStack(spacing: 8) {
                     Text("Import complete!")
                         .font(.title3.weight(.semibold))
-                    let noun = result.leaves == 1 ? "note" : "notes"
+                    let noun = result.leaves == 1 ? "leaf" : "leaves"
                     Text("\(result.leaves) \(noun) imported from Bear.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)

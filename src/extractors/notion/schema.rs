@@ -120,9 +120,9 @@ pub struct NotionDataSourceSearchResponse {
 /// A single data-source hit. Notion's 2025-09-03 API introduced
 /// data sources as a first-class object — each multi-source book
 /// has one data_source per tab. The wrapping book's UUID lives
-/// in `parent.book_id`. For single-source DBs there's still a
+/// in `parent.database_id`. For single-source DBs there's still a
 /// 1:1 mapping ; either way we want the book id for our import
-/// path (`/v1/books/{id}/query` keeps working under the legacy
+/// path (`/v1/databases/{id}/query` keeps working under the legacy
 /// version header).
 #[derive(Debug, Deserialize)]
 pub struct NotionDataSourceSearchHit {
@@ -140,14 +140,15 @@ pub struct NotionDataSourceSearchHit {
 }
 
 /// Discriminated-union parent ref. Almost every data source has a
-/// `book_id` parent — the catch-all `Unknown` covers any
+/// `database_id` parent — the catch-all `Unknown` covers any
 /// future parent shapes Notion might introduce without breaking
-/// our deserialize.
+/// our deserialize. The field is named with Notion's API term
+/// (`database_id`) — our internal Book rename does not apply here.
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NotionDataSourceParent {
-    BookId {
-        book_id: String,
+    DatabaseId {
+        database_id: String,
     },
     #[serde(other)]
     Unknown,
@@ -414,12 +415,12 @@ pub struct NotionBlock {
 #[derive(Debug, Deserialize)]
 pub struct LinkToPageBlock {
     pub page_id: Option<String>,
-    pub book_id: Option<String>,
+    pub database_id: Option<String>,
 }
 
 /// Body of a `child_database` block — Notion only inlines the title
 /// in the block stream. The rest of the schema is fetched by the
-/// existing import flow via `GET /v1/books/{block_id}`.
+/// existing import flow via `GET /v1/databases/{block_id}`.
 #[derive(Debug, Deserialize)]
 pub struct ChildDatabaseBlock {
     /// Defensive `#[serde(default)]` — Notion has been observed to

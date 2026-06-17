@@ -161,7 +161,7 @@ public struct CraftCombinedImportView: View {
                 Section {
                     HStack(spacing: 12) {
                         ProgressView()
-                        Text("Importing notes…").foregroundStyle(.secondary)
+                        Text("Importing leaves…").foregroundStyle(.secondary)
                     }
                 }
             }
@@ -198,7 +198,7 @@ public struct CraftCombinedImportView: View {
                 .foregroundStyle(.green)
             if case .done(let r) = importState {
                 VStack(spacing: 12) {
-                    let noun = r.leaves == 1 ? "note" : "notes"
+                    let noun = r.leaves == 1 ? "leaf" : "leaves"
                     Text("\(r.leaves) \(noun) imported")
                         .font(.title3.weight(.semibold))
 
