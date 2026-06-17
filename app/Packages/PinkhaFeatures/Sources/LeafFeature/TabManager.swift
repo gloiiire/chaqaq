@@ -88,7 +88,7 @@ public final class TabManager {
 
     /// Explicitly marks `leafId` as an open tab in the switcher. Call
     /// from an explicit user action (tap on a doc in the list, push
-    /// triggered by `pendingOpenDoc`, etc.), NOT from view-body
+    /// triggered by `pendingOpenLeaf`, etc.), NOT from view-body
     /// evaluation. Safe to call from inside `withAnimation` blocks.
     public func markOpened(leafId: String, api: PinkhaApi) {
         // Ensure the VM exists (no-op if cached).

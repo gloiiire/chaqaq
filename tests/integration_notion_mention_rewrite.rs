@@ -4,7 +4,7 @@
 //! pure post-pass step (`rewrite_notion_mentions`) directly here: seed a
 //! leaf containing a Notion-style `[label](https://www.notion.so/...)`
 //! link, run the rewriter with a Notion→Pinkha map, and verify the link now
-//! points at the matching `pinkha://doc/…`.
+//! points at the matching `pinkha://leaf/…`.
 
 use pinkha::application::use_cases::create_leaf;
 use pinkha::domain::leaf::{Block, BlockContent, InlineStyle, InlineText};
@@ -73,7 +73,7 @@ fn rewrite_replaces_notion_url_with_pinkha_leaf_link() {
         let Some(InlineStyle::Link(url)) = link_span.styles.first() else {
             panic!("expected link style on span, got {:?}", link_span.styles);
         };
-        assert_eq!(url, &format!("pinkha://doc/{}", target_leaf.id));
+        assert_eq!(url, &format!("pinkha://leaf/{}", target_leaf.id));
     } else {
         panic!("expected Text block");
     }

@@ -25,7 +25,7 @@ public struct CreateBubble: View {
         onImportBear: @escaping () -> Void = {},
         onImportCraftTextBundle: @escaping () -> Void = {},
         onImportCraftCombined: @escaping () -> Void = {},
-        onShowAllDocs: @escaping () -> Void = {}
+        onShowAllLeaves: @escaping () -> Void = {}
     ) {
         self.onNewLeaf = onNewLeaf
         self.onNewBook = onNewBook
@@ -37,7 +37,7 @@ public struct CreateBubble: View {
         self.onImportBear = onImportBear
         self.onImportCraftTextBundle = onImportCraftTextBundle
         self.onImportCraftCombined = onImportCraftCombined
-        self.onShowAllDocs = onShowAllDocs
+        self.onShowAllLeaves = onShowAllLeaves
     }
     public let onNewLeaf: () -> Void
     public let onNewBook: () -> Void
@@ -55,7 +55,7 @@ public struct CreateBubble: View {
     /// Opens the Safari-tab-style "All leaves" switcher. Lives in
     /// the overflow menu next to Trash / Imports — it's a navigation
     /// affordance, not a creation one.
-    public var onShowAllDocs: () -> Void = {}
+    public var onShowAllLeaves: () -> Void = {}
 
     /// Tracks whether the accessory is rendered next to the minimised tab
     /// bar (`.inline`) or detached above it (`.expanded`). Set automatically
@@ -175,7 +175,7 @@ public struct CreateBubble: View {
             // Source-order inversion : putting "All leaves" LAST in
             // the source list lands it FIRST visually because iOS
             // bottom-anchored menus stack from the trigger upwards.
-            Button { onShowAllDocs() } label: {
+            Button { onShowAllLeaves() } label: {
                 Label("All leaves", systemImage: "document.on.document")
             }
         } label: {

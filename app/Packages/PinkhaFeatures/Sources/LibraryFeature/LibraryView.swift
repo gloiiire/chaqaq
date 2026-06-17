@@ -24,7 +24,7 @@ public struct LibraryView: View {
     @State private var showingSettings = false
     /// Programmatic navigation stack so a freshly-created leaf can be
     /// pushed onto the editor right after the create sheet dismisses
-    /// — driven by `composer.pendingOpenDoc`. Must stay `@State` here :
+    /// — driven by `composer.pendingOpenLeaf`. Must stay `@State` here :
     /// a binding sourced from `Composer` (observation-driven) hits a
     /// SwiftUI bug where `NavigationStack(path: $model.path)` does
     /// not visibly pop when `path.removeAll()` is called from outside.
@@ -52,7 +52,7 @@ public struct LibraryView: View {
     @State private var renameDraft: String = ""
     /// Doc currently picked through a "Add to a book" context
     /// menu item — drives the sheet below. `nil` = no sheet shown.
-    @State var attachDocId: String?
+    @State var attachLeafId: String?
     /// Root SHELVES cascade-delete state. Owned at this level (not
     /// inside `ShelvesSectionView`) because `confirmationDialog` can't
     /// present from inside a `Section` — the dialog must sit at the
@@ -222,7 +222,7 @@ public struct LibraryView: View {
                         store.delete(id: doc.id)
                     },
                     onAddToBook: store.books.isEmpty ? nil : { doc in
-                        attachDocId = doc.id
+                        attachLeafId = doc.id
                     },
                     availableShelves: store.listShelves(),
                     onMoveLeafToShelf: { doc, shelfId in
@@ -353,8 +353,8 @@ public struct LibraryView: View {
     /// the chain Swift's type checker can crunch.
     private var attachSheetItemBinding: Binding<BindLeafIdentifier?> {
         Binding(
-            get: { attachDocId.map(BindLeafIdentifier.init) },
-            set: { attachDocId = $0?.id }
+            get: { attachLeafId.map(BindLeafIdentifier.init) },
+            set: { attachLeafId = $0?.id }
         )
     }
 
@@ -434,7 +434,7 @@ public struct LibraryView: View {
         NavigationStack(path: $path) {
             stackContent
         }
-        .onChange(of: composer.pendingOpenDoc) { _, newValue in
+        .onChange(of: composer.pendingOpenLeaf) { _, newValue in
             // Wait for the create sheet to finish dismissing before
             // pushing, otherwise SwiftUI can race the path update
             // against the sheet's exit transition and drop the push.
@@ -442,7 +442,7 @@ public struct LibraryView: View {
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(250))
                 path.append(.leaf(leafId))
-                composer.pendingOpenDoc = nil
+                composer.pendingOpenLeaf = nil
             }
         }
         .onChange(of: validPathKey) { _, _ in pruneStalePath() }
@@ -546,7 +546,7 @@ public struct LibraryView: View {
                             renamingDoc = doc
                         },
                         onAttachToBook: {
-                            attachDocId = doc.id
+                            attachLeafId = doc.id
                         }
                     )
                 }
@@ -777,7 +777,7 @@ public struct LibraryView: View {
                         renamingDoc = doc
                     },
                     onAttachToBook: {
-                        attachDocId = doc.id
+                        attachLeafId = doc.id
                     }
                 )
             } preview: {

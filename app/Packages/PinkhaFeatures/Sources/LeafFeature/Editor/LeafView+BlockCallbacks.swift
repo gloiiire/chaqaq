@@ -6,7 +6,7 @@ import PinkhaRichText
 
 /// Installs the selection-mode tap-to-toggle recogniser when active.
 /// Off, the modifier is a no-op so taps fall through to inner Buttons
-/// (notably the navigation Button in `ChildPageRowView`).
+/// (notably the navigation Button in `ChildLeafRowView`).
 private struct SelectionTapModifier: ViewModifier {
     let active: Bool
     let onTap: () -> Void
@@ -58,13 +58,13 @@ public extension LeafView {
             // so we keep them tappable even on a locked / selection-mode
             // parent — otherwise an imported, locked Notion page would
             // trap the user with no way to drill into its sub-pages.
-            .disabled((vm.locked || editMode == .active) && !b.content.isPageReference)
-            .allowsHitTesting((!vm.locked && editMode != .active) || b.content.isPageReference)
+            .disabled((vm.locked || editMode == .active) && !b.content.isNavigationTarget)
+            .allowsHitTesting((!vm.locked && editMode != .active) || b.content.isNavigationTarget)
         }
         // contentShape + onTapGesture used to be unconditional, which
         // installed an HStack-level tap recogniser that swallowed taps
         // before they could reach inner controls (notably the Button
-        // inside ChildPageRowView, killing navigation on locked docs).
+        // inside ChildLeafRowView, killing navigation on locked docs).
         // We now only install the tap-to-toggle handler in selection
         // mode, where the behaviour is actually wanted.
         .modifier(SelectionTapModifier(active: editMode == .active,
@@ -229,12 +229,12 @@ public extension LeafView {
             accentColor: effectiveAccentColor,
             themeForegroundColor: effectiveTheme.foregroundColor,
             keyboardAppearance: effectiveKeyboardAppearance,
-            onOpenInternalDoc: { leafId in pushedDocId = leafId },
-            resolveChildPage: { childId in
+            onOpenInternalLeaf: { leafId in pushedLeafId = leafId },
+            resolveChildLeaf: { childId in
                 // The child-page row needs a title + optional icon. We load
                 // the leaf JSON synchronously off the SQLite store —
                 // cheap on local disk, and the call is gated by `.onAppear`
-                // in `ChildPageRowView` so we hit the store at most once
+                // in `ChildLeafRowView` so we hit the store at most once
                 // per child block surfaced.
                 guard let doc = try? vm.api.getLeaf(id: childId) else { return nil }
                 let title = doc.title.map(\.content).joined()

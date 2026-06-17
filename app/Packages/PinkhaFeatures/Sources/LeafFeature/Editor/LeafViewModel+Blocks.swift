@@ -43,13 +43,13 @@ public extension LeafViewModel {
     }
 
     /// Inserts a `Page` block at the end of the leaf — used when a
-    /// child page has been created from the bubble while this doc was on
+    /// child leaf has been created from the bubble while this doc was on
     /// screen. Going through this method (instead of a direct FFI call)
     /// keeps `blocks`, `blockSnapshots` and the undo stack in sync, so
     /// the next burst flush doesn't overwrite the new block.
-    func addChildPageBlock(childLeafId: String) {
+    func addChildLeafBlock(childLeafId: String) {
         do {
-            let content = BlockContentFfi.page(id: childLeafId)
+            let content = BlockContentFfi.leaf(id: childLeafId)
             let data    = try JSONEncoder().encode(content)
             let newId   = try api.addBlock(leafId: leafId,
                                            blockContentJson: String(decoding: data, as: UTF8.self))
