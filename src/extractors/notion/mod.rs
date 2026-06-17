@@ -1,8 +1,8 @@
 // ── Notion extractor ──────────────────────────────────────────────────────────
 //
 // Pipeline: OAuth2 token (obtained by Swift) + book ID
-//   → GET /v1/books/{id}          (schema: properties + title)
-//   → POST /v1/books/{id}/query   (entries, paginated)
+//   → GET /v1/databases/{id}          (schema: properties + title)
+//   → POST /v1/databases/{id}/query   (entries, paginated)
 //   → GET /v1/blocks/{page_id}/children (block content, paginated)
 //   → map → persist via LeafRepository + BookRepository
 
@@ -133,7 +133,7 @@ pub async fn list_books(token: &str) -> Result<Vec<NotionDatabaseSummary>, Extra
 ///   2. Call the new `list_accessible_data_sources` (per-request
 ///      `Notion-Version: 2025-09-03` header).
 ///   3. For each data source, derive its wrapping book id from
-///      `parent.book_id`. Add to the union only if the legacy
+///      `parent.database_id`. Add to the union only if the legacy
 ///      pass didn't already pick it up — legacy wins on dupes
 ///      because its `title` is richer (rich-text vs plain string).
 ///
@@ -178,7 +178,7 @@ pub async fn list_books_v2025(
     if let Ok(data_sources) = client.list_accessible_data_sources().await {
         for ds in data_sources {
             let book_id = match ds.parent {
-                schema::NotionDataSourceParent::BookId { book_id } => book_id,
+                schema::NotionDataSourceParent::DatabaseId { database_id } => database_id,
                 schema::NotionDataSourceParent::Unknown => continue,
             };
             if by_id.contains_key(&book_id) {
