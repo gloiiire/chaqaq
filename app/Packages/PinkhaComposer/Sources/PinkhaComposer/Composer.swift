@@ -43,7 +43,7 @@ public final class Composer {
     /// Name draft for the new-shelf alert.
     public var newShelfName = ""
     /// Which kind of leaf the create sheet should produce.
-    public var createMode: CreateMode = .note
+    public var createMode: CreateMode = .leaf
     /// Where the next `New …` should land. Driven by the navigation
     /// stack — `ShelfView` flips it to `.shelf(id)` on appear (and
     /// back to `.root` on disappear), `LeafView` flips it to
@@ -57,8 +57,8 @@ public final class Composer {
     /// through its VM — otherwise the next burst flush would overwrite
     /// a block written behind the VM's back via a direct FFI call.
     public var pendingChildPage: PendingChildPage? = nil
-    /// Signals that a newly-created note should be pushed onto the
-    /// Notes navigation stack right after the create sheet dismisses,
+    /// Signals that a newly-created leaf should be pushed onto the
+    /// Library navigation stack right after the create sheet dismisses,
     /// so the user lands in the editor instead of back on the home
     /// list. Only set for `.root` / `.shelf` contexts — the
     /// `.leaf` context routes through `pendingChildPage` instead.
@@ -88,19 +88,19 @@ public final class Composer {
     /// Currently-selected pinkha tab. Bound to the root `TabView`
     /// `selection:` so we can programmatically switch tabs from
     /// anywhere (e.g. the switcher's ✓ button forcing a return to
-    /// Notes after closing all open docs).
-    public var selectedTab: TabKind = .notes
+    /// the Library after closing all open leaves).
+    public var selectedTab: TabKind = .leaves
 
     // NavigationStack path lives back in `LibraryView.@State` because
     // `NavigationStack(path: $model.path)` is buggy in iOS — it doesn't
     // visibly pop when the binding is mutated, while `@State` does.
 
-    /// Bump this to force-recreate `LibraryView` via `.id(notesHomeKey)`.
+    /// Bump this to force-recreate `LibraryView` via `.id(leavesHomeKey)`.
     /// Used by the switcher's ✓ button to nuke a stuck NavStack
     /// (Apple SwiftUI bug : path mutation from outside doesn't always
     /// visibly pop even when the binding fires). Recreating the view
     /// instantiates fresh `@State` → path starts at `[]` → home shown.
-    public var notesHomeKey: Int = 0
+    public var leavesHomeKey: Int = 0
 
     public init() {}
 
@@ -108,13 +108,13 @@ public final class Composer {
     /// we ever persist the last-selected tab; the enum itself is
     /// `Hashable` so it works as a `TabView` selection binding.
     public enum TabKind: String, Hashable, Codable {
-        case notes, books, inbox, search
+        case leaves, books, inbox, search
     }
 
-    public enum CreateMode { case note, book }
+    public enum CreateMode { case leaf, book }
 
     /// Anchor for context-aware creation — the bubble inherits the
-    /// "where am I?" from the foreground view so a new note created
+    /// "where am I?" from the foreground view so a new leaf created
     /// while looking at shelf "K" lands inside "K", not at root.
     public enum CreationContext: Equatable {
         case root
@@ -135,8 +135,8 @@ public final class Composer {
         }
     }
 
-    public func openNewNote() {
-        createMode = .note
+    public func openNewLeaf() {
+        createMode = .leaf
         newTitle = ""
         showingCreateDoc = true
     }

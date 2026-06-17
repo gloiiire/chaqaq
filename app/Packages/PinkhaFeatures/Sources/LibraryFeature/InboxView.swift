@@ -39,7 +39,7 @@ private struct InboxEmptyState: View {
                 .foregroundStyle(.tertiary)
             VStack(spacing: 6) {
                 Text("Inbox is empty").font(.headline)
-                Text("Imported items, quick captures and shared notes\nwill appear here.")
+                Text("Imported items, quick captures and shared leaves\nwill appear here.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

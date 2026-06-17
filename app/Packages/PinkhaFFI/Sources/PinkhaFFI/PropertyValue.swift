@@ -82,4 +82,4 @@ public enum PropertyValueFfi: Codable, Equatable {
 ///
 /// `leafId` is set for rows imported from Notion / Craft (where every page
 /// becomes both a Leaf and a row). When set, renaming the row via the FFI
-/// `updateEntry` call propagates the new title to the underlying note. `nil`
+/// `updateEntry` call propagates the new title to the underlying leaf. `nil`

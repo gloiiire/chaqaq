@@ -435,6 +435,22 @@ fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterInt32: FfiConverterPrimitive {
+    typealias FfiType = Int32
+    typealias SwiftType = Int32
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int32 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int32, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterBool : FfiConverter {
     typealias FfiType = Int8
     typealias SwiftType = Bool
@@ -602,6 +618,13 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func deleteProperty(bookId: String, propertyId: String) throws 
     
     func deleteShelf(id: String) throws 
+    
+    /**
+     * Cascade delete : trashes the shelf, every leaf filed inside
+     * it AND every sub-shelf (recursively, with their leaves).
+     * Returns the leaves-deleted count for the confirmation UI.
+     */
+    func deleteShelfCascade(id: String) throws  -> UInt32
     
     func deleteView(bookId: String, viewId: String) throws 
     
@@ -884,12 +907,31 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func setBlockTextDirection(leafId: String, blockId: String, textDirection: String?) throws 
     
     /**
+     * Pins (true) or unpins (false) a leaf. Pinned leaves surface
+     * in the PINNED section at the top of the library home view.
+     */
+    func setLeafPinned(id: String, pinned: Bool) throws 
+    
+    /**
+     * Bulk-rewrites the manual sort index for the given leaves :
+     * the first id gets `manual_order = 0`, the next 1, etc.
+     * Pass the leaves in the desired display order.
+     */
+    func setLeavesManualOrder(orderedIds: [String]) throws 
+    
+    /**
      * Sets (or clears with null) the Date column that drives every
      * row's published_at. Adopting backfills all rows and their backing
      * leaves; clearing resets them to "follow created_at". Returns
      * the number of rows whose publish date changed.
      */
     func setPublishedAtSource(bookId: String, propertyId: String?) throws  -> UInt32
+    
+    /**
+     * Same shape as `set_leaves_manual_order` but for shelves.
+     * Powers drag-and-drop reorder in the SHELVES sections.
+     */
+    func setShelvesManualOrder(orderedIds: [String]) throws 
     
     /**
      * Sets the view's sort to the entry-level created_at or published_at.
@@ -1321,6 +1363,20 @@ open func deleteShelf(id: String)throws   {try rustCallWithError(FfiConverterTyp
         FfiConverterString.lower(id),$0
     )
 }
+}
+    
+    /**
+     * Cascade delete : trashes the shelf, every leaf filed inside
+     * it AND every sub-shelf (recursively, with their leaves).
+     * Returns the leaves-deleted count for the confirmation UI.
+     */
+open func deleteShelfCascade(id: String)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_delete_shelf_cascade(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),$0
+    )
+})
 }
     
 open func deleteView(bookId: String, viewId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -2021,6 +2077,32 @@ open func setBlockTextDirection(leafId: String, blockId: String, textDirection: 
 }
     
     /**
+     * Pins (true) or unpins (false) a leaf. Pinned leaves surface
+     * in the PINNED section at the top of the library home view.
+     */
+open func setLeafPinned(id: String, pinned: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_set_leaf_pinned(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterBool.lower(pinned),$0
+    )
+}
+}
+    
+    /**
+     * Bulk-rewrites the manual sort index for the given leaves :
+     * the first id gets `manual_order = 0`, the next 1, etc.
+     * Pass the leaves in the desired display order.
+     */
+open func setLeavesManualOrder(orderedIds: [String])throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_set_leaves_manual_order(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(orderedIds),$0
+    )
+}
+}
+    
+    /**
      * Sets (or clears with null) the Date column that drives every
      * row's published_at. Adopting backfills all rows and their backing
      * leaves; clearing resets them to "follow created_at". Returns
@@ -2034,6 +2116,18 @@ open func setPublishedAtSource(bookId: String, propertyId: String?)throws  -> UI
         FfiConverterOptionString.lower(propertyId),$0
     )
 })
+}
+    
+    /**
+     * Same shape as `set_leaves_manual_order` but for shelves.
+     * Powers drag-and-drop reorder in the SHELVES sections.
+     */
+open func setShelvesManualOrder(orderedIds: [String])throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_set_shelves_manual_order(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(orderedIds),$0
+    )
+}
 }
     
     /**
@@ -2611,10 +2705,12 @@ public struct LeafMetaFfi: Equatable, Hashable {
     public var shelfId: String?
     public var parentLeafId: String?
     public var icon: String?
+    public var pinnedAt: String?
+    public var manualOrder: Int32?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, titlePlain: String, titleJson: String, cover: String?, updatedAt: String, createdAt: String, publishedAt: String, shelfId: String?, parentLeafId: String?, icon: String?) {
+    public init(id: String, titlePlain: String, titleJson: String, cover: String?, updatedAt: String, createdAt: String, publishedAt: String, shelfId: String?, parentLeafId: String?, icon: String?, pinnedAt: String?, manualOrder: Int32?) {
         self.id = id
         self.titlePlain = titlePlain
         self.titleJson = titleJson
@@ -2625,6 +2721,8 @@ public struct LeafMetaFfi: Equatable, Hashable {
         self.shelfId = shelfId
         self.parentLeafId = parentLeafId
         self.icon = icon
+        self.pinnedAt = pinnedAt
+        self.manualOrder = manualOrder
     }
 
     
@@ -2652,7 +2750,9 @@ public struct FfiConverterTypeLeafMetaFfi: FfiConverterRustBuffer {
                 publishedAt: FfiConverterString.read(from: &buf), 
                 shelfId: FfiConverterOptionString.read(from: &buf), 
                 parentLeafId: FfiConverterOptionString.read(from: &buf), 
-                icon: FfiConverterOptionString.read(from: &buf)
+                icon: FfiConverterOptionString.read(from: &buf), 
+                pinnedAt: FfiConverterOptionString.read(from: &buf), 
+                manualOrder: FfiConverterOptionInt32.read(from: &buf)
         )
     }
 
@@ -2667,6 +2767,8 @@ public struct FfiConverterTypeLeafMetaFfi: FfiConverterRustBuffer {
         FfiConverterOptionString.write(value.shelfId, into: &buf)
         FfiConverterOptionString.write(value.parentLeafId, into: &buf)
         FfiConverterOptionString.write(value.icon, into: &buf)
+        FfiConverterOptionString.write(value.pinnedAt, into: &buf)
+        FfiConverterOptionInt32.write(value.manualOrder, into: &buf)
     }
 }
 
@@ -2762,16 +2864,18 @@ public struct ShelfMetaFfi: Equatable, Hashable {
     public var createdAt: String
     public var updatedAt: String
     public var icon: String?
+    public var manualOrder: Int32?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, name: String, parentId: String?, createdAt: String, updatedAt: String, icon: String?) {
+    public init(id: String, name: String, parentId: String?, createdAt: String, updatedAt: String, icon: String?, manualOrder: Int32?) {
         self.id = id
         self.name = name
         self.parentId = parentId
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.icon = icon
+        self.manualOrder = manualOrder
     }
 
     
@@ -2795,7 +2899,8 @@ public struct FfiConverterTypeShelfMetaFfi: FfiConverterRustBuffer {
                 parentId: FfiConverterOptionString.read(from: &buf), 
                 createdAt: FfiConverterString.read(from: &buf), 
                 updatedAt: FfiConverterString.read(from: &buf), 
-                icon: FfiConverterOptionString.read(from: &buf)
+                icon: FfiConverterOptionString.read(from: &buf), 
+                manualOrder: FfiConverterOptionInt32.read(from: &buf)
         )
     }
 
@@ -2806,6 +2911,7 @@ public struct FfiConverterTypeShelfMetaFfi: FfiConverterRustBuffer {
         FfiConverterString.write(value.createdAt, into: &buf)
         FfiConverterString.write(value.updatedAt, into: &buf)
         FfiConverterOptionString.write(value.icon, into: &buf)
+        FfiConverterOptionInt32.write(value.manualOrder, into: &buf)
     }
 }
 
@@ -2982,6 +3088,30 @@ public func FfiConverterTypePinkhaError_lift(_ buf: RustBuffer) throws -> Pinkha
 #endif
 public func FfiConverterTypePinkhaError_lower(_ value: PinkhaError) -> RustBuffer {
     return FfiConverterTypePinkhaError.lower(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionInt32: FfiConverterRustBuffer {
+    typealias SwiftType = Int32?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterInt32.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterInt32.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
 }
 
 #if swift(>=5.8)
@@ -3287,6 +3417,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_shelf() != 57679) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_shelf_cascade() != 25023) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_view() != 33860) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3452,7 +3585,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_text_direction() != 61302) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_leaf_pinned() != 6198) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_leaves_manual_order() != 62917) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_published_at_source() != 52307) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_shelves_manual_order() != 31436) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_date_sort() != 19614) {

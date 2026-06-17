@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// App-level preferences sheet. Reached from the Notes home view's
+/// App-level preferences sheet. Reached from the Library home view's
 /// 3-dot overflow menu. Sections grow as more settings get added — for
 /// now: appearance (accent color) + reading aids (search spotlight).
 public struct SettingsView: View {
@@ -91,7 +91,7 @@ public struct SettingsView: View {
                 } header: {
                     Text("Recents")
                 } footer: {
-                    Text("How many notes appear in the horizontal strip at the top of the Notes home. Bounded between 5 and 20.")
+                    Text("How many leaves appear in the horizontal strip at the top of the Library home. Bounded between 5 and 20.")
                 }
 
                 Section {
@@ -131,7 +131,7 @@ public struct SettingsView: View {
                 } header: {
                     Text("Search spotlight")
                 } footer: {
-                    Text("When you open a note from search, the rest of the page is blurred. Turn this on to also paint a soft tint behind the matched block.")
+                    Text("When you open a leaf from search, the rest of the page is blurred. Turn this on to also paint a soft tint behind the matched block.")
                 }
             }
             .navigationTitle("Settings")

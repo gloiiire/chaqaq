@@ -186,6 +186,27 @@ pub fn move_leaf_to_shelf(
     uow.leaves().move_to_shelf(leaf_id, shelf_id)
 }
 
+/// Pins or unpins a leaf. Pinning surfaces the leaf in the dedicated
+/// PINNED section above SHELVES in the library home view ;
+/// unpinning removes it.
+pub fn set_leaf_pinned(
+    uow: &dyn UnitOfWork,
+    leaf_id: Uuid,
+    pinned: bool,
+) -> Result<(), PinkhaError> {
+    uow.leaves().set_pinned(leaf_id, pinned)
+}
+
+/// Bulk-rewrites the manual sort index for `ordered_ids`. The first id
+/// gets index 0, the second gets 1, etc. Wires the SwiftUI
+/// `.onMove(perform:)` reorder into persistence.
+pub fn set_leaves_manual_order(
+    uow: &dyn UnitOfWork,
+    ordered_ids: &[Uuid],
+) -> Result<(), PinkhaError> {
+    uow.leaves().set_manual_order(ordered_ids)
+}
+
 /// Returns lightweight metadata for all leaves in the given shelf (or root).
 pub fn list_leaves_in_shelf(
     uow: &dyn UnitOfWork,
@@ -230,15 +251,19 @@ pub fn update_leaf_parent(
     repo.save(&doc)
 }
 
-/// Returns lightweight metadata for leaves at the root of the page tree
-/// (no parent leaf). Drives the home view, which only surfaces top-level
-/// pages — child pages are reached by tapping their parent.
+/// Returns lightweight metadata for leaves at the root of the library —
+/// neither nested inside another leaf (`parent_leaf_id == None`) nor
+/// filed into a shelf (`shelf_id == None`). Drives the home view's "All"
+/// section, which only surfaces leaves that haven't been parented.
+/// Filing a leaf in a shelf must remove it from the root listing,
+/// otherwise the user sees the same leaf in two places and reads the
+/// move as a copy.
 pub fn list_root_leaves(uow: &dyn UnitOfWork) -> Result<Vec<LeafMeta>, PinkhaError> {
     Ok(uow
         .leaves()
         .list()?
         .into_iter()
-        .filter(|m| m.parent_leaf_id.is_none())
+        .filter(|m| m.parent_leaf_id.is_none() && m.shelf_id.is_none())
         .collect())
 }
 

@@ -36,7 +36,7 @@ extension Composer {
     private func handle(shortcutType type: String) {
         switch type {
         case "com.gloiiire.pinkha.new-note":
-            openNewNote()
+            openNewLeaf()
         default:
             break
         }

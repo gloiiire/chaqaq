@@ -4,7 +4,7 @@ import PinkhaCore
 // ── Library row + date formatting ──────────────────────────────────────────
 
 /// Shared ISO-to-relative-date helper used by `LibraryRow`,
-/// `RecentCard` and `NoteCardPreview`. Kept at file scope so the
+/// `RecentCard` and `LeafCardPreview`. Kept at file scope so the
 /// UIKit hosting controller (in `UIKitContextMenu`) can reuse it
 /// without instantiating the surrounding struct.
 func formattedRelativeDate(_ iso: String) -> String? {
@@ -17,9 +17,12 @@ func formattedRelativeDate(_ iso: String) -> String? {
 
 /// A row in the unified library list.
 public struct LibraryRow: View {
-    public init(item: WorkspaceItem, displayDateIso: String? = nil) {
+    public init(item: WorkspaceItem,
+                displayDateIso: String? = nil,
+                store: PinkhaStore? = nil) {
         self.item = item
         self.displayDateIso = displayDateIso
+        self.store = store
     }
     public let item: WorkspaceItem
     /// ISO date shown under the title. Defaults to `updatedAt` (the
@@ -27,8 +30,24 @@ public struct LibraryRow: View {
     /// passes `createdAt` when the user sorts by Created so the visible
     /// timestamp matches the active sort key.
     public var displayDateIso: String? = nil
+    /// Optional store reference. When provided, leaves get a "Move to
+    /// shelf…" context menu (long-press). Passed `nil` from contexts
+    /// where the move action doesn't apply (e.g. UIKit hosting previews).
+    public var store: PinkhaStore? = nil
 
     public var body: some View {
+        rowContent
+            .padding(.vertical, 2)
+            // Drag&drop disabled : neither the new Transferable
+            // `.dropDestination` nor the legacy `.onDrop` work reliably
+            // inside a `List` on iOS (FB12980427), and a UIKit wrap
+            // imposes too much rewrite. The long-press "Move to shelf…"
+            // menu below covers the same intent.
+            .modifier(LeafMoveMenuModifier(item: item, store: store))
+    }
+
+    @ViewBuilder
+    private var rowContent: some View {
         HStack(spacing: 12) {
             itemIcon
             VStack(alignment: .leading, spacing: 4) {
@@ -40,13 +59,12 @@ public struct LibraryRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.vertical, 2)
     }
 
     @ViewBuilder
     private var itemIcon: some View {
         switch item {
-        case .note(let doc):
+        case .leaf(let doc):
             if let icon = doc.icon, !icon.isEmpty {
                 Text(icon).font(.title2).frame(width: 34, height: 34)
             } else {
@@ -67,6 +85,48 @@ public struct LibraryRow: View {
                     .frame(width: 34, height: 34)
                     .background(.secondary.opacity(0.12),
                                  in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+        }
+    }
+
+    /// Attaches a `Move to shelf…` long-press menu on leaves when a
+    /// `store` is available. Books get nothing. The submenu lists every
+    /// shelf — picking one calls `moveLeafToShelf`; picking "Library
+    /// root" un-files the leaf.
+    private struct LeafMoveMenuModifier: ViewModifier {
+        let item: WorkspaceItem
+        let store: PinkhaStore?
+
+        func body(content: Content) -> some View {
+            if case .leaf(let doc) = item, let store {
+                content.contextMenu {
+                    Menu {
+                        Button {
+                            store.moveLeafToShelf(leafId: doc.id, shelfId: nil)
+                            store.load()
+                        } label: {
+                            Label("Library root", systemImage: "books.vertical.fill")
+                        }
+                        Divider()
+                        let shelves = store.listShelves()
+                        if shelves.isEmpty {
+                            Text("No shelves yet")
+                        } else {
+                            ForEach(shelves, id: \.id) { shelf in
+                                Button {
+                                    store.moveLeafToShelf(leafId: doc.id, shelfId: shelf.id)
+                                    store.load()
+                                } label: {
+                                    Label(shelf.name, systemImage: "books.vertical.fill")
+                                }
+                            }
+                        }
+                    } label: {
+                        Label("Move to shelf…", systemImage: "arrow.uturn.right.circle")
+                    }
+                }
+            } else {
+                content
             }
         }
     }

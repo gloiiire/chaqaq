@@ -117,7 +117,21 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
         [],
     )
     .map_err(|e| PinkhaError::Db(e.to_string()))?;
-    conn.pragma_update(None, "user_version", 10)
+    // Pinned-at timestamp. `NULL` = not pinned. When set, the home view
+    // surfaces the leaf in a dedicated PINNED section above SHELVES,
+    // sorted by pinned_at desc so most recent pins appear first. Nullable
+    // because the natural absence is "not pinned" — empty string would
+    // require a sentinel branch every read.
+    add_column_if_missing(conn, "leaves", "pinned_at", "TEXT")?;
+    // Manual sort index for drag-and-drop reorder. NULL = follow the
+    // section's natural order (creation/update date or `pinned_at`).
+    // Integer column so we can scan an `ORDER BY manual_order` without
+    // parsing the JSON blob.
+    add_column_if_missing(conn, "leaves", "manual_order", "INTEGER")?;
+    // Manual sort index for shelves — parallel to `leaves.manual_order`.
+    // Powers the drag-and-drop reorder UI in the SHELVES section.
+    add_column_if_missing(conn, "shelves", "manual_order", "INTEGER")?;
+    conn.pragma_update(None, "user_version", 13)
         .map_err(|e| PinkhaError::Db(e.to_string()))?;
     Ok(())
 }

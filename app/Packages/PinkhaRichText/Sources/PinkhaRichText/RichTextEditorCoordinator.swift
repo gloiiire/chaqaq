@@ -44,7 +44,7 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
     var lastSyncedSpans: [InlineTextFfi]?
     /// Mirror of `parent.blockColor` at last `updateUIView` recompute. Lets us
     /// detect "spans unchanged but block colour changed" — without this guard
-    /// the user has to leave and re-enter the note for the new block colour to
+    /// the user has to leave and re-enter the leaf for the new block colour to
     /// render, because the spans-equality check skips the `spansToAttributed`
     /// rebuild.
     var lastSyncedBlockColor: String?
@@ -67,7 +67,7 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
     /// Mirror of `parent.isEnabled` (lock state). When the user locks the
     /// page, empty blocks should hide their placeholder — but the spans-
     /// equality short-circuit otherwise prevents the recompute, leaving the
-    /// stale placeholder visible until the user scrolls or closes the note.
+    /// stale placeholder visible until the user scrolls or closes the leaf.
     /// Tracked here so `updateUIView` can force the refresh on flip.
     var lastSyncedIsEnabled: Bool?
     // The pill toolbar — animated to alpha 0 when a dropdown menu opens
@@ -234,6 +234,15 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
     /// Returns `false` to suppress UIKit's default behaviour (opening the
     /// URL externally) when the scheme is `pinkha://` — we hand the path off
     /// to the SwiftUI parent, which navigates to the matching leaf.
+    ///
+    /// `UITextItemInteraction` was soft-deprecated in iOS 17 in favour of
+    /// `textView(_:primaryActionFor:)` returning a `UIAction`, but the new
+    /// API doesn't carry the URL inline and forces a different routing
+    /// shape. Migration tracked separately ; for now we accept the
+    /// deprecation warning and keep the legacy delegate path which still
+    /// fires correctly on iOS 26.
+    @available(iOS, introduced: 10.0, deprecated: 17.0,
+               message: "Kept until we migrate to UITextItem.Link APIs")
     public func textView(_ tv: UITextView,
                   shouldInteractWith url: URL,
                   in characterRange: NSRange,

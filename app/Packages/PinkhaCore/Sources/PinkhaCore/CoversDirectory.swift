@@ -2,7 +2,7 @@ import Foundation
 
 /// Filesystem helpers for cover-image storage. These are pure path
 /// utilities, not tied to any view model, so they live at the
-/// PinkhaCore layer where every consumer (Notes home, Leaf
+/// PinkhaCore layer where every consumer (Library home, Leaf
 /// editor, DesignSystem CoverImageView) can reach them.
 public enum CoverImageStorage {
     /// Storage directory for cover images. Created on first call so

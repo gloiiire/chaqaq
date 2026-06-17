@@ -4,12 +4,12 @@ import SwiftUI
 public struct LibraryEmptyState: View {
     public var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "doc.text")
+            Image(systemName: "document")
                 .font(.system(size: 48))
                 .foregroundStyle(.tertiary)
             VStack(spacing: 6) {
-                Text("No notes").font(.headline)
-                Text("Tap the button at the bottom right\nto create your first note.")
+                Text("No leaves").font(.headline)
+                Text("Tap the button at the bottom right\nto create your first leaf.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

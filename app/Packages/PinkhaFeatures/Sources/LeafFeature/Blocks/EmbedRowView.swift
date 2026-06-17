@@ -50,7 +50,7 @@ public struct EmbedRowView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
-                    Text("pinkha note")
+                    Text("pinkha leaf")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

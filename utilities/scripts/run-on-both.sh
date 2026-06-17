@@ -8,7 +8,11 @@
 # auto-detection.
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+# Anchor at the repo root regardless of where this script lives.
+# Was scripts/run-on-both.sh, moved to utilities/scripts/run-on-both.sh ;
+# the previous `dirname/..` shortcut landed in utilities/ instead of root.
+cd "$(git rev-parse --show-toplevel)"
+SCRIPTS_DIR="utilities/scripts"
 
 # ── DEVELOPER_DIR sanity ──────────────────────────────────────────────────
 # If the caller's shell has DEVELOPER_DIR pointing somewhere that doesn't
@@ -32,12 +36,12 @@ fi
 # they never accumulate.
 find app -name "* [2-9].swift" -delete 2>/dev/null
 find app -name "* [2-9].xcodeproj" -type d -exec rm -rf {} + 2>/dev/null
-find scripts -name "* [2-9].sh" -delete 2>/dev/null
+find "$SCRIPTS_DIR" -name "* [2-9].sh" -delete 2>/dev/null
 
 # ── xcodegen + icon patch (idempotent, cheap) ─────────────────────────────
 (cd app && xcodegen generate >/dev/null)
-if [ -f "scripts/patch-app-icon.rb" ]; then
-    ./scripts/patch-app-icon.rb >/dev/null
+if [ -f "$SCRIPTS_DIR/patch-app-icon.rb" ]; then
+    "./$SCRIPTS_DIR/patch-app-icon.rb" >/dev/null
 fi
 
 # ── Simulator target ──────────────────────────────────────────────────────

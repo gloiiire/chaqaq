@@ -48,4 +48,24 @@ pub trait LeafRepository: Send + Sync {
             "purge not supported by this repository".into(),
         ))
     }
+
+    /// Pins or unpins a leaf. Pinning sets `pinned_at` to the current
+    /// RFC 3339 timestamp ; unpinning clears it back to `NULL`. The
+    /// home view's PINNED section reads these via `list()`. Default
+    /// impl errors so in-memory mocks compile until they opt in.
+    fn set_pinned(&self, _leaf_id: Uuid, _pinned: bool) -> Result<(), PinkhaError> {
+        Err(PinkhaError::InvalidOperation(
+            "set_pinned not supported by this repository".into(),
+        ))
+    }
+
+    /// Bulk-rewrites the manual sort index. The first id in
+    /// `ordered_ids` gets index 0, the second gets 1, and so on. Used
+    /// by the drag-and-drop reorder UI in the PINNED section and the
+    /// "All" section's manual sort mode.
+    fn set_manual_order(&self, _ordered_ids: &[Uuid]) -> Result<(), PinkhaError> {
+        Err(PinkhaError::InvalidOperation(
+            "set_manual_order not supported by this repository".into(),
+        ))
+    }
 }

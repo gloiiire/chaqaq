@@ -368,6 +368,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_delete_property(uint64_t ptr, RustBuffer 
 void uniffi_pinkha_fn_method_pinkhaapi_delete_shelf(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_SHELF_CASCADE
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_SHELF_CASCADE
+uint32_t uniffi_pinkha_fn_method_pinkhaapi_delete_shelf_cascade(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_VIEW
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_VIEW
 void uniffi_pinkha_fn_method_pinkhaapi_delete_view(uint64_t ptr, RustBuffer book_id, RustBuffer view_id, RustCallStatus *_Nonnull out_status
@@ -643,9 +648,24 @@ void uniffi_pinkha_fn_method_pinkhaapi_set_block_color(uint64_t ptr, RustBuffer 
 void uniffi_pinkha_fn_method_pinkhaapi_set_block_text_direction(uint64_t ptr, RustBuffer leaf_id, RustBuffer block_id, RustBuffer text_direction, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_LEAF_PINNED
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_LEAF_PINNED
+void uniffi_pinkha_fn_method_pinkhaapi_set_leaf_pinned(uint64_t ptr, RustBuffer id, int8_t pinned, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_LEAVES_MANUAL_ORDER
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_LEAVES_MANUAL_ORDER
+void uniffi_pinkha_fn_method_pinkhaapi_set_leaves_manual_order(uint64_t ptr, RustBuffer ordered_ids, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_PUBLISHED_AT_SOURCE
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_PUBLISHED_AT_SOURCE
 uint32_t uniffi_pinkha_fn_method_pinkhaapi_set_published_at_source(uint64_t ptr, RustBuffer book_id, RustBuffer property_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_SHELVES_MANUAL_ORDER
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_SHELVES_MANUAL_ORDER
+void uniffi_pinkha_fn_method_pinkhaapi_set_shelves_manual_order(uint64_t ptr, RustBuffer ordered_ids, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_VIEW_DATE_SORT
@@ -1150,6 +1170,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_shelf(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_SHELF_CASCADE
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_SHELF_CASCADE
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_shelf_cascade(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_VIEW
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_VIEW
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_view(void
@@ -1480,9 +1506,27 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_block_text_direction(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_LEAF_PINNED
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_LEAF_PINNED
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_leaf_pinned(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_LEAVES_MANUAL_ORDER
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_LEAVES_MANUAL_ORDER
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_leaves_manual_order(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_PUBLISHED_AT_SOURCE
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_PUBLISHED_AT_SOURCE
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_published_at_source(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_SHELVES_MANUAL_ORDER
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_SHELVES_MANUAL_ORDER
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_shelves_manual_order(void
     
 );
 #endif

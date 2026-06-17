@@ -174,6 +174,21 @@ pub struct LeafMeta {
     /// or by navigating through the breadcrumbs from any descendant.
     #[serde(default)]
     pub parent_leaf_id: Option<Uuid>,
+    /// RFC 3339 timestamp the user pinned this leaf, or `None` when not
+    /// pinned. Drives the PINNED section at the top of the library
+    /// home — leaves with `Some(_)` surface there, sorted by the
+    /// pinned timestamp descending. Stored as `Option<String>` rather
+    /// than `Option<DateTime>` to avoid pulling chrono into the domain
+    /// layer ; the SQLite store writes and reads the column as TEXT.
+    #[serde(default)]
+    pub pinned_at: Option<String>,
+    /// Manual sort index ; `None` falls back to the natural order
+    /// (Pinned : `pinned_at` descending ; All section : sort key from
+    /// `@AppStorage`). When `Some`, the home view sorts by this value
+    /// ascending — drag-and-drop reorder writes consecutive integers
+    /// so the array order stays stable across loads.
+    #[serde(default)]
+    pub manual_order: Option<i32>,
 }
 
 impl From<&Leaf> for LeafMeta {
@@ -188,6 +203,8 @@ impl From<&Leaf> for LeafMeta {
             published_at: doc.published_at.clone(),
             shelf_id: doc.shelf_id,
             parent_leaf_id: doc.parent_leaf_id,
+            pinned_at: doc.pinned_at.clone(),
+            manual_order: doc.manual_order,
         }
     }
 }
@@ -271,6 +288,18 @@ pub struct Leaf {
     /// path. `#[serde(default)]` keeps backward compat.
     #[serde(default)]
     pub published_at: String,
+    /// RFC 3339 timestamp the user pinned this leaf, or `None` when
+    /// not pinned. Mirror of [`LeafMeta::pinned_at`] — kept on the
+    /// full leaf so editors and toolbars can read it without a
+    /// separate metadata fetch. `#[serde(default)]` keeps backward
+    /// compat with pre-feature leaves.
+    #[serde(default)]
+    pub pinned_at: Option<String>,
+    /// Manual sort index. Mirror of [`LeafMeta::manual_order`] — kept
+    /// on the full leaf so a save() doesn't drop it. `#[serde(default)]`
+    /// keeps backward compat.
+    #[serde(default)]
+    pub manual_order: Option<i32>,
 }
 
 impl Leaf {
@@ -290,6 +319,8 @@ impl Leaf {
             text_direction: None,
             theme: None,
             published_at: String::new(),
+            pinned_at: None,
+            manual_order: None,
         }
     }
 

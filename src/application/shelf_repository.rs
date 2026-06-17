@@ -33,4 +33,13 @@ pub trait ShelfRepository: Send + Sync {
             "purge not supported by this repository".into(),
         ))
     }
+
+    /// Bulk-rewrites the manual sort index. Parallel to
+    /// [`crate::application::repository::LeafRepository::set_manual_order`] —
+    /// powers drag-and-drop reorder in the SHELVES sections.
+    fn set_manual_order(&self, _ordered_ids: &[Uuid]) -> Result<(), PinkhaError> {
+        Err(PinkhaError::InvalidOperation(
+            "set_manual_order not supported by this repository".into(),
+        ))
+    }
 }

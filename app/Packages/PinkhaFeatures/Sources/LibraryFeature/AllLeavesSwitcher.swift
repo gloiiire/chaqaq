@@ -120,7 +120,7 @@ public struct AllLeavesSwitcher: View {
                     if !tabManager.recentlyClosed.isEmpty {
                         Button {
                             if let api = store.api {
-                                withAnimation(.easeInOut(duration: 0.25)) {
+                                _ = withAnimation(.easeInOut(duration: 0.25)) {
                                     tabManager.reopenLastClosed(api: api)
                                 }
                             }
@@ -141,7 +141,7 @@ public struct AllLeavesSwitcher: View {
                         // the text. Combining the two gives both —
                         // they target different parts of the menu
                         // item's rendering path.
-                        Label("Close all tabs", systemImage: "xmark.bin")
+                        Label("Close all leaves", systemImage: "xmark.bin")
                     }
                     .tint(.red)
                 } label: {
@@ -222,7 +222,7 @@ public struct AllLeavesSwitcher: View {
     private var bottomToolbar: some View {
         HStack(spacing: 14) {
             Button {
-                // Create new note → dismisses the switcher + triggers
+                // Create new leaf → dismisses the switcher + triggers
                 // the CreateBubble's primary action via Composer.
                 dismiss()
                 composer.showingCreateDoc = true
@@ -233,7 +233,7 @@ public struct AllLeavesSwitcher: View {
                     .frame(width: 44, height: 44)
             }
             .glassEffect(.regular.interactive(), in: Circle())
-            .accessibilityLabel("New note")
+            .accessibilityLabel("New leaf")
 
             Spacer()
 
@@ -252,13 +252,13 @@ public struct AllLeavesSwitcher: View {
 
             Button {
                 if tabManager.openTabs.isEmpty {
-                    // Force the Notes tab + force-recreate the home
+                    // Force the Library tab + force-recreate the home
                     // view (.id bump → fresh @State → empty path →
                     // NavStack at root). This is the only reliable
                     // way past the SwiftUI bug where external path
                     // mutations don't always pop the visible stack.
-                    composer.selectedTab = .notes
-                    composer.notesHomeKey += 1
+                    composer.selectedTab = .leaves
+                    composer.leavesHomeKey += 1
                 }
                 dismiss()
             } label: {

@@ -18,7 +18,7 @@ public struct BookToolbarView: View {
     @Binding var searchVisible: Bool
     /// Read from the environment so the toolbar always renders the
     /// chosen accent regardless of the `.tint(...)` inheritance up the
-    /// navigation stack — opening the DB from the Notes tab (inside
+    /// navigation stack — opening the DB from the Library tab (inside
     /// a doc's Page block) used to leave every accent slot white
     /// because that stack didn't propagate the env tint, while the
     /// Bases tab did. Reading it directly fixes both paths.

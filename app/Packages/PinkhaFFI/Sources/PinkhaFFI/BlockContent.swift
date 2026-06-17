@@ -117,10 +117,19 @@ public enum BlockContentFfi: Codable, Equatable {
     public var isTodo: Bool { if case .todo = self { return true }; return false }
     /// `true` if this is a `.todo` block with `done == true`.
     public var isTodoDone: Bool { if case .todo(let d, _) = self { return d }; return false }
-    /// `true` if this is a `.page` block (Notion-style child page link).
-    /// The editor keeps these tappable even on a locked leaf since
-    /// they're navigation targets, not editable content.
-    public var isPageReference: Bool { if case .page = self { return true }; return false }
+    /// `true` for blocks that exist purely to be tapped — child page
+    /// references and embed cards. The editor keeps these interactive
+    /// even on a locked leaf or in selection mode : disabling them
+    /// would trap the user with no way to drill into a sub-page or
+    /// open a referenced URL. The name is historical (it only covered
+    /// `.page` originally) ; in current usage "navigation target" is
+    /// the right mental model.
+    public var isPageReference: Bool {
+        switch self {
+        case .page, .embed: return true
+        default:            return false
+        }
+    }
 
     /// Returns a copy of the block with its text replaced by a single unstyled span.
     public func withText(_ newText: String, done: Bool = false) -> BlockContentFfi {

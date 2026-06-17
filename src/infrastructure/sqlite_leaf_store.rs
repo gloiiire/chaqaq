@@ -70,11 +70,13 @@ impl LeafRepository for SqliteLeafStore {
         // — for a native doc `doc.created_at` is `None` and the Rust-side
         // fallback would be the *save* time, polluting resets with "now".
         let published_at = doc.published_at.clone();
+        let pinned_at = doc.pinned_at.clone();
+        let manual_order = doc.manual_order;
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             conn.execute(
-                "INSERT INTO leaves (id, title_text, title_json, cover, updated_at, created_at, published_at, shelf_id, parent_leaf_id, icon, data)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, CASE WHEN ?7 = '' THEN ?6 ELSE ?7 END, ?8, ?9, ?10, ?11)
+                "INSERT INTO leaves (id, title_text, title_json, cover, updated_at, created_at, published_at, shelf_id, parent_leaf_id, icon, data, pinned_at, manual_order)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, CASE WHEN ?7 = '' THEN ?6 ELSE ?7 END, ?8, ?9, ?10, ?11, ?12, ?13)
                  ON CONFLICT(id) DO UPDATE SET
                     title_text    = excluded.title_text,
                     title_json    = excluded.title_json,
@@ -85,10 +87,68 @@ impl LeafRepository for SqliteLeafStore {
                     parent_leaf_id = excluded.parent_leaf_id,
                     icon          = excluded.icon,
                     data          = excluded.data,
+                    pinned_at     = excluded.pinned_at,
+                    manual_order  = excluded.manual_order,
                     deleted_at    = NULL",
-                params![id, title_text, title_json, cover, now, created_at, published_at, shelf_id, parent_leaf_id, icon, data],
+                params![id, title_text, title_json, cover, now, created_at, published_at, shelf_id, parent_leaf_id, icon, data, pinned_at, manual_order],
             )
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            Ok(())
+        })
+    }
+
+    /// Bulk-rewrites `manual_order` for a list of leaf ids in the
+    /// passed order — first id gets index 0, second gets 1, etc.
+    /// Used by the drag-and-drop reorder UI : the Swift side computes
+    /// the new array, we persist it in one transaction.
+    fn set_manual_order(&self, ordered_ids: &[Uuid]) -> Result<(), PinkhaError> {
+        retry_with_backoff(|| {
+            let mut conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let tx = conn
+                .transaction()
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            for (idx, id) in ordered_ids.iter().enumerate() {
+                tx.execute(
+                    "UPDATE leaves
+                        SET manual_order = ?1,
+                            data         = json_set(data, '$.manual_order', ?1)
+                      WHERE id = ?2 AND deleted_at IS NULL",
+                    params![idx as i32, id.to_string()],
+                )
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            }
+            tx.commit().map_err(|e| PinkhaError::Db(e.to_string()))?;
+            Ok(())
+        })
+    }
+
+    fn set_pinned(&self, leaf_id: Uuid, pinned: bool) -> Result<(), PinkhaError> {
+        let now = chrono::Utc::now().to_rfc3339();
+        let pinned_at: Option<String> = if pinned { Some(now.clone()) } else { None };
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            // Update both the indexed column AND the JSON data blob's
+            // own `pinned_at` field with `json_set` so the next `load()`
+            // returns a Leaf whose `doc.pinned_at` matches reality.
+            // Without that the JSON would diverge after pin/unpin until
+            // the next full save, and the editor would render a stale
+            // pin state.
+            let affected = conn
+                .execute(
+                    "UPDATE leaves
+                        SET pinned_at = ?1,
+                            data      = json_set(data, '$.pinned_at',
+                                CASE WHEN ?1 IS NULL
+                                     THEN json('null')
+                                     ELSE ?1 END),
+                            updated_at = ?2
+                      WHERE id = ?3 AND deleted_at IS NULL",
+                    params![pinned_at, now, leaf_id.to_string()],
+                )
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            if affected == 0 {
+                return Err(PinkhaError::NotFound(leaf_id));
+            }
             Ok(())
         })
     }
@@ -157,7 +217,7 @@ impl LeafRepository for SqliteLeafStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let mut stmt = conn
                 .prepare(
-                    "SELECT id, title_json, cover, updated_at, created_at, shelf_id, parent_leaf_id, icon, published_at
+                    "SELECT id, title_json, cover, updated_at, created_at, shelf_id, parent_leaf_id, icon, published_at, pinned_at, manual_order
                      FROM leaves WHERE deleted_at IS NOT NULL
                      ORDER BY deleted_at DESC",
                 )
@@ -174,6 +234,8 @@ impl LeafRepository for SqliteLeafStore {
                         row.get::<_, Option<String>>(6)?,
                         row.get::<_, Option<String>>(7)?,
                         row.get::<_, String>(8)?,
+                        row.get::<_, Option<String>>(9)?,
+                        row.get::<_, Option<i32>>(10)?,
                     ))
                 })
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
@@ -189,6 +251,8 @@ impl LeafRepository for SqliteLeafStore {
                     pdid,
                     icon,
                     published_at,
+                    pinned_at,
+                    manual_order,
                 ) = row.map_err(|e| PinkhaError::Db(e.to_string()))?;
                 let id = Uuid::parse_str(&id_str).map_err(|_| {
                     PinkhaError::InvalidOperation(format!("invalid UUID: {id_str}"))
@@ -204,6 +268,8 @@ impl LeafRepository for SqliteLeafStore {
                     published_at,
                     shelf_id: fid.and_then(|s| Uuid::parse_str(&s).ok()),
                     parent_leaf_id: pdid.and_then(|s| Uuid::parse_str(&s).ok()),
+                    pinned_at,
+                    manual_order,
                 });
             }
             Ok(metas)
@@ -256,16 +322,16 @@ impl SqliteLeafStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let sql = if filter {
                 if shelf_id.is_some() {
-                    "SELECT id, title_json, cover, updated_at, created_at, shelf_id, parent_leaf_id, icon, published_at
+                    "SELECT id, title_json, cover, updated_at, created_at, shelf_id, parent_leaf_id, icon, published_at, pinned_at, manual_order
                      FROM leaves WHERE deleted_at IS NULL AND shelf_id = ?1
                      ORDER BY updated_at DESC"
                 } else {
-                    "SELECT id, title_json, cover, updated_at, created_at, shelf_id, parent_leaf_id, icon, published_at
+                    "SELECT id, title_json, cover, updated_at, created_at, shelf_id, parent_leaf_id, icon, published_at, pinned_at, manual_order
                      FROM leaves WHERE deleted_at IS NULL AND shelf_id IS NULL
                      ORDER BY updated_at DESC"
                 }
             } else {
-                "SELECT id, title_json, cover, updated_at, created_at, shelf_id, parent_leaf_id, icon, published_at
+                "SELECT id, title_json, cover, updated_at, created_at, shelf_id, parent_leaf_id, icon, published_at, pinned_at, manual_order
                  FROM leaves WHERE deleted_at IS NULL
                  ORDER BY updated_at DESC"
             };
@@ -284,6 +350,8 @@ impl SqliteLeafStore {
                     row.get::<_, Option<String>>(6)?,
                     row.get::<_, Option<String>>(7)?,
                     row.get::<_, String>(8)?,
+                    row.get::<_, Option<String>>(9)?,
+                    row.get::<_, Option<i32>>(10)?,
                 ))
             };
             let rows = if filter && shelf_id.is_some() {
@@ -304,6 +372,8 @@ impl SqliteLeafStore {
                     pdid,
                     icon,
                     published_at,
+                    pinned_at,
+                    manual_order,
                 ) = row.map_err(|e| PinkhaError::Db(e.to_string()))?;
                 let id = Uuid::parse_str(&id_str).map_err(|_| {
                     PinkhaError::InvalidOperation(format!("invalid UUID: {id_str}"))
@@ -319,6 +389,8 @@ impl SqliteLeafStore {
                     published_at,
                     shelf_id: fid.and_then(|s| Uuid::parse_str(&s).ok()),
                     parent_leaf_id: pdid.and_then(|s| Uuid::parse_str(&s).ok()),
+                    pinned_at,
+                    manual_order,
                 });
             }
             Ok(metas)
