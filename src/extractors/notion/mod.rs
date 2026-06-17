@@ -436,7 +436,7 @@ impl Extractor for NotionExtractor {
             .unwrap_or_else(|e| e.into_inner());
 
         // 7. Second pass: rewrite Notion page-link URLs to internal
-        //    `pinkha://doc/{uuid}` links now that we know every Notion page's
+        //    `pinkha://leaf/{uuid}` links now that we know every Notion page's
         //    Pinkha equivalent. Done at the very end because mentions can
         //    point to pages later in the same book — we need the full
         //    map before rewriting any leaf.
@@ -740,12 +740,12 @@ async fn fetch_blocks_recursive(
                 )
                 .await?;
                 child_leaves_created += 1;
-                // The Page block sits where the child_page appeared in the
-                // parent's flow — keeps the visual position Notion users
-                // expect (e.g. mid-page, not always at the end).
+                // The Leaf block sits where the Notion `child_page` appeared
+                // in the parent's flow — keeps the visual position Notion
+                // users expect (e.g. mid-page, not always at the end).
                 root_blocks.push(Block {
                     id: uuid::Uuid::new_v4(),
-                    content: BlockContent::Page { id: child_id },
+                    content: BlockContent::Leaf { id: child_id },
                     children: Vec::new(),
                     color: None,
                     background_color: None,
@@ -806,7 +806,7 @@ async fn fetch_blocks_recursive(
 /// Creates a pinkha leaf for a Notion `child_page` and fetches its own
 /// block tree (which may itself contain further nested pages). Returns the
 /// new pinkha leaf id, ready to be embedded in the parent via a
-/// [`BlockContent::Page`] block.
+/// [`BlockContent::Leaf`] block.
 async fn import_child_page(
     client: &NotionClient,
     notion_id: &str,

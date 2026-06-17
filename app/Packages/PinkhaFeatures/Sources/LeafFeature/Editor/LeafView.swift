@@ -14,7 +14,7 @@ public struct LeafView: View {
     @Bindable var vm: LeafViewModel
     /// Injected by `ContentView` so we can flip the global creation
     /// context to this leaf while it's on screen — `New …` from
-    /// the bubble then creates child pages or embedded books inside
+    /// the bubble then creates child leaves or embedded books inside
     /// this doc, à la Notion.
     @Environment(Composer.self) var composer
     @Environment(TabManager.self) var tabManager
@@ -42,11 +42,11 @@ public struct LeafView: View {
     @State var recentEmojis: [String]
     @State var selectedBlocks: Set<String> = []
     @State var keyboardVisible = false
-    /// Set when the user taps a `pinkha://doc/{uuid}` link inside the
+    /// Set when the user taps a `pinkha://leaf/{uuid}` link inside the
     /// editor. The `navigationDestination` below pushes a new
     /// `LeafView` whenever this becomes non-nil — the mention link
     /// resolves to an internal navigation rather than an external URL open.
-    @State var pushedDocId: String? = nil
+    @State var pushedLeafId: String? = nil
     /// Drives the morphing block FAB on the right. When true, the
     /// pencil button has stretched into the quick-insert capsule;
     /// the UndoRedoPill on the left hides itself to give the morph
@@ -284,7 +284,7 @@ public struct LeafView: View {
         .onReceive(NotificationCenter.default.publisher(
             for: Composer.popToDocNotification)) { note in
             // Breadcrumb tapped an ancestor. We need to clear
-            // `pushedDocId` on:
+            // `pushedLeafId` on:
             //  - the target itself (so the NavStack pops the
             //    descendant chain rooted at its `navigationDestination`
             //    binding), AND
@@ -296,7 +296,7 @@ public struct LeafView: View {
             guard let target = note.userInfo?["leafId"] as? String
             else { return }
             if target == vm.leafId || isDescendant(of: target) {
-                pushedDocId = nil
+                pushedLeafId = nil
             }
         }
         .onReceive(NotificationCenter.default.publisher(
@@ -367,14 +367,14 @@ public struct LeafView: View {
             settings.applyAppearanceToWindows()
             onDisappear?()
         }
-        // When the bubble creates a child page from inside this doc, the
+        // When the bubble creates a child leaf from inside this doc, the
         // composer signals here. We flush pending edits, insert the Page
         // block via the VM (keeps blocks/snapshots in sync) and consume
         // the signal so it doesn't fire twice.
         .onChange(of: composer.pendingChildPage) { _, pending in
             guard let pending, pending.parentLeafId == vm.leafId else { return }
             vm.flushAllBursts()
-            vm.addChildPageBlock(childLeafId: pending.childLeafId)
+            vm.addChildLeafBlock(childLeafId: pending.childLeafId)
             composer.pendingChildPage = nil
         }
         .sheet(isPresented: $showingBlockPicker) {
@@ -399,11 +399,11 @@ public struct LeafView: View {
         )) {
             Button("OK") { vm.errorMessage = nil }
         } message: { Text(vm.errorMessage ?? "") }
-        // Internal-link navigation: tapping a `pinkha://doc/{uuid}` link in
+        // Internal-link navigation: tapping a `pinkha://leaf/{uuid}` link in
         // a block pushes a fresh LeafView onto the same NavigationStack.
         // The destination view runs through `onAppear { vm.load() }`, so the
         // target leaf loads from SQLite without any extra plumbing.
-        .navigationDestination(item: $pushedDocId) { leafId in
+        .navigationDestination(item: $pushedLeafId) { leafId in
             LeafView(vm: tabManager.open(leafId: leafId, api: vm.api), onDisappear: nil)
         }
     }

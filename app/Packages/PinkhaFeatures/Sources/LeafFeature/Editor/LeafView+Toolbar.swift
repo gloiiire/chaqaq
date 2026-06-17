@@ -152,7 +152,7 @@ public extension LeafView {
                         Label(isPinned ? "Unpin" : "Pin",
                               systemImage: isPinned ? "pin.slash" : "pin")
                     }
-                    if let shareURL = URL(string: "pinkha://doc/\(vm.leafId)") {
+                    if let shareURL = URL(string: "pinkha://leaf/\(vm.leafId)") {
                         ShareLink(item: shareURL,
                                   subject: Text(vm.title.isEmpty
                                                 ? String(localized: "Untitled")
@@ -322,7 +322,7 @@ public extension LeafView {
 
     /// Whether `vm.leafId` is somewhere below `targetId` in the
     /// `parentLeafId` tree (used by the popToDoc handler to defensively
-    /// clear pushedDocId on every doc between the target and current).
+    /// clear pushedLeafId on every doc between the target and current).
     /// No depth cap — `seen` is the cycle guard, so legitimate trees
     /// can nest arbitrarily deep. Walk stops only on a cycle or root.
     func isDescendant(of targetId: String) -> Bool {

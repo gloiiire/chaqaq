@@ -6,7 +6,7 @@ import UIKit
 // the user is composing a `@`-mention. Shows a horizontal scroll of
 // leaf chips that filter live as the user types more letters after
 // the `@`. Tapping a chip lets the parent coordinator insert the picked
-// leaf as a `pinkha://doc/{id}` link.
+// leaf as a `pinkha://leaf/{id}` link.
 //
 // Lives as a subview of the editor's window so it isn't clipped by the
 // `inputAccessoryView` slot — its frame tracks the keyboard's top edge

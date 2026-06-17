@@ -103,15 +103,15 @@ public struct BlockCallbacks {
     /// `overrideUserInterfaceStyle`, so we set this directly on the
     /// textView.
     public var keyboardAppearance: UIKeyboardAppearance = .default
-    /// Called when an inline `pinkha://doc/{uuid}` link is tapped — the
+    /// Called when an inline `pinkha://leaf/{uuid}` link is tapped — the
     /// parent navigates to that leaf. Set by `LeafView` and read by
     /// `RichTextEditor`.
-    public var onOpenInternalDoc: ((String) -> Void)? = nil
+    public var onOpenInternalLeaf: ((String) -> Void)? = nil
     /// Resolves a child-page block to a display title + optional icon. Used
-    /// by `ChildPageRowView` to surface the embedded page's name without
+    /// by `ChildLeafRowView` to surface the embedded page's name without
     /// loading the entire child leaf. Returns `nil` for a deleted or
-    /// missing child page.
-    public var resolveChildPage: ((String) -> (title: String, icon: String?)?)? = nil
+    /// missing child leaf.
+    public var resolveChildLeaf: ((String) -> (title: String, icon: String?)?)? = nil
 }
 
 // ── Shared text editor for all blocks ────────────────────────────────────────
@@ -164,7 +164,7 @@ public struct BlockTextEditor: View {
             themeForegroundColor: cb.themeForegroundColor.map(UIColor.init),
             keyboardAppearance: cb.keyboardAppearance,
             onMentionLookup: cb.onMentionLookup,
-            onOpenInternalDoc: cb.onOpenInternalDoc)
+            onOpenInternalLeaf: cb.onOpenInternalLeaf)
         .autoFocusIfNeeded(blockId: block.id, autoFocusId: $autoFocusId,
                               autoFocusOffset: $autoFocusOffset, cursorAt: $cursorAt, focused: $focused)
         .onChange(of: focused) { _, f in if f { cb.onFocus?() } }
@@ -258,8 +258,8 @@ public struct BlockRowView: View {
                 NumberedListItemRowView(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset, cb: cb)
             case .code(let language, let text):
                 CodeBlockEditorView(block: $block, language: language, text: text, cb: cb)
-            case .page(let id):
-                ChildPageRowView(childLeafId: id, cb: cb)
+            case .leaf(let id):
+                ChildLeafRowView(childLeafId: id, cb: cb)
             case .embed(let url):
                 EmbedRowView(url: url, cb: cb)
             default:
@@ -690,8 +690,8 @@ private struct CodeBlockEditorView: View {
 
 /// Inline reference to a child pinkha leaf — mirrors Notion's child_page
 /// block. Tapping the row pushes the child leaf onto the surrounding
-/// `NavigationStack` via the parent's `onOpenInternalDoc` callback.
-public struct ChildPageRowView: View {
+/// `NavigationStack` via the parent's `onOpenInternalLeaf` callback.
+public struct ChildLeafRowView: View {
     public let childLeafId: String
     public let cb: BlockCallbacks
 
@@ -741,7 +741,7 @@ public struct ChildPageRowView: View {
         // .disabled wrapper, the row's selection tap, etc.) — page-
         // reference blocks are pure navigation targets and should fire
         // their tap regardless of editing state.
-        .highPriorityGesture(TapGesture().onEnded { cb.onOpenInternalDoc?(childLeafId) })
-        .onAppear { resolved = cb.resolveChildPage?(childLeafId) }
+        .highPriorityGesture(TapGesture().onEnded { cb.onOpenInternalLeaf?(childLeafId) })
+        .onAppear { resolved = cb.resolveChildLeaf?(childLeafId) }
     }
 }

@@ -17,7 +17,7 @@ import SwiftUI
 @Observable
 public final class Composer {
     /// Whether the leaf/book title prompt is on screen.
-    public var showingCreateDoc = false
+    public var showingCreateLeaf = false
     /// Whether the new-shelf alert is on screen.
     public var showingNewShelf = false
     /// Whether the trash sheet is on screen.
@@ -25,7 +25,7 @@ public final class Composer {
     /// Whether the Safari-tab-style "All leaves" full-screen
     /// switcher is on screen — opened from the overflow menu in the
     /// bottom accessory.
-    public var showingAllDocs = false
+    public var showingAllLeaves = false
     /// Whether the Notion import sheet is on screen.
     public var showingNotionImport = false
     /// Whether the Bear import sheet is on screen.
@@ -51,7 +51,7 @@ public final class Composer {
     /// default `.root`, so anything created from there lands at the
     /// top of the library.
     public var currentContext: CreationContext = .root
-    /// Signals that a child page has just been created from inside a
+    /// Signals that a child leaf has just been created from inside a
     /// leaf and needs to be embedded as a `Page` block in the active
     /// editor. The LeafView observes this and routes the insertion
     /// through its VM — otherwise the next burst flush would overwrite
@@ -62,7 +62,7 @@ public final class Composer {
     /// so the user lands in the editor instead of back on the home
     /// list. Only set for `.root` / `.shelf` contexts — the
     /// `.leaf` context routes through `pendingChildPage` instead.
-    public var pendingOpenDoc: String? = nil
+    public var pendingOpenLeaf: String? = nil
 
     /// NotificationCenter signal — when the switcher dismisses with
     /// zero open tabs, posts this so the active `NavigationStack`
@@ -138,13 +138,13 @@ public final class Composer {
     public func openNewLeaf() {
         createMode = .leaf
         newTitle = ""
-        showingCreateDoc = true
+        showingCreateLeaf = true
     }
 
     public func openNewBook() {
         createMode = .book
         newTitle = ""
-        showingCreateDoc = true
+        showingCreateLeaf = true
     }
 
     public func openNewShelf() {

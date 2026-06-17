@@ -62,7 +62,7 @@ struct ContentView: View {
                     onImportBear: { composer.showingBearImport = true },
                     onImportCraftTextBundle: { composer.showingCraftTextBundleImport = true },
                     onImportCraftCombined: { composer.showingCraftCombinedImport = true },
-                    onShowAllDocs: { openSwitcher() }
+                    onShowAllLeaves: { openSwitcher() }
                 )
             }
             .modifier(ContentSheets(composer: composer, store: store, settings: settings, tabManager: tabManager))
@@ -185,7 +185,7 @@ struct ContentView: View {
     /// a live grab — re-opening a doc just shows its top, which is
     /// what the user prefers over a half-restored scroll mid-page.
     private func openSwitcher() {
-        composer.showingAllDocs = true
+        composer.showingAllLeaves = true
     }
 }
 
@@ -204,14 +204,14 @@ private struct ContentSheets: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .sheet(isPresented: $composer.showingCreateDoc) { createDocSheet }
+            .sheet(isPresented: $composer.showingCreateLeaf) { createDocSheet }
             .sheet(isPresented: $composer.showingTrash) {
                 TrashView().environment(store)
             }
-            .fullScreenCover(isPresented: $composer.showingAllDocs) {
+            .fullScreenCover(isPresented: $composer.showingAllLeaves) {
                 AllLeavesSwitcher(store: store) { leafId in
-                    composer.showingAllDocs = false
-                    composer.pendingOpenDoc = leafId
+                    composer.showingAllLeaves = false
+                    composer.pendingOpenLeaf = leafId
                 }
                 .environment(settings)
                 .environment(tabManager)
@@ -272,7 +272,7 @@ private struct ContentSheets: ViewModifier {
                                standaloneStyle: standaloneStyle)
         } onCancel: {
             composer.newTitle = ""
-            composer.showingCreateDoc = false
+            composer.showingCreateLeaf = false
         }
     }
 
@@ -316,13 +316,13 @@ private struct ContentSheets: ViewModifier {
                 // Root or shelf context — open the doc right after
                 // the sheet dismisses so the user lands in the
                 // editor (Apple Leafs / Bear pattern).
-                composer.pendingOpenDoc = newId
+                composer.pendingOpenLeaf = newId
             }
         case .book:
             store.createBook(title: composer.newTitle, in: composer.currentContext)
         }
         composer.newTitle = ""
-        composer.showingCreateDoc = false
+        composer.showingCreateLeaf = false
     }
 }
 

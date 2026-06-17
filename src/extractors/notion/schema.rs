@@ -405,7 +405,7 @@ pub struct NotionBlock {
     /// Link-to-page block payload — present when `type_ == "link_to_page"`.
     /// References an existing page (or book) by id; the importer maps
     /// it to an inline link that the mention-rewriting pass resolves to a
-    /// `pinkha://doc/{uuid}` when the target belongs to the same import.
+    /// `pinkha://leaf/{uuid}` when the target belongs to the same import.
     pub link_to_page: Option<LinkToPageBlock>,
 }
 

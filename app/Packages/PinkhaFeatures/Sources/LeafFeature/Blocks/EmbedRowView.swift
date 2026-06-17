@@ -5,8 +5,8 @@ import SwiftUI
 // Rich card preview for a single URL — Notion's "web bookmark" /
 // Craft's link cards. Two flavours :
 //
-//   • `pinkha://doc/{uuid}` → resolves the target leaf via the
-//     `BlockCallbacks.resolveChildPage` closure (same path used by the
+//   • `pinkha://leaf/{uuid}` → resolves the target leaf via the
+//     `BlockCallbacks.resolveChildLeaf` closure (same path used by the
 //     Page-block row) and shows the doc's title + icon instantly.
 //   • Any `http(s)://` URL → asynchronously fetches OpenGraph tags
 //     via `EmbedMetadataStore`. Falls back to host + URL while
@@ -37,9 +37,9 @@ public struct EmbedRowView: View {
 
     @ViewBuilder
     private func internalCard(leafId: String) -> some View {
-        let resolved = cb.resolveChildPage?(leafId)
+        let resolved = cb.resolveChildLeaf?(leafId)
         Button {
-            cb.onOpenInternalDoc?(leafId)
+            cb.onOpenInternalLeaf?(leafId)
         } label: {
             HStack(spacing: 12) {
                 Text(resolved?.icon ?? "📄")

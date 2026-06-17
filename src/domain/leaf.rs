@@ -62,22 +62,23 @@ pub enum BlockContent {
         /// Raw source code — no inline styles, whitespace preserved.
         text: String,
     },
-    /// Reference to a child page (Notion-style "child_page" block).
-    /// Renders as a clickable row pointing to another Leaf. The child
-    /// leaf remains autonomous (its own title, blocks, color, …); this
-    /// block only places it inline at a chosen position in the parent.
-    Page {
+    /// Reference to a child leaf (Notion's `child_page` block in their
+    /// vocabulary). Renders as a clickable row pointing to another Leaf.
+    /// The child leaf remains autonomous (its own title, blocks, color,
+    /// …); this block only places it inline at a chosen position in the
+    /// parent.
+    Leaf {
         /// ID of the referenced child `Leaf`.
         id: Uuid,
     },
     /// Rich card preview for a single URL (Notion-style "web bookmark").
     /// Renders with the destination's title / description / image fetched
-    /// from OpenGraph tags for external URLs; `pinkha://doc/{uuid}` URLs
+    /// from OpenGraph tags for external URLs; `pinkha://leaf/{uuid}` URLs
     /// resolve instantly against the local store and show the target
     /// leaf's title + icon. The block's content is just the URL —
     /// metadata is recomputed at render time so the card stays fresh.
     Embed {
-        /// Destination URL. Can be a `pinkha://doc/{uuid}` for internal
+        /// Destination URL. Can be a `pinkha://leaf/{uuid}` for internal
         /// references or any `http(s)://` URL for external bookmarks.
         url: String,
     },
@@ -168,9 +169,9 @@ pub struct LeafMeta {
     /// Shelf this leaf belongs to. None = root level.
     #[serde(default)]
     pub shelf_id: Option<Uuid>,
-    /// Parent leaf for Notion-style page-in-page hierarchy. `None` means
-    /// the leaf is a root page; otherwise it is a child page reachable
-    /// either by tapping its [`BlockContent::Page`] block inside the parent,
+    /// Parent leaf for Notion-style leaf-in-leaf hierarchy. `None` means
+    /// the leaf is a root leaf; otherwise it is a child leaf reachable
+    /// either by tapping its [`BlockContent::Leaf`] block inside the parent,
     /// or by navigating through the breadcrumbs from any descendant.
     #[serde(default)]
     pub parent_leaf_id: Option<Uuid>,
@@ -230,9 +231,9 @@ pub struct Leaf {
     /// Shelf this leaf belongs to. None = root level.
     #[serde(default)]
     pub shelf_id: Option<Uuid>,
-    /// Parent leaf for Notion-style page-in-page hierarchy. `None` means
-    /// the leaf is a root page; otherwise it is a child page placed
-    /// inside its parent via a [`BlockContent::Page`] block.
+    /// Parent leaf for Notion-style leaf-in-leaf hierarchy. `None` means
+    /// the leaf is a root leaf; otherwise it is a child leaf placed
+    /// inside its parent via a [`BlockContent::Leaf`] block.
     #[serde(default)]
     pub parent_leaf_id: Option<Uuid>,
     /// Read-only flag. When `true`, the editor disables every interactive
