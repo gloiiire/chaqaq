@@ -70,6 +70,45 @@ pub fn update_entry_propagating_title(
     Ok(())
 }
 
+/// Soft-deletes a shelf together with every leaf filed in it AND every
+/// sub-shelf (recursively, with their own leaves). Used by the
+/// "Delete shelf & contents" confirmation — the alternative
+/// `delete_shelf` keeps the contents alive by reparenting them. Returns
+/// the total number of leaves deleted alongside, summed across all
+/// descendant shelves.
+pub fn delete_shelf_cascade(uow: &dyn UnitOfWork, shelf_id: Uuid) -> Result<u32, PinkhaError> {
+    use crate::application::shelf_use_cases;
+    let mut deleted: u32 = 0;
+    // Walk the shelf tree breadth-first so sub-shelves' leaves are
+    // gathered before their parent shelf is deleted (the SQLite
+    // store's `delete_shelf` reparents sub-shelves to the parent ;
+    // running the cascade in order avoids losing track of them).
+    let mut queue: Vec<Uuid> = vec![shelf_id];
+    let mut all_shelves: Vec<Uuid> = Vec::new();
+    while let Some(current) = queue.pop() {
+        all_shelves.push(current);
+        let children = shelf_use_cases::list_child_shelves(uow, Some(current))?;
+        for c in children {
+            queue.push(c.id);
+        }
+    }
+    // Delete deepest shelves first so the parent's `delete` doesn't
+    // reparent children we're about to wipe.
+    for shelf_id in all_shelves.iter().rev() {
+        // Trash every leaf filed directly under this shelf.
+        let leaves = leaf_use_cases::list_leaves_in_shelf(uow, Some(*shelf_id))?;
+        for leaf in leaves {
+            match leaf_use_cases::delete_leaf(uow, leaf.id) {
+                Ok(()) => deleted += 1,
+                Err(PinkhaError::NotFound(_)) => {}
+                Err(e) => return Err(e),
+            }
+        }
+        shelf_use_cases::delete_shelf(uow, *shelf_id)?;
+    }
+    Ok(deleted)
+}
+
 /// Soft-deletes a book together with every leaf its rows are
 /// backed by (`Entry.leaf_id`). Leaves already in the trash are
 /// skipped. Returns the number of leaves deleted alongside the

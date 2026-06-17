@@ -48,6 +48,14 @@ pub fn move_shelf(
     uow.shelves().move_shelf(id, new_parent_id)
 }
 
+/// Bulk-rewrites the manual order. First id gets index 0, etc.
+pub fn set_shelves_manual_order(
+    uow: &dyn UnitOfWork,
+    ordered_ids: &[Uuid],
+) -> Result<(), PinkhaError> {
+    uow.shelves().set_manual_order(ordered_ids)
+}
+
 /// Sets or clears the shelf's emoji icon.
 pub fn update_shelf_icon(
     uow: &dyn UnitOfWork,

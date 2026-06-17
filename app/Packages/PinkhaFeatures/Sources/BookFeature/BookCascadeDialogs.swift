@@ -8,13 +8,13 @@ import PinkhaCore
 // what about the pages filed inside it? These two modifiers stage the
 // book in an optional binding and let the user pick — cascade (pages
 // follow the book) or book-only. Shared between the Books
-// home, the Notes home rows and the Trash so the vocabulary stays
+// home, the Library home rows and the Trash so the vocabulary stays
 // identical everywhere.
 
 public extension View {
     /// Confirmation dialog for deleting `pending`. "…& its pages" routes
     /// through the cascade FFI (pages land in the trash with the
-    /// book); "only" keeps the pages as standalone notes.
+    /// book); "only" keeps the pages as standalone leaves.
     func databaseDeleteDialog(
         pending: Binding<BookMetaFfi?>,
         store: PinkhaStore
@@ -36,7 +36,7 @@ public extension View {
             }
             Button("Cancel", role: .cancel) {}
         } message: { db in
-            Text("\"\(db.titlePlain.isEmpty ? String(localized: "Untitled") : db.titlePlain)\" — pages filed in this book can go to the trash with it, or stay as standalone notes.")
+            Text("\"\(db.titlePlain.isEmpty ? String(localized: "Untitled") : db.titlePlain)\" — pages filed in this book can go to the trash with it, or stay as standalone leaves.")
         }
     }
 

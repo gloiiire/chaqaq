@@ -123,6 +123,7 @@ private struct ListRow: View {
     let onDisappear: () -> Void
 
     @Environment(TabManager.self) private var tabManager
+    @Environment(PinkhaStore.self) private var store
     @State private var showingPublishDateSheet = false
 
     public var body: some View {
@@ -140,6 +141,26 @@ private struct ListRow: View {
             }
         }
         .contextMenu {
+            // Pin / Unpin the underlying leaf when the row is backed
+            // by one. The leaf still lives in the book ; pinning just
+            // surfaces it in the home view's PINNED section, like any
+            // other pinned leaf elsewhere in the library.
+            if let leafId,
+               let doc = store.allLeaves.first(where: { $0.id == leafId }) {
+                Button {
+                    withAnimation {
+                        let isPinned = (doc.pinnedAt ?? "").isEmpty == false
+                        store.setLeafPinned(leafId: leafId, pinned: !isPinned)
+                    }
+                } label: {
+                    if (doc.pinnedAt ?? "").isEmpty {
+                        Label("Pin", systemImage: "pin")
+                    } else {
+                        Label("Unpin", systemImage: "pin.slash")
+                    }
+                }
+                .tint(.primary)
+            }
             Button {
                 showingPublishDateSheet = true
             } label: {
@@ -149,6 +170,7 @@ private struct ListRow: View {
                         : "Set publish date",
                     systemImage: "calendar")
             }
+            .tint(.primary)
             if entry.hasCustomPublishDate {
                 Button(role: .destructive) {
                     // Empty string on the FFI side resets the entry
@@ -157,11 +179,13 @@ private struct ListRow: View {
                 } label: {
                     Label("Reset publish date", systemImage: "arrow.uturn.backward")
                 }
+                .tint(.primary)
             }
             Divider()
             Button(role: .destructive, action: onDelete) {
                 Label("Delete row", systemImage: "trash")
             }
+            .tint(.red)
         }
         .sheet(isPresented: $showingPublishDateSheet) {
             PublishDatePickerSheet(

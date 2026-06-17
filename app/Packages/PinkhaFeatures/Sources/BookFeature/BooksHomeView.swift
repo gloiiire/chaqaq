@@ -25,7 +25,7 @@ public struct BooksHomeView: View {
     /// Same surface as `LibraryView.docZoom`.
     @Namespace private var dbZoom
 
-    public var body: some View {
+    public var body: some View { 
         NavigationStack {
             List {
                     if store.books.isEmpty {
@@ -69,7 +69,7 @@ public struct BooksHomeView: View {
             .navigationTitle("Books")
             .navigationBarTitleDisplayMode(.large)
             // iOS 26 : soft edge fade under the large nav title and the tab
-            // accessory bar — matches the Notes home and the system look.
+            // accessory bar — matches the Library home and the system look.
             .scrollEdgeEffectStyle(.soft, for: .all)
             .databaseDeleteDialog(pending: $pendingDeletion, store: store)
         }
@@ -107,7 +107,7 @@ private struct BookRow: View {
                 .font(.title2)
                 .frame(width: 34, height: 34)
         } else {
-            Image(systemName: "tablecells")
+            Image(systemName: "book")
                 .font(.body.weight(.medium))
                 .foregroundStyle(.secondary)
                 .frame(width: 34, height: 34)
@@ -130,7 +130,7 @@ private struct BookRow: View {
 private struct BooksEmptyState: View {
     public var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "tablecells")
+            Image(systemName: "book")
                 .font(.system(size: 48))
                 .foregroundStyle(.tertiary)
             VStack(spacing: 6) {

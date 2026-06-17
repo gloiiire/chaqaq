@@ -10,7 +10,7 @@ import ImportFeature
 
 // ── Root view: 4-tab layout ──────────────────────────────────────────────────
 
-/// Root view — four tabs: Notes, Books, Inbox, Search. The create
+/// Root view — four tabs: Leafs, Books, Inbox, Search. The create
 /// bubble lives in the TabView's bottom accessory so it docks alongside
 /// the auto-positioned search bubble at the same vertical level as the
 /// tab bar (iOS 26 multi-bubble layout, à la Photos / Music).
@@ -47,12 +47,12 @@ struct ContentView: View {
             .environment(store)
             .simultaneousGesture(swipeUpGesture)
             // Create bubble : single glass accessory hosting the four primary
-            // entry points — new note, new book, new shelf and an
+            // entry points — new leaf, new book, new shelf and an
             // overflow menu (trash + imports). Stays visible across all tabs
             // so creation is always one tap away, à la Apple Music mini-player.
             .tabViewBottomAccessory {
                 CreateBubble(
-                    onNewNote: { composer.openNewNote() },
+                    onNewLeaf: { composer.openNewLeaf() },
                     onNewBook: { composer.openNewBook() },
                     onNewShelf: { composer.openNewShelf() },
                     onShowTrash: { composer.showingTrash = true },
@@ -87,17 +87,17 @@ struct ContentView: View {
                 composer.selectedTab = newTab
             }
         )) {
-            Tab("Notes", systemImage: "note.text",
-                value: Composer.TabKind.notes) {
+            Tab("Library", systemImage: "books.vertical.fill",
+                value: Composer.TabKind.leaves) {
                 LibraryView(store: store)
-                    // Bumping `notesHomeKey` from outside (the
+                    // Bumping `leavesHomeKey` from outside (the
                     // switcher's ✓ when all tabs are closed)
                     // force-recreates this view with fresh @State —
                     // the only reliable way to pop a NavigationStack
                     // whose path mutation didn't take (SwiftUI bug).
-                    .id(composer.notesHomeKey)
+                    .id(composer.leavesHomeKey)
             }
-            Tab("Books tab", systemImage: "tablecells",
+            Tab("Books", systemImage: "book.fill",
                 value: Composer.TabKind.books) {
                 BooksHomeView(store: store)
             }
@@ -259,13 +259,13 @@ private struct ContentSheets: ViewModifier {
     private var createDocSheet: some View {
         CreateLeafSheet(
             title: $composer.newTitle,
-            prompt: composer.createMode == .note ? "Note title" : "Book title",
-            navigationTitle: composer.createMode == .note ? "New Leaf" : "New Book",
-            // Only the Note flow can attach to a book — the
+            prompt: composer.createMode == .leaf ? "Leaf title" : "Book title",
+            navigationTitle: composer.createMode == .leaf ? "New Leaf" : "New Book",
+            // Only the Leaf flow can attach to a book — the
             // Book creation flow doesn't make sense to nest
             // inside another DB.
-            availableBooks: composer.createMode == .note ? store.books : [],
-            api: composer.createMode == .note ? store.api : nil
+            availableBooks: composer.createMode == .leaf ? store.books : [],
+            api: composer.createMode == .leaf ? store.api : nil
         ) { bookId, propertyValues, standaloneStyle in
             handleCreateCommit(bookId: bookId,
                                propertyValues: propertyValues,
@@ -282,22 +282,22 @@ private struct ContentSheets: ViewModifier {
         standaloneStyle: StandaloneStyle
     ) {
         switch composer.createMode {
-        case .note:
+        case .leaf:
             let newId: String?
             if let bookId = bookId {
-                // User opted to file the note as a row of an
+                // User opted to file the leaf as a row of an
                 // existing book — the store handles both the
                 // doc creation AND the entry insert. We still
                 // propagate the chosen style so the doc carries its
                 // cover / icon / theme when opened from the DB.
-                newId = store.createNoteInBook(
+                newId = store.createLeafInBook(
                     title: composer.newTitle,
                     bookId: bookId,
                     propertyValues: propertyValues,
                     style: standaloneStyle
                 )
             } else {
-                newId = store.createNote(title: composer.newTitle,
+                newId = store.createLeaf(title: composer.newTitle,
                                          in: composer.currentContext,
                                          style: standaloneStyle)
             }
@@ -315,7 +315,7 @@ private struct ContentSheets: ViewModifier {
             } else if let newId {
                 // Root or shelf context — open the doc right after
                 // the sheet dismisses so the user lands in the
-                // editor (Apple Notes / Bear pattern).
+                // editor (Apple Leafs / Bear pattern).
                 composer.pendingOpenDoc = newId
             }
         case .book:
@@ -350,7 +350,7 @@ private struct ContentAlerts: ViewModifier {
                 }
                 Button("Cancel", role: .cancel) { composer.newShelfName = "" }
             }
-            .alert("Delete all \(store.items.count) notes?",
+            .alert("Delete all \(store.items.count) leaves?",
                    isPresented: $composer.showingDeleteAllConfirm) {
                 Button("Delete All", role: .destructive) {
                     Task { @MainActor in
@@ -360,7 +360,7 @@ private struct ContentAlerts: ViewModifier {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("This will remove all your notes.")
+                Text("This will remove all your leaves.")
             }
             .alert("Are you sure?", isPresented: $composer.showingDeleteAllConfirm2) {
                 Button("Yes, delete everything", role: .destructive) {
@@ -380,7 +380,7 @@ private struct ContentAlerts: ViewModifier {
 #if DEBUG
 /// Single root preview that mirrors `PinkhaApp.body` — wraps the
 /// whole app so the Xcode Canvas can iterate on it without a full
-/// build/install round-trip. Note that the iOS 26 `TabView` chrome
+/// build/install round-trip. Leaf that the iOS 26 `TabView` chrome
 /// (tab bar + bottom accessory) and any layout that depends on it
 /// still need a simulator/device to render properly; the Canvas is
 /// best for in-view edits (typography, spacing inside content, etc.).

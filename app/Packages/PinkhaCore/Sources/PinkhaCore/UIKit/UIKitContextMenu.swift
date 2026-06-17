@@ -116,7 +116,7 @@ public struct UIKitContextMenu<Content: View, Preview: View>: UIViewControllerRe
                     // it falls back to the host view's compressed
                     // frame, squashing the SwiftUI card. The size
                     // here matches the `.frame(width: 240)` declared
-                    // inside `NoteCardPreview` so the lift renders
+                    // inside `LeafCardPreview` so the lift renders
                     // at the SwiftUI-declared dimensions.
                     let target = preview.sizeThatFits(in: CGSize(width: 240, height: 600))
                     preview.preferredContentSize = target

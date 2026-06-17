@@ -40,6 +40,9 @@ public final class ActionRepeater {
     public var active: Bool { timer != nil }
 
     /// Starts repeating `step` every `interval` seconds. A second call while active is a no-op.
+    /// `step` is intentionally non-Sendable — the Timer fires on the main
+    /// run loop, every caller is `@MainActor`, and adding `@Sendable` here
+    /// cascades into actor-isolation errors on the captured VM method.
     func start(interval: TimeInterval = 0.12, _ step: @escaping () -> Void) {
         guard timer == nil else { return }
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in step() }

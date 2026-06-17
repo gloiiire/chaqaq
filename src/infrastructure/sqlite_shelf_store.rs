@@ -50,7 +50,7 @@ impl ShelfRepository for SqliteShelfStore {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let result = conn.query_row(
-                "SELECT id, name, parent_id, created_at, updated_at, icon
+                "SELECT id, name, parent_id, created_at, updated_at, icon, manual_order
                  FROM shelves WHERE id = ?1 AND deleted_at IS NULL",
                 params![id.to_string()],
                 |row| {
@@ -63,6 +63,7 @@ impl ShelfRepository for SqliteShelfStore {
                         created_at: row.get(3)?,
                         updated_at: row.get(4)?,
                         icon: row.get::<_, Option<String>>(5)?,
+                        manual_order: row.get::<_, Option<i32>>(6)?,
                     })
                 },
             );
@@ -79,7 +80,7 @@ impl ShelfRepository for SqliteShelfStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let mut stmt = conn
                 .prepare(
-                    "SELECT id, name, parent_id, created_at, updated_at, icon
+                    "SELECT id, name, parent_id, created_at, updated_at, icon, manual_order
                      FROM shelves WHERE deleted_at IS NULL ORDER BY name",
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
@@ -93,12 +94,13 @@ impl ShelfRepository for SqliteShelfStore {
                         row.get::<_, String>(3)?,
                         row.get::<_, String>(4)?,
                         row.get::<_, Option<String>>(5)?,
+                        row.get::<_, Option<i32>>(6)?,
                     ))
                 })
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let mut metas = Vec::new();
             for row in rows {
-                let (id_str, name, parent_str, created_at, updated_at, icon) =
+                let (id_str, name, parent_str, created_at, updated_at, icon, manual_order) =
                     row.map_err(|e| PinkhaError::Db(e.to_string()))?;
                 let id = Uuid::parse_str(&id_str).map_err(|_| {
                     PinkhaError::InvalidOperation(format!("invalid UUID: {id_str}"))
@@ -110,6 +112,7 @@ impl ShelfRepository for SqliteShelfStore {
                     created_at,
                     updated_at,
                     icon,
+                    manual_order,
                 });
             }
             Ok(metas)
@@ -170,6 +173,25 @@ impl ShelfRepository for SqliteShelfStore {
         })
     }
 
+    fn set_manual_order(&self, ordered_ids: &[Uuid]) -> Result<(), PinkhaError> {
+        retry_with_backoff(|| {
+            let mut conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let tx = conn
+                .transaction()
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            for (idx, id) in ordered_ids.iter().enumerate() {
+                tx.execute(
+                    "UPDATE shelves SET manual_order = ?1
+                       WHERE id = ?2 AND deleted_at IS NULL",
+                    params![idx as i32, id.to_string()],
+                )
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+            }
+            tx.commit().map_err(|e| PinkhaError::Db(e.to_string()))?;
+            Ok(())
+        })
+    }
+
     fn move_shelf(&self, id: Uuid, new_parent_id: Option<Uuid>) -> Result<(), PinkhaError> {
         let now = chrono::Utc::now().to_rfc3339();
         let parent = new_parent_id.map(|u| u.to_string());
@@ -194,7 +216,7 @@ impl ShelfRepository for SqliteShelfStore {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             let mut stmt = conn
                 .prepare(
-                    "SELECT id, name, parent_id, created_at, updated_at, icon
+                    "SELECT id, name, parent_id, created_at, updated_at, icon, manual_order
                      FROM shelves WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC",
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
@@ -207,12 +229,13 @@ impl ShelfRepository for SqliteShelfStore {
                         row.get::<_, String>(3)?,
                         row.get::<_, String>(4)?,
                         row.get::<_, Option<String>>(5)?,
+                        row.get::<_, Option<i32>>(6)?,
                     ))
                 })
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let mut metas = Vec::new();
             for row in rows {
-                let (id_str, name, parent_str, created_at, updated_at, icon) =
+                let (id_str, name, parent_str, created_at, updated_at, icon, manual_order) =
                     row.map_err(|e| PinkhaError::Db(e.to_string()))?;
                 let id = Uuid::parse_str(&id_str).map_err(|_| {
                     PinkhaError::InvalidOperation(format!("invalid UUID: {id_str}"))
@@ -224,6 +247,7 @@ impl ShelfRepository for SqliteShelfStore {
                     created_at,
                     updated_at,
                     icon,
+                    manual_order,
                 });
             }
             Ok(metas)

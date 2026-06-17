@@ -51,6 +51,18 @@ impl PinkhaApi {
         shelf_use_cases::delete_shelf(&self.uow(), uuid).map_err(PinkhaError::from)
     }
 
+    /// Cascade delete : soft-deletes the shelf together with every
+    /// leaf filed inside it AND every sub-shelf (recursively, with
+    /// their own leaves). The "Delete shelf only" path reparents the
+    /// contents and keeps them alive — this one trashes them
+    /// alongside. Returns the count of leaves deleted alongside so
+    /// the confirmation UI can surface it.
+    pub fn delete_shelf_cascade(&self, id: String) -> Result<u32, PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        use crate::application::use_cases;
+        use_cases::delete_shelf_cascade(&self.uow(), uuid).map_err(PinkhaError::from)
+    }
+
     /// Soft-deletes every shelf. Leaves and books that lived inside
     /// are orphaned to the root (the `delete_shelf` use case handles that).
     /// Returns the number of shelves deleted.
@@ -90,6 +102,16 @@ impl PinkhaApi {
         let uuid = parse_uuid(&id)?;
         let pid = new_parent_id.as_deref().map(parse_uuid).transpose()?;
         shelf_use_cases::move_shelf(&self.uow(), uuid, pid).map_err(PinkhaError::from)
+    }
+
+    /// Bulk-rewrites the manual sort index for the given shelves —
+    /// first id gets `manual_order = 0`, the next 1, etc.
+    pub fn set_shelves_manual_order(
+        &self,
+        ordered_ids: Vec<String>,
+    ) -> Result<(), PinkhaError> {
+        let uuids = crate::ffi::validation::parse_uuids(ordered_ids)?;
+        shelf_use_cases::set_shelves_manual_order(&self.uow(), &uuids).map_err(PinkhaError::from)
     }
 
     pub fn move_leaf_to_shelf(

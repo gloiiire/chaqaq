@@ -113,7 +113,6 @@ extension RichTextEditorCoordinator {
             } else if let resolved = URL(string: url) {
                 m.addAttribute(.link, value: resolved, range: range)
             }
-        default: break
         }
 
         tv.textStorage.beginEditing()

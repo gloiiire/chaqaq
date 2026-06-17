@@ -35,6 +35,13 @@ pub struct LeafMetaFfi {
     pub parent_leaf_id: Option<String>,
     /// Optional page icon — emoji or filename. Mirrors `Leaf.icon`.
     pub icon: Option<String>,
+    /// RFC 3339 timestamp the user pinned this leaf, or `None` when
+    /// not pinned. Drives the PINNED section in the home view.
+    pub pinned_at: Option<String>,
+    /// Manual sort index — `None` falls back to the natural order
+    /// (creation date for "All", `pinned_at` desc for "Pinned").
+    /// Set via `set_leaves_manual_order` after a drag-and-drop reorder.
+    pub manual_order: Option<i32>,
 }
 
 /// Lightweight shelf metadata passed across the FFI boundary.
@@ -52,6 +59,10 @@ pub struct ShelfMetaFfi {
     pub updated_at: String,
     /// Optional emoji icon.
     pub icon: Option<String>,
+    /// Manual sort index ; `None` means the shelf is rendered in the
+    /// section's default order (alphabetical when sorted by name,
+    /// chronological when sorted by date).
+    pub manual_order: Option<i32>,
 }
 
 /// Summary of a completed import operation, returned to Swift.
@@ -147,6 +158,8 @@ pub(crate) fn leaf_meta_to_ffi(m: LeafMeta) -> LeafMetaFfi {
         shelf_id: m.shelf_id.map(|id| id.to_string()),
         parent_leaf_id: m.parent_leaf_id.map(|id| id.to_string()),
         icon: m.icon,
+        pinned_at: m.pinned_at,
+        manual_order: m.manual_order,
     }
 }
 
@@ -159,6 +172,7 @@ pub(crate) fn shelf_meta_to_ffi(m: ShelfMeta) -> ShelfMetaFfi {
         created_at: m.created_at,
         updated_at: m.updated_at,
         icon: m.icon,
+        manual_order: m.manual_order,
     }
 }
 

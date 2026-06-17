@@ -86,19 +86,26 @@ public struct PropertyInputRow: View {
     /// to a Binding<String> usable by TextField.
     private func textBinding(get: @escaping () -> String,
                              set: @escaping (String) -> Void) -> Binding<String> {
+        // SwiftUI's Binding initialiser wants `@Sendable` closures since
+        // Swift 6, but this row is `@MainActor`-isolated so the closures
+        // are effectively main-actor too. The warning is cosmetic;
+        // adding `@Sendable` here cascades into actor-isolation errors
+        // on every captured `value`.
         Binding(get: get, set: set)
     }
 
     private func dateFromValue() -> Date? {
         if case .date(let s) = value {
-            var fmt = ISO8601DateFormatter(); fmt.formatOptions = [.withFullDate]
+            let fmt = ISO8601DateFormatter()
+            fmt.formatOptions = [.withFullDate]
             return fmt.date(from: s)
         }
         return nil
     }
 
     private func isoDay(_ d: Date) -> String {
-        var fmt = ISO8601DateFormatter(); fmt.formatOptions = [.withFullDate]
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withFullDate]
         return fmt.string(from: d)
     }
 }

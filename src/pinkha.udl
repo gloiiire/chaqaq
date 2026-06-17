@@ -23,6 +23,8 @@ dictionary LeafMetaFfi {
     string? shelf_id;
     string? parent_leaf_id;
     string? icon;
+    string? pinned_at;
+    i32? manual_order;
 };
 
 /// Lightweight shelf metadata.
@@ -33,6 +35,7 @@ dictionary ShelfMetaFfi {
     string created_at;
     string updated_at;
     string? icon;
+    i32? manual_order;
 };
 
 /// Lightweight book metadata (no entries).
@@ -137,6 +140,22 @@ interface PinkhaApi {
     /// reset to the default (follows created_at).
     [Throws=PinkhaError]
     void update_leaf_published_at(string id, string new_published_at);
+
+    /// Pins (true) or unpins (false) a leaf. Pinned leaves surface
+    /// in the PINNED section at the top of the library home view.
+    [Throws=PinkhaError]
+    void set_leaf_pinned(string id, boolean pinned);
+
+    /// Bulk-rewrites the manual sort index for the given leaves :
+    /// the first id gets `manual_order = 0`, the next 1, etc.
+    /// Pass the leaves in the desired display order.
+    [Throws=PinkhaError]
+    void set_leaves_manual_order(sequence<string> ordered_ids);
+
+    /// Same shape as `set_leaves_manual_order` but for shelves.
+    /// Powers drag-and-drop reorder in the SHELVES sections.
+    [Throws=PinkhaError]
+    void set_shelves_manual_order(sequence<string> ordered_ids);
 
     /// Sets or clears the leaf's accent color (per-doc override of
     /// the global accent). Color name ("red", "teal"...) or null to
@@ -445,6 +464,12 @@ interface PinkhaApi {
 
     [Throws=PinkhaError]
     void delete_shelf(string id);
+
+    /// Cascade delete : trashes the shelf, every leaf filed inside
+    /// it AND every sub-shelf (recursively, with their leaves).
+    /// Returns the leaves-deleted count for the confirmation UI.
+    [Throws=PinkhaError]
+    u32 delete_shelf_cascade(string id);
 
     [Throws=PinkhaError]
     u32 delete_all_shelves();
