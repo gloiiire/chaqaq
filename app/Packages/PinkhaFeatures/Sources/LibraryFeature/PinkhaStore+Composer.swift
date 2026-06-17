@@ -4,14 +4,14 @@ import PinkhaCore
 import PinkhaComposer
 import LeafFeature
 
-// Context-aware creation overloads on `PinkhaStore`. Kept in the Notes
+// Context-aware creation overloads on `PinkhaStore`. Kept in the Library
 // layer because they reference `Composer.CreationContext` and
 // `StandaloneStyle` — feature-layer types that
 // PinkhaStore (in PinkhaCore) must not depend on.
 
 @MainActor
 public extension PinkhaStore {
-    /// Context-aware note creation. Lands the new leaf in `context`
+    /// Context-aware leaf creation. Lands the new leaf in `context`
     /// after creation — moved into a shelf, parented under another
     /// leaf, or left at the root. Returns the new leaf id so
     /// callers can chain follow-up work (e.g. signalling a Page block
@@ -19,8 +19,8 @@ public extension PinkhaStore {
     /// context — done by the bubble's sheet handler, *not* here, to
     /// avoid racing with the editor's in-memory blocks array).
     @discardableResult
-    func createNote(title: String, in context: Composer.CreationContext) -> String? {
-        createNote(title: title, in: context, style: nil)
+    func createLeaf(title: String, in context: Composer.CreationContext) -> String? {
+        createLeaf(title: title, in: context, style: nil)
     }
 
     /// Same as [`createNote`] but applies the optional standalone
@@ -28,7 +28,7 @@ public extension PinkhaStore {
     /// Best-effort : a failure on one style write is logged but
     /// doesn't roll the leaf back.
     @discardableResult
-    func createNote(
+    func createLeaf(
         title: String,
         in context: Composer.CreationContext,
         style: StandaloneStyle?
@@ -60,7 +60,7 @@ public extension PinkhaStore {
     /// `create_leaf_in_book`. Returns the new leaf's id so
     /// the caller can navigate to it.
     @discardableResult
-    func createNoteInBook(
+    func createLeafInBook(
         title: String,
         bookId: String,
         propertyValues: [String: PropertyValueFfi],

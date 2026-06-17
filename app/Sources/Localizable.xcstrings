@@ -2,6 +2,7 @@
   "sourceLanguage": "en",
   "strings": {
     "%@": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -12,6 +13,7 @@
       }
     },
     "%@ %@ imported": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -28,6 +30,7 @@
       }
     },
     "%@ %@ imported from Bear.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -44,6 +47,7 @@
       }
     },
     "%@ %@ imported from Craft.": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -60,6 +64,7 @@
       }
     },
     "%@ item(s) will be permanently removed.": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -70,6 +75,7 @@
       }
     },
     "%@ selected": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -80,6 +86,7 @@
       }
     },
     "•": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -90,6 +97,7 @@
       }
     },
     "^[%@ leaf](inflect: true)": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -100,6 +108,7 @@
       }
     },
     "1.": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -211,7 +220,25 @@
         }
       }
     },
+    "Add book URL": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add book URL"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter l'URL d'une base"
+          }
+        }
+      }
+    },
     "Add card": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -255,23 +282,6 @@
         }
       }
     },
-    "Add book URL": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add book URL"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ajouter l'URL d'une base"
-          }
-        }
-      }
-    },
     "Add icon": {
       "extractionState": "manual",
       "localizations": {
@@ -307,6 +317,7 @@
       }
     },
     "Add to a book": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -351,6 +362,23 @@
         }
       }
     },
+    "All emojis": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All emojis"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tous les emojis"
+          }
+        }
+      }
+    },
     "All leaves": {
       "comment": "Overflow menu item — opens the Safari-tab-style switcher.",
       "extractionState": "manual",
@@ -365,23 +393,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Toutes les feuilles"
-          }
-        }
-      }
-    },
-    "All emojis": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "All emojis"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tous les emojis"
           }
         }
       }
@@ -489,6 +500,7 @@
       }
     },
     "Background": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -579,6 +591,75 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gras"
+          }
+        }
+      }
+    },
+    "Book": {
+      "comment": "Singular — CreateBubble label for the Book action.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Book"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Livre"
+          }
+        }
+      }
+    },
+    "Book title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Book title"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titre de la base"
+          }
+        }
+      }
+    },
+    "Books": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Books"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Livres"
+          }
+        }
+      }
+    },
+    "Books tab": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Books"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bases"
           }
         }
       }
@@ -753,23 +834,6 @@
         }
       }
     },
-    "Choose Craft book…": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose Craft book…"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choisir la base Craft…"
-          }
-        }
-      }
-    },
     "Choose book.sqlite…": {
       "extractionState": "manual",
       "localizations": {
@@ -783,6 +847,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Choisir book.sqlite…"
+          }
+        }
+      }
+    },
+    "Choose Craft book…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Craft book…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choisir la base Craft…"
           }
         }
       }
@@ -822,6 +903,7 @@
       }
     },
     "Choose…": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -866,6 +948,7 @@
       }
     },
     "Clear sort": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -944,6 +1027,7 @@
       }
     },
     "Color": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -971,6 +1055,7 @@
       }
     },
     "Columns": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -998,6 +1083,7 @@
       }
     },
     "Convert to embed": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -1093,6 +1179,7 @@
       }
     },
     "Custom": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -1132,75 +1219,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sombre"
-          }
-        }
-      }
-    },
-    "Book": {
-      "comment": "Singular — CreateBubble label for the Book action.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Book"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Livre"
-          }
-        }
-      }
-    },
-    "Book title": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Book title"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Titre de la base"
-          }
-        }
-      }
-    },
-    "Books": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Books"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Livres"
-          }
-        }
-      }
-    },
-    "Books tab": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Books"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bases"
           }
         }
       }
@@ -1376,23 +1394,6 @@
         }
       }
     },
-    "Deleted notes, books and shelves will appear here.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deleted notes, books and shelves will appear here."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Les notes, livres et étagères supprimés apparaîtront ici."
-          }
-        }
-      }
-    },
     "Divider": {
       "extractionState": "manual",
       "localizations": {
@@ -1406,23 +1407,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Séparateur"
-          }
-        }
-      }
-    },
-    "Leaf title": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leaf title"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Titre du leaf"
           }
         }
       }
@@ -1446,6 +1430,7 @@
       }
     },
     "Duplicate": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -1557,41 +1542,6 @@
         }
       }
     },
-    "Shelf": {
-      "comment": "Singular — CreateBubble label for the Shelf action.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Shelf"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Étagère"
-          }
-        }
-      }
-    },
-    "Shelves": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Shelves"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Étagères"
-          }
-        }
-      }
-    },
     "Good afternoon.": {
       "extractionState": "manual",
       "localizations": {
@@ -1679,6 +1629,7 @@
       }
     },
     "Grouping": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -1718,23 +1669,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Titre…"
-          }
-        }
-      }
-    },
-    "How many notes appear in the horizontal strip at the top of the Notes home. Bounded between 5 and 20.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "How many notes appear in the horizontal strip at the top of the Notes home. Bounded between 5 and 20."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nombre de notes affichées dans la bande horizontale en haut de l'onglet Notes. Entre 5 et 20."
           }
         }
       }
@@ -1858,24 +1792,8 @@
         }
       }
     },
-    "Imported items, quick captures and shared notes\nwill appear here.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Imported items, quick captures and shared notes\nwill appear here."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Les éléments importés, captures rapides et notes partagées\napparaîtront ici."
-          }
-        }
-      }
-    },
     "Importing %@ of %@…": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1887,23 +1805,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Import de %1$@ sur %2$@…"
-          }
-        }
-      }
-    },
-    "Importing notes…": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Importing notes…"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Importation des notes…"
           }
         }
       }
@@ -1993,7 +1894,25 @@
         }
       }
     },
+    "Leaf title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leaf title"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titre du leaf"
+          }
+        }
+      }
+    },
     "Left to right": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -2038,6 +1957,7 @@
       }
     },
     "List, Board and Gallery views are split by this property.": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -2218,23 +2138,6 @@
         }
       }
     },
-    "New column": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New column"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nouvelle colonne"
-          }
-        }
-      }
-    },
     "New Book": {
       "extractionState": "manual",
       "localizations": {
@@ -2252,6 +2155,23 @@
         }
       }
     },
+    "New column": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New column"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nouvelle colonne"
+          }
+        }
+      }
+    },
     "New Leaf": {
       "extractionState": "manual",
       "localizations": {
@@ -2265,23 +2185,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nouvelle Feuille"
-          }
-        }
-      }
-    },
-    "New Shelf": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New Shelf"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nouvelle Étagère"
           }
         }
       }
@@ -2321,6 +2224,23 @@
         }
       }
     },
+    "New Shelf": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Shelf"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nouvelle Étagère"
+          }
+        }
+      }
+    },
     "New sub-shelf": {
       "extractionState": "manual",
       "localizations": {
@@ -2339,6 +2259,7 @@
       }
     },
     "No book visible. In Notion, open a book → ⋯ → Connect to → %@.": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -2366,6 +2287,7 @@
       }
     },
     "No entries for this day.": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -2376,6 +2298,7 @@
       }
     },
     "No filters. Tap + to add one.": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -2385,41 +2308,8 @@
         }
       }
     },
-    "No notes": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No notes"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aucune note"
-          }
-        }
-      }
-    },
-    "No notes in this shelf yet.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No notes in this shelf yet."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aucune note dans cette étagère pour le moment."
-          }
-        }
-      }
-    },
     "No results for \"%@\"": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -2517,6 +2407,7 @@
       }
     },
     "Off (default): creates a stand-alone note. On: file the note as a row of an existing book — pick which one and fill the columns inline.": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -2731,6 +2622,7 @@
       }
     },
     "pinkha note": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -2741,6 +2633,7 @@
       }
     },
     "Publish date": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -3041,6 +2934,7 @@
       }
     },
     "Right to left": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -3068,6 +2962,7 @@
       }
     },
     "Rows take their publish date from this date column — sorting by Published follows it, and editing a date re-dates the row. None: publish dates follow the creation date.": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -3214,6 +3109,41 @@
         }
       }
     },
+    "Shelf": {
+      "comment": "Singular — CreateBubble label for the Shelf action.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shelf"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Étagère"
+          }
+        }
+      }
+    },
+    "Shelves": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shelves"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Étagères"
+          }
+        }
+      }
+    },
     "Sign in to import any book you've granted access to.": {
       "extractionState": "manual",
       "localizations": {
@@ -3283,6 +3213,7 @@
       }
     },
     "System default": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -3310,6 +3241,7 @@
       }
     },
     "Tap a row to rename. Title can't be deleted.": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -3332,24 +3264,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Touchez le bouton en bas à droite\npour créer votre première base."
-          }
-        }
-      }
-    },
-    "Tap the button at the bottom right\nto create your first note.": {
-      "comment": "Vouvoiement to match Apple iOS French.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tap the button at the bottom right\nto create your first note."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Touchez le bouton en bas à droite\npour créer votre première note."
           }
         }
       }
@@ -3390,6 +3304,7 @@
       }
     },
     "Text direction": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -3485,6 +3400,7 @@
       }
     },
     "The created date stays as a fingerprint of when the leaf came into being. The publish date is what controls how the doc surfaces in date-sorted views.": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -3495,6 +3411,7 @@
       }
     },
     "The leaf becomes a row of the picked book. Its title fills the Title column automatically.": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -3568,6 +3485,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cette action est irréversible."
+          }
+        }
+      }
+    },
+    "This will remove all your leaves.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cela supprimera toutes vos feuilles."
           }
         }
       }
@@ -3811,6 +3738,7 @@
       }
     },
     "Use default": {
+      "extractionState": "stale",
       "localizations": {
         "fr": {
           "stringUnit": {
@@ -3884,6 +3812,177 @@
           "stringUnit": {
             "state": "translated",
             "value": "Oui, tout supprimer"
+          }
+        }
+      }
+    },
+    "How many leaves appear in the horizontal strip at the top of the Library home. Bounded between 5 and 20.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How many leaves appear in the horizontal strip at the top of the Library home. Bounded between 5 and 20."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Combien de feuilles apparaissent dans la bande horizontale en haut de la Bibliothèque. Borné entre 5 et 20."
+          }
+        }
+      }
+    },
+    "Imported items, quick captures and shared leaves\nwill appear here.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imported items, quick captures and shared leaves\nwill appear here."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les éléments importés, captures rapides et feuilles partagées\napparaîtront ici."
+          }
+        }
+      }
+    },
+    "Deleted leaves, books and shelves will appear here.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleted leaves, books and shelves will appear here."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les feuilles, livres et étagères supprimés apparaîtront ici."
+          }
+        }
+      }
+    },
+    "No leaves in this shelf yet.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No leaves in this shelf yet."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune feuille dans cette étagère pour le moment."
+          }
+        }
+      }
+    },
+    "Importing leaves…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importing leaves…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import des feuilles…"
+          }
+        }
+      }
+    },
+    "No leaves": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No leaves"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune feuille"
+          }
+        }
+      }
+    },
+    "Leaves": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leaves"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feuilles"
+          }
+        }
+      }
+    },
+    "leaf": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "leaf"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "feuille"
+          }
+        }
+      }
+    },
+    "leaves": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "leaves"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "feuilles"
+          }
+        }
+      }
+    },
+    "Tap the button at the bottom right\nto create your first leaf.": {
+      "comment": "Vouvoiement to match Apple iOS French.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap the button at the bottom right\nto create your first leaf."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touchez le bouton en bas à droite\npour créer votre première feuille."
           }
         }
       }

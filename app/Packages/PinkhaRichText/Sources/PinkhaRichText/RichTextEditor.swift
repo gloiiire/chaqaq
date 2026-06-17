@@ -299,7 +299,7 @@ public struct RichTextEditor: UIViewRepresentable {
         // the whole ForEach on every keystroke (typically for a single block); no need
         // to rebuild NSAttributedString for the N-1 other unchanged blocks.
         // We also recompute when `blockColor` flips — else the user would
-        // have to leave the note and come back to see the new colour, because
+        // have to leave the leaf and come back to see the new colour, because
         // the spans-equality check would skip the `spansToAttributed` rebuild.
         if coord.lastSyncedSpans != spans
             || coord.lastSyncedBlockColor != blockColor
@@ -322,7 +322,7 @@ public struct RichTextEditor: UIViewRepresentable {
                 //  - Block colour changed: the string is identical but the
                 //    default foreground attribute differs. Without this branch
                 //    the ¶ palette wouldn't take effect until the user left
-                //    and re-entered the note.
+                //    and re-entered the leaf.
                 // Preserve the cursor position when only attributes changed;
                 // jump to the end on a string-level edit (undo/redo).
                 var savedTyping = tv.typingAttributes

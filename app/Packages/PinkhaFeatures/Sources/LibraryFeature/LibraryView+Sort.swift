@@ -189,7 +189,7 @@ public extension LibraryView {
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) {
                             switch item {
-                            case .note(let d):      store.delete(id: d.id)
+                            case .leaf(let d):      store.delete(id: d.id)
                             // Stage the dialog — the user picks whether
                             // the pages inside follow the book.
                             case .book(let db): pendingBookDeletion = db
@@ -213,9 +213,9 @@ public extension LibraryView {
     /// app's accent colour. Unselected rows keep their icon in
     /// `.primary` so the eye spots the active row at a glance.
     @ViewBuilder
-    private func pickerOption(label: LocalizedStringKey,
-                              systemImage: String,
-                              isSelected: Bool) -> some View {
+    func pickerOption(label: LocalizedStringKey,
+                      systemImage: String,
+                      isSelected: Bool) -> some View {
         // iOS strips `.foregroundStyle` from SF Symbol images
         // rendered inside a Menu's `Button` label. The workaround :
         // pre-bake the colour into a `UIImage` via `.withTintColor`
@@ -236,11 +236,26 @@ public extension LibraryView {
     /// Returns a `UIImage` rendition of `name` painted in `color`.
     /// Uses `.alwaysOriginal` so UIKit doesn't re-tint it through
     /// the host view's tint when the image is mounted in a label.
-    private func tintedSymbol(_ name: String, color: UIColor) -> UIImage {
+    func tintedSymbol(_ name: String, color: UIColor) -> UIImage {
+        Self.tintedSymbolStatic(name, color: color)
+    }
+    /// File-scope copy of `tintedSymbol` exposed so non-`LibraryView`
+    /// callers (`ShelvesSectionView`, `ShelfSortRow`) can pre-bake
+    /// their own checkmark icons with the same recipe.
+    static func tintedSymbolStatic(_ name: String, color: UIColor) -> UIImage {
         let cfg = UIImage.SymbolConfiguration(textStyle: .body)
         let base = UIImage(systemName: name, withConfiguration: cfg) ?? UIImage()
         return base.withTintColor(color, renderingMode: .alwaysOriginal)
     }
+}
+
+/// Top-level shim so callers outside `LibraryView` can use the same
+/// pre-tinted SF Symbol recipe without instantiating a view.
+func tintedSymbol(_ name: String, color: UIColor) -> UIImage {
+    LibraryView.tintedSymbolStatic(name, color: color)
+}
+
+extension LibraryView {
 
     // ── Toolbar Menu ──────────────────────────────────────────────────────
 

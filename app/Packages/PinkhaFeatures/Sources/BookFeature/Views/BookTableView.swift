@@ -204,6 +204,8 @@ private struct EntryRowView: View {
     let onDelete: () -> Void
     let onDisappear: () -> Void
 
+    @Environment(PinkhaStore.self) private var store
+
     public var body: some View {
         HStack(spacing: 0) {
             ForEach(properties) { prop in
@@ -235,9 +237,30 @@ private struct EntryRowView: View {
         .frame(minHeight: 44)
         .contentShape(Rectangle())
         .contextMenu {
+            // Same Pin/Unpin treatment as `BookListView`'s rows :
+            // when the row is backed by a leaf, surfacing it in
+            // the home view's PINNED section is one tap away.
+            if let leafId = pageDocId,
+               let doc = store.allLeaves.first(where: { $0.id == leafId }) {
+                Button {
+                    withAnimation {
+                        let isPinned = (doc.pinnedAt ?? "").isEmpty == false
+                        store.setLeafPinned(leafId: leafId, pinned: !isPinned)
+                    }
+                } label: {
+                    if (doc.pinnedAt ?? "").isEmpty {
+                        Label("Pin", systemImage: "pin")
+                    } else {
+                        Label("Unpin", systemImage: "pin.slash")
+                    }
+                }
+                .tint(.primary)
+                Divider()
+            }
             Button(role: .destructive, action: onDelete) {
                 Label("Delete row", systemImage: "trash")
             }
+            .tint(.red)
         }
     }
 }
@@ -472,7 +495,8 @@ private struct DateCell: View {
 
     private var date: Date? {
         guard case .date(let s) = value else { return nil }
-        var fmt = ISO8601DateFormatter(); fmt.formatOptions = [.withFullDate]
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withFullDate]
         return fmt.date(from: s)
     }
 
@@ -486,7 +510,8 @@ private struct DateCell: View {
         .buttonStyle(.plain)
         .sheet(isPresented: $showPicker) {
             DatePickerSheet(current: date) { picked in
-                var fmt = ISO8601DateFormatter(); fmt.formatOptions = [.withFullDate]
+                let fmt = ISO8601DateFormatter()
+                fmt.formatOptions = [.withFullDate]
                 value = picked.map { .date(fmt.string(from: $0)) } ?? .empty
                 showPicker = false
             }

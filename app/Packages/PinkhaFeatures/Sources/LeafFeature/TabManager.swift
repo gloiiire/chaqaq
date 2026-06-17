@@ -103,7 +103,7 @@ public final class TabManager {
 
     /// MRU-only push : adds `id` to the `recentlyViewed` list without
     /// touching `openTabs` or `vmCache`. Used by `BookView` to
-    /// surface freshly-opened books in the Notes home Recent strip
+    /// surface freshly-opened books in the Library home Recent strip
     /// without creating a phantom leaf tab for them.
     public func markRecentlyViewed(id: String) {
         recentlyViewed.removeAll { $0 == id }

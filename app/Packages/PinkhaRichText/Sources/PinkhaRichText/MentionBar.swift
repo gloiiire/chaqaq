@@ -82,19 +82,23 @@ final class MentionBar: UIView {
         var x: CGFloat = 0
         let cfg = UIImage.SymbolConfiguration(pointSize: 13, weight: .medium)
         for candidate in candidates {
-            let btn = UIButton(type: .system)
-            btn.setTitle(candidate.title, for: .normal)
-            btn.setTitleColor(.label, for: .normal)
+            // iOS 15+ : `imageEdgeInsets` / `contentEdgeInsets` were deprecated
+            // in favour of `UIButton.Configuration`. Build the chip via
+            // configuration so we keep the same visual without the warnings.
+            var config = UIButton.Configuration.plain()
+            config.title = candidate.title
+            config.image = UIImage(systemName: "doc.text", withConfiguration: cfg)
+            config.imagePadding = 4
+            config.contentInsets = NSDirectionalEdgeInsets(
+                top: 0, leading: chipPaddingH,
+                bottom: 0, trailing: chipPaddingH)
+            config.baseForegroundColor = .label
+            config.background.backgroundColor = UIColor.tertiarySystemFill
+            let btn = UIButton(configuration: config)
             btn.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
-            btn.setImage(UIImage(systemName: "doc.text", withConfiguration: cfg), for: .normal)
             btn.tintColor = .secondaryLabel
-            btn.imageEdgeInsets = UIEdgeInsets(top: 0, left: -4, bottom: 0, right: 4)
-            btn.contentEdgeInsets = UIEdgeInsets(
-                top: 0, left: chipPaddingH,
-                bottom: 0, right: chipPaddingH)
             btn.layer.cornerRadius = chipHeight / 2
             btn.layer.masksToBounds = true
-            btn.backgroundColor = UIColor.tertiarySystemFill
             let width = max(chipHeight,
                             btn.intrinsicContentSize.width + chipPaddingH)
             btn.frame = CGRect(x: x, y: (pillH - chipHeight) / 2,

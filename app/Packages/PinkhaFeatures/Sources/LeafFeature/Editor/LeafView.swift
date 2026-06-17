@@ -357,7 +357,7 @@ public struct LeafView: View {
             // points at this doc. When the user pushes a sub-page,
             // SwiftUI may fire B.onAppear (set `.leaf(B)`)
             // before A.onDisappear here — blindly resetting would
-            // clobber B's just-set context and any new note created
+            // clobber B's just-set context and any new leaf created
             // from inside B would land at the library root.
             if composer.currentContext == .leaf(id: vm.leafId) {
                 composer.currentContext = .root

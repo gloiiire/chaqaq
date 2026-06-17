@@ -9,13 +9,13 @@ import SwiftUI
 // bar's vertical level alongside the auto-positioned search bubble.
 
 /// Single glass accessory with three primary create actions and an
-/// overflow menu — note / book / shelf / more.
+/// overflow menu — leaf / book / shelf / more.
 ///
 /// The capsule is the only glass surface; the icons are plain images.
 /// Mirrors Apple Music's mini-player layout (play / next).
 public struct CreateBubble: View {
     public init(
-        onNewNote: @escaping () -> Void,
+        onNewLeaf: @escaping () -> Void,
         onNewBook: @escaping () -> Void,
         onNewShelf: @escaping () -> Void,
         onShowTrash: @escaping () -> Void = {},
@@ -27,7 +27,7 @@ public struct CreateBubble: View {
         onImportCraftCombined: @escaping () -> Void = {},
         onShowAllDocs: @escaping () -> Void = {}
     ) {
-        self.onNewNote = onNewNote
+        self.onNewLeaf = onNewLeaf
         self.onNewBook = onNewBook
         self.onNewShelf = onNewShelf
         self.onShowTrash = onShowTrash
@@ -39,7 +39,7 @@ public struct CreateBubble: View {
         self.onImportCraftCombined = onImportCraftCombined
         self.onShowAllDocs = onShowAllDocs
     }
-    public let onNewNote: () -> Void
+    public let onNewLeaf: () -> Void
     public let onNewBook: () -> Void
     public let onNewShelf: () -> Void
     // Overflow menu actions — exposed here so the navbar can drop its
@@ -74,20 +74,21 @@ public struct CreateBubble: View {
             // balanced. The label still uses the same caption style so
             // the baseline anchors stay consistent.
             icon(systemImage: "doc.badge.plus",
-                 label: "Note",
+                 label: "Leaf",
 								 font: .system(size: 21),
 								 labelSpacing: 0,
-								 action: onNewNote)
-						.offset(y:isInline ? 2.1 : -1)
-						.accessibilityIdentifier("createLeafFAB")
-            icon(systemImage: "tablecells",
+								 action: onNewLeaf)
+              .offset(y:isInline ? 2.1 : -1)
+              .accessibilityIdentifier("createLeafFAB")
+            icon(systemImage: "book.badge.plus",
                  label: "Book",
                  action: onNewBook)
-						.accessibilityIdentifier("createBookFAB")
-            icon(systemImage: "shelf.badge.plus",
+              // .offset(y:isInline?)
+              .accessibilityIdentifier("createBookFAB")
+            icon(systemImage: "books.vertical",
                  label: "Shelf",
                  action: onNewShelf)
-						.accessibilityIdentifier("createShelfFAB")
+              .accessibilityIdentifier("createShelfFAB")
             overflowMenu
                 .accessibilityIdentifier("createFAB")
         }
@@ -96,7 +97,7 @@ public struct CreateBubble: View {
         .animation(.snappy, value: isInline)
         // None of the bubble icons are "selected" affordances —
         // overflow the TabView's accent tint by pinning the whole
-        // subtree (Note / Book / Shelf / More + everything in
+        // subtree (Leaf / Book / Shelf / More + everything in
         // the More menu) to the neutral material color.
         .tint(.primary)
     }
@@ -175,7 +176,7 @@ public struct CreateBubble: View {
             // the source list lands it FIRST visually because iOS
             // bottom-anchored menus stack from the trigger upwards.
             Button { onShowAllDocs() } label: {
-                Label("All leaves", systemImage: "square.stack")
+                Label("All leaves", systemImage: "document.on.document")
             }
         } label: {
             VStack(spacing: 4) {

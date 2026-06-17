@@ -7,12 +7,24 @@ import PinkhaFFI
 // targets can reference it without depending on the app target. Same
 // shape as before, only the home module changes.
 
-/// Observable store that owns the `PinkhaApi` connection and the full library (notes + books).
+/// Observable store that owns the `PinkhaApi` connection and the full library (leaves + books).
 @MainActor
 @Observable
 public final class PinkhaStore {
     public var leaves: [LeafMetaFfi] = []
+    /// Every leaf in the library regardless of where it's been filed —
+    /// root-level, in a shelf, even nested as a child page. Used by the
+    /// Recent strip and the Pinned section, which both surface activity
+    /// across the whole library rather than just the "All" root list.
+    public var allLeaves: [LeafMetaFfi] = []
     public var books: [BookMetaFfi] = []
+    /// Cached shelves. **Must** sit in a tracked `@Observable` property
+    /// so views that show shelves (`ShelvesSectionView`, `ShelfView`,
+    /// the long-press "Move to…" submenu) re-evaluate when `load()`
+    /// runs. Previously the accessors did direct FFI calls returning
+    /// fresh arrays each time, which SwiftUI couldn't observe — the
+    /// list never refreshed after a move until the view fully unmounted.
+    public var shelves: [ShelfMetaFfi] = []
     public var errorMessage: String?
     /// `true` when the Inbox tab has at least one item awaiting the user's
     /// attention — flips the tab icon to `tray.badge.fill`. Wired manually
@@ -26,9 +38,9 @@ public final class PinkhaStore {
 
     /// All library items merged and sorted by most recently updated.
     public var items: [WorkspaceItem] {
-        let notes = leaves.map { WorkspaceItem.note($0) }
+        let leafItems = leaves.map { WorkspaceItem.leaf($0) }
         let dbs   = books.map { WorkspaceItem.book($0) }
-        return (notes + dbs).sorted { $0.updatedAt > $1.updatedAt }
+        return (leafItems + dbs).sorted { $0.updatedAt > $1.updatedAt }
     }
 
     /// The N most recently updated items for the recent strip,
@@ -51,24 +63,91 @@ public final class PinkhaStore {
             let path = dir.appendingPathComponent(dbName).path
             api = try PinkhaApi(dbPath: path)
             if args.contains("--ui-test-data") {
-                _ = try api?.createLeaf(title: "Seeded Note 1")
-                _ = try api?.createLeaf(title: "Seeded Note 2")
+                _ = try api?.createLeaf(title: "Seeded Leaf 2")
+                _ = try api?.createLeaf(title: "Seeded Leaf 1")
             }
             // --ui-test-clean: empty ephemeral DB, ideal for testing the empty state.
         }
         if api != nil { load() }
     }
 
-    /// Refreshes leaves and books from the SQLite store.
-    /// Only root pages (no `parentLeafId`) are surfaced — child pages are
-    /// reached by tapping their parent's inline `Page` block.
+    /// Refreshes leaves and books from the SQLite store. Loads both
+    /// `leaves` (root-only — drives the "All" section in the home view)
+    /// and `allLeaves` (every leaf regardless of filing — drives the
+    /// Recent strip and the Pinned section), in addition to books.
     public func load() {
         if let docs = tryCatch(into: &errorMessage, { try api?.listRootLeaves() ?? [] }) {
             leaves = docs
         }
+        if let everyDoc = tryCatch(into: &errorMessage, { try api?.listLeaves() ?? [] }) {
+            allLeaves = everyDoc
+        }
         if let dbs = tryCatch(into: &errorMessage, { try api?.listBooks() ?? [] }) {
             books = dbs
         }
+        if let shvs = tryCatch(into: &errorMessage, { try api?.listShelves() ?? [] }) {
+            shelves = shvs
+        }
+    }
+
+    /// Same shape as `items` but built from `allLeaves` instead of just
+    /// the root-level `leaves`. Used by the Recent strip, which must
+    /// surface activity from any location — including leaves currently
+    /// filed in a shelf.
+    public var allItems: [WorkspaceItem] {
+        let leafItems = allLeaves.map { WorkspaceItem.leaf($0) }
+        let dbs   = books.map { WorkspaceItem.book($0) }
+        return (leafItems + dbs).sorted { $0.updatedAt > $1.updatedAt }
+    }
+
+    /// Pinned leaves across the entire library. Sorted by
+    /// `manualOrder` ascending when set (the user has manually
+    /// reordered them via drag&drop), falling back to `pinnedAt`
+    /// descending otherwise. Mixed states stay stable : pins with a
+    /// manual index always sort before pins without one, so newly
+    /// pinned leaves slot at the end of the manual list and can then
+    /// be dragged into place.
+    public var pinnedLeaves: [LeafMetaFfi] {
+        let pinned = allLeaves.filter { ($0.pinnedAt ?? "").isEmpty == false }
+        return pinned.sorted { a, b in
+            switch (a.manualOrder, b.manualOrder) {
+            case (let lhs?, let rhs?): return lhs < rhs
+            case (_?, nil):            return true
+            case (nil, _?):            return false
+            case (nil, nil):           return (a.pinnedAt ?? "") > (b.pinnedAt ?? "")
+            }
+        }
+    }
+
+    /// Pins or unpins a leaf. `true` adds it to the home view's PINNED
+    /// section ; `false` removes it. Reloads after the write so the
+    /// section's visibility updates instantly.
+    public func setLeafPinned(leafId: String, pinned: Bool) {
+        tryCatch(into: &errorMessage) {
+            try api?.setLeafPinned(id: leafId, pinned: pinned)
+        }
+        load()
+    }
+
+    /// Persists a new manual order for `orderedIds` — first id gets
+    /// `manual_order = 0`, second gets 1, etc. Called by the
+    /// drag-and-drop reorder UI (Pinned section, "Manual" sort mode
+    /// in All section).
+    public func setLeavesManualOrder(orderedIds: [String]) {
+        tryCatch(into: &errorMessage) {
+            try api?.setLeavesManualOrder(orderedIds: orderedIds)
+        }
+        load()
+    }
+
+    /// Persists a new manual order for shelves. Parallel to
+    /// `setLeavesManualOrder` — first id gets `manual_order = 0`, etc.
+    /// Used by the SHELVES section drag-and-drop reorder.
+    public func setShelvesManualOrder(orderedIds: [String]) {
+        tryCatch(into: &errorMessage) {
+            try api?.setShelvesManualOrder(orderedIds: orderedIds)
+        }
+        load()
     }
 
     /// Direct child pages of a given parent leaf. Used by the leaf
@@ -88,10 +167,10 @@ public final class PinkhaStore {
         load()
     }
 
-    /// Creates a new note at the library root and reloads.
+    /// Creates a new leaf at the library root and reloads.
     /// Context-aware overloads (shelf / inside a doc / with a
     /// `StandaloneStyle`) live in `PinkhaStore+Composer.swift` in the
-    /// Notes layer so PinkhaCore stays independent of the
+    /// Library layer so PinkhaCore stays independent of the
     /// feature-layer `Composer.CreationContext` and
     /// `StandaloneStyle` types.
     public func create(title: String) {
@@ -104,7 +183,7 @@ public final class PinkhaStore {
 
     /// Creates a new book at the library root and reloads. See
     /// `create(title:)` for the rationale; the context-aware overload
-    /// lives in the Notes-layer extension.
+    /// lives in the Library-layer extension.
     public func createBook(title: String) {
         guard let api else { return }
         tryCatch(into: &errorMessage) {
@@ -113,7 +192,7 @@ public final class PinkhaStore {
         load()
     }
 
-    /// Renames a note (updates its title) and reloads so the home
+    /// Renames a leaf (updates its title) and reloads so the home
     /// list reflects the new value.
     public func renameLeaf(id: String, newTitle: String) {
         if tryCatch(into: &errorMessage, {
@@ -123,7 +202,7 @@ public final class PinkhaStore {
         }
     }
 
-    /// Soft-deletes a note by id and reloads.
+    /// Soft-deletes a leaf by id and reloads.
     public func delete(id: String) {
         if tryCatch(into: &errorMessage, { try api?.deleteLeaf(id: id) }) != nil {
             load()
@@ -179,7 +258,7 @@ public final class PinkhaStore {
         }
     }
 
-    /// Returns notes whose title matches `query` (case-insensitive).
+    /// Returns leaves whose title matches `query` (case-insensitive).
     public func search(query: String) -> [LeafMetaFfi] {
         guard !query.isEmpty, let api else { return [] }
         return (try? api.searchLeaves(query: query)) ?? []
@@ -226,10 +305,11 @@ public final class PinkhaStore {
 
     // ── Shelves ───────────────────────────────────────────────────────────────
 
-    /// Returns all shelves sorted by name.
+    /// Returns the cached shelves array. Reads from the `@Observable`
+    /// `shelves` property so SwiftUI views that call this re-evaluate
+    /// when `load()` refreshes the cache after a move/rename/delete.
     public func listShelves() -> [ShelfMetaFfi] {
-        guard let api else { return [] }
-        return (try? api.listShelves()) ?? []
+        shelves
     }
 
     /// Creates a shelf and reloads.
@@ -258,6 +338,20 @@ public final class PinkhaStore {
         load()
     }
 
+    /// Cascade delete : trashes the shelf with every leaf filed
+    /// inside it AND every sub-shelf recursively. Returns the count
+    /// of leaves trashed alongside so the caller can surface a
+    /// confirmation toast.
+    @discardableResult
+    public func deleteShelfCascade(id: String) -> UInt32 {
+        var deleted: UInt32 = 0
+        tryCatch(into: &errorMessage) {
+            deleted = try api?.deleteShelfCascade(id: id) ?? 0
+        }
+        load()
+        return deleted
+    }
+
     /// Moves a leaf into a shelf (or to root when `shelfId` is nil) and reloads.
     public func moveLeafToShelf(leafId: String, shelfId: String?) {
         tryCatch(into: &errorMessage) { try api?.moveLeafToShelf(leafId: leafId, shelfId: shelfId) }
@@ -272,16 +366,20 @@ public final class PinkhaStore {
     }
 
     /// Returns the direct children of `parentId` (`nil` = root-level shelves).
-    /// The parent/child filtering runs in Rust.
+    /// Filters the cached `shelves` array so SwiftUI tracks the read
+    /// and re-evaluates views when `load()` refreshes the cache —
+    /// fixes the "shelf doesn't disappear from root after Move to…"
+    /// re-render bug we hit with the previous direct-FFI accessor.
     public func childShelves(of parentId: String?) -> [ShelfMetaFfi] {
-        guard let api else { return [] }
-        return (try? api.listChildShelves(parentId: parentId)) ?? []
+        shelves.filter { $0.parentId == parentId }
     }
 
-    /// Returns leaves in the given shelf (`nil` = root level).
+    /// Returns leaves in the given shelf (`nil` = root level). Filters
+    /// the cached `allLeaves` array so SwiftUI tracks the read and
+    /// re-evaluates views when `load()` refreshes the cache — same
+    /// fix as `childShelves(of:)`.
     public func documentsInShelf(shelfId: String?) -> [LeafMetaFfi] {
-        guard let api else { return [] }
-        return (try? api.listLeavesInShelf(shelfId: shelfId)) ?? []
+        allLeaves.filter { $0.shelfId == shelfId && ($0.parentLeafId ?? "").isEmpty }
     }
 
     // ── Trash (soft-deleted items) ────────────────────────────────────────────

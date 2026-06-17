@@ -254,7 +254,7 @@ pub fn map_block(block: &NotionBlock) -> Option<BlockContent> {
             let id = target
                 .page_id
                 .as_deref()
-                .or(target.book_id.as_deref())?;
+                .or(target.database_id.as_deref())?;
             Some(BlockContent::Text(vec![InlineText {
                 content: "Linked page".to_string(),
                 styles: vec![InlineStyle::Link(format!(
@@ -1115,7 +1115,7 @@ mod link_to_page_tests {
             child_database: None,
             link_to_page: Some(LinkToPageBlock {
                 page_id: page_id.map(str::to_string),
-                book_id: book_id.map(str::to_string),
+                database_id: book_id.map(str::to_string),
             }),
         }
     }

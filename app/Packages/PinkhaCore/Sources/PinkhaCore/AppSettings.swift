@@ -201,7 +201,7 @@ public final class AppSettings {
         }
     }
 
-    /// How many docs the "Recent" strip on the Notes home shows.
+    /// How many docs the "Recent" strip on the Library home shows.
     /// Bounded 5–20 ; 7 is the default that fits ~2 fully-visible
     /// cards plus a peek of a third on iPhone 17 Pro.
     public var recentCount: Int {

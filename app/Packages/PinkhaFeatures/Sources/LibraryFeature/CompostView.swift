@@ -136,14 +136,14 @@ public struct TrashView: View {
         ContentUnavailableView(
             "Trash is empty",
             systemImage: "trash",
-            description: Text("Deleted notes, books and shelves will appear here.")
+            description: Text("Deleted leaves, books and shelves will appear here.")
         )
     }
 
     private var list: some View {
         List(selection: $selectedIds) {
             if !deletedDocs.isEmpty {
-                Section("Notes") {
+                Section("Leaves") {
                     ForEach(deletedDocs, id: \.id) { doc in
                         rowDoc(doc)
                     }

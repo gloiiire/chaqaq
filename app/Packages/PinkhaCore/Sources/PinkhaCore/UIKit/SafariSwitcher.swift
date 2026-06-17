@@ -364,7 +364,7 @@ public final class SafariSwitcherView: UIView {
             commitClose(cellIndex: idx)
         } else {
             let item = items[idx]
-            if case .note(let doc) = item {
+            if case .leaf(let doc) = item {
                 onSelect?(doc.id)
             }
         }
@@ -691,7 +691,7 @@ final class TabCardView: UIView {
         // (UIImageView fallback). Only one is visible at a time.
         let symbolCfg = UIImage.SymbolConfiguration(pointSize: 14, weight: .medium)
         switch item {
-        case .note(let doc):
+        case .leaf(let doc):
             if let icon = doc.icon, !icon.isEmpty {
                 belowIcon.text = icon
                 belowIcon.isHidden = false
@@ -715,7 +715,7 @@ final class TabCardView: UIView {
         // snapshot was captured at their last scroll position.
         liveThumbnailView.image = TabSnapshotCache.shared.snapshot(for: item.id)
 
-        if case .note(let doc) = item,
+        if case .leaf(let doc) = item,
            let coverString = doc.cover, !coverString.isEmpty,
            let image = Self.coverImage(from: coverString) {
             coverImageView.image = image
@@ -724,7 +724,7 @@ final class TabCardView: UIView {
         }
 
         snippetLabel.text = ""
-        if case .note(let doc) = item, let api = api {
+        if case .leaf(let doc) = item, let api = api {
             loaderTask?.cancel()
             let leafId = doc.id
             loaderTask = Task { [weak self] in

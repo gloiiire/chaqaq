@@ -9,7 +9,7 @@ import LibraryFeature
 // ── Search tab ────────────────────────────────────────────────────────────────
 
 /// Search tab — full-library super search. Hits four axes in parallel
-/// (note titles, note content, book titles, shelf names) and groups
+/// (leaf titles, leaf content, book titles, shelf names) and groups
 /// the matches in sections. Each section is hidden when empty.
 public struct SearchView: View {
     public init(store: PinkhaStore) { self.store = store }
@@ -46,9 +46,9 @@ public struct SearchView: View {
                                 NavigationLink(
                                     destination: LeafView(vm: tabManager.open(leafId: doc.id, api: api),
                                                               onDisappear: store.load)
-                                ) { LibraryRow(item: .note(doc)) }
+                                ) { LibraryRow(item: .leaf(doc), store: store) }
                             }
-                        } header: { SectionHeader(title: "Notes") }
+                        } header: { SectionHeader(title: "Leaves") }
                     }
                     if !results.leavesByContent.isEmpty {
                         ForEach(groupHits(results.leavesByContent),
@@ -85,7 +85,7 @@ public struct SearchView: View {
                             ForEach(results.shelves, id: \.id) { shelf in
                                 NavigationLink(
                                     destination: ShelfView(store: store, shelf: shelf)
-                                ) { ShelfRow(shelf: shelf) }
+                                ) { ShelfRow(store: store, shelf: shelf) }
                             }
                         } header: { SectionHeader(title: "Shelves") }
                     }
@@ -94,7 +94,7 @@ public struct SearchView: View {
             .listStyle(.insetGrouped)
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Search")
-            .searchable(text: $query, prompt: "Search notes, content, books, shelves…")
+            .searchable(text: $query, prompt: "Search leaves, content, books, shelves…")
             // iOS 26 : collapse the search field into the trailing nav icon
             // when the user starts scrolling, matching Photos / Mail. The
             // icon expands back when tapped or scrolled to the top.

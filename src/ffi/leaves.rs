@@ -127,6 +127,20 @@ impl PinkhaApi {
             .map_err(PinkhaError::from)
     }
 
+    /// Pins or unpins a leaf. The home view's PINNED section surfaces
+    /// pinned leaves at the top, sorted by `pinned_at` desc.
+    pub fn set_leaf_pinned(&self, id: String, pinned: bool) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&id)?;
+        use_cases::set_leaf_pinned(&self.uow(), uuid, pinned).map_err(PinkhaError::from)
+    }
+
+    /// Bulk-rewrites the manual sort index : first id gets index 0,
+    /// second gets 1, etc. Called from the drag-and-drop reorder UI.
+    pub fn set_leaves_manual_order(&self, ordered_ids: Vec<String>) -> Result<(), PinkhaError> {
+        let uuids = parse_uuids(ordered_ids)?;
+        use_cases::set_leaves_manual_order(&self.uow(), &uuids).map_err(PinkhaError::from)
+    }
+
     /// Appends a block to a leaf. `block_content_json` must be a JSON-encoded
     /// [`BlockContent`]. Returns the UUID string of the newly created block.
     pub fn add_block(

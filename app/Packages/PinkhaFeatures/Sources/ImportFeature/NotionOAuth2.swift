@@ -148,10 +148,19 @@ public final class NotionOAuth2: NSObject, ASWebAuthenticationPresentationContex
         // caller is already on the main actor (which we are), with a runtime
         // assertion as a safety net.
         MainActor.assumeIsolated {
-            UIApplication.shared.connectedScenes
+            // iOS 26 deprecated `ASPresentationAnchor()` (parameterless init)
+            // — use the active foreground scene's first key window, falling
+            // back to `init(windowScene:)` when no window is keyed yet
+            // (e.g. cold launch flow).
+            let scenes = UIApplication.shared.connectedScenes
                 .compactMap { $0 as? UIWindowScene }
-                .flatMap(\.windows)
-                .first(where: \.isKeyWindow) ?? ASPresentationAnchor()
+            if let win = scenes.flatMap(\.windows).first(where: \.isKeyWindow) {
+                return win
+            }
+            if let scene = scenes.first(where: { $0.activationState == .foregroundActive }) {
+                return ASPresentationAnchor(windowScene: scene)
+            }
+            return ASPresentationAnchor(windowScene: scenes.first!)
         }
     }
 

@@ -6,9 +6,9 @@ import PinkhaComposer
 import LeafFeature
 import BookFeature
 
-// ── Tab 1: Notes (unified library) ──────────────────────────────────────────
+// ── Tab 1: Library (unified) ──────────────────────────────────────────
 
-/// Home screen for the Notes tab — shows notes and books in a unified list.
+/// Home screen for the Library tab — shows leaves and books in a unified list.
 /// All creation / import / trash actions live in the global CreateBubble
 /// hosted by `ContentView.tabViewBottomAccessory`, so this view focuses on
 /// presenting the library content. Sibling files in this shelf own the
@@ -22,14 +22,14 @@ public struct LibraryView: View {
     @Environment(AppSettings.self) var settings
     @Environment(TabManager.self) var tabManager
     @State private var showingSettings = false
-    /// Programmatic navigation stack so a freshly-created note can be
+    /// Programmatic navigation stack so a freshly-created leaf can be
     /// pushed onto the editor right after the create sheet dismisses
     /// — driven by `composer.pendingOpenDoc`. Must stay `@State` here :
     /// a binding sourced from `Composer` (observation-driven) hits a
     /// SwiftUI bug where `NavigationStack(path: $model.path)` does
     /// not visibly pop when `path.removeAll()` is called from outside.
     /// External mutations route through `Composer.popHomeNotification`.
-    @State private var path: [String] = []
+    @State private var path: [LibraryRoute] = []
     /// Shared geometry namespace for the Apple Music / Books-style
     /// zoom transition when a doc card opens. Source views (list
     /// rows, Recent cards) tag themselves with
@@ -53,30 +53,100 @@ public struct LibraryView: View {
     /// Doc currently picked through a "Add to a book" context
     /// menu item — drives the sheet below. `nil` = no sheet shown.
     @State var attachDocId: String?
+    /// Root SHELVES cascade-delete state. Owned at this level (not
+    /// inside `ShelvesSectionView`) because `confirmationDialog` can't
+    /// present from inside a `Section` — the dialog must sit at the
+    /// `List` / `NavigationStack` root to work.
+    @State private var pendingShelfDeletion: ShelfMetaFfi?
 
-    /// Single-property Identifiable wrapper so the doc id can drive a
-    /// `.sheet(item:)` without surfacing a separate `Bool` toggle.
-    struct BindLeafIdentifier: Identifiable, Equatable {
-        let id: String
-    }
 
     /// Sort + group preferences. `@AppStorage` persists them across
     /// launches without an explicit migration — each user setting maps
     /// to one `UserDefaults` key. Defaults mirror the previous implicit
     /// behaviour (most-recently-updated first, no grouping).
-    @AppStorage("notes.sortKey")   var sortKeyRaw: String = SortKey.updatedAt.rawValue
-    @AppStorage("notes.sortAsc")   var sortAscending: Bool = false
-    @AppStorage("notes.groupBy")   var groupByRaw: String = GroupBy.none.rawValue
+    @AppStorage("leaves.sortKey")   var sortKeyRaw: String = SortKey.updatedAt.rawValue
+    @AppStorage("leaves.sortAsc")   var sortAscending: Bool = false
+    @AppStorage("leaves.groupBy")   var groupByRaw: String = GroupBy.none.rawValue
     /// When on, books are hidden from the unified library list.
     /// The dedicated "Bases" tab still surfaces them — this flag only
-    /// scopes the Notes home view's mixed feed. Off by default.
-    @AppStorage("notes.hideBooks") var hideBooks: Bool = false
+    /// scopes the Library home view's mixed feed. Off by default.
+    @AppStorage("leaves.hideBooks") var hideBooks: Bool = false
+    /// Sort key for the PINNED section. Defaults to `.manual` so the
+    /// drag-and-drop order is honoured ; users can pick any other key
+    /// from the menu in the section header to fall back to a
+    /// date-driven or alphabetical sort. Persisted independently of
+    /// the All section's sort.
+    @AppStorage("pinned.sortKey") var pinnedSortKeyRaw: String = PinnedSortKey.manual.rawValue
+    /// Ascending vs descending for the PINNED section. Defaults to
+    /// `false` (descending) so date-driven sorts surface the newest
+    /// first ; Manual ignores this flag.
+    @AppStorage("pinned.sortAsc") var pinnedSortAsc: Bool = false
+    /// Sort key for the SHELVES section. Same defaults / behaviour as
+    /// the PINNED key but with a smaller option set (shelves have no
+    /// "Last opened" or "Published" surfaces).
+    @AppStorage("shelves.sortKey") var shelvesSortKeyRaw: String = ShelfSortKey.manual.rawValue
 
     var sortKey: SortKey {
         SortKey(rawValue: sortKeyRaw) ?? .updatedAt
     }
     var groupBy: GroupBy {
         GroupBy(rawValue: groupByRaw) ?? .none
+    }
+    var pinnedSortKey: PinnedSortKey {
+        PinnedSortKey(rawValue: pinnedSortKeyRaw) ?? .manual
+    }
+    var shelvesSortKey: ShelfSortKey {
+        ShelfSortKey(rawValue: shelvesSortKeyRaw) ?? .manual
+    }
+
+    /// Sort options for the SHELVES section. Shelves don't have a
+    /// "last opened" tracking or a publish date — the option set is
+    /// smaller than `PinnedSortKey`. Reused by `ShelfView`'s
+    /// sub-shelves section so both surfaces share the same vocabulary.
+    public enum ShelfSortKey: String, CaseIterable, Identifiable {
+        case manual, name, createdAt, updatedAt
+        public var id: String { rawValue }
+        public var label: LocalizedStringKey {
+            switch self {
+            case .manual:    "Manual"
+            case .name:      "Name"
+            case .createdAt: "Created"
+            case .updatedAt: "Updated"
+            }
+        }
+        public var systemImage: String {
+            switch self {
+            case .manual:    "hand.draw"
+            case .name:      "textformat"
+            case .createdAt: "calendar.badge.plus"
+            case .updatedAt: "calendar"
+            }
+        }
+    }
+
+    enum PinnedSortKey: String, CaseIterable, Identifiable {
+        case manual, lastOpened, name, createdAt, updatedAt, publishedAt
+        var id: String { rawValue }
+        var label: LocalizedStringKey {
+            switch self {
+            case .manual:      "Manual"
+            case .lastOpened:  "Last opened"
+            case .name:        "Name"
+            case .createdAt:   "Created"
+            case .updatedAt:   "Updated"
+            case .publishedAt: "Published"
+            }
+        }
+        var systemImage: String {
+            switch self {
+            case .manual:      "hand.draw"
+            case .lastOpened:  "clock"
+            case .name:        "textformat"
+            case .createdAt:   "calendar.badge.plus"
+            case .updatedAt:   "calendar"
+            case .publishedAt: "paperplane"
+            }
+        }
     }
 
     enum SortKey: String, CaseIterable, Identifiable {
@@ -141,18 +211,30 @@ public struct LibraryView: View {
                     api: store.api,
                     zoomNamespace: docZoom,
                     onDisappear: { store.load() },
-                    onOpenNote: { leafId in
-                        path.append(leafId)
+                    onOpenLeaf: { leafId in
+                        path.append(.leaf(leafId))
                     },
-                    onRenameNote: { doc in
+                    onRenameLeaf: { doc in
                         renameDraft = doc.titlePlain
                         renamingDoc = doc
                     },
-                    onDeleteNote: { doc in
+                    onDeleteLeaf: { doc in
                         store.delete(id: doc.id)
                     },
                     onAddToBook: store.books.isEmpty ? nil : { doc in
                         attachDocId = doc.id
+                    },
+                    availableShelves: store.listShelves(),
+                    onMoveLeafToShelf: { doc, shelfId in
+                        withAnimation {
+                            store.moveLeafToShelf(leafId: doc.id, shelfId: shelfId)
+                            store.load()
+                        }
+                    },
+                    onSetLeafPinned: { doc, pinned in
+                        withAnimation {
+                            store.setLeafPinned(leafId: doc.id, pinned: pinned)
+                        }
                     }
                 )
                 .listRowBackground(Color.clear)
@@ -163,8 +245,15 @@ public struct LibraryView: View {
             }
         }
 
+        // Pinned section : sits between Recent and Shelves so the
+        // user's hand-picked must-keep-around leaves stay above the
+        // generic library. Hidden when no leaf is pinned.
+        pinnedSection
+
         if !store.listShelves().isEmpty {
-            ShelvesSectionView(store: store)
+            ShelvesSectionView(store: store) { shelf in
+                pendingShelfDeletion = shelf
+            }
         }
 
         if store.items.isEmpty {
@@ -294,9 +383,10 @@ public struct LibraryView: View {
         // content instead of slamming a solid bar over it.
         .scrollEdgeEffectStyle(.soft, for: .all)
         .databaseDeleteDialog(pending: $pendingBookDeletion, store: store)
+        .shelfDeleteDialog(pending: $pendingShelfDeletion, store: store)
         .toolbar { toolbarContent }
         .sheet(isPresented: $showingSettings) { SettingsView() }
-        // Surfaced from the "Add to a book" long-press menu on note
+        // Surfaced from the "Add to a book" long-press menu on leaf
         // rows / recents — files the existing doc as a row of the
         // picked book with the title pre-seeded.
         .sheet(item: attachSheetItemBinding) { wrapper in
@@ -317,14 +407,25 @@ public struct LibraryView: View {
         } message: {
             Text("They'll move to the trash.")
         }
-        // Registered alongside the existing `NavigationLink` rows so
-        // programmatic pushes via `path.append(id)` open the editor —
-        // driven by `composer.pendingOpenDoc` below.
-        .navigationDestination(for: String.self) { leafId in
-            if let api = store.api {
-                LeafView(vm: tabManager.open(leafId: leafId, api: api),
-                         onDisappear: store.load)
-                    .navigationTransition(.zoom(sourceID: leafId, in: docZoom))
+        // Single typed destination for both leaves and shelves so
+        // every drill-in goes through `path` — previously shelves
+        // were closure-pushed, which broke the swipe-back from a
+        // leaf created inside a shelf (the system would rebuild the
+        // stack to honour the path and drop the closure-pushed
+        // shelf). Switch on the case to pick the right destination.
+        .navigationDestination(for: LibraryRoute.self) { route in
+            switch route {
+            case .leaf(let leafId):
+                if let api = store.api {
+                    LeafView(vm: tabManager.open(leafId: leafId, api: api),
+                             onDisappear: store.load)
+                        .navigationTransition(.zoom(sourceID: leafId, in: docZoom))
+                }
+            case .shelf(let shelfId):
+                if let shelf = store.listShelves().first(where: { $0.id == shelfId }) {
+                    ShelfView(store: store, shelf: shelf)
+                        .navigationTransition(.zoom(sourceID: shelfId, in: docZoom))
+                }
             }
         }
     }
@@ -340,7 +441,7 @@ public struct LibraryView: View {
             guard let leafId = newValue else { return }
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(250))
-                path.append(leafId)
+                path.append(.leaf(leafId))
                 composer.pendingOpenDoc = nil
             }
         }
@@ -358,19 +459,22 @@ public struct LibraryView: View {
             // the NavStack path to keep entries up to (and including)
             // that doc, popping every descendant in one go.
             guard let target = note.userInfo?["leafId"] as? String,
-                  let idx = path.firstIndex(of: target) else { return }
+                  let idx = path.firstIndex(of: .leaf(target)) else { return }
             path = Array(path.prefix(idx + 1))
         }
         .onChange(of: path) { oldPath, newPath in
-            // Mark every newly-pushed doc as "open" in the switcher.
+            // Mark every newly-pushed leaf as "open" in the switcher.
             // We do it here (in response to an explicit path change),
             // NOT inside the NavigationLink destination — that closure
             // is re-evaluated every time SwiftUI re-renders the body,
             // which would re-add tabs the user just closed via the
-            // switcher.
+            // switcher. Shelves don't have a tab representation, so
+            // we skip them.
             if newPath.count > oldPath.count, let api = store.api {
-                for leafId in newPath where !oldPath.contains(leafId) {
-                    tabManager.markOpened(leafId: leafId, api: api)
+                for route in newPath where !oldPath.contains(route) {
+                    if case .leaf(let leafId) = route {
+                        tabManager.markOpened(leafId: leafId, api: api)
+                    }
                 }
             }
             // When the user pops back to the home, drop any selection
@@ -387,20 +491,9 @@ public struct LibraryView: View {
         // (env modifiers in SwiftUI flow downward to attached
         // overlays). Buttons read `.primary` instead of the
         // TabView's accent.
-        .alert("Rename note", isPresented: Binding(
-            get: { renamingDoc != nil },
-            set: { if !$0 { renamingDoc = nil } }
-        )) {
+        .alert("Rename leaf", isPresented: renamingBinding) {
             TextField("Title", text: $renameDraft)
-            Button("Rename") {
-                if let doc = renamingDoc {
-                    let trimmed = renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty {
-                        store.renameLeaf(id: doc.id, newTitle: trimmed)
-                    }
-                }
-                renamingDoc = nil
-            }
+            Button("Rename") { commitRename() }
             Button("Cancel", role: .cancel) { renamingDoc = nil }
         }
         .tint(.primary)
@@ -416,7 +509,7 @@ public struct LibraryView: View {
         }
     }
 
-    /// Bulk delete every selected library item. Routes notes through
+    /// Bulk delete every selected library item. Routes leaves through
     /// `store.delete(id:)` and books through `deleteBook(id:)`
     /// so each goes via its proper SQLite soft-delete path.
     ///
@@ -431,8 +524,160 @@ public struct LibraryView: View {
     /// date in `markOpened`) and resolves each id against the live
     /// store metadata. Deleted docs naturally drop out of the strip.
     /// Capped at the user's recent-count setting.
+    /// The PINNED section, extracted out of `listContent` because the
+    /// inline expression became too complex for the SwiftUI type
+    /// checker once the section gained its own sort menu and
+    /// conditional `.onMove`. `EmptyView()` when nothing's pinned —
+    /// `@ViewBuilder` flattens it cleanly.
+    @ViewBuilder
+    private var pinnedSection: some View {
+        if !sortedPinnedLeaves.isEmpty, store.api != nil {
+            Section {
+                ForEach(sortedPinnedLeaves, id: \.id) { doc in
+                    NavigationLink(value: LibraryRoute.leaf(doc.id)) {
+                        LibraryRow(item: .leaf(doc), store: store)
+                    }
+                    .matchedTransitionSource(id: doc.id, in: docZoom)
+                    .leafContextMenu(
+                        doc: doc,
+                        store: store,
+                        onRename: {
+                            renameDraft = doc.titlePlain
+                            renamingDoc = doc
+                        },
+                        onAttachToBook: {
+                            attachDocId = doc.id
+                        }
+                    )
+                }
+                // `.onMove` is only attached when the user opted into
+                // Manual sort. In any other mode the drag handle would
+                // produce a reorder the next `load()` would immediately
+                // overwrite with the date / name ordering.
+                .onMove(perform: pinnedMoveHandler)
+            } header: {
+                pinnedSectionHeader
+            }
+        }
+    }
+
+    /// Pinned leaves sorted by the active `pinnedSortKey`. Defaults
+    /// to `.manual` which preserves the drag-and-drop order stored on
+    /// `LeafMeta.manualOrder`. Other modes (`updatedAt`, `createdAt`,
+    /// etc.) re-sort the same set on top of `store.pinnedLeaves` —
+    /// the manual indexes stay persisted so switching back to Manual
+    /// returns to the previous arrangement.
+    private var sortedPinnedLeaves: [LeafMetaFfi] {
+        let pinned = store.pinnedLeaves
+        let base: [LeafMetaFfi]
+        switch pinnedSortKey {
+        case .manual:
+            // Manual ignores asc/desc — the user's hand-arranged order
+            // already encodes their preference. Toggling asc/desc
+            // would silently reverse the array, which is surprising.
+            return pinned
+        case .lastOpened:
+            let openOrder = tabManager.recentlyViewed
+            let opened = openOrder.compactMap { id in pinned.first { $0.id == id } }
+            let unopened = pinned.filter { p in !openOrder.contains(p.id) }
+            base = opened + unopened
+        case .name:
+            base = pinned.sorted { $0.titlePlain.localizedCaseInsensitiveCompare($1.titlePlain) == .orderedAscending }
+        case .createdAt:
+            base = pinned.sorted { $0.createdAt > $1.createdAt }
+        case .updatedAt:
+            base = pinned.sorted { $0.updatedAt > $1.updatedAt }
+        case .publishedAt:
+            base = pinned.sorted { p1, p2 in
+                let a = p1.publishedAt.isEmpty ? p1.createdAt : p1.publishedAt
+                let b = p2.publishedAt.isEmpty ? p2.createdAt : p2.publishedAt
+                return a > b
+            }
+        }
+        // Default of each `base` is the descending / natural order ;
+        // asc reverses for the user.
+        return pinnedSortAsc ? base.reversed() : base
+    }
+
+    /// Reorder handler for the PINNED `.onMove`. Captures the new
+    /// arrangement and persists it as the manual order. Only wired
+    /// when `pinnedSortKey == .manual`.
+    private func movePinned(_ source: IndexSet, _ destination: Int) {
+        var ids = sortedPinnedLeaves.map(\.id)
+        ids.move(fromOffsets: source, toOffset: destination)
+        store.setLeavesManualOrder(orderedIds: ids)
+    }
+
+    /// Returns the move closure only when Manual sort is active.
+    /// SwiftUI's `.onMove(perform:)` takes an optional closure ; when
+    /// it's `nil` the system hides the reorder handle automatically.
+    /// Extracted out of the call site so the inline ternary doesn't
+    /// blow past Swift's type-check budget for the whole expression.
+    private var pinnedMoveHandler: ((IndexSet, Int) -> Void)? {
+        guard pinnedSortKey == .manual else { return nil }
+        return { source, destination in
+            movePinned(source, destination)
+        }
+    }
+
+    /// Section header for PINNED with a trailing `arrow.up.arrow.down`
+    /// menu — same affordance as the toolbar sort picker, scoped to
+    /// the pinned set only. Tapping picks a sort mode ; the current
+    /// mode is marked with a checkmark.
+    private var pinnedSectionHeader: some View {
+        HStack {
+            SectionHeader(title: "Pinned")
+            Spacer()
+            Menu {
+                Section("Sort by") {
+                    ForEach(PinnedSortKey.allCases) { key in
+                        Button {
+                            pinnedSortKeyRaw = key.rawValue
+                        } label: {
+                            pickerOption(
+                                label: key.label,
+                                systemImage: key.systemImage,
+                                isSelected: pinnedSortKey == key
+                            )
+                        }
+                        .tint(.primary)
+                    }
+                }
+                // Order picker — hidden when Manual is active, because
+                // the manual arrangement already encodes the user's
+                // direction and a silent reverse would be surprising.
+                if pinnedSortKey != .manual {
+                    Section("Order") {
+                        Button { pinnedSortAsc = true } label: {
+                            pickerOption(label: "Ascending",
+                                         systemImage: "arrow.up",
+                                         isSelected: pinnedSortAsc)
+                        }
+                        .tint(.primary)
+                        Button { pinnedSortAsc = false } label: {
+                            pickerOption(label: "Descending",
+                                         systemImage: "arrow.down",
+                                         isSelected: !pinnedSortAsc)
+                        }
+                        .tint(.primary)
+                    }
+                }
+            } label: {
+                Image(systemName: "arrow.up.arrow.down.circle")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+        }
+    }
+
     private var recentlyViewedItems: [WorkspaceItem] {
-        let byId = Dictionary(uniqueKeysWithValues: store.items.map { ($0.id, $0) })
+        // Lookup against `allItems` (every leaf, including those filed
+        // inside a shelf) rather than `items` (root only) — Recent
+        // should surface activity regardless of where the user filed
+        // the leaf.
+        let byId = Dictionary(uniqueKeysWithValues: store.allItems.map { ($0.id, $0) })
         return tabManager.recentlyViewed
             .compactMap { byId[$0] }
             .prefix(settings.recentCount)
@@ -444,22 +689,53 @@ public struct LibraryView: View {
     /// the "compiler unable to type-check in reasonable time" wall
     /// that two separate `.onChange` modifiers in the body hit.
     private var validPathKey: String {
-        let docs = store.leaves.map(\.id).joined(separator: ",")
+        let docs = store.allLeaves.map(\.id).joined(separator: ",")
+        let shvs = store.shelves.map(\.id).joined(separator: ",")
         let tabs = tabManager.openTabs.map(\.leafId).joined(separator: ",")
-        return "\(docs)|\(tabs)"
+        return "\(docs)|\(shvs)|\(tabs)"
     }
 
-    /// Drops any doc on the nav stack that's either been deleted from
-    /// the store (bulk Delete All) or removed from the open-tabs list
-    /// (switcher's "Close all tabs"). Without this the user stays on a
-    /// LeafView for a doc they just declared gone — renders as a
-    /// blank "Untitled" because vm.load has nothing to fetch.
+    /// Drops any leaf or shelf on the nav stack that's either been
+    /// deleted from the store (bulk Delete All / Empty Trash) or
+    /// removed from the open-tabs list (switcher's "Close all tabs").
+    /// Without this the user stays on a destination for an entity they
+    /// just declared gone — leaves render as a blank "Untitled" because
+    /// the VM's `load` has nothing to fetch ; shelves throw the
+    /// `first(where:)` lookup in `.navigationDestination`.
     private func pruneStalePath() {
-        let docs = Set(store.leaves.map(\.id))
+        // `allLeaves` (every leaf, including shelf-filed) so children
+        // pushed from a shelf aren't pruned the second their shelf is
+        // mounted on the stack — those are still valid pages.
+        let docs = Set(store.allLeaves.map(\.id))
+        let shvs = Set(store.shelves.map(\.id))
         let tabs = Set(tabManager.openTabs.map(\.leafId))
-        path = path.filter {
-            docs.contains($0) && tabs.contains($0)
+        path = path.filter { route in
+            switch route {
+            case .leaf(let id):  return docs.contains(id) && tabs.contains(id)
+            case .shelf(let id): return shvs.contains(id)
+            }
         }
+    }
+
+    /// Binding for the rename alert's `isPresented` — extracted out
+    /// of the body chain because the inline `Binding(get:set:)` plus
+    /// the rename closure pushed the SwiftUI type-checker over its
+    /// budget after the `LibraryRoute` refactor widened the path type.
+    private var renamingBinding: Binding<Bool> {
+        Binding(
+            get: { renamingDoc != nil },
+            set: { if !$0 { renamingDoc = nil } }
+        )
+    }
+
+    /// Commits the in-flight rename draft. Same reason as the binding
+    /// above — pulled out to keep the alert's button closure trivial.
+    private func commitRename() {
+        defer { renamingDoc = nil }
+        guard let doc = renamingDoc else { return }
+        let trimmed = renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        store.renameLeaf(id: doc.id, newTitle: trimmed)
     }
 
     private func deleteSelected() {
@@ -470,7 +746,7 @@ public struct LibraryView: View {
         }
         for item in toDelete {
             switch item {
-            case .note(let d):      store.delete(id: d.id)
+            case .leaf(let d):      store.delete(id: d.id)
             case .book(let db): store.deleteBook(id: db.id)
             }
         }
@@ -481,47 +757,36 @@ public struct LibraryView: View {
     @ViewBuilder
     func itemRow(_ item: WorkspaceItem, api: PinkhaApi) -> some View {
         switch item {
-        case .note(let doc):
-            NavigationLink(destination:
-                LeafView(vm: tabManager.open(leafId: doc.id, api: api),
-                             onDisappear: store.load)
-                    .navigationTransition(.zoom(sourceID: doc.id, in: docZoom))
-            ) {
-                LibraryRow(item: item, displayDateIso: displayDate(for: item))
+        case .leaf(let doc):
+            NavigationLink(value: LibraryRoute.leaf(doc.id)) {
+                LibraryRow(item: item, displayDateIso: displayDate(for: item), store: store)
             }
             .matchedTransitionSource(id: doc.id, in: docZoom)
-            // Apple Music-style long-press : the row floats as a
-            // detached card preview, with Rename / Delete options
-            // underneath. Tap on the row itself still navigates.
+            // Apple-Music-style long-press : the row floats as a
+            // detached card preview, with the full leaf actions
+            // (Rename / Pin / Add to a book / Move to shelf… / Delete)
+            // underneath. Same menu lives in `ShelfView`'s leaf rows
+            // and the Pinned section — `LeafContextMenuContent` is
+            // the single source of truth.
             .contextMenu {
-                Button {
-                    renameDraft = doc.titlePlain
-                    renamingDoc = doc
-                } label: {
-                    Label("Rename", systemImage: "pencil")
-                }
-                .tint(.primary)
-                if !store.books.isEmpty {
-                    Button {
+                LeafContextMenuContent(
+                    doc: doc,
+                    store: store,
+                    onRename: {
+                        renameDraft = doc.titlePlain
+                        renamingDoc = doc
+                    },
+                    onAttachToBook: {
                         attachDocId = doc.id
-                    } label: {
-                        Label("Add to a book", systemImage: "tablecells.badge.ellipsis")
                     }
-                    .tint(.primary)
-                }
-                Button(role: .destructive) {
-                    store.delete(id: doc.id)
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
-                .tint(.red)
+                )
             } preview: {
-                NoteCardPreview(doc: doc)
+                LeafCardPreview(doc: doc)
             }
         case .book(let db):
             NavigationLink(destination: BookView(bookId: db.id, api: api,
                                                     onDisappear: store.load)) {
-                LibraryRow(item: item, displayDateIso: displayDate(for: item))
+                LibraryRow(item: item, displayDateIso: displayDate(for: item), store: store)
             }
         }
     }

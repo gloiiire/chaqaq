@@ -7,7 +7,7 @@ import PinkhaDesignSystem
 import PinkhaComposer
 import LeafFeature
 
-/// Sheet for creating a new note or book. Accepts a title and calls `onCreate` or `onCancel`.
+/// Sheet for creating a new leaf or book. Accepts a title and calls `onCreate` or `onCancel`.
 ///
 /// `prompt` and `navigationTitle` are `LocalizedStringKey` (not `String`)
 /// so the catalog resolves them — `TextField(_ titleKey:)` and
@@ -18,7 +18,7 @@ import LeafFeature
 /// When `availableBooks` is non-empty and `api` is set, a "Add to
 /// a book" toggle reveals a DB picker + an inline property editor.
 /// `onCreate` then carries `(bookId, propertyValues)` so the
-/// caller can route the create to either the regular notes path or a
+/// caller can route the create to either the regular leaves path or a
 /// DB-entry creation path.
 public struct CreateLeafSheet: View {
     public init(
@@ -44,7 +44,7 @@ public struct CreateLeafSheet: View {
     /// more descriptive label (e.g. "New Leaf", "New Book") so the
     /// user knows what they're creating before they type.
     public var navigationTitle: LocalizedStringKey = "New"
-    /// Available books the user can attach the note to. Pass an
+    /// Available books the user can attach the leaf to. Pass an
     /// empty array to hide the "Add to a book" toggle entirely
     /// (e.g. for the "New book" flow).
     public var availableBooks: [BookMetaFfi] = []
@@ -90,7 +90,7 @@ public struct CreateLeafSheet: View {
                 // doc-creation FFI is wired. Cover / icon / theme
                 // live on the Leaf itself ; they're orthogonal
                 // to the DB membership so we keep them around even
-                // when the toggle below files the note as a DB row.
+                // when the toggle below files the leaf as a DB row.
                 if api != nil {
                     Section("Style") {
                         coverPicker
@@ -112,7 +112,7 @@ public struct CreateLeafSheet: View {
                                 }
                             }
                     } footer: {
-                        Text("Off (default): creates a stand-alone note. On: file the note as a row of an existing book — pick which one and fill the columns inline.")
+                        Text("Off (default): creates a stand-alone leaf. On: file the leaf as a row of an existing book — pick which one and fill the columns inline.")
                     }
 
                     if attachToBook {

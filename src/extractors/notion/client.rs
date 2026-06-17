@@ -41,7 +41,7 @@ impl NotionClient {
 
     /// Fetches the schema (property definitions + title) for a Notion book.
     pub async fn get_book(&self, book_id: &str) -> Result<NotionDatabaseSchema, ExtractorError> {
-        let url = format!("https://api.notion.com/v1/books/{book_id}");
+        let url = format!("https://api.notion.com/v1/databases/{book_id}");
         let bytes = self.send_with_backoff(self.client.get(&url)).await?;
         let schema: NotionDatabaseSchema = serde_json::from_slice(&bytes)?;
         Ok(schema)
@@ -55,7 +55,7 @@ impl NotionClient {
         book_id: &str,
         cursor: Option<&str>,
     ) -> Result<NotionQueryResponse, ExtractorError> {
-        let url = format!("https://api.notion.com/v1/books/{book_id}/query");
+        let url = format!("https://api.notion.com/v1/databases/{book_id}/query");
 
         let body = if let Some(c) = cursor {
             serde_json::json!({ "start_cursor": c })
@@ -72,7 +72,8 @@ impl NotionClient {
 
     /// Lists every book the current integration has been granted access
     /// to, across all authorised workspaces. Uses Notion's `POST /v1/search`
-    /// with a filter restricting results to the `book` object type.
+    /// with a filter restricting results to the `database` object type
+    /// (Notion's API term, not our internal `Book` rename).
     ///
     /// Paginates internally and returns the fully concatenated list — the
     /// caller doesn't deal with cursors. A user with a fresh OAuth grant on
@@ -87,11 +88,11 @@ impl NotionClient {
         loop {
             let body = match cursor.as_deref() {
                 None => serde_json::json!({
-                    "filter": { "property": "object", "value": "book" },
+                    "filter": { "property": "object", "value": "database" },
                     "page_size": 100,
                 }),
                 Some(c) => serde_json::json!({
-                    "filter": { "property": "object", "value": "book" },
+                    "filter": { "property": "object", "value": "database" },
                     "page_size": 100,
                     "start_cursor": c,
                 }),
@@ -155,7 +156,7 @@ impl NotionClient {
 
     /// Lists every page the integration has been granted access to.
     /// Used by the v2025 picker walker so we can scan each shared
-    /// page for `child_database` blocks that the `object: book`
+    /// page for `child_database` blocks that the `object: database`
     /// search doesn't enumerate by itself.
     pub async fn list_accessible_pages(
         &self,

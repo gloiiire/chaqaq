@@ -11,21 +11,31 @@ public struct RecentStrip: View {
     let items: [WorkspaceItem]
     let api: PinkhaApi?
     /// Geometry namespace for the doc-open zoom transition. Each
-    /// note card tags itself with `.matchedTransitionSource(...)` so
+    /// leaf card tags itself with `.matchedTransitionSource(...)` so
     /// SwiftUI knows where the destination view should fly out of.
     let zoomNamespace: Namespace.ID
     let onDisappear: () -> Void
-    /// Programmatic-push handler for note items — wired from the
+    /// Programmatic-push handler for leaf items — wired from the
     /// parent so each card can use a `Button` instead of
     /// `NavigationLink`. iOS 26 has a confirmed bug where multiple
     /// `NavigationLink + .contextMenu` rows inside a horizontal
     /// `ScrollView` only register the long-press on the first row.
-    let onOpenNote: (String) -> Void
-    var onRenameNote: ((LeafMetaFfi) -> Void)? = nil
-    var onDeleteNote: ((LeafMetaFfi) -> Void)? = nil
+    let onOpenLeaf: (String) -> Void
+    var onRenameLeaf: ((LeafMetaFfi) -> Void)? = nil
+    var onDeleteLeaf: ((LeafMetaFfi) -> Void)? = nil
     /// Optional handler for "Add to a book" — when nil the menu
     /// item is hidden (e.g. when no DB exists yet).
     var onAddToBook: ((LeafMetaFfi) -> Void)? = nil
+    /// Shelves available as targets in the "Move to shelf…" submenu.
+    /// Empty array hides the submenu entirely.
+    var availableShelves: [ShelfMetaFfi] = []
+    /// Move-to handler — receives the leaf and the target shelf id
+    /// (`nil` for the library root). When this is `nil` the submenu
+    /// is also hidden.
+    var onMoveLeafToShelf: ((LeafMetaFfi, String?) -> Void)? = nil
+    /// Pin / unpin handler — receives the leaf and the desired
+    /// pinned state. `nil` hides the Pin / Unpin entry.
+    var onSetLeafPinned: ((LeafMetaFfi, Bool) -> Void)? = nil
 
     public var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -33,15 +43,23 @@ public struct RecentStrip: View {
                 ForEach(items) { item in
                     if let api {
                         switch item {
-                        case .note(let doc):
+                        case .leaf(let doc):
                             RecentNoteCard(
                                 item: item,
                                 doc: doc,
-                                onOpen: { onOpenNote(doc.id) },
-                                onRename: { onRenameNote?(doc) },
-                                onDelete: { onDeleteNote?(doc) },
+                                onOpen: { onOpenLeaf(doc.id) },
+                                onRename: { onRenameLeaf?(doc) },
+                                onDelete: { onDeleteLeaf?(doc) },
                                 onAddToBook: onAddToBook.map { handler in
                                     { handler(doc) }
+                                },
+                                moveTargets: onMoveLeafToShelf == nil ? [] : availableShelves,
+                                onMoveToShelf: onMoveLeafToShelf.map { handler in
+                                    { shelfId in handler(doc, shelfId) }
+                                },
+                                isPinned: (doc.pinnedAt ?? "").isEmpty == false,
+                                onTogglePin: onSetLeafPinned.map { handler in
+                                    { pinned in handler(doc, pinned) }
                                 }
                             )
                             .matchedTransitionSource(id: doc.id, in: zoomNamespace)
@@ -60,7 +78,7 @@ public struct RecentStrip: View {
                             // `.navigationTransition(.zoom(sourceID:in:))`
                             // so opening a DB from the strip flies
                             // out of the card, same vocabulary as
-                            // notes.
+                            // leaves.
                             .matchedTransitionSource(id: db.id, in: zoomNamespace)
                             .id(db.id)
                         }
@@ -87,6 +105,17 @@ private struct RecentNoteCard: View {
     /// When non-nil, surfaces the "Add to a book" entry between
     /// Rename and Delete in the context menu.
     var onAddToBook: (() -> Void)? = nil
+    /// Shelves listed in the "Move to shelf…" submenu. Empty hides it.
+    var moveTargets: [ShelfMetaFfi] = []
+    /// Move handler — `nil` shelf id means "lift back to library root".
+    /// `nil` callback hides the submenu.
+    var onMoveToShelf: ((String?) -> Void)? = nil
+    /// Current pinned state, drives the menu label (Pin vs Unpin) and
+    /// icon (`pin` vs `pin.slash`).
+    var isPinned: Bool = false
+    /// Toggle pin handler — takes the desired new pinned state.
+    /// `nil` hides the entry.
+    var onTogglePin: ((Bool) -> Void)? = nil
 
     public var body: some View {
         // UIKit-backed context menu — SwiftUI's `.contextMenu` has a
@@ -96,7 +125,7 @@ private struct RecentNoteCard: View {
         // same UX) doesn't have that quirk.
         UIKitContextMenu(
             content: { RecentCard(item: item) },
-            preview: { NoteCardPreview(doc: doc) },
+            preview: { LeafCardPreview(doc: doc) },
             menu: {
                 let rename = UIAction(
                     title: "Rename",
@@ -110,11 +139,37 @@ private struct RecentNoteCard: View {
                     handler: { _ in onDelete() }
                 )
                 var children: [UIMenuElement] = [rename]
+                if let onTogglePin {
+                    children.append(UIAction(
+                        title: isPinned ? "Unpin" : "Pin",
+                        image: UIImage(systemName: isPinned ? "pin.slash" : "pin"),
+                        handler: { _ in onTogglePin(!isPinned) }
+                    ))
+                }
                 if let onAddToBook {
                     children.append(UIAction(
                         title: "Add to a book",
                         image: UIImage(systemName: "tablecells.badge.ellipsis"),
                         handler: { _ in onAddToBook() }
+                    ))
+                }
+                if let onMoveToShelf {
+                    let rootAction = UIAction(
+                        title: "Library root",
+                        image: UIImage(systemName: "books.vertical.fill"),
+                        handler: { _ in onMoveToShelf(nil) }
+                    )
+                    let shelfActions = moveTargets.map { shelf in
+                        UIAction(
+                            title: shelf.name,
+                            image: UIImage(systemName: "books.vertical.fill"),
+                            handler: { _ in onMoveToShelf(shelf.id) }
+                        )
+                    }
+                    children.append(UIMenu(
+                        title: "Move to shelf…",
+                        image: UIImage(systemName: "arrow.uturn.right.circle"),
+                        children: [rootAction] + shelfActions
                     ))
                 }
                 children.append(delete)
@@ -187,7 +242,7 @@ public struct RecentCard: View {
 
     private var coverValue: String? {
         switch item {
-        case .note(let doc):    return doc.cover
+        case .leaf(let doc):    return doc.cover
         case .book(let db): return db.cover
         }
     }
@@ -195,7 +250,7 @@ public struct RecentCard: View {
     @ViewBuilder
     private var itemIcon: some View {
         switch item {
-        case .note(let doc):
+        case .leaf(let doc):
             if let icon = doc.icon, !icon.isEmpty {
                 Text(icon).font(.title2)
             } else {
@@ -224,10 +279,10 @@ public struct RecentCard: View {
 // ── Long-press preview card ───────────────────────────────────────────────────
 
 /// Apple-Music-style floating card shown when the user long-presses
-/// a note row. Larger, more deliberate than the list row — the title
+/// a leaf row. Larger, more deliberate than the list row — the title
 /// reads loud, the icon anchors the eye. Sits over a frosted
 /// background while the contextMenu's actions slide up underneath.
-public struct NoteCardPreview: View {
+public struct LeafCardPreview: View {
     let doc: LeafMetaFfi
 
     private let iconSize: CGFloat = 44
