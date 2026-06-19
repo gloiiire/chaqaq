@@ -16,6 +16,23 @@ pub fn create_book(
     Ok(db)
 }
 
+/// Variant of `create_book` that pins the book's `created_at` to a
+/// specific timestamp (RFC 3339). Used by importers (Notion / Bear /
+/// Craft) so the imported database carries its origin platform's
+/// creation date through to the SQLite row — mirrors the leaf
+/// treatment in [`super::super::use_cases::leaf::create_leaf_with_created_at`].
+pub fn create_book_with_created_at(
+    uow: &dyn UnitOfWork,
+    title: Vec<InlineText>,
+    properties: Vec<crate::domain::book::Property>,
+    created_at: String,
+) -> Result<Book, PinkhaError> {
+    let mut db = Book::new(title, properties);
+    db.created_at = Some(created_at);
+    uow.books().save(&db)?;
+    Ok(db)
+}
+
 /// Loads a full book by ID.
 pub fn get_book(uow: &dyn UnitOfWork, id: Uuid) -> Result<Book, PinkhaError> {
     uow.books().load(id)
@@ -154,6 +171,31 @@ pub fn add_entry_with_leaf(
     let repo = uow.books();
     let mut db = repo.load(book_id)?;
     let mut entry = Entry::with_leaf(values, leaf_id);
+    if let Some(published) = db.source_publish_date(&entry.values) {
+        entry.published_at = published;
+    }
+    db.entries.push(entry.clone());
+    repo.save(&db)?;
+    Ok(entry)
+}
+
+/// Variant of `add_entry_with_leaf` that pins the row's `created_at`
+/// (and `published_at`, when no `published_at_source` is configured)
+/// to a specific timestamp. Used by importers so each entry carries
+/// the origin platform's per-row date instead of the import time —
+/// mirrors `create_leaf_with_created_at` / `create_book_with_created_at`.
+pub fn add_entry_with_leaf_and_created_at(
+    uow: &dyn UnitOfWork,
+    book_id: Uuid,
+    values: HashMap<Uuid, PropertyValue>,
+    leaf_id: Uuid,
+    created_at: String,
+) -> Result<Entry, PinkhaError> {
+    let repo = uow.books();
+    let mut db = repo.load(book_id)?;
+    let mut entry = Entry::with_leaf(values, leaf_id);
+    entry.created_at = created_at.clone();
+    entry.published_at = created_at;
     if let Some(published) = db.source_publish_date(&entry.values) {
         entry.published_at = published;
     }

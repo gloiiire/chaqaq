@@ -52,11 +52,17 @@ impl BookRepository for SqliteBookStore {
 
         let cover = db.cover.clone();
         let icon = db.icon.clone();
+        // `created_at` on the row is set only at the very first INSERT
+        // and frozen on every subsequent UPSERT. Importers can pin the
+        // origin platform's creation timestamp via `db.created_at`
+        // (e.g. Notion's `created_time`) — `None` falls back to `now()`
+        // for native pinkha books.
+        let created_at = db.created_at.clone().unwrap_or_else(|| now.clone());
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             conn.execute(
                 "INSERT INTO books (id, title_text, title_json, cover, icon, updated_at, created_at, data)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
                  ON CONFLICT(id) DO UPDATE SET
                     title_text = excluded.title_text,
                     title_json = excluded.title_json,
@@ -65,7 +71,7 @@ impl BookRepository for SqliteBookStore {
                     updated_at = excluded.updated_at,
                     data       = excluded.data,
                     deleted_at = NULL",
-                params![id, title_text, title_json, cover, icon, now, data],
+                params![id, title_text, title_json, cover, icon, now, created_at, data],
             )
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
             Ok(())
