@@ -24,7 +24,7 @@ public struct EmbedRowView: View {
     public var body: some View {
         Group {
             if let parsed = URL(string: url),
-               parsed.scheme == "pinkha", parsed.host == "doc" {
+               parsed.scheme == "pinkha", parsed.host == "leaf" {
                 internalCard(leafId: String(parsed.path.dropFirst()))
             } else {
                 externalCard
