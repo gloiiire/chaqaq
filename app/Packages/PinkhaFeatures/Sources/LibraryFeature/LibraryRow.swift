@@ -6,22 +6,11 @@ import PinkhaCore
 /// Shared ISO-to-relative-date helper used by `LibraryRow`,
 /// `RecentCard` and `LeafCardPreview`. Kept at file scope so the
 /// UIKit hosting controller (in `UIKitContextMenu`) can reuse it
-/// without instantiating the surrounding struct.
-///
-/// Two parser passes : RFC 3339 admits both `…45.123Z` and `…45Z`
-/// shapes. Native pinkha timestamps from Rust's `chrono::Utc::now()`
-/// carry fractional seconds, but Notion's `created_time` typically
-/// doesn't — without the fallback parser the row renders no date for
-/// Notion-imported leaves with sub-second-truncated timestamps.
+/// without instantiating the surrounding struct. Delegates parsing to
+/// `parsePinkhaDate` so every input shape (full RFC 3339, bare
+/// `yyyy-MM-dd`, Notion-style) is handled the same way everywhere.
 func formattedRelativeDate(_ iso: String) -> String? {
-    guard !iso.isEmpty else { return nil }
-    let withMs = ISO8601DateFormatter()
-    withMs.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    let withoutMs = ISO8601DateFormatter()
-    withoutMs.formatOptions = [.withInternetDateTime]
-    guard let date = withMs.date(from: iso) ?? withoutMs.date(from: iso) else {
-        return nil
-    }
+    guard let date = parsePinkhaDate(iso) else { return nil }
     return date.formatted(.relative(presentation: .named, unitsStyle: .abbreviated))
 }
 
@@ -143,21 +132,8 @@ public struct LibraryRow: View {
 
     /// Row uses the wide units style (e.g. "3 minutes ago") for readability,
     /// in contrast to `formattedRelativeDate` which uses abbreviated.
-    /// Two parser passes : RFC 3339 admits both `…45.123Z` and `…45Z`
-    /// shapes, but `ISO8601DateFormatter` requires picking one per
-    /// instance. `withFractionalSeconds` first (the chrono-side default
-    /// when a timestamp comes from a fresh `Utc::now()`), then a
-    /// fallback without it for Notion-style `created_time` strings that
-    /// drop the trailing milliseconds.
     private func formattedDate(_ iso: String) -> String? {
-        guard !iso.isEmpty else { return nil }
-        let withMs = ISO8601DateFormatter()
-        withMs.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let withoutMs = ISO8601DateFormatter()
-        withoutMs.formatOptions = [.withInternetDateTime]
-        guard let date = withMs.date(from: iso) ?? withoutMs.date(from: iso) else {
-            return nil
-        }
+        guard let date = parsePinkhaDate(iso) else { return nil }
         return date.formatted(.relative(presentation: .named, unitsStyle: .wide))
     }
 }
