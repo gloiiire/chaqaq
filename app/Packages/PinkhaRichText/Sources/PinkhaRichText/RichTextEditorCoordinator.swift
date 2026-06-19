@@ -248,7 +248,7 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
                   in characterRange: NSRange,
                   interaction: UITextItemInteraction) -> Bool {
         guard interaction == .invokeDefaultAction else { return true }
-        if url.scheme == "pinkha", url.host == "doc" {
+        if url.scheme == "pinkha", url.host == "leaf" {
             // Path format: `/{uuid}` — strip the leading slash.
             let uuid = url.path.dropFirst()
             guard !uuid.isEmpty else { return true }
@@ -282,7 +282,7 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
                   primaryActionFor textItem: UITextItem,
                   defaultAction: UIAction) -> UIAction? {
         if case .link(let url) = textItem.content {
-            if url.scheme == "pinkha", url.host == "doc" {
+            if url.scheme == "pinkha", url.host == "leaf" {
                 let uuid = String(url.path.dropFirst())
                 guard !uuid.isEmpty else { return defaultAction }
                 return UIAction { [weak self] _ in
