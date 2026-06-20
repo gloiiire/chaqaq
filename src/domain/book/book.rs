@@ -71,6 +71,14 @@ pub struct Book {
     pub entries: Vec<Entry>,
     /// Named views (filters + sorts + layout).
     pub views: Vec<View>,
+    /// Optional override for the book's `created_at` timestamp at first
+    /// INSERT. Set by importers (Notion / Bear / Craft) so an imported
+    /// book carries its origin platform's creation date through to its
+    /// SQLite row. `None` means the store will fall back to `now()`
+    /// when persisting — after the first INSERT, the SQLite row's
+    /// `created_at` is immutable (mirrors the leaf treatment).
+    #[serde(default)]
+    pub created_at: Option<String>,
 }
 
 impl Book {
@@ -91,6 +99,7 @@ impl Book {
             properties,
             entries: vec![],
             views: vec![default_view],
+            created_at: None,
         }
     }
 

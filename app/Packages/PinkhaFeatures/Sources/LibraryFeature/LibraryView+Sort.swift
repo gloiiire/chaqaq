@@ -107,19 +107,12 @@ public extension LibraryView {
                                      openedAt: [String: Int]) -> [ItemGroup] {
         let now = Date()
         let cal = Calendar.current
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let isoFallback = ISO8601DateFormatter()
-        isoFallback.formatOptions = [.withInternetDateTime]
 
-        func parseDate(_ string: String) -> Date? {
-            iso.date(from: string) ?? isoFallback.date(from: string)
-        }
         func dateFor(_ item: WorkspaceItem) -> Date? {
             switch key {
-            case .createdAt:   return parseDate(item.createdAt)
-            case .updatedAt:   return parseDate(item.updatedAt)
-            case .publishedAt: return parseDate(item.publishedAt)
+            case .createdAt:   return parsePinkhaDate(item.createdAt)
+            case .updatedAt:   return parsePinkhaDate(item.updatedAt)
+            case .publishedAt: return parsePinkhaDate(item.publishedAt)
             case .lastOpened:
                 // Map the MRU index back to a synthetic "recency rank";
                 // we don't have wall-clock timestamps for opens, so all
