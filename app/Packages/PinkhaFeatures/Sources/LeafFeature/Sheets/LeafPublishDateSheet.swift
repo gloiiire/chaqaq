@@ -90,8 +90,5 @@ public struct LeafPublishDateSheet: View {
         }
     }
 
-    private func parseDate(_ iso: String) -> Date? {
-        ISO8601DateFormatter.fullRfc.date(from: iso)
-            ?? ISO8601DateFormatter().date(from: iso)
-    }
+    private func parseDate(_ iso: String) -> Date? { parsePinkhaDate(iso) }
 }

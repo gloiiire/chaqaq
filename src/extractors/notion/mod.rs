@@ -296,14 +296,26 @@ impl Extractor for NotionExtractor {
             all_properties.push(prop);
         }
 
-        // 5. Create the Pinkha book with all properties at once.
+        // 5. Create the Pinkha book with all properties at once. Thread
+        // Notion's `created_time` (when present) so the home view's
+        // sort-by-creation reflects the real Notion date, not the
+        // import time — empty fallback keeps fixtures lean.
         let title_inlines = vec![InlineText {
             content: book_title,
             styles: vec![],
         }];
         let pinkha_book = {
             let uow = NoOpUnitOfWork::with_leaves_books(docs, dbs);
-            book_use_cases::create_book(&uow, title_inlines, all_properties)?
+            if schema.created_time.is_empty() {
+                book_use_cases::create_book(&uow, title_inlines, all_properties)?
+            } else {
+                book_use_cases::create_book_with_created_at(
+                    &uow,
+                    title_inlines,
+                    all_properties,
+                    schema.created_time.clone(),
+                )?
+            }
         };
         let pinkha_book_id = pinkha_book.id;
 
@@ -406,12 +418,22 @@ impl Extractor for NotionExtractor {
                 let page = result?;
                 {
                     let uow = NoOpUnitOfWork::with_leaves_books(docs, dbs);
-                    book_use_cases::add_entry_with_leaf(
-                        &uow,
-                        pinkha_book_id,
-                        page.values,
-                        page.leaf_id,
-                    )?;
+                    if page.created_time.is_empty() {
+                        book_use_cases::add_entry_with_leaf(
+                            &uow,
+                            pinkha_book_id,
+                            page.values,
+                            page.leaf_id,
+                        )?;
+                    } else {
+                        book_use_cases::add_entry_with_leaf_and_created_at(
+                            &uow,
+                            pinkha_book_id,
+                            page.values,
+                            page.leaf_id,
+                            page.created_time.clone(),
+                        )?;
+                    }
                 }
 
                 // The book row contributes the page itself; nested
@@ -508,6 +530,11 @@ struct ImportedPage {
     block_count: usize,
     skipped_count: usize,
     child_leaf_count: usize,
+    /// RFC 3339 timestamp of the Notion page's creation. Threaded so the
+    /// book entry the caller inserts carries the real Notion date
+    /// rather than the import time on both `created_at` and the
+    /// derived `published_at`. Empty when Notion returned no date.
+    created_time: String,
 }
 
 /// Imports one Notion page: creates a Pinkha leaf, fetches its
@@ -656,6 +683,7 @@ async fn import_page(
         block_count,
         skipped_count,
         child_leaf_count,
+        created_time: page.created_time.clone(),
     })
 }
 

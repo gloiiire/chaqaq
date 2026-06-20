@@ -6,12 +6,11 @@ import PinkhaCore
 /// Shared ISO-to-relative-date helper used by `LibraryRow`,
 /// `RecentCard` and `LeafCardPreview`. Kept at file scope so the
 /// UIKit hosting controller (in `UIKitContextMenu`) can reuse it
-/// without instantiating the surrounding struct.
+/// without instantiating the surrounding struct. Delegates parsing to
+/// `parsePinkhaDate` so every input shape (full RFC 3339, bare
+/// `yyyy-MM-dd`, Notion-style) is handled the same way everywhere.
 func formattedRelativeDate(_ iso: String) -> String? {
-    guard !iso.isEmpty else { return nil }
-    let parser = ISO8601DateFormatter()
-    parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    guard let date = parser.date(from: iso) else { return nil }
+    guard let date = parsePinkhaDate(iso) else { return nil }
     return date.formatted(.relative(presentation: .named, unitsStyle: .abbreviated))
 }
 
@@ -134,10 +133,7 @@ public struct LibraryRow: View {
     /// Row uses the wide units style (e.g. "3 minutes ago") for readability,
     /// in contrast to `formattedRelativeDate` which uses abbreviated.
     private func formattedDate(_ iso: String) -> String? {
-        guard !iso.isEmpty else { return nil }
-        let parser = ISO8601DateFormatter()
-        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = parser.date(from: iso) else { return nil }
+        guard let date = parsePinkhaDate(iso) else { return nil }
         return date.formatted(.relative(presentation: .named, unitsStyle: .wide))
     }
 }

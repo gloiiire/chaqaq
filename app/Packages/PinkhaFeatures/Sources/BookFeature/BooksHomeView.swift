@@ -117,10 +117,7 @@ private struct BookRow: View {
     }
 
     private func formattedDate(_ iso: String) -> String? {
-        guard !iso.isEmpty else { return nil }
-        let parser = ISO8601DateFormatter()
-        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = parser.date(from: iso) else { return nil }
+        guard let date = parsePinkhaDate(iso) else { return nil }
         return date.formatted(.relative(presentation: .named, unitsStyle: .wide))
     }
 }
