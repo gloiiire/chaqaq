@@ -103,26 +103,35 @@ public struct ViewFfi: Codable, Identifiable {
     /// renamed via CodingKeys). Drives which view component renders.
     public var type: ViewTypeFfi = .list
     public let sorts: [SortFfi]
+    /// Optional date-grouping config. `nil` = flat rendering.
+    public let dateGrouping: DateGroupingFfi?
 
     enum CodingKeys: String, CodingKey {
         case id, name
         case type = "type_"
         case sorts
+        case dateGrouping = "date_grouping"
     }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id    = try c.decode(String.self, forKey: .id)
-        name  = try c.decode(String.self, forKey: .name)
-        type  = (try? c.decode(ViewTypeFfi.self, forKey: .type)) ?? .list
-        sorts = (try? c.decode([SortFfi].self, forKey: .sorts)) ?? []
+        id           = try c.decode(String.self, forKey: .id)
+        name         = try c.decode(String.self, forKey: .name)
+        type         = (try? c.decode(ViewTypeFfi.self, forKey: .type)) ?? .list
+        sorts        = (try? c.decode([SortFfi].self, forKey: .sorts)) ?? []
+        dateGrouping = try? c.decode(DateGroupingFfi?.self, forKey: .dateGrouping)
     }
 
-    public init(id: String, name: String, type: ViewTypeFfi = .list, sorts: [SortFfi] = []) {
+    public init(id: String,
+                name: String,
+                type: ViewTypeFfi = .list,
+                sorts: [SortFfi] = [],
+                dateGrouping: DateGroupingFfi? = nil) {
         self.id = id
         self.name = name
         self.type = type
         self.sorts = sorts
+        self.dateGrouping = dateGrouping
     }
 }
 

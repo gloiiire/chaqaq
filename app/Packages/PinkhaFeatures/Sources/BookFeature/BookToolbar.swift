@@ -26,6 +26,7 @@ public struct BookToolbarView: View {
 
     @State private var showFilterSheet = false
     @State private var showPropertiesSheet = false
+    @State private var showDateGroupingSheet = false
 
     public var body: some View {
         VStack(spacing: 8) {
@@ -51,6 +52,10 @@ public struct BookToolbarView: View {
         }
         .sheet(isPresented: $showPropertiesSheet) {
             BookPropertiesSheet(vm: vm)
+                .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showDateGroupingSheet) {
+            BookDateGroupingSheet(vm: vm)
                 .presentationDetents([.medium, .large])
         }
     }
@@ -138,6 +143,15 @@ public struct BookToolbarView: View {
                        active: !vm.filters.isEmpty,
                        accessibility: "Filters") {
                 showFilterSheet = true
+            }
+            // Date grouping — distinct from the existing groupBy menu
+            // (which targets Select / Checkbox columns). Highlights
+            // when a config is active so the user can spot it without
+            // opening the sheet.
+            iconButton(systemImage: "calendar",
+                       active: vm.dateGrouping != nil,
+                       accessibility: "Group by date") {
+                showDateGroupingSheet = true
             }
             iconButton(systemImage: "slider.horizontal.3",
                        active: false,

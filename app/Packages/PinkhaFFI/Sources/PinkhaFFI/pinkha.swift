@@ -584,6 +584,14 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func createShelf(name: String, parentId: String?) throws  -> ShelfMetaFfi
     
     /**
+     * Returns the view's entries bucketed by date as a JSON tree of
+     * `DateGroupNode`. Empty array means no date grouping configured.
+     * `override_grouping_json` lets the UI preview a config without
+     * persisting it ; pass empty string to use the view's stored one.
+     */
+    func dateGroupedQueryBookJson(bookId: String, viewId: String, overrideGroupingJson: String) throws  -> String
+    
+    /**
      * Soft-deletes every book. Returns the number deleted.
      */
     func deleteAllBooks() throws  -> UInt32
@@ -934,6 +942,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func setShelvesManualOrder(orderedIds: [String]) throws 
     
     /**
+     * Sets or clears the date-grouping config on a view. Empty string
+     * for `grouping_json` clears it.
+     */
+    func setViewDateGrouping(bookId: String, viewId: String, groupingJson: String) throws 
+    
+    /**
      * Sets the view's sort to the entry-level created_at or published_at.
      * `kind` = "created" or "published". No property_id (the timestamps
      * live on Entry, not on a column).
@@ -1261,6 +1275,23 @@ open func createShelf(name: String, parentId: String?)throws  -> ShelfMetaFfi  {
             self.uniffiCloneHandle(),
         FfiConverterString.lower(name),
         FfiConverterOptionString.lower(parentId),$0
+    )
+})
+}
+    
+    /**
+     * Returns the view's entries bucketed by date as a JSON tree of
+     * `DateGroupNode`. Empty array means no date grouping configured.
+     * `override_grouping_json` lets the UI preview a config without
+     * persisting it ; pass empty string to use the view's stored one.
+     */
+open func dateGroupedQueryBookJson(bookId: String, viewId: String, overrideGroupingJson: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_date_grouped_query_book_json(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(bookId),
+        FfiConverterString.lower(viewId),
+        FfiConverterString.lower(overrideGroupingJson),$0
     )
 })
 }
@@ -2126,6 +2157,20 @@ open func setShelvesManualOrder(orderedIds: [String])throws   {try rustCallWithE
     uniffi_pinkha_fn_method_pinkhaapi_set_shelves_manual_order(
             self.uniffiCloneHandle(),
         FfiConverterSequenceString.lower(orderedIds),$0
+    )
+}
+}
+    
+    /**
+     * Sets or clears the date-grouping config on a view. Empty string
+     * for `grouping_json` clears it.
+     */
+open func setViewDateGrouping(bookId: String, viewId: String, groupingJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_set_view_date_grouping(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(bookId),
+        FfiConverterString.lower(viewId),
+        FfiConverterString.lower(groupingJson),$0
     )
 }
 }
@@ -3387,6 +3432,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_create_shelf() != 54532) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_date_grouped_query_book_json() != 57846) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_all_books() != 63564) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3595,6 +3643,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_shelves_manual_order() != 31436) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_date_grouping() != 54562) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_date_sort() != 19614) {
