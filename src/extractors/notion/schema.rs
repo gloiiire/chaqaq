@@ -197,6 +197,13 @@ pub struct NotionDatabaseSchema {
     #[serde(default)]
     pub icon: Option<NotionPageIcon>,
     pub properties: HashMap<String, NotionPropertyDef>,
+    /// RFC 3339 timestamp of the Notion database's creation. Threaded
+    /// into the imported pinkha book's `created_at` so the Library
+    /// home view's "X days ago" sort reflects the original Notion
+    /// creation date instead of the import time. `#[serde(default)]`
+    /// keeps test fixtures lean.
+    #[serde(default)]
+    pub created_time: String,
 }
 
 impl NotionDatabaseSchema {
