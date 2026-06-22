@@ -1,5 +1,4 @@
 import SwiftUI
-import PinkhaCore
 
 /// User-facing preferences that affect the whole app. Persisted in
 /// `UserDefaults` so they survive a relaunch — small enough that a real
