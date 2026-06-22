@@ -1,7 +1,10 @@
+use pinkha::application::book_repository::BookRepository as _;
 use pinkha::application::book_use_cases::{
-    add_entry, add_view, column_aggregate, create_book, delete_entry, evaluate_rollups,
-    get_book, grouped_query, list_books, query, update_entry,
+    add_entry, add_view, column_aggregate, create_book, date_grouped_query, delete_entry,
+    evaluate_rollups, get_book, grouped_query, list_books, query, set_view_date_grouping,
+    update_entry,
 };
+use pinkha::domain::book::{DateGranularity, DateGrouping, DateGroupingSource};
 use pinkha::domain::book::{
     Aggregate, Filter, FilterCondition, Order, Property, PropertyType, PropertyValue, Sort, View,
     ViewType,
@@ -619,4 +622,115 @@ fn test_tri_manual_then_creation_cas_journal() {
         date_premiere,
         Some(&PropertyValue::Date("2020-05-10".to_string()))
     );
+}
+
+// ── Date grouping ───────────────────────────────────────────────────────────
+
+#[test]
+fn date_grouped_query_returns_empty_when_view_has_no_grouping() {
+    let store = store_temp();
+    let uow = pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store);
+    let db = create_book(&uow, title("DB"), vec![]).unwrap();
+    let nodes = date_grouped_query(&uow, db.id, db.views[0].id, None).unwrap();
+    assert!(nodes.is_empty(), "no grouping configured = empty tree");
+}
+
+#[test]
+fn date_grouped_query_buckets_entries_by_year_via_published_source() {
+    let store = store_temp();
+    let uow = pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store);
+    let title_prop = Property::new("Name", PropertyType::Title);
+    let title_id = title_prop.id;
+    let db = create_book(&uow, title("Journal"), vec![title_prop]).unwrap();
+
+    // Add two entries with distinct published_at dates spanning two years.
+    let mut e_2023 = HashMap::new();
+    e_2023.insert(title_id, PropertyValue::Text("Old".into()));
+    add_entry(&uow, db.id, e_2023).unwrap();
+
+    let mut e_2024 = HashMap::new();
+    e_2024.insert(title_id, PropertyValue::Text("New".into()));
+    add_entry(&uow, db.id, e_2024).unwrap();
+
+    // Patch the entries' published_at by reloading + saving the book.
+    let mut book = get_book(&uow, db.id).unwrap();
+    book.entries[0].published_at = "2023-11-08".into();
+    book.entries[1].published_at = "2024-03-15".into();
+    store.save(&book).unwrap();
+
+    // Configure date grouping on the default view via the use case.
+    set_view_date_grouping(
+        &uow,
+        db.id,
+        db.views[0].id,
+        Some(DateGrouping {
+            source: DateGroupingSource::Published,
+            granularity: DateGranularity::Year,
+            ascending: false,
+        }),
+    )
+    .unwrap();
+
+    let nodes = date_grouped_query(&uow, db.id, db.views[0].id, None).unwrap();
+    assert_eq!(nodes.len(), 2);
+    assert_eq!(nodes[0].label_year, Some(2024)); // newest first
+    assert_eq!(nodes[1].label_year, Some(2023));
+}
+
+#[test]
+fn set_view_date_grouping_clears_existing_config_when_passed_none() {
+    let store = store_temp();
+    let uow = pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store);
+    let db = create_book(&uow, title("DB"), vec![]).unwrap();
+
+    set_view_date_grouping(
+        &uow,
+        db.id,
+        db.views[0].id,
+        Some(DateGrouping {
+            source: DateGroupingSource::Created,
+            granularity: DateGranularity::Year,
+            ascending: false,
+        }),
+    )
+    .unwrap();
+    let reloaded = get_book(&uow, db.id).unwrap();
+    assert!(reloaded.views[0].date_grouping.is_some());
+
+    set_view_date_grouping(&uow, db.id, db.views[0].id, None).unwrap();
+    let cleared = get_book(&uow, db.id).unwrap();
+    assert!(cleared.views[0].date_grouping.is_none());
+}
+
+#[test]
+fn date_grouped_query_with_override_ignores_view_config() {
+    let store = store_temp();
+    let uow = pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store);
+    let title_prop = Property::new("Name", PropertyType::Title);
+    let title_id = title_prop.id;
+    let db = create_book(&uow, title("DB"), vec![title_prop]).unwrap();
+
+    let mut e = HashMap::new();
+    e.insert(title_id, PropertyValue::Text("X".into()));
+    add_entry(&uow, db.id, e).unwrap();
+    let mut book = get_book(&uow, db.id).unwrap();
+    book.entries[0].published_at = "2024-06-15".into();
+    store.save(&book).unwrap();
+
+    // No persisted grouping on the view, but we pass an override.
+    let nodes = date_grouped_query(
+        &uow,
+        db.id,
+        db.views[0].id,
+        Some(DateGrouping {
+            source: DateGroupingSource::Published,
+            granularity: DateGranularity::YearMonth,
+            ascending: true,
+        }),
+    )
+    .unwrap();
+    assert_eq!(nodes.len(), 1);
+    assert_eq!(nodes[0].label_year, Some(2024));
+    assert_eq!(nodes[0].children.len(), 1);
+    assert_eq!(nodes[0].children[0].label_month, Some(6));
 }

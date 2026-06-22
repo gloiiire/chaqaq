@@ -790,4 +790,97 @@ mod tests {
         };
         assert_eq!(node.total_entries(), 3);
     }
+
+    #[test]
+    fn build_date_groups_month_granularity_buckets_by_year_and_month() {
+        let prop = Uuid::new_v4();
+        let db = make_book_with_date_prop(prop);
+        let entries = vec![
+            entry_with_date(prop, "2024-01-15"),
+            entry_with_date(prop, "2024-01-20"),
+            entry_with_date(prop, "2024-03-01"),
+        ];
+        let g = DateGrouping {
+            source: DateGroupingSource::Property(prop),
+            granularity: DateGranularity::Month,
+            ascending: true,
+        };
+        let nodes = build_date_groups(&db, entries, &g);
+        assert_eq!(nodes.len(), 2);
+        // Ascending : January first, then March.
+        assert_eq!(nodes[0].label_year, Some(2024));
+        assert_eq!(nodes[0].label_month, Some(1));
+        assert_eq!(nodes[0].entries.len(), 2);
+        assert_eq!(nodes[1].label_month, Some(3));
+    }
+
+    #[test]
+    fn build_date_groups_day_granularity_buckets_by_exact_day() {
+        let prop = Uuid::new_v4();
+        let db = make_book_with_date_prop(prop);
+        let entries = vec![
+            entry_with_date(prop, "2024-01-15"),
+            entry_with_date(prop, "2024-01-15"),
+            entry_with_date(prop, "2024-01-16"),
+        ];
+        let g = DateGrouping {
+            source: DateGroupingSource::Property(prop),
+            granularity: DateGranularity::Day,
+            ascending: false,
+        };
+        let nodes = build_date_groups(&db, entries, &g);
+        assert_eq!(nodes.len(), 2);
+        // Descending : Jan 16 then Jan 15. The two Jan 15 entries share one
+        // bucket.
+        assert_eq!(nodes[0].label_day, Some(16));
+        assert_eq!(nodes[1].label_day, Some(15));
+        assert_eq!(nodes[1].entries.len(), 2);
+    }
+
+    #[test]
+    fn build_date_groups_uses_created_source() {
+        let prop = Uuid::new_v4();
+        let db = make_book_with_date_prop(prop);
+        // No Date prop value — Created falls back to the entry's
+        // auto-generated created_at (an RFC 3339 timestamp).
+        let entry = Entry::new(HashMap::new());
+        let g = DateGrouping {
+            source: DateGroupingSource::Created,
+            granularity: DateGranularity::Year,
+            ascending: false,
+        };
+        let nodes = build_date_groups(&db, vec![entry], &g);
+        assert_eq!(nodes.len(), 1);
+        // The entry has a current-time `created_at`, so its year is
+        // present and non-`None`. Don't hard-code the year — just
+        // confirm it's a valid bucket and not the No-date sentinel.
+        assert!(nodes[0].label_year.is_some());
+        assert_eq!(nodes[0].entries.len(), 1);
+    }
+
+    #[test]
+    fn build_date_groups_uses_published_source_with_fallback_to_created() {
+        let prop = Uuid::new_v4();
+        let db = make_book_with_date_prop(prop);
+        // Empty published_at -> source path falls through to created_at.
+        let mut entry = Entry::new(HashMap::new());
+        entry.published_at = String::new();
+        let g = DateGrouping {
+            source: DateGroupingSource::Published,
+            granularity: DateGranularity::Year,
+            ascending: false,
+        };
+        let nodes = build_date_groups(&db, vec![entry], &g);
+        assert_eq!(nodes.len(), 1);
+        assert!(nodes[0].label_year.is_some());
+    }
+
+    #[test]
+    fn parse_ymd_rejects_out_of_range_components() {
+        assert_eq!(parse_ymd("2024-00-15"), None); // month 0
+        assert_eq!(parse_ymd("2024-12-32"), None); // day 32
+        assert_eq!(parse_ymd("2024-13-01"), None); // month 13
+        assert_eq!(parse_ymd("short"), None);
+        assert_eq!(parse_ymd("2024_01_15"), None); // wrong sep
+    }
 }
