@@ -7,9 +7,11 @@ name: App Store
 # submitted for review — `upload_to_app_store(submit_for_review: false)`
 # gives you a chance to fill in the release notes / screenshots in ASC
 # before clicking "Submit" by hand.
+# Manual-only for the same reason as testflight.yml — GHA runners
+# don't have Xcode 26 yet. Until they do, App Store builds are
+# produced locally via `bundle exec fastlane ios release` from the
+# master branch. Flip back to `push: [master]` once Xcode 26 lands.
 on:
-  push:
-    branches: [master]
   workflow_dispatch:
 
 concurrency:
