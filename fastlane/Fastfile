@@ -63,7 +63,14 @@ platform :ios do
       api_key: lane_context[SharedValues::APP_STORE_CONNECT_API_KEY],
       initial_build_number: 0,
     ) + 1
-    increment_build_number(build_number: next_number)
+    # `xcodeproj:` is required because the project lives at
+    # `app/Pinkha.xcodeproj`, not at the repo root. Without it
+    # increment_build_number falls back to agvtool which can't
+    # find any .xcodeproj in the cwd and fails.
+    increment_build_number(
+      build_number: next_number,
+      xcodeproj: "app/Pinkha.xcodeproj",
+    )
     next_number
   end
 
