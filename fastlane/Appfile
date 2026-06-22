@@ -1,0 +1,11 @@
+# App identifiers used by every fastlane lane. Hard-coded here rather
+# than read from project.yml because fastlane is invoked before any
+# Xcode generate step, and reading the same value from two places
+# would let them drift silently.
+
+app_identifier("com.gloiiire.pinkha")
+apple_dev_portal_id("ybikouta@icloud.com") # Apple ID email used to sign in
+itunes_connect_id("ybikouta@icloud.com")   # = same address for solo dev
+
+team_id("N49VNC2G57")
+itc_team_id("N49VNC2G57")
