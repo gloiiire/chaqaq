@@ -1,0 +1,21 @@
+# match config — where it stores the signing certs and provisioning
+# profiles, and which app identifier it manages.
+
+# Use the dedicated private repo for cert storage. match handles
+# encryption with MATCH_PASSWORD ; the repo only ever sees ciphertext.
+git_url("https://github.com/pinkha-app/certificates")
+storage_mode("git")
+
+# Align match with GitHub's modern default branch name. Match's own
+# default is still `master` for backwards compat — we override here
+# so the repo's `main` branch (which carries the README created at
+# repo init) is also where the encrypted certs live. Without this,
+# match silently creates a `master` branch alongside `main` and the
+# certs end up on a branch GitHub doesn't show by default.
+git_branch("main")
+
+# Default to App Store distribution. Lanes that want a different type
+# (development, adhoc) pass `type:` explicitly to override.
+type("appstore")
+
+app_identifier(["com.gloiiire.pinkha"])

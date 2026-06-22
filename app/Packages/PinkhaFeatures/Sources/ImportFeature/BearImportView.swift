@@ -101,6 +101,7 @@ public struct BearImportView: View {
                                 .font(.footnote.weight(.semibold))
                         }
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             } header: {

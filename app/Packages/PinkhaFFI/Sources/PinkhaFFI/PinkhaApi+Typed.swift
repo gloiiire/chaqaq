@@ -52,6 +52,47 @@ public extension PinkhaApi {
         let json = try listDeletedEntriesJson(bookId: bookId)
         return try [EntryFfi].decode(fromJson: json)
     }
+
+    /// Returns the view's entries bucketed by date. Empty array means
+    /// the view has no `dateGrouping` configured ; callers should fall
+    /// back to flat rendering. Pass `override` to preview a config
+    /// without persisting it (e.g. from the config sheet).
+    public func dateGroupedQuery(
+        bookId: String,
+        viewId: String,
+        override: DateGroupingFfi? = nil
+    ) throws -> [DateGroupNodeFfi] {
+        let overrideJson: String
+        if let override {
+            let data = try JSONEncoder().encode(override)
+            overrideJson = String(data: data, encoding: .utf8) ?? ""
+        } else {
+            overrideJson = ""
+        }
+        let json = try dateGroupedQueryBookJson(
+            bookId: bookId,
+            viewId: viewId,
+            overrideGroupingJson: overrideJson
+        )
+        return try [DateGroupNodeFfi].decode(fromJson: json)
+    }
+
+    /// Persists a date-grouping config onto a view, or clears it when
+    /// `grouping` is `nil`.
+    public func setViewDateGrouping(
+        bookId: String,
+        viewId: String,
+        grouping: DateGroupingFfi?
+    ) throws {
+        let json: String
+        if let grouping {
+            let data = try JSONEncoder().encode(grouping)
+            json = String(data: data, encoding: .utf8) ?? ""
+        } else {
+            json = ""
+        }
+        try setViewDateGrouping(bookId: bookId, viewId: viewId, groupingJson: json)
+    }
 }
 
 // ── Decode helper ────────────────────────────────────────────────────────────

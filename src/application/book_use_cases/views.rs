@@ -1,6 +1,6 @@
 use crate::application::error::PinkhaError;
 use crate::application::unit_of_work::UnitOfWork;
-use crate::domain::book::{Filter, Order, Sort, SortSource, View};
+use crate::domain::book::{DateGrouping, Filter, Order, Sort, SortSource, View};
 use uuid::Uuid;
 
 /// Adds a new view to the book and persists.
@@ -29,6 +29,27 @@ pub fn update_view(
         .ok_or(PinkhaError::NotFound(view_id))?;
     view.filters = filters;
     view.sorts = sorts;
+    repo.save(&db)
+}
+
+/// Replaces the date-grouping config on a view. `None` clears it
+/// (the view falls back to flat rendering). Mirror of [`update_view`]
+/// for the grouping axis — kept small so the UI can toggle the feature
+/// without re-sending the unrelated filters/sorts.
+pub fn set_view_date_grouping(
+    uow: &dyn UnitOfWork,
+    book_id: Uuid,
+    view_id: Uuid,
+    grouping: Option<DateGrouping>,
+) -> Result<(), PinkhaError> {
+    let repo = uow.books();
+    let mut db = repo.load(book_id)?;
+    let view = db
+        .views
+        .iter_mut()
+        .find(|v| v.id == view_id)
+        .ok_or(PinkhaError::NotFound(view_id))?;
+    view.date_grouping = grouping;
     repo.save(&db)
 }
 

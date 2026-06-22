@@ -318,6 +318,11 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_create_leaf_in_book(uint64_t ptr, R
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_create_shelf(uint64_t ptr, RustBuffer name, RustBuffer parent_id, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DATE_GROUPED_QUERY_BOOK_JSON
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DATE_GROUPED_QUERY_BOOK_JSON
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_date_grouped_query_book_json(uint64_t ptr, RustBuffer book_id, RustBuffer view_id, RustBuffer override_grouping_json, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_ALL_BOOKS
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_ALL_BOOKS
 uint32_t uniffi_pinkha_fn_method_pinkhaapi_delete_all_books(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -666,6 +671,11 @@ uint32_t uniffi_pinkha_fn_method_pinkhaapi_set_published_at_source(uint64_t ptr,
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_SHELVES_MANUAL_ORDER
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_SHELVES_MANUAL_ORDER
 void uniffi_pinkha_fn_method_pinkhaapi_set_shelves_manual_order(uint64_t ptr, RustBuffer ordered_ids, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_VIEW_DATE_GROUPING
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_VIEW_DATE_GROUPING
+void uniffi_pinkha_fn_method_pinkhaapi_set_view_date_grouping(uint64_t ptr, RustBuffer book_id, RustBuffer view_id, RustBuffer grouping_json, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_VIEW_DATE_SORT
@@ -1110,6 +1120,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_create_shelf(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DATE_GROUPED_QUERY_BOOK_JSON
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DATE_GROUPED_QUERY_BOOK_JSON
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_date_grouped_query_book_json(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ALL_BOOKS
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ALL_BOOKS
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_all_books(void
@@ -1527,6 +1543,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_published_at_source(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_SHELVES_MANUAL_ORDER
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_SHELVES_MANUAL_ORDER
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_shelves_manual_order(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_VIEW_DATE_GROUPING
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_VIEW_DATE_GROUPING
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_view_date_grouping(void
     
 );
 #endif

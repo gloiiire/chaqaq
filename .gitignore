@@ -29,3 +29,22 @@ app/Config/Secrets.xcconfig
 
 # SwiftPM build cache (per-package)
 **/.build/
+
+# ── fastlane / CD ────────────────────────────────────────────────────────────
+# Secrets and build artefacts produced by fastlane lanes. The
+# template `fastlane/.env.example` IS committed ; the populated
+# `fastlane/.env` MUST NOT leak (it carries the .p8 content +
+# MATCH_PASSWORD).
+fastlane/.env
+fastlane/.env.*
+!fastlane/.env.example
+
+# Build outputs from `build_app` action.
+/build/
+*.ipa
+*.dSYM.zip
+*.app.dSYM.zip
+
+# fastlane runtime cruft : logs and reports it drops in the repo root.
+fastlane/report.xml
+fastlane/README.md

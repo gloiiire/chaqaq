@@ -1,0 +1,101 @@
+name: TestFlight
+
+# ── Triggers ─────────────────────────────────────────────────────────────────
+#
+# Auto-run on every push to `staging` — the source of truth for beta
+# builds. `workflow_dispatch` exposes a manual "Run workflow" button in
+# the GitHub Actions UI for ad-hoc re-uploads (e.g. re-running after a
+# transient ASC outage without having to push a no-op commit).
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+# ── Concurrency ──────────────────────────────────────────────────────────────
+#
+# Cancel any in-flight TestFlight build when a newer commit lands on
+# staging. Two parallel uploads would race for the next build number
+# (latest_testflight + 1) and the loser would get rejected by ASC.
+concurrency:
+  group: testflight
+  cancel-in-progress: true
+
+jobs:
+  testflight:
+    # macOS is mandatory : xcodebuild + signing only work on Apple's
+    # toolchain. `macos-14` ships Xcode 16 by default — fastlane picks
+    # it up automatically.
+    runs-on: macos-14
+
+    # 30 min hard ceiling. A normal build finishes in ~15 min ; past
+    # 30 min something is wedged and re-trying is cheaper than waiting.
+    timeout-minutes: 30
+
+    steps:
+      # 1. Pull the code from the staging branch.
+      - name: Checkout source
+        uses: actions/checkout@v4
+        # Fetch full history so `git describe` / changelog helpers can
+        # see the commits, not just the latest one.
+        with:
+          fetch-depth: 0
+
+      # 2. Pin the Xcode version. The macos-14 runner has several
+      #    Xcodes installed ; this picks the one matching our minimum
+      #    iOS SDK. Drop `xcode-version` to use whatever's default.
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      # 3. Ruby + Bundler. `bundler-cache: true` caches the gems
+      #    install between runs so we don't re-download fastlane each
+      #    time (saves ~1 minute per build).
+      - name: Setup Ruby + bundler cache
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      # 4. The actual build + upload. Every ENV here mirrors what
+      #    `fastlane/.env` carries locally — the lane code itself is
+      #    environment-agnostic.
+      - name: Build and upload to TestFlight
+        env:
+          # `ensure_git_branch` would fail on GitHub Actions because
+          # the checkout is in detached-HEAD state, not on a named
+          # branch. The lane respects this opt-out env var.
+          SKIP_BRANCH_CHECK: "true"
+
+          APP_STORE_CONNECT_API_KEY_ID:      ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID:   ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+          APP_STORE_CONNECT_API_KEY_BASE64:  "true"
+
+          MATCH_PASSWORD:                ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+
+          # fastlane sometimes prompts for the keychain password ;
+          # we feed the runner's default to skip the interactive step.
+          # On macos-14 runners the default keychain has no password
+          # so the empty string is correct.
+          MATCH_KEYCHAIN_NAME:     "fastlane_keychain"
+          MATCH_KEYCHAIN_PASSWORD: ""
+
+          # Silence fastlane's metrics opt-in dialog on CI.
+          FASTLANE_SKIP_UPDATE_CHECK: "true"
+          FASTLANE_HIDE_CHANGELOG:    "true"
+        run: bundle exec fastlane ios beta
+
+      # 5. Upload the .ipa as a workflow artifact for inspection /
+      #    re-upload, kept 7 days. Convenient when ASC drops a build.
+      - name: Archive build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testflight-build
+          path: |
+            build/Pinkha.ipa
+            build/*.dSYM.zip
+          retention-days: 7
+          if-no-files-found: ignore

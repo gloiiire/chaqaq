@@ -408,6 +408,60 @@ impl PinkhaApi {
         to_json(&groups)
     }
 
+    /// Returns the view's entries bucketed by date as a JSON array of
+    /// `DateGroupNode`. Empty JSON array `[]` means the view has no
+    /// date grouping configured ; the Swift side then falls back to
+    /// flat rendering. `override_grouping_json` lets a UI preview a
+    /// config without persisting it ; pass empty string to use the
+    /// view's stored config.
+    pub fn date_grouped_query_book_json(
+        &self,
+        book_id: String,
+        view_id: String,
+        override_grouping_json: String,
+    ) -> Result<String, PinkhaError> {
+        let book_uuid = parse_uuid(&book_id)?;
+        let view_uuid = parse_uuid(&view_id)?;
+        let override_grouping = if override_grouping_json.is_empty() {
+            None
+        } else {
+            Some(
+                serde_json::from_str(&override_grouping_json)
+                    .map_err(|e| PinkhaError::InvalidOperation { detail: e.to_string() })?,
+            )
+        };
+        let nodes = book_use_cases::date_grouped_query(
+            &self.uow(),
+            book_uuid,
+            view_uuid,
+            override_grouping,
+        )
+        .map_err(PinkhaError::from)?;
+        to_json(&nodes)
+    }
+
+    /// Persists a date-grouping config onto a view. Pass empty string
+    /// for `grouping_json` to clear it (the view reverts to flat).
+    pub fn set_view_date_grouping(
+        &self,
+        book_id: String,
+        view_id: String,
+        grouping_json: String,
+    ) -> Result<(), PinkhaError> {
+        let book_uuid = parse_uuid(&book_id)?;
+        let view_uuid = parse_uuid(&view_id)?;
+        let grouping = if grouping_json.is_empty() {
+            None
+        } else {
+            Some(
+                serde_json::from_str(&grouping_json)
+                    .map_err(|e| PinkhaError::InvalidOperation { detail: e.to_string() })?,
+            )
+        };
+        book_use_cases::set_view_date_grouping(&self.uow(), book_uuid, view_uuid, grouping)
+            .map_err(PinkhaError::from)
+    }
+
     /// Computes a column aggregate and returns the result as a JSON-encoded
     /// [`PropertyValue`].
     pub fn column_aggregate_book_json(
