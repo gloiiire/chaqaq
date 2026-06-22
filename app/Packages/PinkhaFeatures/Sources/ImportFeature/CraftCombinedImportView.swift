@@ -117,6 +117,7 @@ public struct CraftCombinedImportView: View {
                                 .font(.footnote.weight(.semibold))
                         }
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             } header: {
@@ -148,6 +149,7 @@ public struct CraftCombinedImportView: View {
                                 .font(.footnote.weight(.semibold))
                         }
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             } header: {

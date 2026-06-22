@@ -3,15 +3,6 @@ import PinkhaFFI
 import PinkhaCore
 import LeafFeature
 
-// Trivial Int sort helper used by `sortNodesChronologically` below.
-// Avoids the verbosity of writing the same ternary three times.
-private extension Int {
-    func compared(to other: Int) -> Int {
-        if self < other { return -1 }
-        if self > other { return 1 }
-        return 0
-    }
-}
 
 // ── Book view model ───────────────────────────────────────────────────────
 //
@@ -531,53 +522,49 @@ public final class BookViewModel {
 
     /// Pure helper — kept static so it's trivially unit-testable from
     /// outside the VM with a custom entry list.
+    ///
+    /// Strategy : pre-sort entries chronologically (in the user's
+    /// `ascending` direction), then walk the sorted list to build the
+    /// tree incrementally. We deliberately avoid any dictionary
+    /// iteration during the tree build because Swift's `Dictionary`
+    /// iteration order is hash-based — feeding it bucketed entries
+    /// shuffles their visual order between visits whenever the
+    /// underlying `entries` array changes (e.g. after opening a row
+    /// and coming back). Walking the pre-sorted list and appending
+    /// into the right node guarantees the same input ALWAYS yields
+    /// the same tree.
     static func buildDateGroups(_ entries: [EntryFfi],
                                 properties: [PropertyFfi],
                                 config g: DateGroupingFfi) -> [DateGroupNodeFfi] {
-        // Group entries by their (year, month, day) extracted from the
-        // configured source. `nil` key = "No date" bucket.
-        var buckets: [DateBucketKey: [EntryFfi]] = [:]
-        for entry in entries {
-            let ymd = entryYmd(entry: entry, source: g.source, properties: properties)
-            buckets[DateBucketKey(ymd: ymd), default: []].append(entry)
+        // Resolve ymd once per entry so the sort comparator and the
+        // build loop share the same lookup.
+        let withYmd: [(EntryFfi, (Int, Int, Int)?)] = entries.map {
+            ($0, entryYmd(entry: $0, source: g.source, properties: properties))
         }
 
-        var nodes: [DateGroupNodeFfi]
+        // Pre-sort. "No date" entries sink to the bottom regardless
+        // of direction so the missing-date bucket consistently lives
+        // at the end of the rendered list.
+        let sorted = withYmd.sorted { a, b in
+            switch (a.1, b.1) {
+            case (nil, nil): return false
+            case (nil, _):   return false  // a sinks → b first
+            case (_, nil):   return true   // b sinks → a first
+            case let (lhs?, rhs?):
+                if lhs == rhs { return false }
+                return g.ascending ? (lhs < rhs) : (lhs > rhs)
+            }
+        }
+
         switch g.granularity {
-        case .year:
-            nodes = collapseByYear(buckets)
-        case .month:
-            nodes = collapseByMonth(buckets)
-        case .day:
-            nodes = collapseByDay(buckets)
-        case .yearMonth:
-            nodes = collapseByYearThenMonth(buckets)
+        case .year:      return buildFlat(sorted, key: .year)
+        case .month:     return buildFlat(sorted, key: .month)
+        case .day:       return buildFlat(sorted, key: .day)
+        case .yearMonth: return buildYearMonth(sorted)
         }
-
-        sortNodesChronologically(&nodes, ascending: g.ascending)
-        for i in nodes.indices where !nodes[i].children.isEmpty {
-            sortNodesChronologically(&nodes[i].children, ascending: g.ascending)
-        }
-        return nodes
     }
 
     // ── Date grouping helpers ────────────────────────────────────────────
-
-    private struct DateBucketKey: Hashable {
-        let ymd: (Int, Int, Int)?
-        init(ymd: (Int, Int, Int)?) { self.ymd = ymd }
-        static func == (a: DateBucketKey, b: DateBucketKey) -> Bool {
-            switch (a.ymd, b.ymd) {
-            case (nil, nil): return true
-            case let (lhs?, rhs?): return lhs == rhs
-            default: return false
-            }
-        }
-        func hash(into hasher: inout Hasher) {
-            if let ymd { hasher.combine(0); hasher.combine(ymd.0); hasher.combine(ymd.1); hasher.combine(ymd.2) }
-            else       { hasher.combine(1) }
-        }
-    }
 
     private static func entryYmd(entry: EntryFfi,
                                  source: DateGroupingSourceFfi,
@@ -617,97 +604,86 @@ public final class BookViewModel {
         return (y, m, d)
     }
 
-    private static func collapseByYear(_ buckets: [DateBucketKey: [EntryFfi]]) -> [DateGroupNodeFfi] {
-        var years: [Int?: [EntryFfi]] = [:]
-        for (k, v) in buckets {
-            let year = k.ymd.map { $0.0 }
-            years[year, default: []].append(contentsOf: v)
-        }
-        return years.map {
-            DateGroupNodeFfi(
-                labelYear: $0.key,
-                labelMonth: nil,
-                labelDay: nil,
-                entries: $0.value,
-                children: []
-            )
-        }
-    }
+    private enum FlatKeyKind { case year, month, day }
 
-    private static func collapseByMonth(_ buckets: [DateBucketKey: [EntryFfi]]) -> [DateGroupNodeFfi] {
-        struct YM: Hashable { let y: Int?; let m: Int? }
-        var months: [YM: [EntryFfi]] = [:]
-        for (k, v) in buckets {
-            let key = YM(y: k.ymd.map { $0.0 }, m: k.ymd.map { $0.1 })
-            months[key, default: []].append(contentsOf: v)
-        }
-        return months.map {
-            DateGroupNodeFfi(
-                labelYear: $0.key.y,
-                labelMonth: $0.key.m,
-                labelDay: nil,
-                entries: $0.value,
-                children: []
-            )
-        }
-    }
-
-    private static func collapseByDay(_ buckets: [DateBucketKey: [EntryFfi]]) -> [DateGroupNodeFfi] {
-        buckets.map {
-            DateGroupNodeFfi(
-                labelYear: $0.key.ymd.map { $0.0 },
-                labelMonth: $0.key.ymd.map { $0.1 },
-                labelDay: $0.key.ymd.map { $0.2 },
-                entries: $0.value,
-                children: []
-            )
-        }
-    }
-
-    private static func collapseByYearThenMonth(_ buckets: [DateBucketKey: [EntryFfi]]) -> [DateGroupNodeFfi] {
-        var tree: [Int?: [Int?: [EntryFfi]]] = [:]
-        for (k, v) in buckets {
-            let y = k.ymd.map { $0.0 }
-            let m = k.ymd.map { $0.1 }
-            tree[y, default: [:]][m, default: []].append(contentsOf: v)
-        }
-        return tree.map { (year, months) in
-            var children = months.map { (m, entries) in
-                DateGroupNodeFfi(
+    /// Single-pass build for the flat granularities (Year / Month /
+    /// Day). Each unique `ymd`-derived key gets one node ; entries
+    /// land in their existing node so we never re-iterate a dict.
+    private static func buildFlat(_ sorted: [(EntryFfi, (Int, Int, Int)?)],
+                                  key kind: FlatKeyKind) -> [DateGroupNodeFfi] {
+        var nodes: [DateGroupNodeFfi] = []
+        // Index lookup keeps the loop O(n) ; the array is the source
+        // of truth for both order and content.
+        var indexByKey: [String: Int] = [:]
+        for (entry, ymd) in sorted {
+            let (year, month, day) = decompose(ymd, kind: kind)
+            let key = flatKey(year, month, day)
+            if let i = indexByKey[key] {
+                nodes[i].entries.append(entry)
+            } else {
+                nodes.append(DateGroupNodeFfi(
                     labelYear: year,
-                    labelMonth: m,
-                    labelDay: nil,
-                    entries: entries,
+                    labelMonth: month,
+                    labelDay: day,
+                    entries: [entry],
                     children: []
-                )
+                ))
+                indexByKey[key] = nodes.count - 1
             }
-            children.sort { ($0.labelMonth ?? 0) < ($1.labelMonth ?? 0) }
-            return DateGroupNodeFfi(
-                labelYear: year,
-                labelMonth: nil,
-                labelDay: nil,
-                entries: [],
-                children: children
-            )
+        }
+        return nodes
+    }
+
+    /// Two-level build for the hierarchical `yearMonth` granularity.
+    /// Same trick as `buildFlat` ; we walk the sorted list once,
+    /// finding-or-creating the year node, then the month child.
+    private static func buildYearMonth(_ sorted: [(EntryFfi, (Int, Int, Int)?)]) -> [DateGroupNodeFfi] {
+        var years: [DateGroupNodeFfi] = []
+        var yearIndex: [String: Int] = [:]
+        for (entry, ymd) in sorted {
+            let year = ymd.map { $0.0 }
+            let month = ymd.map { $0.1 }
+            let yKey = year.map(String.init) ?? "ND"
+            let yi: Int
+            if let existing = yearIndex[yKey] {
+                yi = existing
+            } else {
+                years.append(DateGroupNodeFfi(
+                    labelYear: year,
+                    labelMonth: nil,
+                    labelDay: nil,
+                    entries: [],
+                    children: []
+                ))
+                yi = years.count - 1
+                yearIndex[yKey] = yi
+            }
+            if let mi = years[yi].children.firstIndex(where: { $0.labelMonth == month }) {
+                years[yi].children[mi].entries.append(entry)
+            } else {
+                years[yi].children.append(DateGroupNodeFfi(
+                    labelYear: year,
+                    labelMonth: month,
+                    labelDay: nil,
+                    entries: [entry],
+                    children: []
+                ))
+            }
+        }
+        return years
+    }
+
+    private static func decompose(_ ymd: (Int, Int, Int)?,
+                                  kind: FlatKeyKind) -> (Int?, Int?, Int?) {
+        switch kind {
+        case .year:  return (ymd.map { $0.0 }, nil, nil)
+        case .month: return (ymd.map { $0.0 }, ymd.map { $0.1 }, nil)
+        case .day:   return (ymd.map { $0.0 }, ymd.map { $0.1 }, ymd.map { $0.2 })
         }
     }
 
-    private static func sortNodesChronologically(_ nodes: inout [DateGroupNodeFfi],
-                                                 ascending: Bool) {
-        nodes.sort { a, b in
-            // "No date" always sinks to the bottom regardless of direction.
-            switch (a.labelYear, b.labelYear) {
-            case (nil, nil): return false
-            case (nil, _):   return false  // a sinks → b first
-            case (_, nil):   return true   // b sinks → a first
-            case let (ya?, yb?):
-                let primary = ya.compared(to: yb)
-                let secondary = (a.labelMonth ?? 0).compared(to: b.labelMonth ?? 0)
-                let tertiary  = (a.labelDay ?? 0).compared(to: b.labelDay ?? 0)
-                let order = primary != 0 ? primary : (secondary != 0 ? secondary : tertiary)
-                return ascending ? order < 0 : order > 0
-            }
-        }
+    private static func flatKey(_ y: Int?, _ m: Int?, _ d: Int?) -> String {
+        "\(y.map(String.init) ?? "ND")/\(m.map(String.init) ?? "-")/\(d.map(String.init) ?? "-")"
     }
 
     /// `[(groupTitle, entriesInGroup)]` for the active view. With no

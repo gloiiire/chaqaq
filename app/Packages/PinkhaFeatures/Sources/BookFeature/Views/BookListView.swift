@@ -152,11 +152,18 @@ private struct DateGroupHeader: View {
                     )
                 Spacer(minLength: 0)
             }
+            // Padding moved inside the label + contentShape on the
+            // HStack so the whole row width — including the leading
+            // indent and the empty space pushed by the trailing
+            // Spacer — is tappable. Padding outside the Button used
+            // to leave a dead zone on the indent and the chevron's
+            // right side.
+            .padding(.leading, CGFloat(indent) * 18 + 18)
+            .padding(.trailing, 18)
+            .padding(.vertical, indent == 0 ? 8 : 4)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.leading, CGFloat(indent) * 18 + 18)
-        .padding(.trailing, 18)
-        .padding(.vertical, indent == 0 ? 8 : 4)
         .animation(.easeOut(duration: 0.18), value: collapsed)
     }
 }
@@ -284,6 +291,12 @@ private struct ListRow: View {
                     onDisappear: onDisappear
                 )) {
                     content
+                        // `NavigationLink` in a `LazyVStack` (vs a
+                        // `List`) hit-tests against its label's
+                        // rendered pixels only, so the empty padding
+                        // and the right-side Spacer stay dead. Force
+                        // the whole row rectangle to register taps.
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             } else {
@@ -395,18 +408,13 @@ private struct ListRow: View {
         return entry.values[titleProp.id]?.displayText ?? ""
     }
 
+    /// Stacked metadata under the title : chips on top, then date.
+    /// Each row is independent so a leaf with both shows both — the
+    /// previous if/else hid the date whenever any chip was present.
     @ViewBuilder
     private var metadata: some View {
         let chips = inlineChips
-        if chips.isEmpty {
-            // No chips → show date / first text fallback if present.
-            if let line = firstTextValue, !line.isEmpty {
-                Text(line)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        } else {
+        if !chips.isEmpty {
             HStack(spacing: 6) {
                 ForEach(Array(chips.enumerated()), id: \.offset) { _, chip in
                     Text(chip.label)
@@ -421,6 +429,28 @@ private struct ListRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        if let line = dateLine, !line.isEmpty {
+            Text(line)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+    }
+
+    /// Resolves the date displayed at the bottom of the row.
+    /// Priority : first Date property with a value, else the entry's
+    /// `effectivePublishedAt` (always present, defaults to created_at)
+    /// so every row carries a date even when no Date column exists.
+    private var dateLine: String? {
+        for prop in properties {
+            if case .date = prop.propertyType,
+               case .date(let d) = entry.values[prop.id] ?? .empty,
+               !d.isEmpty {
+                return Self.friendlyDate(d)
+            }
+        }
+        let publish = entry.effectivePublishedAt
+        return publish.isEmpty ? nil : Self.friendlyDate(publish)
     }
 
     /// Chips harvested from the entry's multi-select properties — first
@@ -446,24 +476,7 @@ private struct ListRow: View {
         return out
     }
 
-    private var firstTextValue: String? {
-        for prop in properties {
-            if case .title = prop.propertyType { continue }
-            if case .text = prop.propertyType,
-               case .text(let s) = entry.values[prop.id] ?? .empty,
-               !s.isEmpty {
-                return s
-            }
-            if case .date = prop.propertyType,
-               case .date(let d) = entry.values[prop.id] ?? .empty,
-               !d.isEmpty {
-                return Self.friendlyDate(d)
-            }
-        }
-        return nil
-    }
-
-    /// Turns a raw ISO 8601 timestamp into "Wed, Nov 29, 2024" — the
+/// Turns a raw ISO 8601 timestamp into "Wed, Nov 29, 2024" — the
     /// 24-character `2024-11-29T17:37:00.000Z` string looks scary in
     /// a list row, even when it's correct. Falls back to the original
     /// string if parsing fails so we never lose information.
