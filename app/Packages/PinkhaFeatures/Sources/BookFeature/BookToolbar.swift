@@ -26,6 +26,7 @@ public struct BookToolbarView: View {
 
     @State private var showFilterSheet = false
     @State private var showPropertiesSheet = false
+    @State private var showDateGroupingSheet = false
 
     public var body: some View {
         VStack(spacing: 8) {
@@ -51,6 +52,10 @@ public struct BookToolbarView: View {
         }
         .sheet(isPresented: $showPropertiesSheet) {
             BookPropertiesSheet(vm: vm)
+                .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showDateGroupingSheet) {
+            BookDateGroupingSheet(vm: vm)
                 .presentationDetents([.medium, .large])
         }
     }
@@ -138,6 +143,16 @@ public struct BookToolbarView: View {
                        active: !vm.filters.isEmpty,
                        accessibility: "Filters") {
                 showFilterSheet = true
+            }
+            // Date grouping — distinct from the existing groupBy menu
+            // (which targets Select / Checkbox columns). Mirrors the
+            // sort menu's accent-when-active pattern so the user can
+            // spot a configured grouping without opening the sheet.
+            iconButton(systemImage: "calendar",
+                       active: vm.dateGrouping != nil,
+                       accessibility: "Group by date",
+                       activeColor: settings.accentColor) {
+                showDateGroupingSheet = true
             }
             iconButton(systemImage: "slider.horizontal.3",
                        active: false,
@@ -236,16 +251,22 @@ public struct BookToolbarView: View {
         return base.withTintColor(color, renderingMode: .alwaysOriginal)
     }
 
+    /// Shared toolbar icon button. `activeColor` overrides the colour
+    /// used when `active == true` — defaults to `.primary` (the search /
+    /// filter pattern) ; pass `settings.accentColor` to mirror the
+    /// sort menu's behaviour for stateful controls the user toggled
+    /// on (e.g. an active date grouping).
     private func iconButton(
         systemImage: String,
         active: Bool,
         accessibility: String,
+        activeColor: Color = .primary,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.body.weight(.semibold))
-                .foregroundStyle(active ? .primary : .secondary)
+                .foregroundStyle(active ? AnyShapeStyle(activeColor) : AnyShapeStyle(.secondary))
                 .frame(width: 38, height: 38)
                 .contentShape(Rectangle())
         }

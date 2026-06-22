@@ -94,6 +94,7 @@ public struct CraftTextBundleImportView: View {
                                 .font(.footnote.weight(.semibold))
                         }
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             } header: {

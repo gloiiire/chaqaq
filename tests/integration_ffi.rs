@@ -1922,3 +1922,123 @@ fn locked_book_rejects_title_and_description_edits() {
         .unwrap();
     assert!(a.get_book_json(db).unwrap().contains("New title"));
 }
+
+// ── Date grouping FFI ───────────────────────────────────────────────────────
+
+fn make_date_grouping_json(source: &str, granularity: &str, ascending: bool) -> String {
+    let source_value = match source {
+        "Created" | "Published" => json!(source),
+        prop_id => json!({"Property": prop_id}),
+    };
+    json!({
+        "source": source_value,
+        "granularity": granularity,
+        "ascending": ascending,
+    })
+    .to_string()
+}
+
+#[test]
+fn date_grouped_query_returns_empty_array_when_no_grouping() {
+    let a = api();
+    let db = a.create_book("DB".to_string()).unwrap();
+    let (_, view_json) = make_view("V");
+    let view = a.add_view(db.clone(), view_json).unwrap();
+    let json = a
+        .date_grouped_query_book_json(db, view, String::new())
+        .unwrap();
+    assert_eq!(json, "[]");
+}
+
+#[test]
+fn date_grouped_query_with_override_returns_tree() {
+    let a = api();
+    let db = a.create_book("DB".to_string()).unwrap();
+    let (_, view_json) = make_view("V");
+    let view = a.add_view(db.clone(), view_json).unwrap();
+    a.add_entry(db.clone(), "{}".to_string()).unwrap();
+
+    let override_json = make_date_grouping_json("Created", "Year", false);
+    let json = a
+        .date_grouped_query_book_json(db, view, override_json)
+        .unwrap();
+    assert!(json.starts_with('['));
+    assert!(json.contains("label_year"));
+}
+
+#[test]
+fn date_grouped_query_with_malformed_override_fails() {
+    let a = api();
+    let db = a.create_book("DB".to_string()).unwrap();
+    let (_, view_json) = make_view("V");
+    let view = a.add_view(db.clone(), view_json).unwrap();
+    let err = a
+        .date_grouped_query_book_json(db, view, "{not json".to_string())
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+#[test]
+fn date_grouped_query_with_invalid_uuid_fails() {
+    let a = api();
+    let err = a
+        .date_grouped_query_book_json(
+            "not-uuid".to_string(),
+            Uuid::new_v4().to_string(),
+            String::new(),
+        )
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+#[test]
+fn set_view_date_grouping_persists_then_clears() {
+    let a = api();
+    let db = a.create_book("DB".to_string()).unwrap();
+    let (_, view_json) = make_view("V");
+    let view = a.add_view(db.clone(), view_json).unwrap();
+
+    // Setting a config makes date_grouped_query return a non-empty tree
+    // for any entry that exists.
+    a.add_entry(db.clone(), "{}".to_string()).unwrap();
+    let grouping = make_date_grouping_json("Created", "Year", false);
+    a.set_view_date_grouping(db.clone(), view.clone(), grouping)
+        .unwrap();
+    let json = a
+        .date_grouped_query_book_json(db.clone(), view.clone(), String::new())
+        .unwrap();
+    assert!(json.contains("label_year"));
+
+    // Clearing it returns empty.
+    a.set_view_date_grouping(db.clone(), view.clone(), String::new())
+        .unwrap();
+    let cleared = a
+        .date_grouped_query_book_json(db, view, String::new())
+        .unwrap();
+    assert_eq!(cleared, "[]");
+}
+
+#[test]
+fn set_view_date_grouping_with_malformed_json_fails() {
+    let a = api();
+    let db = a.create_book("DB".to_string()).unwrap();
+    let (_, view_json) = make_view("V");
+    let view = a.add_view(db.clone(), view_json).unwrap();
+    let err = a
+        .set_view_date_grouping(db, view, "{bad".to_string())
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+#[test]
+fn set_view_date_grouping_with_invalid_uuid_fails() {
+    let a = api();
+    let err = a
+        .set_view_date_grouping(
+            "nope".to_string(),
+            Uuid::new_v4().to_string(),
+            String::new(),
+        )
+        .unwrap_err();
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}

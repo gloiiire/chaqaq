@@ -22,44 +22,201 @@ public struct BookListView: View {
 
     public var body: some View {
         LazyVStack(alignment: .leading, spacing: 8) {
-            ForEach(vm.groupedRows, id: \.title) { group in
-                if vm.groupByPropertyId != nil {
-                    BookGroupHeader(
-                        title: group.title,
-                        count: group.entries.count,
-                        collapsed: vm.isGroupCollapsed(group.title),
-                        onToggle: { vm.toggleGroup(group.title) },
-                        onAdd: { vm.addEntry(forGroup: group.title) }
-                    )
-                }
-                if !vm.isGroupCollapsed(group.title) {
-                    ForEach(group.entries) { entry in
-                        ListRow(
-                            entry: entry,
-                            properties: vm.properties,
-                            leafId: vm.leafId(forEntryId: entry.id),
-                            icon: vm.iconForEntry(entry),
-                            api: api,
-                            onDelete: { vm.deleteEntry(id: entry.id) },
-                            onSetPublishDate: { iso in
-                                vm.updateEntryPublishedAt(entryId: entry.id, isoDate: iso)
-                            },
-                            onDisappear: onDisappear
-                        )
-                        // Card-style background per row — same vocabulary
-                        // as the LibraryView insetGrouped rows so the
-                        // two list surfaces feel unified.
-                        .background(
-                            Color(.secondarySystemGroupedBackground),
-                            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        )
-                        .padding(.horizontal, 16)
-                    }
-                }
+            if vm.dateGrouping != nil {
+                dateGroupedBody
+            } else {
+                flatGroupedBody
             }
         }
         .padding(.top, 8)
         .padding(.bottom, 80) // Breathing room for the floating add button.
+    }
+
+    // ── Property / select grouping (existing) ────────────────────────────────
+
+    @ViewBuilder
+    private var flatGroupedBody: some View {
+        ForEach(vm.groupedRows, id: \.title) { group in
+            if vm.groupByPropertyId != nil {
+                BookGroupHeader(
+                    title: group.title,
+                    count: group.entries.count,
+                    collapsed: vm.isGroupCollapsed(group.title),
+                    onToggle: { vm.toggleGroup(group.title) },
+                    onAdd: { vm.addEntry(forGroup: group.title) }
+                )
+            }
+            if !vm.isGroupCollapsed(group.title) {
+                ForEach(group.entries) { entry in
+                    rowCard(for: entry)
+                }
+            }
+        }
+    }
+
+    // ── Date grouping (new) ──────────────────────────────────────────────────
+    //
+    // Renders the tree returned by the VM. The hierarchical case
+    // (`yearMonth`) places a year header at indent 0 and a month
+    // sub-header at indent 1, with the entries themselves slightly
+    // inset under the month so the visual depth matches the model.
+
+    @ViewBuilder
+    private var dateGroupedBody: some View {
+        ForEach(vm.dateGroupedTree) { node in
+            DateGroupHeader(
+                label: DateGroupLabels.year(node),
+                indent: 0,
+                count: node.totalEntries,
+                collapsed: vm.isDateGroupCollapsed(node.id),
+                onToggle: { vm.toggleDateGroup(node.id) }
+            )
+            if !vm.isDateGroupCollapsed(node.id) {
+                // Hierarchical : year > month
+                ForEach(node.children) { child in
+                    DateGroupHeader(
+                        label: DateGroupLabels.month(child),
+                        indent: 1,
+                        count: child.entries.count,
+                        collapsed: vm.isDateGroupCollapsed(child.id),
+                        onToggle: { vm.toggleDateGroup(child.id) }
+                    )
+                    if !vm.isDateGroupCollapsed(child.id) {
+                        ForEach(child.entries) { entry in
+                            rowCard(for: entry)
+                        }
+                    }
+                }
+                // Flat : entries live directly on the node
+                ForEach(node.entries) { entry in
+                    rowCard(for: entry)
+                }
+            }
+        }
+    }
+
+    // ── Shared row card builder ──────────────────────────────────────────────
+
+    @ViewBuilder
+    private func rowCard(for entry: EntryFfi) -> some View {
+        ListRow(
+            entry: entry,
+            properties: vm.properties,
+            leafId: vm.leafId(forEntryId: entry.id),
+            icon: vm.iconForEntry(entry),
+            api: api,
+            onDelete: { vm.deleteEntry(id: entry.id) },
+            onSetPublishDate: { iso in
+                vm.updateEntryPublishedAt(entryId: entry.id, isoDate: iso)
+            },
+            onDisappear: onDisappear
+        )
+        .background(
+            Color(.secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+        )
+        .padding(.horizontal, 16)
+    }
+}
+
+// ── Date-group header ────────────────────────────────────────────────────────
+
+/// Header for a date-bucket group. Two indent levels (0 = year-or-flat,
+/// 1 = month inside a YearMonth tree). The chevron rotates on toggle ;
+/// the entry count sits as a secondary chip to mirror BookGroupHeader.
+private struct DateGroupHeader: View {
+    let label: String
+    let indent: Int
+    let count: Int
+    let collapsed: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        Button(action: onToggle) {
+            HStack(spacing: 8) {
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.bold))
+                    .rotationEffect(.degrees(collapsed ? -90 : 0))
+                    .foregroundStyle(.secondary)
+                Text(label)
+                    .font(indent == 0 ? .headline : .subheadline.weight(.medium))
+                    .foregroundStyle(.primary)
+                Text("\(count)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(Color(.tertiarySystemFill))
+                    )
+                Spacer(minLength: 0)
+            }
+            // Padding moved inside the label + contentShape on the
+            // HStack so the whole row width — including the leading
+            // indent and the empty space pushed by the trailing
+            // Spacer — is tappable. Padding outside the Button used
+            // to leave a dead zone on the indent and the chevron's
+            // right side.
+            .padding(.leading, CGFloat(indent) * 18 + 18)
+            .padding(.trailing, 18)
+            .padding(.vertical, indent == 0 ? 8 : 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .animation(.easeOut(duration: 0.18), value: collapsed)
+    }
+}
+
+// ── Label formatting ─────────────────────────────────────────────────────────
+
+/// Locale-aware bucket labels. Driven entirely by `DateGroupNodeFfi`
+/// fields so changing the user's locale at runtime produces the right
+/// month / day names on the next render without any extra plumbing.
+private enum DateGroupLabels {
+    /// Year-level header. Falls back to "No date" for the undated
+    /// bucket (year = nil sentinel).
+    static func year(_ node: DateGroupNodeFfi) -> String {
+        guard let y = node.labelYear else { return "No date" }
+        // Month-only granularity stores year+month on the same node,
+        // so we surface the month name here too instead of the bare year.
+        if let m = node.labelMonth, node.labelDay == nil {
+            return monthYear(year: y, month: m)
+        }
+        if let m = node.labelMonth, let d = node.labelDay {
+            return fullDay(year: y, month: m, day: d)
+        }
+        return String(y)
+    }
+
+    /// Sub-header used under a Year node in the `yearMonth` tree.
+    static func month(_ node: DateGroupNodeFfi) -> String {
+        guard let m = node.labelMonth else { return "" }
+        var comps = DateComponents()
+        comps.year = node.labelYear ?? 2000
+        comps.month = m
+        comps.day = 1
+        let cal = Calendar.current
+        guard let date = cal.date(from: comps) else { return "" }
+        return date.formatted(.dateTime.month(.wide))
+    }
+
+    private static func monthYear(year: Int, month: Int) -> String {
+        var comps = DateComponents()
+        comps.year = year
+        comps.month = month
+        comps.day = 1
+        guard let date = Calendar.current.date(from: comps) else { return "" }
+        return date.formatted(.dateTime.month(.wide).year())
+    }
+
+    private static func fullDay(year: Int, month: Int, day: Int) -> String {
+        var comps = DateComponents()
+        comps.year = year
+        comps.month = month
+        comps.day = day
+        guard let date = Calendar.current.date(from: comps) else { return "" }
+        return date.formatted(date: .abbreviated, time: .omitted)
     }
 }
 
@@ -134,6 +291,12 @@ private struct ListRow: View {
                     onDisappear: onDisappear
                 )) {
                     content
+                        // `NavigationLink` in a `LazyVStack` (vs a
+                        // `List`) hit-tests against its label's
+                        // rendered pixels only, so the empty padding
+                        // and the right-side Spacer stay dead. Force
+                        // the whole row rectangle to register taps.
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             } else {
@@ -245,18 +408,13 @@ private struct ListRow: View {
         return entry.values[titleProp.id]?.displayText ?? ""
     }
 
+    /// Stacked metadata under the title : chips on top, then date.
+    /// Each row is independent so a leaf with both shows both — the
+    /// previous if/else hid the date whenever any chip was present.
     @ViewBuilder
     private var metadata: some View {
         let chips = inlineChips
-        if chips.isEmpty {
-            // No chips → show date / first text fallback if present.
-            if let line = firstTextValue, !line.isEmpty {
-                Text(line)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        } else {
+        if !chips.isEmpty {
             HStack(spacing: 6) {
                 ForEach(Array(chips.enumerated()), id: \.offset) { _, chip in
                     Text(chip.label)
@@ -271,6 +429,28 @@ private struct ListRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        if let line = dateLine, !line.isEmpty {
+            Text(line)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+    }
+
+    /// Resolves the date displayed at the bottom of the row.
+    /// Priority : first Date property with a value, else the entry's
+    /// `effectivePublishedAt` (always present, defaults to created_at)
+    /// so every row carries a date even when no Date column exists.
+    private var dateLine: String? {
+        for prop in properties {
+            if case .date = prop.propertyType,
+               case .date(let d) = entry.values[prop.id] ?? .empty,
+               !d.isEmpty {
+                return Self.friendlyDate(d)
+            }
+        }
+        let publish = entry.effectivePublishedAt
+        return publish.isEmpty ? nil : Self.friendlyDate(publish)
     }
 
     /// Chips harvested from the entry's multi-select properties — first
@@ -296,24 +476,7 @@ private struct ListRow: View {
         return out
     }
 
-    private var firstTextValue: String? {
-        for prop in properties {
-            if case .title = prop.propertyType { continue }
-            if case .text = prop.propertyType,
-               case .text(let s) = entry.values[prop.id] ?? .empty,
-               !s.isEmpty {
-                return s
-            }
-            if case .date = prop.propertyType,
-               case .date(let d) = entry.values[prop.id] ?? .empty,
-               !d.isEmpty {
-                return Self.friendlyDate(d)
-            }
-        }
-        return nil
-    }
-
-    /// Turns a raw ISO 8601 timestamp into "Wed, Nov 29, 2024" — the
+/// Turns a raw ISO 8601 timestamp into "Wed, Nov 29, 2024" — the
     /// 24-character `2024-11-29T17:37:00.000Z` string looks scary in
     /// a list row, even when it's correct. Falls back to the original
     /// string if parsing fails so we never lose information.

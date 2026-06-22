@@ -127,6 +127,50 @@ impl Sort {
     }
 }
 
+/// Where the date used for grouping comes from. Mirrors the
+/// vocabulary of [`SortSource`] so users get the same options here
+/// as in the sort menu, plus an explicit property pointer for date
+/// columns that don't make sense as a sort source.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum DateGroupingSource {
+    /// Use each entry's auto-generated `created_at`.
+    Created,
+    /// Use each entry's user-editable `published_at` (falls back to
+    /// `created_at` when blank).
+    Published,
+    /// Use the value of the given Date property. Cells that are
+    /// missing or empty fall into the "No date" bucket.
+    Property(Uuid),
+}
+
+/// How fine-grained the date buckets are. `YearMonth` is the only
+/// hierarchical variant ; the others are flat one-level trees.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum DateGranularity {
+    /// One bucket per calendar year, e.g. `2024`, `2025`.
+    Year,
+    /// One bucket per calendar month, e.g. `January 2024`. Flat.
+    Month,
+    /// Two-level tree : year header > month sub-header.
+    YearMonth,
+    /// One bucket per calendar day, e.g. `January 15, 2024`. Flat.
+    Day,
+}
+
+/// Date-based grouping configuration attached to a [`View`]. When
+/// `Some`, the rendered list partitions entries into chronological
+/// buckets — distinct from the existing property-based grouping
+/// surfaced by `groupByPropertyId` on the UI side, which targets
+/// Select / Checkbox columns instead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DateGrouping {
+    pub source: DateGroupingSource,
+    pub granularity: DateGranularity,
+    /// Order of the top-level groups. `false` = newest first
+    /// (calendar-style default).
+    pub ascending: bool,
+}
+
 /// A named view of a book with its own filters and sort rules.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct View {
@@ -140,10 +184,16 @@ pub struct View {
     pub filters: Vec<Filter>,
     /// Sort rules applied in order.
     pub sorts: Vec<Sort>,
+    /// Optional date-based grouping config. Applied *after* filters
+    /// and sorts so the intra-bucket order honours the user's sort
+    /// rules. `#[serde(default)]` keeps every pre-existing view in
+    /// the SQLite store decoding cleanly.
+    #[serde(default)]
+    pub date_grouping: Option<DateGrouping>,
 }
 
 impl View {
-    /// Creates a new view with no filters or sort rules.
+    /// Creates a new view with no filters, sort rules, or date grouping.
     pub fn new(name: impl Into<String>, type_: ViewType) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -151,6 +201,7 @@ impl View {
             type_,
             filters: vec![],
             sorts: vec![],
+            date_grouping: None,
         }
     }
 }
@@ -198,5 +249,33 @@ mod tests {
             entries: vec![Entry::new(HashMap::new())],
         };
         assert_eq!(groupe.entries.len(), 1);
+    }
+
+    #[test]
+    fn date_grouping_defaults_to_none() {
+        let v = View::new("List", ViewType::List);
+        assert!(v.date_grouping.is_none());
+    }
+
+    #[test]
+    fn date_grouping_round_trips_through_serde() {
+        let mut v = View::new("By month", ViewType::List);
+        v.date_grouping = Some(DateGrouping {
+            source: DateGroupingSource::Published,
+            granularity: DateGranularity::YearMonth,
+            ascending: false,
+        });
+        let json = serde_json::to_string(&v).unwrap();
+        let back: View = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, v);
+    }
+
+    #[test]
+    fn date_grouping_deserialises_legacy_view_without_field() {
+        // A view persisted before the date_grouping field existed must
+        // still decode — the #[serde(default)] guard keeps it nil.
+        let legacy = r#"{"id":"00000000-0000-0000-0000-000000000000","name":"X","type_":"List","filters":[],"sorts":[]}"#;
+        let v: View = serde_json::from_str(legacy).unwrap();
+        assert!(v.date_grouping.is_none());
     }
 }
