@@ -134,7 +134,7 @@ platform :ios do
 
     build_app(
       project: "app/Pinkha.xcodeproj",
-      scheme: "Pinkha",
+      scheme: "PinkhaRelease",
       configuration: "Release",
       export_method: "app-store",
       output_directory: "build/",
@@ -173,7 +173,7 @@ platform :ios do
 
     build_app(
       project: "app/Pinkha.xcodeproj",
-      scheme: "Pinkha",
+      scheme: "PinkhaRelease",
       configuration: "Release",
       export_method: "app-store",
       output_directory: "build/",
