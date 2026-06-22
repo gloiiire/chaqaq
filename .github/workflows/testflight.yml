@@ -2,13 +2,19 @@ name: TestFlight
 
 # ── Triggers ─────────────────────────────────────────────────────────────────
 #
-# Auto-run on every push to `staging` — the source of truth for beta
-# builds. `workflow_dispatch` exposes a manual "Run workflow" button in
-# the GitHub Actions UI for ad-hoc re-uploads (e.g. re-running after a
-# transient ASC outage without having to push a no-op commit).
+# Manual-only for now. Auto-run on push to `staging` is paused
+# because GitHub Actions macos-* runners ship Xcode 16.x / iOS 18.x
+# SDK, while Pinkha targets iOS 26.0 (uses UIGlassEffect,
+# .glassEffect(), etc.). The archive fails with "iOS deployment
+# target ... is set to 26.0, but the range of supported deployment
+# target versions is 12.0 to 18.2.99".
+#
+# Until Xcode 26 lands on GHA (likely Q4 2026), TestFlight builds
+# are produced locally on a developer Mac via
+# `bundle exec fastlane ios beta`. The lane itself is environment-
+# agnostic — same code path here and locally — so flipping the
+# trigger back to `push: [staging]` will be a one-line change.
 on:
-  push:
-    branches: [staging]
   workflow_dispatch:
 
 # ── Concurrency ──────────────────────────────────────────────────────────────
