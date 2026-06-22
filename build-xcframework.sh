@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# Always operate from the repo root regardless of cwd. fastlane's
+# `sh` action runs commands from `fastlane/`, so relative paths like
+# `swift-bindings/...` would otherwise miss the actual files at
+# `<repo>/swift-bindings/...`.
+cd "$(dirname "$0")"
+
 PROFILE="${1:-release}"
 CARGO_FLAG="--release"
 [ "$PROFILE" = "debug" ] && CARGO_FLAG=""
