@@ -48,6 +48,16 @@ schemes:
         - PinkhaUITests
     archive:
       config: Release
+  # Archive-only scheme used by fastlane (TestFlight / App Store).
+  # Test targets are excluded so `xcodebuild archive` doesn't try to
+  # compile them — Release builds the app without `-enable-testing`,
+  # which makes `@testable import` fail.
+  PinkhaRelease:
+    build:
+      targets:
+        Pinkha: [run, profile, analyze, archive]
+    archive:
+      config: Release
 
 targets:
   Pinkha:

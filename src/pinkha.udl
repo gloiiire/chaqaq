@@ -433,6 +433,26 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     string grouped_query_book_json(string book_id, string view_id, string group_by);
 
+    /// Returns the view's entries bucketed by date as a JSON tree of
+    /// `DateGroupNode`. Empty array means no date grouping configured.
+    /// `override_grouping_json` lets the UI preview a config without
+    /// persisting it ; pass empty string to use the view's stored one.
+    [Throws=PinkhaError]
+    string date_grouped_query_book_json(
+        string book_id,
+        string view_id,
+        string override_grouping_json
+    );
+
+    /// Sets or clears the date-grouping config on a view. Empty string
+    /// for `grouping_json` clears it.
+    [Throws=PinkhaError]
+    void set_view_date_grouping(
+        string book_id,
+        string view_id,
+        string grouping_json
+    );
+
     /// Returns a column aggregate as JSON.
     [Throws=PinkhaError]
     string column_aggregate_book_json(string book_id, string property_id, string aggregate_json);

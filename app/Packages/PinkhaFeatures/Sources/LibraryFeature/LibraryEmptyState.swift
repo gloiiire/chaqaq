@@ -9,7 +9,7 @@ public struct LibraryEmptyState: View {
                 .foregroundStyle(.tertiary)
             VStack(spacing: 6) {
                 Text("No leaves").font(.headline)
-                Text("Tap the button at the bottom right\nto create your first leaf.")
+                Text("Tap Leaf below to take your first one.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

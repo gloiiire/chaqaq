@@ -18,39 +18,80 @@ import Foundation
 
 public extension PinkhaApi {
     /// Full leaf (with blocks) decoded from the JSON-returning FFI.
-    public func getLeaf(id: String) throws -> LeafFfi {
+    func getLeaf(id: String) throws -> LeafFfi {
         let json = try getLeafJson(id: id)
         return try LeafFfi.decode(fromJson: json)
     }
 
     /// Full book (with entries and views) decoded from the JSON-returning FFI.
-    public func getBook(id: String) throws -> BookFfi {
+    func getBook(id: String) throws -> BookFfi {
         let json = try getBookJson(id: id)
         return try BookFfi.decode(fromJson: json)
     }
 
     /// Entries returned by a view query (filters + sorts applied server-side).
-    public func queryBook(bookId: String, viewId: String) throws -> [EntryFfi] {
+    func queryBook(bookId: String, viewId: String) throws -> [EntryFfi] {
         let json = try queryBookJson(bookId: bookId, viewId: viewId)
         return try [EntryFfi].decode(fromJson: json)
     }
 
     /// Same as `queryBook` but with rollup columns computed at read time.
-    public func queryBookWithRollups(bookId: String, viewId: String) throws -> [EntryFfi] {
+    func queryBookWithRollups(bookId: String, viewId: String) throws -> [EntryFfi] {
         let json = try queryBookWithRollupsJson(bookId: bookId, viewId: viewId)
         return try [EntryFfi].decode(fromJson: json)
     }
 
     /// Case-insensitive search across the book's entries.
-    public func searchBookEntries(bookId: String, query: String) throws -> [EntryFfi] {
+    func searchBookEntries(bookId: String, query: String) throws -> [EntryFfi] {
         let json = try searchBookEntriesJson(bookId: bookId, query: query)
         return try [EntryFfi].decode(fromJson: json)
     }
 
     /// Trashed entries of a book (newest-deleted first).
-    public func listDeletedEntries(bookId: String) throws -> [EntryFfi] {
+    func listDeletedEntries(bookId: String) throws -> [EntryFfi] {
         let json = try listDeletedEntriesJson(bookId: bookId)
         return try [EntryFfi].decode(fromJson: json)
+    }
+
+    /// Returns the view's entries bucketed by date. Empty array means
+    /// the view has no `dateGrouping` configured ; callers should fall
+    /// back to flat rendering. Pass `override` to preview a config
+    /// without persisting it (e.g. from the config sheet).
+    func dateGroupedQuery(
+        bookId: String,
+        viewId: String,
+        override: DateGroupingFfi? = nil
+    ) throws -> [DateGroupNodeFfi] {
+        let overrideJson: String
+        if let override {
+            let data = try JSONEncoder().encode(override)
+            overrideJson = String(data: data, encoding: .utf8) ?? ""
+        } else {
+            overrideJson = ""
+        }
+        let json = try dateGroupedQueryBookJson(
+            bookId: bookId,
+            viewId: viewId,
+            overrideGroupingJson: overrideJson
+        )
+        return try [DateGroupNodeFfi].decode(fromJson: json)
+    }
+
+    /// Persists a date-grouping config onto a view, or clears it when
+    /// `grouping` is `nil`.
+    func setViewDateGrouping(
+        bookId: String,
+        viewId: String,
+        grouping: DateGroupingFfi?
+    ) throws {
+        let json: String
+        if let grouping {
+            let data = try JSONEncoder().encode(grouping)
+            json = String(data: data, encoding: .utf8) ?? ""
+        } else {
+            json = ""
+        }
+        try setViewDateGrouping(bookId: bookId, viewId: viewId, groupingJson: json)
     }
 }
 

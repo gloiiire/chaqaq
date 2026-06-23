@@ -3252,7 +3252,7 @@
       }
     },
     "Tap the button at the bottom right\nto create your first book.": {
-      "extractionState": "manual",
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3971,7 +3971,7 @@
     },
     "Tap the button at the bottom right\nto create your first leaf.": {
       "comment": "Vouvoiement to match Apple iOS French.",
-      "extractionState": "manual",
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3983,6 +3983,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "Touchez le bouton en bas à droite\npour créer votre première feuille."
+          }
+        }
+      }
+    },
+    "Library": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Library"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bibliothèque"
+          }
+        }
+      }
+    },
+    "Leaf": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leaf"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feuille"
+          }
+        }
+      }
+    },
+    "Tap Leaf below to take your first one.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Leaf below to take your first one."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touchez Feuille ci-dessous pour prendre votre première feuille."
+          }
+        }
+      }
+    },
+    "Tap Book below to open your first one.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Book below to open your first one."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touchez Livre ci-dessous pour ouvrir votre premier livre."
           }
         }
       }

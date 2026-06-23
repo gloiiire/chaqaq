@@ -3,6 +3,7 @@ import PinkhaFFI
 import PinkhaCore
 import LeafFeature
 
+
 // ── Book view model ───────────────────────────────────────────────────────
 //
 // State holder for the whole BookView screen :
@@ -92,6 +93,18 @@ public final class BookViewModel {
     /// Which group titles the user has collapsed. Session-scoped.
     private(set) var collapsedGroups: Set<String> = []
 
+    /// Date-based grouping config for the active view. `nil` = flat
+    /// rendering. Mirrors `View.date_grouping` on the Rust side and
+    /// is persisted on every change via [`setDateGrouping`]. Loaded
+    /// from the active view's `dateGrouping` field on view switch.
+    private(set) var dateGrouping: DateGroupingFfi?
+
+    /// Per-node collapse state for the date-group tree. Keyed by
+    /// `DateGroupNodeFfi.id` (e.g. `"2024/-/-"`, `"2024/3/-"`).
+    /// Session-scoped — survives view switches but not relaunch, by
+    /// design (these collapse choices are ephemeral UI state).
+    private(set) var collapsedDateGroups: Set<String> = []
+
     struct ActiveSort: Equatable {
         let propertyId: String
         let ascending: Bool
@@ -178,6 +191,10 @@ public final class BookViewModel {
             })
             activeViewId = listFirst?.id ?? allViews.first?.id
         }
+        // Hydrate the date-grouping cache from the now-active view so
+        // a freshly opened book picks up the persisted config without
+        // a separate activateView call.
+        dateGrouping = allViews.first(where: { $0.id == activeViewId })?.dateGrouping
 
         if let view = allViews.first, let s = view.sorts.first {
             let asc = s.order == "Ascending"
@@ -226,6 +243,9 @@ public final class BookViewModel {
         // Switching views also resets transient UI state.
         searchQuery = ""
         collapsedGroups = []
+        collapsedDateGroups = []
+        // Pick up the new view's persisted date-grouping config (if any).
+        dateGrouping = views.first(where: { $0.id == id })?.dateGrouping
     }
 
     func addView(type: ViewTypeFfi) {
@@ -446,6 +466,225 @@ public final class BookViewModel {
     }
 
     func isGroupCollapsed(_ title: String) -> Bool { collapsedGroups.contains(title) }
+
+    // ── Date grouping ────────────────────────────────────────────────────────
+
+    /// Replaces (or clears, when `nil`) the active view's date-grouping
+    /// config and persists it via the FFI so it survives a relaunch.
+    /// Resets the collapse set to mirror `setGroupBy` semantics.
+    func setDateGrouping(_ grouping: DateGroupingFfi?) {
+        guard let viewId = activeViewId else { return }
+        dateGrouping = grouping
+        collapsedDateGroups = []
+        tryCatch(into: &errorMessage) {
+            try api.setViewDateGrouping(
+                bookId: bookId,
+                viewId: viewId,
+                grouping: grouping
+            )
+        }
+        // Mirror the change on the cached ViewFfi so a subsequent
+        // switch-out-and-back-in surfaces the new config without
+        // hitting Rust again.
+        if let idx = views.firstIndex(where: { $0.id == viewId }) {
+            let old = views[idx]
+            views[idx] = ViewFfi(
+                id: old.id,
+                name: old.name,
+                type: old.type,
+                sorts: old.sorts,
+                dateGrouping: grouping
+            )
+        }
+    }
+
+    func toggleDateGroup(_ id: String) {
+        if collapsedDateGroups.contains(id) {
+            collapsedDateGroups.remove(id)
+        } else {
+            collapsedDateGroups.insert(id)
+        }
+    }
+
+    func isDateGroupCollapsed(_ id: String) -> Bool {
+        collapsedDateGroups.contains(id)
+    }
+
+    /// In-memory date-grouping pass over the filtered+searched entries.
+    /// Mirrors the Rust `build_date_groups` algorithm so the tree
+    /// renders the same regardless of whether the source is the local
+    /// filter pipeline or the persisted Rust query. `[]` means no
+    /// grouping is active — callers fall back to `groupedRows`.
+    var dateGroupedTree: [DateGroupNodeFfi] {
+        guard let g = dateGrouping else { return [] }
+        return Self.buildDateGroups(filteredEntries, properties: properties, config: g)
+    }
+
+    /// Pure helper — kept static so it's trivially unit-testable from
+    /// outside the VM with a custom entry list.
+    ///
+    /// Strategy : pre-sort entries chronologically (in the user's
+    /// `ascending` direction), then walk the sorted list to build the
+    /// tree incrementally. We deliberately avoid any dictionary
+    /// iteration during the tree build because Swift's `Dictionary`
+    /// iteration order is hash-based — feeding it bucketed entries
+    /// shuffles their visual order between visits whenever the
+    /// underlying `entries` array changes (e.g. after opening a row
+    /// and coming back). Walking the pre-sorted list and appending
+    /// into the right node guarantees the same input ALWAYS yields
+    /// the same tree.
+    static func buildDateGroups(_ entries: [EntryFfi],
+                                properties: [PropertyFfi],
+                                config g: DateGroupingFfi) -> [DateGroupNodeFfi] {
+        // Resolve ymd once per entry so the sort comparator and the
+        // build loop share the same lookup.
+        let withYmd: [(EntryFfi, (Int, Int, Int)?)] = entries.map {
+            ($0, entryYmd(entry: $0, source: g.source, properties: properties))
+        }
+
+        // Pre-sort. "No date" entries sink to the bottom regardless
+        // of direction so the missing-date bucket consistently lives
+        // at the end of the rendered list.
+        let sorted = withYmd.sorted { a, b in
+            switch (a.1, b.1) {
+            case (nil, nil): return false
+            case (nil, _):   return false  // a sinks → b first
+            case (_, nil):   return true   // b sinks → a first
+            case let (lhs?, rhs?):
+                if lhs == rhs { return false }
+                return g.ascending ? (lhs < rhs) : (lhs > rhs)
+            }
+        }
+
+        switch g.granularity {
+        case .year:      return buildFlat(sorted, key: .year)
+        case .month:     return buildFlat(sorted, key: .month)
+        case .day:       return buildFlat(sorted, key: .day)
+        case .yearMonth: return buildYearMonth(sorted)
+        }
+    }
+
+    // ── Date grouping helpers ────────────────────────────────────────────
+
+    private static func entryYmd(entry: EntryFfi,
+                                 source: DateGroupingSourceFfi,
+                                 properties: [PropertyFfi]) -> (Int, Int, Int)? {
+        let raw: String
+        switch source {
+        case .created:
+            raw = entry.createdAt
+        case .published:
+            raw = entry.publishedAt.isEmpty ? entry.createdAt : entry.publishedAt
+        case .property(let propId):
+            // Validate the property still exists ; fall back to "no
+            // date" rather than created_at so a deleted column doesn't
+            // silently lump every entry into today.
+            guard properties.contains(where: { $0.id == propId }) else { return nil }
+            guard case .date(let s) = entry.values[propId], !s.isEmpty else { return nil }
+            raw = s
+        }
+        return parseYmd(raw)
+    }
+
+    /// String-slicing parser matching the Rust `parse_ymd` and the
+    /// Swift `parsePinkhaDate` shapes. Avoids the locale + timezone
+    /// gymnastics of `ISO8601DateFormatter` by only reading the first
+    /// 10 chars `YYYY-MM-DD`, which both RFC 3339 and bare dates share.
+    private static func parseYmd(_ s: String) -> (Int, Int, Int)? {
+        guard s.count >= 10 else { return nil }
+        let head = String(s.prefix(10))
+        let parts = head.split(separator: "-")
+        guard parts.count == 3,
+              let y = Int(parts[0]),
+              let m = Int(parts[1]),
+              let d = Int(parts[2]),
+              (1...12).contains(m),
+              (1...31).contains(d)
+        else { return nil }
+        return (y, m, d)
+    }
+
+    private enum FlatKeyKind { case year, month, day }
+
+    /// Single-pass build for the flat granularities (Year / Month /
+    /// Day). Each unique `ymd`-derived key gets one node ; entries
+    /// land in their existing node so we never re-iterate a dict.
+    private static func buildFlat(_ sorted: [(EntryFfi, (Int, Int, Int)?)],
+                                  key kind: FlatKeyKind) -> [DateGroupNodeFfi] {
+        var nodes: [DateGroupNodeFfi] = []
+        // Index lookup keeps the loop O(n) ; the array is the source
+        // of truth for both order and content.
+        var indexByKey: [String: Int] = [:]
+        for (entry, ymd) in sorted {
+            let (year, month, day) = decompose(ymd, kind: kind)
+            let key = flatKey(year, month, day)
+            if let i = indexByKey[key] {
+                nodes[i].entries.append(entry)
+            } else {
+                nodes.append(DateGroupNodeFfi(
+                    labelYear: year,
+                    labelMonth: month,
+                    labelDay: day,
+                    entries: [entry],
+                    children: []
+                ))
+                indexByKey[key] = nodes.count - 1
+            }
+        }
+        return nodes
+    }
+
+    /// Two-level build for the hierarchical `yearMonth` granularity.
+    /// Same trick as `buildFlat` ; we walk the sorted list once,
+    /// finding-or-creating the year node, then the month child.
+    private static func buildYearMonth(_ sorted: [(EntryFfi, (Int, Int, Int)?)]) -> [DateGroupNodeFfi] {
+        var years: [DateGroupNodeFfi] = []
+        var yearIndex: [String: Int] = [:]
+        for (entry, ymd) in sorted {
+            let year = ymd.map { $0.0 }
+            let month = ymd.map { $0.1 }
+            let yKey = year.map(String.init) ?? "ND"
+            let yi: Int
+            if let existing = yearIndex[yKey] {
+                yi = existing
+            } else {
+                years.append(DateGroupNodeFfi(
+                    labelYear: year,
+                    labelMonth: nil,
+                    labelDay: nil,
+                    entries: [],
+                    children: []
+                ))
+                yi = years.count - 1
+                yearIndex[yKey] = yi
+            }
+            if let mi = years[yi].children.firstIndex(where: { $0.labelMonth == month }) {
+                years[yi].children[mi].entries.append(entry)
+            } else {
+                years[yi].children.append(DateGroupNodeFfi(
+                    labelYear: year,
+                    labelMonth: month,
+                    labelDay: nil,
+                    entries: [entry],
+                    children: []
+                ))
+            }
+        }
+        return years
+    }
+
+    private static func decompose(_ ymd: (Int, Int, Int)?,
+                                  kind: FlatKeyKind) -> (Int?, Int?, Int?) {
+        switch kind {
+        case .year:  return (ymd.map { $0.0 }, nil, nil)
+        case .month: return (ymd.map { $0.0 }, ymd.map { $0.1 }, nil)
+        case .day:   return (ymd.map { $0.0 }, ymd.map { $0.1 }, ymd.map { $0.2 })
+        }
+    }
+
+    private static func flatKey(_ y: Int?, _ m: Int?, _ d: Int?) -> String {
+        "\(y.map(String.init) ?? "ND")/\(m.map(String.init) ?? "-")/\(d.map(String.init) ?? "-")"
+    }
 
     /// `[(groupTitle, entriesInGroup)]` for the active view. With no
     /// group-by selected, returns one bucket titled "All" with every

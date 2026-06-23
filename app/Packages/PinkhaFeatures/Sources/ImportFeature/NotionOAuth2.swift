@@ -47,6 +47,21 @@ public final class NotionOAuth2: NSObject, ASWebAuthenticationPresentationContex
     var isLoading = false
     var error: String?
 
+    /// Strips secret query params from an OAuth URL before logging. The `code`
+    /// (10 min single-use) and `state` (CSRF guard) MUST never reach Sentry or
+    /// stdout — even short-lived, they're enough for a token-exchange attack
+    /// in the window between callback and exchange.
+    static func redactedOAuthURL(_ url: URL) -> String {
+        let secretParams: Set<String> = ["code", "state", "access_token", "refresh_token", "id_token"]
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url.absoluteString
+        }
+        components.queryItems = components.queryItems?.map { item in
+            URLQueryItem(name: item.name, value: secretParams.contains(item.name) ? "***" : item.value)
+        }
+        return components.string ?? url.absoluteString
+    }
+
     /// Builds the Notion OAuth2 authorization URL for the given client ID and redirect URI.
     /// Extracted as a static helper so it can be unit-tested without launching an authentication session.
     static func authorizationUrl(clientId: String, redirectUri: String) -> URL? {
@@ -99,7 +114,7 @@ public final class NotionOAuth2: NSObject, ASWebAuthenticationPresentationContex
                     url: url,
                     callbackURLScheme: Self.callbackScheme
                 ) { url, err in
-                    trace("session completion url=\(url?.absoluteString ?? "nil") err=\(err.map(String.init(describing:)) ?? "nil")")
+                    trace("session completion url=\(url.map(Self.redactedOAuthURL) ?? "nil") err=\(err.map(String.init(describing:)) ?? "nil")")
                     if let err { cont.resume(throwing: err) }
                     else if let url { cont.resume(returning: url) }
                     else { cont.resume(throwing: URLError(.cancelled)) }
@@ -116,7 +131,7 @@ public final class NotionOAuth2: NSObject, ASWebAuthenticationPresentationContex
                     cont.resume(throwing: URLError(.cannotConnectToHost))
                 }
             }
-            trace("got callback url=\(callbackUrl.absoluteString)")
+            trace("got callback url=\(Self.redactedOAuthURL(callbackUrl))")
             // Exchange the authorization code for an access token.
             guard let code = URLComponents(url: callbackUrl, resolvingAgainstBaseURL: false)?
                     .queryItems?.first(where: { $0.name == "code" })?.value else {

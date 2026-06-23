@@ -1,0 +1,71 @@
+name: App Store
+
+# ── Triggers ─────────────────────────────────────────────────────────────────
+#
+# Pushes to `master` mean : staging has been validated, we're ready for
+# the App Store. The build is uploaded as a candidate but NOT
+# submitted for review — `upload_to_app_store(submit_for_review: false)`
+# gives you a chance to fill in the release notes / screenshots in ASC
+# before clicking "Submit" by hand.
+# Manual-only for the same reason as testflight.yml — GHA runners
+# don't have Xcode 26 yet. Until they do, App Store builds are
+# produced locally via `bundle exec fastlane ios release` from the
+# master branch. Flip back to `push: [master]` once Xcode 26 lands.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: appstore
+  cancel-in-progress: true
+
+jobs:
+  appstore:
+    runs-on: macos-14
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Setup Ruby + bundler cache
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Build and upload to App Store
+        env:
+          SKIP_BRANCH_CHECK: "true"
+
+          APP_STORE_CONNECT_API_KEY_ID:      ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID:   ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+          APP_STORE_CONNECT_API_KEY_BASE64:  "true"
+
+          MATCH_PASSWORD:                ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+
+          MATCH_KEYCHAIN_NAME:     "fastlane_keychain"
+          MATCH_KEYCHAIN_PASSWORD: ""
+
+          FASTLANE_SKIP_UPDATE_CHECK: "true"
+          FASTLANE_HIDE_CHANGELOG:    "true"
+        run: bundle exec fastlane ios release
+
+      - name: Archive build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appstore-build
+          path: |
+            build/Pinkha.ipa
+            build/*.dSYM.zip
+          retention-days: 30
+          if-no-files-found: ignore

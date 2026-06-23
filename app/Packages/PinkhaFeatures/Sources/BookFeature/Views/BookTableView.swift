@@ -440,6 +440,10 @@ private struct SelectionCell: View {
             }
             .padding(.horizontal, 10)
             .frame(minHeight: 44, alignment: .leading)
+            // Hit zone = whole cell rectangle, not just the chip.
+            // Without this only the chip pixels (or nothing, when
+            // there's no selection yet) trigger the picker.
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showPicker) {
@@ -546,6 +550,7 @@ private struct SelectionPickerSheet: View {
                                 Image(systemName: "checkmark").foregroundStyle(.tint)
                             }
                         }
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
@@ -586,6 +591,7 @@ private struct MultiSelectPickerSheet: View {
                                 Image(systemName: "checkmark").foregroundStyle(.tint)
                             }
                         }
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }

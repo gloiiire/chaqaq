@@ -132,7 +132,7 @@ private struct BooksEmptyState: View {
                 .foregroundStyle(.tertiary)
             VStack(spacing: 6) {
                 Text("No books").font(.headline)
-                Text("Tap the button at the bottom right\nto create your first book.")
+                Text("Tap Book below to open your first one.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
