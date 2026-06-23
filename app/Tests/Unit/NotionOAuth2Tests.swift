@@ -99,4 +99,47 @@ struct NotionOAuth2Tests {
         let (_, _, sig2) = NotionOAuth2.signRequest(body: Data("body2".utf8), now: date, nonce: nonce)
         #expect(sig1 != sig2)
     }
+
+    // MARK: - Callback URL redaction (security — never log OAuth secrets)
+
+    @Test func redactedOAuthURL_strips_code_param() {
+        let url = URL(string: "pinkha://oauth/notion?code=secret-abc-123&state=csrf-xyz")!
+        let redacted = NotionOAuth2.redactedOAuthURL(url)
+        #expect(!redacted.contains("secret-abc-123"))
+        #expect(redacted.contains("code=***"))
+    }
+
+    @Test func redactedOAuthURL_strips_state_param() {
+        let url = URL(string: "pinkha://oauth/notion?code=abc&state=csrf-token-xyz")!
+        let redacted = NotionOAuth2.redactedOAuthURL(url)
+        #expect(!redacted.contains("csrf-token-xyz"))
+        #expect(redacted.contains("state=***"))
+    }
+
+    @Test func redactedOAuthURL_strips_access_and_refresh_tokens() {
+        let url = URL(string: "pinkha://cb?access_token=AAA&refresh_token=BBB&id_token=CCC")!
+        let redacted = NotionOAuth2.redactedOAuthURL(url)
+        #expect(!redacted.contains("AAA"))
+        #expect(!redacted.contains("BBB"))
+        #expect(!redacted.contains("CCC"))
+    }
+
+    @Test func redactedOAuthURL_preserves_non_secret_params() {
+        let url = URL(string: "pinkha://cb?code=secret&workspace=acme&user_id=u-42")!
+        let redacted = NotionOAuth2.redactedOAuthURL(url)
+        #expect(redacted.contains("workspace=acme"))
+        #expect(redacted.contains("user_id=u-42"))
+    }
+
+    @Test func redactedOAuthURL_preserves_scheme_host_path() {
+        let url = URL(string: "pinkha://oauth/notion?code=secret")!
+        let redacted = NotionOAuth2.redactedOAuthURL(url)
+        #expect(redacted.hasPrefix("pinkha://oauth/notion"))
+    }
+
+    @Test func redactedOAuthURL_handles_url_with_no_query() {
+        let url = URL(string: "https://pinkha.app/")!
+        let redacted = NotionOAuth2.redactedOAuthURL(url)
+        #expect(redacted == "https://pinkha.app/")
+    }
 }
