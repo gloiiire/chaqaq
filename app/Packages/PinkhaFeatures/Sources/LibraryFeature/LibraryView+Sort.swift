@@ -243,7 +243,12 @@ public extension LibraryView {
 }
 
 /// Top-level shim so callers outside `LibraryView` can use the same
-/// pre-tinted SF Symbol recipe without instantiating a view.
+/// pre-tinted SF Symbol recipe without instantiating a view. Annotated
+/// `@MainActor` because every caller (`ShelvesSectionView`,
+/// `ShelfSortRow`) already runs on the main actor — making it explicit
+/// kills the Swift 6 "MainActor-isolated method called from nonisolated
+/// context" warning.
+@MainActor
 func tintedSymbol(_ name: String, color: UIColor) -> UIImage {
     LibraryView.tintedSymbolStatic(name, color: color)
 }

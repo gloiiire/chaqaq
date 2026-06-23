@@ -33,10 +33,10 @@ struct NotionOAuth2Tests {
     }
 
     @Test func authUrl_contains_redirect_uri() {
+        // The actual assertion is on the parsed query item below — the percent-
+        // encoding round-trip is a side concern, just verifying the redirect
+        // survives both the encode-and-decode trip through URLComponents.
         let url = makeUrl()
-        // URLComponents percent-encodes the redirect URI — verify the encoded form is present.
-        let encoded = redirectUri.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? redirectUri
-        // Both the raw and encoded forms should result in the query containing the redirect.
         let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
         let redirectItem = comps?.queryItems?.first(where: { $0.name == "redirect_uri" })
         #expect(redirectItem?.value == redirectUri)
