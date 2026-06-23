@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Hook pre-commit : vérifie le formatage Rust et lance clippy avant chaque commit.
+# Hook pre-commit : purge iCloud + vérifie le formatage Rust et clippy.
 #
 # Stratégie : rapide par défaut.
-#   - Skip total si aucun fichier .rs n'est staged (commit docs/swift/config).
+#   - Purge iCloud Drive conflict copies (toujours, ~50 ms si rien à purger).
+#   - Skip Rust si aucun fichier .rs n'est staged (commit docs/swift/config).
 #   - cargo fmt --all --check : ~0.5 s, attrape les divergences de style.
 #   - cargo clippy --workspace --all-targets -- -D warnings : 5-20 s selon
 #     le cache, attrape la majorité des fails CI rouge avant push.
@@ -14,6 +15,43 @@
 # instruction explicite, cf. CLAUDE.md).
 
 set -euo pipefail
+
+# ─────────────────────────────────────────────────────────────────────
+# 0) Purge iCloud Drive conflict copies.
+#
+# Le repo vit dans iCloud Drive, qui crée des doublons "Foo 2.swift",
+# "Foo 3.rs", "Pinkha.xcodeproj 2" quand deux machines syncent en même
+# temps. Ces fichiers cassent `cargo test` (espace illégal dans le nom
+# de crate), polluent les recherches, et risquent d'être commités par
+# erreur. On les supprime systématiquement avant tout commit —
+# idempotent et invisible quand il n'y en a pas.
+#
+# Couvre les extensions communes du repo + dossiers `hooks 2` et
+# `*.xcodeproj 2`. Exclut .build, .git, target, node_modules pour ne
+# pas toucher aux artefacts de build qui peuvent légitimement avoir
+# des noms à espace.
+ICLOUD_PRUNED=$(find . \
+    \( -name '* [2-9].swift' \
+       -o -name '* [2-9].rs'   \
+       -o -name '* [2-9].rb'   \
+       -o -name '* [2-9].py'   \
+       -o -name '* [2-9].sh'   \
+       -o -name '* [2-9].md'   \
+       -o -name '* [2-9].json' \
+       -o -name '* [2-9].yml'  \
+       -o -name '* [2-9].yaml' \
+       -o -name '*.xcodeproj [2-9]' \
+       -o -name 'hooks [2-9]'  \) \
+    -not -path './.build/*' \
+    -not -path './.git/*' \
+    -not -path './target/*' \
+    -not -path './node_modules/*' \
+    -not -path '*/.build/*' \
+    -print -delete 2>/dev/null | wc -l | tr -d ' ')
+
+if [ "$ICLOUD_PRUNED" -gt 0 ]; then
+    echo "→ iCloud : $ICLOUD_PRUNED fichier(s) conflit purgé(s) avant commit"
+fi
 
 # 1) Skip si aucun .rs staged.
 if ! git diff --cached --name-only --diff-filter=ACM | grep -qE '\.rs$'; then
