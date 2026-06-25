@@ -42,13 +42,15 @@ struct ReaderModeTests {
 @Suite("AppSettings — reader mode defaults & persistence")
 struct AppSettingsReaderTests {
 
-    /// Clears the 3 reader-mode keys so each test starts from a clean
-    /// UserDefaults — otherwise a previous test run's value leaks in.
+    /// Clears the reader-mode + accessory keys so each test starts
+    /// from a clean UserDefaults — otherwise a previous test run's
+    /// value leaks in.
     private func clearReaderKeys() {
         let keys = [
             "pinkha.settings.readerLongPressEnabled",
             "pinkha.settings.readerLongPressFingerCount",
             "pinkha.settings.readerHidesStatusBar",
+            "pinkha.settings.hidesAccessoryOutsideLibraryRoot",
         ]
         for key in keys {
             UserDefaults.standard.removeObject(forKey: key)
@@ -94,5 +96,29 @@ struct AppSettingsReaderTests {
         #expect(s.readerLongPressEnabled == true)
         #expect(s.readerLongPressFingerCount == 2)
         #expect(s.readerHidesStatusBar == false)
+    }
+
+    // MARK: - PRO-60 : auto-hide accessory outside library root.
+
+    @Test func default_accessory_auto_hide_is_on() {
+        clearReaderKeys()
+        let s = AppSettings()
+        #expect(s.hidesAccessoryOutsideLibraryRoot == true)
+    }
+
+    @Test func accessory_auto_hide_round_trips() {
+        clearReaderKeys()
+        let s = AppSettings()
+        s.hidesAccessoryOutsideLibraryRoot = false
+        let s2 = AppSettings()
+        #expect(s2.hidesAccessoryOutsideLibraryRoot == false)
+    }
+
+    @Test func reset_to_defaults_restores_accessory_auto_hide() {
+        clearReaderKeys()
+        let s = AppSettings()
+        s.hidesAccessoryOutsideLibraryRoot = false
+        s.resetToDefaults()
+        #expect(s.hidesAccessoryOutsideLibraryRoot == true)
     }
 }

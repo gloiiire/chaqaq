@@ -135,6 +135,16 @@ public struct SettingsView: View {
                 }
 
                 Section {
+                    Toggle("Hide bubble outside Library root", isOn: $settings.hidesAccessoryOutsideLibraryRoot)
+                        .tint(settings.accentColor)
+                        .onChange(of: settings.hidesAccessoryOutsideLibraryRoot) { _, _ in Haptic.toggle() }
+                } header: {
+                    Text("Create bubble")
+                } footer: {
+                    Text("On (default): the create bubble only appears on the Library home view. Off: it stays visible inside shelves, leaves and books too.")
+                }
+
+                Section {
                     Toggle("Long-press gesture", isOn: $settings.readerLongPressEnabled)
                         .tint(settings.accentColor)
                         .onChange(of: settings.readerLongPressEnabled) { _, _ in Haptic.toggle() }
