@@ -301,7 +301,8 @@ private struct ContentSheets: ViewModifier {
                                          in: composer.currentContext,
                                          style: standaloneStyle)
             }
-            if case .leaf(let parentId) = composer.currentContext, let newId {
+            switch (composer.currentContext, newId) {
+            case (.leaf(let parentId), let id?):
                 // For `.leaf` context, the active editor's VM
                 // owns the in-memory blocks. Signal it via the
                 // composer so *it* performs the `addBlock` for the
@@ -310,13 +311,22 @@ private struct ContentSheets: ViewModifier {
                 // and get overwritten.
                 composer.pendingChildPage = Composer.PendingChildPage(
                     parentLeafId: parentId,
-                    childLeafId: newId
+                    childLeafId: id
                 )
-            } else if let newId {
-                // Root or shelf context — open the doc right after
-                // the sheet dismisses so the user lands in the
-                // editor (Apple Leafs / Bear pattern).
-                composer.pendingOpenLeaf = newId
+            case (.book, _):
+                // Inside a book : we just inserted a new row. Stay on
+                // the BookView so the user sees the row land in the
+                // table — opening the editor would queue a Library-
+                // side push that only fires on tab switch (only
+                // LibraryView consumes `pendingOpenLeaf`).
+                break
+            case (.root, let id?), (.shelf, let id?):
+                // Open the doc right after the sheet dismisses so
+                // the user lands in the editor (Apple Notes / Bear
+                // pattern).
+                composer.pendingOpenLeaf = id
+            default:
+                break
             }
         case .book:
             store.createBook(title: composer.newTitle, in: composer.currentContext)
