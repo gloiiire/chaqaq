@@ -79,7 +79,8 @@ struct NewBlockTypeTests {
     }
 
     @Test func enumHasExpectedCount() {
-        // text, title1, title2, title3, quote, callout, todo, divider = 8
-        #expect(NewBlockType.allCases.count == 8)
+        // text, title1, title2, title3, quote, callout, todo,
+        // bulleted, numbered, divider = 10
+        #expect(NewBlockType.allCases.count == 10)
     }
 }

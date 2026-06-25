@@ -4356,6 +4356,28 @@
           }
         }
       }
+    },
+    "Bulleted list": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liste à puces"
+          }
+        }
+      }
+    },
+    "Numbered list": {
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liste numérotée"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

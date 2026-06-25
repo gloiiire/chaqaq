@@ -1,5 +1,6 @@
 import SwiftUI
 import PinkhaCore
+import PinkhaFFI
 import PinkhaRichText
 
 // ── Building callbacks and block rows ────────────────────────────────────────
@@ -153,7 +154,36 @@ public extension LeafView {
                 }
             },
             onNewBlock: { afterSpans in
-                vm.addBlock(type: .text, initialSpans: afterSpans, afterId: block.id)
+                // Notion-style continuation : pressing Return on a Todo /
+                // bulleted / numbered item creates another row of the
+                // SAME kind so the user can keep listing without re-
+                // picking the type from the block menu. On all other
+                // blocks (paragraph, heading, quote…) we fall back to a
+                // plain text block — headings shouldn't cascade.
+                //
+                // Empty-row exit : pressing Return on an *empty* list
+                // row converts the current block back to text and does
+                // NOT create a new row — same break-out shortcut as
+                // Notes / Notion.
+                let isListRow: Bool = {
+                    switch block.content {
+                    case .todo, .bulletedListItem, .numberedListItem: return true
+                    default: return false
+                    }
+                }()
+                let blockIsEmpty = block.spans.allSatisfy { $0.content.isEmpty }
+                if isListRow && blockIsEmpty && afterSpans.isEmpty {
+                    vm.convertBlockContent(id: block.id, to: .text([]))
+                    return
+                }
+                let nextType: NewBlockType
+                switch block.content {
+                case .todo:              nextType = .todo
+                case .bulletedListItem:  nextType = .bulleted
+                case .numberedListItem:  nextType = .numbered
+                default:                 nextType = .text
+                }
+                vm.addBlock(type: nextType, initialSpans: afterSpans, afterId: block.id)
             },
             onMerge: vm.blocks.first?.id == block.id ? { spansToMerge in
                 // First block: merge its content into the title.

@@ -180,14 +180,16 @@ public struct BlockTextEditor: View {
 func blockContent(for type: NewBlockType,
                   preserving spans: [InlineTextFfi]) -> BlockContentFfi {
     switch type {
-    case .text:    return .text(spans)
-    case .title1:  return .heading(level: 1, text: spans)
-    case .title2:  return .heading(level: 2, text: spans)
-    case .title3:  return .heading(level: 3, text: spans)
-    case .quote:   return .quote(icon: "", text: spans)
-    case .callout: return .quote(icon: "💡", text: spans)
-    case .todo:    return .todo(done: false, text: spans)
-    case .divider: return .divider
+    case .text:     return .text(spans)
+    case .title1:   return .heading(level: 1, text: spans)
+    case .title2:   return .heading(level: 2, text: spans)
+    case .title3:   return .heading(level: 3, text: spans)
+    case .quote:    return .quote(icon: "", text: spans)
+    case .callout:  return .quote(icon: "💡", text: spans)
+    case .todo:     return .todo(done: false, text: spans)
+    case .bulleted: return .bulletedListItem(spans)
+    case .numbered: return .numberedListItem(spans)
+    case .divider:  return .divider
     }
 }
 
