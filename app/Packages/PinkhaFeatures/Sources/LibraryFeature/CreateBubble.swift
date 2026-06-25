@@ -1,5 +1,6 @@
 import SwiftUI
 import PinkhaCore
+import PinkhaComposer
 
 // ── Create bubble (Apple Music mini-player style) ────────────────────────────
 //
@@ -65,6 +66,12 @@ public struct CreateBubble: View {
     /// compact bubble width without crowding.
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
 
+    /// "Where am I?" — read here so each primary button can decide
+    /// whether its action makes sense in the current view. Same
+    /// `Composer` instance that PRO-56 reads to route the actual
+    /// creation; we only read `currentContext`.
+    @Environment(Composer.self) private var composer
+
     /// User can swipe the expanded bubble to the right to collapse it
     /// into the inline visual layout without waiting for the tab bar to
     /// minimise itself. Resets the next time the system promotes the
@@ -73,6 +80,53 @@ public struct CreateBubble: View {
     @State private var manuallyCollapsed: Bool = false
 
     private var isInline: Bool { placement == .inline || manuallyCollapsed }
+
+    // ── Per-button enablement (PRO-57) ────────────────────────────────────
+    //
+    // The bubble exposes 3 primary creation actions. Some make no sense in
+    // some contexts (you can't create a Shelf inside a Leaf — `parent_leaf_id`
+    // isn't a Shelf concept). We grey out those buttons rather than letting
+    // the tap silently land work at root.
+    //
+    //   Context       | 🍃 Leaf | 📚 Book | 📁 Shelf
+    //   ----          | ----    | ----    | ----
+    //   .root         | ✅      | ✅      | ✅
+    //   .shelf        | ✅      | ✅†     | ✅ (sub-shelf)
+    //   .leaf         | ✅ (child)| ❌    | ❌
+    //   .book         | ✅ (row)| ❌      | ❌
+    //
+    //   † Today books always land at root regardless of shelf context —
+    //   PRO-56 documented this as a Rust-side dependency (no `Book.shelf_id`).
+
+    private var isLeafEnabled: Bool {
+        Self.isLeafEnabled(in: composer.currentContext)
+    }
+    private var isBookEnabled: Bool {
+        Self.isBookEnabled(in: composer.currentContext)
+    }
+    private var isShelfEnabled: Bool {
+        Self.isShelfEnabled(in: composer.currentContext)
+    }
+
+    /// Pure helpers — extracted so the rules can be unit-tested without
+    /// instantiating a `CreateBubble` and its SwiftUI environment.
+    static func isLeafEnabled(in context: Composer.CreationContext) -> Bool {
+        // Every context accepts a new leaf : root → loose, shelf → filed,
+        // leaf → child page, book → row.
+        true
+    }
+    static func isBookEnabled(in context: Composer.CreationContext) -> Bool {
+        switch context {
+        case .root, .shelf: return true
+        case .leaf, .book:  return false
+        }
+    }
+    static func isShelfEnabled(in context: Composer.CreationContext) -> Bool {
+        switch context {
+        case .root, .shelf: return true
+        case .leaf, .book:  return false
+        }
+    }
 
     public var body: some View {
         HStack(spacing: isInline ? 3 : 30) {
@@ -85,16 +139,19 @@ public struct CreateBubble: View {
                  label: "Leaf",
 								 font: .system(size: 21),
 								 labelSpacing: 0,
+                 isEnabled: isLeafEnabled,
 								 action: onNewLeaf)
               .offset(y:isInline ? 2.1 : -1)
               .accessibilityIdentifier("createLeafFAB")
             icon(systemImage: "book.badge.plus",
                  label: "Book",
+                 isEnabled: isBookEnabled,
                  action: onNewBook)
               // .offset(y:isInline?)
               .accessibilityIdentifier("createBookFAB")
             icon(systemImage: "books.vertical",
                  label: "Shelf",
+                 isEnabled: isShelfEnabled,
                  action: onNewShelf)
               .accessibilityIdentifier("createShelfFAB")
             overflowMenu
@@ -135,6 +192,7 @@ public struct CreateBubble: View {
                       label: LocalizedStringKey,
                       font: Font = .title3,
                       labelSpacing: CGFloat = 2,
+                      isEnabled: Bool = true,
                       action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: labelSpacing) {
@@ -150,6 +208,13 @@ public struct CreateBubble: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // `.disabled` blocks the tap AND tells VoiceOver the control
+        // is unavailable. The .opacity gives the visual cue users
+        // expect for greyed-out controls (matches the system disabled-
+        // button affordance without overriding tint).
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1.0 : 0.35)
+        .animation(.easeInOut(duration: 0.15), value: isEnabled)
         .accessibilityLabel(Text(label))
     }
 
