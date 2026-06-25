@@ -116,10 +116,16 @@ public final class Composer {
     /// Anchor for context-aware creation — the bubble inherits the
     /// "where am I?" from the foreground view so a new leaf created
     /// while looking at shelf "K" lands inside "K", not at root.
+    ///
+    /// `.book(id:)` means "the user is inside a Book table view".
+    /// A new leaf in this context becomes a row of that book (via
+    /// `createLeafInBook`). New books/shelves fall back to root —
+    /// the bubble greys them out in PRO-57 to make this honest.
     public enum CreationContext: Equatable {
         case root
         case shelf(id: String)
         case leaf(id: String)
+        case book(id: String)
     }
 
     /// Payload of `pendingChildPage`. The parent doc id lets the active
