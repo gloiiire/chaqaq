@@ -1,6 +1,7 @@
 import SwiftUI
 import PinkhaFFI
 import PinkhaCore
+import PinkhaComposer
 import PinkhaDesignSystem
 import LeafFeature
 
@@ -18,6 +19,7 @@ public struct BookView: View {
 
     @Environment(AppSettings.self) private var settings
     @Environment(TabManager.self) private var tabManager
+    @Environment(Composer.self) private var composer
     @State private var searchVisible = false
     @State private var recentEmojis: [String] = []
 
@@ -80,8 +82,21 @@ public struct BookView: View {
             // — no phantom leaf tab is created, the DB stays
             // identifiable as a book in `WorkspaceItem`.
             tabManager.markRecentlyViewed(id: vm.bookId)
+            // Tells the create bubble "you're inside a book" so the
+            // next "New leaf" tap lands as a row of THIS book instead
+            // of a loose leaf at the library root. Mirrors what
+            // ShelfView / LeafView already do for their own contexts.
+            composer.currentContext = .book(id: vm.bookId)
         }
-        .onDisappear { onDisappear?() }
+        .onDisappear {
+            onDisappear?()
+            // Only flip back to root when WE are the current owner —
+            // a deeper pushed leaf may have overridden the context
+            // before we disappear, and we don't want to stomp it.
+            if composer.currentContext == .book(id: vm.bookId) {
+                composer.currentContext = .root
+            }
+        }
         .errorAlert(message: $vm.errorMessage, onRetry: vm.load)
     }
 

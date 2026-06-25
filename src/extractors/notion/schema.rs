@@ -97,12 +97,52 @@ pub struct NotionPageSearchResponse {
     pub next_cursor: Option<String>,
 }
 
-/// Minimal page hit — only the fields the walker actually uses.
+/// A page hit returned by `POST /v1/search`. The walker only needs the
+/// `id`, but the standalone-page picker also wants the title (extracted
+/// from the page's `Name`/`title` property), an optional icon, and the
+/// parent kind so we can filter out pages that are rows of databases
+/// (those come in via the DB-import path).
 #[derive(Debug, Deserialize)]
 pub struct NotionPageSearchHit {
     pub id: String,
     #[serde(default)]
     pub last_edited_time: String,
+    #[serde(default)]
+    pub properties: HashMap<String, NotionPagePropValue>,
+    #[serde(default)]
+    pub icon: Option<NotionPageIcon>,
+    /// `None` when Notion's payload omits the field (older API versions
+    /// or unusual page shapes). The picker uses this to skip pages
+    /// whose parent is a database row.
+    #[serde(default)]
+    pub parent: Option<NotionPageParent>,
+    #[serde(default)]
+    pub archived: bool,
+    #[serde(default)]
+    pub in_trash: bool,
+}
+
+/// Parent reference for a Notion page. We only care about whether the
+/// page sits inside a database (`database_id`) so the standalone-page
+/// picker can hide those — the rest of the variants collapse to
+/// `Other`.
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NotionPageParent {
+    DatabaseId {
+        #[serde(default)]
+        database_id: String,
+    },
+    PageId {
+        #[serde(default)]
+        page_id: String,
+    },
+    Workspace {
+        #[serde(default)]
+        workspace: bool,
+    },
+    #[serde(other)]
+    Other,
 }
 
 /// Search response for the v2025-09-03 API when filtered to

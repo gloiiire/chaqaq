@@ -91,6 +91,16 @@ dictionary NotionDatabaseSummaryFfi {
     string last_edited;
 };
 
+/// Summary of a standalone Notion page returned by `list_notion_pages`.
+/// Same shape as the database summary — the UDL keeps them distinct so
+/// the Swift picker can render two clearly separate sections.
+dictionary NotionPageSummaryFfi {
+    string id;
+    string title;
+    string? icon_emoji;
+    string last_edited;
+};
+
 // ── Main facade ───────────────────────────────────────────────────────────────
 
 interface PinkhaApi {
@@ -560,6 +570,19 @@ interface PinkhaApi {
     /// prefer this version.
     [Throws=PinkhaError]
     sequence<NotionDatabaseSummaryFfi> list_notion_databases_v2025(string token);
+
+    /// Lists the standalone Notion pages reachable with the given token
+    /// (i.e. pages whose parent is NOT a database row). Same Tokio-
+    /// reactor caveats as [`list_notion_databases`] — dispatch off the
+    /// main thread.
+    [Throws=PinkhaError]
+    sequence<NotionPageSummaryFfi> list_notion_pages(string token);
+
+    /// Imports a single standalone Notion page (and any nested child-
+    /// pages) as Pinkha leaves. Same `covers_dir` semantics as
+    /// [`import_from_notion`].
+    [Throws=PinkhaError]
+    ImportResultFfi import_notion_page(string token, string page_id, string? covers_dir);
 
     /// Imports Bear notes from Bear's local SQLite book.
     /// `db_path` is the absolute path to Bear's `book.sqlite`.

@@ -27,10 +27,14 @@ public struct NotionImportView: View {
 
     @State private var token = ""
     @State private var availableBooks: [NotionDatabaseSummaryFfi] = []
+    @State private var availablePages: [NotionPageSummaryFfi] = []
     @State private var selectedIds: Set<String> = []
+    @State private var selectedPageIds: Set<String> = []
     @State private var extraUrls: [String] = []
     @State private var databasesError: String? = nil
+    @State private var pagesError: String? = nil
     @State private var isFetchingBooks = false
+    @State private var isFetchingPages = false
     @State private var state: ImportState = .idle
     @State private var oauth = NotionOAuth2()
     @Environment(\.dismiss) private var dismiss
@@ -136,6 +140,7 @@ public struct NotionImportView: View {
             tokenSection
             if !token.isEmpty {
                 pickerSection
+                pagesPickerSection
                 manualUrlsSection
             }
             statusSection
@@ -234,6 +239,54 @@ public struct NotionImportView: View {
         }
     }
 
+    /// Standalone-page picker. Same shape as the database picker but
+    /// pulls non-database pages — useful when the user has a "Project
+    /// notes" hub or a one-off page they want to migrate without
+    /// wrapping it in a database first. Pages with a database parent
+    /// are filtered out upstream (they belong to the DB import path).
+    @ViewBuilder
+    private var pagesPickerSection: some View {
+        Section {
+            if isFetchingPages {
+                HStack(spacing: 12) {
+                    ProgressView().scaleEffect(0.8)
+                    Text("Loading your pages…")
+                        .foregroundStyle(.secondary)
+                }
+            } else if let err = pagesError {
+                Text(err)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            } else if availablePages.isEmpty {
+                Text("No standalone page visible. Share a page with \(integrationName) from its ⋯ menu in Notion.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(availablePages, id: \.id) { page in
+                    PagePickerRow(
+                        page: page,
+                        isSelected: selectedPageIds.contains(page.id),
+                        onTap: {
+                            if selectedPageIds.contains(page.id) { selectedPageIds.remove(page.id) }
+                            else { selectedPageIds.insert(page.id) }
+                        }
+                    )
+                }
+            }
+        } header: {
+            HStack {
+                Text("Pick pages")
+                Spacer()
+                if !selectedPageIds.isEmpty {
+                    Text("\(selectedPageIds.count) selected")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textCase(nil)
+                }
+            }
+        }
+    }
+
     /// Fallback for books the integration hasn't been granted access to
     /// yet — the user can paste their URL and import them in the same run.
     @ViewBuilder
@@ -291,7 +344,7 @@ public struct NotionImportView: View {
                     .ignoresSafeArea()
                 SystemAlertCard(
                     title: "Importing from Notion",
-                    message: "Book \(current + 1) of \(total)",
+                    message: "Item \(current + 1) of \(total)",
                     showsProgress: true,
                     actions: [
                         .destructive("Cancel import") { api?.cancelImport() },
@@ -314,18 +367,18 @@ public struct NotionImportView: View {
         }
     }
 
-    /// Total = picked books + non-empty extra URLs. Drives the button
-    /// label so the user sees "Import 3 books" instead of just "Import".
+    /// Total = picked books + picked pages + non-empty extra URLs.
+    /// Drives the button label so the user sees "Import 3 items"
+    /// instead of just "Import".
     private var totalToImport: Int {
         let urls = extraUrls.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        return selectedIds.count + urls.count
+        return selectedIds.count + selectedPageIds.count + urls.count
     }
 
     private var importButtonLabel: String {
         switch totalToImport {
-        case 0: return "Import"
-        case 1: return "Import"
-        case let n: return "Import \(n) books"
+        case 0, 1: return "Import"
+        case let n: return "Import \(n) items"
         }
     }
 
@@ -382,10 +435,14 @@ public struct NotionImportView: View {
         let cleaned = rawToken.trimmingCharacters(in: .whitespaces)
         guard !cleaned.isEmpty, let api else {
             availableBooks = []
+            availablePages = []
             selectedIds = []
+            selectedPageIds = []
             databasesError = nil
+            pagesError = nil
             return
         }
+        fetchPages(token: cleaned, api: api)
         isFetchingBooks = true
         databasesError = nil
         Task.detached(priority: .userInitiated) {
@@ -424,6 +481,39 @@ public struct NotionImportView: View {
         }
     }
 
+    /// Loads the standalone-page list. Runs in parallel with the
+    /// database fetch — each picker manages its own spinner so the
+    /// slower one doesn't gate the faster.
+    private func fetchPages(token cleaned: String, api: PinkhaApi) {
+        isFetchingPages = true
+        pagesError = nil
+        Task.detached(priority: .userInitiated) {
+            do {
+                let pages = try api.listNotionPages(token: cleaned)
+                await MainActor.run {
+                    availablePages = pages
+                    isFetchingPages = false
+                    let validIds = Set(pages.map(\.id))
+                    selectedPageIds = selectedPageIds.intersection(validIds)
+                }
+            } catch let err as PinkhaError {
+                let message = err.userMessage
+                await MainActor.run {
+                    availablePages = []
+                    pagesError = message
+                    isFetchingPages = false
+                }
+            } catch {
+                let message = error.localizedDescription
+                await MainActor.run {
+                    availablePages = []
+                    pagesError = message
+                    isFetchingPages = false
+                }
+            }
+        }
+    }
+
     // ── Import ────────────────────────────────────────────────────────────────
 
     private func runImport() {
@@ -432,12 +522,17 @@ public struct NotionImportView: View {
         let manualUrls = extraUrls
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        // Selection first (likely most-recent ordering from the picker), then
-        // manual URLs in the order the user typed them. De-duplication is
-        // best-effort — if the same DB is both picked and pasted, it imports
-        // twice. Cheap to avoid: we'd need to normalise URLs to IDs, future
-        // refinement if it matters in practice.
-        let targets = Array(selectedIds) + manualUrls
+        // Two kinds of targets: databases (selected + manually pasted
+        // URLs both go through `importFromNotion`) and standalone
+        // pages (`importNotionPage`). We thread them through one
+        // unified queue so the progress card counts every step.
+        enum ImportTarget {
+            case database(id: String)
+            case page(id: String)
+        }
+        let dbTargets = (Array(selectedIds) + manualUrls).map(ImportTarget.database)
+        let pageTargets = Array(selectedPageIds).map(ImportTarget.page)
+        let targets = dbTargets + pageTargets
         let total = targets.count
         guard total > 0 else { return }
 
@@ -451,11 +546,21 @@ public struct NotionImportView: View {
                     state = .running(current: index, total: total)
                 }
                 do {
-                    let result = try api.importFromNotion(
-                        token: t,
-                        bookId: target,
-                        coversDir: coversDir
-                    )
+                    let result: ImportResultFfi
+                    switch target {
+                    case .database(let id):
+                        result = try api.importFromNotion(
+                            token: t,
+                            bookId: id,
+                            coversDir: coversDir
+                        )
+                    case .page(let id):
+                        result = try api.importNotionPage(
+                            token: t,
+                            pageId: id,
+                            coversDir: coversDir
+                        )
+                    }
                     totals.add(result)
                 } catch let err as PinkhaError {
                     // Cancellation is a user action, not a failure — show a
@@ -538,6 +643,43 @@ private struct BookPickerRow: View {
 
     private var displayTitle: String {
         let trimmed = db.title.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty ? "Untitled" : trimmed
+    }
+}
+
+/// Single row in the standalone-page picker. Same shape as
+/// [`BookPickerRow`] but defaults to a document glyph instead of the
+/// `tablecells` book icon. Kept as a sibling type so the two rows can
+/// drift apart without needing a generic protocol.
+private struct PagePickerRow: View {
+    @Environment(AppSettings.self) private var settings
+    let page: NotionPageSummaryFfi
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                if let emoji = page.iconEmoji, !emoji.isEmpty {
+                    Text(emoji).font(.title3)
+                } else {
+                    Image(systemName: "doc.text")
+                        .foregroundStyle(.secondary)
+                }
+                Text(displayTitle)
+                    .lineLimit(1)
+                Spacer()
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? settings.accentColor : Color.secondary)
+                    .imageScale(.large)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var displayTitle: String {
+        let trimmed = page.title.trimmingCharacters(in: .whitespaces)
         return trimmed.isEmpty ? "Untitled" : trimmed
     }
 }
