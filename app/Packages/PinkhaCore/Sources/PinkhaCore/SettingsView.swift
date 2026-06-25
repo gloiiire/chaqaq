@@ -133,6 +133,28 @@ public struct SettingsView: View {
                 } footer: {
                     Text("When you open a leaf from search, the rest of the page is blurred. Turn this on to also paint a soft tint behind the matched block.")
                 }
+
+                Section {
+                    Toggle("Long-press gesture", isOn: $settings.readerLongPressEnabled)
+                        .tint(settings.accentColor)
+                        .onChange(of: settings.readerLongPressEnabled) { _, _ in Haptic.toggle() }
+                    Picker(selection: $settings.readerLongPressFingerCount) {
+                        Text("2 fingers").tag(2)
+                        Text("3 fingers").tag(3)
+                    } label: {
+                        Text("Fingers")
+                    }
+                    .pickerStyle(.segmented)
+                    .disabled(!settings.readerLongPressEnabled)
+                    .onChange(of: settings.readerLongPressFingerCount) { _, _ in Haptic.tap() }
+                    Toggle("Hide status bar", isOn: $settings.readerHidesStatusBar)
+                        .tint(settings.accentColor)
+                        .onChange(of: settings.readerHidesStatusBar) { _, _ in Haptic.toggle() }
+                } header: {
+                    Text("Reader mode")
+                } footer: {
+                    Text("Hides every chrome element (tab bar, accessory bubble, toolbar) so you can just read. Trigger with a multi-finger long-press anywhere, or via the eyeglasses entry in the bubble's ⋯ menu. A floating ⊘ button always brings the chrome back.")
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)

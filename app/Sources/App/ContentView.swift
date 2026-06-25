@@ -18,6 +18,7 @@ struct ContentView: View {
     @State private var store = PinkhaStore()
     @State private var composer = Composer()
     @State private var tabManager = TabManager()
+    @State private var readerMode = ReaderMode()
     @Environment(AppSettings.self) private var settings
 
     /// Tracks crossing of the swipe-up haptic threshold so we fire
@@ -26,12 +27,52 @@ struct ContentView: View {
     @State private var swipeUpHapticFired = false
 
     var body: some View {
+        ZStack(alignment: .topTrailing) {
+            tabsChrome
+            // Floating exit button — only visible in reader mode. Sits
+            // in the top-right safe-area so it doesn't overlap the leaf
+            // content the user is reading. Glass capsule mirrors the
+            // CreateBubble's surface vocabulary.
+            if readerMode.isActive {
+                readerExitButton
+                    .padding(.trailing, 16)
+                    .padding(.top, 8)
+                    .transition(.scale(scale: 0.9).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.32, dampingFraction: 0.85), value: readerMode.isActive)
+        // Multi-finger long-press gesture installed at the root. The
+        // overlay only intercepts touches when the user holds N fingers
+        // for ~0.5s — single-finger taps and scrolls cascade through
+        // (`cancelsTouchesInView = false`).
+        .multiFingerLongPress(
+            enabled: settings.readerLongPressEnabled,
+            fingerCount: settings.readerLongPressFingerCount
+        ) { readerMode.toggle() }
+        // Status bar hide is opt-in — most users want time/battery
+        // visible while reading, but Lecteur-Safari fans can opt into
+        // full immersion via the setting.
+        .statusBarHidden(readerMode.isActive && settings.readerHidesStatusBar)
+        .environment(readerMode)
+    }
+
+    /// Wraps the existing tab-view + chrome stack. Extracted so the
+    /// reader-mode overlay can live alongside it without having to
+    /// thread all the modifiers through a second branch.
+    @ViewBuilder
+    private var tabsChrome: some View {
         rootTabs
             // iOS 26 tab-bar morphing : the tab bar collapses when the user
             // scrolls down so the content gets more breathing room, and
             // reappears on scroll-up. Search (role: .search) automatically
             // detaches into its own glass bubble on the right.
             .tabBarMinimizeBehavior(.onScrollDown)
+            // Reader mode hides every primary chrome element. The tab
+            // bar gets `.hidden` ; the CreateBubble accessory is
+            // conditionally omitted from `.tabViewBottomAccessory`
+            // below ; LeafView / ShelfView observe `readerMode` to
+            // hide their own toolbars (next commit).
+            .toolbar(readerMode.isActive ? .hidden : .visible, for: .tabBar)
             // Tint applied right on the TabView (BEFORE the .alert/.sheet
             // modifiers below) so only the selected-tab indicator picks up
             // the accent. Placing it later in the chain would have caused
@@ -50,26 +91,46 @@ struct ContentView: View {
             // entry points — new leaf, new book, new shelf and an
             // overflow menu (trash + imports). Stays visible across all tabs
             // so creation is always one tap away, à la Apple Music mini-player.
+            // Skipped entirely in reader mode so the bottom band stays clean.
             .tabViewBottomAccessory {
-                CreateBubble(
-                    onNewLeaf: { composer.openNewLeaf() },
-                    onNewBook: { composer.openNewBook() },
-                    onNewShelf: { composer.openNewShelf() },
-                    onShowTrash: { composer.showingTrash = true },
-                    onDeleteAll: { composer.showingDeleteAllConfirm = true },
-                    hasItemsForDeleteAll: !store.items.isEmpty,
-                    onImportNotion: { composer.showingNotionImport = true },
-                    onImportBear: { composer.showingBearImport = true },
-                    onImportCraftTextBundle: { composer.showingCraftTextBundleImport = true },
-                    onImportCraftCombined: { composer.showingCraftCombinedImport = true },
-                    onShowAllLeaves: { openSwitcher() }
-                )
+                if !readerMode.isActive {
+                    CreateBubble(
+                        onNewLeaf: { composer.openNewLeaf() },
+                        onNewBook: { composer.openNewBook() },
+                        onNewShelf: { composer.openNewShelf() },
+                        onShowTrash: { composer.showingTrash = true },
+                        onDeleteAll: { composer.showingDeleteAllConfirm = true },
+                        hasItemsForDeleteAll: !store.items.isEmpty,
+                        onImportNotion: { composer.showingNotionImport = true },
+                        onImportBear: { composer.showingBearImport = true },
+                        onImportCraftTextBundle: { composer.showingCraftTextBundleImport = true },
+                        onImportCraftCombined: { composer.showingCraftCombinedImport = true },
+                        onShowAllLeaves: { openSwitcher() },
+                        onEnterReaderMode: { readerMode.toggle() }
+                    )
+                }
             }
             .modifier(ContentSheets(composer: composer, store: store, settings: settings, tabManager: tabManager))
             .modifier(ContentAlerts(composer: composer, store: store))
             .onAppear { store.connect() }
             .task { composer.bindQuickActions() }
             .errorAlert(message: $store.errorMessage, onRetry: store.load)
+    }
+
+    /// The discoverable escape hatch — top-right floating capsule with
+    /// the `eyeglasses.slash` glyph. Tap = exit reader mode. Pairs with
+    /// the multi-finger long-press for users who forget the gesture.
+    private var readerExitButton: some View {
+        Button { readerMode.deactivate() } label: {
+            Image(systemName: "eyeglasses.slash")
+                .font(.title3.weight(.regular))
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
+        .glassEffect(.regular.interactive(), in: Capsule(style: .continuous))
+        .accessibilityLabel("Exit reader mode")
     }
 
     // ── Root tabs ────────────────────────────────────────────────────────

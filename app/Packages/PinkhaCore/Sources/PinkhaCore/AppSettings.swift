@@ -181,6 +181,9 @@ public final class AppSettings {
     private let cursorAccentKey   = "pinkha.settings.cursorFollowsAccent"
     private let appearanceKey     = "pinkha.settings.appearance"
     private let themeKey          = "pinkha.settings.theme"
+    private let readerLongPressEnabledKey  = "pinkha.settings.readerLongPressEnabled"
+    private let readerFingerCountKey       = "pinkha.settings.readerLongPressFingerCount"
+    private let readerHidesStatusBarKey    = "pinkha.settings.readerHidesStatusBar"
     /// Public so `Haptic` can read the flag without an
     /// `AppSettings` env injection — it's polled from inside the
     /// haptic generators which run in `@MainActor` static functions.
@@ -246,6 +249,39 @@ public final class AppSettings {
         didSet {
             UserDefaults.standard.set(rotationLocked, forKey: AppSettings.rotationLockKey)
             AppSettings.applyRotationLockToScenes(locked: rotationLocked)
+        }
+    }
+
+    /// Whether the multi-finger long-press gesture toggles reader mode.
+    /// Default on — power users who find the gesture intrusive can flip
+    /// it off; the eyeglasses entry in the CreateBubble's overflow menu
+    /// and the floating exit button stay available either way.
+    public var readerLongPressEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(readerLongPressEnabled, forKey: readerLongPressEnabledKey)
+        }
+    }
+
+    /// How many simultaneous touches trigger the reader-mode long-press.
+    /// Constrained to 2 or 3 — fewer races with single-finger taps,
+    /// more is uncomfortable to perform on iPhone. Default 2.
+    public var readerLongPressFingerCount: Int {
+        didSet {
+            let clamped = max(2, min(3, readerLongPressFingerCount))
+            if clamped != readerLongPressFingerCount {
+                readerLongPressFingerCount = clamped
+                return
+            }
+            UserDefaults.standard.set(readerLongPressFingerCount, forKey: readerFingerCountKey)
+        }
+    }
+
+    /// Whether reader mode also hides the iOS status bar. Default off
+    /// — most users still want to glance at time/battery while reading.
+    /// On = fully-immersive (Lecteur Safari / Kindle style).
+    public var readerHidesStatusBar: Bool {
+        didSet {
+            UserDefaults.standard.set(readerHidesStatusBar, forKey: readerHidesStatusBarKey)
         }
     }
 
@@ -354,6 +390,15 @@ public final class AppSettings {
         // Default OFF — preserves the existing landscape behaviour
         // for users who haven't touched the toggle yet.
         self.rotationLocked = UserDefaults.standard.bool(forKey: AppSettings.rotationLockKey)
+        // Reader mode defaults — gesture on, 2 fingers, status bar visible.
+        if UserDefaults.standard.object(forKey: readerLongPressEnabledKey) != nil {
+            self.readerLongPressEnabled = UserDefaults.standard.bool(forKey: readerLongPressEnabledKey)
+        } else {
+            self.readerLongPressEnabled = true
+        }
+        let storedFingers = UserDefaults.standard.integer(forKey: readerFingerCountKey)
+        self.readerLongPressFingerCount = (2...3).contains(storedFingers) ? storedFingers : 2
+        self.readerHidesStatusBar = UserDefaults.standard.bool(forKey: readerHidesStatusBarKey)
     }
 
     public var accentColor: Color { accentChoice.color }
@@ -362,13 +407,16 @@ public final class AppSettings {
     /// accent = orange, spotlight tint off, recent count = 7. Used
     /// by the floating "Reset" button in `SettingsView`.
     public func resetToDefaults() {
-        accentChoice        = .blue
-        spotlightTinted     = false
-        recentCount         = 7
-        cursorFollowsAccent = true
-        appearance          = .system
-        theme               = .original
-        hapticsEnabled      = true
-        rotationLocked      = false
+        accentChoice              = .blue
+        spotlightTinted           = false
+        recentCount               = 7
+        cursorFollowsAccent       = true
+        appearance                = .system
+        theme                     = .original
+        hapticsEnabled            = true
+        rotationLocked            = false
+        readerLongPressEnabled    = true
+        readerLongPressFingerCount = 2
+        readerHidesStatusBar      = false
     }
 }
