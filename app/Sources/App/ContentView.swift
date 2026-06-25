@@ -91,9 +91,12 @@ struct ContentView: View {
             // entry points — new leaf, new book, new shelf and an
             // overflow menu (trash + imports). Stays visible across all tabs
             // so creation is always one tap away, à la Apple Music mini-player.
-            // Skipped entirely in reader mode so the bottom band stays clean.
+            // Skipped entirely in reader mode (PRO-59) and, per PRO-60,
+            // hidden by default when the user is not at the library
+            // root (inside a shelf / leaf / book). Toggleable in
+            // Settings → Create bubble.
             .tabViewBottomAccessory {
-                if !readerMode.isActive {
+                if !readerMode.isActive && shouldShowAccessory {
                     CreateBubble(
                         onNewLeaf: { composer.openNewLeaf() },
                         onNewBook: { composer.openNewBook() },
@@ -115,6 +118,16 @@ struct ContentView: View {
             .onAppear { store.connect() }
             .task { composer.bindQuickActions() }
             .errorAlert(message: $store.errorMessage, onRetry: store.load)
+    }
+
+    /// Whether the CreateBubble should render in the current context.
+    /// Returns false when the user has the "Hide outside Library root"
+    /// setting on (default) AND is anywhere deeper than the library
+    /// home (inside a shelf / leaf / book). Always true when the user
+    /// has opted out.
+    private var shouldShowAccessory: Bool {
+        guard settings.hidesAccessoryOutsideLibraryRoot else { return true }
+        return composer.currentContext == .root
     }
 
     /// The discoverable escape hatch — top-right floating capsule with
