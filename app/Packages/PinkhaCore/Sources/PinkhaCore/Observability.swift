@@ -8,7 +8,19 @@ public enum Observability {
 
     /// Boots Sentry. No-op when the DSN is missing or still set to the
     /// placeholder — e.g. on a fresh checkout without local secrets.
+    ///
+    /// Also a no-op when running under XCTest. The unit-test target is
+    /// hosted by the app, so `Bundle.main` returns the app's Info.plist
+    /// (with a real SENTRY_DSN). Without this guard, every test that
+    /// throws an error through `tryCatch` / `Observability.capture` would
+    /// reach sentry.io for real and pollute the production dashboard.
     public static func start() {
+        guard !isRunningUnderXCTest else {
+            #if DEBUG
+            print("[Observability] Sentry disabled (running under XCTest).")
+            #endif
+            return
+        }
         let raw = Bundle.main.object(forInfoDictionaryKey: "SENTRY_DSN") as? String ?? ""
         #if DEBUG
         // Surface what was actually loaded so a missing/malformed DSN is easy
@@ -74,5 +86,13 @@ public enum Observability {
         #else
         return false
         #endif
+    }
+
+    /// `true` when the current process is running an XCTest bundle.
+    /// XCTest sets this env var to the absolute path of the test config
+    /// plist before launching the runner — present in both unit and UI
+    /// test contexts.
+    private static var isRunningUnderXCTest: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 }
