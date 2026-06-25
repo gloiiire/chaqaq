@@ -6,7 +6,8 @@ pub mod infrastructure;
 
 pub use ffi::{
     BlockSearchHitFfi, BookMetaFfi, LeafMetaFfi, ShelfMetaFfi, ImportResultFfi,
-    NotionDatabaseSummaryFfi, PinkhaApi, PinkhaError, SuperSearchResultsFfi,
+    NotionDatabaseSummaryFfi, NotionPageSummaryFfi, PinkhaApi, PinkhaError,
+    SuperSearchResultsFfi,
 };
 
 uniffi::include_scaffolding!("pinkha");

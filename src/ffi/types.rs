@@ -106,6 +106,17 @@ pub struct NotionDatabaseSummaryFfi {
     pub last_edited: String,
 }
 
+/// Standalone Notion page summary returned by `list_notion_pages`. Same
+/// shape as the database summary — separate type so the UDL can model
+/// the two list endpoints with distinct sequences.
+#[derive(Debug, Clone)]
+pub struct NotionPageSummaryFfi {
+    pub id: String,
+    pub title: String,
+    pub icon_emoji: Option<String>,
+    pub last_edited: String,
+}
+
 /// One match from a block-content search. Carries the leaf metadata
 /// plus a short snippet of the matching block so the UI can preview
 /// where the hit occurs, Notion-style.

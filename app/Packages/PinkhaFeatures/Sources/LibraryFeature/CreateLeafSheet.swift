@@ -283,7 +283,7 @@ public struct CreateLeafSheet: View {
                     .buttonStyle(.plain)
                     ForEach(covers, id: \.0) { id, name, colors in
                         coverSwatch(
-                            label: name,
+                            label: LocalizedStringKey(name),
                             isSelected: standaloneStyle.cover == id
                         ) {
                             // Picking a built-in gradient cancels
@@ -341,7 +341,7 @@ public struct CreateLeafSheet: View {
 
     @ViewBuilder
     private func coverSwatch<Overlay: View>(
-        label: String,
+        label: LocalizedStringKey,
         isSelected: Bool,
         onTap: @escaping () -> Void,
         @ViewBuilder overlay: () -> Overlay

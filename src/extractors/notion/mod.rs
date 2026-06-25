@@ -92,6 +92,20 @@ pub struct NotionDatabaseSummary {
     pub last_edited: String,
 }
 
+/// Public summary of a Notion *page* (i.e. a non-database leaf), returned
+/// by [`list_pages`] for the picker UI. Pages whose parent is a database
+/// row are filtered out — those should be imported via the book path so
+/// their typed properties land in a Pinkha Book row.
+pub struct NotionPageSummary {
+    /// 32-char hex ID (dashed UUID format).
+    pub id: String,
+    /// Concatenated plain-text title. Falls back to `"Untitled"` when
+    /// the page has no title property or it's empty.
+    pub title: String,
+    pub icon_emoji: Option<String>,
+    pub last_edited: String,
+}
+
 /// Lists every Notion book the supplied OAuth token can see. Used by the
 /// Swift picker so the user no longer needs to copy-paste each book URL.
 pub async fn list_books(token: &str) -> Result<Vec<NotionDatabaseSummary>, ExtractorError> {
@@ -230,6 +244,129 @@ pub async fn list_books_v2025(
     let mut summaries: Vec<NotionDatabaseSummary> = by_id.into_values().collect();
     summaries.sort_by(|a, b| b.last_edited.cmp(&a.last_edited));
     Ok(summaries)
+}
+
+/// Lists every standalone Notion page the OAuth token can see.
+///
+/// "Standalone" = the page's `parent.type` is not `database_id`. Pages
+/// whose parent is a database are *rows* in disguise — they belong to
+/// the database-import path so their typed properties survive. The
+/// picker calls this for the second list section ("Pages") shown
+/// alongside the existing "Databases" section.
+pub async fn list_pages(token: &str) -> Result<Vec<NotionPageSummary>, ExtractorError> {
+    use self::schema::NotionPageParent;
+    let client = NotionClient::new(token)?;
+    let hits = client.list_accessible_pages().await?;
+    let mut summaries: Vec<NotionPageSummary> = hits
+        .into_iter()
+        .filter(|hit| !hit.archived && !hit.in_trash)
+        .filter(|hit| !matches!(hit.parent, Some(NotionPageParent::DatabaseId { .. })))
+        .map(|hit| {
+            // Title lives in whichever property has `type: title`.
+            let title: String = hit
+                .properties
+                .values()
+                .find_map(|v| {
+                    if let self::schema::NotionPagePropValue::Title { title } = v {
+                        Some(
+                            title
+                                .iter()
+                                .map(|run| run.plain_text.as_str())
+                                .collect::<String>(),
+                        )
+                    } else {
+                        None
+                    }
+                })
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| "Untitled".to_string());
+            let icon_emoji = match hit.icon {
+                Some(schema::NotionPageIcon::Emoji { emoji }) => Some(emoji),
+                _ => None,
+            };
+            NotionPageSummary {
+                id: hit.id,
+                title,
+                icon_emoji,
+                last_edited: hit.last_edited_time,
+            }
+        })
+        .collect();
+    summaries.sort_by(|a, b| b.last_edited.cmp(&a.last_edited));
+    Ok(summaries)
+}
+
+/// Imports a single Notion page as a standalone Pinkha leaf — no book
+/// row, no enclosing database. The page's child_pages recurse through
+/// the same machinery as the DB-row import path, so a nested hierarchy
+/// is preserved with `parent_leaf_id` links.
+///
+/// Returns the freshly-created leaf id so the caller can navigate to
+/// it after the import. Skipped block counts are aggregated through the
+/// returned [`ImportResult`].
+pub async fn import_standalone_page(
+    token: &str,
+    page_id: &str,
+    covers_dir: Option<&str>,
+    docs: &(dyn LeafRepository + Send + Sync),
+) -> Result<(Uuid, ImportResult), ExtractorError> {
+    let client = NotionClient::new(token)?;
+    // Pull the full page metadata first — we need it for title, icon
+    // and cover before creating the leaf.
+    let page = client.get_page(page_id).await?;
+    let title = page
+        .properties
+        .values()
+        .find_map(|v| {
+            if let self::schema::NotionPagePropValue::Title { title } = v {
+                Some(
+                    title
+                        .iter()
+                        .map(|r| r.plain_text.as_str())
+                        .collect::<String>(),
+                )
+            } else {
+                None
+            }
+        })
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "Untitled".to_string());
+
+    let notion_to_pinkha: Mutex<HashMap<String, Uuid>> = Mutex::new(HashMap::new());
+    let leaf_id = import_child_page(
+        &client,
+        &page.id,
+        &title,
+        None,
+        docs,
+        &notion_to_pinkha,
+        covers_dir,
+    )
+    .await?;
+
+    // Rewrite Notion mentions inside every leaf we just imported so
+    // sibling links resolve to pinkha leaves instead of notion.so URLs.
+    let map = notion_to_pinkha
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    for &pinkha_id in map.values() {
+        if let Err(err) = rewrite_notion_mentions(docs, pinkha_id, &map) {
+            eprintln!("[notion import] mention rewrite failed for {pinkha_id}: {err:?}");
+        }
+    }
+
+    // Best-effort block count — we don't bubble it back from
+    // `import_child_page` today, so report `0` rather than mislead.
+    let result = ImportResult {
+        app: "Notion",
+        book_id: None,
+        leaves: map.len(),
+        entries: 0,
+        blocks: 0,
+        skipped: 0,
+    };
+    Ok((leaf_id, result))
 }
 
 impl Default for NotionExtractor {
@@ -761,7 +898,7 @@ async fn fetch_blocks_recursive(
                     client,
                     &notion_block.id,
                     &title,
-                    owning_leaf_id,
+                    Some(owning_leaf_id),
                     docs,
                     notion_to_pinkha,
                     covers_dir,
@@ -839,7 +976,7 @@ async fn import_child_page(
     client: &NotionClient,
     notion_id: &str,
     title: &str,
-    parent_leaf_id: Uuid,
+    parent_leaf_id: Option<Uuid>,
     docs: &(dyn LeafRepository + Send + Sync),
     notion_to_pinkha: &Mutex<HashMap<String, Uuid>>,
     covers_dir: Option<&str>,
@@ -853,7 +990,7 @@ async fn import_child_page(
         content: title.to_string(),
         styles: Vec::new(),
     }]);
-    child.parent_leaf_id = Some(parent_leaf_id);
+    child.parent_leaf_id = parent_leaf_id;
     // Imports always default to locked: the user should read the imported
     // content before mutating it. Mirrors `import_page`'s top-level pages.
     child.locked = true;
