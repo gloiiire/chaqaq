@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import AuthenticationServices
 @testable import ImportFeature
 @testable import Pinkha
 
@@ -141,5 +142,33 @@ struct NotionOAuth2Tests {
         let url = URL(string: "https://pinkha.app/")!
         let redacted = NotionOAuth2.redactedOAuthURL(url)
         #expect(redacted == "https://pinkha.app/")
+    }
+
+    // MARK: - User-cancellation filtering (avoid Sentry noise)
+
+    @Test func isUserCancellation_true_for_URLError_cancelled() {
+        // User closed the in-app browser before completing auth.
+        #expect(NotionOAuth2.isUserCancellation(URLError(.cancelled)))
+    }
+
+    @Test func isUserCancellation_true_for_URLError_badURL() {
+        // We throw `.badURL` when the OAuth callback has no `code` query
+        // item — typically the user pressed "Deny" on the consent screen.
+        #expect(NotionOAuth2.isUserCancellation(URLError(.badURL)))
+    }
+
+    @Test func isUserCancellation_true_for_ASWebAuth_canceledLogin() {
+        let err = ASWebAuthenticationSessionError(.canceledLogin)
+        #expect(NotionOAuth2.isUserCancellation(err))
+    }
+
+    @Test func isUserCancellation_false_for_network_failure() {
+        // Real network failure — must still reach Sentry so we can investigate.
+        #expect(!NotionOAuth2.isUserCancellation(URLError(.notConnectedToInternet)))
+    }
+
+    @Test func isUserCancellation_false_for_unrelated_error() {
+        struct OtherError: Error {}
+        #expect(!NotionOAuth2.isUserCancellation(OtherError()))
     }
 }

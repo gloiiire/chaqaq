@@ -144,9 +144,36 @@ public final class NotionOAuth2: NSObject, ASWebAuthenticationPresentationContex
         } catch {
             trace("failed: \(error)")
             self.error = error.localizedDescription
-            Observability.capture(error)
+            // Skip Sentry for known user-cancellation flows. Closing the auth
+            // browser tab (URLError.cancelled / ASWebAuthError.canceledLogin)
+            // and denying access on the consent screen (we throw URLError.badURL
+            // when the callback redirect has no `code` param) are normal user
+            // actions — they used to clutter the dashboard with one event per
+            // beta tester who changed their mind.
+            if !Self.isUserCancellation(error) {
+                Observability.capture(error)
+            }
         }
         isLoading = false
+    }
+
+    /// Classifies an OAuth error as "user pressed cancel / closed the tab /
+    /// denied access on the consent screen". These flows are expected and
+    /// shouldn't be reported as crashes. `internal` so the unit tests can
+    /// exercise it without launching an actual ASWebAuthenticationSession.
+    static func isUserCancellation(_ error: Error) -> Bool {
+        if let asError = error as? ASWebAuthenticationSessionError,
+           asError.code == .canceledLogin {
+            return true
+        }
+        if let urlError = error as? URLError {
+            // .cancelled — user closed the in-app browser.
+            // .badURL — we throw this when the callback redirect carries
+            //   no `code` query item (typically: user clicked "Deny" on
+            //   the Notion consent screen).
+            return urlError.code == .cancelled || urlError.code == .badURL
+        }
+        return false
     }
 
     // MARK: - ASWebAuthenticationPresentationContextProviding
