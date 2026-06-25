@@ -21,7 +21,7 @@ mod library;
 pub use error::PinkhaError;
 pub use types::{
     BlockSearchHitFfi, BookMetaFfi, LeafMetaFfi, ShelfMetaFfi, ImportResultFfi,
-    NotionDatabaseSummaryFfi, SuperSearchResultsFfi,
+    NotionDatabaseSummaryFfi, NotionPageSummaryFfi, SuperSearchResultsFfi,
 };
 
 use crate::infrastructure::no_op_unit_of_work::NoOpUnitOfWork;

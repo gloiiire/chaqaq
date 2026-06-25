@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 
 use crate::extractors::{ExtractorError, ImportResult};
 
-use super::types::{ImportResultFfi, NotionDatabaseSummaryFfi};
+use super::types::{ImportResultFfi, NotionDatabaseSummaryFfi, NotionPageSummaryFfi};
 use super::validation::validate_string;
 use super::{PinkhaApi, PinkhaError};
 
@@ -123,6 +123,54 @@ impl PinkhaApi {
                 detail: "import cancelled".to_string(),
             },
         }
+    }
+
+    /// Lists every standalone Notion page the OAuth token can see.
+    /// "Standalone" = parent is not a database row. Sync for the same
+    /// Tokio-reactor reason as [`import_from_notion`].
+    pub fn list_notion_pages(
+        &self,
+        token: String,
+    ) -> Result<Vec<NotionPageSummaryFfi>, PinkhaError> {
+        validate_string(&token, "token")?;
+        let summaries = tokio_runtime()
+            .block_on(crate::extractors::notion::list_pages(&token))
+            .map_err(Self::map_notion_picker_error)?;
+        Ok(summaries
+            .into_iter()
+            .map(|s| NotionPageSummaryFfi {
+                id: s.id,
+                title: s.title,
+                icon_emoji: s.icon_emoji,
+                last_edited: s.last_edited,
+            })
+            .collect())
+    }
+
+    /// Imports a single standalone Notion page (and its nested
+    /// child-pages) as Pinkha leaves. Returns the root leaf id so the
+    /// caller can navigate to the freshly-imported note.
+    pub fn import_notion_page(
+        &self,
+        token: String,
+        page_id: String,
+        covers_dir: Option<String>,
+    ) -> Result<ImportResultFfi, PinkhaError> {
+        validate_string(&token, "token")?;
+        validate_string(&page_id, "page_id")?;
+        if let Some(dir) = covers_dir.as_deref() {
+            validate_string(dir, "covers_dir")?;
+        }
+        tokio_runtime()
+            .block_on(crate::extractors::notion::import_standalone_page(
+                &token,
+                &page_id,
+                covers_dir.as_deref(),
+                &self.docs
+                    as &(dyn crate::application::repository::LeafRepository + Send + Sync),
+            ))
+            .map(|(_leaf_id, r)| ffi_import_result(r))
+            .map_err(extractor_err_to_ffi)
     }
 
     pub fn import_from_notion(
