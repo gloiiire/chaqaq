@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaCore
 
 // ── Create bubble (Apple Music mini-player style) ────────────────────────────
 //
@@ -64,7 +65,14 @@ public struct CreateBubble: View {
     /// compact bubble width without crowding.
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
 
-    private var isInline: Bool { placement == .inline }
+    /// User can swipe the expanded bubble to the right to collapse it
+    /// into the inline visual layout without waiting for the tab bar to
+    /// minimise itself. Resets the next time the system promotes the
+    /// accessory back to expanded (i.e. the user scrolls up and the
+    /// tab bar restores its full layout).
+    @State private var manuallyCollapsed: Bool = false
+
+    private var isInline: Bool { placement == .inline || manuallyCollapsed }
 
     public var body: some View {
         HStack(spacing: isInline ? 3 : 30) {
@@ -100,6 +108,27 @@ public struct CreateBubble: View {
         // subtree (Leaf / Book / Shelf / More + everything in
         // the More menu) to the neutral material color.
         .tint(.primary)
+        // Swipe right on the expanded capsule to shrink it back to the
+        // inline layout. `minimumDistance: 20` keeps the tap targets on
+        // the four icons hit-tester friendly; the horizontal/vertical
+        // ratio check rejects accidental vertical pans.
+        .gesture(
+            DragGesture(minimumDistance: 20)
+                .onEnded { value in
+                    guard placement != .inline else { return }
+                    let dx = value.translation.width
+                    let dy = abs(value.translation.height)
+                    if dx > 40, dx > dy * 2 {
+                        Haptic.soft()
+                        manuallyCollapsed = true
+                    }
+                }
+        )
+        .onChange(of: placement) { _, newValue in
+            // System restored the expanded slot — clear the manual
+            // override so the labels reappear next time around.
+            if newValue != .inline { manuallyCollapsed = false }
+        }
     }
 
     private func icon(systemImage: String,
