@@ -2,7 +2,7 @@ name: Pinkha
 options:
   bundleIdPrefix: com.gloiiire
   deploymentTarget:
-    iOS: "26.0"
+    iOS: "26.1"
   createIntermediateGroups: true
 
 # Project-wide build settings. Apply to every target unless overridden.
@@ -63,7 +63,7 @@ targets:
   Pinkha:
     type: application
     platform: iOS
-    deploymentTarget: "26.0"
+    deploymentTarget: "26.1"
     configFiles:
       Debug: Config/Secrets.xcconfig
       Release: Config/Secrets.xcconfig
@@ -122,7 +122,7 @@ targets:
   PinkhaTests:
     type: bundle.unit-test
     platform: iOS
-    deploymentTarget: "26.0"
+    deploymentTarget: "26.1"
     sources:
       - path: Tests/Unit
     settings:
@@ -138,7 +138,7 @@ targets:
   PinkhaIntegrationTests:
     type: bundle.unit-test
     platform: iOS
-    deploymentTarget: "26.0"
+    deploymentTarget: "26.1"
     sources:
       - path: Tests/Integration
     settings:
@@ -154,7 +154,7 @@ targets:
   PinkhaUITests:
     type: bundle.ui-testing
     platform: iOS
-    deploymentTarget: "26.0"
+    deploymentTarget: "26.1"
     sources:
       - path: Tests/UI
     settings:

@@ -141,7 +141,7 @@ public struct SettingsView: View {
                 } header: {
                     Text("Create bubble")
                 } footer: {
-                    Text("On (default): the create bubble only appears on the Library home view. Off: it stays visible inside shelves, leaves and books too.")
+                    Text("Off (default): the create bubble stays visible everywhere. On: it only appears on the Library home view — quieter chrome inside shelves, leaves and books.")
                 }
 
                 Section {

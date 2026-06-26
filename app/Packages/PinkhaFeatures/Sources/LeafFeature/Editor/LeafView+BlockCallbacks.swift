@@ -102,7 +102,7 @@ public extension LeafView {
             // we don't need to gate the button on hierarchy state.
             if !vm.locked && editMode != .active {
                 Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    Haptic.tap()
                     vm.indentBlock(id: b.id)
                 } label: {
                     Label("Indent", systemImage: "arrow.right.to.line")
@@ -122,7 +122,7 @@ public extension LeafView {
                 // buttons; partial swipe reveals them without firing
                 // delete. Direction matches the block's movement (left).
                 Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    Haptic.tap()
                     vm.outdentBlock(id: b.id)
                 } label: {
                     Label("Outdent", systemImage: "arrow.left.to.line")

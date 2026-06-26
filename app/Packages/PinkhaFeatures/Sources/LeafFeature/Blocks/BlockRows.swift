@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaCore
 import PinkhaFFI
 import PinkhaRichText
 
@@ -299,7 +300,7 @@ public struct BlockRowView: View {
             }
             if let onDuplicate = cb.onDuplicate {
                 Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    Haptic.tap()
                     onDuplicate()
                 } label: {
                     Label {

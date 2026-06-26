@@ -33,89 +33,142 @@ public final class ReaderMode {
 // MARK: - Multi-finger long-press gesture bridge
 //
 // SwiftUI's `LongPressGesture` doesn't expose `numberOfTouchesRequired`,
-// so multi-finger long-press has to go through a UIKit recogniser. We
-// wrap a transparent `UIView` with a `UILongPressGestureRecognizer`
-// configured for N simultaneous touches; on `.began`, we call the SwiftUI
-// closure once.
+// so multi-finger long-press has to go through a UIKit recogniser.
 //
-// Placed in PinkhaCore because the gesture is a cross-cutting UX
-// affordance — used by the reader mode today, free to be reused for
-// other shortcuts tomorrow.
+// **Why the recognizer lives on the UIWindow, not a SwiftUI overlay :**
+// an `.overlay { UIView }` UIView intercepts hit-testing for every
+// underlying SwiftUI view — buttons, scrolls, taps all stop working
+// because UIKit asks the overlay (on top) first and the overlay claims
+// the touch. `cancelsTouchesInView = false` only matters once the
+// recogniser is processing ; it doesn't redirect the initial hit-test.
+//
+// Window-level recognizers, on the other hand, see every touch in the
+// app *without* participating in hit-testing — they sit alongside the
+// view-tree dispatch, not on top of it. That's the textbook UIKit
+// pattern for app-wide shortcuts.
 
 public extension View {
     /// Triggers `perform` when the user holds `fingerCount` fingers down
-    /// for ~0.5s anywhere on the receiver. No-op when `enabled == false`.
-    /// The gesture coexists with regular taps/scrolls because the
-    /// recogniser is added to a transparent overlay that defaults to
-    /// `cancelsTouchesInView = false` — touches still propagate to the
-    /// underlying SwiftUI view.
+    /// for ~0.5s anywhere on the screen. No-op when `enabled == false`.
+    /// Installed at the UIWindow level so it never interferes with the
+    /// hit-testing of underlying SwiftUI controls.
     func multiFingerLongPress(
         enabled: Bool,
         fingerCount: Int,
         perform: @escaping () -> Void
     ) -> some View {
-        overlay(
-            MultiFingerLongPressView(
+        background(
+            WindowGestureInstaller(
                 enabled: enabled,
                 fingerCount: fingerCount,
                 perform: perform
             )
-            // `.allowsHitTesting(false)` would defeat the purpose — we
-            // *need* the overlay to receive touches so its recogniser
-            // can evaluate them. Touches still cascade to the underlying
-            // SwiftUI views because the recogniser leaves
-            // `cancelsTouchesInView` at false.
+            // Zero-sized — we only need a UIViewRepresentable handle so
+            // we can observe `didMoveToWindow` and install our recognizer
+            // on the resolved UIWindow. The view itself draws nothing.
+            .frame(width: 0, height: 0)
         )
     }
 }
 
-private struct MultiFingerLongPressView: UIViewRepresentable {
+private struct WindowGestureInstaller: UIViewRepresentable {
     let enabled: Bool
     let fingerCount: Int
     let perform: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(perform: perform) }
 
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView()
-        view.backgroundColor = .clear
-        let recogniser = UILongPressGestureRecognizer(
-            target: context.coordinator,
-            action: #selector(Coordinator.handle(_:))
-        )
-        recogniser.numberOfTouchesRequired = max(2, min(3, fingerCount))
-        recogniser.minimumPressDuration = 0.5
-        // Let underlying SwiftUI views receive the touches too —
-        // otherwise a long-press for the reader gesture would eat a
-        // text-selection long-press inside the editor.
-        recogniser.cancelsTouchesInView = false
-        recogniser.delaysTouchesBegan = false
-        recogniser.delaysTouchesEnded = false
-        recogniser.isEnabled = enabled
-        view.addGestureRecognizer(recogniser)
-        context.coordinator.recogniser = recogniser
+    func makeUIView(context: Context) -> WindowAttachableView {
+        let view = WindowAttachableView()
+        view.coordinator = context.coordinator
+        view.requestedFingerCount = max(2, min(3, fingerCount))
+        view.requestedEnabled = enabled
         return view
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {
+    func updateUIView(_ uiView: WindowAttachableView, context: Context) {
         context.coordinator.perform = perform
-        context.coordinator.recogniser?.isEnabled = enabled
-        context.coordinator.recogniser?.numberOfTouchesRequired = max(2, min(3, fingerCount))
+        uiView.requestedFingerCount = max(2, min(3, fingerCount))
+        uiView.requestedEnabled = enabled
+        uiView.refreshRecognizer()
     }
 
     @MainActor
     final class Coordinator {
         var perform: () -> Void
-        weak var recogniser: UILongPressGestureRecognizer?
-
         init(perform: @escaping () -> Void) { self.perform = perform }
 
         @objc func handle(_ sender: UILongPressGestureRecognizer) {
-            // Fire on `.began` only — the recogniser stays alive
-            // through `.changed`/`.ended` while the user keeps holding,
-            // but we want a single toggle per press.
+            // Fire on `.began` only — the recognizer stays alive
+            // through `.changed`/`.ended` while the user keeps
+            // holding ; we want a single toggle per press.
             guard sender.state == .began else { return }
             perform()
         }
+    }
+}
+
+/// A zero-sized UIView whose only job is to grab its hosting UIWindow
+/// and install / remove a window-level long-press recogniser when its
+/// settings change or it moves between windows (sheet present, scene
+/// reconnect, …).
+private final class WindowAttachableView: UIView {
+    weak var coordinator: WindowGestureInstaller.Coordinator?
+    var requestedFingerCount: Int = 2
+    var requestedEnabled: Bool = true
+    private weak var recognizer: UILongPressGestureRecognizer?
+    private weak var attachedWindow: UIWindow?
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        // Detach from the previous window (if any) before attaching to
+        // the new one — otherwise we'd leak the recognizer in scene
+        // transitions.
+        detachRecognizer()
+        guard window != nil else { return }
+        installRecognizer()
+    }
+
+    func refreshRecognizer() {
+        // Settings changed — rebuild the recognizer with the new
+        // touch count / enabled flag. `numberOfTouchesRequired` is
+        // not live-mutable in a way that's reliable across iOS
+        // versions, so we recreate to be safe.
+        detachRecognizer()
+        installRecognizer()
+    }
+
+    private func installRecognizer() {
+        guard let window, let coordinator else { return }
+        let recogniser = UILongPressGestureRecognizer(
+            target: coordinator,
+            action: #selector(WindowGestureInstaller.Coordinator.handle(_:))
+        )
+        recogniser.numberOfTouchesRequired = requestedFingerCount
+        recogniser.minimumPressDuration = 0.5
+        // Critical : never cancel the underlying touches. Without this,
+        // a long-press near a Button area would swallow the tap.
+        recogniser.cancelsTouchesInView = false
+        recogniser.delaysTouchesBegan = false
+        recogniser.delaysTouchesEnded = false
+        recogniser.isEnabled = requestedEnabled
+        window.addGestureRecognizer(recogniser)
+        self.recognizer = recogniser
+        self.attachedWindow = window
+    }
+
+    private func detachRecognizer() {
+        if let recognizer, let attachedWindow {
+            attachedWindow.removeGestureRecognizer(recognizer)
+        }
+        recognizer = nil
+        attachedWindow = nil
+    }
+
+    deinit {
+        // On main actor because the recognizer add/remove API is
+        // implicitly MainActor in modern UIKit ; the view is owned
+        // by the SwiftUI render thread which runs on main.
+        MainActor.assumeIsolated { detachRecognizer() }
     }
 }

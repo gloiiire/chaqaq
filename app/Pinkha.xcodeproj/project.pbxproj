@@ -33,6 +33,7 @@
 		5898D72B50B77D1D3DBB9008 /* ObservabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EF086F9F0458E7ADBD9C439 /* ObservabilityTests.swift */; };
 		599105D6197DADEB981F1275 /* SwipeDeleteUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB8BDD53EA02FC1A56928B5 /* SwipeDeleteUITests.swift */; };
 		6037AF533565A18E60760F2C /* ConcurrencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83C7E5FB163EC0BCAADD90F1 /* ConcurrencyTests.swift */; };
+		640C7D05BFA7A3B7F2A7116C /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 7643EA299AC3B92F91BC95DE /* Pinkha.icon */; };
 		6A61F7F6FC09488712F87FD4 /* DatabaseModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC27E249DFB98A2B03FBBE07 /* DatabaseModelsTests.swift */; };
 		6F1BED5AF109B8A559654E40 /* MalformedJSONTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D00712F93440126D5247D83 /* MalformedJSONTests.swift */; };
 		70E5381BE9FC61F70FFF8428 /* DatabaseQueriesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74758505CF9C5437D290A702 /* DatabaseQueriesTests.swift */; };
@@ -118,6 +119,7 @@
 		74758505CF9C5437D290A702 /* DatabaseQueriesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseQueriesTests.swift; sourceTree = "<group>"; };
 		7489CFC34A012E88663D5A4E /* DocumentViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentViewModelTests.swift; sourceTree = "<group>"; };
 		75D7DCC839125DE7FA5021C1 /* EdgeOpsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdgeOpsTests.swift; sourceTree = "<group>"; };
+		7643EA299AC3B92F91BC95DE /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		7A3421677D3E4A70DA86CEB8 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		7AF590FDF89EC393658B2029 /* VMErrorHandlingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMErrorHandlingTests.swift; sourceTree = "<group>"; };
 		7BDCE4B4A67B7675CF7E4994 /* ModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsTests.swift; sourceTree = "<group>"; };
@@ -279,6 +281,14 @@
 			path = Tests;
 			sourceTree = "<group>";
 		};
+		848C8C04F94B7B52494AD3B1 /* app */ = {
+			isa = PBXGroup;
+			children = (
+				7643EA299AC3B92F91BC95DE /* Pinkha.icon */,
+			);
+			name = app;
+			sourceTree = "<group>";
+		};
 		8FB7F1288CD331FA0F093783 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
@@ -312,6 +322,7 @@
 				8FB7F1288CD331FA0F093783 /* Sources */,
 				7CE19974FB0E7C2FE24CED36 /* Tests */,
 				7459E38DDB42FA0567FB08BE /* Products */,
+				848C8C04F94B7B52494AD3B1 /* app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -330,8 +341,6 @@
 				927F330555739D9EA6AE32DA /* PBXTargetDependency */,
 			);
 			name = PinkhaIntegrationTests;
-			packageProductDependencies = (
-			);
 			productName = PinkhaIntegrationTests;
 			productReference = 989079D332C7B04FEE02C8BC /* PinkhaIntegrationTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -348,8 +357,6 @@
 				4E6BCB04497B8C41D714F720 /* PBXTargetDependency */,
 			);
 			name = PinkhaUITests;
-			packageProductDependencies = (
-			);
 			productName = PinkhaUITests;
 			productReference = BBCF4EDFC02A470DBC3BA602 /* PinkhaUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -366,8 +373,6 @@
 				BEEC4C3C50F6749665EC95D9 /* PBXTargetDependency */,
 			);
 			name = PinkhaTests;
-			packageProductDependencies = (
-			);
 			productName = PinkhaTests;
 			productReference = 596EB06D81D9723854411FD8 /* PinkhaTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -438,12 +443,12 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				C7825E2281810F2327BF98FF /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
-				E29BBE593B0D6FBC9305D41D /* XCLocalSwiftPackageReference "Packages/PinkhaComposer" */,
-				3A283417E14F4171E2CB6C47 /* XCLocalSwiftPackageReference "Packages/PinkhaCore" */,
-				D9A10A1EE966734829834F90 /* XCLocalSwiftPackageReference "Packages/PinkhaDesignSystem" */,
-				B0FE31F7CD88318FA252F053 /* XCLocalSwiftPackageReference "Packages/PinkhaFFI" */,
-				718B09548FDB464F566672B1 /* XCLocalSwiftPackageReference "Packages/PinkhaFeatures" */,
-				482F80831FDB58B7A87E622C /* XCLocalSwiftPackageReference "Packages/PinkhaRichText" */,
+				E29BBE593B0D6FBC9305D41D /* XCLocalSwiftPackageReference "PinkhaComposer" */,
+				3A283417E14F4171E2CB6C47 /* XCLocalSwiftPackageReference "PinkhaCore" */,
+				D9A10A1EE966734829834F90 /* XCLocalSwiftPackageReference "PinkhaDesignSystem" */,
+				B0FE31F7CD88318FA252F053 /* XCLocalSwiftPackageReference "PinkhaFFI" */,
+				718B09548FDB464F566672B1 /* XCLocalSwiftPackageReference "PinkhaFeatures" */,
+				482F80831FDB58B7A87E622C /* XCLocalSwiftPackageReference "PinkhaRichText" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7459E38DDB42FA0567FB08BE /* Products */;
@@ -466,6 +471,7 @@
 				57155F8A05B7C7EA1ED129AF /* Assets.xcassets in Resources */,
 				1687C7C9610D2298A8E55177 /* InfoPlist.xcstrings in Resources */,
 				D878D8EB398C5B2F7E67F418 /* Localizable.xcstrings in Resources */,
+				640C7D05BFA7A3B7F2A7116C /* Pinkha.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -570,17 +576,20 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BAE708B54C4D296BE09E399D /* Secrets.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Pinkha;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = N49VNC2G57;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				INFOPLIST_FILE = Sources/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				OTHER_LDFLAGS = "$(inherited) -lc++";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.gloiiire.pinkha;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -594,7 +603,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -612,18 +621,21 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BAE708B54C4D296BE09E399D /* Secrets.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Pinkha;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = N49VNC2G57;
 				ENABLE_TESTABILITY = YES;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				INFOPLIST_FILE = Sources/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				OTHER_LDFLAGS = "$(inherited) -lc++";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.gloiiire.pinkha;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -637,7 +649,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -657,7 +669,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -677,7 +689,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -737,7 +749,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -754,7 +766,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -774,7 +786,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				DEVELOPMENT_TEAM = N49VNC2G57;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -840,7 +852,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -903,27 +915,27 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		3A283417E14F4171E2CB6C47 /* XCLocalSwiftPackageReference "Packages/PinkhaCore" */ = {
+		3A283417E14F4171E2CB6C47 /* XCLocalSwiftPackageReference "PinkhaCore" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/PinkhaCore;
 		};
-		482F80831FDB58B7A87E622C /* XCLocalSwiftPackageReference "Packages/PinkhaRichText" */ = {
+		482F80831FDB58B7A87E622C /* XCLocalSwiftPackageReference "PinkhaRichText" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/PinkhaRichText;
 		};
-		718B09548FDB464F566672B1 /* XCLocalSwiftPackageReference "Packages/PinkhaFeatures" */ = {
+		718B09548FDB464F566672B1 /* XCLocalSwiftPackageReference "PinkhaFeatures" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/PinkhaFeatures;
 		};
-		B0FE31F7CD88318FA252F053 /* XCLocalSwiftPackageReference "Packages/PinkhaFFI" */ = {
+		B0FE31F7CD88318FA252F053 /* XCLocalSwiftPackageReference "PinkhaFFI" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/PinkhaFFI;
 		};
-		D9A10A1EE966734829834F90 /* XCLocalSwiftPackageReference "Packages/PinkhaDesignSystem" */ = {
+		D9A10A1EE966734829834F90 /* XCLocalSwiftPackageReference "PinkhaDesignSystem" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/PinkhaDesignSystem;
 		};
-		E29BBE593B0D6FBC9305D41D /* XCLocalSwiftPackageReference "Packages/PinkhaComposer" */ = {
+		E29BBE593B0D6FBC9305D41D /* XCLocalSwiftPackageReference "PinkhaComposer" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/PinkhaComposer;
 		};

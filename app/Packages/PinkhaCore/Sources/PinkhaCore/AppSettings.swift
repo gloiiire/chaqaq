@@ -288,9 +288,10 @@ public final class AppSettings {
 
     /// Whether the CreateBubble accessory is hidden when the user is
     /// not at the library root (i.e. inside a shelf, leaf or book).
-    /// Default ON — the bubble is most useful at the home view where
-    /// the user might be triaging or creating ; once inside an item
-    /// it's usually noise.
+    /// **Default OFF** — the bubble stays visible everywhere so a
+    /// fresh user always has the four primary creation buttons one
+    /// tap away. Power users who want a quieter chrome inside a leaf
+    /// can flip the toggle ON in Settings → Create bubble.
     public var hidesAccessoryOutsideLibraryRoot: Bool {
         didSet {
             UserDefaults.standard.set(hidesAccessoryOutsideLibraryRoot, forKey: hidesAccessoryOffRootKey)
@@ -411,13 +412,11 @@ public final class AppSettings {
         let storedFingers = UserDefaults.standard.integer(forKey: readerFingerCountKey)
         self.readerLongPressFingerCount = (2...3).contains(storedFingers) ? storedFingers : 2
         self.readerHidesStatusBar = UserDefaults.standard.bool(forKey: readerHidesStatusBarKey)
-        // Default ON — keeps the chrome quiet inside a leaf / shelf
-        // / book without preventing power users from opting out.
-        if UserDefaults.standard.object(forKey: hidesAccessoryOffRootKey) != nil {
-            self.hidesAccessoryOutsideLibraryRoot = UserDefaults.standard.bool(forKey: hidesAccessoryOffRootKey)
-        } else {
-            self.hidesAccessoryOutsideLibraryRoot = true
-        }
+        // Default OFF — the bubble stays visible everywhere by
+        // default so fresh users always see the creation actions
+        // one tap away. Power users opt in to quieter chrome in
+        // Settings.
+        self.hidesAccessoryOutsideLibraryRoot = UserDefaults.standard.bool(forKey: hidesAccessoryOffRootKey)
     }
 
     public var accentColor: Color { accentChoice.color }
@@ -437,6 +436,6 @@ public final class AppSettings {
         readerLongPressEnabled    = true
         readerLongPressFingerCount = 2
         readerHidesStatusBar      = false
-        hidesAccessoryOutsideLibraryRoot = true
+        hidesAccessoryOutsideLibraryRoot = false
     }
 }
