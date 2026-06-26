@@ -316,7 +316,7 @@ extension LibraryView {
                     get: { !hideBooks },
                     set: { hideBooks = !$0 }
                 )) {
-                    Label("Books", systemImage: "tablecells")
+                    Label("Books", systemImage: "book.fill")
                 }
             }
         } label: {

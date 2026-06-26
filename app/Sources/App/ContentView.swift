@@ -41,14 +41,27 @@ struct ContentView: View {
             }
         }
         .animation(.spring(response: 0.32, dampingFraction: 0.85), value: readerMode.isActive)
-        // Multi-finger long-press gesture installed at the root. The
-        // overlay only intercepts touches when the user holds N fingers
-        // for ~0.5s — single-finger taps and scrolls cascade through
-        // (`cancelsTouchesInView = false`).
+        // Multi-finger long-press gesture installed at the window
+        // level — sees every touch without participating in hit-testing.
+        // Reader mode is a leaf-only affordance : entering it from the
+        // library home or a book picker would just hide a tab bar with
+        // nothing to read. We guard on `composer.currentContext` here
+        // so the gesture is a no-op outside a leaf ; the same guard
+        // applies to the toggle from LeafView's overflow menu (the
+        // menu is simply absent on non-leaf surfaces).
         .multiFingerLongPress(
             enabled: settings.readerLongPressEnabled,
             fingerCount: settings.readerLongPressFingerCount
-        ) { readerMode.toggle() }
+        ) {
+            switch composer.currentContext {
+            case .leaf:               readerMode.toggle()
+            case .root, .shelf, .book:
+                // Exit gesture still works even when not "in" a leaf
+                // — if the user somehow ended up in reader mode and
+                // navigated away, they can always come out.
+                if readerMode.isActive { readerMode.deactivate() }
+            }
+        }
         // Status bar hide is opt-in — most users want time/battery
         // visible while reading, but Lecteur-Safari fans can opt into
         // full immersion via the setting.
@@ -67,12 +80,11 @@ struct ContentView: View {
             // reappears on scroll-up. Search (role: .search) automatically
             // detaches into its own glass bubble on the right.
             .tabBarMinimizeBehavior(.onScrollDown)
-            // Reader mode hides every primary chrome element. The tab
-            // bar gets `.hidden` ; the CreateBubble accessory is
-            // conditionally omitted from `.tabViewBottomAccessory`
-            // below ; LeafView / ShelfView observe `readerMode` to
-            // hide their own toolbars (next commit).
-            .toolbar(readerMode.isActive ? .hidden : .visible, for: .tabBar)
+            // Tab-bar hiding in reader mode is owned by `LeafView` (the
+            // only context where reader mode is meaningful). Applying
+            // it here AND there would double-toggle ; the leaf-level
+            // modifier propagates up the NavigationStack / TabView
+            // chain reliably.
             // Tint applied right on the TabView (BEFORE the .alert/.sheet
             // modifiers below) so only the selected-tab indicator picks up
             // the accent. Placing it later in the chain would have caused
@@ -91,27 +103,35 @@ struct ContentView: View {
             // entry points — new leaf, new book, new shelf and an
             // overflow menu (trash + imports). Stays visible across all tabs
             // so creation is always one tap away, à la Apple Music mini-player.
-            // Skipped entirely in reader mode (PRO-59) and, per PRO-60,
-            // hidden by default when the user is not at the library
-            // root (inside a shelf / leaf / book). Toggleable in
-            // Settings → Create bubble.
-            .tabViewBottomAccessory {
-                if !readerMode.isActive && shouldShowAccessory {
-                    CreateBubble(
-                        onNewLeaf: { composer.openNewLeaf() },
-                        onNewBook: { composer.openNewBook() },
-                        onNewShelf: { composer.openNewShelf() },
-                        onShowTrash: { composer.showingTrash = true },
-                        onDeleteAll: { composer.showingDeleteAllConfirm = true },
-                        hasItemsForDeleteAll: !store.items.isEmpty,
-                        onImportNotion: { composer.showingNotionImport = true },
-                        onImportBear: { composer.showingBearImport = true },
-                        onImportCraftTextBundle: { composer.showingCraftTextBundleImport = true },
-                        onImportCraftCombined: { composer.showingCraftCombinedImport = true },
-                        onShowAllLeaves: { openSwitcher() },
-                        onEnterReaderMode: { readerMode.toggle() }
-                    )
-                }
+            // Hidden in reader mode (PRO-59) and, per PRO-60, when the
+            // user is not at the library root. Toggleable in Settings →
+            // Create bubble.
+            //
+            // **Use the official `isEnabled:` overload, NOT a custom helper.**
+            // SwiftUI ships two overloads of `tabViewBottomAccessory` —
+            // one without `isEnabled` and one with — both at the same type
+            // signature. The `isEnabled` overload collapses the slot
+            // properly without rebuilding the TabView subtree. A previous
+            // custom `tabViewBottomAccessory(when:)` helper that swapped
+            // between `self.tabViewBottomAccessory{...}` and bare `self`
+            // landed in SwiftUI's `_ConditionalContent` which treats the
+            // branch swap as a view replacement — that tore down the
+            // inner NavigationStack mid-push and dropped the user back
+            // on the home view after every tap.
+            .tabViewBottomAccessory(isEnabled: !readerMode.isActive && shouldShowAccessory) {
+                CreateBubble(
+                    onNewLeaf: { composer.openNewLeaf() },
+                    onNewBook: { composer.openNewBook() },
+                    onNewShelf: { composer.openNewShelf() },
+                    onShowTrash: { composer.showingTrash = true },
+                    onDeleteAll: { composer.showingDeleteAllConfirm = true },
+                    hasItemsForDeleteAll: !store.items.isEmpty,
+                    onImportNotion: { composer.showingNotionImport = true },
+                    onImportBear: { composer.showingBearImport = true },
+                    onImportCraftTextBundle: { composer.showingCraftTextBundleImport = true },
+                    onImportCraftCombined: { composer.showingCraftCombinedImport = true },
+                    onShowAllLeaves: { openSwitcher() }
+                )
             }
             .modifier(ContentSheets(composer: composer, store: store, settings: settings, tabManager: tabManager))
             .modifier(ContentAlerts(composer: composer, store: store))

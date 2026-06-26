@@ -84,8 +84,7 @@ public struct BookView: View {
             tabManager.markRecentlyViewed(id: vm.bookId)
             // Tells the create bubble "you're inside a book" so the
             // next "New leaf" tap lands as a row of THIS book instead
-            // of a loose leaf at the library root. Mirrors what
-            // ShelfView / LeafView already do for their own contexts.
+            // of a loose leaf at the library root.
             composer.currentContext = .book(id: vm.bookId)
         }
         .onDisappear {

@@ -100,25 +100,27 @@ struct AppSettingsReaderTests {
 
     // MARK: - PRO-60 : auto-hide accessory outside library root.
 
-    @Test func default_accessory_auto_hide_is_on() {
+    @Test func default_accessory_auto_hide_is_off() {
         clearReaderKeys()
         let s = AppSettings()
-        #expect(s.hidesAccessoryOutsideLibraryRoot == true)
+        // OFF by default — the bubble stays visible everywhere ; the
+        // toggle is opt-in for users who want a quieter chrome.
+        #expect(s.hidesAccessoryOutsideLibraryRoot == false)
     }
 
     @Test func accessory_auto_hide_round_trips() {
         clearReaderKeys()
         let s = AppSettings()
-        s.hidesAccessoryOutsideLibraryRoot = false
+        s.hidesAccessoryOutsideLibraryRoot = true
         let s2 = AppSettings()
-        #expect(s2.hidesAccessoryOutsideLibraryRoot == false)
+        #expect(s2.hidesAccessoryOutsideLibraryRoot == true)
     }
 
     @Test func reset_to_defaults_restores_accessory_auto_hide() {
         clearReaderKeys()
         let s = AppSettings()
-        s.hidesAccessoryOutsideLibraryRoot = false
+        s.hidesAccessoryOutsideLibraryRoot = true
         s.resetToDefaults()
-        #expect(s.hidesAccessoryOutsideLibraryRoot == true)
+        #expect(s.hidesAccessoryOutsideLibraryRoot == false)
     }
 }

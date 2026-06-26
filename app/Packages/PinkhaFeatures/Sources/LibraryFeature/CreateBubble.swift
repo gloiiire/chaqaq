@@ -27,8 +27,7 @@ public struct CreateBubble: View {
         onImportBear: @escaping () -> Void = {},
         onImportCraftTextBundle: @escaping () -> Void = {},
         onImportCraftCombined: @escaping () -> Void = {},
-        onShowAllLeaves: @escaping () -> Void = {},
-        onEnterReaderMode: @escaping () -> Void = {}
+        onShowAllLeaves: @escaping () -> Void = {}
     ) {
         self.onNewLeaf = onNewLeaf
         self.onNewBook = onNewBook
@@ -41,7 +40,6 @@ public struct CreateBubble: View {
         self.onImportCraftTextBundle = onImportCraftTextBundle
         self.onImportCraftCombined = onImportCraftCombined
         self.onShowAllLeaves = onShowAllLeaves
-        self.onEnterReaderMode = onEnterReaderMode
     }
     public let onNewLeaf: () -> Void
     public let onNewBook: () -> Void
@@ -60,10 +58,6 @@ public struct CreateBubble: View {
     /// the overflow menu next to Trash / Imports — it's a navigation
     /// affordance, not a creation one.
     public var onShowAllLeaves: () -> Void = {}
-    /// Enters reader mode — second discoverable entry point after the
-    /// multi-finger long-press. Lives in the overflow `…` so the menu
-    /// remains the single place to find every non-primary action.
-    public var onEnterReaderMode: () -> Void = {}
 
     /// Tracks whether the accessory is rendered next to the minimised tab
     /// bar (`.inline`) or detached above it (`.expanded`). Set automatically
@@ -275,13 +269,6 @@ public struct CreateBubble: View {
             // Source-order inversion : putting "All leaves" LAST in
             // the source list lands it FIRST visually because iOS
             // bottom-anchored menus stack from the trigger upwards.
-            // Reader mode entry sits just below "All leaves" in
-            // visual order — second-most prominent navigation
-            // affordance, paired with the multi-finger long-press
-            // for users who don't know the gesture.
-            Button { onEnterReaderMode() } label: {
-                Label("Reader mode", systemImage: "eyeglasses")
-            }
             Button { onShowAllLeaves() } label: {
                 Label("All leaves", systemImage: "document.on.document")
             }

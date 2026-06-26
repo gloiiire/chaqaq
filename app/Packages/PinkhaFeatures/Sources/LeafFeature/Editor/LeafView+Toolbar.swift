@@ -119,6 +119,19 @@ public extension LeafView {
         // per-doc settings; first occupant is the accent color picker.
         ToolbarItem(placement: .primaryAction) {
             Menu {
+                // Wrap every item in a Group with `.tint(.primary)` to
+                // neutralise the per-doc `effectiveAccentColor` that
+                // propagates through the env from the LeafView body.
+                // Without this, leaves whose accent is a muted hue
+                // (or whose `vm.accentColor` resolves to a pale tone)
+                // render the menu icons as visibly "greyed", while
+                // brighter accents render them crisp white — same
+                // menu, two different reads. Tinting at the Menu's
+                // *trigger* (line ~333) only affects the ellipsis
+                // glyph, not the inner items in iOS 26. The accent-
+                // colour picker's swatches are rasterised UIImages,
+                // so `.tint(.primary)` doesn't repaint them.
+                Group {
                 // Apple-Music-style icon-and-label row at the top of the
                 // overflow menu : `.controlGroupStyle(.menu)` lays the
                 // two actions out horizontally as labeled icon buttons
@@ -162,6 +175,20 @@ public extension LeafView {
                     }
                 }
                 .controlGroupStyle(.menu)
+                // iOS 26 quirk : `ControlGroup(.menu)` inside a Menu
+                // renders its child buttons with the parent ToolbarItem's
+                // accessibility / enabled state baked in. When the
+                // toolbar's neighbour sort-button is `.disabled(vm.locked)`
+                // and the leaf is UNLOCKED, the group's three buttons
+                // (Lock / Pin / Share) inherit a subtle dim that the
+                // outer Group's `.environment(\.isEnabled, true)` doesn't
+                // override (the env is re-evaluated inside the menu's
+                // popover scope). Pinning the modifiers DIRECTLY on the
+                // ControlGroup forces full opacity regardless of the
+                // toolbar's neighbour states.
+                .tint(.primary)
+                .environment(\.isEnabled, true)
+                .foregroundStyle(.primary)
 
                 Menu {
                     Button {
@@ -306,9 +333,39 @@ public extension LeafView {
                     Label {
                         Text("Add to a book")
                     } icon: {
-                        Image(systemName: "tablecells.badge.ellipsis")
+                        Image(systemName: "book.and.wrench.fill")
                     }
                 }
+                Divider()
+                // Reader mode entry — parallel to the CreateBubble's
+                // own ⋯ entry (which is unreachable inside a leaf when
+                // PRO-60's auto-hide is on). Toggles the global reader
+                // controller ; the floating eyeglasses.slash button at
+                // the root brings the chrome back.
+                Button {
+                    readerMode.toggle()
+                } label: {
+                    Label {
+                        Text("Reader mode")
+                    } icon: {
+                        Image(systemName: "eyeglasses")
+                    }
+                }
+                }
+                .tint(.primary)
+                // Override the parent toolbar's `.disabled(vm.locked)`
+                // env so the Menu items NEVER inherit a dimmed state.
+                // Without this, created (unlocked) leaves show a
+                // muted menu while imported (locked) leaves show a
+                // crisp one — iOS 26 propagates `isEnabled` from the
+                // sibling toolbar buttons down into the Menu's
+                // content unless we explicitly opt out here.
+                .environment(\.isEnabled, true)
+                // Explicit foreground style — defensive. `.tint` only
+                // recolors interactive controls ; `.foregroundStyle`
+                // pins the icon/text rendering to primary regardless
+                // of inherited content opacity tuning.
+                .foregroundStyle(.primary)
             } label: {
                 Image(systemName: "ellipsis")
             }
@@ -445,26 +502,32 @@ public extension LeafView {
 
     @ViewBuilder
     var overlayButtons: some View {
-        if !vm.locked && editMode == .inactive && !keyboardVisible {
-            ExpandingBlockFAB(
-                isExpanded: $blockFABExpanded,
-                onSelect: { type in vm.addBlock(type: type, afterId: vm.activeBlockId) },
-                onOpenFullPicker: { showingBlockPicker = true }
-            )
-            .padding(.trailing, 24)
-            .padding(.bottom, accessoryPlacement == .inline ? -70 : 8)
-            .transition(.scale.combined(with: .opacity))
-        }
-        // UndoRedoPill steps aside while the right FAB is morphed
-        // into its expanded capsule, so the two floating chunks
-        // don't visually fight for space.
-        if !vm.locked && editMode == .inactive && !keyboardVisible && !blockFABExpanded {
-            UndoRedoPill(canUndo: vm.canUndo, canRedo: vm.canRedo,
-                         onUndo: { vm.undo() }, onRedo: { vm.redo() })
-                .padding(.leading, 24)
+        // Reader mode hides every chrome surface — the floating block
+        // FAB and the undo/redo pill are interactive controls, so they
+        // belong in the "hidden" set. Re-enter via the multi-finger
+        // long-press or the root-level eyeglasses.slash button.
+        if !readerMode.isActive {
+            if !vm.locked && editMode == .inactive && !keyboardVisible {
+                ExpandingBlockFAB(
+                    isExpanded: $blockFABExpanded,
+                    onSelect: { type in vm.addBlock(type: type, afterId: vm.activeBlockId) },
+                    onOpenFullPicker: { showingBlockPicker = true }
+                )
+                .padding(.trailing, 24)
                 .padding(.bottom, accessoryPlacement == .inline ? -70 : 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .transition(.scale.combined(with: .opacity))
+            }
+            // UndoRedoPill steps aside while the right FAB is morphed
+            // into its expanded capsule, so the two floating chunks
+            // don't visually fight for space.
+            if !vm.locked && editMode == .inactive && !keyboardVisible && !blockFABExpanded {
+                UndoRedoPill(canUndo: vm.canUndo, canRedo: vm.canRedo,
+                             onUndo: { vm.undo() }, onRedo: { vm.redo() })
+                    .padding(.leading, 24)
+                    .padding(.bottom, accessoryPlacement == .inline ? -70 : 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.scale.combined(with: .opacity))
+            }
         }
     }
 }

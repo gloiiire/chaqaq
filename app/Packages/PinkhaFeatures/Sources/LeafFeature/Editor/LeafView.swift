@@ -18,6 +18,11 @@ public struct LeafView: View {
     /// this doc, à la Notion.
     @Environment(Composer.self) var composer
     @Environment(TabManager.self) var tabManager
+    /// Lets the overflow menu surface a "Reader mode" entry — the
+    /// CreateBubble's ⋯ entry is unreachable when the user is inside
+    /// a leaf with PRO-60's auto-hide enabled (the bubble is hidden),
+    /// so a parallel entry in the leaf's own toolbar is required.
+    @Environment(ReaderMode.self) var readerMode
     /// Read-only here — drives the optional spotlight tint applied in
     /// `blockListRow`. The setting is owned at the app level so every
     /// leaf picks the same look without having to re-fetch it.
@@ -156,6 +161,12 @@ public struct LeafView: View {
 
     var documentList: some View {
         List {
+            // LeafDecorView always renders — even in reader mode. The
+            // cover and the icon are part of the doc's identity, and
+            // the "Add cover / Add icon" placeholders (when neither is
+            // set) are part of the leaf layout, not interactive nav
+            // chrome. Reader mode strips toolbar, tab bar, undo/redo,
+            // FAB, AddBlockButton — the document content stays.
             LeafDecorView(
                 cover: vm.cover, icone: vm.icon, recentEmojis: recentEmojis,
                 verrouille: vm.locked,
@@ -201,7 +212,7 @@ public struct LeafView: View {
             ForEach($vm.blocks) { $block in blockListRow($block) }
                 .onMove(perform: vm.moveBlock)
 
-            if !vm.locked {
+            if !vm.locked && !readerMode.isActive {
                 AddBlockButton { showingBlockPicker = true }
                     .listRowBackground(Color.clear).listRowSeparator(.hidden)
                     // Extra bottom inset so the "+ New block" sits well
@@ -249,6 +260,33 @@ public struct LeafView: View {
         // used to make symbols white-on-white over light cover images.
         .toolbarBackground(.automatic, for: .navigationBar)
         .toolbar { documentToolbar }
+        // Reader mode : when active, hide every chrome surface so the
+        // leaf content fills the screen edge-to-edge. The tab bar
+        // disappears too because LeafView's NavigationStack lives
+        // inside the root TabView — `.toolbar(.hidden, for: .tabBar)`
+        // applied here propagates up. The floating exit button at the
+        // root (ContentView) remains visible as the always-discoverable
+        // escape hatch ; the multi-finger long-press still toggles back.
+        .toolbar(readerMode.isActive ? .hidden : .visible, for: .navigationBar)
+        .toolbar(readerMode.isActive ? .hidden : .visible, for: .tabBar)
+        // `.persistentSystemOverlays(.hidden)` is the iOS 16+ way to
+        // collapse the home-indicator gloss + any system-reserved
+        // bottom slot. Without it, the `.tabViewBottomAccessory` slot
+        // keeps a thin shadow band reserved at the bottom of the screen
+        // even when the accessory content is empty.
+        .persistentSystemOverlays(readerMode.isActive ? .hidden : .automatic)
+        // When `.toolbar(.hidden, for: .navigationBar)` fires, iOS not
+        // only hides the chrome — it also reclaims the bar's ~44 pt of
+        // safe-area inset, so the list content jumps upward to fill
+        // the gap. Reader mode wants the chrome gone but the layout to
+        // stay put (otherwise the cover/title shift annoyingly each
+        // time the user toggles). Re-injecting an equivalent invisible
+        // top inset keeps the document anchored exactly where it was.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if readerMode.isActive {
+                Color.clear.frame(height: 54)
+            }
+        }
         // Per-doc accent overrides the global setting for the whole
         // editor — toolbar buttons, swipe action buttons, the cursor
         // (UIKit reads the env tint), etc. all repaint when
