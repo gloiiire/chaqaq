@@ -57,6 +57,14 @@ public struct LeafView: View {
     /// the UndoRedoPill on the left hides itself to give the morph
     /// room to breathe.
     @State var blockFABExpanded: Bool = false
+    /// `true` while the toolbar's overflow `…` Menu popover is on
+    /// screen. iOS 26 dims the popover whenever a `.glassEffect()`
+    /// overlay is visible underneath it (FAB + UndoRedoPill in our
+    /// layout). Driven by an invisible `Color.clear` placed at the
+    /// top of the Menu's content — its `onAppear` / `onDisappear`
+    /// fire on present / dismiss. While `true`, `overlayButtons`
+    /// hides the FAB + UndoRedoPill so the popover renders bright.
+    @State var isOverflowMenuOpen: Bool = false
     /// Bible-Strong-style spotlight: when the doc is opened from a search
     /// hit, the matched block stays sharp while the rest of the page is
     /// blurred + dimmed. Cleared on the first user interaction (tap or
@@ -202,6 +210,12 @@ public struct LeafView: View {
                 .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 8, trailing: 20))
                 .moveDisabled(true).deleteDisabled(true)
 
+            // DIAGNOSTIC PRO-61 bisect step 2 : re-enable the two
+            // NON-glass list rows (EmptyEditorState + AddBlockButton)
+            // while keeping the FAB + UndoRedoPill glass overlays
+            // disabled (in LeafView+Toolbar.swift overlayButtons).
+            // If menu stays bright, confirms it's the glass overlays
+            // that trigger the popover dim.
             if vm.blocks.isEmpty && !vm.locked {
                 EmptyEditorState { vm.addBlock(type: .text) }
                     .listRowBackground(Color.clear).listRowSeparator(.hidden)
@@ -215,9 +229,6 @@ public struct LeafView: View {
             if !vm.locked && !readerMode.isActive {
                 AddBlockButton { showingBlockPicker = true }
                     .listRowBackground(Color.clear).listRowSeparator(.hidden)
-                    // Extra bottom inset so the "+ New block" sits well
-                    // above the floating undo/redo + FAB buttons below
-                    // and isn't half-hidden behind them.
                     .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 70, trailing: 20))
                     .moveDisabled(true).deleteDisabled(true)
             }
@@ -354,6 +365,14 @@ public struct LeafView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             withAnimation(.easeInOut(duration: 0.2)) { keyboardVisible = false }
         }
+        // PRO-61 : detect when the toolbar's overflow Menu popover is
+        // on screen. iOS 26 presents menu popovers in their OWN
+        // `UIWindow` (a private subclass that becomes key while the
+        // popover is visible). We observe key-window changes : when
+        // a new key window appears that isn't our main scene window,
+        // a popover is showing → hide the glass overlays so the menu
+        // renders bright. When our main window becomes key again,
+        // the popover dismissed → restore the overlays.
         .onAppear {
             vm.load()
             composer.currentContext = .leaf(id: vm.leafId)
