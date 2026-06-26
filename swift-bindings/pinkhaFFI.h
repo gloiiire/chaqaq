@@ -443,6 +443,11 @@ uint64_t uniffi_pinkha_fn_method_pinkhaapi_import_from_craft_textbundle(uint64_t
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(uint64_t ptr, RustBuffer token, RustBuffer book_id, RustBuffer covers_dir, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_IMPORT_NOTION_PAGE
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_IMPORT_NOTION_PAGE
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_import_notion_page(uint64_t ptr, RustBuffer token, RustBuffer page_id, RustBuffer covers_dir, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_INDENT_BLOCK
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_INDENT_BLOCK
 void uniffi_pinkha_fn_method_pinkhaapi_indent_block(uint64_t ptr, RustBuffer leaf_id, RustBuffer block_id, RustCallStatus *_Nonnull out_status
@@ -501,6 +506,11 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_notion_databases(uint64_t ptr,
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_NOTION_DATABASES_V2025
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_NOTION_DATABASES_V2025
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_notion_databases_v2025(uint64_t ptr, RustBuffer token, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_NOTION_PAGES
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_NOTION_PAGES
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_notion_pages(uint64_t ptr, RustBuffer token, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_ROOT_LEAVES
@@ -1270,6 +1280,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_IMPORT_NOTION_PAGE
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_IMPORT_NOTION_PAGE
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_import_notion_page(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_INDENT_BLOCK
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_INDENT_BLOCK
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_indent_block(void
@@ -1339,6 +1355,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_NOTION_DATABASES_V2025
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_NOTION_DATABASES_V2025
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases_v2025(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_NOTION_PAGES
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_NOTION_PAGES
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_notion_pages(void
     
 );
 #endif

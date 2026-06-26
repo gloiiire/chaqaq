@@ -18,6 +18,11 @@ public struct LeafView: View {
     /// this doc, à la Notion.
     @Environment(Composer.self) var composer
     @Environment(TabManager.self) var tabManager
+    /// Lets the overflow menu surface a "Reader mode" entry — the
+    /// CreateBubble's ⋯ entry is unreachable when the user is inside
+    /// a leaf with PRO-60's auto-hide enabled (the bubble is hidden),
+    /// so a parallel entry in the leaf's own toolbar is required.
+    @Environment(ReaderMode.self) var readerMode
     /// Read-only here — drives the optional spotlight tint applied in
     /// `blockListRow`. The setting is owned at the app level so every
     /// leaf picks the same look without having to re-fetch it.
@@ -52,6 +57,14 @@ public struct LeafView: View {
     /// the UndoRedoPill on the left hides itself to give the morph
     /// room to breathe.
     @State var blockFABExpanded: Bool = false
+    /// `true` while the toolbar's overflow `…` Menu popover is on
+    /// screen. iOS 26 dims the popover whenever a `.glassEffect()`
+    /// overlay is visible underneath it (FAB + UndoRedoPill in our
+    /// layout). Driven by an invisible `Color.clear` placed at the
+    /// top of the Menu's content — its `onAppear` / `onDisappear`
+    /// fire on present / dismiss. While `true`, `overlayButtons`
+    /// hides the FAB + UndoRedoPill so the popover renders bright.
+    @State var isOverflowMenuOpen: Bool = false
     /// Bible-Strong-style spotlight: when the doc is opened from a search
     /// hit, the matched block stays sharp while the rest of the page is
     /// blurred + dimmed. Cleared on the first user interaction (tap or
@@ -156,6 +169,12 @@ public struct LeafView: View {
 
     var documentList: some View {
         List {
+            // LeafDecorView always renders — even in reader mode. The
+            // cover and the icon are part of the doc's identity, and
+            // the "Add cover / Add icon" placeholders (when neither is
+            // set) are part of the leaf layout, not interactive nav
+            // chrome. Reader mode strips toolbar, tab bar, undo/redo,
+            // FAB, AddBlockButton — the document content stays.
             LeafDecorView(
                 cover: vm.cover, icone: vm.icon, recentEmojis: recentEmojis,
                 verrouille: vm.locked,
@@ -191,6 +210,12 @@ public struct LeafView: View {
                 .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 8, trailing: 20))
                 .moveDisabled(true).deleteDisabled(true)
 
+            // DIAGNOSTIC PRO-61 bisect step 2 : re-enable the two
+            // NON-glass list rows (EmptyEditorState + AddBlockButton)
+            // while keeping the FAB + UndoRedoPill glass overlays
+            // disabled (in LeafView+Toolbar.swift overlayButtons).
+            // If menu stays bright, confirms it's the glass overlays
+            // that trigger the popover dim.
             if vm.blocks.isEmpty && !vm.locked {
                 EmptyEditorState { vm.addBlock(type: .text) }
                     .listRowBackground(Color.clear).listRowSeparator(.hidden)
@@ -201,12 +226,9 @@ public struct LeafView: View {
             ForEach($vm.blocks) { $block in blockListRow($block) }
                 .onMove(perform: vm.moveBlock)
 
-            if !vm.locked {
+            if !vm.locked && !readerMode.isActive {
                 AddBlockButton { showingBlockPicker = true }
                     .listRowBackground(Color.clear).listRowSeparator(.hidden)
-                    // Extra bottom inset so the "+ New block" sits well
-                    // above the floating undo/redo + FAB buttons below
-                    // and isn't half-hidden behind them.
                     .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 70, trailing: 20))
                     .moveDisabled(true).deleteDisabled(true)
             }
@@ -249,6 +271,33 @@ public struct LeafView: View {
         // used to make symbols white-on-white over light cover images.
         .toolbarBackground(.automatic, for: .navigationBar)
         .toolbar { documentToolbar }
+        // Reader mode : when active, hide every chrome surface so the
+        // leaf content fills the screen edge-to-edge. The tab bar
+        // disappears too because LeafView's NavigationStack lives
+        // inside the root TabView — `.toolbar(.hidden, for: .tabBar)`
+        // applied here propagates up. The floating exit button at the
+        // root (ContentView) remains visible as the always-discoverable
+        // escape hatch ; the multi-finger long-press still toggles back.
+        .toolbar(readerMode.isActive ? .hidden : .visible, for: .navigationBar)
+        .toolbar(readerMode.isActive ? .hidden : .visible, for: .tabBar)
+        // `.persistentSystemOverlays(.hidden)` is the iOS 16+ way to
+        // collapse the home-indicator gloss + any system-reserved
+        // bottom slot. Without it, the `.tabViewBottomAccessory` slot
+        // keeps a thin shadow band reserved at the bottom of the screen
+        // even when the accessory content is empty.
+        .persistentSystemOverlays(readerMode.isActive ? .hidden : .automatic)
+        // When `.toolbar(.hidden, for: .navigationBar)` fires, iOS not
+        // only hides the chrome — it also reclaims the bar's ~44 pt of
+        // safe-area inset, so the list content jumps upward to fill
+        // the gap. Reader mode wants the chrome gone but the layout to
+        // stay put (otherwise the cover/title shift annoyingly each
+        // time the user toggles). Re-injecting an equivalent invisible
+        // top inset keeps the document anchored exactly where it was.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if readerMode.isActive {
+                Color.clear.frame(height: 54)
+            }
+        }
         // Per-doc accent overrides the global setting for the whole
         // editor — toolbar buttons, swipe action buttons, the cursor
         // (UIKit reads the env tint), etc. all repaint when
@@ -316,6 +365,14 @@ public struct LeafView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             withAnimation(.easeInOut(duration: 0.2)) { keyboardVisible = false }
         }
+        // PRO-61 : detect when the toolbar's overflow Menu popover is
+        // on screen. iOS 26 presents menu popovers in their OWN
+        // `UIWindow` (a private subclass that becomes key while the
+        // popover is visible). We observe key-window changes : when
+        // a new key window appears that isn't our main scene window,
+        // a popover is showing → hide the glass overlays so the menu
+        // renders bright. When our main window becomes key again,
+        // the popover dismissed → restore the overlays.
         .onAppear {
             vm.load()
             composer.currentContext = .leaf(id: vm.leafId)

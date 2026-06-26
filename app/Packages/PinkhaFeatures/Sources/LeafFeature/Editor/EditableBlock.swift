@@ -60,33 +60,39 @@ public final class ActionRepeater {
 /// All block types the user can insert via the block picker.
 public enum NewBlockType: String, CaseIterable, Identifiable {
     case text = "Text", title1 = "Title 1", title2 = "Title 2", title3 = "Title 3"
-    case quote = "Quote", callout = "Callout", todo = "To do", divider = "Divider"
+    case quote = "Quote", callout = "Callout", todo = "To do"
+    case bulleted = "Bulleted list", numbered = "Numbered list"
+    case divider = "Divider"
     public var id: String { rawValue }
     /// User-facing label resolved through `Localizable.xcstrings`.
     /// `rawValue` is a `String` which SwiftUI never localizes, so call
     /// sites must use this key — see [[localizedstringkey-trap]].
     public var displayName: LocalizedStringKey {
         switch self {
-        case .text:    return "Text"
-        case .title1:  return "Title 1"
-        case .title2:  return "Title 2"
-        case .title3:  return "Title 3"
-        case .quote:   return "Quote"
-        case .callout: return "Callout"
-        case .todo:    return "To do"
-        case .divider: return "Divider"
+        case .text:     return "Text"
+        case .title1:   return "Title 1"
+        case .title2:   return "Title 2"
+        case .title3:   return "Title 3"
+        case .quote:    return "Quote"
+        case .callout:  return "Callout"
+        case .todo:     return "To do"
+        case .bulleted: return "Bulleted list"
+        case .numbered: return "Numbered list"
+        case .divider:  return "Divider"
         }
     }
     public var icone: String {
         switch self {
-        case .text:    return "text.alignleft"
-        case .title1:  return "1.circle.fill"
-        case .title2:  return "2.circle"
-        case .title3:  return "3.circle"
-        case .quote:   return "quote.bubble"
-        case .callout: return "lightbulb"
-        case .todo:    return "checkmark.square"
-        case .divider: return "minus"
+        case .text:     return "text.alignleft"
+        case .title1:   return "1.circle.fill"
+        case .title2:   return "2.circle"
+        case .title3:   return "3.circle"
+        case .quote:    return "quote.bubble"
+        case .callout:  return "lightbulb"
+        case .todo:     return "checkmark.square"
+        case .bulleted: return "list.bullet"
+        case .numbered: return "list.number"
+        case .divider:  return "minus"
         }
     }
 }

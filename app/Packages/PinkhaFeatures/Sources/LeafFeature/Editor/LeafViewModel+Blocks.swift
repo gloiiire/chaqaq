@@ -10,14 +10,16 @@ public extension LeafViewModel {
         do {
             let content: BlockContentFfi
             switch type {
-            case .text:    content = .text([])
-            case .title1:  content = .heading(level: 1, text: [])
-            case .title2:  content = .heading(level: 2, text: [])
-            case .title3:  content = .heading(level: 3, text: [])
-            case .quote:   content = .quote(icon: "", text: [])
-            case .callout: content = .quote(icon: "💡", text: [])
-            case .todo:    content = .todo(done: false, text: [])
-            case .divider: content = .divider
+            case .text:     content = .text([])
+            case .title1:   content = .heading(level: 1, text: [])
+            case .title2:   content = .heading(level: 2, text: [])
+            case .title3:   content = .heading(level: 3, text: [])
+            case .quote:    content = .quote(icon: "", text: [])
+            case .callout:  content = .quote(icon: "💡", text: [])
+            case .todo:     content = .todo(done: false, text: [])
+            case .bulleted: content = .bulletedListItem([])
+            case .numbered: content = .numberedListItem([])
+            case .divider:  content = .divider
             }
             let data  = try JSONEncoder().encode(content)
             let newId = try api.addBlock(leafId: leafId,

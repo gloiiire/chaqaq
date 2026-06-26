@@ -18,6 +18,7 @@ struct ContentView: View {
     @State private var store = PinkhaStore()
     @State private var composer = Composer()
     @State private var tabManager = TabManager()
+    @State private var readerMode = ReaderMode()
     @Environment(AppSettings.self) private var settings
 
     /// Tracks crossing of the swipe-up haptic threshold so we fire
@@ -26,12 +27,64 @@ struct ContentView: View {
     @State private var swipeUpHapticFired = false
 
     var body: some View {
+        ZStack(alignment: .topTrailing) {
+            tabsChrome
+            // Floating exit button — only visible in reader mode. Sits
+            // in the top-right safe-area so it doesn't overlap the leaf
+            // content the user is reading. Glass capsule mirrors the
+            // CreateBubble's surface vocabulary.
+            if readerMode.isActive {
+                readerExitButton
+                    .padding(.trailing, 16)
+                    .padding(.top, 8)
+                    .transition(.scale(scale: 0.9).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.32, dampingFraction: 0.85), value: readerMode.isActive)
+        // Multi-finger long-press gesture installed at the window
+        // level — sees every touch without participating in hit-testing.
+        // Reader mode is a leaf-only affordance : entering it from the
+        // library home or a book picker would just hide a tab bar with
+        // nothing to read. We guard on `composer.currentContext` here
+        // so the gesture is a no-op outside a leaf ; the same guard
+        // applies to the toggle from LeafView's overflow menu (the
+        // menu is simply absent on non-leaf surfaces).
+        .multiFingerLongPress(
+            enabled: settings.readerLongPressEnabled,
+            fingerCount: settings.readerLongPressFingerCount
+        ) {
+            switch composer.currentContext {
+            case .leaf:               readerMode.toggle()
+            case .root, .shelf, .book:
+                // Exit gesture still works even when not "in" a leaf
+                // — if the user somehow ended up in reader mode and
+                // navigated away, they can always come out.
+                if readerMode.isActive { readerMode.deactivate() }
+            }
+        }
+        // Status bar hide is opt-in — most users want time/battery
+        // visible while reading, but Lecteur-Safari fans can opt into
+        // full immersion via the setting.
+        .statusBarHidden(readerMode.isActive && settings.readerHidesStatusBar)
+        .environment(readerMode)
+    }
+
+    /// Wraps the existing tab-view + chrome stack. Extracted so the
+    /// reader-mode overlay can live alongside it without having to
+    /// thread all the modifiers through a second branch.
+    @ViewBuilder
+    private var tabsChrome: some View {
         rootTabs
             // iOS 26 tab-bar morphing : the tab bar collapses when the user
             // scrolls down so the content gets more breathing room, and
             // reappears on scroll-up. Search (role: .search) automatically
             // detaches into its own glass bubble on the right.
             .tabBarMinimizeBehavior(.onScrollDown)
+            // Tab-bar hiding in reader mode is owned by `LeafView` (the
+            // only context where reader mode is meaningful). Applying
+            // it here AND there would double-toggle ; the leaf-level
+            // modifier propagates up the NavigationStack / TabView
+            // chain reliably.
             // Tint applied right on the TabView (BEFORE the .alert/.sheet
             // modifiers below) so only the selected-tab indicator picks up
             // the accent. Placing it later in the chain would have caused
@@ -50,7 +103,22 @@ struct ContentView: View {
             // entry points — new leaf, new book, new shelf and an
             // overflow menu (trash + imports). Stays visible across all tabs
             // so creation is always one tap away, à la Apple Music mini-player.
-            .tabViewBottomAccessory {
+            // Hidden in reader mode (PRO-59) and, per PRO-60, when the
+            // user is not at the library root. Toggleable in Settings →
+            // Create bubble.
+            //
+            // **Use the official `isEnabled:` overload, NOT a custom helper.**
+            // SwiftUI ships two overloads of `tabViewBottomAccessory` —
+            // one without `isEnabled` and one with — both at the same type
+            // signature. The `isEnabled` overload collapses the slot
+            // properly without rebuilding the TabView subtree. A previous
+            // custom `tabViewBottomAccessory(when:)` helper that swapped
+            // between `self.tabViewBottomAccessory{...}` and bare `self`
+            // landed in SwiftUI's `_ConditionalContent` which treats the
+            // branch swap as a view replacement — that tore down the
+            // inner NavigationStack mid-push and dropped the user back
+            // on the home view after every tap.
+            .tabViewBottomAccessory(isEnabled: !readerMode.isActive && shouldShowAccessory) {
                 CreateBubble(
                     onNewLeaf: { composer.openNewLeaf() },
                     onNewBook: { composer.openNewBook() },
@@ -70,6 +138,32 @@ struct ContentView: View {
             .onAppear { store.connect() }
             .task { composer.bindQuickActions() }
             .errorAlert(message: $store.errorMessage, onRetry: store.load)
+    }
+
+    /// Whether the CreateBubble should render in the current context.
+    /// Returns false when the user has the "Hide outside Library root"
+    /// setting on (default) AND is anywhere deeper than the library
+    /// home (inside a shelf / leaf / book). Always true when the user
+    /// has opted out.
+    private var shouldShowAccessory: Bool {
+        guard settings.hidesAccessoryOutsideLibraryRoot else { return true }
+        return composer.currentContext == .root
+    }
+
+    /// The discoverable escape hatch — top-right floating capsule with
+    /// the `eyeglasses.slash` glyph. Tap = exit reader mode. Pairs with
+    /// the multi-finger long-press for users who forget the gesture.
+    private var readerExitButton: some View {
+        Button { readerMode.deactivate() } label: {
+            Image(systemName: "eyeglasses.slash")
+                .font(.title3.weight(.regular))
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
+        .glassEffect(.regular.interactive(), in: Capsule(style: .continuous))
+        .accessibilityLabel("Exit reader mode")
     }
 
     // ── Root tabs ────────────────────────────────────────────────────────
@@ -301,7 +395,8 @@ private struct ContentSheets: ViewModifier {
                                          in: composer.currentContext,
                                          style: standaloneStyle)
             }
-            if case .leaf(let parentId) = composer.currentContext, let newId {
+            switch (composer.currentContext, newId) {
+            case (.leaf(let parentId), let id?):
                 // For `.leaf` context, the active editor's VM
                 // owns the in-memory blocks. Signal it via the
                 // composer so *it* performs the `addBlock` for the
@@ -310,13 +405,22 @@ private struct ContentSheets: ViewModifier {
                 // and get overwritten.
                 composer.pendingChildPage = Composer.PendingChildPage(
                     parentLeafId: parentId,
-                    childLeafId: newId
+                    childLeafId: id
                 )
-            } else if let newId {
-                // Root or shelf context — open the doc right after
-                // the sheet dismisses so the user lands in the
-                // editor (Apple Leafs / Bear pattern).
-                composer.pendingOpenLeaf = newId
+            case (.book, _):
+                // Inside a book : we just inserted a new row. Stay on
+                // the BookView so the user sees the row land in the
+                // table — opening the editor would queue a Library-
+                // side push that only fires on tab switch (only
+                // LibraryView consumes `pendingOpenLeaf`).
+                break
+            case (.root, let id?), (.shelf, let id?):
+                // Open the doc right after the sheet dismisses so
+                // the user lands in the editor (Apple Notes / Bear
+                // pattern).
+                composer.pendingOpenLeaf = id
+            default:
+                break
             }
         case .book:
             store.createBook(title: composer.newTitle, in: composer.currentContext)

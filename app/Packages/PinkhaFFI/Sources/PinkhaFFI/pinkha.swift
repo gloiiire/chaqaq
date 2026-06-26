@@ -712,6 +712,13 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func importFromNotion(token: String, bookId: String, coversDir: String?) throws  -> ImportResultFfi
     
     /**
+     * Imports a single standalone Notion page (and any nested child-
+     * pages) as Pinkha leaves. Same `covers_dir` semantics as
+     * [`import_from_notion`].
+     */
+    func importNotionPage(token: String, pageId: String, coversDir: String?) throws  -> ImportResultFfi
+    
+    /**
      * Indents a block: moves it under the previous sibling at the same level.
      * `InvalidOperation` when the block is the first of its level.
      */
@@ -772,6 +779,14 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * prefer this version.
      */
     func listNotionDatabasesV2025(token: String) throws  -> [NotionDatabaseSummaryFfi]
+    
+    /**
+     * Lists the standalone Notion pages reachable with the given token
+     * (i.e. pages whose parent is NOT a database row). Same Tokio-
+     * reactor caveats as [`list_notion_databases`] — dispatch off the
+     * main thread.
+     */
+    func listNotionPages(token: String) throws  -> [NotionPageSummaryFfi]
     
     /**
      * Lists root pages (leaves with no parent). Drives the home view.
@@ -1615,6 +1630,22 @@ open func importFromNotion(token: String, bookId: String, coversDir: String?)thr
 }
     
     /**
+     * Imports a single standalone Notion page (and any nested child-
+     * pages) as Pinkha leaves. Same `covers_dir` semantics as
+     * [`import_from_notion`].
+     */
+open func importNotionPage(token: String, pageId: String, coversDir: String?)throws  -> ImportResultFfi  {
+    return try  FfiConverterTypeImportResultFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_import_notion_page(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),
+        FfiConverterString.lower(pageId),
+        FfiConverterOptionString.lower(coversDir),$0
+    )
+})
+}
+    
+    /**
      * Indents a block: moves it under the previous sibling at the same level.
      * `InvalidOperation` when the block is the first of its level.
      */
@@ -1749,6 +1780,21 @@ open func listNotionDatabases(token: String)throws  -> [NotionDatabaseSummaryFfi
 open func listNotionDatabasesV2025(token: String)throws  -> [NotionDatabaseSummaryFfi]  {
     return try  FfiConverterSequenceTypeNotionDatabaseSummaryFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
     uniffi_pinkha_fn_method_pinkhaapi_list_notion_databases_v2025(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),$0
+    )
+})
+}
+    
+    /**
+     * Lists the standalone Notion pages reachable with the given token
+     * (i.e. pages whose parent is NOT a database row). Same Tokio-
+     * reactor caveats as [`list_notion_databases`] — dispatch off the
+     * main thread.
+     */
+open func listNotionPages(token: String)throws  -> [NotionPageSummaryFfi]  {
+    return try  FfiConverterSequenceTypeNotionPageSummaryFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+    uniffi_pinkha_fn_method_pinkhaapi_list_notion_pages(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(token),$0
     )
@@ -2900,6 +2946,73 @@ public func FfiConverterTypeNotionDatabaseSummaryFfi_lower(_ value: NotionDataba
 
 
 /**
+ * Summary of a standalone Notion page returned by `list_notion_pages`.
+ * Same shape as the database summary — the UDL keeps them distinct so
+ * the Swift picker can render two clearly separate sections.
+ */
+public struct NotionPageSummaryFfi: Equatable, Hashable {
+    public var id: String
+    public var title: String
+    public var iconEmoji: String?
+    public var lastEdited: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, title: String, iconEmoji: String?, lastEdited: String) {
+        self.id = id
+        self.title = title
+        self.iconEmoji = iconEmoji
+        self.lastEdited = lastEdited
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NotionPageSummaryFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNotionPageSummaryFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NotionPageSummaryFfi {
+        return
+            try NotionPageSummaryFfi(
+                id: FfiConverterString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                iconEmoji: FfiConverterOptionString.read(from: &buf), 
+                lastEdited: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NotionPageSummaryFfi, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterOptionString.write(value.iconEmoji, into: &buf)
+        FfiConverterString.write(value.lastEdited, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNotionPageSummaryFfi_lift(_ buf: RustBuffer) throws -> NotionPageSummaryFfi {
+    return try FfiConverterTypeNotionPageSummaryFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNotionPageSummaryFfi_lower(_ value: NotionPageSummaryFfi) -> RustBuffer {
+    return FfiConverterTypeNotionPageSummaryFfi.lower(value)
+}
+
+
+/**
  * Lightweight shelf metadata.
  */
 public struct ShelfMetaFfi: Equatable, Hashable {
@@ -3311,6 +3424,31 @@ fileprivate struct FfiConverterSequenceTypeNotionDatabaseSummaryFfi: FfiConverte
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeNotionPageSummaryFfi: FfiConverterRustBuffer {
+    typealias SwiftType = [NotionPageSummaryFfi]
+
+    public static func write(_ value: [NotionPageSummaryFfi], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeNotionPageSummaryFfi.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [NotionPageSummaryFfi] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [NotionPageSummaryFfi]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeNotionPageSummaryFfi.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeShelfMetaFfi: FfiConverterRustBuffer {
     typealias SwiftType = [ShelfMetaFfi]
 
@@ -3507,6 +3645,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion() != 10185) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_import_notion_page() != 47626) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_indent_block() != 18250) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3541,6 +3682,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases_v2025() != 45793) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_notion_pages() != 38911) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_root_leaves() != 63016) {

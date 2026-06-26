@@ -113,211 +113,69 @@ public extension LeafView {
             .tint(.primary)
             .disabled(vm.locked)
         }
-        // "…" overflow menu — declared LAST so it lands at the far
-        // right edge of the toolbar (SwiftUI orders trailing
-        // primaryAction items left → right in source order). Collects
-        // per-doc settings; first occupant is the accent color picker.
+        // PRO-61 : UIKit bridge. SwiftUI Menu's popover gets dimmed by
+        // iOS 26 when a `.glassEffect()` overlay is visible below, and
+        // SwiftUI exposes no way to track Menu open/close (so we can't
+        // hide the overlays at the right moment from SwiftUI alone).
+        // `LeafOverflowMenuButton` wraps a `UIButton` with a UIKit
+        // `UIMenu` and uses `UIDeferredMenuElement.uncached` as a
+        // lifecycle spy — its provider closure fires on every
+        // presentation, giving us a reliable `onMenuOpen` signal.
+        // Combined with `.menuActionTriggered` for dismiss-on-select
+        // and an 8 s fallback timer for tap-outside dismissal, we
+        // flip `isOverflowMenuOpen` precisely enough to hide the
+        // FAB + UndoRedoPill while the popover is on screen — making
+        // the menu render bright.
         ToolbarItem(placement: .primaryAction) {
-            Menu {
-                // Apple-Music-style icon-and-label row at the top of the
-                // overflow menu : `.controlGroupStyle(.menu)` lays the
-                // two actions out horizontally as labeled icon buttons
-                // inside the menu. Lock duplicates the standalone
-                // padlock in the toolbar (Notes-app pattern : a
-                // primary action that's important enough to be one
-                // tap and also live next to the other doc settings).
-                ControlGroup {
-                    Button {
-                        Haptic.toggle()
-                        vm.saveLocked(!vm.locked)
-                    } label: {
-                        Label(vm.locked ? "Unlock" : "Lock",
-                              systemImage: vm.locked ? "lock.fill" : "lock.open.fill")
-                    }
-                    // Pin / Unpin — same one-tap affordance as Lock,
-                    // duplicated in the bottom section of the menu for
-                    // discoverability via the row long-press too. Reads
-                    // the live pinned state from `store.allLeaves` so
-                    // the label flips immediately after toggling.
-                    Button {
-                        Haptic.toggle()
-                        let isPinned = (store.allLeaves
-                            .first(where: { $0.id == vm.leafId })?.pinnedAt ?? "")
-                            .isEmpty == false
-                        store.setLeafPinned(leafId: vm.leafId, pinned: !isPinned)
-                    } label: {
-                        let isPinned = (store.allLeaves
-                            .first(where: { $0.id == vm.leafId })?.pinnedAt ?? "")
-                            .isEmpty == false
-                        Label(isPinned ? "Unpin" : "Pin",
-                              systemImage: isPinned ? "pin.slash" : "pin")
-                    }
-                    if let shareURL = URL(string: "pinkha://leaf/\(vm.leafId)") {
-                        ShareLink(item: shareURL,
-                                  subject: Text(vm.title.isEmpty
-                                                ? String(localized: "Untitled")
-                                                : vm.title)) {
-                            Label("Share", systemImage: "square.and.arrow.up")
-                        }
-                    }
-                }
-                .controlGroupStyle(.menu)
-
-                Menu {
-                    Button {
-                        Haptic.tap()
-                        vm.saveAccentColor(nil)
-                    } label: {
-                        Label {
-                            Text("Use default")
-                        } icon: {
-                            Image(systemName: "circle.dashed")
-                        }
-                    }
-                    ForEach(BlockColorOption.palette) { option in
-                        Button {
-                            Haptic.tap()
-                            vm.saveAccentColor(option.name)
-                        } label: {
-                            Label {
-                                Text(option.displayName)
-                            } icon: {
-                                Image(uiImage: option.swatchImage)
-                            }
-                        }
-                    }
-                } label: {
-                    Label {
-                        Text("Accent color")
-                    } icon: {
-                        // Filled paintbrush in the overflow menu when
-                        // an explicit accent is set; outline otherwise.
-                        Image(systemName: vm.accentColor == nil
-                              ? "paintbrush"
-                              : "paintbrush.fill")
-                    }
-                }
-                Menu {
-                    Button {
-                        Haptic.tap()
-                        vm.saveTextDirection(nil)
-                    } label: {
-                        Label {
-                            Text("System default")
-                        } icon: {
-                            Image(systemName: "circle.dashed")
-                        }
-                    }
-                    Button {
-                        Haptic.tap()
-                        vm.saveTextDirection("ltr")
-                    } label: {
-                        Label {
-                            Text("Left to right")
-                        } icon: {
-                            Image(systemName: "text.alignleft")
-                        }
-                    }
-                    Button {
-                        Haptic.tap()
-                        vm.saveTextDirection("rtl")
-                    } label: {
-                        Label {
-                            Text("Right to left")
-                        } icon: {
-                            Image(systemName: "text.alignright")
-                        }
-                    }
-                } label: {
-                    Label {
-                        Text("Text direction")
-                    } icon: {
-                        Image(systemName: vm.textDirection == "rtl"
-                              ? "text.alignright"
-                              : (vm.textDirection == "ltr"
-                                 ? "text.alignleft"
-                                 : "text.justify"))
-                    }
-                }
-                // Books-style theme picker — per-doc override of the
-                // app-wide theme from Settings. "Use default" clears
-                // the override so the doc inherits whatever the user
-                // chose globally; the label spells out the current
-                // default so the user can tell what "default" maps
-                // to right now. A `state = .on` mark on the active
-                // entry signals which one is effective.
-                Menu {
-                    Button {
-                        Haptic.tap()
-                        vm.saveTheme(nil)
-                    } label: {
-                        if vm.theme == nil {
-                            Label {
-                                Text("Match Settings (\(settings.theme.labelString))")
-                            } icon: {
-                                Image(systemName: "checkmark")
-                            }
-                        } else {
-                            Label {
-                                Text("Match Settings (\(settings.theme.labelString))")
-                            } icon: {
-                                Image(systemName: "circle.dashed")
-                            }
-                        }
-                    }
-                    ForEach(AppSettings.Theme.allCases) { theme in
-                        Button {
-                            Haptic.tap()
-                            vm.saveTheme(theme.rawValue)
-                        } label: {
-                            if vm.theme == theme.rawValue {
-                                Label {
-                                    Text(theme.label)
-                                } icon: {
-                                    Image(systemName: "checkmark")
-                                }
-                            } else {
-                                Text(theme.label)
-                            }
-                        }
-                    }
-                } label: {
-                    Label {
-                        Text("Theme")
-                    } icon: {
-                        Image(systemName: "book.pages")
-                    }
-                }
-                Divider()
-                Button {
-                    Haptic.tap()
-                    showingPublishDateSheet = true
-                } label: {
-                    Label {
-                        Text("Publish date")
-                    } icon: {
-                        Image(systemName: "paperplane")
-                    }
-                }
-                Button {
-                    Haptic.tap()
-                    showingAttachToBookSheet = true
-                } label: {
-                    Label {
-                        Text("Add to a book")
-                    } icon: {
-                        Image(systemName: "tablecells.badge.ellipsis")
-                    }
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-            }
-            // Neutral chrome by default — the per-doc accent only
-            // shows up inside the menu's swatches, the trigger itself
-            // stays quiet.
-            .tint(.primary)
+            let isPinned = (store.allLeaves
+                .first(where: { $0.id == vm.leafId })?.pinnedAt ?? "")
+                .isEmpty == false
+            LeafOverflowMenuButton(
+                isLocked: vm.locked,
+                isPinned: isPinned,
+                accentColorName: vm.accentColor,
+                textDirection: vm.textDirection,
+                theme: vm.theme,
+                settingsThemeLabel: settings.theme.labelString,
+                availableThemes: AppSettings.Theme.allCases.map { ($0.rawValue, $0.labelString) },
+                accentPalette: BlockColorOption.palette,
+                onToggleLock: { vm.saveLocked(!vm.locked) },
+                onTogglePin: {
+                    store.setLeafPinned(leafId: vm.leafId, pinned: !isPinned)
+                },
+                onSetAccent: { vm.saveAccentColor($0) },
+                onSetTextDirection: { vm.saveTextDirection($0) },
+                onSetTheme: { vm.saveTheme($0) },
+                onShowPublishDate: { showingPublishDateSheet = true },
+                onShowAttachToBook: { showingAttachToBookSheet = true },
+                onToggleReaderMode: { readerMode.toggle() },
+                onShare: { sourceView in
+                    presentShareSheet(sourceView: sourceView)
+                },
+                onMenuOpen: { isOverflowMenuOpen = true },
+                onMenuClose: { isOverflowMenuOpen = false }
+            )
+            .frame(width: 44, height: 44)
             .accessibilityLabel("Leaf options")
         }
+    }
+
+    /// Presents a `UIActivityViewController` rooted in the overflow
+    /// button. The UIKit menu can't host a SwiftUI `ShareLink`, so
+    /// the Share action surfaces the system share sheet imperatively.
+    func presentShareSheet(sourceView: UIView) {
+        guard let url = URL(string: "pinkha://leaf/\(vm.leafId)") else { return }
+        let title = vm.title.isEmpty ? String(localized: "Untitled") : vm.title
+        let avc = UIActivityViewController(activityItems: [url, title], applicationActivities: nil)
+        avc.popoverPresentationController?.sourceView = sourceView
+        avc.popoverPresentationController?.sourceRect = sourceView.bounds
+        // Find the top-most presented controller so the share sheet
+        // stacks above any open sheet (sub-leaf editor, etc.).
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let root = scenes.flatMap(\.windows).first(where: \.isKeyWindow)?.rootViewController
+        var presenter = root
+        while let next = presenter?.presentedViewController { presenter = next }
+        presenter?.present(avc, animated: true)
     }
 
     /// Whether `vm.leafId` is somewhere below `targetId` in the
@@ -445,26 +303,42 @@ public extension LeafView {
 
     @ViewBuilder
     var overlayButtons: some View {
-        if !vm.locked && editMode == .inactive && !keyboardVisible {
-            ExpandingBlockFAB(
-                isExpanded: $blockFABExpanded,
-                onSelect: { type in vm.addBlock(type: type, afterId: vm.activeBlockId) },
-                onOpenFullPicker: { showingBlockPicker = true }
-            )
-            .padding(.trailing, 24)
-            .padding(.bottom, accessoryPlacement == .inline ? -70 : 8)
-            .transition(.scale.combined(with: .opacity))
-        }
-        // UndoRedoPill steps aside while the right FAB is morphed
-        // into its expanded capsule, so the two floating chunks
-        // don't visually fight for space.
-        if !vm.locked && editMode == .inactive && !keyboardVisible && !blockFABExpanded {
-            UndoRedoPill(canUndo: vm.canUndo, canRedo: vm.canRedo,
-                         onUndo: { vm.undo() }, onRedo: { vm.redo() })
-                .padding(.leading, 24)
+        // Reader mode hides every chrome surface — the floating block
+        // FAB and the undo/redo pill are interactive controls, so they
+        // belong in the "hidden" set. Re-enter via the multi-finger
+        // long-press or the root-level eyeglasses.slash button.
+        //
+        // **`!isOverflowMenuOpen` guard (PRO-61 workaround)** : iOS 26
+        // dims menu popovers whenever a `.glassEffect()` overlay is
+        // visible underneath them — the "glass-on-glass" stacking the
+        // system avoids defensively. Wrapping the overlays in a
+        // `GlassEffectContainer` didn't fix it (verified by bisect on
+        // 2026-06-26). The cleanest workaround is to hide the FAB +
+        // UndoRedoPill while the overflow popover is on screen, which
+        // is exactly when the dim would happen. The overlays restore
+        // immediately on dismissal — short-lived flicker is invisible.
+        if !readerMode.isActive && !isOverflowMenuOpen {
+            if !vm.locked && editMode == .inactive && !keyboardVisible {
+                ExpandingBlockFAB(
+                    isExpanded: $blockFABExpanded,
+                    onSelect: { type in vm.addBlock(type: type, afterId: vm.activeBlockId) },
+                    onOpenFullPicker: { showingBlockPicker = true }
+                )
+                .padding(.trailing, 24)
                 .padding(.bottom, accessoryPlacement == .inline ? -70 : 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .transition(.scale.combined(with: .opacity))
+            }
+            // UndoRedoPill steps aside while the right FAB is morphed
+            // into its expanded capsule, so the two floating chunks
+            // don't visually fight for space.
+            if !vm.locked && editMode == .inactive && !keyboardVisible && !blockFABExpanded {
+                UndoRedoPill(canUndo: vm.canUndo, canRedo: vm.canRedo,
+                             onUndo: { vm.undo() }, onRedo: { vm.redo() })
+                    .padding(.leading, 24)
+                    .padding(.bottom, accessoryPlacement == .inline ? -70 : 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.scale.combined(with: .opacity))
+            }
         }
     }
 }

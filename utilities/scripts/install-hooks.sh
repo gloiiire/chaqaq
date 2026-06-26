@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Installe les git hooks versionnés du repo dans .git/hooks/.
-# Usage : ./scripts/install-hooks.sh
+# Usage : ./utilities/scripts/install-hooks.sh
 # Idempotent : peut être ré-exécuté pour réinstaller / mettre à jour.
 #
-# Les hooks vivent dans scripts/hooks/ (versionnés). Cette commande crée
+# Les hooks vivent dans utilities/scripts/hooks/ (versionnés). Cette commande crée
 # des symlinks dans .git/hooks/ pour que toute modification du hook dans
 # le repo soit reflétée immédiatement, sans réinstallation.
 
@@ -16,7 +16,7 @@ if ! git rev-parse --git-dir > /dev/null 2>&1; then
 fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-HOOKS_SRC="$REPO_ROOT/scripts/hooks"
+HOOKS_SRC="$REPO_ROOT/utilities/scripts/hooks"
 HOOKS_DST="$REPO_ROOT/.git/hooks"
 
 if [ ! -d "$HOOKS_SRC" ]; then
@@ -35,15 +35,15 @@ for hook in "$HOOKS_SRC"/*; do
         rm "$dst"
     fi
 
-    # Symlink relatif depuis .git/hooks/ vers ../../scripts/hooks/<name>.
-    ln -s "../../scripts/hooks/$name" "$dst"
+    # Symlink relatif depuis .git/hooks/ vers ../../utilities/scripts/hooks/<name>.
+    ln -s "../../utilities/scripts/hooks/$name" "$dst"
     chmod +x "$hook"
-    echo "  ✓ $name → scripts/hooks/$name"
+    echo "  ✓ $name → utilities/scripts/hooks/$name"
     installed=$((installed + 1))
 done
 
 if [ $installed -eq 0 ]; then
-    echo "Aucun hook trouvé dans scripts/hooks/."
+    echo "Aucun hook trouvé dans utilities/scripts/hooks/."
     exit 0
 fi
 

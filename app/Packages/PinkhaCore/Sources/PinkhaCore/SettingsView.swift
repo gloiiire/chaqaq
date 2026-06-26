@@ -133,6 +133,38 @@ public struct SettingsView: View {
                 } footer: {
                     Text("When you open a leaf from search, the rest of the page is blurred. Turn this on to also paint a soft tint behind the matched block.")
                 }
+
+                Section {
+                    Toggle("Hide bubble outside Library root", isOn: $settings.hidesAccessoryOutsideLibraryRoot)
+                        .tint(settings.accentColor)
+                        .onChange(of: settings.hidesAccessoryOutsideLibraryRoot) { _, _ in Haptic.toggle() }
+                } header: {
+                    Text("Create bubble")
+                } footer: {
+                    Text("Off (default): the create bubble stays visible everywhere. On: it only appears on the Library home view — quieter chrome inside shelves, leaves and books.")
+                }
+
+                Section {
+                    Toggle("Long-press gesture", isOn: $settings.readerLongPressEnabled)
+                        .tint(settings.accentColor)
+                        .onChange(of: settings.readerLongPressEnabled) { _, _ in Haptic.toggle() }
+                    Picker(selection: $settings.readerLongPressFingerCount) {
+                        Text("2 fingers").tag(2)
+                        Text("3 fingers").tag(3)
+                    } label: {
+                        Text("Fingers")
+                    }
+                    .pickerStyle(.segmented)
+                    .disabled(!settings.readerLongPressEnabled)
+                    .onChange(of: settings.readerLongPressFingerCount) { _, _ in Haptic.tap() }
+                    Toggle("Hide status bar", isOn: $settings.readerHidesStatusBar)
+                        .tint(settings.accentColor)
+                        .onChange(of: settings.readerHidesStatusBar) { _, _ in Haptic.toggle() }
+                } header: {
+                    Text("Reader mode")
+                } footer: {
+                    Text("Hides every chrome element (tab bar, accessory bubble, toolbar) so you can just read. Trigger with a multi-finger long-press anywhere, or via the eyeglasses entry in the bubble's ⋯ menu. A floating ⊘ button always brings the chrome back.")
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
