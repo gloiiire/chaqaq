@@ -91,6 +91,34 @@ public struct LeafView: View {
     /// and edits its row's property values for this leaf.
     /// Triggered from the overflow menu in the toolbar.
     @State var showingAttachToBookSheet = false
+    /// PRO-62 : "Themes & settings" sheet (text size + theme grid +
+    /// brightness + customize theme sub-sheet). Triggered from the
+    /// overflow menu's "Themes & settings" row.
+    @State var showingReaderSettingsSheet = false
+    /// Local per-leaf typography state — temporary in-memory storage
+    /// until the corresponding Rust `Leaf` fields ship. Lifted here
+    /// so the sheet can bind to it directly via `$readerFontScale`
+    /// etc., and the values persist across re-opens of the sheet
+    /// within the same leaf session.
+    /// Local mirror of the system brightness so SwiftUI's Slider has a
+    /// reactive source to bind to (UIScreen.main.brightness isn't
+    /// `@Observable` ; binding the slider directly to it left the
+    /// thumb stuck because get() returned a non-observed value).
+    /// `onChange(of:)` writes the value back to `UIScreen.brightness`
+    /// in real time as the user drags.
+    @State var readerBrightness: Double = Double(UIScreen.main.brightness)
+    /// Snapshot of the system screen brightness captured the moment
+    /// the reader-settings sheet appears. Restored on dismiss so a
+    /// notes app doesn't permanently dim the user's device (Apple
+    /// Books does NOT restore — we diverge here intentionally).
+    @State var originalScreenBrightness: CGFloat? = nil
+    /// PRO-62 : presents the "Personnaliser le thème" sub-sheet on
+    /// top of the main reader settings sheet.
+    @State var showingCustomizeThemeSheet = false
+
+    // PRO-62 — typography state is now persisted on the leaf via
+    // `vm.readerSettings`. The sheet binds directly to that bundle ;
+    // no more SwiftUI-local mirrors that get lost on dismiss.
     /// Legacy UserDefaults key for the lock state, retained for the one-shot
     /// migration in `onAppear` — the canonical store is now `vm.locked`.
     let lockKey: String
@@ -206,7 +234,7 @@ public struct LeafView: View {
                                   let spans = tail.isEmpty ? [] : [InlineTextFfi(content: tail, styles: [])]
                                   vm.addBlock(type: .text, initialSpans: spans, atStart: true)
                               },
-                              themeForeground: effectiveTheme.foregroundColor.map(UIColor.init),
+                              themeForeground: effectiveTheme.effectiveForegroundColor(darkVariant: effectiveThemeDarkVariant).map(UIColor.init),
                               keyboardAppearance: effectiveKeyboardAppearance)
                 .disabled(vm.locked)
                 .listRowBackground(Color.clear).listRowSeparator(.hidden)
@@ -328,8 +356,34 @@ public struct LeafView: View {
         // align with the palette. `.original` is a no-op so iOS
         // light/dark continues to drive the look.
         .scrollContentBackground(.hidden)
-        .background(effectiveTheme.backgroundColor ?? Color.pinkhaSurface)
-        .preferredColorScheme(effectiveTheme.colorScheme)
+        .background(effectiveTheme.effectiveBackgroundColor(darkVariant: effectiveThemeDarkVariant)
+                    ?? Color.pinkhaSurface)
+        .preferredColorScheme(effectiveTheme.effectiveColorScheme(darkVariant: effectiveThemeDarkVariant))
+        // Make the active reader theme available to every block row so
+        // they pick up the theme's font family (Georgia / Charter /
+        // Palatino / Avenir Next / system). Mirrors Apple Books.
+        .environment(\.readerTheme, effectiveTheme)
+        // Same for the font-scale stepper — every block row multiplies
+        // its base point size by this scalar so the A−/A+ buttons
+        // affect the actual rendered text live. Sourced from the
+        // persisted `vm.readerSettings.fontScale` so the chosen value
+        // survives leaf reopen / app relaunch.
+        .environment(\.readerFontScale, vm.readerSettings.fontScale)
+        // PRO-62 : typography overrides (line / letter / word
+        // spacing + justify + bold + margin scale) propagated to
+        // every block row. The four spacing values only take effect
+        // when `customLayoutEnabled` is true ; bold + margin apply
+        // unconditionally so the user can flip them in isolation.
+        .environment(\.readerTypography, ReaderTypographyOverrides(
+            bold: vm.readerSettings.bold,
+            lineSpacingMultiple: vm.readerSettings.lineSpacing,
+            letterSpacing: vm.readerSettings.letterSpacing,
+            wordSpacing: vm.readerSettings.wordSpacing,
+            marginScale: vm.readerSettings.marginScale,
+            justify: vm.readerSettings.justify,
+            customLayoutEnabled: vm.readerSettings.customLayoutEnabled,
+            fontFamily: vm.readerSettings.fontFamily
+        ))
         // SwiftUI `.preferredColorScheme` alone isn't enough when the
         // app-wide `applyAppearanceToWindows()` already pinned the
         // window's `overrideUserInterfaceStyle` — UIKit window
@@ -340,8 +394,27 @@ public struct LeafView: View {
         // reverse). Mirror the doc's effective scheme onto the window
         // while the editor is on screen, then restore the global
         // appearance when the user leaves.
-        .onChange(of: effectiveTheme) { _, _ in syncWindowTheme() }
-        .onAppear { syncWindowTheme() }
+        .onChange(of: effectiveTheme) { _, _ in
+            syncWindowTheme()
+            publishLeafColorScheme()
+        }
+        // Re-sync the window appearance when the user flips the
+        // sun/moon toggle in the reader settings sheet — the leaf
+        // bg/fg + keyboard appearance need to flip too.
+        .onChange(of: effectiveThemeDarkVariant) { _, _ in
+            syncWindowTheme()
+            publishLeafColorScheme()
+        }
+        .onAppear {
+            syncWindowTheme()
+            publishLeafColorScheme()
+        }
+        .onDisappear {
+            // Clear the leaf-scoped scheme so the TabView's
+            // `.preferredColorScheme` falls back to the global app
+            // appearance once the user navigates back to a tab root.
+            readerMode.activeLeafColorScheme = nil
+        }
         // Capture a screenshot when the user navigates away — fuels
         // the tab switcher's Safari-style "live thumbnail at last
         // scroll position" preview. Lives in the body (invisible,
@@ -480,6 +553,187 @@ public struct LeafView: View {
                 .environment(store)
                 .presentationDetents([.large])
         }
+        .sheet(isPresented: $showingReaderSettingsSheet, onDismiss: {
+            // Restore system brightness so a notes app doesn't leave
+            // the screen permanently dimmed after the user dismisses.
+            if let original = originalScreenBrightness {
+                UIScreen.main.brightness = original
+                originalScreenBrightness = nil
+            }
+        }) {
+            ReaderSettingsSheet(
+                theme: Binding(
+                    get: { vm.theme },
+                    set: { newRaw in
+                        vm.saveTheme(newRaw)
+                        // Apple Books pattern : selecting a theme loads
+                        // its full factory defaults (line spacing +
+                        // bold + justify + Personnaliser toggle). The
+                        // user can still override via the customize
+                        // sheet afterwards.
+                        let theme = newRaw.flatMap { AppSettings.Theme(rawValue: $0) }
+                                    ?? settings.theme
+                        var s = vm.readerSettings
+                        s.lineSpacing = theme.defaultLineSpacing
+                        s.bold = theme.defaultBold
+                        s.justify = theme.defaultJustify
+                        s.customLayoutEnabled = theme.defaultCustomLayoutEnabled
+                        vm.saveReaderSettings(s)
+                    }
+                ),
+                fontScale: Binding(
+                    get: { vm.readerSettings.fontScale },
+                    set: { newValue in
+                        var s = vm.readerSettings
+                        s.fontScale = newValue
+                        vm.saveReaderSettings(s)
+                    }
+                ),
+                // Slider binds to the @State mirror so SwiftUI gets a
+                // reactive value to drive the thumb ; the .onChange
+                // below pushes every update to UIScreen.brightness
+                // in real time.
+                brightness: $readerBrightness,
+                appearance: Binding(
+                    get: { ReaderAppearance.parse(vm.readerSettings.themeAppearance) },
+                    set: { newMode in
+                        var s = vm.readerSettings
+                        s.themeAppearance = newMode.rawValue
+                        // Mirror the resolved bool onto the legacy
+                        // field so an older app version reading this
+                        // row still sees a sensible value (and so any
+                        // call site we haven't migrated yet keeps
+                        // returning the right answer).
+                        s.themeDarkVariant = newMode.effectiveDark(
+                            systemIsDark: deviceIsDark,
+                            settingsIsDark: appWideIsDark
+                        )
+                        vm.saveReaderSettings(s)
+                    }
+                ),
+                systemIsDark: deviceIsDark,
+                settingsIsDark: appWideIsDark,
+                themeOptions: ReaderThemeOption.previewSet,
+                onPersonnaliser: {
+                    showingCustomizeThemeSheet = true
+                },
+                onClose: { showingReaderSettingsSheet = false }
+            )
+            // Apple Books pins the reader settings sheet at ~62 % of
+            // screen height (re-measured pixel-by-pixel 2026-06-26).
+            // Drag indicator IS visible in Apple Books — the X close
+            // button is the affordance for tap-to-dismiss, the grabber
+            // is the affordance for swipe-to-dismiss (we used to hide
+            // it ; that diverged from Books).
+            .presentationDetents([.fraction(0.62)])
+            .presentationDragIndicator(.visible)
+            // Force the sheet to inherit the leaf's resolved color
+            // scheme. Sheets are presented in their own UIKit hosting
+            // window, which doesn't pick up the presenter's
+            // `.preferredColorScheme(...)` modifier — without this
+            // the sheet renders in the GLOBAL app appearance even
+            // when the leaf is in a dark Books theme.
+            .preferredColorScheme(
+                effectiveTheme.effectiveColorScheme(
+                    darkVariant: effectiveThemeDarkVariant
+                )
+            )
+            // Liquid Glass : iOS 26 sheets ride on a translucent
+            // material by default ONLY when their content background
+            // is non-opaque. The sheet's inner VStacks now use
+            // translucent fills, so the thin material requested here
+            // shows through. `.thinMaterial` matches the Apple Books
+            // reader settings sheet density.
+            .presentationBackground(.thinMaterial)
+            .onAppear {
+                // Snapshot the current brightness for restore-on-dismiss.
+                originalScreenBrightness = UIScreen.main.brightness
+                // Sync the @State mirror with the actual system value
+                // (in case it changed since the leaf opened).
+                readerBrightness = Double(UIScreen.main.brightness)
+                // No more dark-variant auto-seed here : the new
+                // appearance enum defaults to `.settings`, which
+                // already pulls from the app-wide toggle. Forcing
+                // `dark` when the system is dark would silently
+                // upgrade legacy `.settings` leaves into per-leaf
+                // overrides and prevent them from following the
+                // global preference afterwards.
+            }
+            .onChange(of: readerBrightness) { _, newValue in
+                // Push slider drags onto the actual screen brightness.
+                UIScreen.main.brightness = CGFloat(newValue)
+            }
+            // PRO-62 step 9 : customize-theme sub-sheet stacked on
+            // top of the main settings sheet. Bindings flow through
+            // `vm.readerSettings` so changes persist on the leaf.
+            .sheet(isPresented: $showingCustomizeThemeSheet) {
+                ReaderThemeCustomizationSheet(
+                    fontFamily: Binding(
+                        get: { vm.readerSettings.fontFamily ?? "System" },
+                        set: { newValue in
+                            var s = vm.readerSettings
+                            s.fontFamily = newValue == "System" ? nil : newValue
+                            vm.saveReaderSettings(s)
+                        }
+                    ),
+                    bold:               readerSettingsBinding(\.bold),
+                    lineSpacing:        readerSettingsBinding(\.lineSpacing),
+                    letterSpacing:      readerSettingsBinding(\.letterSpacing),
+                    wordSpacing:        readerSettingsBinding(\.wordSpacing),
+                    marginScale:        readerSettingsBinding(\.marginScale),
+                    justify:            readerSettingsBinding(\.justify),
+                    customLayoutEnabled: readerSettingsBinding(\.customLayoutEnabled),
+                    leafPreviewText: leafPreviewSnippet(),
+                    // Apple Books pattern : the Reset action is
+                    // disabled when the user hasn't deviated from the
+                    // theme's factory defaults. We compare every
+                    // typography field to the theme baseline ; the
+                    // font_scale + font_family overrides also flag
+                    // the leaf as dirty since they survive theme
+                    // changes.
+                    canReset: !isAtThemeFactoryDefaults,
+                    // Theme palette mirroring the live leaf — preview
+                    // surface uses the same bg / fg the user will
+                    // actually see once they commit.
+                    previewBackground: effectiveTheme.effectiveBackgroundColor(
+                        darkVariant: effectiveThemeDarkVariant
+                    ) ?? Color(uiColor: .systemBackground),
+                    previewForeground: effectiveTheme.effectiveForegroundColor(
+                        darkVariant: effectiveThemeDarkVariant
+                    ) ?? Color(uiColor: .label),
+                    // Falls back the preview's font to the active
+                    // theme's family when the user hasn't picked a
+                    // custom one (picker shows "System").
+                    themeFontFamily: effectiveTheme.fontFamily,
+                    themeFontDisplayName: effectiveTheme.fontDisplayName,
+                    onCommit: { showingCustomizeThemeSheet = false },
+                    onDiscard: { showingCustomizeThemeSheet = false },
+                    onReset: {
+                        // Apple Books pattern : Reset reverts the
+                        // leaf to the ACTIVE THEME's factory defaults,
+                        // not to generic LeafReaderSettings defaults.
+                        // The Personnaliser toggle stays ON for every
+                        // theme except Original (theme baseline
+                        // already includes typography overrides).
+                        let t = effectiveTheme
+                        var s = LeafReaderSettings()
+                        s.lineSpacing = t.defaultLineSpacing
+                        s.bold = t.defaultBold
+                        s.justify = t.defaultJustify
+                        s.customLayoutEnabled = t.defaultCustomLayoutEnabled
+                        // Preserve both the legacy bool AND the new
+                        // 5-way appearance choice so a Reset doesn't
+                        // silently flip the user's per-leaf light/dark
+                        // override back to factory.
+                        s.themeDarkVariant = vm.readerSettings.themeDarkVariant
+                        s.themeAppearance = vm.readerSettings.themeAppearance
+                        vm.saveReaderSettings(s)
+                    }
+                )
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+            }
+        }
         .alert("Error", isPresented: Binding(
             get: { vm.errorMessage != nil },
             set: { if !$0 { vm.errorMessage = nil } }
@@ -532,7 +786,7 @@ public struct LeafView: View {
     /// global appearance setting wants.
     func syncWindowTheme() {
         let style: UIUserInterfaceStyle
-        switch effectiveTheme.colorScheme {
+        switch effectiveTheme.effectiveColorScheme(darkVariant: effectiveThemeDarkVariant) {
         case .light: style = .light
         case .dark:  style = .dark
         case nil, .some(_):
@@ -558,6 +812,22 @@ public struct LeafView: View {
         UIView.animate(withDuration: 0.25) {
             windows.forEach { $0.overrideUserInterfaceStyle = style }
         }
+    }
+
+    /// Publishes the leaf's effective `ColorScheme` to the shared
+    /// `ReaderMode` so `ContentView` can mirror it onto the TabView
+    /// via `.preferredColorScheme`. Without this, the bottom-accessory
+    /// bar (CreateBubble) lives in the parent's SwiftUI environment
+    /// and its `.primary` foregrounds resolve to the GLOBAL color
+    /// scheme — yielding dark icons on dark glass when the app is in
+    /// light mode and the leaf is in a dark theme.
+    func publishLeafColorScheme() {
+        let darkVariant = effectiveThemeDarkVariant
+        let scheme = effectiveTheme.effectiveColorScheme(darkVariant: darkVariant)
+        // For `.original` (no theme override), publish nil so the tab
+        // bar follows the global appearance — not a synthesised value
+        // from the dark-variant toggle alone.
+        readerMode.activeLeafColorScheme = scheme
     }
 
     /// to full clarity. Safe to call when no spotlight is active.

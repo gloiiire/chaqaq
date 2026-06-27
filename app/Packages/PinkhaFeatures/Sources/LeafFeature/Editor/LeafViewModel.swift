@@ -32,6 +32,12 @@ public final class LeafViewModel {
     /// `AppSettings.Theme`). `nil` inherits from the app-wide
     /// `settings.theme`. The editor renders the matching palette.
     var theme: String? = nil
+    /// PRO-62 : per-leaf reader-settings bundle (font scale, font
+    /// family, bold, line/letter/word spacing, margin, justify,
+    /// dark variant, custom-layout flag). Mirrors the Rust
+    /// `ReaderSettings` shape ; persisted via
+    /// `api.updateLeafReaderSettings`. `nil` = theme defaults.
+    var readerSettings: LeafReaderSettings = .init()
     /// User-overridable publish date in ISO-8601 (empty = "use
     /// `createdAt` as the effective publish date"). The LeafMeta
     /// row carries the real value from SQLite; the toolbar lets the

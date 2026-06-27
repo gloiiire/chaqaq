@@ -301,6 +301,97 @@ pub struct Leaf {
     /// keeps backward compat.
     #[serde(default)]
     pub manual_order: Option<i32>,
+    /// Per-leaf reader-settings bundle (PRO-62) : font scale, font
+    /// family, bold flag, line/letter/word spacing, margin scale,
+    /// justify flag, dark-variant toggle, master "custom layout"
+    /// switch. Mirrors Apple Books' `BookTheme` Core Data entity
+    /// shape (cf. `utilities/docs/BOOKS-READER-SETTINGS-RE.md`).
+    /// `None` = leaf inherits the theme's factory defaults.
+    /// Single JSON blob so we don't have to migrate every time the
+    /// shape grows ; `#[serde(default)]` for backward compat.
+    #[serde(default)]
+    pub reader_settings: Option<ReaderSettings>,
+}
+
+/// Per-leaf typography overrides bundled together. Stored as a single
+/// JSON blob inside `Leaf.reader_settings` (column `reader_settings`
+/// on the SQLite row, populated via Leaf's outer JSON payload). Apple
+/// Books uses a Core Data NSManagedObject with the same shape — see
+/// the verbatim list in `BOOKS-READER-SETTINGS-RE.md` §2.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct ReaderSettings {
+    /// Font-scale multiplier applied to the leaf's body text size.
+    /// Defaults to 1.0 (no scaling) ; clamped to [0.7, 1.6] at the
+    /// FFI boundary.
+    #[serde(default = "ReaderSettings::default_font_scale")]
+    pub font_scale: f32,
+    /// PostScript font family used by the body text. `None` falls
+    /// back to the theme's font (`AppSettings.Theme.fontFamily`),
+    /// which in turn falls back to system if the theme doesn't
+    /// pin one. Bundled families : Athelas, Avenir Next, Charter,
+    /// Georgia, Iowan Old Style, Palatino, plus "System".
+    #[serde(default)]
+    pub font_family: Option<String>,
+    /// Apply heavy weight to all text in the leaf (theme's "Gras"
+    /// flavour as a per-leaf override).
+    #[serde(default)]
+    pub bold: bool,
+    /// Multiplier on `lineHeight` (1.0 = single-spaced, 1.4 = Apple
+    /// Books default, 2.4 = max).
+    #[serde(default = "ReaderSettings::default_line_spacing")]
+    pub line_spacing: f64,
+    /// Fraction of em added to inter-character kerning.
+    /// Range : −0.05 … +0.20.
+    #[serde(default)]
+    pub letter_spacing: f64,
+    /// Fraction of em added between words via tracking. Range :
+    /// −0.10 … +0.30.
+    #[serde(default)]
+    pub word_spacing: f64,
+    /// Horizontal-margin scale applied to the leaf's content
+    /// container. 0.0 = no extra margin (full-width), 0.6 = max
+    /// (very narrow column).
+    #[serde(default)]
+    pub margin_scale: f64,
+    /// Justify body text (full justification vs. left-aligned).
+    #[serde(default)]
+    pub justify: bool,
+    /// Legacy per-leaf dark-variant flag (kept for backward compat).
+    /// New code reads `theme_appearance` instead — when that field is
+    /// the default `"settings"` sentinel, callers fall back to this
+    /// bool. Pre-PRO-62-step-N rows had only this field.
+    #[serde(default)]
+    pub theme_dark_variant: bool,
+    /// PRO-62 step N : appearance mode chosen by the user for this
+    /// leaf — replaces the binary `theme_dark_variant` with a richer
+    /// 5-way choice mirroring Apple Books :
+    ///   • `"light"`    — force light variant of the theme
+    ///   • `"dark"`     — force dark variant
+    ///   • `"system"`   — follow the device's current colorScheme
+    ///   • `"ambient"`  — auto-adjust to ambient light (no iOS public
+    ///                    API → falls back to system)
+    ///   • `"settings"` — follow the app-wide `AppSettings.themeDarkVariant`
+    ///                    toggle (the global default).
+    /// Default is `"settings"` so new leaves inherit the user's
+    /// global preference until they explicitly pick a per-leaf mode.
+    #[serde(default = "ReaderSettings::default_theme_appearance")]
+    pub theme_appearance: String,
+    /// Master switch for the four spacing sliders (line/letter/
+    /// word/margin). When false, the sliders' values are ignored
+    /// and the theme's defaults apply ; mirrors Apple Books'
+    /// `BookTheme.hasCustomLayout` flag.
+    #[serde(default)]
+    pub custom_layout_enabled: bool,
+}
+
+impl ReaderSettings {
+    fn default_font_scale() -> f32 { 1.0 }
+    fn default_line_spacing() -> f64 { 1.4 }
+    /// Default appearance for a fresh leaf : follow the user's
+    /// app-wide Settings toggle. Older rows without this field
+    /// deserialize to `"settings"` as well, so they inherit the
+    /// global preference instead of being silently forced to light.
+    fn default_theme_appearance() -> String { "settings".to_string() }
 }
 
 impl Leaf {
@@ -322,6 +413,7 @@ impl Leaf {
             published_at: String::new(),
             pinned_at: None,
             manual_order: None,
+            reader_settings: None,
         }
     }
 
@@ -349,6 +441,52 @@ mod tests {
         let decoded: Block = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded.color.as_deref(), Some("orange"));
         assert_eq!(decoded.id, block.id);
+    }
+
+    /// PRO-62 : the per-leaf `theme_appearance` choice (Light / Dark /
+    /// Match Device / Match Surroundings / Match Settings) must round-
+    /// trip through serde so the user's pick survives an app restart.
+    /// Regression guard against silently dropping the field on save.
+    #[test]
+    fn reader_settings_round_trip_preserves_theme_appearance() {
+        let settings = ReaderSettings {
+            font_scale: 1.0,
+            font_family: None,
+            bold: false,
+            line_spacing: 1.4,
+            letter_spacing: 0.0,
+            word_spacing: 0.0,
+            margin_scale: 0.0,
+            justify: false,
+            theme_dark_variant: true,
+            custom_layout_enabled: false,
+            theme_appearance: "dark".into(),
+        };
+        let json = serde_json::to_string(&settings).unwrap();
+        assert!(json.contains("\"theme_appearance\":\"dark\""));
+        let back: ReaderSettings = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.theme_appearance, "dark");
+    }
+
+    /// Leaves saved before `theme_appearance` existed must still decode.
+    /// Missing field → defaults to `"settings"` so the leaf inherits
+    /// the app-wide preference instead of silently forcing light.
+    #[test]
+    fn reader_settings_decodes_legacy_json_without_theme_appearance() {
+        let legacy_json = r#"{
+            "font_scale": 1.0,
+            "font_family": null,
+            "bold": false,
+            "line_spacing": 1.4,
+            "letter_spacing": 0.0,
+            "word_spacing": 0.0,
+            "margin_scale": 0.0,
+            "justify": false,
+            "theme_dark_variant": false,
+            "custom_layout_enabled": false
+        }"#;
+        let decoded: ReaderSettings = serde_json::from_str(legacy_json).unwrap();
+        assert_eq!(decoded.theme_appearance, "settings");
     }
 
     /// Leaves serialised before the `color` field existed must still decode

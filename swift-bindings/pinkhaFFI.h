@@ -798,6 +798,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_update_leaf_parent(uint64_t ptr, RustBuff
 void uniffi_pinkha_fn_method_pinkhaapi_update_leaf_published_at(uint64_t ptr, RustBuffer id, RustBuffer new_published_at, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_LEAF_READER_SETTINGS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_LEAF_READER_SETTINGS
+void uniffi_pinkha_fn_method_pinkhaapi_update_leaf_reader_settings(uint64_t ptr, RustBuffer id, RustBuffer settings_json, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_LEAF_TEXT_DIRECTION
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_LEAF_TEXT_DIRECTION
 void uniffi_pinkha_fn_method_pinkhaapi_update_leaf_text_direction(uint64_t ptr, RustBuffer id, RustBuffer text_direction, RustCallStatus *_Nonnull out_status
@@ -1728,6 +1733,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_parent(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_LEAF_PUBLISHED_AT
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_LEAF_PUBLISHED_AT
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_published_at(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_LEAF_READER_SETTINGS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_LEAF_READER_SETTINGS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_reader_settings(void
     
 );
 #endif

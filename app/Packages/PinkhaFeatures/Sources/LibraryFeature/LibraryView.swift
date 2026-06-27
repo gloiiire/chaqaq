@@ -320,7 +320,7 @@ public struct LibraryView: View {
                 Button {
                     showingSettings = true
                 } label: {
-                    Image(systemName: "gearshape")
+                    Image(systemName: "gear")
                 }
                 // Settings is neutral chrome — never adopts the
                 // accent that the TabView spreads through its env.

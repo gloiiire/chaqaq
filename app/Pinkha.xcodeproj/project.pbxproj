@@ -25,6 +25,7 @@
 		3FAD4339BF72CFD18FC75846 /* PinkhaComposer in Frameworks */ = {isa = PBXBuildFile; productRef = DB9CD06A32E32927DA4E283A /* PinkhaComposer */; };
 		406025C2132BC8574ADDE87F /* HomeScreenUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C07ADA01E894E83B574ABA /* HomeScreenUITests.swift */; };
 		4190B41652DB9D8C9534AD12 /* BlockHierarchyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB990B9A8557D574F681053B /* BlockHierarchyTests.swift */; };
+		47A65034E1BDA17B9E0BB61D /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 22200D2DF353B1929B50B3F6 /* Pinkha.icon */; };
 		4BA75C93F895BE5EE4307A17 /* EmptyStateUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6093527A0945328E7EC8D4F6 /* EmptyStateUITests.swift */; };
 		4C416DF2D208DC067FC9A9E1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A3421677D3E4A70DA86CEB8 /* ContentView.swift */; };
 		510DD50589C1252C2F8253A6 /* DocumentApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8169A1E412FB3AB0851E5ADB /* DocumentApiTests.swift */; };
@@ -46,11 +47,13 @@
 		8EDE253B7197FBC5C68EBBE1 /* DatabaseApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D790938BD86DCD84018B0A63 /* DatabaseApiTests.swift */; };
 		8F3D3AF599C0AA8C7432F385 /* DatabaseEntitiesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C48A6090EBBFBAB7A44A9513 /* DatabaseEntitiesTests.swift */; };
 		9074D56A0F02ACC6660A97DC /* PinkhaFFI in Frameworks */ = {isa = PBXBuildFile; productRef = 4FCC938B0E5B94FA0726CFF6 /* PinkhaFFI */; };
+		9824D737037C29F09C4DA4A2 /* CanelaText.ttc in Resources */ = {isa = PBXBuildFile; fileRef = 65C6528239A09484482DD665 /* CanelaText.ttc */; };
 		98E9AD73AC0F4AF81E73D662 /* EditableBlockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B033CFC2C8EE318FA058974 /* EditableBlockTests.swift */; };
 		9C56A8C90EE5492F7FD49F24 /* PinkhaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 909E5D4DB1628C93BC5215A1 /* PinkhaApp.swift */; };
 		9E488110AB0BE3931273EEA6 /* PerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8FFF93EEDC254780485D651 /* PerformanceTests.swift */; };
 		A56785ADE2F127B5EBA0AAB7 /* BlockOpsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 738ECE1D72957495F50518E6 /* BlockOpsTests.swift */; };
 		B1CC663C63066A3A8AA2C30E /* LibraryFeature in Frameworks */ = {isa = PBXBuildFile; productRef = B0646CF4E56693CA472EB748 /* LibraryFeature */; };
+		B2815ECCEA3B7CFCB1A8F56E /* PublicoHeadline.ttc in Resources */ = {isa = PBXBuildFile; fileRef = A3EA4583E3F0941379252DF2 /* PublicoHeadline.ttc */; };
 		B44F29957A1D8A27E587259A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D8D5D391D7106F7C2E577E4 /* AppDelegate.swift */; };
 		BEA49A960162E98F792D98C6 /* BlockPickerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C31BC0B000B9D4E7321876 /* BlockPickerUITests.swift */; };
 		CADF13DFAEACD69368156D23 /* NotionOAuth2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8829AA3035FF94BD0A3EF7B /* NotionOAuth2Tests.swift */; };
@@ -60,11 +63,11 @@
 		D51C458DB7AC696208E3435E /* ReaderModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FBFC0BEE81299E79D3BE3C1 /* ReaderModeTests.swift */; };
 		D878D8EB398C5B2F7E67F418 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 1C694413F2C74CAD1272F440 /* Localizable.xcstrings */; };
 		D94EA417E488B890F0BC3AAA /* VMErrorHandlingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AF590FDF89EC393658B2029 /* VMErrorHandlingTests.swift */; };
+		DF315C81EE1285EDF37E45E6 /* PublicoText.ttc in Resources */ = {isa = PBXBuildFile; fileRef = 93CCCBA80099095BD0849FBF /* PublicoText.ttc */; };
 		E368FE7BD750360550B347BD /* CoverImageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C90F098980AEF72F3CE8978 /* CoverImageTests.swift */; };
 		EDF95358CEFF04EA6FF47BB7 /* DocumentViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7489CFC34A012E88663D5A4E /* DocumentViewModelTests.swift */; };
 		F1F32310563BE3298EAF023A /* PersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2993E55B338F853D7618589 /* PersistenceTests.swift */; };
 		F79CCC9032083583516E9A36 /* SearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28EEC29CAF243FC97EC0EB7C /* SearchTests.swift */; };
-		F93B37D9227F4C6C343A3B93 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 5D92C86DE0A0CC5FB74FA041 /* Pinkha.icon */; };
 		F9F36D0763E8BC10E7976C72 /* CreateBubbleContextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAD2C557BA0C41EE41803FE6 /* CreateBubbleContextTests.swift */; };
 		FBFB686803B28D7733E34D1C /* LeafFeature in Frameworks */ = {isa = PBXBuildFile; productRef = FF83B8C3CF8B8AE46DE62FFB /* LeafFeature */; };
 /* End PBXBuildFile section */
@@ -102,6 +105,7 @@
 		1C694413F2C74CAD1272F440 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		1C90F098980AEF72F3CE8978 /* CoverImageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverImageTests.swift; sourceTree = "<group>"; };
 		1D8D5D391D7106F7C2E577E4 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		22200D2DF353B1929B50B3F6 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		246D8DEA021370914CD19718 /* PinkhaDesignSystem */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PinkhaDesignSystem; path = Packages/PinkhaDesignSystem; sourceTree = SOURCE_ROOT; };
 		2516EE64F9E482E141A0D27E /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		28EEC29CAF243FC97EC0EB7C /* SearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchTests.swift; sourceTree = "<group>"; };
@@ -113,8 +117,8 @@
 		51F23F0716FCE3363F1AA084 /* SeededDataUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeededDataUITests.swift; sourceTree = "<group>"; };
 		596EB06D81D9723854411FD8 /* PinkhaTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PinkhaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5B033CFC2C8EE318FA058974 /* EditableBlockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditableBlockTests.swift; sourceTree = "<group>"; };
-		5D92C86DE0A0CC5FB74FA041 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		6093527A0945328E7EC8D4F6 /* EmptyStateUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateUITests.swift; sourceTree = "<group>"; };
+		65C6528239A09484482DD665 /* CanelaText.ttc */ = {isa = PBXFileReference; path = CanelaText.ttc; sourceTree = "<group>"; };
 		6B4887EECF47E4661EA0C63B /* Composer+QuickActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Composer+QuickActions.swift"; sourceTree = "<group>"; };
 		738ECE1D72957495F50518E6 /* BlockOpsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockOpsTests.swift; sourceTree = "<group>"; };
 		74758505CF9C5437D290A702 /* DatabaseQueriesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseQueriesTests.swift; sourceTree = "<group>"; };
@@ -129,10 +133,12 @@
 		8D00712F93440126D5247D83 /* MalformedJSONTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MalformedJSONTests.swift; sourceTree = "<group>"; };
 		8D498BD6A504E837D38568BA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		909E5D4DB1628C93BC5215A1 /* PinkhaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinkhaApp.swift; sourceTree = "<group>"; };
+		93CCCBA80099095BD0849FBF /* PublicoText.ttc */ = {isa = PBXFileReference; path = PublicoText.ttc; sourceTree = "<group>"; };
 		94AB645E2E656B62E6D0182C /* ResilienceFFITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilienceFFITests.swift; sourceTree = "<group>"; };
 		97AAE4ED1A7A8EFFA0FFB26F /* FontHelpersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontHelpersTests.swift; sourceTree = "<group>"; };
 		989079D332C7B04FEE02C8BC /* PinkhaIntegrationTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PinkhaIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A0242538C571C77BB05443CB /* ColorPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorPersistenceTests.swift; sourceTree = "<group>"; };
+		A3EA4583E3F0941379252DF2 /* PublicoHeadline.ttc */ = {isa = PBXFileReference; path = PublicoHeadline.ttc; sourceTree = "<group>"; };
 		A4E2380661E5813755F120A1 /* Pinkha.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Pinkha.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A65640724338B9AA4AAF343F /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		AAD2C557BA0C41EE41803FE6 /* CreateBubbleContextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBubbleContextTests.swift; sourceTree = "<group>"; };
@@ -179,6 +185,16 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		134D660A5147422A4103EC05 /* Bundled */ = {
+			isa = PBXGroup;
+			children = (
+				65C6528239A09484482DD665 /* CanelaText.ttc */,
+				A3EA4583E3F0941379252DF2 /* PublicoHeadline.ttc */,
+				93CCCBA80099095BD0849FBF /* PublicoText.ttc */,
+			);
+			path = Bundled;
+			sourceTree = "<group>";
+		};
 		1A00F97C8C67F1DADFB024A3 /* Unit */ = {
 			isa = PBXGroup;
 			children = (
@@ -212,6 +228,14 @@
 				BEB8BDD53EA02FC1A56928B5 /* SwipeDeleteUITests.swift */,
 			);
 			path = UI;
+			sourceTree = "<group>";
+		};
+		3A9D5288AD158C1CBD08A2AA /* app */ = {
+			isa = PBXGroup;
+			children = (
+				22200D2DF353B1929B50B3F6 /* Pinkha.icon */,
+			);
+			name = app;
 			sourceTree = "<group>";
 		};
 		52689657E616B098718D0A67 /* Config */ = {
@@ -271,6 +295,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		7ABB864961DA3FF09B40FC28 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B3EB072230B0508E4703AFD8 /* Fonts */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		7CE19974FB0E7C2FE24CED36 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
@@ -306,12 +338,12 @@
 			path = Packages;
 			sourceTree = "<group>";
 		};
-		D5111EF89212BB854C028C6D /* app */ = {
+		B3EB072230B0508E4703AFD8 /* Fonts */ = {
 			isa = PBXGroup;
 			children = (
-				5D92C86DE0A0CC5FB74FA041 /* Pinkha.icon */,
+				134D660A5147422A4103EC05 /* Bundled */,
 			);
-			name = app;
+			path = Fonts;
 			sourceTree = "<group>";
 		};
 		F122F2A1952EFD55C6F7E411 = {
@@ -319,10 +351,11 @@
 			children = (
 				52689657E616B098718D0A67 /* Config */,
 				A75FAF648EEA621E03010904 /* Packages */,
+				7ABB864961DA3FF09B40FC28 /* Resources */,
 				8FB7F1288CD331FA0F093783 /* Sources */,
 				7CE19974FB0E7C2FE24CED36 /* Tests */,
 				7459E38DDB42FA0567FB08BE /* Products */,
-				D5111EF89212BB854C028C6D /* app */,
+				3A9D5288AD158C1CBD08A2AA /* app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -456,8 +489,8 @@
 			projectRoot = "";
 			targets = (
 				EAA7C7AD90A3193951A64D87 /* Pinkha */,
-				D17CDC21C3448F05002B7131 /* PinkhaTests */,
 				1682225E1FF720CA9A508B0E /* PinkhaIntegrationTests */,
+				D17CDC21C3448F05002B7131 /* PinkhaTests */,
 				8C1010FA95FFCFEEE4AF60B9 /* PinkhaUITests */,
 			);
 		};
@@ -469,9 +502,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				57155F8A05B7C7EA1ED129AF /* Assets.xcassets in Resources */,
+				9824D737037C29F09C4DA4A2 /* CanelaText.ttc in Resources */,
 				1687C7C9610D2298A8E55177 /* InfoPlist.xcstrings in Resources */,
 				D878D8EB398C5B2F7E67F418 /* Localizable.xcstrings in Resources */,
-				F93B37D9227F4C6C343A3B93 /* Pinkha.icon in Resources */,
+				B2815ECCEA3B7CFCB1A8F56E /* PublicoHeadline.ttc in Resources */,
+				DF315C81EE1285EDF37E45E6 /* PublicoText.ttc in Resources */,
+				47A65034E1BDA17B9E0BB61D /* Pinkha.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

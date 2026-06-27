@@ -13,6 +13,18 @@ import UIKit
 public final class ReaderMode {
     public var isActive: Bool = false
 
+    /// Effective color scheme of the currently-open leaf when it
+    /// overrides the global appearance via its Books-style theme.
+    /// `nil` means "no leaf is forcing a scheme right now" — root tabs
+    /// or a leaf in `.original` theme. Read by `ContentView` so it can
+    /// apply `.preferredColorScheme` to the whole TabView (and thus
+    /// the bottom accessory bar's icons, which sit in the parent's
+    /// SwiftUI environment and otherwise miss the leaf's per-doc
+    /// `.preferredColorScheme` override).
+    ///
+    /// Set from `LeafView.onAppear` / `onChange` / `onDisappear`.
+    public var activeLeafColorScheme: ColorScheme? = nil
+
     public init() {}
 
     /// Flips reader mode on / off with a haptic cue.
@@ -27,6 +39,28 @@ public final class ReaderMode {
         guard isActive else { return }
         isActive = false
         Haptic.soft()
+    }
+}
+
+public extension UITraitCollection {
+    /// The device's actual `userInterfaceStyle` — read from the
+    /// `UIScreen`'s trait collection, which reflects the iOS
+    /// Settings → Display & Brightness appearance and IGNORES any
+    /// `overrideUserInterfaceStyle` the app may have set on its
+    /// windows (e.g. `AppSettings.appearance == .dark` while the
+    /// device is in light mode).
+    ///
+    /// Use this when "match device" semantically means "follow the
+    /// OS preference, not the app preference". Distinct from
+    /// `UITraitCollection.current.userInterfaceStyle`, which returns
+    /// the override-aware value (correct for window-scoped styling
+    /// but wrong for the "Match Device" reader-appearance choice).
+    @MainActor
+    static var deviceUserInterfaceStyle: UIUserInterfaceStyle {
+        let scene = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first
+        return scene?.screen.traitCollection.userInterfaceStyle ?? .unspecified
     }
 }
 

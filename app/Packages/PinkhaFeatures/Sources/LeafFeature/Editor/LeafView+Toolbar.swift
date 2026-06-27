@@ -33,6 +33,42 @@ public extension LeafView {
         return settings.theme
     }
 
+    /// Resolves the active dark-variant flag from the 5-way appearance
+    /// enum stored on the leaf (`Light / Dark / Match Device / Match
+    /// Surroundings / Match Settings`). `Match Settings` reads the
+    /// app-wide `settings.themeDarkVariant` ; `Match Device` and the
+    /// (placeholder) `Match Surroundings` read the device trait.
+    /// Read by every site that needs to know whether the theme's
+    /// dark palette should apply.
+    /// Device's true userInterfaceStyle, ignoring window overrides —
+    /// what "Match Device" resolves to. iOS Settings → Display &
+    /// Brightness.
+    var deviceIsDark: Bool {
+        UITraitCollection.deviceUserInterfaceStyle == .dark
+    }
+
+    /// Resolved app-wide appearance — what "Match Settings" resolves
+    /// to. Reads `AppSettings.appearance` (system / light / dark) and
+    /// falls back to the device for `.system`. This is the override
+    /// that drives the app's chrome (window `overrideUserInterfaceStyle`),
+    /// NOT the separate `themeDarkVariant` toggle (which is per-leaf
+    /// theme palette state, not an appearance preference).
+    var appWideIsDark: Bool {
+        switch settings.appearance {
+        case .light:  return false
+        case .dark:   return true
+        case .system: return deviceIsDark
+        }
+    }
+
+    var effectiveThemeDarkVariant: Bool {
+        let mode = ReaderAppearance.parse(vm.readerSettings.themeAppearance)
+        return mode.effectiveDark(
+            systemIsDark: deviceIsDark,
+            settingsIsDark: appWideIsDark
+        )
+    }
+
     /// Keyboard appearance derived from the effective theme — light
     /// keyboard for light backgrounds, dark for dark, `.default` for
     /// the system-matching `.original` theme. Plumbed onto every
@@ -40,7 +76,7 @@ public extension LeafView {
     /// own UIWindow and ignores our app-window override) stays in
     /// sync with the doc surface.
     var effectiveKeyboardAppearance: UIKeyboardAppearance {
-        switch effectiveTheme.colorScheme {
+        switch effectiveTheme.effectiveColorScheme(darkVariant: effectiveThemeDarkVariant) {
         case .light: return .light
         case .dark:  return .dark
         default:     return .default
@@ -149,6 +185,7 @@ public extension LeafView {
                 onShowPublishDate: { showingPublishDateSheet = true },
                 onShowAttachToBook: { showingAttachToBookSheet = true },
                 onToggleReaderMode: { readerMode.toggle() },
+                onShowReaderSettings: { showingReaderSettingsSheet = true },
                 onShare: { sourceView in
                     presentShareSheet(sourceView: sourceView)
                 },
@@ -158,6 +195,59 @@ public extension LeafView {
             .frame(width: 44, height: 44)
             .accessibilityLabel("Leaf options")
         }
+    }
+
+    /// Generic SwiftUI `Binding` that reads / writes a single field
+    /// of `vm.readerSettings` and persists through `saveReaderSettings`
+    /// on every set. Used by `ReaderThemeCustomizationSheet` so each
+    /// slider toggle flows directly to Rust.
+    func readerSettingsBinding<Value>(_ keyPath: WritableKeyPath<LeafReaderSettings, Value>) -> Binding<Value> {
+        Binding(
+            get: { vm.readerSettings[keyPath: keyPath] },
+            set: { newValue in
+                var s = vm.readerSettings
+                s[keyPath: keyPath] = newValue
+                vm.saveReaderSettings(s)
+            }
+        )
+    }
+
+    /// True when the leaf's `readerSettings` exactly matches the
+    /// active theme's factory defaults — drives the Reset button's
+    /// disabled state in the customize sheet (Apple Books pattern).
+    /// Compared field-by-field : font_scale + font_family (Original
+    /// = nil) + bold + line/letter/word spacing + margin + justify
+    /// + custom-layout flag. Ignores `themeDarkVariant` since it's
+    /// a separate axis (sun/moon toggle, not part of typography).
+    var isAtThemeFactoryDefaults: Bool {
+        let s = vm.readerSettings
+        let t = effectiveTheme
+        return s.fontScale == 1.0
+            && s.fontFamily == nil
+            && s.bold == t.defaultBold
+            && s.lineSpacing == t.defaultLineSpacing
+            && s.letterSpacing == 0.0
+            && s.wordSpacing == 0.0
+            && s.marginScale == 0.0
+            && s.justify == t.defaultJustify
+            && s.customLayoutEnabled == t.defaultCustomLayoutEnabled
+    }
+
+    /// Snippet of the leaf's actual content surfaced in the
+    /// customize-theme sheet's live preview. Mirrors Apple Books'
+    /// behaviour of rendering the current book's prose in the
+    /// preview pane rather than canned sample text. We surface the
+    /// title (if any) + the first few text-bearing blocks.
+    func leafPreviewSnippet() -> String {
+        var pieces: [String] = []
+        let trimmedTitle = vm.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedTitle.isEmpty { pieces.append(trimmedTitle) }
+        for block in vm.blocks.prefix(8) {
+            let line = block.content.plainText.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !line.isEmpty { pieces.append(line) }
+            if pieces.joined(separator: " ").count > 280 { break }
+        }
+        return pieces.joined(separator: "\n\n")
     }
 
     /// Presents a `UIActivityViewController` rooted in the overflow

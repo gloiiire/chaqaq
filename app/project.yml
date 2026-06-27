@@ -76,6 +76,16 @@ targets:
           # iCloud Drive conflict copies ("Foo 2.swift", "Foo 3.swift") must
           # never enter the build — they're not real source files.
           - "**/* [2-9].swift"
+      # PRO-62 : Publico fonts bundled for the "Tranquille" theme.
+      # xcodegen auto-detects `.ttc` as a Resources build phase
+      # asset. Listed here (not under `resources:`) because the
+      # resources block kept silently dropping them.
+      - path: Resources/Fonts/Bundled/PublicoText.ttc
+        buildPhase: resources
+      - path: Resources/Fonts/Bundled/PublicoHeadline.ttc
+        buildPhase: resources
+      - path: Resources/Fonts/Bundled/CanelaText.ttc
+        buildPhase: resources
     resources:
       # The app icon is an Icon Composer bundle (Xcode 26) living at
       # app/Pinkha.icon — NOT inside Assets.xcassets. AppIcon.appiconset

@@ -561,11 +561,25 @@ private struct TextRowView: View {
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     public let cb: BlockCallbacks
+    @Environment(\.readerTheme) private var theme
+    @Environment(\.readerFontScale) private var fontScale
+    @Environment(\.readerTypography) private var typography
 
     public var body: some View {
+        let size = UIFont.preferredFont(forTextStyle: .body).pointSize * fontScale
         BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                       placeholder: String(localized: "Text…"), baseFont: .preferredFont(forTextStyle: .body), cb: cb)
+                       placeholder: String(localized: "Text…"),
+                       baseFont: typography.resolvedFont(theme: theme, size: size),
+                       extraAttrs: typography.attributedAttributes(baseFontSize: size).nilIfEmpty,
+                       cb: cb)
     }
+}
+
+private extension Dictionary where Key == NSAttributedString.Key, Value == Any {
+    /// Returns `nil` when empty so callers don't pass an empty
+    /// attributes dict to `BlockTextEditor` (which expects `nil`
+    /// to mean "no extras" and treats `[:]` as a marker to override).
+    var nilIfEmpty: [NSAttributedString.Key: Any]? { isEmpty ? nil : self }
 }
 
 // ── Heading ───────────────────────────────────────────────────────────────────
@@ -576,18 +590,44 @@ private struct HeadingRowView: View {
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     public let cb: BlockCallbacks
+    @Environment(\.readerTheme) private var theme
+    @Environment(\.readerFontScale) private var fontScale
+    @Environment(\.readerTypography) private var typography
 
     private var uiFont: UIFont {
-        switch level {
-        case 1:  return .systemFont(ofSize: 26, weight: .bold)
-        case 2:  return .systemFont(ofSize: 22, weight: .semibold)
-        default: return .systemFont(ofSize: 18, weight: .semibold)
+        let (size, baseWeight): (CGFloat, UIFont.Weight) = {
+            switch level {
+            case 1:  return (26, .bold)
+            case 2:  return (22, .semibold)
+            default: return (18, .semibold)
+            }
+        }()
+        let effectiveSize = size * fontScale
+        // Headings stay bold/semibold regardless of the body's bold
+        // toggle ; the toggle only nudges them when the user wants
+        // EVERYTHING heavy, so we OR-in `.bold`. We then route through
+        // `typography.resolvedFont` so the user's custom font family
+        // (Personnaliser → Police picker) wins over the theme's font.
+        let heavier = typography.bold && baseWeight.rawValue < UIFont.Weight.bold.rawValue
+            ? UIFont.Weight.bold : baseWeight
+        var typo = typography
+        typo.bold = (heavier == .bold)
+        let resolved = typo.resolvedFont(theme: theme, size: effectiveSize)
+        // resolvedFont uses .bold or .regular ; for semibold-only
+        // headings, re-apply the exact weight via the descriptor.
+        if heavier != .bold {
+            let traits: [UIFontDescriptor.TraitKey: Any] = [.weight: heavier.rawValue]
+            let descriptor = resolved.fontDescriptor.addingAttributes([.traits: traits])
+            return UIFont(descriptor: descriptor, size: effectiveSize)
         }
+        return resolved
     }
 
     public var body: some View {
         BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                       placeholder: "Heading…", baseFont: uiFont, cb: cb)
+                       placeholder: "Heading…", baseFont: uiFont,
+                       extraAttrs: typography.attributedAttributes(baseFontSize: uiFont.pointSize).nilIfEmpty,
+                       cb: cb)
             .padding(.top, level == 1 ? 16 : 10)
             .padding(.bottom, 4)
     }
@@ -602,11 +642,15 @@ private struct BulletedListItemRowView: View {
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     public let cb: BlockCallbacks
+    @Environment(\.readerTheme) private var theme
+    @Environment(\.readerFontScale) private var fontScale
+    @Environment(\.readerTypography) private var typography
 
     public var body: some View {
+        let baseSize = UIFont.preferredFont(forTextStyle: .body).pointSize * fontScale
         HStack(alignment: .top, spacing: 10) {
             Text("•")
-                .font(.body)
+                .font(theme.font(size: baseSize))
                 .foregroundStyle(.secondary)
                 .padding(.top, 8)
             BlockTextEditor(
@@ -614,7 +658,8 @@ private struct BulletedListItemRowView: View {
                 autoFocusId: $autoFocusId,
                 autoFocusOffset: $autoFocusOffset,
                 placeholder: "List item…",
-                baseFont: .preferredFont(forTextStyle: .body),
+                baseFont: typography.resolvedFont(theme: theme, size: baseSize),
+                extraAttrs: typography.attributedAttributes(baseFontSize: baseSize).nilIfEmpty,
                 cb: cb)
         }
         .padding(.vertical, 2)
@@ -628,11 +673,15 @@ private struct NumberedListItemRowView: View {
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     public let cb: BlockCallbacks
+    @Environment(\.readerTheme) private var theme
+    @Environment(\.readerFontScale) private var fontScale
+    @Environment(\.readerTypography) private var typography
 
     public var body: some View {
+        let baseSize = UIFont.preferredFont(forTextStyle: .body).pointSize * fontScale
         HStack(alignment: .top, spacing: 10) {
             Text("1.")
-                .font(.body)
+                .font(theme.font(size: baseSize))
                 .foregroundStyle(.secondary)
                 .padding(.top, 8)
             BlockTextEditor(
@@ -640,7 +689,8 @@ private struct NumberedListItemRowView: View {
                 autoFocusId: $autoFocusId,
                 autoFocusOffset: $autoFocusOffset,
                 placeholder: "List item…",
-                baseFont: .preferredFont(forTextStyle: .body),
+                baseFont: typography.resolvedFont(theme: theme, size: baseSize),
+                extraAttrs: typography.attributedAttributes(baseFontSize: baseSize).nilIfEmpty,
                 cb: cb)
         }
         .padding(.vertical, 2)

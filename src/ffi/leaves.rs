@@ -251,6 +251,26 @@ impl PinkhaApi {
         use_cases::update_leaf_theme(&self.uow(), uuid, theme).map_err(PinkhaError::from)
     }
 
+    /// Persists the leaf's reader-settings bundle (font scale +
+    /// family + bold + line/letter/word spacing + margin + justify
+    /// + dark variant + custom-layout flag). Pass an empty / `None`
+    /// JSON to reset to the theme's factory defaults. The blob is
+    /// serialised as JSON and stored on the leaf's row.
+    pub fn update_leaf_reader_settings(
+        &self,
+        id: String,
+        settings_json: Option<String>,
+    ) -> Result<(), PinkhaError> {
+        use crate::domain::leaf::ReaderSettings;
+        let uuid = parse_uuid(&id)?;
+        let settings: Option<ReaderSettings> = match settings_json {
+            None => None,
+            Some(raw) => Some(parse_json::<ReaderSettings>(&raw)?),
+        };
+        use_cases::update_leaf_reader_settings(&self.uow(), uuid, settings)
+            .map_err(PinkhaError::from)
+    }
+
     /// Sets the block-level text color, or clears it when `color` is `None`.
     ///
     /// Color is a color name like `"red"` / `"blue"` / `"green"` etc. — the
