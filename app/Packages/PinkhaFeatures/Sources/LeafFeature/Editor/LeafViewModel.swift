@@ -93,23 +93,40 @@ public final class LeafViewModel {
 
     @ObservationIgnored let api: PinkhaApi
 
+    /// Token for the checkpoint observer below — kept so `deinit` can
+    /// unregister instead of leaving a dead block in the center's table.
+    /// `nonisolated(unsafe)` because a nonisolated `deinit` can't touch
+    /// MainActor state under Swift 6 ; the token is written once in `init`
+    /// and read once in `deinit`, and `removeObserver` is thread-safe.
+    @ObservationIgnored nonisolated(unsafe) private var undoCheckpointObserver: (any NSObjectProtocol)?
+
     public init(leafId: String, api: PinkhaApi) {
         self.leafId = leafId
         self.api   = api
         undoMgr.levelsOfUndo = 1000
         // Bump the observable tick on every undo-stack mutation so SwiftUI
         // re-reads the `canUndo` / `canRedo` computed properties on the next
-        // body eval. Dispatched async to dodge "Publishing changes from
-        // within view updates" — `NSUndoManagerCheckpoint` can fire
+        // body eval. The `Task { @MainActor }` hop defers the mutation past
+        // the current view update — `NSUndoManagerCheckpoint` can fire
         // synchronously from a registerUndo invoked inside a view update.
-        NotificationCenter.default.addObserver(
+        // (A `NotificationCenter.notifications(named:)` async sequence would
+        // be the fully-structured form, but untyped `Notification` isn't
+        // Sendable under Swift 6 and the iOS 26 typed-message API doesn't
+        // cover UndoManager's checkpoint — the block observer stays.)
+        undoCheckpointObserver = NotificationCenter.default.addObserver(
             forName: .NSUndoManagerCheckpoint,
             object: undoMgr,
             queue: .main
         ) { [weak self] _ in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 self?.undoTick &+= 1
             }
+        }
+    }
+
+    deinit {
+        if let undoCheckpointObserver {
+            NotificationCenter.default.removeObserver(undoCheckpointObserver)
         }
     }
 }

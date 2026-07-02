@@ -37,6 +37,12 @@ public struct BookView: View {
                     body(for: vm.activeView?.type ?? .list)
                 } header: {
                     BookToolbarView(vm: vm, searchVisible: $searchVisible)
+                        // `.bar` (not `.glassEffect`) is deliberate : this is a
+                        // full-width pinned header, and the toolbar's search
+                        // field already carries its own glass. Liquid Glass is
+                        // a floating-controls treatment — stacking glass on
+                        // glass is explicitly discouraged, and edge-to-edge
+                        // pinned surfaces use the bar material system-wide.
                         .background(.bar)
                 }
             }
