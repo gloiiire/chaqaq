@@ -19,6 +19,11 @@ struct ContentView: View {
     @State private var composer = Composer()
     @State private var tabManager = TabManager()
     @State private var readerMode = ReaderMode()
+    /// App-wide ambient-light monitor — drives `ReaderAppearance.ambient`
+    /// ("Match Surroundings"). One instance for the whole app, injected
+    /// via `@Environment` so any leaf can read its `isDark` derived
+    /// value without spinning up its own brightness observer.
+    @State private var ambientLight = AmbientLight()
     @Environment(AppSettings.self) private var settings
     /// Live device color scheme (post AppSettings window override).
     /// Used as the fallback when no leaf is forcing a scheme via
@@ -72,6 +77,7 @@ struct ContentView: View {
         // full immersion via the setting.
         .statusBarHidden(readerMode.isActive && settings.readerHidesStatusBar)
         .environment(readerMode)
+        .environment(ambientLight)
     }
 
     /// Wraps the existing tab-view + chrome stack. Extracted so the

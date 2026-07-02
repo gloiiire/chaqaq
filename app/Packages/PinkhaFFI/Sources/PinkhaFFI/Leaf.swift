@@ -218,15 +218,20 @@ public enum ReaderAppearance: String, CaseIterable, Sendable {
     /// flipped a per-leaf variant). `settingsIsDark` is the app-wide
     /// `AppSettings.themeDarkVariant` Bool.
     ///
-    /// `ambient` has no public iOS API — we fall back to system so the
-    /// choice is at least sensible, and the menu label still tells the
-    /// user what they picked.
-    public func effectiveDark(systemIsDark: Bool, settingsIsDark: Bool) -> Bool {
+    /// `ambient` has no public ambient-light sensor API on iOS — we
+    /// approximate via the display brightness reading (see
+    /// `AmbientLight` in PinkhaCore). The caller passes the resolved
+    /// `ambientIsDark` so this type stays free of UIKit/observers.
+    public func effectiveDark(
+        systemIsDark: Bool,
+        settingsIsDark: Bool,
+        ambientIsDark: Bool
+    ) -> Bool {
         switch self {
         case .light:    return false
         case .dark:     return true
         case .system:   return systemIsDark
-        case .ambient:  return systemIsDark
+        case .ambient:  return ambientIsDark
         case .settings: return settingsIsDark
         }
     }

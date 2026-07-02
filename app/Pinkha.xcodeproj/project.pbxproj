@@ -25,7 +25,6 @@
 		3FAD4339BF72CFD18FC75846 /* PinkhaComposer in Frameworks */ = {isa = PBXBuildFile; productRef = DB9CD06A32E32927DA4E283A /* PinkhaComposer */; };
 		406025C2132BC8574ADDE87F /* HomeScreenUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C07ADA01E894E83B574ABA /* HomeScreenUITests.swift */; };
 		4190B41652DB9D8C9534AD12 /* BlockHierarchyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB990B9A8557D574F681053B /* BlockHierarchyTests.swift */; };
-		47A65034E1BDA17B9E0BB61D /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 22200D2DF353B1929B50B3F6 /* Pinkha.icon */; };
 		4BA75C93F895BE5EE4307A17 /* EmptyStateUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6093527A0945328E7EC8D4F6 /* EmptyStateUITests.swift */; };
 		4C416DF2D208DC067FC9A9E1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A3421677D3E4A70DA86CEB8 /* ContentView.swift */; };
 		510DD50589C1252C2F8253A6 /* DocumentApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8169A1E412FB3AB0851E5ADB /* DocumentApiTests.swift */; };
@@ -52,6 +51,7 @@
 		9C56A8C90EE5492F7FD49F24 /* PinkhaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 909E5D4DB1628C93BC5215A1 /* PinkhaApp.swift */; };
 		9E488110AB0BE3931273EEA6 /* PerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8FFF93EEDC254780485D651 /* PerformanceTests.swift */; };
 		A56785ADE2F127B5EBA0AAB7 /* BlockOpsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 738ECE1D72957495F50518E6 /* BlockOpsTests.swift */; };
+		A88C403214109593DFB2D7BA /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = F1E6AFC10775A9EB4D88018B /* Pinkha.icon */; };
 		B1CC663C63066A3A8AA2C30E /* LibraryFeature in Frameworks */ = {isa = PBXBuildFile; productRef = B0646CF4E56693CA472EB748 /* LibraryFeature */; };
 		B2815ECCEA3B7CFCB1A8F56E /* PublicoHeadline.ttc in Resources */ = {isa = PBXBuildFile; fileRef = A3EA4583E3F0941379252DF2 /* PublicoHeadline.ttc */; };
 		B44F29957A1D8A27E587259A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D8D5D391D7106F7C2E577E4 /* AppDelegate.swift */; };
@@ -105,7 +105,6 @@
 		1C694413F2C74CAD1272F440 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		1C90F098980AEF72F3CE8978 /* CoverImageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverImageTests.swift; sourceTree = "<group>"; };
 		1D8D5D391D7106F7C2E577E4 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		22200D2DF353B1929B50B3F6 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		246D8DEA021370914CD19718 /* PinkhaDesignSystem */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PinkhaDesignSystem; path = Packages/PinkhaDesignSystem; sourceTree = SOURCE_ROOT; };
 		2516EE64F9E482E141A0D27E /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		28EEC29CAF243FC97EC0EB7C /* SearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchTests.swift; sourceTree = "<group>"; };
@@ -158,6 +157,7 @@
 		DC3CE918941B43A282D0FF3D /* PinkhaComposer */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PinkhaComposer; path = Packages/PinkhaComposer; sourceTree = SOURCE_ROOT; };
 		E2C07ADA01E894E83B574ABA /* HomeScreenUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreenUITests.swift; sourceTree = "<group>"; };
 		F0C5E1D7104E176374A94957 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F1E6AFC10775A9EB4D88018B /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		F2993E55B338F853D7618589 /* PersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceTests.swift; sourceTree = "<group>"; };
 		F2D794592BEC81AB2CB5E99B /* CodableRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableRoundTripTests.swift; sourceTree = "<group>"; };
 		F8FFF93EEDC254780485D651 /* PerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceTests.swift; sourceTree = "<group>"; };
@@ -228,14 +228,6 @@
 				BEB8BDD53EA02FC1A56928B5 /* SwipeDeleteUITests.swift */,
 			);
 			path = UI;
-			sourceTree = "<group>";
-		};
-		3A9D5288AD158C1CBD08A2AA /* app */ = {
-			isa = PBXGroup;
-			children = (
-				22200D2DF353B1929B50B3F6 /* Pinkha.icon */,
-			);
-			name = app;
 			sourceTree = "<group>";
 		};
 		52689657E616B098718D0A67 /* Config */ = {
@@ -346,6 +338,14 @@
 			path = Fonts;
 			sourceTree = "<group>";
 		};
+		C9657184BA9DDE6836ACE3FE /* app */ = {
+			isa = PBXGroup;
+			children = (
+				F1E6AFC10775A9EB4D88018B /* Pinkha.icon */,
+			);
+			name = app;
+			sourceTree = "<group>";
+		};
 		F122F2A1952EFD55C6F7E411 = {
 			isa = PBXGroup;
 			children = (
@@ -355,7 +355,7 @@
 				8FB7F1288CD331FA0F093783 /* Sources */,
 				7CE19974FB0E7C2FE24CED36 /* Tests */,
 				7459E38DDB42FA0567FB08BE /* Products */,
-				3A9D5288AD158C1CBD08A2AA /* app */,
+				C9657184BA9DDE6836ACE3FE /* app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -507,7 +507,7 @@
 				D878D8EB398C5B2F7E67F418 /* Localizable.xcstrings in Resources */,
 				B2815ECCEA3B7CFCB1A8F56E /* PublicoHeadline.ttc in Resources */,
 				DF315C81EE1285EDF37E45E6 /* PublicoText.ttc in Resources */,
-				47A65034E1BDA17B9E0BB61D /* Pinkha.icon in Resources */,
+				A88C403214109593DFB2D7BA /* Pinkha.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

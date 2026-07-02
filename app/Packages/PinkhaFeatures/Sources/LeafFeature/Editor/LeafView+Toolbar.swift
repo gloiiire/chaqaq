@@ -61,11 +61,18 @@ public extension LeafView {
         }
     }
 
+    /// Resolved "is the room dark?" — drives `ReaderAppearance.ambient`
+    /// ("Match Surroundings"). Read from the app-wide `AmbientLight`
+    /// monitor, which thresholds `UIScreen.brightness` (no public
+    /// ambient-light API on iOS).
+    var ambientIsDark: Bool { ambientLight.isDark }
+
     var effectiveThemeDarkVariant: Bool {
         let mode = ReaderAppearance.parse(vm.readerSettings.themeAppearance)
         return mode.effectiveDark(
             systemIsDark: deviceIsDark,
-            settingsIsDark: appWideIsDark
+            settingsIsDark: appWideIsDark,
+            ambientIsDark: ambientIsDark
         )
     }
 

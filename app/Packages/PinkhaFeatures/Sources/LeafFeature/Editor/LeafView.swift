@@ -24,6 +24,7 @@ public struct LeafView: View {
     /// a leaf with PRO-60's auto-hide enabled (the bubble is hidden),
     /// so a parallel entry in the leaf's own toolbar is required.
     @Environment(ReaderMode.self) var readerMode
+    @Environment(AmbientLight.self) var ambientLight
     /// Read-only here — drives the optional spotlight tint applied in
     /// `blockListRow`. The setting is owned at the app level so every
     /// leaf picks the same look without having to re-fetch it.
@@ -556,8 +557,17 @@ public struct LeafView: View {
         .sheet(isPresented: $showingReaderSettingsSheet, onDismiss: {
             // Restore system brightness so a notes app doesn't leave
             // the screen permanently dimmed after the user dismisses.
+            // Same scene-based write as the slider's `onChange` — the
+            // legacy `UIScreen.main.brightness =` setter is a silent
+            // no-op on some iOS 26 scene configs.
             if let original = originalScreenBrightness {
-                UIScreen.main.brightness = original
+                let scene = UIApplication.shared.connectedScenes
+                    .compactMap { $0 as? UIWindowScene }
+                    .first { $0.activationState == .foregroundActive }
+                    ?? UIApplication.shared.connectedScenes
+                        .compactMap { $0 as? UIWindowScene }
+                        .first
+                scene?.screen.brightness = original
                 originalScreenBrightness = nil
             }
         }) {
@@ -606,13 +616,15 @@ public struct LeafView: View {
                         // returning the right answer).
                         s.themeDarkVariant = newMode.effectiveDark(
                             systemIsDark: deviceIsDark,
-                            settingsIsDark: appWideIsDark
+                            settingsIsDark: appWideIsDark,
+                            ambientIsDark: ambientIsDark
                         )
                         vm.saveReaderSettings(s)
                     }
                 ),
                 systemIsDark: deviceIsDark,
                 settingsIsDark: appWideIsDark,
+                ambientIsDark: ambientIsDark,
                 themeOptions: ReaderThemeOption.previewSet,
                 onPersonnaliser: {
                     showingCustomizeThemeSheet = true
@@ -661,7 +673,24 @@ public struct LeafView: View {
             }
             .onChange(of: readerBrightness) { _, newValue in
                 // Push slider drags onto the actual screen brightness.
-                UIScreen.main.brightness = CGFloat(newValue)
+                //
+                // `UIScreen.main` is soft-deprecated on iOS 16+ and on
+                // some scene configurations the legacy setter is
+                // silently ignored (the read still works but the write
+                // is a no-op). Walk through the active `UIWindowScene`
+                // instead — this is the modern path and is the only
+                // one that reliably mutates brightness on iOS 26.
+                //
+                // SIMULATOR CAVEAT : the simulator has no backlight,
+                // so brightness writes appear to no-op even with this
+                // path. The slider works on a real device.
+                let scene = UIApplication.shared.connectedScenes
+                    .compactMap { $0 as? UIWindowScene }
+                    .first { $0.activationState == .foregroundActive }
+                    ?? UIApplication.shared.connectedScenes
+                        .compactMap { $0 as? UIWindowScene }
+                        .first
+                scene?.screen.brightness = CGFloat(newValue)
             }
             // PRO-62 step 9 : customize-theme sub-sheet stacked on
             // top of the main settings sheet. Bindings flow through

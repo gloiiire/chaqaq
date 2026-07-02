@@ -39,6 +39,9 @@ public struct ReaderSettingsSheet: View {
     /// Current value of the app-wide `AppSettings.themeDarkVariant`.
     /// Used to resolve the `.settings` option.
     let settingsIsDark: Bool
+    /// Best-effort ambient dark from `AmbientLight` (brightness <
+    /// threshold). Used to resolve the `.ambient` option.
+    let ambientIsDark: Bool
 
     /// Available themes to display in the grid. Each entry knows how
     /// to render its own `Aa` preview tile.
@@ -61,7 +64,8 @@ public struct ReaderSettingsSheet: View {
     private var isDarkVariant: Bool {
         appearance.effectiveDark(
             systemIsDark: systemIsDark,
-            settingsIsDark: settingsIsDark
+            settingsIsDark: settingsIsDark,
+            ambientIsDark: ambientIsDark
         )
     }
 
@@ -72,6 +76,7 @@ public struct ReaderSettingsSheet: View {
         appearance: Binding<ReaderAppearance>,
         systemIsDark: Bool,
         settingsIsDark: Bool,
+        ambientIsDark: Bool,
         themeOptions: [ReaderThemeOption],
         fontScaleRange: ClosedRange<Double> = 0.7...1.6,
         fontScaleStep: Double = 0.1,
@@ -84,6 +89,7 @@ public struct ReaderSettingsSheet: View {
         self._appearance = appearance
         self.systemIsDark = systemIsDark
         self.settingsIsDark = settingsIsDark
+        self.ambientIsDark = ambientIsDark
         self.themeOptions = themeOptions
         self.fontScaleRange = fontScaleRange
         self.fontScaleStep = fontScaleStep
@@ -116,18 +122,29 @@ public struct ReaderSettingsSheet: View {
                     .padding(.bottom, 12)
             }
             .frame(maxWidth: .infinity)
-            // Apple Books splits the sheet into two visually distinct
-            // regions : the controls strip rides the bare glass (page
-            // content shows through), while the theme grid sits on a
-            // noticeably more opaque tinted layer.
+            // Apple Books shows a clear horizontal seam between the
+            // two regions — visible in BOTH light and dark, regardless
+            // of the leaf's bg colour bleeding through.
             //
-            // Stacking `.regularMaterial` UNDER an `.opacity(_)` tint
-            // gives us that "step up in opacity" effect — the material
-            // adapts to light/dark on its own, the tint adds the
-            // tonal lift that creates the seam Apple Books shows
-            // between the two regions.
+            // Material layering alone (thinMaterial + regularMaterial)
+            // doesn't generate enough contrast over a dark leaf — both
+            // regions just look like the same tinted blur. We get the
+            // step by stacking a TINT that flips direction with the
+            // colour scheme :
+            //   • light : darken by ~8 %  (bottom darker than top)
+            //   • dark  : lighten by ~22 % (bottom clearly lighter)
+            // Apple Books pushes the dark-mode lift pretty hard — the
+            // bottom reads as a medium grey, not a barely-lifted near-
+            // black. Sample-matched against the Books reader sheet on
+            // device 2026-06-27.
             .background(.regularMaterial)
-            .background(Color(.systemFill).opacity(0.55))
+            .background(
+                Color(uiColor: UIColor { trait in
+                    trait.userInterfaceStyle == .dark
+                        ? UIColor.white.withAlphaComponent(0.70)
+                        : UIColor.black.withAlphaComponent(0.08)
+                })
+            )
         }
         // No opaque outer background — the sheet's
         // `.presentationBackground(.thinMaterial)` modifier provides
@@ -145,16 +162,24 @@ public struct ReaderSettingsSheet: View {
                 .lineLimit(1)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer()
+            // Liquid Glass close button — same vocabulary as the X in
+            // `CreateLeafSheet` and `AllLeavesSwitcher`. `.regular`
+            // glass keeps it readable over the dark sheet bg, and
+            // `.interactive()` opts into the iOS 26 ripple/dim tap
+            // animation (the one SwiftUI's `.plain` button style
+            // strips out).
             Button {
                 Haptic.tap()
                 onClose()
             } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title2)
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.secondary)
+                Image(systemName: "xmark")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
+            .glassEffect(.regular.interactive(), in: Circle())
             .accessibilityLabel("Close")
         }
         .padding(.horizontal, 16)
@@ -223,7 +248,7 @@ public struct ReaderSettingsSheet: View {
                 .foregroundStyle(disabled ? .secondary : .primary)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SoftPressButtonStyle())
         .disabled(disabled)
         .accessibilityLabel(accessibility)
     }
@@ -389,7 +414,7 @@ public struct ReaderSettingsSheet: View {
             .frame(height: 54)
             .background(Capsule().fill(Color(.tertiarySystemFill)))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SoftPressButtonStyle())
         .foregroundStyle(.primary)
         .accessibilityLabel("Customize Theme")
     }
@@ -548,7 +573,7 @@ private struct ThemeTile: View {
             tileBody
                 .padding(4)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SoftPressButtonStyle())
         .accessibilityLabel(Text(option.label))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
@@ -593,6 +618,7 @@ private struct ThemeTile: View {
             appearance: appearanceBinding,
             systemIsDark: false,
             settingsIsDark: false,
+            ambientIsDark: false,
             themeOptions: ReaderThemeOption.previewSet,
             onPersonnaliser: {},
             onClose: {}
@@ -689,4 +715,28 @@ extension ReaderThemeOption {
               fontFamily: "Proxima Nova",
               isPreviewBold: false),
     ]
+}
+
+// MARK: - Button style
+
+/// Reusable press style that mirrors the feedback Apple uses on
+/// circle close buttons / pill controls : light scale-down + dim on
+/// press, spring back on release. SwiftUI's `.plain` style strips ALL
+/// chrome, including the press animation — which is why our buttons
+/// felt "dead" compared to Apple Books.
+///
+/// Tuned values : 0.92 scale + 0.6 opacity on press, snappy 0.2 s
+/// spring on release. Slightly less aggressive than UIKit's default
+/// (0.85 scale) because our glyphs are dense and bigger scale shifts
+/// look like a glitch.
+struct SoftPressButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
+            .opacity(configuration.isPressed ? 0.6 : 1.0)
+            .animation(
+                .spring(response: 0.2, dampingFraction: 0.7),
+                value: configuration.isPressed
+            )
+    }
 }
