@@ -32,26 +32,34 @@ public struct EditableBlock: Identifiable, Equatable {
 
 // ── Action repeater ───────────────────────────────────────────────────────────
 // Repeats a closure at a fixed interval (key repeat for navigation arrows).
-// Encapsulates the Timer logic to keep the view model clean.
+// Task-based so the repeat loop is cancellable and MainActor-isolated —
+// no Timer, no Sendable friction on the captured VM method, and tests can
+// drive it with a short interval instead of racing a real run-loop timer.
 
 /// Fires a closure at a regular interval while a navigation key is held down.
+@MainActor
 public final class ActionRepeater {
-    private var timer: Timer?
-    public var active: Bool { timer != nil }
+    private var task: Task<Void, Never>?
+    public var active: Bool { task != nil }
 
-    /// Starts repeating `step` every `interval` seconds. A second call while active is a no-op.
-    /// `step` is intentionally non-Sendable — the Timer fires on the main
-    /// run loop, every caller is `@MainActor`, and adding `@Sendable` here
-    /// cascades into actor-isolation errors on the captured VM method.
-    func start(interval: TimeInterval = 0.12, _ step: @escaping () -> Void) {
-        guard timer == nil else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in step() }
+    /// Starts repeating `step` every `interval` seconds. A second call while
+    /// active is a no-op. Matches the old Timer semantics : the first fire
+    /// happens after one full `interval`, not immediately.
+    func start(interval: TimeInterval = 0.12, _ step: @escaping @MainActor () -> Void) {
+        guard task == nil else { return }
+        task = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(interval))
+                guard !Task.isCancelled else { break }
+                step()
+            }
+        }
     }
 
-    /// Stops the repeat timer.
+    /// Cancels the repeat loop.
     func stop() {
-        timer?.invalidate()
-        timer = nil
+        task?.cancel()
+        task = nil
     }
 }
 

@@ -80,17 +80,17 @@ public final class GlobalKeyboardDismissPan: NSObject, UIGestureRecognizerDelega
         guard pan.state == .changed else { return }
         let v = pan.velocity(in: nil)
         if v.y > 700 && abs(v.x) < 400 {
-            UIApplication.shared.sendAction(
-                #selector(UIResponder.resignFirstResponder),
-                to: nil, from: nil, for: nil)
+            // The recognizer is installed on the window, so `pan.view`
+            // IS the window — `endEditing` resolves the first responder
+            // directly instead of broadcasting a selector up the
+            // responder chain via `sendAction`.
+            pan.view?.endEditing(true)
         }
     }
 
     @objc private func handleTap(_ tap: UITapGestureRecognizer) {
         guard tap.state == .ended else { return }
-        UIApplication.shared.sendAction(
-            #selector(UIResponder.resignFirstResponder),
-            to: nil, from: nil, for: nil)
+        tap.view?.endEditing(true)
     }
 
     // ── UIGestureRecognizerDelegate ──────────────────────────────

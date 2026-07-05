@@ -506,6 +506,9 @@ public struct BlockRowView: View {
 // surfaces the same palette to SwiftUI as a stable, identifiable list
 // the menu can iterate over.
 
+/// `@unchecked` is required by `displayName` : `LocalizedStringKey` is not
+/// `Sendable` even on iOS 26. The struct is fully immutable (all lets,
+/// value-type members) so the conformance is safe in practice.
 public struct BlockColorOption: Identifiable, @unchecked Sendable {
     public let id: String
     public let name: String

@@ -1,19 +1,14 @@
 import SwiftUI
 
-/// Placeholder shown when there are no leaves yet.
+/// Placeholder shown when there are no leaves yet. `ContentUnavailableView`
+/// keeps the icon size / spacing / typography aligned with the system (and
+/// with `CompostView`'s empty state) without hand-tuning a VStack.
 public struct LibraryEmptyState: View {
     public var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "document")
-                .font(.system(size: 48))
-                .foregroundStyle(.tertiary)
-            VStack(spacing: 6) {
-                Text("No leaves").font(.headline)
-                Text("Tap Leaf below to take your first one.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
+        ContentUnavailableView(
+            "No leaves",
+            systemImage: "document",
+            description: Text("Tap Leaf below to take your first one.")
+        )
     }
 }
