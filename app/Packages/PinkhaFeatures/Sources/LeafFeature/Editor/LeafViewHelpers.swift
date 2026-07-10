@@ -108,3 +108,24 @@ public struct BlockPickerSheet: View {
         .presentationDetents([.medium])
     }
 }
+
+// ── iOS 27 reorder container bridge ───────────────────────────────────────
+//
+// `.reorderContainer(for:move:)` requires iOS 27 and takes a closure whose
+// parameter type (`ReorderDifference`) is also iOS 27-only, so the whole
+// call site must live inside an `if #available(iOS 27.0, *)`. Wrapping it
+// in a ViewModifier keeps the `documentList` modifier chain flat.
+
+struct BlockReorderContainerModifier: ViewModifier {
+    let vm: LeafViewModel
+    func body(content: Content) -> some View {
+        if #available(iOS 27.0, *) {
+            content.reorderContainer(for: EditableBlock.self) { diff in
+                vm.moveBlocks(applyingDifference: diff)
+            }
+        } else {
+            content
+        }
+    }
+}
+

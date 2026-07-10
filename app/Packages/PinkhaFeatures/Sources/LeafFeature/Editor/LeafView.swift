@@ -223,8 +223,17 @@ public struct LeafView: View {
                     .moveDisabled(true).deleteDisabled(true)
             }
 
-            ForEach($vm.blocks) { $block in blockListRow($block) }
-                .onMove(perform: vm.moveBlock)
+            // iOS 27's `.reorderable()` / `.reorderContainer(for:)` pair
+            // replaces the classic `.onMove` handler with a diff-based API
+            // — cleaner, no EditMode toggling, cross-container support ready.
+            // Under iOS 26 we keep the working `.onMove` path.
+            if #available(iOS 27.0, *) {
+                ForEach($vm.blocks) { $block in blockListRow($block) }
+                    .reorderable()
+            } else {
+                ForEach($vm.blocks) { $block in blockListRow($block) }
+                    .onMove(perform: vm.moveBlock)
+            }
 
             if !vm.locked && !readerMode.isActive {
                 AddBlockButton { showingBlockPicker = true }
@@ -234,6 +243,7 @@ public struct LeafView: View {
             }
         }
         .listStyle(.plain)
+        .modifier(BlockReorderContainerModifier(vm: vm))
         .ignoresSafeArea(.container, edges: vm.cover == nil ? [] : .top)
         .onScrollGeometryChange(for: CGFloat.self) { geo in
             geo.contentOffset.y + geo.contentInsets.top
