@@ -290,6 +290,12 @@ public struct LeafView: View {
         // escape hatch ; the multi-finger long-press still toggles back.
         .toolbar(readerMode.isActive ? .hidden : .visible, for: .navigationBar)
         .toolbar(readerMode.isActive ? .hidden : .visible, for: .tabBar)
+        // iOS 27 opt-in: outside reader mode, the nav bar auto-minimises
+        // when the user scrolls down through a long doc (Safari-style)
+        // and restores when they reverse direction. In reader mode the
+        // bar is fully hidden by the modifiers above so minimisation is
+        // irrelevant. iOS 26 falls back to the fixed nav bar (no-op).
+        .modifier(LeafNavBarMinimizationModifier(active: !readerMode.isActive))
         // `.persistentSystemOverlays(.hidden)` is the iOS 16+ way to
         // collapse the home-indicator gloss + any system-reserved
         // bottom slot. Without it, the `.tabViewBottomAccessory` slot

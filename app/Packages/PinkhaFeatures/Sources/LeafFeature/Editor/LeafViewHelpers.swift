@@ -129,3 +129,19 @@ struct BlockReorderContainerModifier: ViewModifier {
     }
 }
 
+/// Applies `.toolbarMinimizationBehavior(.onScrollDown, for: .navigationBar)`
+/// on iOS 27+ when active — the nav bar minimises as the user scrolls a
+/// long leaf and restores on reverse scroll (Safari/Books style). Pass
+/// `active: false` (reader mode) to skip minimisation entirely. iOS 26
+/// falls back to the fixed bar (no-op).
+struct LeafNavBarMinimizationModifier: ViewModifier {
+    let active: Bool
+    func body(content: Content) -> some View {
+        if active, #available(iOS 27.0, *) {
+            content.toolbarMinimizationBehavior(.onScrollDown, for: .navigationBar)
+        } else {
+            content
+        }
+    }
+}
+
