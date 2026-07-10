@@ -51,7 +51,11 @@ if xcrun simctl list devices booted 2>/dev/null | grep -q "$SIM_UDID"; then
     HAVE_SIM=1
 elif xcrun simctl list devices 2>/dev/null | grep -q "$SIM_UDID"; then
     xcrun simctl boot "$SIM_UDID" 2>/dev/null || true
-    open -a Simulator
+    # iOS 27 / macOS 27 renamed Simulator.app → DeviceHub.app. Try the new
+    # name first, fall back to Simulator for older Xcode installs.
+    if ! open -a "DeviceHub" 2>/dev/null; then
+        open -a Simulator 2>/dev/null || true
+    fi
     # Block until the sim is fully booted — otherwise the install/launch
     # calls below race the boot and fail with "Unable to lookup in current
     # state: Shutdown" (code 405) on cold start.
