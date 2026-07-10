@@ -478,6 +478,12 @@ public struct LeafView: View {
         // target leaf loads from SQLite without any extra plumbing.
         .navigationDestination(item: $pushedLeafId) { leafId in
             LeafView(vm: tabManager.open(leafId: leafId, api: vm.api), onDisappear: nil)
+                // Mention-link pushes are editorial navigation — a Books-style
+                // crossfade reads better than a hard slide. The list-driven
+                // push in `LibraryView` keeps its zoom (Notes-style tile
+                // expansion, more physical). iOS 26 falls back to the
+                // default push transition.
+                .modifier(MentionLinkCrossFadeModifier())
         }
     }
 

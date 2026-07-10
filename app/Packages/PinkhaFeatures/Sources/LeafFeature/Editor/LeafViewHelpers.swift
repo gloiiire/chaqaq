@@ -145,3 +145,16 @@ struct LeafNavBarMinimizationModifier: ViewModifier {
     }
 }
 
+/// Applies SwiftUI 27's `.navigationTransition(.crossFade)` — a soft
+/// Books-style fade for mention-link navigation. iOS 26 keeps the
+/// default push (no-op).
+struct MentionLinkCrossFadeModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 27.0, *) {
+            content.navigationTransition(.crossFade)
+        } else {
+            content
+        }
+    }
+}
+
