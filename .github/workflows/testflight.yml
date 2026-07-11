@@ -40,7 +40,7 @@ jobs:
     steps:
       # 1. Pull the code from the staging branch.
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         # Fetch full history so `git describe` / changelog helpers can
         # see the commits, not just the latest one.
         with:
@@ -97,7 +97,7 @@ jobs:
       #    re-upload, kept 7 days. Convenient when ASC drops a build.
       - name: Archive build artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: testflight-build
           path: |
