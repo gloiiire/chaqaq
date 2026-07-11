@@ -1,6 +1,7 @@
 import SwiftUI
 import PinkhaFFI
 import PinkhaCore
+import PinkhaDesignSystem
 import LeafFeature
 
 /// Month-grid calendar layout — each cell shows the date number and a
@@ -218,7 +219,7 @@ private struct DayCell: View {
 }
 
 private extension Color {
-    static var separator: Color { Color(uiColor: .separator) }
+    static var separator: Color { .pinkhaSeparator }
 }
 
 private struct DayDetailSheet: View {
