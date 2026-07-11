@@ -1,5 +1,6 @@
 import SwiftUI
 import PinkhaCore
+import PinkhaDesignSystem
 
 /// Collapsible group header rendered above each group in a List /
 /// Gallery view : disclosure chevron, group title, entry count, and a
@@ -54,6 +55,6 @@ public struct BookGroupHeader: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 8)
-        .background(Color(.systemBackground))
+        .background(Color.pinkhaSurface)
     }
 }

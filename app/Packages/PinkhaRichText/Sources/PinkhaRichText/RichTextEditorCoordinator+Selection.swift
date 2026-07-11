@@ -66,7 +66,12 @@ extension RichTextEditorCoordinator {
 
     func cleanRememberedIfStillEmpty(_ textView: UITextView) {
         let generation = selectionGeneration
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self, weak textView] in
+        // `Task` + `Task.sleep` instead of `asyncAfter` : cancellable if the
+        // coordinator ever needs it, and stays on the MainActor without a
+        // queue hop. The generation check below already makes late firings
+        // harmless, so the weak captures carry the actual safety.
+        Task { @MainActor [weak self, weak textView] in
+            try? await Task.sleep(for: .milliseconds(350))
             guard let self, let textView else { return }
             let selection = self.normalizedSelection(textView.selectedRange, length: textView.attributedText.length)
             if self.selectionGeneration == generation && !self.toolbarActionInProgress && selection.length == 0 {

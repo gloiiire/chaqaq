@@ -205,6 +205,33 @@ public extension LeafViewModel {
         undoMgr.registerUndo(withTarget: self) { vm in vm.applyBlockOrder(oldOrder) }
     }
 
+    /// iOS 27 reorderable handler: applies a `ReorderDifference` produced by
+    /// SwiftUI's new `.reorderable()` / `.reorderContainer(for:)` pair and
+    /// funnels through the same reorder + undo path as `moveBlock`. The diff
+    /// carries a set of source IDs and a `.before(targetID)` or `.end`
+    /// destination — we rebuild the new order list-side and delegate.
+    @available(iOS 27.0, *)
+    func moveBlocks(applyingDifference diff: ReorderDifference<String, ReorderableSingleCollectionIdentifier>) {
+        let oldOrder = blocks.map(\.id)
+        let sources = Set(diff.sources)
+        var newOrder = oldOrder.filter { !sources.contains($0) }
+        switch diff.destination.position {
+        case .before(let targetId):
+            if let idx = newOrder.firstIndex(of: targetId) {
+                newOrder.insert(contentsOf: diff.sources, at: idx)
+            } else {
+                newOrder.append(contentsOf: diff.sources)
+            }
+        case .end:
+            newOrder.append(contentsOf: diff.sources)
+        }
+        guard newOrder != oldOrder else { return }
+        let lookup = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, $0) })
+        blocks = newOrder.compactMap { lookup[$0] }
+        try? api.reorderBlocks(leafId: leafId, order: newOrder)
+        undoMgr.registerUndo(withTarget: self) { vm in vm.applyBlockOrder(oldOrder) }
+    }
+
     /// Applies a block order (used by undo/redo of moveBlock).
     private func applyBlockOrder(_ order: [String]) {
         let oldOrder = blocks.map(\.id)

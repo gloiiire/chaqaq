@@ -2,6 +2,7 @@ import SwiftUI
 import PinkhaCore
 import PinkhaFFI
 import PinkhaRichText
+import PinkhaDesignSystem
 
 // ── Auto-focus shared extension ───────────────────────────────────────────────
 
@@ -251,7 +252,7 @@ public struct BlockRowView: View {
                 // line. Use an explicit horizontal hairline matching the
                 // iOS native separator colour + standard 1 pt thickness.
                 Rectangle()
-                    .fill(Color(uiColor: .separator))
+                    .fill(Color.pinkhaSeparator)
                     .frame(height: 1)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -506,6 +507,9 @@ public struct BlockRowView: View {
 // surfaces the same palette to SwiftUI as a stable, identifiable list
 // the menu can iterate over.
 
+/// `@unchecked` is required by `displayName` : `LocalizedStringKey` is not
+/// `Sendable` even on iOS 26. The struct is fully immutable (all lets,
+/// value-type members) so the conformance is safe in practice.
 public struct BlockColorOption: Identifiable, @unchecked Sendable {
     public let id: String
     public let name: String
@@ -536,18 +540,18 @@ public struct BlockColorOption: Identifiable, @unchecked Sendable {
         return img
     }
 
-    static let palette: [BlockColorOption] = [
-        .init(id: "red",    name: "red",    displayName: "Red",    uiColor: .systemRed),
-        .init(id: "pink",   name: "pink",   displayName: "Pink",   uiColor: .systemPink),
-        .init(id: "orange", name: "orange", displayName: "Orange", uiColor: .systemOrange),
-        .init(id: "yellow", name: "yellow", displayName: "Yellow", uiColor: .systemYellow),
-        .init(id: "green",  name: "green",  displayName: "Green",  uiColor: .systemGreen),
-        .init(id: "cyan",   name: "cyan",   displayName: "Cyan",   uiColor: .systemCyan),
-        .init(id: "blue",   name: "blue",   displayName: "Blue",   uiColor: .systemBlue),
-        .init(id: "purple", name: "purple", displayName: "Purple", uiColor: .systemPurple),
-        .init(id: "brown",  name: "brown",  displayName: "Brown",  uiColor: .systemBrown),
-        .init(id: "gray",   name: "gray",   displayName: "Gray",   uiColor: .systemGray),
-    ]
+    /// Palette derived from the DS `PinkhaAccentPalette` — single source
+    /// of truth so adding an accent in the DS surfaces in the block-color
+    /// picker automatically. The `displayName: LocalizedStringKey` wrap
+    /// keeps SwiftUI's localisation lookup intact.
+    static let palette: [BlockColorOption] = PinkhaAccentPalette.all.map { accent in
+        BlockColorOption(
+            id: accent.name,
+            name: accent.name,
+            displayName: LocalizedStringKey(accent.displayNameKey),
+            uiColor: accent.uiColor
+        )
+    }
 }
 
 // ── Text ──────────────────────────────────────────────────────────────────────

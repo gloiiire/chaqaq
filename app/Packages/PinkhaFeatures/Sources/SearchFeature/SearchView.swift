@@ -33,12 +33,13 @@ public struct SearchView: View {
                         .listRowSeparator(.hidden)
                         .padding(.top, 32)
                 } else if results.isEmpty {
-                    Text("No results for \"\(query)\"")
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .center)
+                    // System no-results layout — matches Photos / Mail's
+                    // "No Results for X" page, including the localized
+                    // title, magnifying-glass art and quoted query.
+                    ContentUnavailableView.search(text: query)
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                        .padding(.top, 32)
+                        .padding(.top, 16)
                 } else if let api = store.api {
                     if !results.leavesByTitle.isEmpty {
                         Section {

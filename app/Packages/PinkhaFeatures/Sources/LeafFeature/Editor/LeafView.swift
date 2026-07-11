@@ -2,6 +2,7 @@ import SwiftUI
 import PinkhaFFI
 import PinkhaCore
 import PinkhaComposer
+import PinkhaDesignSystem
 
 // ── Leaf view ─────────────────────────────────────────────────────────────
 
@@ -223,8 +224,17 @@ public struct LeafView: View {
                     .moveDisabled(true).deleteDisabled(true)
             }
 
-            ForEach($vm.blocks) { $block in blockListRow($block) }
-                .onMove(perform: vm.moveBlock)
+            // iOS 27's `.reorderable()` / `.reorderContainer(for:)` pair
+            // replaces the classic `.onMove` handler with a diff-based API
+            // — cleaner, no EditMode toggling, cross-container support ready.
+            // Under iOS 26 we keep the working `.onMove` path.
+            if #available(iOS 27.0, *) {
+                ForEach($vm.blocks) { $block in blockListRow($block) }
+                    .reorderable()
+            } else {
+                ForEach($vm.blocks) { $block in blockListRow($block) }
+                    .onMove(perform: vm.moveBlock)
+            }
 
             if !vm.locked && !readerMode.isActive {
                 AddBlockButton { showingBlockPicker = true }
@@ -234,6 +244,7 @@ public struct LeafView: View {
             }
         }
         .listStyle(.plain)
+        .modifier(BlockReorderContainerModifier(vm: vm))
         .ignoresSafeArea(.container, edges: vm.cover == nil ? [] : .top)
         .onScrollGeometryChange(for: CGFloat.self) { geo in
             geo.contentOffset.y + geo.contentInsets.top
@@ -280,6 +291,12 @@ public struct LeafView: View {
         // escape hatch ; the multi-finger long-press still toggles back.
         .toolbar(readerMode.isActive ? .hidden : .visible, for: .navigationBar)
         .toolbar(readerMode.isActive ? .hidden : .visible, for: .tabBar)
+        // iOS 27 opt-in: outside reader mode, the nav bar auto-minimises
+        // when the user scrolls down through a long doc (Safari-style)
+        // and restores when they reverse direction. In reader mode the
+        // bar is fully hidden by the modifiers above so minimisation is
+        // irrelevant. iOS 26 falls back to the fixed nav bar (no-op).
+        .modifier(LeafNavBarMinimizationModifier(active: !readerMode.isActive))
         // `.persistentSystemOverlays(.hidden)` is the iOS 16+ way to
         // collapse the home-indicator gloss + any system-reserved
         // bottom slot. Without it, the `.tabViewBottomAccessory` slot
@@ -309,7 +326,7 @@ public struct LeafView: View {
         // align with the palette. `.original` is a no-op so iOS
         // light/dark continues to drive the look.
         .scrollContentBackground(.hidden)
-        .background(effectiveTheme.backgroundColor ?? Color(uiColor: .systemBackground))
+        .background(effectiveTheme.backgroundColor ?? Color.pinkhaSurface)
         .preferredColorScheme(effectiveTheme.colorScheme)
         // SwiftUI `.preferredColorScheme` alone isn't enough when the
         // app-wide `applyAppearanceToWindows()` already pinned the
@@ -462,6 +479,12 @@ public struct LeafView: View {
         // target leaf loads from SQLite without any extra plumbing.
         .navigationDestination(item: $pushedLeafId) { leafId in
             LeafView(vm: tabManager.open(leafId: leafId, api: vm.api), onDisappear: nil)
+                // Mention-link pushes are editorial navigation — a Books-style
+                // crossfade reads better than a hard slide. The list-driven
+                // push in `LibraryView` keeps its zoom (Notes-style tile
+                // expansion, more physical). iOS 26 falls back to the
+                // default push transition.
+                .modifier(MentionLinkCrossFadeModifier())
         }
     }
 

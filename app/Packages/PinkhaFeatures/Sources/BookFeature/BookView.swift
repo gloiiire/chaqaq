@@ -37,6 +37,12 @@ public struct BookView: View {
                     body(for: vm.activeView?.type ?? .list)
                 } header: {
                     BookToolbarView(vm: vm, searchVisible: $searchVisible)
+                        // `.bar` (not `.glassEffect`) is deliberate : this is a
+                        // full-width pinned header, and the toolbar's search
+                        // field already carries its own glass. Liquid Glass is
+                        // a floating-controls treatment — stacking glass on
+                        // glass is explicitly discouraged, and edge-to-edge
+                        // pinned surfaces use the bar material system-wide.
                         .background(.bar)
                 }
             }
@@ -44,7 +50,7 @@ public struct BookView: View {
         // Dim base behind the cards so each row's
         // `.secondarySystemGroupedBackground` reads as elevated,
         // matching the inset-grouped vocabulary of `LibraryView`.
-        .background(Color(.systemGroupedBackground))
+        .background(Color.pinkhaGrouped)
         .scrollContentBackground(.hidden)
         // Mirror the leaf treatment : when a cover is present, let
         // the scroll content extend behind the status bar / nav-bar so
