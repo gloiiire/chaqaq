@@ -36,7 +36,7 @@ public struct CoverImageView: View {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .empty:
-                    Color.secondary.opacity(0.1)
+                    Color.pinkhaFillTertiary
                 case .success(let image):
                     image.resizable().scaledToFill()
                 case .failure:
@@ -69,8 +69,7 @@ public struct CoverImageView: View {
 
     private var placeholder: some View {
         LinearGradient(
-            colors: [Color.secondary.opacity(0.18),
-                     Color.secondary.opacity(0.08)],
+            colors: [Color.pinkhaFill, Color.pinkhaFillQuaternary],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )

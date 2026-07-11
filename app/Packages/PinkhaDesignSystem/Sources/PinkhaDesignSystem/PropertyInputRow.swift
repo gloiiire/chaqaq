@@ -17,7 +17,7 @@ public struct PropertyInputRow: View {
     public var body: some View {
         HStack(alignment: .center, spacing: 10) {
             Image(systemName: property.propertyType.icon)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.pinkhaLabelSecondary)
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: 2) {
                 Text(property.name)
@@ -78,7 +78,7 @@ public struct PropertyInputRow: View {
             MultiSelectInline(options: options, value: $value)
         default:
             Text(value.displayText.isEmpty ? "—" : value.displayText)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.pinkhaLabelSecondary)
         }
     }
 
@@ -130,7 +130,7 @@ private struct MultiSelectInline: View {
                             .font(.caption.weight(.medium))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(on ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.10),
+                            .background(on ? Color.accentColor.opacity(0.18) : Color.pinkhaFillTertiary,
                                         in: Capsule(style: .continuous))
                             .foregroundStyle(on ? Color.accentColor : .primary)
                     }

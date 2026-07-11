@@ -32,6 +32,12 @@ public struct DSCatalog: View {
                 }
 
                 Section {
+                    NavigationLink("Legacy components", destination: DSCatalogComponentsSection())
+                } header: {
+                    Text("Components")
+                }
+
+                Section {
                     NavigationLink("Accents", destination: DSCatalogAccentsSection())
                 } header: {
                     Text("Brand")

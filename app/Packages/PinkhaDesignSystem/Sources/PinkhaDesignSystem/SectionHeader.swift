@@ -15,8 +15,8 @@ public struct SectionHeader: View {
 
     public var body: some View {
         Text(title)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
+            .font(.pinkhaSectionHeader)
+            .foregroundStyle(Color.pinkhaLabelSecondary)
             .kerning(0.3)
             .textCase(nil)
     }
