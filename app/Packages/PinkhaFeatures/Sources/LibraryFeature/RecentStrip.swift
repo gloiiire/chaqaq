@@ -259,7 +259,7 @@ public struct RecentCard: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.secondary)
                     .frame(width: iconSize, height: iconSize)
-                    .background(Color(.systemBackground), in: Circle())
+                    .background(Color.pinkhaSurface, in: Circle())
                     .overlay(Circle().strokeBorder(.separator.opacity(0.6), lineWidth: 0.5))
             }
         case .book(let db):
@@ -270,7 +270,7 @@ public struct RecentCard: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(.secondary)
                     .frame(width: iconSize, height: iconSize)
-                    .background(Color(.systemBackground), in: Circle())
+                    .background(Color.pinkhaSurface, in: Circle())
                     .overlay(Circle().strokeBorder(.separator.opacity(0.6), lineWidth: 0.5))
             }
         }
