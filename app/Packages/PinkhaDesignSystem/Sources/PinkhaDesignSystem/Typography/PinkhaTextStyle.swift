@@ -52,5 +52,9 @@ public extension Font {
 
     // MARK: Section header (uppercase kerned label)
     /// Section-header style — matches the existing `SectionHeader` component.
-    static let pinkhaSectionHeader: Font = .footnote.weight(.semibold)
+    /// Section-header style. Aligns with the existing `SectionHeader`
+    /// component (`.caption.weight(.semibold)` + kerning at the call site).
+    /// Tighter than `.footnote` — matches the visual density that reads
+    /// as an inline label rather than a paragraph heading.
+    static let pinkhaSectionHeader: Font = .caption.weight(.semibold)
 }
