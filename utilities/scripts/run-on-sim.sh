@@ -30,8 +30,8 @@ if [[ -n "${DEVELOPER_DIR:-}" && ! -d "$DEVELOPER_DIR" ]]; then
     echo "⚠ DEVELOPER_DIR=$DEVELOPER_DIR does not exist — falling back to /Applications/Xcode.app." >&2
     unset DEVELOPER_DIR
 fi
-if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode.app/Contents/Developer ]]; then
-    export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode-beta.app/Contents/Developer ]]; then
+    export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer
 fi
 
 # ── Simulator discovery ──────────────────────────────────────────────────
@@ -105,9 +105,13 @@ echo "→ Installing on simulator…"
 xcrun simctl install "$SIM_TARGET" "$APP_PATH"
 
 echo "→ Launching ${BUNDLE_ID}…"
-# Foreground Simulator.app so the user actually sees the launch — without
-# this, simctl launches happily but the window stays in the background.
-open -a Simulator
+# Foreground the simulator window so the user sees the launch. On iOS 27 /
+# macOS 27 the host app was renamed Simulator.app → DeviceHub.app and lives
+# under Xcode.app/Contents/Applications — try DeviceHub first, fall back to
+# Simulator for older Xcode installs.
+if ! open -a "DeviceHub" 2>/dev/null; then
+    open -a Simulator 2>/dev/null || true
+fi
 xcrun simctl launch "$SIM_TARGET" "$BUNDLE_ID" >/dev/null
 
 echo "✓ Pinkha lancée sur le simulateur ${SIM_NAME_RESOLVED}."

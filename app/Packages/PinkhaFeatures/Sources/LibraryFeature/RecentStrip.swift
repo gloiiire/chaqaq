@@ -134,6 +134,7 @@ private struct RecentNoteCard: View {
                 )
                 let delete = UIAction(
                     title: "Delete",
+                    subtitle: String(localized: "Send to Compost — restorable"),
                     image: UIImage(systemName: "trash"),
                     attributes: .destructive,
                     handler: { _ in onDelete() }

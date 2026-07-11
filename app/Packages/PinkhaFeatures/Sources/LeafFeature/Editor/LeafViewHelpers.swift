@@ -108,3 +108,53 @@ public struct BlockPickerSheet: View {
         .presentationDetents([.medium])
     }
 }
+
+// ── iOS 27 reorder container bridge ───────────────────────────────────────
+//
+// `.reorderContainer(for:move:)` requires iOS 27 and takes a closure whose
+// parameter type (`ReorderDifference`) is also iOS 27-only, so the whole
+// call site must live inside an `if #available(iOS 27.0, *)`. Wrapping it
+// in a ViewModifier keeps the `documentList` modifier chain flat.
+
+struct BlockReorderContainerModifier: ViewModifier {
+    let vm: LeafViewModel
+    func body(content: Content) -> some View {
+        if #available(iOS 27.0, *) {
+            content.reorderContainer(for: EditableBlock.self) { diff in
+                vm.moveBlocks(applyingDifference: diff)
+            }
+        } else {
+            content
+        }
+    }
+}
+
+/// Applies `.toolbarMinimizationBehavior(.onScrollDown, for: .navigationBar)`
+/// on iOS 27+ when active — the nav bar minimises as the user scrolls a
+/// long leaf and restores on reverse scroll (Safari/Books style). Pass
+/// `active: false` (reader mode) to skip minimisation entirely. iOS 26
+/// falls back to the fixed bar (no-op).
+struct LeafNavBarMinimizationModifier: ViewModifier {
+    let active: Bool
+    func body(content: Content) -> some View {
+        if active, #available(iOS 27.0, *) {
+            content.toolbarMinimizationBehavior(.onScrollDown, for: .navigationBar)
+        } else {
+            content
+        }
+    }
+}
+
+/// Applies SwiftUI 27's `.navigationTransition(.crossFade)` — a soft
+/// Books-style fade for mention-link navigation. iOS 26 keeps the
+/// default push (no-op).
+struct MentionLinkCrossFadeModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 27.0, *) {
+            content.navigationTransition(.crossFade)
+        } else {
+            content
+        }
+    }
+}
+
