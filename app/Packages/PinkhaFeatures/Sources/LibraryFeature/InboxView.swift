@@ -33,17 +33,10 @@ public struct InboxView: View {
 
 private struct InboxEmptyState: View {
     public var body: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "tray")
-                .font(.system(size: 48))
-                .foregroundStyle(.tertiary)
-            VStack(spacing: 6) {
-                Text("Inbox is empty").font(.headline)
-                Text("Imported items, quick captures and shared leaves\nwill appear here.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
+        ContentUnavailableView(
+            "Inbox is empty",
+            systemImage: "tray",
+            description: Text("Imported items, quick captures and shared leaves will appear here.")
+        )
     }
 }

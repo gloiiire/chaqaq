@@ -126,17 +126,10 @@ private struct BookRow: View {
 
 private struct BooksEmptyState: View {
     public var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "book")
-                .font(.system(size: 48))
-                .foregroundStyle(.tertiary)
-            VStack(spacing: 6) {
-                Text("No books").font(.headline)
-                Text("Tap Book below to open your first one.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
+        ContentUnavailableView(
+            "No books",
+            systemImage: "book",
+            description: Text("Tap Book below to open your first one.")
+        )
     }
 }

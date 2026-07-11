@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaDesignSystem
 
 // ── Embed row ────────────────────────────────────────────────────────────────
 //
@@ -63,7 +64,7 @@ public struct EmbedRowView: View {
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(uiColor: .secondarySystemBackground))
+                    .fill(Color.pinkhaSurfaceElevated)
             )
         }
         .buttonStyle(.plain)
@@ -88,7 +89,7 @@ public struct EmbedRowView: View {
                             .scaledToFill()
                     } else {
                         Rectangle()
-                            .fill(Color(uiColor: .tertiarySystemBackground))
+                            .fill(Color.pinkhaSurfaceNested)
                         if external?.imageURL != nil {
                             ProgressView()
                                 .controlSize(.small)
@@ -145,7 +146,7 @@ public struct EmbedRowView: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color(uiColor: .secondarySystemBackground))
+                    .fill(Color.pinkhaSurfaceElevated)
             )
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }

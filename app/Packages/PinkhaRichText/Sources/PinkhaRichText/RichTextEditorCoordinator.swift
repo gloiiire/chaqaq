@@ -290,7 +290,7 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
                 }
             }
             return UIAction { _ in
-                UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                UIApplication.shared.open(url)
             }
         }
         return defaultAction
