@@ -1,6 +1,7 @@
 import SwiftUI
 import PinkhaCore
 import PinkhaComposer
+import PinkhaDesignSystem
 import LeafFeature
 
 // ── Safari-tab-style "All leaves" switcher ────────────────────────────────
@@ -35,7 +36,7 @@ public struct AllLeavesSwitcher: View {
 
     public var body: some View {
         ZStack {
-            Color(uiColor: .systemBackground)
+            Color.pinkhaSurface
                 .ignoresSafeArea()
 
             if filteredItems.isEmpty {
@@ -100,20 +101,16 @@ public struct AllLeavesSwitcher: View {
                 .frame(height: 44)
                 .glassEffect(.regular, in: Capsule(style: .continuous))
 
-                Button {
+                IconCapsuleButton(
+                    systemImage: "xmark",
+                    accessibilityLabel: "Close search"
+                ) {
                     withAnimation(.easeOut(duration: 0.2)) {
                         searching = false
                         searchText = ""
                         searchFocused = false
                     }
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .frame(width: 44, height: 44)
                 }
-                .glassEffect(.regular.interactive(), in: Circle())
-                .accessibilityLabel("Close search")
             } else {
                 // `...` overflow menu — Safari pattern.
                 Menu {
@@ -169,7 +166,10 @@ public struct AllLeavesSwitcher: View {
 
                 Spacer()
 
-                Button {
+                IconCapsuleButton(
+                    systemImage: "magnifyingglass",
+                    accessibilityLabel: "Search"
+                ) {
                     withAnimation(.easeOut(duration: 0.2)) {
                         searching = true
                     }
@@ -177,14 +177,7 @@ public struct AllLeavesSwitcher: View {
                         try? await Task.sleep(for: .milliseconds(50))
                         searchFocused = true
                     }
-                } label: {
-                    Image(systemName: "magnifyingglass")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .frame(width: 44, height: 44)
                 }
-                .glassEffect(.regular.interactive(), in: Circle())
-                .accessibilityLabel("Search")
             }
         }
         .padding(.horizontal, 20)
@@ -221,19 +214,15 @@ public struct AllLeavesSwitcher: View {
 
     private var bottomToolbar: some View {
         HStack(spacing: 14) {
-            Button {
+            IconCapsuleButton(
+                systemImage: "plus",
+                accessibilityLabel: "New leaf"
+            ) {
                 // Create new leaf → dismisses the switcher + triggers
                 // the CreateBubble's primary action via Composer.
                 dismiss()
                 composer.showingCreateLeaf = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.title2.weight(.regular))
-                    .foregroundStyle(.primary)
-                    .frame(width: 44, height: 44)
             }
-            .glassEffect(.regular.interactive(), in: Circle())
-            .accessibilityLabel("New leaf")
 
             Spacer()
 

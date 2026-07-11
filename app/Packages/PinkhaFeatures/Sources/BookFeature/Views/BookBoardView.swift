@@ -1,6 +1,7 @@
 import SwiftUI
 import PinkhaFFI
 import PinkhaCore
+import PinkhaDesignSystem
 import LeafFeature
 
 /// Kanban-style horizontally scrolling board. Each column is a value
@@ -28,7 +29,7 @@ public struct BookBoardView: View {
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color.pinkhaGrouped)
     }
 }
 
@@ -76,7 +77,7 @@ private struct BoardColumn: View {
                 .padding(.vertical, 10)
                 .padding(.horizontal, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.systemBackground),
+                .background(Color.pinkhaGroupedElevated,
                             in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .buttonStyle(.plain)
@@ -119,7 +120,7 @@ private struct BoardCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color(.systemBackground),
+        .background(Color.pinkhaGroupedElevated,
                     in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 

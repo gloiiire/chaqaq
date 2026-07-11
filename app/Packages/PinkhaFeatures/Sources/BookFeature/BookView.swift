@@ -50,7 +50,7 @@ public struct BookView: View {
         // Dim base behind the cards so each row's
         // `.secondarySystemGroupedBackground` reads as elevated,
         // matching the inset-grouped vocabulary of `LibraryView`.
-        .background(Color(.systemGroupedBackground))
+        .background(Color.pinkhaGrouped)
         .scrollContentBackground(.hidden)
         // Mirror the leaf treatment : when a cover is present, let
         // the scroll content extend behind the status bar / nav-bar so
