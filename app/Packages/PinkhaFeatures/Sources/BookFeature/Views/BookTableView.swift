@@ -1,6 +1,7 @@
 import SwiftUI
 import PinkhaFFI
 import PinkhaCore
+import PinkhaDesignSystem
 import LeafFeature
 
 // ── Book table view ───────────────────────────────────────────────────────
@@ -102,7 +103,7 @@ public struct BookTableView: View {
             }
         }
         .frame(height: 40)
-        .background(Color(.systemGroupedBackground))
+        .background(Color.pinkhaGrouped)
     }
 
     private var addRowButton: some View {
