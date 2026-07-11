@@ -178,10 +178,22 @@ impl LeafRepository for SqliteLeafStore {
         let fid = shelf_id.map(|u| u.to_string());
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            // Update both the indexed column AND the JSON data blob's own
+            // `shelf_id` field via `json_set` — matches the pattern in
+            // `set_pinned` and `set_manual_order`. Without the JSON mirror
+            // the next `save()` (e.g. after a rename) would re-write the
+            // column from a stale blob and lift the leaf back to the
+            // library root, unshelving it silently.
             let affected = conn
                 .execute(
-                    "UPDATE leaves SET shelf_id = ?1, updated_at = ?2
-                     WHERE id = ?3 AND deleted_at IS NULL",
+                    "UPDATE leaves
+                        SET shelf_id  = ?1,
+                            data      = json_set(data, '$.shelf_id',
+                                CASE WHEN ?1 IS NULL
+                                     THEN json('null')
+                                     ELSE ?1 END),
+                            updated_at = ?2
+                      WHERE id = ?3 AND deleted_at IS NULL",
                     params![fid, now, leaf_id.to_string()],
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
@@ -527,5 +539,55 @@ mod tests {
         store.save(&d).unwrap();
         let metas = store.list().unwrap();
         assert_eq!(metas[0].title[0].content, "Titre riche");
+    }
+
+    /// Regression: a leaf moved into a shelf must stay in that shelf after
+    /// an unrelated `save()` (e.g. rename). The bug was that
+    /// `move_to_shelf` only updated the `shelf_id` column, leaving the
+    /// `data` blob's own `shelf_id` field stale — the next `save()` then
+    /// rewrote the column from the stale blob and unshelved the leaf
+    /// silently.
+    #[test]
+    fn test_move_to_shelf_survives_save_after_rename() {
+        let store = store();
+        let mut d = doc("À déplacer");
+        let shelf_id = Uuid::new_v4();
+        store.save(&d).unwrap();
+        store.move_to_shelf(d.id, Some(shelf_id)).unwrap();
+        // Rename simulates a subsequent `update_leaf_title`: load, mutate
+        // title, save — the same flow that used to un-shelve the leaf.
+        d = store.load(d.id).unwrap();
+        d.title = vec![InlineText {
+            content: "Renommée".to_string(),
+            styles: vec![],
+        }];
+        store.save(&d).unwrap();
+        let loaded = store.load(d.id).unwrap();
+        assert_eq!(
+            loaded.shelf_id,
+            Some(shelf_id),
+            "shelf_id survives save() after move_to_shelf"
+        );
+    }
+
+    /// Regression: moving a leaf out of a shelf (`shelf_id: None`) also
+    /// syncs the JSON blob, so a subsequent `save()` doesn't resurrect the
+    /// old shelf assignment.
+    #[test]
+    fn test_move_out_of_shelf_survives_save() {
+        let store = store();
+        let mut d = doc("Sortie de shelf");
+        let shelf_id = Uuid::new_v4();
+        store.save(&d).unwrap();
+        store.move_to_shelf(d.id, Some(shelf_id)).unwrap();
+        store.move_to_shelf(d.id, None).unwrap();
+        d = store.load(d.id).unwrap();
+        d.title = vec![InlineText {
+            content: "Après retour racine".to_string(),
+            styles: vec![],
+        }];
+        store.save(&d).unwrap();
+        let loaded = store.load(d.id).unwrap();
+        assert_eq!(loaded.shelf_id, None, "shelf_id stays None after save()");
     }
 }
