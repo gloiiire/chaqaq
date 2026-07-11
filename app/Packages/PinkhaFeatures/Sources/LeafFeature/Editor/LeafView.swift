@@ -2,6 +2,7 @@ import SwiftUI
 import PinkhaFFI
 import PinkhaCore
 import PinkhaComposer
+import PinkhaDesignSystem
 
 // ── Leaf view ─────────────────────────────────────────────────────────────
 
@@ -325,7 +326,7 @@ public struct LeafView: View {
         // align with the palette. `.original` is a no-op so iOS
         // light/dark continues to drive the look.
         .scrollContentBackground(.hidden)
-        .background(effectiveTheme.backgroundColor ?? Color(uiColor: .systemBackground))
+        .background(effectiveTheme.backgroundColor ?? Color.pinkhaSurface)
         .preferredColorScheme(effectiveTheme.colorScheme)
         // SwiftUI `.preferredColorScheme` alone isn't enough when the
         // app-wide `applyAppearanceToWindows()` already pinned the
