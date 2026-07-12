@@ -166,7 +166,28 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
         [],
     )
     .map_err(|e| PinkhaError::Db(e.to_string()))?;
-    conn.pragma_update(None, "user_version", 14)
+    // Heal shelf_id divergence between the indexed column and the JSON
+    // `data` blob. Pre-migration `move_to_shelf` only updated the column,
+    // leaving the blob stale. Subsequent `save()` calls (e.g. rename)
+    // then re-wrote the column from the stale blob and silently unshelved
+    // the leaf. Fix in code (`json_set` in `move_to_shelf`), heal here.
+    // Only touches rows where the blob's `shelf_id` differs from the
+    // column — no-op for consistent rows.
+    conn.execute(
+        "UPDATE leaves
+            SET data = json_set(data, '$.shelf_id',
+                CASE WHEN shelf_id IS NULL
+                     THEN json('null')
+                     ELSE shelf_id END)
+          WHERE deleted_at IS NULL
+            AND (
+                (shelf_id IS NULL AND json_extract(data, '$.shelf_id') IS NOT NULL)
+             OR (shelf_id IS NOT NULL AND json_extract(data, '$.shelf_id') IS NOT shelf_id)
+            )",
+        [],
+    )
+    .map_err(|e| PinkhaError::Db(e.to_string()))?;
+    conn.pragma_update(None, "user_version", 15)
         .map_err(|e| PinkhaError::Db(e.to_string()))?;
     Ok(())
 }
