@@ -30,10 +30,15 @@ public extension LeafViewModel {
     func applyBlockSnapshot(blockId: String, snapshot snap: BlockSnapshot) {
         guard let idx = blocks.firstIndex(where: { $0.id == blockId }) else { return }
         let previous = snapshotOf(blocks[idx])
-        blocks[idx] = EditableBlock(id: blockId,
-                                    content: snap.content,
-                                    spans: snap.spans,
-                                    done: snap.done)
+        // Mutate in place rather than rebuilding the block. A `BlockSnapshot`
+        // only owns what the burst engine tracks (content / spans / done);
+        // constructing a fresh `EditableBlock` from it reset everything else
+        // to its default — so undoing a typing burst also wiped the block's
+        // colour, highlight, writing direction and indent depth. Those live
+        // on the row, not in the snapshot, and typing never changes them.
+        blocks[idx].content = snap.content
+        blocks[idx].spans = snap.spans
+        blocks[idx].done = snap.done
         persistBlockRaw(blocks[idx])
         blockSnapshots[blockId] = snap
         undoMgr.registerUndo(withTarget: self) { vm in
