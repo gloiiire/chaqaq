@@ -8,6 +8,7 @@
 
 mod assets;
 pub mod client;
+pub(crate) mod diagnostics;
 pub mod mapper;
 mod mentions;
 pub mod schema;
@@ -730,19 +731,15 @@ async fn import_page(
 
     // Debug log : record the Notion-side timestamp + what we forwarded
     // so we can verify the createdAt round-trip after import.
-    if let Some(dir) = covers_dir {
-        use std::io::Write;
-        let line = format!(
-            "[createdAt] page={} title={:?} notion_created_time={:?} leaf_id={} leaf_created_at={:?}\n",
-            page.id, plain_title, page.created_time, leaf_id, doc.created_at
+    // Carries the page title verbatim — debug-only, see `diagnostics`.
+    if diagnostics::enabled() {
+        diagnostics::log(
+            covers_dir,
+            &format!(
+                "[createdAt] page={} title={:?} notion_created_time={:?} leaf_id={} leaf_created_at={:?}",
+                page.id, plain_title, page.created_time, leaf_id, doc.created_at
+            ),
         );
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(format!("{dir}/notion-debug.log"))
-        {
-            let _ = f.write_all(line.as_bytes());
-        }
     }
 
     // Imports default to locked = true so the user reads the extracted
@@ -1015,17 +1012,9 @@ async fn import_child_page(
         ),
         Err(err) => format!("FAIL '{}' (id={}): {err:?}\n", title, notion_id),
     };
-    eprintln!("[notion import] {}", log_line.trim_end());
-    if let Some(dir) = covers_dir {
-        use std::io::Write;
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(format!("{dir}/notion-debug.log"))
-        {
-            let _ = f.write_all(log_line.as_bytes());
-        }
-    }
+    // `log_line` embeds the page title — debug-only, see `diagnostics`.
+    diagnostics::console(&format!("[notion import] {}", log_line.trim_end()));
+    diagnostics::log(covers_dir, &log_line);
     if let Ok(meta) = get_page_result {
         // Cover: same download path as `import_page` so Notion-hosted
         // covers don't expire on us.
@@ -1086,17 +1075,13 @@ async fn import_child_page(
 /// actually returns (in particular whether `child_page` shows up at all
 /// from `get_page_blocks`).
 fn log_block_type(covers_dir: Option<&str>, parent_id: &str, block_type: &str) {
-    eprintln!("[notion blocks] parent={parent_id} type={block_type}");
-    if let Some(dir) = covers_dir {
-        use std::io::Write;
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(format!("{dir}/notion-debug.log"))
-        {
-            let _ = writeln!(f, "[blocks] parent={parent_id} type={block_type}");
-        }
-    }
+    diagnostics::console(&format!(
+        "[notion blocks] parent={parent_id} type={block_type}"
+    ));
+    diagnostics::log(
+        covers_dir,
+        &format!("[blocks] parent={parent_id} type={block_type}"),
+    );
 }
 
 /// Counts blocks at all levels of the tree (recursive).
