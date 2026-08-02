@@ -217,3 +217,54 @@ fn new_on_invalid_path_fails() {
     let result = SqliteShelfStore::new("/nonexistent_dir_xyz/no.db");
     assert!(result.is_err());
 }
+
+/// Regression: when a shelf is deleted, orphaned leaves are moved to root by
+/// updating `leaves.shelf_id = NULL`. Without syncing the JSON `data` blob,
+/// a subsequent `save()` on one of those leaves (e.g. rename) would read
+/// the stale blob and rewrite the deleted shelf id back to the column,
+/// leaving the leaf pointing to a shelf that no longer exists.
+#[test]
+fn shelf_delete_orphans_survive_leaf_save() {
+    use pinkha::application::repository::LeafRepository;
+    use pinkha::domain::leaf::{InlineText, Leaf};
+    use pinkha::infrastructure::sqlite_leaf_store::SqliteLeafStore;
+
+    let path = std::env::temp_dir().join(format!("pinkha-cross-{}.db", Uuid::new_v4()));
+    let path_str = path.to_str().expect("utf8 path").to_string();
+
+    let shelf_store = SqliteShelfStore::new(&path_str).expect("open shelf store");
+    let leaf_store = SqliteLeafStore::new(&path_str).expect("open leaf store");
+
+    // Create a shelf and a leaf, park the leaf in the shelf.
+    let shelf = shelf_store.create("Doomed", None).expect("create shelf");
+    let mut doc = Leaf::new(vec![InlineText {
+        content: "Résident".to_string(),
+        styles: vec![],
+    }]);
+    leaf_store.save(&doc).expect("save leaf");
+    leaf_store
+        .move_to_shelf(doc.id, Some(shelf.id))
+        .expect("move to shelf");
+
+    // Delete the shelf → the leaf's column should now be NULL, and the
+    // blob synced (otherwise the next save would resurrect the id).
+    shelf_store.delete(shelf.id).expect("delete shelf");
+
+    // Simulate the rename flow: load, mutate title, save.
+    doc = leaf_store.load(doc.id).expect("load after shelf delete");
+    assert_eq!(doc.shelf_id, None, "column NULL after shelf delete");
+    doc.title = vec![InlineText {
+        content: "Renommé après suppression du shelf".to_string(),
+        styles: vec![],
+    }];
+    leaf_store.save(&doc).expect("save after rename");
+
+    // Reload and check the leaf is still at root (no zombie shelf id).
+    let after = leaf_store.load(doc.id).expect("final load");
+    assert_eq!(
+        after.shelf_id, None,
+        "leaf stays at root after shelf.delete + leaf save"
+    );
+
+    let _ = std::fs::remove_file(&path);
+}
