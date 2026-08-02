@@ -10,7 +10,7 @@ Plateformes cibles : iPhone, iPad, Mac. Décision UI : **SwiftUI + UniFFI** — 
 
 ## Vocabulaire métier
 
-Pinkha utilise un vocabulaire orienté "bibliothèque physique" plutôt que les termes génériques de Notion/Apple Notes. Mapping complet + grammaire d'actions + i18n EN/FR : **`docs/VOCABULARY.md`**.
+Pinkha utilise un vocabulaire orienté "bibliothèque physique" plutôt que les termes génériques de Notion/Apple Notes. Mapping complet + grammaire d'actions + i18n EN/FR : **`utilities/docs/VOCABULARY.md`**.
 
 | Concept | Nom (code + UX) | Pair sémantique |
 | --- | --- | --- |
@@ -52,7 +52,7 @@ cd crates/chaqaq && cargo publish
 
 ## Architecture (Clean Architecture côté Rust + multi-target SwiftPM côté Swift)
 
-Le repo est un **Cargo workspace** avec trois crates Rust + une application Swift modulaire en 11 packages SwiftPM.
+Le repo est un **Cargo workspace** avec trois crates Rust + une application Swift modulaire en 6 packages SwiftPM (10 targets).
 
 ### Vue d'ensemble
 
@@ -68,7 +68,7 @@ pinkha/
 └── app/                     Application iOS SwiftUI
     ├── project.yml          Config xcodegen
     ├── Pinkha.xcodeproj/    Généré
-    ├── Packages/            11 packages SwiftPM (cf. section dédiée)
+    ├── Packages/            6 packages SwiftPM (10 targets) (cf. section dédiée)
     └── Sources/
         ├── App/             Composition root uniquement (PinkhaApp, ContentView, AppDelegate, SplashView, Composer+QuickActions)
         ├── Assets.xcassets
@@ -86,7 +86,7 @@ src/
     shelf.rs                Shelf + ShelfMeta
     parser.rs / rich_text.rs / editor.rs / commands.rs   re-exports chaqaq
   application/              traits + use cases (dépend seulement de domain)
-    leaf_repository.rs      trait LeafRepository
+    repository.rs           trait LeafRepository
     book_repository.rs      trait BookRepository
     shelf_repository.rs     trait ShelfRepository
     book_use_cases/         CRUD + query + properties + views + search/rollup
@@ -122,9 +122,9 @@ src/
 
 Règle de dépendance : `infrastructure` → `application` → `domain`. Le domaine ne sait rien du stockage.
 
-### Swift — `app/Packages/` (11 packages SwiftPM)
+### Swift — `app/Packages/` (6 packages SwiftPM (10 targets))
 
-L'application iOS est éclatée en **11 packages SwiftPM** avec un DAG enforced par le compilateur. Le target Xcode `Pinkha` ne contient plus que la composition root (`App/`) + les ressources.
+L'application iOS est éclatée en **6 packages SwiftPM (10 targets)** avec un DAG enforced par le compilateur. Le target Xcode `Pinkha` ne contient plus que la composition root (`App/`) + les ressources.
 
 #### Packages plateforme (5)
 
@@ -236,10 +236,12 @@ Toute la logique d'édition inline vit ici. Seule dépendance : `serde`.
 
 ### `domain/leaf.rs`
 Re-exporte `InlineStyle` et `InlineText` depuis chaqaq. Définit les types pinkha-spécifiques :
-- `BlockContent` : Text, Heading { level, text }, Quote { icon, text }, Todo { done, text }, Divider, Breadcrumb, Book { id }
-- `Block { id: Uuid, content: BlockContent, children: Vec<Block> }` — nœud récursif
-- `Leaf { id, cover, title: Vec<InlineText>, blocks: Vec<Block> }`
-- `LeafMeta { id, cover, title, updated_at }` — vue légère sans blocks pour `list()`. `updated_at` peuplé par SQLite, vide sinon (`#[serde(default)]`)
+- `BlockContent` — **12 variants** : Text, Heading { level, text }, Quote { icon, text }, Divider, Todo { done, text }, Breadcrumb, Book { id }, BulletedListItem, NumberedListItem, Code, Leaf { id }, Embed
+- `Block { id: Uuid, content: BlockContent, children: Vec<Block>, color, background_color, text_direction }` — nœud récursif
+- `Leaf { id, cover, icon, title: Vec<InlineText>, blocks: Vec<Block>, shelf_id, parent_leaf_id, locked, created_at, accent_color, text_direction, theme, published_at, pinned_at, manual_order }` — **15 champs**
+- `LeafMeta { id, cover, icon, title, updated_at, created_at, published_at, shelf_id, parent_leaf_id, pinned_at, manual_order }` — vue légère sans blocks pour `list()`, construite **depuis les colonnes SQLite** (pas depuis le blob JSON)
+
+> ⚠️ Les champs dénormalisés (`shelf_id`, `parent_leaf_id`, `icon`, `pinned_at`, `manual_order`, `published_at`, `cover`, `title`) existent **à la fois** dans la colonne SQLite indexée et dans le blob JSON `data`. Tout mutateur qui n'écrit que la colonne sera écrasé au prochain `save()` (qui sérialise depuis le blob). Utiliser `json_set(data, '$.champ', …)` dans le même `UPDATE` — cf. `move_to_shelf`, `set_pinned`, `set_manual_order`. Cette classe de bug a déjà shippé deux fois.
 
 ### `domain/parser.rs` / `rich_text.rs` / `editor.rs` / `commands.rs`
 Simples re-exports depuis `chaqaq` — aucune logique propre.
@@ -291,7 +293,7 @@ Moteur type Notion (défini dans pinkha, pas dans chaqaq) :
 - `get_leaf_meta(id)` — méta légère sans l'arbre de blocs (icône/cover/titre)
 
 ### `infrastructure/migrations.rs`
-Migrations versionnées via `rusqlite_migration`. Deux fonctions : `apply_leaf_migrations` et `apply_book_migrations`. Chaque évolution de schéma = un `M::up()` de plus.
+Migrations **écrites à la main** (le crate `rusqlite_migration` est déclaré dans Cargo.toml mais jamais importé). `apply_leaf_migrations` / `apply_book_migrations` délèguent toutes deux à `apply_migrations`, qui s'exécute en entier à chaque ouverture de store — donc 3× par démarrage à froid. Chaque évolution = un `add_column_if_missing` / `CREATE INDEX IF NOT EXISTS` de plus, suivi d'un bump de `PRAGMA user_version` (16 aujourd'hui). Tout doit donc rester idempotent.
 
 ### `infrastructure/sqlite_leaf_store.rs` + `sqlite_book_store.rs`
 Stockage SQLite local-first. Schéma : leaf-as-JSON dans une colonne `data`, avec colonnes indexées (`title_text`, `title_json`, `cover`) pour `list()` rapide sans désérialiser les blocs.
@@ -306,24 +308,24 @@ Stockage SQLite local-first. Schéma : leaf-as-JSON dans une colonne `data`, ave
 `#[serde(alias = "style")]` sur `styles` pour la compat avec les anciens fichiers.
 
 ### `ffi/` + `pinkha.udl` — Couche UniFFI
-Façade publique exposée à Swift via UniFFI 0.31.
-- `PinkhaError` FFI : enum `NonTrouve { id }`, `OperationInvalide { detail }`, `Stockage { detail }` — devient un `enum` Swift natif
+Façade publique exposée à Swift via UniFFI 0.32.
+- `PinkhaError` FFI : enum `NotFound { id }`, `InvalidOperation { detail }`, `Storage { detail }` — devient un `enum` Swift natif
 - `LeafMetaFfi` / `BookMetaFfi` : structs dictionnaire (id, title_plain, title_json, cover, updated_at, created_at)
 - `PinkhaApi` : ouvre les deux stores SQLite au même chemin, expose toutes les opérations leaves et books
 - Les blocs et books complètes transitent en JSON (String) pour éviter le type récursif `Block` dans l'UDL — Swift décode via `Codable`
-- `ajouter_bloc` retourne l'UUID du bloc créé (pas le leaf entier)
-- Shift+Enter géré côté éditeur : `EditorState.inserer('\n')` + `sauvegarder_bloc_edite` — aucun variant `LineBreak` nécessaire dans le modèle
+- `add_block` retourne l'UUID du bloc créé (pas le leaf entier)
+- Shift+Enter géré côté éditeur : `EditorState.insert('\n')` + `save_edited_block` — aucun variant `LineBreak` nécessaire dans le modèle
 
 Usage Swift :
 ```swift
-let api = try PinkhaApi(cheminDb: path)
-let id  = try api.creerLeaf(titre: "Ma note")
-let json = try api.obtenirLeafJson(id: id)  // → Codable
+let api = try PinkhaApi(dbPath: path)
+let id  = try api.createLeaf(title: "Ma note")
+let json = try api.getLeafJson(id: id)  // → Codable
 ```
 
 #### Runtime Tokio pour les extractors reqwest
 
-UniFFI 0.31 ship son propre foreign-task executor, **qui n'est pas un runtime Tokio**. Un futur reqwest poll sous cet executor panique avec `there is no reactor running, must be called from the context of a Tokio 1.x runtime` — reqwest enregistre ses IO directement avec Tokio.
+UniFFI 0.32 ship son propre foreign-task executor, **qui n'est pas un runtime Tokio**. Un futur reqwest poll sous cet executor panique avec `there is no reactor running, must be called from the context of a Tokio 1.x runtime` — reqwest enregistre ses IO directement avec Tokio.
 
 Pattern utilisé dans `ffi/extractors.rs` pour contourner :
 1. Singleton process-wide via `OnceLock<tokio::runtime::Runtime>` (multi-thread, 2 workers, `enable_all()`)
@@ -386,7 +388,7 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
 - `LeafMeta` pour `list()` sans charger tout le contenu
 - Erreurs custom `PinkhaError` (plus de `Box<dyn Error>`)
 - `RichText` + `EditorState` : édition en mémoire (curseur, sélection, toggle style)
-- Undo/redo via pattern Command côté Rust (`Historique` avec capacité configurable)
+- Undo/redo via pattern Command côté Rust (`History` avec capacité configurable)
 - Moteur book type Notion (propriétés, entrées, vues, filtres, tris, rollup, relation)
 - CRUD complet blocs : ajouter, modifier, supprimer, réordonner (racine et enfants), imbriquer, déplacer
 - Recherche leaves par titre + plein texte dans les blocs
@@ -400,7 +402,7 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
 - **XCFramework** : `pinkha.xcframework` compilé (ios-arm64, ios-arm64-simulator, macos-arm64)
 - **Projet Xcode** : `app/Pinkha.xcodeproj` généré par xcodegen
 - **UI SwiftUI** :
-  - **Tab bar 3 onglets** (iOS 26 `TabView` + `Tab`) : Notes | Bases | Recherche
+  - **Tab bar 4 onglets** (iOS 26 `TabView` + `Tab`) : Library | Books | Inbox | Search
   - **Notes** : salutation dynamique, strip horizontale "Récents" (5 derniers docs, cards Apple Music style), liste complète avec swipe-to-delete, FAB `square.and.pencil`
   - **Bases** : placeholder (backend Notion complet côté Rust, UI à venir)
   - **Recherche** : `searchable` SwiftUI + `api.searchLeaves(query:)` FFI, résultats en temps réel
@@ -415,8 +417,8 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
   - Undo/redo unifié (1000 niveaux) : pill bas-gauche + boutons toolbar, burst typing 300 ms style Notes, focus auto sur block réinséré
   - Perf : persist SQLite différé au flush burst, cache spans par bloc, cache état boutons undo
 - **CI** : GitHub Actions `cargo test` sur push/PR vers master/staging/dev (`macos-15`). Swift job suspendu en attendant Xcode 26 sur les runners
-- **Architecture modulaire Swift** : 11 packages SwiftPM avec un DAG enforced par le compilateur (cf. section Architecture). L'app target ne contient plus que le composition root (`App/` + `Resources/`).
-- **Vocabulaire métier "Library/Leaf/Book/Shelf/Compost"** appliqué à tout le code (Rust + Swift + SQLite tables + i18n EN/FR + docs). Cf. `docs/VOCABULARY.md`.
+- **Architecture modulaire Swift** : 6 packages SwiftPM (10 targets) avec un DAG enforced par le compilateur (cf. section Architecture). L'app target ne contient plus que le composition root (`App/` + `Resources/`).
+- **Vocabulaire métier "Library/Leaf/Book/Shelf/Compost"** appliqué à tout le code (Rust + Swift + SQLite tables + i18n EN/FR + docs). Cf. `utilities/docs/VOCABULARY.md`.
 - **Sécurité repo** : branches protégées (PR obligatoire, force-push bloqué, suppression bloquée, Rust CI requise), Secret Scanning + Push Protection, Dependabot Alerts + Security Updates, Dependabot config mensuelle pour Cargo + Actions, job CI `cargo-audit --deny warnings` (scan CVE à chaque PR)
 - **Stockage secrets** : `Keychain.swift` (wrapper minimal `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, jamais synchronisé iCloud) pour les tokens d'API. Token Notion persisté après import réussi seulement. OAuth2 client secret JAMAIS embarqué dans le binaire iOS — `NotionOAuth2.tokenProxyUrl` pointe vers un backend proxy qui détient le secret.
 - **Architecture OAuth2 Notion** (multi-tenant) — modèle "1 paire de credentials d'app, N tokens utilisateurs" :
@@ -435,7 +437,7 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
   - 2 projets Sentry séparés dans l'org `Pinkha-app` : `apple-ios` (app) + `notion-proxy` (backend). `tracesSampleRate` à 1.0 en debug, 0.2 en release.
 - **Pipelines d'extraction** (`src/extractors/`) :
   - Architecture `Extractor` trait (async, `Config` associé, `ImportResult`)
-  - **Notion** : client reqwest rustls-tls, API v1 paginée (book schema → pages → blocs récursifs), mapping complet propriétés/valeurs/blocs. **FFI synchrone** (`block_on` un `tokio::runtime::Runtime` singleton via `OnceLock`) — UniFFI 0.31 n'expose pas de reactor Tokio, mais reqwest en exige un. Swift dispatche via `Task.detached`. Flow OAuth2 + token exchange + import end-to-end validés sur device le 2026-06-02 (token Notion reçu via proxy Railway, import book → SQLite local-first OK). Block colors mappées via `map_block_color`. **2-pass mention rewriting** : un map `NotionPageId → PinkhaDocId` est construit pendant l'import, puis chaque doc est revisité pour remplacer les `https://notion.so/...{page_id}` en `pinkha://doc/{uuid}` (les mentions internes pointent désormais sur les notes pinkha importées, plus sur Notion).
+  - **Notion** : client reqwest rustls-tls, API v1 paginée (book schema → pages → blocs récursifs), mapping complet propriétés/valeurs/blocs. **FFI synchrone** (`block_on` un `tokio::runtime::Runtime` singleton via `OnceLock`) — UniFFI 0.32 n'expose pas de reactor Tokio, mais reqwest en exige un. Swift dispatche via `Task.detached`. Flow OAuth2 + token exchange + import end-to-end validés sur device le 2026-06-02 (token Notion reçu via proxy Railway, import book → SQLite local-first OK). Block colors mappées via `map_block_color`. **2-pass mention rewriting** : un map `NotionPageId → PinkhaDocId` est construit pendant l'import, puis chaque doc est revisité pour remplacer les `https://notion.so/...{page_id}` en `pinkha://doc/{uuid}` (les mentions internes pointent désormais sur les notes pinkha importées, plus sur Notion).
   - **Bear** : lecteur SQLite read-only, conversion timestamps Core Data, parseur Markdown Bear ligne par ligne
   - Trois nouveaux variants `BlockContent` : `BulletedListItem`, `NumberedListItem`, `Code` — full-fidelity import, rendu read-only + édition dans l'éditeur
   - **Craft** : lecteur Realm v9 binary read-only via `realm-codec` (crate library), heuristique `rawProperties.titleEnabled == "true"` pour détecter les pages, 2498 docs / 4224 blocs / 41 skipped sur fichier réel
@@ -443,11 +445,11 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
   - FAB menu : "Import from Notion" + "Import from Bear" + "Import from Craft"
 
 Ce qui **reste** à construire :
-1. **UI Books** — vue table + sort par colonne, mais manque : filtres UI complets, switch entre views (Kanban/Calendar/Gallery) toujours en cours, tri multi-colonnes, link picker pour Relation. Cf. `docs/UI-AUDIT.md`.
+1. **UI Books** — vue table + sort par colonne, mais manque : filtres UI complets, switch entre views (Kanban/Calendar/Gallery) toujours en cours, tri multi-colonnes, link picker pour Relation. Cf. `utilities/docs/UI-AUDIT.md`.
 2. **Vue iPad / Mac** (NavigationSplitView)
 3. **Sync entre appareils** (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
 4. **Réactiver Swift CI** quand Xcode 26 sera dispo sur les runners GitHub Actions
-5. **Import fidelity** — cover/icon Notion, image/file blocks, mapping views/filters Notion. Audit complet dans `docs/IMPORT-AUDIT.md`.
+5. **Import fidelity** — cover/icon Notion, image/file blocks, mapping views/filters Notion. Audit complet dans `utilities/docs/IMPORT-AUDIT.md`.
 6. **Localizable.xcstrings polish complet** — pass critique fait (labels les plus visibles + verbes Bind/Unbind/Shelve/Discard), reste 3631 lignes à reviewer une par une pour la cohérence et le ton.
 
 ### Cross-domain orchestration (`application/use_cases/book_leaf_sync.rs`)
@@ -566,8 +568,8 @@ Avant d'écrire un loop ou une logique de traitement en Swift, s'arrêter et imp
   - `PinkhaError.isRecoverable` → true pour `Storage` (retry possible)
   - `tryCatch(into: &errorMessage)` capture l'erreur sans propager, remonte le message au view model
   - `.errorAlert(message:onRetry:)` modificateur SwiftUI qui présente l'alert avec bouton « Réessayer » optionnel
-- **Tests à 3 niveaux côté Rust** : unitaires (`#[cfg(test)] mod tests` dans chaque module — y compris `resilience.rs` avec 6 tests), intégration (`tests/integration_*`), E2E (`tests/e2e_*`). 204+ tests.
-- **Tests à 3 niveaux côté Swift** : `app/Tests/Unit/` (Swift Testing — `@Suite`/`@Test`/`#expect`, code pur), `app/Tests/Integration/` (Swift ↔ FFI réelle avec DB SQLite temporaire), `app/Tests/UI/` (XCUITest — pilote l'app comme utilisateur). Cibles xcodegen : `PinkhaTests`, `PinkhaIntegrationTests`, `PinkhaUITests`. **186+ tests Swift.**
+- **Tests à 3 niveaux côté Rust** : unitaires (`#[cfg(test)] mod tests` dans chaque module — y compris `resilience.rs` avec 6 tests), intégration (`tests/integration_*`), E2E (`tests/e2e_*`). 690+ tests.
+- **Tests à 3 niveaux côté Swift** : `app/Tests/Unit/` (Swift Testing — `@Suite`/`@Test`/`#expect`, code pur), `app/Tests/Integration/` (Swift ↔ FFI réelle avec DB SQLite temporaire), `app/Tests/UI/` (XCUITest — pilote l'app comme utilisateur). Cibles xcodegen : `PinkhaTests`, `PinkhaIntegrationTests`, `PinkhaUITests`. **300+ tests Swift.**
 
 **Commandes de test** :
 ```bash
@@ -600,14 +602,14 @@ xcodebuild test -project app/Pinkha.xcodeproj -scheme Pinkha -destination 'id=<U
 
 ## Dette technique — à reprendre avant scaling / mise en prod sérieuse
 
-Ces points sont **acceptables en l'état actuel** (projet solo, 208 tests Rust + 179 tests Swift unit/integration) mais devront être traités avant d'ouvrir aux contributeurs / déployer en App Store. Ordre de priorité :
+Ces points sont **acceptables en l'état actuel** (projet solo, 690+ tests Rust + 300+ tests Swift unit/integration) mais devront être traités avant d'ouvrir aux contributeurs / déployer en App Store. Ordre de priorité :
 
 ### Infrastructure (haute priorité dès qu'on collabore)
 - **CI GitHub Actions** :
   - ✅ Rust : `cargo test` sur push/PR vers master/staging/dev (`macos-15` runner).
   - ⏸ Swift `xcodebuild test` désactivé temporairement — les runners ont Xcode 16.4 / iOS 18.5 SDK, alors que le projet target iOS 26.0 et utilise `UIGlassEffect` / `.glassEffect()`. À réactiver soit (a) quand Xcode 26 stable arrive sur les runners post-WWDC 2026, soit (b) en backportant avec `if #available(iOS 26.0, *)` + fallback `UIBlurEffect`. Voir `.github/workflows/ci.yml` (job `swift-placeholder`).
 - **Branch protection** : `master`, `staging`, `dev` protégées — PR obligatoire, pas de force-push, pas de suppression. Status checks (CI requise pour merge) à ajouter quand la CI Swift sera réactivée.
-- **Code coverage** : Rust gaté à **90% de lignes** en CI (ratchet — on ne descend plus ; tightening progressif vers 95/98% prévu) via `cargo llvm-cov --library --fail-under-lines 90 --summary-only` avec exclusions sur les paths intestables unitairement (entry points, Notion HTTP, extractors Craft/Bear nécessitant fixtures externes). Couverture mesurée 2026-06-02 (après vague 1 + reader.rs complet) : **91.40% lines / 88.98% functions / 93.22% regions**. Tests :
+- **Code coverage** : Rust gaté à **89% de lignes** en CI (ratchet — on ne descend plus ; tightening progressif vers 95/98% prévu) via `cargo llvm-cov --workspace --fail-under-lines 89 --summary-only` avec exclusions sur les paths intestables unitairement (entry points, Notion HTTP, extractors Craft/Bear nécessitant fixtures externes). Couverture mesurée 2026-06-02 (après vague 1 + reader.rs complet) : **91.40% lines / 88.98% functions / 93.22% regions**. Tests :
   - 90 dans `tests/integration_ffi.rs` (PinkhaApi : docs, blocs, books, properties, views, queries, shelves, validation)
   - 20 dans `tests/integration_shelf_store.rs` (CRUD/move/delete shelf store)
   - in-module `src/domain/shelf.rs`
@@ -615,8 +617,8 @@ Ces points sont **acceptables en l'état actuel** (projet solo, 208 tests Rust +
   - Pour atteindre 98% : ~934 lignes restantes (ffi.rs imports HTTP non-mockables, retry paths SQLite, use_cases/blocks + book_leaf_sync, book_use_cases/query).
   - Swift : `xcodebuild -enableCodeCoverage YES` à mesurer quand le job Swift sera réactivé.
 - **Workflow contributeur** : ✅ branches `feature/**`, `fix/**`, `refactor/**`, `docs/**`, `chore/**`, `perf/**` depuis `dev` ; promotion `dev` → `staging` → `master`. Cf. section "Git workflow" plus haut.
-- **Pre-commit hook** : ✅ `scripts/hooks/pre-commit` versionné, installé via `./scripts/install-hooks.sh` (symlinks dans `.git/hooks/`). Tourne `cargo fmt --all --check` + `cargo clippy --library --all-targets -- -D warnings` quand au moins un fichier `.rs` est staged. Skip silencieux pour les commits docs/Swift-only. Bypass d'urgence via `git commit --no-verify` mais la règle reste : corriger plutôt que skip.
-- **Clippy strict dans la CI** : ✅ `cargo clippy --library --all-targets -- -D warnings` est lancé avant les tests dans `.github/workflows/ci.yml` (job `rust`). Mirror du hook pre-commit — toute modification doit être appliquée aux deux gates pour rester synchronisés.
+- **Pre-commit hook** : ✅ `utilities/scripts/hooks/pre-commit` versionné, installé via `./utilities/scripts/install-hooks.sh` (symlinks dans `.git/hooks/`). Tourne `cargo fmt --all --check` + `cargo clippy --workspace --all-targets -- -D warnings` quand au moins un fichier `.rs` est staged. Skip silencieux pour les commits docs/Swift-only. Bypass d'urgence via `git commit --no-verify` mais la règle reste : corriger plutôt que skip.
+- **Clippy strict dans la CI** : ✅ `cargo clippy --workspace --all-targets -- -D warnings` est lancé avant les tests dans `.github/workflows/ci.yml` (job `rust`). Mirror du hook pre-commit — toute modification doit être appliquée aux deux gates pour rester synchronisés.
 
 ### Tests à renforcer
 - **Coordinator class** (`RichTextEditor.Coordinator`) : selection memory (`rememberSelection`/`selectionForToolbar`), toolbar state updates (`updateToolbar`), color application chain — tout n'est testé qu'**en bout-en-bout** via le VM. Un bug subtil dans cette logique passerait. Extraire en helpers libres ou exposer pour tests.
