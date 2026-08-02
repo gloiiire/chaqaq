@@ -10,6 +10,7 @@ use uuid::Uuid;
 use crate::application::repository::LeafRepository;
 use crate::domain::leaf::{Block, BlockContent, InlineText};
 use crate::extractors::ExtractorError;
+use crate::extractors::notion::diagnostics;
 
 // ── Mention rewriting ─────────────────────────────────────────────────────────
 
@@ -65,22 +66,21 @@ pub fn rewrite_notion_mentions_logged(
     // the chunky tappable cards users expect.
     let mut promoted_count = 0;
     promote_page_link_paragraphs(&mut leaf.blocks, &mut promoted_count);
-    if let Some(dir) = covers_dir {
-        use std::io::Write;
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(format!("{dir}/notion-debug.log"))
-        {
-            let _ = writeln!(
-                f,
+    if diagnostics::enabled() {
+        diagnostics::log(
+            covers_dir,
+            &format!(
                 "[rewrite] leaf={leaf_id} links_rewritten={rewrote} promotions={promoted_count}"
-            );
-            // Also dump non-promoted paragraphs that carry a pinkha link
-            // so we can iterate on the promotion criterion. We re-walk
-            // the just-updated tree; a no-op when everything promoted.
-            dump_unpromoted_links(&leaf.blocks, dir);
-        }
+            ),
+        );
+        // Also dump non-promoted paragraphs that carry a pinkha link so we
+        // can iterate on the promotion criterion. We re-walk the
+        // just-updated tree; a no-op when everything promoted.
+        //
+        // This one dumps paragraph text *verbatim* — the single most
+        // sensitive line in the importer. Guarded twice: here, and inside
+        // `dump_unpromoted_links` itself.
+        dump_unpromoted_links(&leaf.blocks, covers_dir);
     }
     if rewrote || promoted_count > 0 {
         docs.save(&leaf)
@@ -96,7 +96,12 @@ pub fn rewrite_notion_mentions_logged(
 /// Writes the raw span shape of every paragraph that survived rewrite
 /// but failed promotion. Picked up by the next iteration so we can
 /// learn what the Notion data actually looks like.
-fn dump_unpromoted_links(blocks: &[Block], dir: &str) {
+fn dump_unpromoted_links(blocks: &[Block], covers_dir: Option<&str>) {
+    // Debug-only: the lines below contain verbatim note text.
+    if !diagnostics::enabled() {
+        return;
+    }
+    let Some(dir) = covers_dir else { return };
     let Ok(mut f) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)

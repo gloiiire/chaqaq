@@ -55,12 +55,16 @@ public final class PinkhaStore {
     public func connect() {
         guard api == nil else { return }
         tryCatch(into: &errorMessage) {
-            let dir  = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             // UI-test modes: ephemeral DB for reproducibility.
             let args = ProcessInfo.processInfo.arguments
             let isUITest = args.contains("--ui-test-data") || args.contains("--ui-test-clean")
-            let dbName = isUITest ? "pinkha_uitest_\(UUID().uuidString).db" : "pinkha.db"
-            let path = dir.appendingPathComponent(dbName).path
+            // Application Support, not Documents — the database holds every
+            // note in plaintext and Documents is exposed in the Files app by
+            // `UIFileSharingEnabled`. `databasePath()` also relocates a
+            // pre-existing database on the first launch after the move.
+            let path = isUITest
+                ? try DatabaseLocation.ephemeralDatabasePath()
+                : try DatabaseLocation.databasePath()
             api = try PinkhaApi(dbPath: path)
             if args.contains("--ui-test-data") {
                 _ = try api?.createLeaf(title: "Seeded Leaf 2")
