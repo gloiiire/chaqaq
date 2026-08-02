@@ -114,7 +114,6 @@ public final class BookViewModel {
 
     /// ID of the hidden system property storing each entry's linked leaf ID.
     @ObservationIgnored private(set) var pagePropertyId: String? = nil
-    @ObservationIgnored private var primaryViewId: String? = nil
 
     @ObservationIgnored private let pagePropName = "__pinkha_page__"
     @ObservationIgnored private let namePropName = "Name"
@@ -180,8 +179,7 @@ public final class BookViewModel {
             }
         }
 
-        views          = allViews
-        primaryViewId  = allViews.first?.id
+        views = allViews
         // Active view defaults to the List entry — that's the visual
         // default the user expects on mobile, regardless of the order
         // the DB shipped its views in.
@@ -819,7 +817,12 @@ public final class BookViewModel {
     }
 
     private func applySort(_ next: ActiveSort?) {
-        guard let viewId = primaryViewId else { return }
+        // Target the view the user is actually looking at. This used to
+        // write to `allViews.first` — so on a book whose List view happens
+        // to be at index 0, sorting from the Table view wrote the sort onto
+        // List and then re-queried List's ordering. The Table's arrow lit
+        // up while its rows were ordered by another view's config.
+        guard let viewId = activeViewId else { return }
         let result: ()? = tryCatch(into: &errorMessage) {
             try api.setViewSort(
                 bookId: bookId,
@@ -838,7 +841,8 @@ public final class BookViewModel {
     /// Switches the active sort to one of the entry-level timestamp
     /// sources — `created_at` or `published_at`. Pass `nil` to clear.
     func setDateSort(_ kind: DateSortKind?, ascending: Bool) {
-        guard let viewId = primaryViewId else { return }
+        // Same targeting rule as `applySort`.
+        guard let viewId = activeViewId else { return }
         let result: ()?
         if let kind {
             result = tryCatch(into: &errorMessage) {
@@ -905,7 +909,8 @@ public final class BookViewModel {
     }
 
     private func refreshSortedEntries() {
-        guard let viewId = primaryViewId,
+        // Must read back from the same view the sort was written to.
+        guard let viewId = activeViewId,
               let sorted = tryCatch(into: &errorMessage, {
                   try api.queryBook(bookId: bookId, viewId: viewId)
               })

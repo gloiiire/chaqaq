@@ -320,7 +320,21 @@ public final class PinkhaStore {
     @discardableResult
     public func createShelf(name: String, parentId: String? = nil) -> ShelfMetaFfi? {
         guard let api else { return nil }
-        let shelf = tryCatch(into: &errorMessage) { try api.createShelf(name: name, parentId: parentId) }
+        // Trim before persisting: callers validate against the trimmed
+        // string but used to pass the raw one, so " Work " landed in the
+        // database with its padding.
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let shelf = tryCatch(into: &errorMessage) {
+            try api.createShelf(name: trimmed, parentId: parentId)
+        }
+        // Refresh — this method is the only mutation in the store that
+        // didn't, despite its doc comment claiming otherwise. Two of the
+        // three call sites compensated with their own `load()`; the third
+        // (the root SHELVES section) didn't, so creating the very first
+        // shelf left `shelves` empty and the whole section — including the
+        // button just used — disappeared until an unrelated mutation
+        // happened to refresh.
+        if shelf != nil { load() }
         return shelf
     }
 
