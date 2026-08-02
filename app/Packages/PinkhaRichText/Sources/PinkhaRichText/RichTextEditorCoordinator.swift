@@ -228,6 +228,11 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
         // when the window check above let us through (e.g. SwiftUI between
         // renders).
         if tv.attributedText.string.isEmpty { tv.attributedText = placeholder() }
+        // Losing focus invalidates any in-flight `@…` token: its recorded
+        // offsets point into text we may have just replaced with the
+        // placeholder, and the bar would otherwise stay on screen ready to
+        // commit against a stale range.
+        endMentionSession()
     }
 
     /// Intercepts taps / long-press-then-open on links inside the editor.
@@ -516,9 +521,19 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
     /// `pinkha://leaf/{id}` link, then closes the session.
     private func commitMention(_ candidate: MentionCandidate) {
         guard let tv, let session = mentionSession else { return }
-        Haptic.tap()
-        let replaceRange = NSRange(location: session.start,
-                                    length: 1 + session.queryLength)
+        // The session records where the `@…` token sits, but it is only
+        // refreshed from `textViewDidChange` — which does *not* fire when
+        // the text is replaced programmatically (an undo pushing new text
+        // through `updateUIView`, or the placeholder swap on end-editing).
+        // The bar can therefore still be on screen holding offsets into
+        // text that no longer exists, and `replaceCharacters` on an
+        // out-of-bounds range raises an uncatchable `NSRangeException`.
+        let storageLength = (tv.attributedText.string as NSString).length
+        let start = min(session.start, storageLength)
+        let replaceRange = NSRange(
+            location: start,
+            length: min(1 + session.queryLength, storageLength - start)
+        )
         // `URL(string:)` only fails on a malformed string; the candidate
         // id is a UUID we just minted, so the primary path always works.
         // The fallback is paranoia — if it ever did fail we abort the

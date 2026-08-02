@@ -62,18 +62,45 @@ public extension LeafViewModel {
         } catch { errorMessage = error.localizedDescription }
     }
 
+    /// Number of rows immediately after `index` that are descendants of the
+    /// block at `index` — the contiguous run with a strictly greater depth.
+    ///
+    /// `blocks` is a *flattened* depth-first view of a tree Rust still owns
+    /// as a real hierarchy, so a parent and its children are sibling rows
+    /// here. Anything that removes a parent has to remove that run too.
+    private func descendantRunLength(at index: Int) -> Int {
+        let depth = blocks[index].depth
+        var length = 0
+        var cursor = index + 1
+        while cursor < blocks.count, blocks[cursor].depth > depth {
+            length += 1
+            cursor += 1
+        }
+        return length
+    }
+
     func deleteBlock(id: String) {
         flushBurst(blockId: id)
-        guard let block = blocks.first(where: { $0.id == id }),
-              let index = blocks.firstIndex(where: { $0.id == id })
-        else { return }
+        guard let index = blocks.firstIndex(where: { $0.id == id }) else { return }
         do {
             try api.deleteBlock(leafId: leafId, blockId: id)
-            blocks.removeAll { $0.id == id }
-            blockSnapshots.removeValue(forKey: id)
-            // Undo: reinsert the block at its original position. reinsertBlock registers the redo.
+            // Rust's `delete_from_tree` drops the block *and its whole
+            // subtree*. Removing only this row would leave the children
+            // rendered as orphans pointing at a block that no longer
+            // exists — and typing into one would fail with `NotFound` and
+            // silently discard the keystrokes.
+            let runEnd = index + descendantRunLength(at: index)
+            let removed = Array(blocks[index...runEnd])
+            blocks.removeSubrange(index...runEnd)
+            for block in removed { blockSnapshots.removeValue(forKey: block.id) }
+            // Undo: reinsert the removed run at its original position.
+            // `reinsertBlock` registers the redo.
             undoMgr.registerUndo(withTarget: self) { vm in
-                vm.reinsertBlock(block, at: index)
+                vm.undoMgr.beginUndoGrouping()
+                for (offset, block) in removed.enumerated() {
+                    vm.reinsertBlock(block, at: index + offset)
+                }
+                vm.undoMgr.endUndoGrouping()
             }
         } catch { errorMessage = error.localizedDescription }
     }
@@ -108,20 +135,49 @@ public extension LeafViewModel {
         let snapshots: [(Int, EditableBlock)] = blocks.enumerated()
             .filter { ids.contains($0.element.id) }
             .map { ($0.offset, $0.element) }
-        do {
-            for id in ids {
+
+        // Deepest first. Deleting a parent also deletes its subtree on the
+        // Rust side, so a shallower id processed first makes every selected
+        // descendant vanish — and the next `deleteBlock` for one of them
+        // throws `NotFound`. `ids` is a Set, so the old iteration order was
+        // unspecified: whether the user's delete worked was a coin flip.
+        let ordered = snapshots
+            .sorted { $0.1.depth > $1.1.depth }
+            .map(\.1.id)
+
+        var failure: Error?
+        for id in ordered {
+            do {
                 try api.deleteBlock(leafId: leafId, blockId: id)
+            } catch {
+                // A block already removed as part of an ancestor's subtree
+                // is the expected case, not an error — keep going.
+                if !isNotFound(error) { failure = error }
             }
-            blocks.removeAll { ids.contains($0.id) }
-            for id in ids { blockSnapshots.removeValue(forKey: id) }
-            undoMgr.registerUndo(withTarget: self) { vm in
-                vm.undoMgr.beginUndoGrouping()
-                for (index, block) in snapshots {
-                    vm.reinsertBlock(block, at: index)
-                }
-                vm.undoMgr.endUndoGrouping()
+        }
+
+        // Apply the in-memory removal and register undo unconditionally.
+        // Bailing out mid-loop used to leave the deleted rows on screen
+        // while they were already gone from SQLite, so any later keystroke
+        // in one of them was silently discarded.
+        let selected = Set(snapshots.map(\.1.id))
+        blocks.removeAll { selected.contains($0.id) }
+        for id in selected { blockSnapshots.removeValue(forKey: id) }
+        undoMgr.registerUndo(withTarget: self) { vm in
+            vm.undoMgr.beginUndoGrouping()
+            for (index, block) in snapshots {
+                vm.reinsertBlock(block, at: index)
             }
-        } catch { errorMessage = error.localizedDescription }
+            vm.undoMgr.endUndoGrouping()
+        }
+        if let failure { errorMessage = failure.localizedDescription }
+    }
+
+    /// Whether an FFI error is a `NotFound`, which several bulk paths treat
+    /// as success (the row was already gone).
+    private func isNotFound(_ error: Error) -> Bool {
+        if case PinkhaError.NotFound = error { return true }
+        return false
     }
 
     /// Toggles the "done" state of a todo block. Undo toggles it back (auto-re-registration).
