@@ -41,6 +41,9 @@ impl PinkhaApi {
 
     /// Sets or clears a shelf's emoji icon. Pass `None` to remove.
     pub fn update_shelf_icon(&self, id: String, icon: Option<String>) -> Result<(), PinkhaError> {
+        if let Some(i) = icon.as_deref() {
+            validate_string(i, "icon")?;
+        }
         let uuid = parse_uuid(&id)?;
         shelf_use_cases::update_shelf_icon(&self.uow(), uuid, icon.as_deref())
             .map_err(PinkhaError::from)

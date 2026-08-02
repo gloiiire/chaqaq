@@ -20,15 +20,31 @@ pub fn list_shelves(uow: &dyn UnitOfWork) -> Result<Vec<ShelfMeta>, PinkhaError>
 }
 
 /// Returns the direct children of `parent_id` (`None` = root-level shelves).
+///
+/// Root membership is computed rather than stored: a shelf counts as
+/// root-level when it has no parent *or* when its parent is not an active
+/// shelf (it sits in Compost). `ShelfRepository::delete` is deliberately
+/// non-destructive — it leaves `parent_id` intact so `restore()` rebuilds
+/// the original hierarchy — so without this rule the children of a trashed
+/// shelf would point at an invisible parent and disappear from every list.
 pub fn list_child_shelves(
     uow: &dyn UnitOfWork,
     parent_id: Option<Uuid>,
 ) -> Result<Vec<ShelfMeta>, PinkhaError> {
-    Ok(uow
-        .shelves()
-        .list()?
+    let active = uow.shelves().list()?;
+    if parent_id.is_some() {
+        return Ok(active
+            .into_iter()
+            .filter(|f| f.parent_id == parent_id)
+            .collect());
+    }
+    let active_ids: std::collections::HashSet<Uuid> = active.iter().map(|f| f.id).collect();
+    Ok(active
         .into_iter()
-        .filter(|f| f.parent_id == parent_id)
+        .filter(|f| match f.parent_id {
+            None => true,
+            Some(p) => !active_ids.contains(&p),
+        })
         .collect())
 }
 

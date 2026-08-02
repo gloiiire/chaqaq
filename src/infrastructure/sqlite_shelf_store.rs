@@ -137,38 +137,24 @@ impl ShelfRepository for SqliteShelfStore {
         })
     }
 
+    /// Soft-deletes the shelf — and nothing else.
+    ///
+    /// Deliberately **non-destructive**: the `shelf_id` of the leaves it
+    /// holds and the `parent_id` of its sub-shelves are left untouched, so
+    /// `restore()` brings the whole subtree back exactly as it was. A shelf
+    /// in Compost is advertised as recoverable; flattening its contents on
+    /// the way in made that promise a lie (the association was gone for
+    /// good, in the column *and* the blob).
+    ///
+    /// Visibility is computed instead of stored: a leaf whose shelf is not
+    /// an *active* shelf reads as a root leaf (`list_by_shelf_inner`), and a
+    /// shelf whose parent is not active reads as a root shelf
+    /// (`list_child_shelves`). The destructive orphaning now happens in
+    /// [`Self::purge`], where it is genuinely irreversible by definition.
     fn delete(&self, id: Uuid) -> Result<(), PinkhaError> {
         let now = chrono::Utc::now().to_rfc3339();
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
-            // Move orphaned leaves to root before deleting the shelf.
-            // Sync the JSON `data` blob's own `shelf_id` field too — same
-            // reason as `sqlite_leaf_store::move_to_shelf`: without it, a
-            // later `save()` on one of these leaves (e.g. rename) would
-            // read the stale blob and write the deleted shelf id back to
-            // the column, leaving the leaf pointing to a shelf that no
-            // longer exists.
-            conn.execute(
-                "UPDATE leaves
-                    SET shelf_id = NULL,
-                        data     = json_set(data, '$.shelf_id', json('null'))
-                  WHERE shelf_id = ?1",
-                params![id.to_string()],
-            )
-            .map_err(|e| PinkhaError::Db(e.to_string()))?;
-            // Reparent child shelves to the deleted shelf's parent.
-            let parent: Option<String> = conn
-                .query_row(
-                    "SELECT parent_id FROM shelves WHERE id = ?1",
-                    params![id.to_string()],
-                    |row| row.get(0),
-                )
-                .unwrap_or(None);
-            conn.execute(
-                "UPDATE shelves SET parent_id = ?1 WHERE parent_id = ?2 AND deleted_at IS NULL",
-                params![parent, id.to_string()],
-            )
-            .map_err(|e| PinkhaError::Db(e.to_string()))?;
             let affected = conn
                 .execute(
                     "UPDATE shelves SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
@@ -298,10 +284,53 @@ impl ShelfRepository for SqliteShelfStore {
         })
     }
 
+    /// Permanently removes the shelf and cuts every reference to it.
+    ///
+    /// This is where the orphaning that [`Self::delete`] used to do now
+    /// lives: the row is about to stop existing, so any leaf or sub-shelf
+    /// still pointing at it must be re-homed or it would dangle forever.
+    /// Leaves go to the library root (column **and** JSON blob, so a later
+    /// `save()` can't resurrect the dead id), sub-shelves inherit the
+    /// purged shelf's own parent.
+    ///
+    /// All of it runs in one transaction — a partial purge would leave
+    /// leaves pointing at a shelf row that no longer exists.
+    ///
+    /// Trashed leaves are re-homed too (no `deleted_at` filter): the shelf
+    /// is disappearing for good, so even a leaf sitting in Compost has to
+    /// let go of it before it can ever be restored.
     fn purge(&self, id: Uuid) -> Result<(), PinkhaError> {
         retry_with_backoff(|| {
-            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
-            let affected = conn
+            let mut conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let tx = conn
+                .transaction()
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+
+            // Inherit the purged shelf's parent for its children.
+            let parent: Option<String> = tx
+                .query_row(
+                    "SELECT parent_id FROM shelves WHERE id = ?1",
+                    params![id.to_string()],
+                    |row| row.get(0),
+                )
+                .unwrap_or(None);
+
+            tx.execute(
+                "UPDATE leaves
+                    SET shelf_id = NULL,
+                        data     = json_set(data, '$.shelf_id', json('null'))
+                  WHERE shelf_id = ?1",
+                params![id.to_string()],
+            )
+            .map_err(|e| PinkhaError::Db(e.to_string()))?;
+
+            tx.execute(
+                "UPDATE shelves SET parent_id = ?1 WHERE parent_id = ?2",
+                params![parent, id.to_string()],
+            )
+            .map_err(|e| PinkhaError::Db(e.to_string()))?;
+
+            let affected = tx
                 .execute(
                     "DELETE FROM shelves WHERE id = ?1 AND deleted_at IS NOT NULL",
                     params![id.to_string()],
@@ -312,6 +341,7 @@ impl ShelfRepository for SqliteShelfStore {
                     "shelf {id} must be soft-deleted before it can be purged"
                 )));
             }
+            tx.commit().map_err(|e| PinkhaError::Db(e.to_string()))?;
             Ok(())
         })
     }
