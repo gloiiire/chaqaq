@@ -142,8 +142,17 @@ impl ShelfRepository for SqliteShelfStore {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             // Move orphaned leaves to root before deleting the shelf.
+            // Sync the JSON `data` blob's own `shelf_id` field too — same
+            // reason as `sqlite_leaf_store::move_to_shelf`: without it, a
+            // later `save()` on one of these leaves (e.g. rename) would
+            // read the stale blob and write the deleted shelf id back to
+            // the column, leaving the leaf pointing to a shelf that no
+            // longer exists.
             conn.execute(
-                "UPDATE leaves SET shelf_id = NULL WHERE shelf_id = ?1",
+                "UPDATE leaves
+                    SET shelf_id = NULL,
+                        data     = json_set(data, '$.shelf_id', json('null'))
+                  WHERE shelf_id = ?1",
                 params![id.to_string()],
             )
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
