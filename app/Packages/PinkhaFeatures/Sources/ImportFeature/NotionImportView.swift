@@ -583,10 +583,17 @@ public struct NotionImportView: View {
             }
             // All imports succeeded — persist the token for future runs.
             Keychain.save(t, for: KeychainKey.notionToken)
-            // Copy the Rust-side debug log into Leaves/ so it shows up
-            // in Files.app for inspection. Best-effort — we silently swallow
-            // file-system errors because the visible import shouldn't fail
-            // for a missing log file.
+            // Surface the Rust-side debug log in Files.app for inspection.
+            //
+            // DEBUG ONLY. That log carries verbatim note titles and
+            // paragraph text, and Documents/ is user-visible (Info.plist
+            // sets `UIFileSharingEnabled`) as well as included in device
+            // backups. Shipping it would put note content somewhere the
+            // Files app, iTunes backups and support-bound sysdiagnose
+            // bundles can all reach. The Rust writer is gated the same way
+            // (`extractors::notion::diagnostics`), so in release there is
+            // nothing to copy — this guard is the second line of defence.
+            #if DEBUG
             if let coversDir {
                 let src = URL(fileURLWithPath: coversDir).appendingPathComponent("notion-debug.log")
                 if let docs = try? FileManager.default.url(for: .documentDirectory,
@@ -598,6 +605,7 @@ public struct NotionImportView: View {
                     try? FileManager.default.copyItem(at: src, to: dst)
                 }
             }
+            #endif
             // Copy before hopping to the main actor — capturing the mutable
             // `totals` var in concurrently-executing code is an error in
             // Swift 6 language mode.
