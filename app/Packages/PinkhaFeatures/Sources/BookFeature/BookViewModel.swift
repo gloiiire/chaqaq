@@ -292,24 +292,31 @@ public final class BookViewModel {
         // Rust rejects it anyway; bailing here avoids a useless error alert.
         guard !locked else { return }
         let trimmed = plain.trimmingCharacters(in: .whitespacesAndNewlines)
-        tryCatch(into: &errorMessage) {
+        // Only mirror locally once the write actually landed. `tryCatch`
+        // swallows the error into `errorMessage`, so an unconditional
+        // assignment left the UI showing a value the database rejected —
+        // the user saw an error alert *and* their edit apparently applied.
+        let result: ()? = tryCatch(into: &errorMessage) {
             try api.updateBookTitle(id: bookId, newTitle: trimmed)
         }
+        guard result != nil else { return }
         titlePlain = trimmed
     }
 
     func saveDescription(_ plain: String) {
         guard !locked else { return }
-        tryCatch(into: &errorMessage) {
+        let result: ()? = tryCatch(into: &errorMessage) {
             try api.updateBookDescription(id: bookId, description: plain)
         }
+        guard result != nil else { return }
         descriptionPlain = plain
     }
 
     func saveCover(_ identifier: String?) {
-        tryCatch(into: &errorMessage) {
+        let result: ()? = tryCatch(into: &errorMessage) {
             try api.updateBookCover(id: bookId, cover: identifier)
         }
+        guard result != nil else { return }
         cover = identifier
     }
 
@@ -335,19 +342,25 @@ public final class BookViewModel {
     }
 
     func saveIcon(_ identifier: String?) {
-        tryCatch(into: &errorMessage) {
+        let result: ()? = tryCatch(into: &errorMessage) {
             try api.updateBookIcon(id: bookId, icon: identifier)
         }
+        guard result != nil else { return }
         icon = identifier
     }
 
-    /// Toggles the read-only flag. Same surface as the leaf lock —
-    /// optimistic local update + best-effort FFI write.
+    /// Toggles the read-only flag.
+    ///
+    /// The local flag follows the write rather than leading it: a failed
+    /// toggle used to flip the padlock anyway, so the user ended up editing
+    /// a book the backend still considered locked and every subsequent
+    /// write was rejected.
     func toggleLock() {
         let next = !locked
-        tryCatch(into: &errorMessage) {
+        let result: ()? = tryCatch(into: &errorMessage) {
             try api.updateBookLocked(id: bookId, locked: next)
         }
+        guard result != nil else { return }
         locked = next
     }
 
