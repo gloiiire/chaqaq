@@ -17,10 +17,17 @@ public struct SearchView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(TabManager.self) private var tabManager
     @State private var query = ""
-
-    private var results: PinkhaStore.SuperSearchResults {
-        query.isEmpty ? .empty : store.superSearch(query: query)
-    }
+    /// Cached search results.
+    ///
+    /// This used to be a computed property calling `store.superSearch`
+    /// directly — and `body` reads it nine times per pass, so every
+    /// keystroke ran nine full-library full-text searches synchronously on
+    /// the main actor. `super_search` loads and JSON-decodes the complete
+    /// block tree of *every* leaf, so on an imported library a ten-character
+    /// query meant on the order of ninety full scans.
+    ///
+    /// Now computed once per settled query, off the main actor, and stored.
+    @State private var results: PinkhaStore.SuperSearchResults = .empty
 
     public var body: some View {
         NavigationStack {
@@ -101,6 +108,31 @@ public struct SearchView: View {
             // icon expands back when tapped or scrolled to the top.
             .searchToolbarBehavior(.minimize)
             .autocorrectionDisabled()
+            // Debounced search. `.task(id:)` cancels the previous run
+            // whenever `query` changes, so mid-typing keystrokes never reach
+            // the FFI — only the query the user settles on for 250 ms does.
+            //
+            // That is the whole win: `results` was a computed property that
+            // `body` reads nine times per pass, so each keystroke ran nine
+            // full-library searches. `super_search` loads and JSON-decodes
+            // every leaf's block tree, so a ten-character query cost on the
+            // order of ninety full scans.
+            //
+            // The call still runs on the main actor — `PinkhaStore` is
+            // `@MainActor`, so awaiting it hops back regardless of where the
+            // task starts. Getting it genuinely off-main means reaching for
+            // `store.api` (which is `@unchecked Sendable`) directly; worth
+            // doing, but it is a separate change from the debounce.
+            .task(id: query) {
+                let pending = query
+                guard !pending.isEmpty else {
+                    results = .empty
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(250))
+                guard !Task.isCancelled else { return }
+                results = store.superSearch(query: pending)
+            }
             // `.searchable` is backed by `UISearchTextField` which
             // ignores SwiftUI's `.tint` env. We push the colour
             // through the UIKit appearance proxy — applies to search
