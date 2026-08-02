@@ -42,8 +42,11 @@ pub fn list_leaves(uow: &dyn UnitOfWork) -> Result<Vec<LeafMeta>, PinkhaError> {
 /// need the title / icon / cover should prefer this over [`get_leaf`]
 /// so the block tree never crosses the boundary.
 pub fn get_leaf_meta(uow: &dyn UnitOfWork, id: Uuid) -> Result<LeafMeta, PinkhaError> {
-    let doc = uow.leaves().load(id)?;
-    Ok(LeafMeta::from(&doc))
+    // Column projection, not `load()` + `From<&Leaf>`. The latter loads the
+    // whole block tree this function exists to avoid, and cannot populate
+    // `updated_at` / `created_at` (they live only on the row), so it used to
+    // hand back empty timestamps that disagreed with `list_leaves()`.
+    uow.leaves().load_meta(id)
 }
 
 /// Soft-deletes a leaf by ID — recoverable via [`restore_leaf`].

@@ -169,6 +169,67 @@ impl LeafRepository for SqliteLeafStore {
         })
     }
 
+    /// Single-row projection over the indexed columns — same field
+    /// sourcing as `list()`, so `load_meta(id)` and the matching entry
+    /// from `list()` agree. Overrides the trait default, which would
+    /// derive the meta from the JSON blob and return empty timestamps.
+    fn load_meta(&self, id: Uuid) -> Result<LeafMeta, PinkhaError> {
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let result = conn.query_row(
+                "SELECT title_json, cover, updated_at, created_at, shelf_id,
+                        parent_leaf_id, icon, published_at, pinned_at, manual_order
+                   FROM leaves WHERE id = ?1 AND deleted_at IS NULL",
+                params![id.to_string()],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, Option<String>>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, Option<String>>(4)?,
+                        row.get::<_, Option<String>>(5)?,
+                        row.get::<_, Option<String>>(6)?,
+                        row.get::<_, String>(7)?,
+                        row.get::<_, Option<String>>(8)?,
+                        row.get::<_, Option<i32>>(9)?,
+                    ))
+                },
+            );
+            let (
+                title_json,
+                cover,
+                updated_at,
+                created_at,
+                fid,
+                pdid,
+                icon,
+                published_at,
+                pinned_at,
+                manual_order,
+            ) = match result {
+                Ok(row) => row,
+                Err(rusqlite::Error::QueryReturnedNoRows) => {
+                    return Err(PinkhaError::NotFound(id));
+                }
+                Err(e) => return Err(PinkhaError::Db(e.to_string())),
+            };
+            Ok(LeafMeta {
+                id,
+                title: serde_json::from_str(&title_json)?,
+                cover,
+                icon,
+                updated_at,
+                created_at,
+                published_at,
+                shelf_id: fid.and_then(|s| Uuid::parse_str(&s).ok()),
+                parent_leaf_id: pdid.and_then(|s| Uuid::parse_str(&s).ok()),
+                pinned_at,
+                manual_order,
+            })
+        })
+    }
+
     fn list(&self) -> Result<Vec<LeafMeta>, PinkhaError> {
         self.list_by_shelf_inner(None, false)
     }
@@ -579,6 +640,50 @@ mod tests {
             Some(shelf_id),
             "shelf_id survives save() after move_to_shelf"
         );
+    }
+
+    /// Regression: the two ways of reading one leaf's metadata must agree.
+    /// `load_meta` used to derive from the JSON blob and returned empty
+    /// `updated_at` / `created_at`, while `list()` returned the real column
+    /// values for the same row.
+    #[test]
+    fn test_load_meta_agrees_with_list() {
+        let store = store();
+        let d = doc("Accord");
+        store.save(&d).unwrap();
+        store.set_pinned(d.id, true).unwrap();
+
+        let meta = store.load_meta(d.id).unwrap();
+        let listed = store
+            .list()
+            .unwrap()
+            .into_iter()
+            .find(|m| m.id == d.id)
+            .expect("leaf in list");
+
+        assert_eq!(meta.id, listed.id);
+        assert_eq!(meta.title, listed.title);
+        assert_eq!(meta.cover, listed.cover);
+        assert_eq!(meta.icon, listed.icon);
+        assert_eq!(meta.updated_at, listed.updated_at);
+        assert_eq!(meta.created_at, listed.created_at);
+        assert_eq!(meta.published_at, listed.published_at);
+        assert_eq!(meta.shelf_id, listed.shelf_id);
+        assert_eq!(meta.parent_leaf_id, listed.parent_leaf_id);
+        assert_eq!(meta.pinned_at, listed.pinned_at);
+        assert_eq!(meta.manual_order, listed.manual_order);
+
+        assert!(!meta.updated_at.is_empty(), "timestamps are real");
+        assert!(!meta.created_at.is_empty());
+    }
+
+    #[test]
+    fn test_load_meta_missing_leaf_is_not_found() {
+        let store = store();
+        assert!(matches!(
+            store.load_meta(Uuid::new_v4()),
+            Err(PinkhaError::NotFound(_))
+        ));
     }
 
     /// Regression: `set_pinned` writes an indexed column that also lives in

@@ -111,11 +111,16 @@ public extension LeafViewModel {
             // Initialise stable snapshots for burst undo tracking.
             blockSnapshots = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, snapshotOf($0)) })
             blockBurstAnchor.removeAll()
-            // `published_at` / `created_at` live on the meta row, not
-            // in the leaf JSON. Walk the meta list once on load
-            // to surface them so the toolbar's "Publish date" sheet
-            // can read + override them without an extra query.
-            if let meta = (try? api.listLeaves())?.first(where: { $0.id == leafId }) {
+            // `published_at` / `created_at` live on the meta row, not in the
+            // leaf JSON, so the toolbar's "Publish date" sheet needs them
+            // fetched separately.
+            //
+            // One indexed row lookup, not `listLeaves().first(where:)` —
+            // that walked the *entire* library and marshalled a
+            // `LeafMetaFfi` for every leaf across the FFI, just to read two
+            // strings. On an imported library that was thousands of structs
+            // per leaf open, delaying the push animation.
+            if let meta = try? api.getLeafMeta(id: leafId) {
                 createdAt = meta.createdAt
                 publishedAt = meta.publishedAt
             }
