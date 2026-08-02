@@ -338,8 +338,19 @@ impl SqliteLeafStore {
                      FROM leaves WHERE deleted_at IS NULL AND shelf_id = ?1
                      ORDER BY updated_at DESC"
                 } else {
+                    // "Root" is computed, not stored. A leaf reads as a root
+                    // leaf when it has no shelf *or* when its shelf is not an
+                    // active one — i.e. the shelf sits in Compost. `delete()`
+                    // on a shelf is deliberately non-destructive (it leaves
+                    // `shelf_id` intact so `restore()` can bring the whole
+                    // subtree back), so without this the leaves of a trashed
+                    // shelf would belong to an invisible parent and vanish
+                    // from every list.
                     "SELECT id, title_json, cover, updated_at, created_at, shelf_id, parent_leaf_id, icon, published_at, pinned_at, manual_order
-                     FROM leaves WHERE deleted_at IS NULL AND shelf_id IS NULL
+                     FROM leaves
+                     WHERE deleted_at IS NULL
+                       AND (shelf_id IS NULL
+                            OR shelf_id NOT IN (SELECT id FROM shelves WHERE deleted_at IS NULL))
                      ORDER BY updated_at DESC"
                 }
             } else {
@@ -567,6 +578,70 @@ mod tests {
             loaded.shelf_id,
             Some(shelf_id),
             "shelf_id survives save() after move_to_shelf"
+        );
+    }
+
+    /// Regression: `set_pinned` writes an indexed column that also lives in
+    /// the JSON blob. Same family as the `move_to_shelf` bug — if only the
+    /// column were written, the next `save()` would restore the stale blob
+    /// value and silently unpin the leaf.
+    #[test]
+    fn test_pin_survives_save_after_rename() {
+        let store = store();
+        let mut d = doc("À épingler");
+        store.save(&d).unwrap();
+        store.set_pinned(d.id, true).unwrap();
+
+        d = store.load(d.id).unwrap();
+        assert!(d.pinned_at.is_some(), "pinned_at reaches the blob");
+        d.title = vec![InlineText {
+            content: "Renommée".to_string(),
+            styles: vec![],
+        }];
+        store.save(&d).unwrap();
+
+        let loaded = store.load(d.id).unwrap();
+        assert!(
+            loaded.pinned_at.is_some(),
+            "pin survives an unrelated save()"
+        );
+        let meta = store.list().unwrap();
+        assert!(
+            meta[0].pinned_at.is_some(),
+            "column agrees with the blob after save()"
+        );
+    }
+
+    /// Regression: same contract for `set_manual_order`, the other column
+    /// mutator that mirrors into the blob.
+    #[test]
+    fn test_manual_order_survives_save_after_rename() {
+        let store = store();
+        let a = doc("A");
+        let b = doc("B");
+        store.save(&a).unwrap();
+        store.save(&b).unwrap();
+        store.set_manual_order(&[a.id, b.id]).unwrap();
+
+        let mut reloaded_b = store.load(b.id).unwrap();
+        assert_eq!(reloaded_b.manual_order, Some(1));
+        reloaded_b.title = vec![InlineText {
+            content: "B renommée".to_string(),
+            styles: vec![],
+        }];
+        store.save(&reloaded_b).unwrap();
+
+        assert_eq!(
+            store.load(b.id).unwrap().manual_order,
+            Some(1),
+            "manual_order survives an unrelated save()"
+        );
+        let meta = store.list().unwrap();
+        let b_meta = meta.iter().find(|m| m.id == b.id).unwrap();
+        assert_eq!(
+            b_meta.manual_order,
+            Some(1),
+            "column agrees with the blob after save()"
         );
     }
 

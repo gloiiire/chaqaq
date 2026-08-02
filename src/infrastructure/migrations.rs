@@ -173,17 +173,20 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
     // the leaf. Fix in code (`json_set` in `move_to_shelf`), heal here.
     // Only touches rows where the blob's `shelf_id` differs from the
     // column — no-op for consistent rows.
+    //
+    // Deliberately NOT filtered on `deleted_at IS NULL`: the reconciliation
+    // is column-authoritative and just as valid for trashed rows. Skipping
+    // them would leave a leaf that was in Compost at upgrade time still
+    // divergent, and `restore()` only clears `deleted_at` — so the first
+    // `save()` after restoring would re-trigger the very bug this heals.
     conn.execute(
         "UPDATE leaves
             SET data = json_set(data, '$.shelf_id',
                 CASE WHEN shelf_id IS NULL
                      THEN json('null')
                      ELSE shelf_id END)
-          WHERE deleted_at IS NULL
-            AND (
-                (shelf_id IS NULL AND json_extract(data, '$.shelf_id') IS NOT NULL)
-             OR (shelf_id IS NOT NULL AND json_extract(data, '$.shelf_id') IS NOT shelf_id)
-            )",
+          WHERE (shelf_id IS NULL AND json_extract(data, '$.shelf_id') IS NOT NULL)
+             OR (shelf_id IS NOT NULL AND json_extract(data, '$.shelf_id') IS NOT shelf_id)",
         [],
     )
     .map_err(|e| PinkhaError::Db(e.to_string()))?;

@@ -422,13 +422,13 @@ impl PinkhaApi {
     ) -> Result<String, PinkhaError> {
         let book_uuid = parse_uuid(&book_id)?;
         let view_uuid = parse_uuid(&view_id)?;
+        // Empty string is the "no override" sentinel, so `parse_json` can't
+        // be applied unconditionally — but everything non-empty goes through
+        // it, which is what enforces the MAX_JSON_BYTES cap at the boundary.
         let override_grouping = if override_grouping_json.is_empty() {
             None
         } else {
-            Some(
-                serde_json::from_str(&override_grouping_json)
-                    .map_err(|e| PinkhaError::InvalidOperation { detail: e.to_string() })?,
-            )
+            Some(parse_json(&override_grouping_json)?)
         };
         let nodes = book_use_cases::date_grouped_query(
             &self.uow(),
@@ -450,13 +450,12 @@ impl PinkhaApi {
     ) -> Result<(), PinkhaError> {
         let book_uuid = parse_uuid(&book_id)?;
         let view_uuid = parse_uuid(&view_id)?;
+        // Same empty-string sentinel + size-capped parse as
+        // `date_grouped_query_book_json` above.
         let grouping = if grouping_json.is_empty() {
             None
         } else {
-            Some(
-                serde_json::from_str(&grouping_json)
-                    .map_err(|e| PinkhaError::InvalidOperation { detail: e.to_string() })?,
-            )
+            Some(parse_json(&grouping_json)?)
         };
         book_use_cases::set_view_date_grouping(&self.uow(), book_uuid, view_uuid, grouping)
             .map_err(PinkhaError::from)

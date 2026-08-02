@@ -65,6 +65,9 @@ impl PinkhaApi {
         id: String,
         cover: Option<String>,
     ) -> Result<(), PinkhaError> {
+        if let Some(c) = cover.as_deref() {
+            validate_string(c, "cover")?;
+        }
         let uuid = parse_uuid(&id)?;
         use_cases::update_leaf_cover(&self.uow(), uuid, cover).map_err(PinkhaError::from)
     }
