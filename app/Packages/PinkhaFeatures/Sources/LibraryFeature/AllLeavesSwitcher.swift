@@ -58,7 +58,14 @@ public struct AllLeavesSwitcher: View {
     /// title / cover (the doc metadata is always more current than
     /// the cached VM, which only knows what it loaded last).
     private var openItems: [WorkspaceItem] {
-        let store = store.items
+        // `allItems`, not `items` — the latter is built from
+        // `listRootLeaves()`, which Rust filters to leaves with no parent
+        // *and* no shelf. A tab opened on a leaf filed in a shelf, or on a
+        // sub-page reached through a mention link, simply had no matching
+        // entry and its card vanished from the switcher. With only such
+        // tabs open the grid rendered the "no leaves" empty state while
+        // tabs were demonstrably open — and "Close all" still closed them.
+        let store = store.allItems
         return tabManager.openTabs.compactMap { tab in
             store.first { $0.id == tab.leafId }
         }
