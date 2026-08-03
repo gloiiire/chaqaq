@@ -131,6 +131,13 @@ fn read_table(data: &[u8], name: &str, table_ref: usize) -> Result<RealmTable> {
         .map(|&r| count_node_rows(data, r))
         .unwrap_or(0);
 
+    // `row_count` is read out of the file's cumulative-sizes array, so a
+    // crafted value reaches `Vec::with_capacity` unbounded — which aborts
+    // with "capacity overflow" rather than unwinding, taking the app down.
+    // No row can occupy fewer than one byte, so the file length is a hard
+    // upper bound on how many there could legitimately be.
+    let row_count = row_count.min(data.len());
+
     let mut rows = Vec::with_capacity(row_count);
     for row_idx in 0..row_count {
         let values = col_refs
@@ -252,7 +259,28 @@ fn cluster_index_for_col(col_idx: usize, col_type_ints: &[u64]) -> usize {
 /// Inner nodes: `[offsets_tracking_ref, child_0, ..., child_{N-1}]`
 /// — element 0 is always the offsets-tracking node (skip).
 /// — garbage refs (misaligned addresses) are detected and skipped.
+/// Maximum B-tree / cluster-tree depth we will descend.
+///
+/// Every ref in a Realm file is a file-controlled offset, and the existing
+/// guards (non-zero, 8-byte aligned, in-bounds) are all satisfied by a node
+/// whose child ref points back at itself. That recurses forever and
+/// overflows the stack — which, unlike a panic, **cannot** be caught:
+/// `catch_unwind` does not intercept a stack overflow, so a ~700-byte
+/// crafted `.realm` file aborted the whole app on import.
+///
+/// Real Realm trees are a handful of levels deep; 64 is far beyond anything
+/// legitimate while still terminating promptly on a cycle.
+const MAX_NODE_DEPTH: u32 = 64;
+
 fn collect_strings_new(data: &[u8], col_ref: usize) -> Vec<String> {
+    collect_strings_new_depth(data, col_ref, 0)
+}
+
+fn collect_strings_new_depth(data: &[u8], col_ref: usize, depth: u32) -> Vec<String> {
+    if depth > MAX_NODE_DEPTH {
+        return vec![];
+    }
+
     if col_ref == 0 || !col_ref.is_multiple_of(8) {
         return vec![];
     }
@@ -279,7 +307,7 @@ fn collect_strings_new(data: &[u8], col_ref: usize) -> Vec<String> {
             {
                 continue;
             }
-            result.extend(collect_strings_new(data, child_ref));
+            result.extend(collect_strings_new_depth(data, child_ref, depth + 1));
         }
         return result;
     }
@@ -404,6 +432,14 @@ fn read_wtype2_string(data: &[u8], str_ref: usize) -> Result<String> {
 /// Same inner-node layout as for strings: skip element 0 (offsets-tracking),
 /// filter garbage children by alignment.
 fn collect_ints_new(data: &[u8], col_ref: usize) -> Vec<u64> {
+    collect_ints_new_depth(data, col_ref, 0)
+}
+
+fn collect_ints_new_depth(data: &[u8], col_ref: usize, depth: u32) -> Vec<u64> {
+    if depth > MAX_NODE_DEPTH {
+        return vec![];
+    }
+
     if col_ref == 0 || !col_ref.is_multiple_of(8) {
         return vec![];
     }
@@ -429,7 +465,7 @@ fn collect_ints_new(data: &[u8], col_ref: usize) -> Vec<u64> {
             {
                 continue;
             }
-            result.extend(collect_ints_new(data, child_ref));
+            result.extend(collect_ints_new_depth(data, child_ref, depth + 1));
         }
         return result;
     }
@@ -448,6 +484,14 @@ fn collect_ints_new(data: &[u8], col_ref: usize) -> Vec<u64> {
 /// Each leaf element is either 0 (empty list) or a reference to a sub-array
 /// containing the ordered row indices.
 fn collect_linklists_new(data: &[u8], col_ref: usize) -> Vec<Vec<u32>> {
+    collect_linklists_new_depth(data, col_ref, 0)
+}
+
+fn collect_linklists_new_depth(data: &[u8], col_ref: usize, depth: u32) -> Vec<Vec<u32>> {
+    if depth > MAX_NODE_DEPTH {
+        return vec![];
+    }
+
     if col_ref == 0 || !col_ref.is_multiple_of(8) {
         return vec![];
     }
@@ -473,7 +517,7 @@ fn collect_linklists_new(data: &[u8], col_ref: usize) -> Vec<Vec<u32>> {
             {
                 continue;
             }
-            result.extend(collect_linklists_new(data, child_ref));
+            result.extend(collect_linklists_new_depth(data, child_ref, depth + 1));
         }
         return result;
     }

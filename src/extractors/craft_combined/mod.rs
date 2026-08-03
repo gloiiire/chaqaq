@@ -22,7 +22,6 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-use realm_codec::RealmFile;
 
 use crate::application::book_repository::BookRepository;
 use crate::application::shelf_repository::ShelfRepository;
@@ -104,8 +103,7 @@ impl CraftCombinedExtractor {
         let mut shelf_cache: HashMap<Vec<String>, Uuid> = HashMap::new();
 
         // ── Step 2: open realm + collect leaf IDs ─────────────────────────
-        let realm = RealmFile::open(&config.realm_path)
-            .map_err(|e| ExtractorError::Parse(format!("cannot open realm file: {e}")))?;
+        let realm = crate::extractors::open_realm_guarded(&config.realm_path)?;
 
         let leaf_ids: HashSet<String> = {
             let leaf_table = realm

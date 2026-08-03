@@ -16,6 +16,7 @@ pub mod craft_textbundle;
 pub mod notion;
 pub mod traits;
 
+use realm_codec::RealmFile;
 use crate::application::error::PinkhaError;
 use uuid::Uuid;
 
@@ -142,4 +143,23 @@ pub struct ImportResult {
     pub blocks: usize,
     /// Number of source items dropped because they had no Pinkha equivalent.
     pub skipped: usize,
+}
+
+/// Opens a `.realm` file, converting a parser panic into a normal error.
+///
+/// The file is user-supplied and plausibly attacker-authored (a shared
+/// "Craft export" arriving by AirDrop or email). The parser is hardened
+/// against the malformed shapes we know about, but this is the boundary
+/// where an unknown one must not take the app down: the import FFI methods
+/// are `[Async]`, and UniFFI's async path has **no** `catch_unwind` — an
+/// unwind escaping `extern "C"` aborts the process, so the Swift `catch`
+/// would never run.
+pub(crate) fn open_realm_guarded(path: &str) -> Result<RealmFile, ExtractorError> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| RealmFile::open(path)))
+        .map_err(|_| {
+            ExtractorError::Parse(
+                "realm file is malformed — the parser could not read it".to_string(),
+            )
+        })?
+        .map_err(|e| ExtractorError::Parse(format!("cannot open realm file: {e}")))
 }
