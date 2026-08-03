@@ -89,34 +89,50 @@ pub(crate) fn read_node_header(data: &[u8], offset: usize) -> crate::Result<Node
 
 /// Read a single element from a WTYPE_BITS array at index `i`.
 /// `width` is in bits (0, 1, 2, 4, 8, 16, 32, 64). Returns `u64`.
+///
+/// Every access is bounds-checked against `payload`: the element index and
+/// the width both come from the file being parsed, so a truncated or
+/// crafted array would otherwise index past the end and panic. A malformed
+/// file must produce garbage or an error, never abort the process — and an
+/// unwind out of the async FFI *does* abort (see `ffi/extractors.rs`).
+///
+/// Out of range yields `0`, matching the intent of the previous
+/// `unwrap_or([0; N])` — which was unreachable, since the range index
+/// panicked before `try_into` ever ran.
 pub(crate) fn read_bits_elem(payload: &[u8], i: usize, width: u8) -> u64 {
+    /// Reads `N` bytes at `off`, or zeroes when they don't all fit.
+    fn le_bytes<const N: usize>(payload: &[u8], off: usize) -> [u8; N] {
+        payload
+            .get(off..off.saturating_add(N))
+            .and_then(|s| s.try_into().ok())
+            .unwrap_or([0; N])
+    }
     match width {
         0 => 0,
-        1 => ((payload[i / 8] >> (i % 8)) & 1) as u64,
-        2 => ((payload[i / 4] >> ((i % 4) * 2)) & 0x3) as u64,
-        4 => ((payload[i / 2] >> ((i % 2) * 4)) & 0xf) as u64,
-        8 => payload[i] as u64,
-        16 => {
-            let off = i * 2;
-            u16::from_le_bytes(payload[off..off + 2].try_into().unwrap_or([0; 2])) as u64
-        }
-        32 => {
-            let off = i * 4;
-            u32::from_le_bytes(payload[off..off + 4].try_into().unwrap_or([0; 4])) as u64
-        }
-        64 => {
-            let off = i * 8;
-            u64::from_le_bytes(payload[off..off + 8].try_into().unwrap_or([0; 8]))
-        }
+        1 => payload.get(i / 8).map_or(0, |b| ((b >> (i % 8)) & 1) as u64),
+        2 => payload
+            .get(i / 4)
+            .map_or(0, |b| ((b >> ((i % 4) * 2)) & 0x3) as u64),
+        4 => payload
+            .get(i / 2)
+            .map_or(0, |b| ((b >> ((i % 2) * 4)) & 0xf) as u64),
+        8 => payload.get(i).map_or(0, |b| *b as u64),
+        16 => u16::from_le_bytes(le_bytes::<2>(payload, i.saturating_mul(2))) as u64,
+        32 => u32::from_le_bytes(le_bytes::<4>(payload, i.saturating_mul(4))) as u64,
+        64 => u64::from_le_bytes(le_bytes::<8>(payload, i.saturating_mul(8))),
         _ => 0,
     }
 }
 
 /// Return the `i`-th slot from a WTYPE_MULTIPLY array (each slot is `width` bytes).
+///
+/// Bounds-checked for the same reason as [`read_bits_elem`]: `i` and `width`
+/// are file-controlled. Returns an empty slice when the slot doesn't fit,
+/// which callers already treat as "no data".
 pub(crate) fn multiply_elem_bytes(payload: &[u8], i: usize, width: u8) -> &[u8] {
     let w = width as usize;
-    let off = i * w;
-    &payload[off..off + w]
+    let off = i.saturating_mul(w);
+    payload.get(off..off.saturating_add(w)).unwrap_or(&[])
 }
 
 /// Decode a Realm short-string slot.
