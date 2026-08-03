@@ -7,10 +7,11 @@
 # specific simulator (env-set SIM_NAME).
 #
 # Behaviour:
-#   - Picks the first booted iOS simulator. Boot one ahead of time with:
-#         xcrun simctl boot "iPhone 17 Pro"
-#     or override with SIM_NAME / SIM_UDID env var.
-#   - Falls back to "iPhone 17 Pro" (boots it) if no simulator is booted.
+#   - Targets the project's dedicated simulator, "Pinkha SIM", booting it if
+#     needed. Deliberately NOT "whichever simulator happens to be booted" —
+#     that made the target depend on unrelated work and scattered the app's
+#     data across containers. Override with SIM_NAME / SIM_UDID env var.
+#   - Falls back to any booted simulator if "Pinkha SIM" doesn't exist.
 #   - Prunes iCloud Drive conflict copies before regenerating (same logic as
 #     run-on-device.sh — repo lives in iCloud which auto-creates `* 2.swift`).
 #   - Regenerates the xcodeproj via xcodegen + patches the app icon (the two
@@ -23,7 +24,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."   # → repo root (utilities/scripts/.. = utilities, ../.. = repo)
 
 BUNDLE_ID="com.gloiiire.pinkha"
-DEFAULT_SIM="iPhone 17 Pro"
+DEFAULT_SIM="Pinkha SIM"
 
 # ── DEVELOPER_DIR sanity (same hardening as run-on-device.sh) ─────────────
 if [[ -n "${DEVELOPER_DIR:-}" && ! -d "$DEVELOPER_DIR" ]]; then
@@ -35,36 +36,54 @@ if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode-beta.app/Contents/Develo
 fi
 
 # ── Simulator discovery ──────────────────────────────────────────────────
-# Priority: explicit SIM_UDID > explicit SIM_NAME > first Booted > default.
+# Priority: explicit SIM_UDID > explicit SIM_NAME > "Pinkha SIM" > any booted.
+#
+# The project sim wins over "whatever is booted" on purpose: the app's data
+# (SQLite database, covers) lives per-simulator, so drifting between devices
+# silently starts you on an empty library and makes "my notes disappeared"
+# look like a bug in the app.
+udid_for_name() {
+    xcrun simctl list devices --json \
+        | jq -r --arg name "$1" \
+            '.devices | to_entries[] | .value[] | select(.name == $name) | .udid' \
+        | head -1
+}
+
 if [[ -n "${SIM_UDID:-}" ]]; then
     SIM_TARGET="$SIM_UDID"
 elif [[ -n "${SIM_NAME:-}" ]]; then
-    SIM_TARGET=$(xcrun simctl list devices --json \
-        | jq -r --arg name "$SIM_NAME" \
-            '.devices | to_entries[] | .value[] | select(.name == $name) | .udid' \
-        | head -1)
+    SIM_TARGET=$(udid_for_name "$SIM_NAME")
     if [[ -z "$SIM_TARGET" ]]; then
         echo "✗ Simulator named '$SIM_NAME' not found." >&2
         exit 1
     fi
 else
-    SIM_TARGET=$(xcrun simctl list devices --json \
-        | jq -r '.devices | to_entries[] | .value[] | select(.state == "Booted") | .udid' \
-        | head -1)
+    SIM_TARGET=$(udid_for_name "$DEFAULT_SIM")
+    if [[ -z "$SIM_TARGET" ]]; then
+        echo "⚠ '${DEFAULT_SIM}' not found — falling back to any booted simulator." >&2
+        SIM_TARGET=$(xcrun simctl list devices --json \
+            | jq -r '.devices | to_entries[] | .value[] | select(.state == "Booted") | .udid' \
+            | head -1)
+    fi
 fi
 
 if [[ -z "${SIM_TARGET:-}" ]]; then
-    echo "→ No booted simulator — booting '${DEFAULT_SIM}'…"
-    SIM_TARGET=$(xcrun simctl list devices --json \
-        | jq -r --arg name "$DEFAULT_SIM" \
-            '.devices | to_entries[] | .value[] | select(.name == $name) | .udid' \
-        | head -1)
-    if [[ -z "$SIM_TARGET" ]]; then
-        echo "✗ Default simulator '$DEFAULT_SIM' not found in your Xcode runtimes." >&2
-        echo "  Try: SIM_NAME='iPhone 16 Pro' $0" >&2
-        exit 1
-    fi
+    echo "✗ No simulator to target. Create one named '${DEFAULT_SIM}', or pass" >&2
+    echo "  SIM_NAME='iPhone 17 Pro' $0" >&2
+    exit 1
+fi
+
+# Boot on demand — `bootstatus -b` blocks until it is actually usable, which
+# avoids the `Unable to lookup in current state: Shutdown` (code 405) race
+# that install/launch hit on a cold start.
+SIM_STATE=$(xcrun simctl list devices --json \
+    | jq -r --arg udid "$SIM_TARGET" \
+        '.devices | to_entries[] | .value[] | select(.udid == $udid) | .state' \
+    | head -1)
+if [[ "$SIM_STATE" != "Booted" ]]; then
+    echo "→ Booting simulator…"
     xcrun simctl boot "$SIM_TARGET" 2>/dev/null || true
+    xcrun simctl bootstatus "$SIM_TARGET" -b >/dev/null 2>&1 || true
 fi
 
 # Resolve human-readable name for logs.
