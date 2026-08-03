@@ -45,9 +45,18 @@ if [ -f "$SCRIPTS_DIR/patch-app-icon.rb" ]; then
 fi
 
 # ── Simulator target ──────────────────────────────────────────────────────
-SIM_UDID="${SIM_UDID:-3B5F9D7C-EAB0-4BCF-A60C-C44380EF8DF1}"
+# Resolved by name, not by a hardcoded UDID: UDIDs are per-machine and change
+# whenever the simulator is recreated, so the literal that used to live here
+# had already stopped matching any device — the sim leg silently never ran.
+SIM_NAME="${SIM_NAME:-Pinkha SIM}"
+SIM_UDID="${SIM_UDID:-$(xcrun simctl list devices --json \
+    | jq -r --arg name "$SIM_NAME" \
+        '.devices | to_entries[] | .value[] | select(.name == $name) | .udid' \
+    | head -1)}"
 HAVE_SIM=0
-if xcrun simctl list devices booted 2>/dev/null | grep -q "$SIM_UDID"; then
+if [[ -z "$SIM_UDID" ]]; then
+    echo "⚠ No simulator named '$SIM_NAME' — skipping the simulator leg." >&2
+elif xcrun simctl list devices booted 2>/dev/null | grep -q "$SIM_UDID"; then
     HAVE_SIM=1
 elif xcrun simctl list devices 2>/dev/null | grep -q "$SIM_UDID"; then
     xcrun simctl boot "$SIM_UDID" 2>/dev/null || true
