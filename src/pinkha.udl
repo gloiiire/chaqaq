@@ -178,6 +178,9 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     string add_block(string leaf_id, string block_content_json);
 
+    [Throws=PinkhaError]
+    void insert_block_tree(string leaf_id, string block_json, string? parent_id, u32 index);
+
     /// Replaces the content of an existing block (BlockContent JSON).
     [Throws=PinkhaError]
     void update_block(string leaf_id, string block_id, string content_json);

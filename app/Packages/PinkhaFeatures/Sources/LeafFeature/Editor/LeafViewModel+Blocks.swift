@@ -79,9 +79,66 @@ public extension LeafViewModel {
         return length
     }
 
+    /// Rebuilds the real block tree from a contiguous run of flattened rows.
+    ///
+    /// `run[0]` is the subtree root and everything after it is a descendant,
+    /// ordered depth-first — which is exactly how `flattenBlocks` produced
+    /// them. Regrouping by depth reverses that flattening losslessly.
+    private static func blockTree(from run: [EditableBlock]) -> BlockFfi {
+        let root = run[0]
+        var children: [BlockFfi] = []
+        var cursor = 1
+        while cursor < run.count {
+            let childDepth = run[cursor].depth
+            var end = cursor + 1
+            while end < run.count, run[end].depth > childDepth { end += 1 }
+            children.append(blockTree(from: Array(run[cursor..<end])))
+            cursor = end
+        }
+        return BlockFfi(
+            id: root.id,
+            content: root.content.withSpans(root.spans, done: root.done),
+            children: children,
+            color: root.color,
+            backgroundColor: root.backgroundColor,
+            textDirection: root.textDirection
+        )
+    }
+
+    /// Id of the block that owns the row at `index`, or `nil` at top level.
+    /// The parent is the nearest preceding row one depth shallower.
+    private func parentId(of index: Int) -> String? {
+        let depth = blocks[index].depth
+        guard depth > 0 else { return nil }
+        var cursor = index - 1
+        while cursor >= 0 {
+            if blocks[cursor].depth == depth - 1 { return blocks[cursor].id }
+            cursor -= 1
+        }
+        return nil
+    }
+
+    /// Position of the row at `index` among its siblings.
+    private func siblingIndex(of index: Int) -> Int {
+        let depth = blocks[index].depth
+        var position = 0
+        var cursor = index - 1
+        while cursor >= 0 {
+            let d = blocks[cursor].depth
+            if d < depth { break }      // reached the parent
+            if d == depth { position += 1 }
+            cursor -= 1
+        }
+        return position
+    }
+
     func deleteBlock(id: String) {
         flushBurst(blockId: id)
         guard let index = blocks.firstIndex(where: { $0.id == id }) else { return }
+        // Capture the tree position *before* deleting — afterwards the rows
+        // are gone and the parent/sibling relationship can't be recovered.
+        let parent = parentId(of: index)
+        let sibling = siblingIndex(of: index)
         do {
             try api.deleteBlock(leafId: leafId, blockId: id)
             // Rust's `delete_from_tree` drops the block *and its whole
@@ -93,60 +150,82 @@ public extension LeafViewModel {
             let removed = Array(blocks[index...runEnd])
             blocks.removeSubrange(index...runEnd)
             for block in removed { blockSnapshots.removeValue(forKey: block.id) }
-            // Undo: reinsert the removed run at its original position.
-            // `reinsertBlock` registers the redo.
             undoMgr.registerUndo(withTarget: self) { vm in
-                vm.undoMgr.beginUndoGrouping()
-                for (offset, block) in removed.enumerated() {
-                    vm.reinsertBlock(block, at: index + offset)
-                }
-                vm.undoMgr.endUndoGrouping()
+                vm.restoreBlockRun(removed, at: index, parentId: parent, siblingIndex: sibling)
             }
         } catch { errorMessage = error.localizedDescription }
     }
 
-    /// Recreates a deleted block via the API (generates a new UUID) then reorders it
-    /// to its original position. The UUID changes across undo cycles but the content
-    /// is preserved — standard iOS undo behaviour.
-    /// Auto-focus on the restored block (cursor at end) — standard UX for undo of a deletion.
-    private func reinsertBlock(_ block: EditableBlock, at index: Int) {
+    /// Undo of a delete: puts the whole subtree back where it was, with its
+    /// ids, nesting and attributes intact, and registers the redo.
+    ///
+    /// Goes through `insert_block_tree` rather than `add_block` — the latter
+    /// appends a bare `BlockContent` at the document root, so it could not
+    /// express nesting, colour, background colour or writing direction, and
+    /// undoing the deletion of a styled indented block used to bring it back
+    /// flat and unstyled *and persist that*.
+    private func restoreBlockRun(
+        _ run: [EditableBlock],
+        at index: Int,
+        parentId parent: String?,
+        siblingIndex sibling: Int
+    ) {
+        guard !run.isEmpty else { return }
         do {
-            let content = block.content.withSpans(block.spans, done: block.done)
-            let data = try JSONEncoder().encode(content)
-            let newId = try api.addBlock(leafId: leafId,
-                                         blockContentJson: String(decoding: data, as: UTF8.self))
-            let recreated = EditableBlock(id: newId, content: content,
-                                          spans: block.spans, done: block.done)
-            let safeIndex = min(index, blocks.count)
-            blocks.insert(recreated, at: safeIndex)
-            try api.reorderBlocks(leafId: leafId, order: blocks.map(\.id))
-            blockSnapshots[newId] = snapshotOf(recreated)
+            let tree = Self.blockTree(from: run)
+            let data = try JSONEncoder().encode(tree)
+            try api.insertBlockTree(
+                leafId: leafId,
+                blockJson: String(decoding: data, as: UTF8.self),
+                parentId: parent,
+                index: UInt32(sibling)
+            )
+            let at = min(index, blocks.count)
+            blocks.insert(contentsOf: run, at: at)
+            for block in run { blockSnapshots[block.id] = snapshotOf(block) }
             autoFocusOffset = nil
-            autoFocusId = newId
-            // Redo: re-delete this block.
-            undoMgr.registerUndo(withTarget: self) { vm in vm.deleteBlock(id: newId) }
+            autoFocusId = run[0].id
+            // Redo: delete it again.
+            undoMgr.registerUndo(withTarget: self) { vm in
+                vm.deleteBlock(id: run[0].id)
+            }
         } catch { errorMessage = error.localizedDescription }
     }
+
 
     func deleteBlocks(ids: Set<String>) {
         guard !ids.isEmpty else { return }
         for id in ids { flushBurst(blockId: id) }
-        // Capture snapshots with their indices (ascending) for ordered restoration.
-        let snapshots: [(Int, EditableBlock)] = blocks.enumerated()
-            .filter { ids.contains($0.element.id) }
-            .map { ($0.offset, $0.element) }
+
+        // Only the *roots* of the selection matter. A selected block whose
+        // ancestor is also selected is already covered by that ancestor's
+        // subtree — deleting it separately would double-handle it, and
+        // restoring it separately would duplicate it.
+        var roots: [(index: Int, parent: String?, sibling: Int, run: [EditableBlock])] = []
+        for (index, block) in blocks.enumerated() where ids.contains(block.id) {
+            let covered = roots.contains { root in
+                root.run.contains { $0.id == block.id } && root.run.first?.id != block.id
+            }
+            if covered { continue }
+            let runEnd = index + descendantRunLength(at: index)
+            roots.append((
+                index: index,
+                parent: parentId(of: index),
+                sibling: siblingIndex(of: index),
+                run: Array(blocks[index...runEnd])
+            ))
+        }
 
         // Deepest first. Deleting a parent also deletes its subtree on the
         // Rust side, so a shallower id processed first makes every selected
         // descendant vanish — and the next `deleteBlock` for one of them
         // throws `NotFound`. `ids` is a Set, so the old iteration order was
         // unspecified: whether the user's delete worked was a coin flip.
-        let ordered = snapshots
-            .sorted { $0.1.depth > $1.1.depth }
-            .map(\.1.id)
+        let ordered = roots.sorted { ($0.run.first?.depth ?? 0) > ($1.run.first?.depth ?? 0) }
 
         var failure: Error?
-        for id in ordered {
+        for root in ordered {
+            guard let id = root.run.first?.id else { continue }
             do {
                 try api.deleteBlock(leafId: leafId, blockId: id)
             } catch {
@@ -160,13 +239,18 @@ public extension LeafViewModel {
         // Bailing out mid-loop used to leave the deleted rows on screen
         // while they were already gone from SQLite, so any later keystroke
         // in one of them was silently discarded.
-        let selected = Set(snapshots.map(\.1.id))
-        blocks.removeAll { selected.contains($0.id) }
-        for id in selected { blockSnapshots.removeValue(forKey: id) }
+        let removedIds = Set(roots.flatMap { $0.run.map(\.id) })
+        blocks.removeAll { removedIds.contains($0.id) }
+        for id in removedIds { blockSnapshots.removeValue(forKey: id) }
         undoMgr.registerUndo(withTarget: self) { vm in
             vm.undoMgr.beginUndoGrouping()
-            for (index, block) in snapshots {
-                vm.reinsertBlock(block, at: index)
+            // Ascending index so each restore lands before the next one's
+            // position is computed.
+            for root in roots.sorted(by: { $0.index < $1.index }) {
+                vm.restoreBlockRun(root.run,
+                                   at: root.index,
+                                   parentId: root.parent,
+                                   siblingIndex: root.sibling)
             }
             vm.undoMgr.endUndoGrouping()
         }
