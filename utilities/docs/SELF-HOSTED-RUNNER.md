@@ -113,6 +113,29 @@ xcodebuild test -project app/Pinkha.xcodeproj -scheme Pinkha \
   -destination 'id=<UDID>' -only-testing:PinkhaUITests
 ```
 
+## Connu, non résolu : 10 minutes de rab par run
+
+Les tests s'exécutent en ~2 s, mais `xcodebuild` reste ensuite bloqué exactement
+600 s avant de rendre la main :
+
+```
+IDETestOperationsObserverDebug: Failure collecting diagnostics from simulator: Timed out after 600.0
+611.167 elapsed -- Testing started completed.
+** TEST SUCCEEDED **
+```
+
+Le run est vert et les résultats sont fiables — c'est du temps perdu, pas un
+faux positif. Cela n'arrive pas en lançant la même commande depuis un terminal
+de la session graphique.
+
+Hypothèse à vérifier (doc-first, non testée) : le simulateur est démarré par
+`run-on-sim.sh` dans la session Aqua de l'utilisateur, tandis que le runner
+tourne dans sa propre session (`SessionCreate`) ; la collecte de diagnostics
+de fin de run ne joindrait pas le simulateur d'une autre session. Piste :
+laisser `xcodebuild` gérer lui-même le cycle de vie du simulateur
+(`-destination 'platform=iOS Simulator,name=Pinkha SIM'` sans boot préalable)
+plutôt que de lui passer un UDID déjà démarré ailleurs.
+
 ## Désinstallation
 
 ```bash
