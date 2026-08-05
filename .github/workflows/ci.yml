@@ -213,19 +213,17 @@ jobs:
         # Les XCUITest sont volontairement exclus : ils exigent une session
         # graphique connectée, alors que le runner tourne en LaunchAgent.
         # Ils restent lancés à la main via utilities/scripts.
+        #
+        # Pas de xcpretty. Il a fait pendre le job 10 minutes : le LaunchAgent
+        # n'expose pas de LANG, Ruby lit donc en US-ASCII, et xcpretty est mort
+        # sur le premier octet non-ASCII de la sortie de build — laissant
+        # xcodebuild écrire dans un tuyau fermé jusqu'au timeout de collecte de
+        # diagnostics du simulateur. Un embellisseur de logs ne vaut pas cette
+        # classe de panne ; la sortie brute est parfaitement lisible.
         run: |
-          set -o pipefail
-          ARGS=(test
-            -project app/Pinkha.xcodeproj
-            -scheme Pinkha
-            -destination "id=${{ steps.sim.outputs.udid }}"
-            -only-testing:PinkhaTests
-            -only-testing:PinkhaIntegrationTests)
-          # xcpretty n'est que du confort de lecture : s'il n'est pas là, on
-          # ne fait pas échouer la CI pour autant. `pipefail` garantit que le
-          # code de sortie reste celui de xcodebuild, pas celui du filtre.
-          if command -v xcpretty >/dev/null 2>&1; then
-            xcodebuild "${ARGS[@]}" | xcpretty
-          else
-            xcodebuild "${ARGS[@]}"
-          fi
+          xcodebuild test \
+            -project app/Pinkha.xcodeproj \
+            -scheme Pinkha \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -only-testing:PinkhaTests \
+            -only-testing:PinkhaIntegrationTests

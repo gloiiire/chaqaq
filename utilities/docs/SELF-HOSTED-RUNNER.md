@@ -42,7 +42,17 @@ Le runner lit un fichier `.env` à sa racine. Créer
 
 ```
 PATH=/opt/homebrew/opt/rustup/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/Users/<user>/.cargo/bin:/Users/<user>/.rbenv/shims:/usr/bin:/bin:/usr/sbin:/sbin
+LANG=en_US.UTF-8
+LC_ALL=en_US.UTF-8
 ```
+
+> **La locale n'est pas décorative.** launchd n'expose aucun `LANG`, donc Ruby
+> et Python retombent sur US-ASCII et meurent sur le premier octet non-ASCII
+> (accents dans les logs de build, emoji dans le nom de machine). C'est ce qui
+> a tué xcpretty en cours de run : le tuyau s'est fermé, `xcodebuild` a
+> continué d'écrire dedans, et le job est resté pendu 10 minutes jusqu'au
+> timeout de collecte de diagnostics du simulateur — avec pour seul indice un
+> « Timed out after 600.0 » qui ne désigne pas le coupable.
 
 puis `./svc.sh stop && ./svc.sh start` (le `.env` n'est relu qu'au démarrage).
 
