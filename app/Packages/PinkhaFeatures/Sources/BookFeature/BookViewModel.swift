@@ -189,36 +189,10 @@ public final class BookViewModel {
             })
             activeViewId = listFirst?.id ?? allViews.first?.id
         }
-        // Hydrate the date-grouping cache from the now-active view so
-        // a freshly opened book picks up the persisted config without
-        // a separate activateView call.
-        dateGrouping = allViews.first(where: { $0.id == activeViewId })?.dateGrouping
-
-        if let view = allViews.first, let s = view.sorts.first {
-            let asc = s.order == "Ascending"
-            switch s.source {
-            case "Property":
-                activeSort = ActiveSort(propertyId: s.propertyId, ascending: asc)
-                activeDateSort = nil
-                activeDateSortAscending = nil
-            case "Created":
-                activeDateSort = .created
-                activeDateSortAscending = asc
-                activeSort = nil
-            case "Published":
-                activeDateSort = .published
-                activeDateSortAscending = asc
-                activeSort = nil
-            default:
-                activeSort = nil
-                activeDateSort = nil
-                activeDateSortAscending = nil
-            }
-        } else {
-            activeSort = nil
-            activeDateSort = nil
-            activeDateSortAscending = nil
-        }
+        // Hydrate date-grouping *and* sort from the now-active view, so a
+        // freshly opened book picks up its persisted config without a
+        // separate activateView call.
+        hydrateViewConfig(from: allViews)
 
         var visible = db.properties.filter { $0.name != pagePropName }
         visible.sort {
@@ -242,8 +216,64 @@ public final class BookViewModel {
         searchQuery = ""
         collapsedGroups = []
         collapsedDateGroups = []
-        // Pick up the new view's persisted date-grouping config (if any).
-        dateGrouping = views.first(where: { $0.id == id })?.dateGrouping
+        // Adopt the target view's own config. Without this the sort stayed
+        // whatever the *previous* view had: switching from a Table sorted by
+        // Score to an unsorted List left List's header arrow lit and its rows
+        // ordered by Score, and the next `cycleSort` wrote that phantom sort
+        // onto List for real.
+        hydrateViewConfig(from: views)
+    }
+
+    /// Mirrors a sort write into the cached `views` array.
+    ///
+    /// `applySort` / `setDateSort` persist through the FFI and update
+    /// `activeSort`, but `views` is what `hydrateViewConfig` reads. Leaving
+    /// it stale meant the sort was correct until you switched views and came
+    /// back, at which point the cache reported the view as unsorted and the
+    /// sort silently vanished from the UI while still being persisted.
+    private func cacheViewSort(viewId: String, sort: SortFfi?) {
+        guard let idx = views.firstIndex(where: { $0.id == viewId }) else { return }
+        let old = views[idx]
+        views[idx] = ViewFfi(
+            id: old.id,
+            name: old.name,
+            type: old.type,
+            sorts: sort.map { [$0] } ?? [],
+            dateGrouping: old.dateGrouping
+        )
+    }
+
+    /// Loads `dateGrouping` + sort state from whichever view is active.
+    ///
+    /// Each view owns its own sort, so this is the single place that reads it
+    /// — called on load, on view switch, and after adding a view. It used to
+    /// exist only inside `load()`, and there it read `allViews.first` rather
+    /// than the active view. `applySort` had the identical bug on the write
+    /// side and was fixed; the read side was not fixed with it, so a sort
+    /// applied to any view other than the first came back wrong (or came back
+    /// as another view's) the next time the book was opened.
+    private func hydrateViewConfig(from allViews: [ViewFfi]) {
+        let view = allViews.first { $0.id == activeViewId }
+        dateGrouping = view?.dateGrouping
+
+        activeSort = nil
+        activeDateSort = nil
+        activeDateSortAscending = nil
+
+        guard let s = view?.sorts.first else { return }
+        let asc = s.order == "Ascending"
+        switch s.source {
+        case "Property":
+            activeSort = ActiveSort(propertyId: s.propertyId, ascending: asc)
+        case "Created":
+            activeDateSort = .created
+            activeDateSortAscending = asc
+        case "Published":
+            activeDateSort = .published
+            activeDateSortAscending = asc
+        default:
+            break
+        }
     }
 
     func addView(type: ViewTypeFfi) {
@@ -266,6 +296,9 @@ public final class BookViewModel {
         let view = ViewFfi(id: id, name: name, type: type)
         views.append(view)
         activeViewId = id
+        // A brand-new view has no persisted sort — it must not silently
+        // inherit the one still held in memory from the previous view.
+        hydrateViewConfig(from: views)
     }
 
     /// Builds the exact JSON shape Rust's `View` deserializer expects :
@@ -790,12 +823,24 @@ public final class BookViewModel {
         }?.id
     }
 
-    func leafId(forEntryId entryId: String) -> String? {
+    /// The leaf backing a row, read straight from the entry.
+    ///
+    /// Prefer this over `leafId(forEntryId:)` inside a `ForEach`: the loop
+    /// already holds the entry, and looking it back up by id makes rendering
+    /// quadratic — every one of N rows re-scanning all N entries. All five
+    /// book views did exactly that.
+    func leafId(for entry: EntryFfi) -> String? {
         guard let pageId = pagePropertyId,
-              let entry  = entries.first(where: { $0.id == entryId }),
               case .text(let leafId) = entry.values[pageId]
         else { return nil }
         return leafId
+    }
+
+    /// Id-based variant, for the two call sites that genuinely only have an
+    /// id. Pays one linear scan; do not use it per row.
+    func leafId(forEntryId entryId: String) -> String? {
+        guard let entry = entries.first(where: { $0.id == entryId }) else { return nil }
+        return leafId(for: entry)
     }
 
     /// Best-effort lookup of the linked leaf's icon for an entry.
@@ -806,7 +851,10 @@ public final class BookViewModel {
     /// the boundary just to read an icon.
     func iconForEntry(_ entry: EntryFfi) -> String? {
         if let cached = iconCache[entry.id] { return cached }
-        guard let leafId = leafId(forEntryId: entry.id) else {
+        // The entry is already in hand — looking it back up by id would
+        // make the first render of an N-row book O(N²) before the cache
+        // has anything in it.
+        guard let leafId = leafId(for: entry) else {
             iconCache[entry.id] = nil
             return nil
         }
@@ -848,6 +896,11 @@ public final class BookViewModel {
         activeSort = next
         activeDateSort = nil
         activeDateSortAscending = nil
+        cacheViewSort(viewId: viewId, sort: next.map {
+            SortFfi(propertyId: $0.propertyId,
+                    order: $0.ascending ? "Ascending" : "Descending",
+                    source: "Property")
+        })
         refreshSortedEntries()
     }
 
@@ -881,6 +934,11 @@ public final class BookViewModel {
         guard result != nil else { return }
         activeDateSort = kind
         activeDateSortAscending = kind != nil ? ascending : nil
+        cacheViewSort(viewId: viewId, sort: kind.map {
+            SortFfi(propertyId: "",
+                    order: ascending ? "Ascending" : "Descending",
+                    source: $0 == .created ? "Created" : "Published")
+        })
         if kind != nil {
             // Column sort and date sort are mutually exclusive on
             // the same view — clear the column-sort indicator so the

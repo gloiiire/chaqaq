@@ -1,9 +1,9 @@
 pub mod book_repository;
 pub mod book_use_cases;
 pub mod error;
-pub mod shelf_repository;
-pub mod shelf_use_cases;
 pub mod repository;
 pub mod resilience;
+pub mod shelf_repository;
+pub mod shelf_use_cases;
 pub mod unit_of_work;
 pub mod use_cases;

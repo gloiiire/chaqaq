@@ -108,12 +108,7 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
     // pre-existing rows sort exactly like before until the user
     // overrides. (Sorting on it happens Swift-side today, so there is no
     // index — add one if it ever moves into SQL.)
-    add_column_if_missing(
-        conn,
-        "leaves",
-        "published_at",
-        "TEXT NOT NULL DEFAULT ''",
-    )?;
+    add_column_if_missing(conn, "leaves", "published_at", "TEXT NOT NULL DEFAULT ''")?;
     conn.execute(
         "UPDATE leaves
             SET published_at = created_at

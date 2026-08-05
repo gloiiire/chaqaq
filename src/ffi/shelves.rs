@@ -109,10 +109,7 @@ impl PinkhaApi {
 
     /// Bulk-rewrites the manual sort index for the given shelves —
     /// first id gets `manual_order = 0`, the next 1, etc.
-    pub fn set_shelves_manual_order(
-        &self,
-        ordered_ids: Vec<String>,
-    ) -> Result<(), PinkhaError> {
+    pub fn set_shelves_manual_order(&self, ordered_ids: Vec<String>) -> Result<(), PinkhaError> {
         let uuids = crate::ffi::validation::parse_uuids(ordered_ids)?;
         shelf_use_cases::set_shelves_manual_order(&self.uow(), &uuids).map_err(PinkhaError::from)
     }

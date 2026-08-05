@@ -290,7 +290,7 @@ mod tests {
     use crate::application::repository::LeafRepository;
     use crate::application::unit_of_work::test_support::MockUnitOfWork;
     use crate::domain::book::{Book, Property, PropertyType};
-    use crate::domain::leaf::{Leaf, InlineText};
+    use crate::domain::leaf::{InlineText, Leaf};
 
     use std::collections::HashMap;
 

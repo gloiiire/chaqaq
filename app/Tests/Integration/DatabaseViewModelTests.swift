@@ -87,6 +87,93 @@ struct BookViewModelTests {
         #expect(vm.leafId(forEntryId: entryId) == leafId)
     }
 
+    // ── Per-view sort config ──────────────────────────────────────────────
+    //
+    // Each view owns its own sort. `applySort` already writes to the active
+    // view (a fix whose comment is still in the file); reading it back had
+    // the same bug and did not get fixed with it.
+
+    @Test func aViewsSortSurvivesReopeningTheBook() throws {
+        let (vm, url) = try makeVM(); defer { cleanup(url) }
+        vm.load()
+        vm.addProperty(name: "Score", type: .number)
+        vm.addView(type: .table)
+        let tableId = vm.activeViewId!
+        let scoreId = vm.properties.first { $0.name == "Score" }!.id
+
+        vm.cycleSort(propertyId: scoreId)   // ascending
+        vm.cycleSort(propertyId: scoreId)   // descending
+        #expect(vm.activeSort?.propertyId == scoreId)
+        #expect(vm.activeSort?.ascending == false)
+
+        // Reopen: a fresh VM over the same database, Table still active.
+        let fresh = BookViewModel(bookId: vm.bookId, api: vm.api)
+        fresh.activeViewId = tableId
+        fresh.load()
+        #expect(fresh.activeViewId == tableId)
+        #expect(fresh.activeSort?.propertyId == scoreId,
+                "sort hydrated from the wrong view")
+        #expect(fresh.activeSort?.ascending == false)
+    }
+
+    @Test func switchingViewsAdoptsTheTargetViewsSort() throws {
+        let (vm, url) = try makeVM(); defer { cleanup(url) }
+        vm.load()
+        vm.addProperty(name: "Score", type: .number)
+        let scoreId = vm.properties.first { $0.name == "Score" }!.id
+        let listId = vm.activeViewId!
+
+        vm.addView(type: .table)
+        vm.cycleSort(propertyId: scoreId)
+        #expect(vm.activeSort?.propertyId == scoreId)
+
+        // Back to List, which was never sorted — it must not inherit
+        // Table's sort just because the VM still holds it in memory.
+        vm.activateView(id: listId)
+        #expect(vm.activeSort == nil, "List inherited Table's sort")
+
+        // …and returning to Table must bring its sort back.
+        vm.activateView(id: vm.views.first { $0.id != listId }!.id)
+        #expect(vm.activeSort?.propertyId == scoreId)
+    }
+
+    @Test func aBrandNewViewStartsUnsorted() throws {
+        let (vm, url) = try makeVM(); defer { cleanup(url) }
+        vm.load()
+        vm.addProperty(name: "Score", type: .number)
+        let scoreId = vm.properties.first { $0.name == "Score" }!.id
+        vm.cycleSort(propertyId: scoreId)
+
+        vm.addView(type: .gallery)
+        #expect(vm.activeSort == nil,
+                "a new view inherited the previous view's in-memory sort")
+    }
+
+    @Test func theTwoLeafIdLookupsAgree() throws {
+        // The entry-based overload exists so views stop re-scanning all N
+        // entries per row. It must answer identically to the id-based one,
+        // otherwise the fast path silently changes behaviour.
+        let (vm, url) = try makeVM(); defer { cleanup(url) }
+        vm.load()
+        vm.addEntry()
+        vm.addEntry()
+        for entry in vm.entries {
+            #expect(vm.leafId(for: entry) == vm.leafId(forEntryId: entry.id))
+            #expect(vm.leafId(for: entry) != nil)
+        }
+    }
+
+    @Test func leafIdIsNilForAnEntryWithNoBackingLeaf() throws {
+        let (vm, url) = try makeVM(); defer { cleanup(url) }
+        vm.load()
+        vm.addEntry()
+        // An entry whose page-link cell was never filled — the tabular-row
+        // case — must report no leaf rather than an empty string.
+        var orphan = vm.entries[0]
+        orphan.values.removeAll()
+        #expect(vm.leafId(for: orphan) == nil)
+    }
+
     @Test func deleteEntryAlsoDeletesLeaf() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()

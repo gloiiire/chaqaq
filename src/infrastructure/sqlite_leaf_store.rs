@@ -1,7 +1,7 @@
 use crate::application::error::PinkhaError;
 use crate::application::repository::LeafRepository;
 use crate::application::resilience::retry_with_backoff;
-use crate::domain::leaf::{Leaf, LeafMeta, InlineText};
+use crate::domain::leaf::{InlineText, Leaf, LeafMeta};
 use crate::infrastructure::migrations::apply_leaf_migrations;
 use rusqlite::{Connection, params};
 use std::sync::Mutex;
@@ -602,12 +602,10 @@ mod tests {
     fn test_list_meta_sans_deserialiser_les_blocs() {
         let store = store();
         let mut d = doc("Titre riche");
-        d.add_block(crate::domain::leaf::BlockContent::Text(vec![
-            InlineText {
-                content: "content".to_string(),
-                styles: vec![],
-            },
-        ]));
+        d.add_block(crate::domain::leaf::BlockContent::Text(vec![InlineText {
+            content: "content".to_string(),
+            styles: vec![],
+        }]));
         store.save(&d).unwrap();
         let metas = store.list().unwrap();
         assert_eq!(metas[0].title[0].content, "Titre riche");

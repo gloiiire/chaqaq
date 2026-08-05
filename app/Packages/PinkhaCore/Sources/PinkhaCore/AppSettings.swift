@@ -194,6 +194,7 @@ public final class AppSettings {
     /// pass and we can't inject `AppSettings` into a plain
     /// `UIApplicationDelegate`.
     public static let rotationLockKey    = "pinkha.settings.rotationLocked"
+    private let linkPreviewsKey          = "pinkha.settings.linkPreviewsEnabled"
 
     /// When on, the text-input caret + selection highlight use the
     /// chosen accent color. Off by default (white, à la Notion) so
@@ -237,6 +238,21 @@ public final class AppSettings {
     public var hapticsEnabled: Bool {
         didSet {
             UserDefaults.standard.set(hapticsEnabled, forKey: AppSettings.hapticsKey)
+        }
+    }
+
+    /// Whether Embed blocks fetch a preview (OpenGraph title, image,
+    /// favicon) when a leaf is rendered.
+    ///
+    /// Default on — the card is the point of the block. Off makes leaf
+    /// rendering fully offline: an embed then shows its host and
+    /// nothing else. That matters because the fetch is *automatic* —
+    /// scrolling past a link is enough to tell its server that this
+    /// device opened the note containing it, which is not something
+    /// every user wants a private notes app doing on their behalf.
+    public var linkPreviewsEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(linkPreviewsEnabled, forKey: linkPreviewsKey)
         }
     }
 
@@ -400,6 +416,13 @@ public final class AppSettings {
         } else {
             self.hapticsEnabled = true
         }
+        // Default ON — same "absent key means default, not false"
+        // guard, since `bool(forKey:)` cannot distinguish the two.
+        if UserDefaults.standard.object(forKey: linkPreviewsKey) != nil {
+            self.linkPreviewsEnabled = UserDefaults.standard.bool(forKey: linkPreviewsKey)
+        } else {
+            self.linkPreviewsEnabled = true
+        }
         // Default OFF — preserves the existing landscape behaviour
         // for users who haven't touched the toggle yet.
         self.rotationLocked = UserDefaults.standard.bool(forKey: AppSettings.rotationLockKey)
@@ -432,6 +455,7 @@ public final class AppSettings {
         appearance                = .system
         theme                     = .original
         hapticsEnabled            = true
+        linkPreviewsEnabled       = true
         rotationLocked            = false
         readerLongPressEnabled    = true
         readerLongPressFingerCount = 2

@@ -12,8 +12,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::application::book_repository::BookRepository;
-use crate::application::shelf_repository::ShelfRepository;
 use crate::application::repository::LeafRepository;
+use crate::application::shelf_repository::ShelfRepository;
 use crate::extractors::bear::mapper::parse_note_blocks;
 use crate::extractors::craft::flush_leaf;
 use crate::extractors::traits::Extractor;

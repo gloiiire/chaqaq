@@ -10,18 +10,19 @@
 //! - [`extractors`] — Notion / Bear / Craft import endpoints
 
 mod books;
-mod leaves;
 mod error;
 mod extractors;
+mod leaves;
+mod library;
 mod shelves;
 mod types;
 mod validation;
-mod library;
 
 pub use error::PinkhaError;
 pub use types::{
-    BlockSearchHitFfi, BookMetaFfi, LeafMetaFfi, ShelfMetaFfi, ImportResultFfi,
-    NotionDatabaseSummaryFfi, NotionPageSummaryFfi, SuperSearchResultsFfi,
+    BlockSearchHitFfi, BookMetaFfi, BulkOutcomeFfi, ImportResultFfi, LeafMetaFfi,
+    LibrarySnapshotFfi, NotionDatabaseSummaryFfi, NotionPageSummaryFfi, ShelfMetaFfi,
+    SuperSearchResultsFfi,
 };
 
 use uuid::Uuid;
@@ -61,7 +62,10 @@ impl PinkhaApi {
     /// here is the lifetime of `self`.
     pub fn new(db_path: String) -> Result<Self, PinkhaError> {
         let resolved = if db_path == ":memory:" {
-            format!("file:pinkha-mem-{}?mode=memory&cache=shared", Uuid::new_v4())
+            format!(
+                "file:pinkha-mem-{}?mode=memory&cache=shared",
+                Uuid::new_v4()
+            )
         } else {
             db_path
         };

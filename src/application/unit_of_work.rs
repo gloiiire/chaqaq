@@ -1,7 +1,7 @@
 use crate::application::book_repository::BookRepository;
 use crate::application::error::PinkhaError;
-use crate::application::shelf_repository::ShelfRepository;
 use crate::application::repository::LeafRepository;
+use crate::application::shelf_repository::ShelfRepository;
 
 /// Groups the three repositories under a single unit of work boundary.
 ///

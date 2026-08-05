@@ -217,9 +217,7 @@ fn move_shelf_to_root() {
 #[test]
 fn move_missing_shelf_fails() {
     let s = store();
-    let err = s
-        .move_shelf(Uuid::new_v4(), None)
-        .expect_err("should fail");
+    let err = s.move_shelf(Uuid::new_v4(), None).expect_err("should fail");
     assert!(matches!(
         err,
         pinkha::application::error::PinkhaError::NotFound(_)

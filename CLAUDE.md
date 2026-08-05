@@ -241,6 +241,8 @@ Re-exporte `InlineStyle` et `InlineText` depuis chaqaq. Définit les types pinkh
 - `Leaf { id, cover, icon, title: Vec<InlineText>, blocks: Vec<Block>, shelf_id, parent_leaf_id, locked, created_at, accent_color, text_direction, theme, published_at, pinned_at, manual_order }` — **15 champs**
 - `LeafMeta { id, cover, icon, title, updated_at, created_at, published_at, shelf_id, parent_leaf_id, pinned_at, manual_order }` — vue légère sans blocks pour `list()`, construite **depuis les colonnes SQLite** (pas depuis le blob JSON)
 
+> ⚠️ **Root-ness a deux orthographes, et elles doivent rester d'accord.** Une leaf est « à la racine » quand elle n'a pas de parent *et* pas d'étagère **active**. `ShelfRepository::delete` est volontairement non destructif (il laisse `leaf.shelf_id` intact pour que `restore` ramène le sous-arbre), donc tester `shelf_id.is_none()` classe les leaves d'une étagère compostée sous un conteneur invisible — elles disparaissent de la Library sans avoir été supprimées. Le prédicat SQL de `list_by_shelf(None)` fait autorité ; `list_root_leaves` s'appuie dessus. Un test (`the_two_root_listings_agree`) verrouille l'équivalence. Ce bug a shippé une fois.
+
 > ⚠️ Les champs dénormalisés (`shelf_id`, `parent_leaf_id`, `icon`, `pinned_at`, `manual_order`, `published_at`, `cover`, `title`) existent **à la fois** dans la colonne SQLite indexée et dans le blob JSON `data`. Tout mutateur qui n'écrit que la colonne sera écrasé au prochain `save()` (qui sérialise depuis le blob). Utiliser `json_set(data, '$.champ', …)` dans le même `UPDATE` — cf. `move_to_shelf`, `set_pinned`, `set_manual_order`. Cette classe de bug a déjà shippé deux fois.
 
 ### `domain/parser.rs` / `rich_text.rs` / `editor.rs` / `commands.rs`
@@ -286,8 +288,10 @@ Moteur type Notion (défini dans pinkha, pas dans chaqaq) :
 - `evaluate_rollups(db, entries)` — calcul des colonnes Rollup (non persisté)
 
 ### Use cases Rust-first (la donnée ne se traite jamais en Swift)
+- `library_snapshot()` — root leaves + all leaves + books + shelves en **un** crossing (`ffi/library.rs`). Remplace les 4 appels de `PinkhaStore.load()`, qui tourne après chaque mutation depuis ~20 sites. Au-delà du coût : 4 lectures séparées peuvent observer 4 états différents de la base si une écriture s'intercale. Root-ness délègue à `list_root_leaves` — surtout ne pas en écrire une 2ᵉ définition.
 - `super_search(query)` — toutes les surfaces de recherche en un appel, dédup titre/contenu côté Rust (`use_cases/search.rs`)
 - `empty_trash()` — purge bulk docs + books + shelves (`use_cases/trash.rs`)
+- `delete_items` / `restore_items` / `purge_items(leaf_ids, book_ids, shelf_ids)` — sélection mixte en **un** appel, retourne `BulkOutcomeFfi { affected, skipped }` (`use_cases/trash.rs`). Les ids déjà disparus sont `skipped`, pas une erreur : une sélection est un snapshot pris avant la confirmation, elle peut légitimement périmer. Remplace les boucles Swift qui payaient 1 crossing FFI + 1 `load()` complet **par item**.
 - `list_child_shelves(parent_id)` — filtrage parent/enfant côté Rust (`shelf_use_cases.rs`)
 - `create_leaf_in_book(book_id, title, values)` — crée le doc, remplit la colonne `PAGE_LINK_PROPERTY` (`__pinkha_page__`) et la colonne Title, lie l'entry au doc (`book_leaf_sync.rs`)
 - `get_leaf_meta(id)` — méta légère sans l'arbre de blocs (icône/cover/titre)
@@ -468,6 +472,9 @@ Tous deux exposent `published_at: String` user-éditable, distinct de `created_a
 
 ### Cascade delete / restore des books
 `delete_book_cascade` / `restore_book_cascade` (book_leaf_sync, FFI homonymes) : la suppression/restauration d'une DB embarque les leaves liés (`Entry.leaf_id`), docs déjà traités skippés (`NotFound`). UI : `BookCascadeDialogs.swift` — confirmationDialogs partagés (« & its pages » / « only ») branchés sur BooksHome, NotesHome (swipe) et Trash. Les chemins bulk-selection restent DB-only.
+
+### Sort par vue (Book) — un seul point d'hydratation
+Chaque `View` possède son propre tri. `BookViewModel.hydrateViewConfig(from:)` est **le** seul endroit qui lit `view.sorts` + `dateGrouping` ; il est appelé depuis `load()`, `activateView()` et `addView()`. Trois bugs ont vécu là : lecture depuis `allViews.first` au lieu de la vue active, absence de re-hydratation au changement de vue, et héritage du tri en mémoire par une vue neuve. Un quatrième dessous : `applySort`/`setDateSort` persistaient via FFI sans rafraîchir le cache `views` que l'hydratation relit — le tri disparaissait de l'UI en changeant de vue tout en restant sur disque. `cacheViewSort` miroite l'écriture. Trois tests d'intégration verrouillent reopen / switch-and-return / vue neuve.
 
 ### Lock book — 3 niveaux
 Le header locké rend du `Text` statique (pas un TextField `.disabled` — bypassable sur device iOS 26 avec `axis: .vertical`) ; le VM ignore le commit-au-blur ; `update_book_title`/`update_book_description` refusent en `InvalidOperation` côté Rust.

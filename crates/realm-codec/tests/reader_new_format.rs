@@ -820,7 +820,9 @@ fn garbage_bytes_never_panic() {
     for case in 0..256u32 {
         let mut bytes = vec![0u8; 512];
         for b in bytes.iter_mut() {
-            state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             *b = (state >> 33) as u8;
         }
         // Keep the size field small enough that we exercise parsing rather

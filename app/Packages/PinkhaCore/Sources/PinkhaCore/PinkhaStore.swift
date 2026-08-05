@@ -80,18 +80,20 @@ public final class PinkhaStore {
     /// and `allLeaves` (every leaf regardless of filing — drives the
     /// Recent strip and the Pinned section), in addition to books.
     public func load() {
-        if let docs = tryCatch(into: &errorMessage, { try api?.listRootLeaves() ?? [] }) {
-            leaves = docs
-        }
-        if let everyDoc = tryCatch(into: &errorMessage, { try api?.listLeaves() ?? [] }) {
-            allLeaves = everyDoc
-        }
-        if let dbs = tryCatch(into: &errorMessage, { try api?.listBooks() ?? [] }) {
-            books = dbs
-        }
-        if let shvs = tryCatch(into: &errorMessage, { try api?.listShelves() ?? [] }) {
-            shelves = shvs
-        }
+        // One FFI crossing for all four lists, not four.
+        //
+        // Beyond the cost — `load()` runs after every mutation, from about
+        // twenty call sites — four separate reads could observe four
+        // different states of the database if a write landed between them,
+        // yielding a shelf list that disagreed with the leaves said to be
+        // filed in it.
+        guard let snapshot = tryCatch(into: &errorMessage, { try api?.librarySnapshot() }),
+              let snapshot
+        else { return }
+        leaves    = snapshot.rootLeaves
+        allLeaves = snapshot.allLeaves
+        books     = snapshot.books
+        shelves   = snapshot.shelves
     }
 
     /// Same shape as `items` but built from `allLeaves` instead of just
@@ -211,6 +213,45 @@ public final class PinkhaStore {
         if tryCatch(into: &errorMessage, { try api?.deleteLeaf(id: id) }) != nil {
             load()
         }
+    }
+
+    /// Soft-deletes a mixed selection — the "Delete (N)" bulk action.
+    ///
+    /// One FFI call and one `load()`, not N of each: the previous loop in
+    /// Swift reloaded the whole library after every single item, so a
+    /// hundred-item selection paid a hundred full library reads and a
+    /// hundred `@Observable` mutation storms for one user gesture.
+    ///
+    /// Returns how many items were actually removed. Ids that had already
+    /// disappeared (a cascade from a book, another device) are skipped by
+    /// Rust rather than failing the batch.
+    @discardableResult
+    public func deleteItems(leafIds: [String], bookIds: [String], shelfIds: [String] = []) -> Int {
+        let n = tryCatch(into: &errorMessage) {
+            try api?.deleteItems(leafIds: leafIds, bookIds: bookIds, shelfIds: shelfIds).affected ?? 0
+        } ?? 0
+        load()
+        return Int(n)
+    }
+
+    /// Restores a mixed selection out of Compost. See `deleteItems`.
+    @discardableResult
+    public func restoreItems(leafIds: [String], bookIds: [String], shelfIds: [String] = []) -> Int {
+        let n = tryCatch(into: &errorMessage) {
+            try api?.restoreItems(leafIds: leafIds, bookIds: bookIds, shelfIds: shelfIds).affected ?? 0
+        } ?? 0
+        load()
+        return Int(n)
+    }
+
+    /// Permanently removes a mixed selection. See `deleteItems`.
+    @discardableResult
+    public func purgeItems(leafIds: [String], bookIds: [String], shelfIds: [String] = []) -> Int {
+        let n = tryCatch(into: &errorMessage) {
+            try api?.purgeItems(leafIds: leafIds, bookIds: bookIds, shelfIds: shelfIds).affected ?? 0
+        } ?? 0
+        load()
+        return Int(n)
     }
 
     /// Soft-deletes all leaves and reloads.

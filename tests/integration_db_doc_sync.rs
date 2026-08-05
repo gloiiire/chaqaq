@@ -4,12 +4,8 @@
 //! provided the row was created with `add_entry_with_leaf` (i.e. the
 //! Notion / Craft import path, or any future "row IS a page" semantics).
 
-use pinkha::application::book_use_cases::{
-    add_entry, add_entry_with_leaf, create_book, get_book,
-};
-use pinkha::application::use_cases::{
-    create_leaf, get_leaf, update_entry_propagating_title,
-};
+use pinkha::application::book_use_cases::{add_entry, add_entry_with_leaf, create_book, get_book};
+use pinkha::application::use_cases::{create_leaf, get_leaf, update_entry_propagating_title};
 use pinkha::domain::book::{Property, PropertyType, PropertyValue};
 use pinkha::domain::leaf::InlineText;
 use pinkha::infrastructure::book_store::BookStore;

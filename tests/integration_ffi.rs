@@ -33,8 +33,7 @@ fn new_on_disk_persists_across_reopens() {
     let path = rand_path();
     let id = {
         let api = PinkhaApi::new(path.clone()).expect("open");
-        api.create_leaf("Persisted".to_string())
-            .expect("create")
+        api.create_leaf("Persisted".to_string()).expect("create")
     };
     let api2 = PinkhaApi::new(path.clone()).expect("reopen");
     let json = api2.get_leaf_json(id).expect("get");
@@ -130,8 +129,7 @@ fn update_leaf_cover_set_and_clear() {
         .expect("set cover");
     let json = a.get_leaf_json(id.clone()).unwrap();
     assert!(json.contains("🌸"));
-    a.update_leaf_cover(id.clone(), None)
-        .expect("clear cover");
+    a.update_leaf_cover(id.clone(), None).expect("clear cover");
 }
 
 #[test]
@@ -846,21 +844,14 @@ fn update_leaf_parent_then_list_root_and_children() {
     // Promoting the child back to root removes it from the parent's children.
     a.update_leaf_parent(child.clone(), None).unwrap();
     assert!(a.list_child_leaves(parent).unwrap().is_empty());
-    assert!(
-        a.list_root_leaves()
-            .unwrap()
-            .iter()
-            .any(|d| d.id == child)
-    );
+    assert!(a.list_root_leaves().unwrap().iter().any(|d| d.id == child));
 }
 
 #[test]
 fn update_leaf_parent_rejects_self() {
     let a = api();
     let doc = a.create_leaf("Doc".to_string()).unwrap();
-    let err = a
-        .update_leaf_parent(doc.clone(), Some(doc))
-        .unwrap_err();
+    let err = a.update_leaf_parent(doc.clone(), Some(doc)).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
@@ -1190,11 +1181,7 @@ fn update_leaf_locked_roundtrip() {
             .contains("\"locked\":true")
     );
     a.update_leaf_locked(id.clone(), false).unwrap();
-    assert!(
-        a.get_leaf_json(id)
-            .unwrap()
-            .contains("\"locked\":false")
-    );
+    assert!(a.get_leaf_json(id).unwrap().contains("\"locked\":false"));
 }
 
 #[test]
@@ -1238,9 +1225,7 @@ fn update_leaf_published_at_overrides_and_resets() {
 fn update_leaf_published_at_rejects_oversized_value() {
     let a = api();
     let id = a.create_leaf("Doc".to_string()).unwrap();
-    let err = a
-        .update_leaf_published_at(id, "x".repeat(65))
-        .unwrap_err();
+    let err = a.update_leaf_published_at(id, "x".repeat(65)).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
@@ -1282,11 +1267,7 @@ fn update_book_locked_roundtrip() {
             .contains("\"locked\":true")
     );
     a.update_book_locked(db.clone(), false).unwrap();
-    assert!(
-        a.get_book_json(db)
-            .unwrap()
-            .contains("\"locked\":false")
-    );
+    assert!(a.get_book_json(db).unwrap().contains("\"locked\":false"));
 }
 
 #[test]
@@ -1706,9 +1687,7 @@ fn make_publish_source_fixture(a: &PinkhaApi, date: &str) -> (String, String, St
 }
 
 fn leaf_published_at(a: &PinkhaApi, leaf_id: &str) -> String {
-    a.get_leaf_meta(leaf_id.to_string())
-        .unwrap()
-        .published_at
+    a.get_leaf_meta(leaf_id.to_string()).unwrap().published_at
 }
 
 #[test]
@@ -2041,4 +2020,248 @@ fn set_view_date_grouping_with_invalid_uuid_fails() {
         )
         .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
+}
+
+// ── Root visibility when a shelf is discarded ───────────────────────────────
+//
+// `ShelfRepository::delete` is deliberately non-destructive: it soft-deletes
+// the shelf and leaves every `leaf.shelf_id` pointing at it, so restoring the
+// shelf brings the whole subtree back. That makes "is this leaf at the root?"
+// a question about the *shelf's* state, not just about `shelf_id` being null.
+
+#[test]
+fn discarding_a_shelf_returns_its_leaves_to_the_library_root() {
+    let api = api();
+    let shelf = api.create_shelf("Work".into(), None).expect("shelf");
+    let leaf = api.create_leaf("Filed away".into()).expect("leaf");
+    api.move_leaf_to_shelf(leaf.clone(), Some(shelf.id.clone()))
+        .expect("file");
+
+    // Filed: gone from the root listing, which is the whole point of shelves.
+    let roots = api.list_root_leaves().expect("roots");
+    assert!(
+        !roots.iter().any(|m| m.id == leaf),
+        "filed leaf still at root"
+    );
+
+    api.delete_shelf(shelf.id.clone()).expect("discard shelf");
+
+    // The shelf is in Compost, but the leaf was never discarded. It must
+    // reappear at the root — otherwise it belongs to a container the user
+    // cannot open and is invisible everywhere, which reads as data loss.
+    let roots = api.list_root_leaves().expect("roots after discard");
+    assert!(
+        roots.iter().any(|m| m.id == leaf),
+        "leaf vanished from the library when its shelf was discarded"
+    );
+}
+
+#[test]
+fn restoring_a_shelf_takes_its_leaves_back_out_of_the_root() {
+    let api = api();
+    let shelf = api.create_shelf("Work".into(), None).expect("shelf");
+    let leaf = api.create_leaf("Filed away".into()).expect("leaf");
+    api.move_leaf_to_shelf(leaf.clone(), Some(shelf.id.clone()))
+        .expect("file");
+    api.delete_shelf(shelf.id.clone()).expect("discard");
+    api.restore_shelf(shelf.id.clone()).expect("restore");
+
+    let roots = api.list_root_leaves().expect("roots");
+    assert!(
+        !roots.iter().any(|m| m.id == leaf),
+        "restored shelf did not reclaim its leaf"
+    );
+    let in_shelf = api.list_leaves_in_shelf(Some(shelf.id)).expect("in shelf");
+    assert!(in_shelf.iter().any(|m| m.id == leaf));
+}
+
+#[test]
+fn the_two_root_listings_agree() {
+    // `list_root_leaves` and `list_leaves_in_shelf(None)` are two spellings
+    // of the same question and drifted apart once: one filtered on
+    // `shelf_id.is_none()` in Rust while the other used the SQL predicate
+    // that treats a trashed shelf as no shelf.
+    let api = api();
+    let shelf = api.create_shelf("S".into(), None).expect("shelf");
+    let filed = api.create_leaf("Filed".into()).expect("leaf");
+    let loose = api.create_leaf("Loose".into()).expect("leaf");
+    api.move_leaf_to_shelf(filed.clone(), Some(shelf.id.clone()))
+        .expect("file");
+    api.delete_shelf(shelf.id).expect("discard");
+
+    let mut a: Vec<String> = api
+        .list_root_leaves()
+        .expect("roots")
+        .into_iter()
+        .map(|m| m.id)
+        .collect();
+    let mut b: Vec<String> = api
+        .list_leaves_in_shelf(None)
+        .expect("shelfless")
+        .into_iter()
+        .map(|m| m.id)
+        .collect();
+    a.sort();
+    b.sort();
+    assert_eq!(a, b);
+    assert!(a.contains(&filed) && a.contains(&loose));
+}
+
+// ── Bulk lifecycle ──────────────────────────────────────────────────────────
+
+#[test]
+fn delete_items_handles_a_mixed_selection_in_one_call() {
+    let api = api();
+    let l1 = api.create_leaf("A".into()).expect("leaf");
+    let l2 = api.create_leaf("B".into()).expect("leaf");
+    let book = api.create_book("Book".into()).expect("book");
+    let shelf = api.create_shelf("Shelf".into(), None).expect("shelf");
+
+    let out = api
+        .delete_items(
+            vec![l1.clone(), l2.clone()],
+            vec![book.clone()],
+            vec![shelf.id.clone()],
+        )
+        .expect("bulk delete");
+    assert_eq!(out.affected, 4);
+    assert_eq!(out.skipped, 0);
+
+    assert!(api.list_leaves().expect("leaves").is_empty());
+    assert!(api.list_books().expect("books").is_empty());
+    assert!(api.list_shelves().expect("shelves").is_empty());
+}
+
+#[test]
+fn a_stale_id_is_skipped_rather_than_failing_the_batch() {
+    // A selection is captured before the confirmation dialog, so by the time
+    // the user taps Delete an id can legitimately be gone — a cascade from a
+    // book, another device. Ninety-nine valid ids must not be stranded by one.
+    let api = api();
+    let alive = api.create_leaf("Alive".into()).expect("leaf");
+    let ghost = uuid::Uuid::new_v4().to_string();
+
+    let out = api
+        .delete_items(vec![ghost, alive.clone()], vec![], vec![])
+        .expect("bulk delete tolerates missing ids");
+    assert_eq!(out.affected, 1);
+    assert_eq!(out.skipped, 1);
+    assert!(api.list_leaves().expect("leaves").is_empty());
+}
+
+#[test]
+fn a_malformed_id_is_rejected_before_anything_is_touched() {
+    let api = api();
+    let leaf = api.create_leaf("Keep me".into()).expect("leaf");
+    let err = api
+        .delete_items(vec![leaf.clone(), "not-a-uuid".into()], vec![], vec![])
+        .expect_err("malformed uuid must be rejected");
+    assert!(
+        matches!(err, PinkhaError::InvalidOperation { .. }),
+        "{err:?}"
+    );
+    // Validation happens up front, so the valid id in the same batch survives.
+    assert_eq!(api.list_leaves().expect("leaves").len(), 1);
+}
+
+#[test]
+fn restore_items_brings_a_mixed_selection_back() {
+    let api = api();
+    let leaf = api.create_leaf("A".into()).expect("leaf");
+    let book = api.create_book("B".into()).expect("book");
+    let shelf = api.create_shelf("S".into(), None).expect("shelf");
+    api.delete_items(
+        vec![leaf.clone()],
+        vec![book.clone()],
+        vec![shelf.id.clone()],
+    )
+    .expect("delete");
+
+    let out = api
+        .restore_items(vec![leaf], vec![book], vec![shelf.id])
+        .expect("restore");
+    assert_eq!(out.affected, 3);
+    assert_eq!(api.list_leaves().expect("leaves").len(), 1);
+    assert_eq!(api.list_books().expect("books").len(), 1);
+    assert_eq!(api.list_shelves().expect("shelves").len(), 1);
+}
+
+#[test]
+fn purge_items_removes_a_mixed_selection_for_good() {
+    let api = api();
+    let leaf = api.create_leaf("A".into()).expect("leaf");
+    let book = api.create_book("B".into()).expect("book");
+    api.delete_items(vec![leaf.clone()], vec![book.clone()], vec![])
+        .expect("delete");
+
+    let out = api
+        .purge_items(vec![leaf.clone()], vec![book], vec![])
+        .expect("purge");
+    assert_eq!(out.affected, 2);
+    // Purged, not merely trashed — restoring must find nothing.
+    let out = api
+        .restore_items(vec![leaf], vec![], vec![])
+        .expect("restore");
+    assert_eq!(out.affected, 0);
+    assert_eq!(out.skipped, 1);
+}
+
+#[test]
+fn empty_id_lists_are_a_no_op_not_an_error() {
+    let api = api();
+    let _ = api.create_leaf("Untouched".into()).expect("leaf");
+    let out = api.delete_items(vec![], vec![], vec![]).expect("no-op");
+    assert_eq!(out.affected, 0);
+    assert_eq!(api.list_leaves().expect("leaves").len(), 1);
+}
+
+// ── Library snapshot ────────────────────────────────────────────────────────
+
+#[test]
+fn library_snapshot_agrees_with_the_four_separate_listings() {
+    // The snapshot exists to replace four FFI calls with one. If it ever
+    // disagrees with them, it has grown its own definition of the library —
+    // which is how `list_root_leaves` drifted from the SQL root predicate.
+    let api = api();
+    let shelf = api.create_shelf("S".into(), None).expect("shelf");
+    let filed = api.create_leaf("Filed".into()).expect("leaf");
+    let loose = api.create_leaf("Loose".into()).expect("leaf");
+    api.move_leaf_to_shelf(filed.clone(), Some(shelf.id.clone()))
+        .expect("file");
+    api.create_book("Book".into()).expect("book");
+
+    let snap = api.library_snapshot().expect("snapshot");
+    let ids = |v: Vec<pinkha::LeafMetaFfi>| {
+        let mut o: Vec<String> = v.into_iter().map(|m| m.id).collect();
+        o.sort();
+        o
+    };
+    assert_eq!(
+        ids(snap.root_leaves.clone()),
+        ids(api.list_root_leaves().expect("roots"))
+    );
+    assert_eq!(
+        ids(snap.all_leaves.clone()),
+        ids(api.list_leaves().expect("all"))
+    );
+    assert_eq!(snap.books.len(), api.list_books().expect("books").len());
+    assert_eq!(
+        snap.shelves.len(),
+        api.list_shelves().expect("shelves").len()
+    );
+
+    // Sanity on the actual contents, not just the agreement.
+    assert!(snap.root_leaves.iter().any(|m| m.id == loose));
+    assert!(!snap.root_leaves.iter().any(|m| m.id == filed));
+    assert_eq!(snap.all_leaves.len(), 2);
+}
+
+#[test]
+fn library_snapshot_of_an_empty_library_is_empty_not_an_error() {
+    let api = api();
+    let snap = api.library_snapshot().expect("snapshot");
+    assert!(snap.root_leaves.is_empty());
+    assert!(snap.all_leaves.is_empty());
+    assert!(snap.books.is_empty());
+    assert!(snap.shelves.is_empty());
 }

@@ -46,25 +46,16 @@ impl PinkhaApi {
     }
 
     /// Replaces or clears the book's cover image identifier.
-    pub fn update_book_cover(
-        &self,
-        id: String,
-        cover: Option<String>,
-    ) -> Result<(), PinkhaError> {
+    pub fn update_book_cover(&self, id: String, cover: Option<String>) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
         if let Some(ref c) = cover {
             validate_string(c, "cover")?;
         }
-        book_use_cases::update_book_cover(&self.uow(), uuid, cover)
-            .map_err(PinkhaError::from)
+        book_use_cases::update_book_cover(&self.uow(), uuid, cover).map_err(PinkhaError::from)
     }
 
     /// Replaces or clears the book's icon (emoji / filename / URL).
-    pub fn update_book_icon(
-        &self,
-        id: String,
-        icon: Option<String>,
-    ) -> Result<(), PinkhaError> {
+    pub fn update_book_icon(&self, id: String, icon: Option<String>) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
         if let Some(ref i) = icon {
             validate_string(i, "icon")?;
@@ -85,15 +76,13 @@ impl PinkhaApi {
         } else {
             parse_inline(&description)
         };
-        book_use_cases::update_book_description(&self.uow(), uuid, spans)
-            .map_err(PinkhaError::from)
+        book_use_cases::update_book_description(&self.uow(), uuid, spans).map_err(PinkhaError::from)
     }
 
     /// Flips the book's `locked` flag.
     pub fn update_book_locked(&self, id: String, locked: bool) -> Result<(), PinkhaError> {
         let uuid = parse_uuid(&id)?;
-        book_use_cases::update_book_locked(&self.uow(), uuid, locked)
-            .map_err(PinkhaError::from)
+        book_use_cases::update_book_locked(&self.uow(), uuid, locked).map_err(PinkhaError::from)
     }
 
     /// Soft-deletes the book identified by `id`.
@@ -131,8 +120,8 @@ impl PinkhaApi {
     pub fn add_entry(&self, book_id: String, values_json: String) -> Result<String, PinkhaError> {
         let book_uuid = parse_uuid(&book_id)?;
         let values: HashMap<Uuid, PropertyValue> = parse_json(&values_json)?;
-        let entry = book_use_cases::add_entry(&self.uow(), book_uuid, values)
-            .map_err(PinkhaError::from)?;
+        let entry =
+            book_use_cases::add_entry(&self.uow(), book_uuid, values).map_err(PinkhaError::from)?;
         Ok(entry.id.to_string())
     }
 
@@ -150,9 +139,8 @@ impl PinkhaApi {
         let book_uuid = parse_uuid(&book_id)?;
         let leaf_uuid = parse_uuid(&leaf_id)?;
         let values: HashMap<Uuid, PropertyValue> = parse_json(&values_json)?;
-        let entry =
-            book_use_cases::add_entry_with_leaf(&self.uow(), book_uuid, values, leaf_uuid)
-                .map_err(PinkhaError::from)?;
+        let entry = book_use_cases::add_entry_with_leaf(&self.uow(), book_uuid, values, leaf_uuid)
+            .map_err(PinkhaError::from)?;
         Ok(entry.id.to_string())
     }
 
@@ -205,16 +193,14 @@ impl PinkhaApi {
     pub fn delete_entry(&self, book_id: String, entry_id: String) -> Result<(), PinkhaError> {
         let book_uuid = parse_uuid(&book_id)?;
         let entry_uuid = parse_uuid(&entry_id)?;
-        book_use_cases::delete_entry(&self.uow(), book_uuid, entry_uuid)
-            .map_err(PinkhaError::from)
+        book_use_cases::delete_entry(&self.uow(), book_uuid, entry_uuid).map_err(PinkhaError::from)
     }
 
     /// Restores a soft-deleted entry.
     pub fn restore_entry(&self, book_id: String, entry_id: String) -> Result<(), PinkhaError> {
         let book_uuid = parse_uuid(&book_id)?;
         let entry_uuid = parse_uuid(&entry_id)?;
-        book_use_cases::restore_entry(&self.uow(), book_uuid, entry_uuid)
-            .map_err(PinkhaError::from)
+        book_use_cases::restore_entry(&self.uow(), book_uuid, entry_uuid).map_err(PinkhaError::from)
     }
 
     /// Permanently deletes a soft-deleted entry (purge from trash).
@@ -234,8 +220,7 @@ impl PinkhaApi {
 
     /// Lists soft-deleted books (the trash). Newest-deleted first.
     pub fn list_deleted_books(&self) -> Result<Vec<BookMetaFfi>, PinkhaError> {
-        let metas =
-            book_use_cases::list_deleted_books(&self.uow()).map_err(PinkhaError::from)?;
+        let metas = book_use_cases::list_deleted_books(&self.uow()).map_err(PinkhaError::from)?;
         Ok(metas.into_iter().map(book_meta_to_ffi).collect())
     }
 
@@ -366,15 +351,11 @@ impl PinkhaApi {
 
     /// Runs the filters and sorts defined on a view and returns matching entries
     /// as a JSON array.
-    pub fn query_book_json(
-        &self,
-        book_id: String,
-        view_id: String,
-    ) -> Result<String, PinkhaError> {
+    pub fn query_book_json(&self, book_id: String, view_id: String) -> Result<String, PinkhaError> {
         let book_uuid = parse_uuid(&book_id)?;
         let view_uuid = parse_uuid(&view_id)?;
-        let entries: Vec<Entry> = book_use_cases::query(&self.uow(), book_uuid, view_uuid)
-            .map_err(PinkhaError::from)?;
+        let entries: Vec<Entry> =
+            book_use_cases::query(&self.uow(), book_uuid, view_uuid).map_err(PinkhaError::from)?;
         to_json(&entries)
     }
 
@@ -472,9 +453,8 @@ impl PinkhaApi {
         let book_uuid = parse_uuid(&book_id)?;
         let prop_uuid = parse_uuid(&property_id)?;
         let aggregate: Aggregate = parse_json(&aggregate_json)?;
-        let value =
-            book_use_cases::column_aggregate(&self.uow(), book_uuid, prop_uuid, aggregate)
-                .map_err(PinkhaError::from)?;
+        let value = book_use_cases::column_aggregate(&self.uow(), book_uuid, prop_uuid, aggregate)
+            .map_err(PinkhaError::from)?;
         to_json(&value)
     }
 

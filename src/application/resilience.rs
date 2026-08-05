@@ -40,9 +40,7 @@ pub fn is_transient(err: &PinkhaError) -> bool {
     match err {
         PinkhaError::Db(msg) => {
             let lower = msg.to_lowercase();
-            lower.contains("busy")
-                || lower.contains("locked")
-                || lower.contains("book is locked")
+            lower.contains("busy") || lower.contains("locked") || lower.contains("book is locked")
         }
         PinkhaError::Io(io_err) => matches!(
             io_err.kind(),

@@ -15,6 +15,20 @@ if ! git rev-parse --git-dir > /dev/null 2>&1; then
     exit 1
 fi
 
+# `core.hooksPath` overrides .git/hooks entirely. If it is set — and it can
+# be set to a path that no longer exists, e.g. a sibling repo that has since
+# moved — git runs *no* hooks and says nothing about it. That silence is the
+# failure mode: this repo ran with fmt + clippy gating disabled for months
+# because core.hooksPath pointed at a directory that had been deleted.
+EXISTING_HOOKS_PATH="$(git config --get core.hooksPath || true)"
+if [ -n "$EXISTING_HOOKS_PATH" ]; then
+    echo "⚠ core.hooksPath is set to :"
+    echo "    $EXISTING_HOOKS_PATH"
+    echo "  It overrides .git/hooks, so the hooks installed below would never run."
+    echo "  Unsetting it for this repo."
+    git config --unset core.hooksPath
+fi
+
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 HOOKS_SRC="$REPO_ROOT/utilities/scripts/hooks"
 HOOKS_DST="$REPO_ROOT/.git/hooks"

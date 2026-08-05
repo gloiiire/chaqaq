@@ -670,6 +670,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func deleteEntry(bookId: String, entryId: String) throws 
     
     /**
+     * Soft-deletes a mixed selection of leaves, books and shelves in one
+     * call, instead of one FFI crossing + one library reload per item.
+     */
+    func deleteItems(leafIds: [String], bookIds: [String], shelfIds: [String]) throws  -> BulkOutcomeFfi
+    
+    /**
      * Soft-deletes the leaf.
      */
     func deleteLeaf(id: String) throws 
@@ -694,10 +700,6 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      */
     func duplicateBlock(leafId: String, blockId: String) throws  -> String
     
-    /**
-     * Permanently purges every soft-deleted leaf, book and shelf.
-     * Returns the total number of items removed.
-     */
     func emptyTrash() throws  -> UInt32
     
     /**
@@ -776,6 +778,14 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func indentBlock(leafId: String, blockId: String) throws 
     
     func insertBlockTree(leafId: String, blockJson: String, parentId: String?, index: UInt32) throws 
+    
+    /**
+     * Permanently purges every soft-deleted leaf, book and shelf.
+     * Returns the total number of items removed.
+     * Root leaves + all leaves + books + shelves in one call, instead of
+     * the four separate listings `PinkhaStore.load()` used to issue.
+     */
+    func librarySnapshot() throws  -> LibrarySnapshotFfi
     
     /**
      * Lists metadata for every active book.
@@ -875,6 +885,11 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func purgeEntry(bookId: String, entryId: String) throws 
     
     /**
+     * Permanently removes a mixed selection.
+     */
+    func purgeItems(leafIds: [String], bookIds: [String], shelfIds: [String]) throws  -> BulkOutcomeFfi
+    
+    /**
      * Permanently deletes a leaf from the trash (hard delete).
      */
     func purgeLeaf(id: String) throws 
@@ -923,6 +938,11 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Restores an entry from its book's trash.
      */
     func restoreEntry(bookId: String, entryId: String) throws 
+    
+    /**
+     * Restores a mixed selection out of Compost.
+     */
+    func restoreItems(leafIds: [String], bookIds: [String], shelfIds: [String]) throws  -> BulkOutcomeFfi
     
     /**
      * Restores a leaf from the trash.
@@ -1458,6 +1478,22 @@ open func deleteEntry(bookId: String, entryId: String)throws   {try rustCallWith
 }
     
     /**
+     * Soft-deletes a mixed selection of leaves, books and shelves in one
+     * call, instead of one FFI crossing + one library reload per item.
+     */
+open func deleteItems(leafIds: [String], bookIds: [String], shelfIds: [String])throws  -> BulkOutcomeFfi  {
+    return try  FfiConverterTypeBulkOutcomeFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_delete_items(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(leafIds),
+        FfiConverterSequenceString.lower(bookIds),
+        FfiConverterSequenceString.lower(shelfIds),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Soft-deletes the leaf.
      */
 open func deleteLeaf(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -1529,10 +1565,6 @@ open func duplicateBlock(leafId: String, blockId: String)throws  -> String  {
 })
 }
     
-    /**
-     * Permanently purges every soft-deleted leaf, book and shelf.
-     * Returns the total number of items removed.
-     */
 open func emptyTrash()throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
         uniffiCallStatus in
@@ -1753,6 +1785,21 @@ open func insertBlockTree(leafId: String, blockJson: String, parentId: String?, 
         FfiConverterUInt32.lower(index),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Permanently purges every soft-deleted leaf, book and shelf.
+     * Returns the total number of items removed.
+     * Root leaves + all leaves + books + shelves in one call, instead of
+     * the four separate listings `PinkhaStore.load()` used to issue.
+     */
+open func librarySnapshot()throws  -> LibrarySnapshotFfi  {
+    return try  FfiConverterTypeLibrarySnapshotFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_library_snapshot(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -2006,6 +2053,21 @@ open func purgeEntry(bookId: String, entryId: String)throws   {try rustCallWithE
 }
     
     /**
+     * Permanently removes a mixed selection.
+     */
+open func purgeItems(leafIds: [String], bookIds: [String], shelfIds: [String])throws  -> BulkOutcomeFfi  {
+    return try  FfiConverterTypeBulkOutcomeFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_purge_items(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(leafIds),
+        FfiConverterSequenceString.lower(bookIds),
+        FfiConverterSequenceString.lower(shelfIds),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Permanently deletes a leaf from the trash (hard delete).
      */
 open func purgeLeaf(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -2142,6 +2204,21 @@ open func restoreEntry(bookId: String, entryId: String)throws   {try rustCallWit
         FfiConverterString.lower(entryId),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Restores a mixed selection out of Compost.
+     */
+open func restoreItems(leafIds: [String], bookIds: [String], shelfIds: [String])throws  -> BulkOutcomeFfi  {
+    return try  FfiConverterTypeBulkOutcomeFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_restore_items(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(leafIds),
+        FfiConverterSequenceString.lower(bookIds),
+        FfiConverterSequenceString.lower(shelfIds),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -2846,6 +2923,66 @@ public func FfiConverterTypeBookMetaFfi_lower(_ value: BookMetaFfi) -> RustBuffe
 
 
 /**
+ * Bundle of search results across every library surface, returned by
+ * `super_search`. Empty arrays mean "no match in that category".
+ * Result of a bulk delete / restore / purge. `skipped` counts ids that no
+ * longer existed — a stale selection, not an error.
+ */
+public struct BulkOutcomeFfi: Equatable, Hashable {
+    public var affected: UInt32
+    public var skipped: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(affected: UInt32, skipped: UInt32) {
+        self.affected = affected
+        self.skipped = skipped
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BulkOutcomeFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBulkOutcomeFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BulkOutcomeFfi {
+        return
+            try BulkOutcomeFfi(
+                affected: FfiConverterUInt32.read(from: &buf), 
+                skipped: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BulkOutcomeFfi, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.affected, into: &buf)
+        FfiConverterUInt32.write(value.skipped, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBulkOutcomeFfi_lift(_ buf: RustBuffer) throws -> BulkOutcomeFfi {
+    return try FfiConverterTypeBulkOutcomeFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBulkOutcomeFfi_lower(_ value: BulkOutcomeFfi) -> RustBuffer {
+    return FfiConverterTypeBulkOutcomeFfi.lower(value)
+}
+
+
+/**
  * Summary of a completed import operation, returned to Swift.
  */
 public struct ImportResultFfi: Equatable, Hashable {
@@ -3042,6 +3179,71 @@ public func FfiConverterTypeLeafMetaFfi_lift(_ buf: RustBuffer) throws -> LeafMe
 #endif
 public func FfiConverterTypeLeafMetaFfi_lower(_ value: LeafMetaFfi) -> RustBuffer {
     return FfiConverterTypeLeafMetaFfi.lower(value)
+}
+
+
+/**
+ * Everything the library screen renders, fetched in one FFI crossing.
+ */
+public struct LibrarySnapshotFfi: Equatable, Hashable {
+    public var rootLeaves: [LeafMetaFfi]
+    public var allLeaves: [LeafMetaFfi]
+    public var books: [BookMetaFfi]
+    public var shelves: [ShelfMetaFfi]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(rootLeaves: [LeafMetaFfi], allLeaves: [LeafMetaFfi], books: [BookMetaFfi], shelves: [ShelfMetaFfi]) {
+        self.rootLeaves = rootLeaves
+        self.allLeaves = allLeaves
+        self.books = books
+        self.shelves = shelves
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LibrarySnapshotFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLibrarySnapshotFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LibrarySnapshotFfi {
+        return
+            try LibrarySnapshotFfi(
+                rootLeaves: FfiConverterSequenceTypeLeafMetaFfi.read(from: &buf), 
+                allLeaves: FfiConverterSequenceTypeLeafMetaFfi.read(from: &buf), 
+                books: FfiConverterSequenceTypeBookMetaFfi.read(from: &buf), 
+                shelves: FfiConverterSequenceTypeShelfMetaFfi.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LibrarySnapshotFfi, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeLeafMetaFfi.write(value.rootLeaves, into: &buf)
+        FfiConverterSequenceTypeLeafMetaFfi.write(value.allLeaves, into: &buf)
+        FfiConverterSequenceTypeBookMetaFfi.write(value.books, into: &buf)
+        FfiConverterSequenceTypeShelfMetaFfi.write(value.shelves, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLibrarySnapshotFfi_lift(_ buf: RustBuffer) throws -> LibrarySnapshotFfi {
+    return try FfiConverterTypeLibrarySnapshotFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLibrarySnapshotFfi_lower(_ value: LibrarySnapshotFfi) -> RustBuffer {
+    return FfiConverterTypeLibrarySnapshotFfi.lower(value)
 }
 
 
@@ -3255,10 +3457,6 @@ public func FfiConverterTypeShelfMetaFfi_lower(_ value: ShelfMetaFfi) -> RustBuf
 }
 
 
-/**
- * Bundle of search results across every library surface, returned by
- * `super_search`. Empty arrays mean "no match in that category".
- */
 public struct SuperSearchResultsFfi: Equatable, Hashable {
     public var leavesByTitle: [LeafMetaFfi]
     public var leavesByContent: [BlockSearchHitFfi]
@@ -3761,6 +3959,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_entry() != 30657) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_items() != 7032) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_leaf() != 1699) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3819,6 +4020,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_insert_block_tree() != 55914) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_library_snapshot() != 10750) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_books() != 16780) {
@@ -3881,6 +4085,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_purge_entry() != 1272) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_items() != 58503) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_purge_leaf() != 37630) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3912,6 +4119,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_restore_entry() != 41177) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_items() != 9478) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_restore_leaf() != 48720) {

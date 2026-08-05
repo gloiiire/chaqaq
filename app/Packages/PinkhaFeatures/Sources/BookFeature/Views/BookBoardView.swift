@@ -58,7 +58,7 @@ private struct BoardColumn: View {
                     entry: entry,
                     properties: vm.properties,
                     icon: vm.iconForEntry(entry),
-                    leafId: vm.leafId(forEntryId: entry.id),
+                    leafId: vm.leafId(for: entry),
                     api: api,
                     onDisappear: onDisappear
                 )

@@ -939,9 +939,7 @@ mod tests {
         assert!(
             result[0]
                 .styles
-                .contains(&crate::domain::leaf::InlineStyle::Color(
-                    "red".to_string()
-                ))
+                .contains(&crate::domain::leaf::InlineStyle::Color("red".to_string()))
         );
     }
 

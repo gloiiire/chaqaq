@@ -231,9 +231,7 @@ public struct TrashView: View {
         let bookIds  = deletedBooks.map(\.id).filter(selectedIds.contains)
         let fIds   = deletedShelves.map(\.id).filter(selectedIds.contains)
         clearSelectionAndExitEdit()
-        for id in leafIds { store.restoreLeaf(id: id) }
-        for id in bookIds  { store.restoreBook(id: id) }
-        for id in fIds   { store.restoreShelf(id: id) }
+        store.restoreItems(leafIds: leafIds, bookIds: bookIds, shelfIds: fIds)
         reload()
     }
 
@@ -245,9 +243,7 @@ public struct TrashView: View {
         let bookIds  = deletedBooks.map(\.id).filter(selectedIds.contains)
         let fIds   = deletedShelves.map(\.id).filter(selectedIds.contains)
         clearSelectionAndExitEdit()
-        for id in leafIds { store.purgeLeaf(id: id) }
-        for id in bookIds  { store.purgeBook(id: id) }
-        for id in fIds   { store.purgeShelf(id: id) }
+        store.purgeItems(leafIds: leafIds, bookIds: bookIds, shelfIds: fIds)
         reload()
     }
 

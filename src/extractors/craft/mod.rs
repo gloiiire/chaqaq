@@ -12,10 +12,9 @@
 
 use std::collections::HashMap;
 
-
 use crate::application::book_repository::BookRepository;
-use crate::application::shelf_repository::ShelfRepository;
 use crate::application::repository::LeafRepository;
+use crate::application::shelf_repository::ShelfRepository;
 use crate::application::use_cases;
 use crate::domain::leaf::{Block, BlockContent};
 use crate::extractors::bear::mapper::ParsedBlock;

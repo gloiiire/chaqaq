@@ -5,7 +5,8 @@ use crate::application::use_cases;
 use super::types::{
     BlockSearchHitFfi, SuperSearchResultsFfi, book_meta_to_ffi, leaf_meta_to_ffi, shelf_meta_to_ffi,
 };
-use super::validation::validate_string;
+use super::types::{BulkOutcomeFfi, LibrarySnapshotFfi};
+use super::validation::{parse_uuids, validate_string};
 use super::{PinkhaApi, PinkhaError};
 
 impl PinkhaApi {
@@ -32,8 +33,42 @@ impl PinkhaApi {
                 })
                 .collect(),
             books: results.books.into_iter().map(book_meta_to_ffi).collect(),
-            shelves: results
-                .shelves
+            shelves: results.shelves.into_iter().map(shelf_meta_to_ffi).collect(),
+        })
+    }
+
+    /// Everything the library screen renders, in a single call.
+    ///
+    /// `PinkhaStore.load()` used to issue four separate FFI calls, and it
+    /// runs after every mutation from roughly twenty call sites. Fetching
+    /// the four lists together also keeps them consistent with each other:
+    /// as four calls, a write landing between them could yield a shelf list
+    /// that disagrees with the leaves said to live in it.
+    ///
+    /// Root-ness comes from `list_root_leaves`, deliberately — it is the one
+    /// definition of "at the root", and adding a second spelling here is
+    /// exactly the bug that once made leaves vanish when their shelf was
+    /// discarded.
+    pub fn library_snapshot(&self) -> Result<LibrarySnapshotFfi, PinkhaError> {
+        let uow = self.uow();
+        Ok(LibrarySnapshotFfi {
+            root_leaves: use_cases::list_root_leaves(&uow)
+                .map_err(PinkhaError::from)?
+                .into_iter()
+                .map(leaf_meta_to_ffi)
+                .collect(),
+            all_leaves: use_cases::list_leaves(&uow)
+                .map_err(PinkhaError::from)?
+                .into_iter()
+                .map(leaf_meta_to_ffi)
+                .collect(),
+            books: crate::application::book_use_cases::list_books(&uow)
+                .map_err(PinkhaError::from)?
+                .into_iter()
+                .map(book_meta_to_ffi)
+                .collect(),
+            shelves: crate::application::shelf_use_cases::list_shelves(&uow)
+                .map_err(PinkhaError::from)?
                 .into_iter()
                 .map(shelf_meta_to_ffi)
                 .collect(),
@@ -44,5 +79,68 @@ impl PinkhaApi {
     /// in one bulk operation. Returns the total number of items removed.
     pub fn empty_trash(&self) -> Result<u32, PinkhaError> {
         use_cases::empty_trash(&self.uow()).map_err(PinkhaError::from)
+    }
+
+    /// Soft-deletes a mixed selection in a single call.
+    ///
+    /// Swift used to loop over the selection, paying one FFI crossing and
+    /// one full library reload per item for what the user performed as a
+    /// single tap. Ids that no longer exist are counted as `skipped`
+    /// rather than failing the batch — a selection is a snapshot taken
+    /// before the confirmation dialog, so it can go stale legitimately.
+    pub fn delete_items(
+        &self,
+        leaf_ids: Vec<String>,
+        book_ids: Vec<String>,
+        shelf_ids: Vec<String>,
+    ) -> Result<BulkOutcomeFfi, PinkhaError> {
+        let (l, b, s) = (
+            parse_uuids(leaf_ids)?,
+            parse_uuids(book_ids)?,
+            parse_uuids(shelf_ids)?,
+        );
+        let out = use_cases::delete_items(&self.uow(), &l, &b, &s).map_err(PinkhaError::from)?;
+        Ok(BulkOutcomeFfi {
+            affected: out.affected,
+            skipped: out.skipped,
+        })
+    }
+
+    /// Restores a mixed selection out of Compost. See [`Self::delete_items`].
+    pub fn restore_items(
+        &self,
+        leaf_ids: Vec<String>,
+        book_ids: Vec<String>,
+        shelf_ids: Vec<String>,
+    ) -> Result<BulkOutcomeFfi, PinkhaError> {
+        let (l, b, s) = (
+            parse_uuids(leaf_ids)?,
+            parse_uuids(book_ids)?,
+            parse_uuids(shelf_ids)?,
+        );
+        let out = use_cases::restore_items(&self.uow(), &l, &b, &s).map_err(PinkhaError::from)?;
+        Ok(BulkOutcomeFfi {
+            affected: out.affected,
+            skipped: out.skipped,
+        })
+    }
+
+    /// Permanently removes a mixed selection. See [`Self::delete_items`].
+    pub fn purge_items(
+        &self,
+        leaf_ids: Vec<String>,
+        book_ids: Vec<String>,
+        shelf_ids: Vec<String>,
+    ) -> Result<BulkOutcomeFfi, PinkhaError> {
+        let (l, b, s) = (
+            parse_uuids(leaf_ids)?,
+            parse_uuids(book_ids)?,
+            parse_uuids(shelf_ids)?,
+        );
+        let out = use_cases::purge_items(&self.uow(), &l, &b, &s).map_err(PinkhaError::from)?;
+        Ok(BulkOutcomeFfi {
+            affected: out.affected,
+            skipped: out.skipped,
+        })
     }
 }

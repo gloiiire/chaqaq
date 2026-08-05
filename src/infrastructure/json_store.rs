@@ -88,7 +88,7 @@ impl LeafRepository for JsonStore {
 mod tests {
     use super::*;
     use crate::application::error::PinkhaError;
-    use crate::domain::leaf::{Leaf, InlineText};
+    use crate::domain::leaf::{InlineText, Leaf};
     use uuid::Uuid;
 
     fn store_temp() -> JsonStore {
