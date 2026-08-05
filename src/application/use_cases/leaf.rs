@@ -255,18 +255,27 @@ pub fn update_leaf_parent(
 }
 
 /// Returns lightweight metadata for leaves at the root of the library —
-/// neither nested inside another leaf (`parent_leaf_id == None`) nor
-/// filed into a shelf (`shelf_id == None`). Drives the home view's "All"
-/// section, which only surfaces leaves that haven't been parented.
-/// Filing a leaf in a shelf must remove it from the root listing,
-/// otherwise the user sees the same leaf in two places and reads the
-/// move as a copy.
+/// neither nested inside another leaf nor filed into an *active* shelf.
+/// Drives the home view's "All" section, which only surfaces leaves that
+/// haven't been parented. Filing a leaf in a shelf must remove it from the
+/// root listing, otherwise the user sees the same leaf in two places and
+/// reads the move as a copy.
+///
+/// Root-ness is delegated to `list_by_shelf(None)` rather than re-tested
+/// here as `shelf_id.is_none()`. Those two are not the same predicate: a
+/// leaf can point at a shelf that has since been discarded to Compost, and
+/// `ShelfRepository::delete` deliberately leaves `shelf_id` intact so
+/// restoring the shelf brings its subtree back. Testing `shelf_id.is_none()`
+/// therefore filed those leaves under a shelf the user can no longer see,
+/// erasing them from the library while they were never deleted. The SQL
+/// predicate already treated a trashed shelf as no shelf; this path was
+/// simply not using it.
 pub fn list_root_leaves(uow: &dyn UnitOfWork) -> Result<Vec<LeafMeta>, PinkhaError> {
     Ok(uow
         .leaves()
-        .list()?
+        .list_by_shelf(None)?
         .into_iter()
-        .filter(|m| m.parent_leaf_id.is_none() && m.shelf_id.is_none())
+        .filter(|m| m.parent_leaf_id.is_none())
         .collect())
 }
 

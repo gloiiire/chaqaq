@@ -2042,3 +2042,85 @@ fn set_view_date_grouping_with_invalid_uuid_fails() {
         .unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
+
+// ── Root visibility when a shelf is discarded ───────────────────────────────
+//
+// `ShelfRepository::delete` is deliberately non-destructive: it soft-deletes
+// the shelf and leaves every `leaf.shelf_id` pointing at it, so restoring the
+// shelf brings the whole subtree back. That makes "is this leaf at the root?"
+// a question about the *shelf's* state, not just about `shelf_id` being null.
+
+#[test]
+fn discarding_a_shelf_returns_its_leaves_to_the_library_root() {
+    let api = api();
+    let shelf = api.create_shelf("Work".into(), None).expect("shelf");
+    let leaf = api.create_leaf("Filed away".into()).expect("leaf");
+    api.move_leaf_to_shelf(leaf.clone(), Some(shelf.id.clone()))
+        .expect("file");
+
+    // Filed: gone from the root listing, which is the whole point of shelves.
+    let roots = api.list_root_leaves().expect("roots");
+    assert!(!roots.iter().any(|m| m.id == leaf), "filed leaf still at root");
+
+    api.delete_shelf(shelf.id.clone()).expect("discard shelf");
+
+    // The shelf is in Compost, but the leaf was never discarded. It must
+    // reappear at the root — otherwise it belongs to a container the user
+    // cannot open and is invisible everywhere, which reads as data loss.
+    let roots = api.list_root_leaves().expect("roots after discard");
+    assert!(
+        roots.iter().any(|m| m.id == leaf),
+        "leaf vanished from the library when its shelf was discarded"
+    );
+}
+
+#[test]
+fn restoring_a_shelf_takes_its_leaves_back_out_of_the_root() {
+    let api = api();
+    let shelf = api.create_shelf("Work".into(), None).expect("shelf");
+    let leaf = api.create_leaf("Filed away".into()).expect("leaf");
+    api.move_leaf_to_shelf(leaf.clone(), Some(shelf.id.clone()))
+        .expect("file");
+    api.delete_shelf(shelf.id.clone()).expect("discard");
+    api.restore_shelf(shelf.id.clone()).expect("restore");
+
+    let roots = api.list_root_leaves().expect("roots");
+    assert!(
+        !roots.iter().any(|m| m.id == leaf),
+        "restored shelf did not reclaim its leaf"
+    );
+    let in_shelf = api.list_leaves_in_shelf(Some(shelf.id)).expect("in shelf");
+    assert!(in_shelf.iter().any(|m| m.id == leaf));
+}
+
+#[test]
+fn the_two_root_listings_agree() {
+    // `list_root_leaves` and `list_leaves_in_shelf(None)` are two spellings
+    // of the same question and drifted apart once: one filtered on
+    // `shelf_id.is_none()` in Rust while the other used the SQL predicate
+    // that treats a trashed shelf as no shelf.
+    let api = api();
+    let shelf = api.create_shelf("S".into(), None).expect("shelf");
+    let filed = api.create_leaf("Filed".into()).expect("leaf");
+    let loose = api.create_leaf("Loose".into()).expect("leaf");
+    api.move_leaf_to_shelf(filed.clone(), Some(shelf.id.clone()))
+        .expect("file");
+    api.delete_shelf(shelf.id).expect("discard");
+
+    let mut a: Vec<String> = api
+        .list_root_leaves()
+        .expect("roots")
+        .into_iter()
+        .map(|m| m.id)
+        .collect();
+    let mut b: Vec<String> = api
+        .list_leaves_in_shelf(None)
+        .expect("shelfless")
+        .into_iter()
+        .map(|m| m.id)
+        .collect();
+    a.sort();
+    b.sort();
+    assert_eq!(a, b);
+    assert!(a.contains(&filed) && a.contains(&loose));
+}
