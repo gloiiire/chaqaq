@@ -32,7 +32,10 @@ const MAX_ASSET_BYTES: usize = 20 * 1024 * 1024;
 fn validate_asset_url(url: &str) -> Result<(), String> {
     let parsed = reqwest::Url::parse(url).map_err(|e| format!("bad asset URL: {e}"))?;
     if parsed.scheme() != "https" {
-        return Err(format!("refusing non-https asset URL ({})", parsed.scheme()));
+        return Err(format!(
+            "refusing non-https asset URL ({})",
+            parsed.scheme()
+        ));
     }
     if parsed.host().is_none() {
         return Err("refusing asset URL without a host".to_owned());
@@ -74,7 +77,11 @@ async fn read_capped(mut response: reqwest::Response) -> Result<Vec<u8>, String>
         return Err(format!("asset too large ({len} bytes)"));
     }
     let mut buffer: Vec<u8> = Vec::new();
-    while let Some(chunk) = response.chunk().await.map_err(|e| format!("read body: {e}"))? {
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|e| format!("read body: {e}"))?
+    {
         if buffer.len() + chunk.len() > MAX_ASSET_BYTES {
             return Err("asset exceeds size limit".to_owned());
         }
@@ -227,13 +234,19 @@ mod tests {
     #[test]
     fn content_type_wins_over_the_url_extension() {
         assert_eq!(extension_for_content_type("image/png"), Some("png"));
-        assert_eq!(extension_for_content_type("image/jpeg; charset=binary"), Some("jpg"));
+        assert_eq!(
+            extension_for_content_type("image/jpeg; charset=binary"),
+            Some("jpg")
+        );
         assert_eq!(extension_for_content_type("text/html"), None);
     }
 
     #[test]
     fn falls_back_to_the_url_path_extension() {
-        assert_eq!(extension_from_url_path("https://x.com/a.WEBP?sig=1"), Some("webp"));
+        assert_eq!(
+            extension_from_url_path("https://x.com/a.WEBP?sig=1"),
+            Some("webp")
+        );
         assert_eq!(extension_from_url_path("https://x.com/a.exe"), None);
     }
 

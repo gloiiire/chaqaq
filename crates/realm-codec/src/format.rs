@@ -109,7 +109,9 @@ pub(crate) fn read_bits_elem(payload: &[u8], i: usize, width: u8) -> u64 {
     }
     match width {
         0 => 0,
-        1 => payload.get(i / 8).map_or(0, |b| ((b >> (i % 8)) & 1) as u64),
+        1 => payload
+            .get(i / 8)
+            .map_or(0, |b| ((b >> (i % 8)) & 1) as u64),
         2 => payload
             .get(i / 4)
             .map_or(0, |b| ((b >> ((i % 4) * 2)) & 0x3) as u64),

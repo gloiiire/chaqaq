@@ -1,6 +1,6 @@
 use crate::application::error::PinkhaError;
-use crate::application::shelf_repository::ShelfRepository;
 use crate::application::resilience::retry_with_backoff;
+use crate::application::shelf_repository::ShelfRepository;
 use crate::domain::shelf::{Shelf, ShelfMeta};
 use crate::infrastructure::migrations::apply_migrations;
 use rusqlite::{Connection, params};

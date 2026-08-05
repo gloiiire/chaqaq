@@ -69,7 +69,8 @@ pub fn delete_items(
 ) -> Result<BulkOutcome, PinkhaError> {
     let (a1, s1) = apply_tolerating_missing(leaf_ids, |id| leaf_use_cases::delete_leaf(uow, id))?;
     let (a2, s2) = apply_tolerating_missing(book_ids, |id| book_use_cases::delete_book(uow, id))?;
-    let (a3, s3) = apply_tolerating_missing(shelf_ids, |id| shelf_use_cases::delete_shelf(uow, id))?;
+    let (a3, s3) =
+        apply_tolerating_missing(shelf_ids, |id| shelf_use_cases::delete_shelf(uow, id))?;
     Ok(BulkOutcome {
         affected: a1 + a2 + a3,
         skipped: s1 + s2 + s3,

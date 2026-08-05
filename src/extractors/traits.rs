@@ -7,8 +7,8 @@
 
 use super::{ExtractorError, ImportResult};
 use crate::application::book_repository::BookRepository;
-use crate::application::shelf_repository::ShelfRepository;
 use crate::application::repository::LeafRepository;
+use crate::application::shelf_repository::ShelfRepository;
 
 /// Common interface for all import pipelines.
 ///

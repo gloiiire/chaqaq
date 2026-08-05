@@ -2,9 +2,7 @@ use pinkha::application::book_use_cases::{
     add_entry, create_book, delete_book, get_book, list_books,
 };
 use pinkha::application::error::PinkhaError;
-use pinkha::application::use_cases::{
-    add_block, create_leaf, delete_leaf, get_leaf, list_leaves,
-};
+use pinkha::application::use_cases::{add_block, create_leaf, delete_leaf, get_leaf, list_leaves};
 use pinkha::domain::book::{Property, PropertyType, PropertyValue};
 use pinkha::domain::leaf::{BlockContent, InlineText};
 use pinkha::infrastructure::book_store::BookStore;
@@ -154,10 +152,9 @@ fn test_flux_suppression_book() {
     );
 
     // The listing no longer contains Archive
-    let liste = list_books(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
-    )
-    .unwrap();
+    let liste =
+        list_books(&pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store))
+            .unwrap();
     assert_eq!(liste.len(), 1);
     assert_eq!(liste[0].id, book_b.id);
 }

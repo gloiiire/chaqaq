@@ -1,7 +1,7 @@
 use crate::application::book_repository::BookRepository;
 use crate::application::error::PinkhaError;
-use crate::application::shelf_repository::ShelfRepository;
 use crate::application::repository::LeafRepository;
+use crate::application::shelf_repository::ShelfRepository;
 use crate::application::unit_of_work::UnitOfWork;
 
 /// A non-transactional `UnitOfWork` that simply borrows three independent
@@ -33,10 +33,7 @@ impl<'a> NoOpUnitOfWork<'a> {
     /// every call — by design: extractors must never touch shelves. If a
     /// future use case does need shelves, switch the caller to
     /// [`NoOpUnitOfWork::new`] instead.
-    pub fn with_leaves_books(
-        docs: &'a dyn LeafRepository,
-        dbs: &'a dyn BookRepository,
-    ) -> Self {
+    pub fn with_leaves_books(docs: &'a dyn LeafRepository, dbs: &'a dyn BookRepository) -> Self {
         static UNBOUND_SHELVES: UnboundShelfRepo = UnboundShelfRepo;
         Self {
             docs,

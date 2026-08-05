@@ -2,10 +2,10 @@
 
 use crate::application::use_cases;
 
+use super::types::BulkOutcomeFfi;
 use super::types::{
     BlockSearchHitFfi, SuperSearchResultsFfi, book_meta_to_ffi, leaf_meta_to_ffi, shelf_meta_to_ffi,
 };
-use super::types::BulkOutcomeFfi;
 use super::validation::{parse_uuids, validate_string};
 use super::{PinkhaApi, PinkhaError};
 
@@ -33,11 +33,7 @@ impl PinkhaApi {
                 })
                 .collect(),
             books: results.books.into_iter().map(book_meta_to_ffi).collect(),
-            shelves: results
-                .shelves
-                .into_iter()
-                .map(shelf_meta_to_ffi)
-                .collect(),
+            shelves: results.shelves.into_iter().map(shelf_meta_to_ffi).collect(),
         })
     }
 

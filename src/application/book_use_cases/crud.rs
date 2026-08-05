@@ -75,9 +75,7 @@ pub fn update_book_title(
     // The lock is enforced here, not just in the UI — any future surface
     // (shortcuts, sync, new views) hits the same wall.
     if db.locked {
-        return Err(PinkhaError::InvalidOperation(
-            "book is locked".to_string(),
-        ));
+        return Err(PinkhaError::InvalidOperation("book is locked".to_string()));
     }
     db.title = title;
     repo.save(&db)
@@ -120,9 +118,7 @@ pub fn update_book_description(
     // Same wall as `update_book_title` — the lock is enforced at the
     // use-case layer, not just in the UI.
     if db.locked {
-        return Err(PinkhaError::InvalidOperation(
-            "book is locked".to_string(),
-        ));
+        return Err(PinkhaError::InvalidOperation("book is locked".to_string()));
     }
     db.description = description;
     repo.save(&db)
@@ -253,7 +249,11 @@ pub fn update_entry(
 /// remains recoverable via [`restore_entry`] and can be permanently removed via
 /// [`purge_entry`]. Returns `NotFound` when the entry is unknown or already
 /// soft-deleted.
-pub fn delete_entry(uow: &dyn UnitOfWork, book_id: Uuid, entry_id: Uuid) -> Result<(), PinkhaError> {
+pub fn delete_entry(
+    uow: &dyn UnitOfWork,
+    book_id: Uuid,
+    entry_id: Uuid,
+) -> Result<(), PinkhaError> {
     let repo = uow.books();
     let mut db = repo.load(book_id)?;
     let entry = db
@@ -268,7 +268,11 @@ pub fn delete_entry(uow: &dyn UnitOfWork, book_id: Uuid, entry_id: Uuid) -> Resu
 /// Restores a soft-deleted entry by clearing its `deleted_at` timestamp.
 /// Returns `NotFound` when the entry doesn't exist or isn't currently soft-
 /// deleted (nothing to restore).
-pub fn restore_entry(uow: &dyn UnitOfWork, book_id: Uuid, entry_id: Uuid) -> Result<(), PinkhaError> {
+pub fn restore_entry(
+    uow: &dyn UnitOfWork,
+    book_id: Uuid,
+    entry_id: Uuid,
+) -> Result<(), PinkhaError> {
     let repo = uow.books();
     let mut db = repo.load(book_id)?;
     let entry = db

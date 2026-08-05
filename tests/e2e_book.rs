@@ -1,6 +1,6 @@
 use pinkha::application::book_use_cases::{
-    add_entry, add_property, add_view, column_aggregate, create_book, evaluate_rollups,
-    get_book, grouped_query, query,
+    add_entry, add_property, add_view, column_aggregate, create_book, evaluate_rollups, get_book,
+    grouped_query, query,
 };
 use pinkha::application::repository::LeafRepository;
 use pinkha::application::use_cases::create_leaf;
@@ -350,7 +350,9 @@ fn test_flux_kanban_complet() {
                 PropertyValue::Selection(Some(statut.to_string())),
             );
             add_entry(
-                &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&book_store),
+                &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(
+                    &book_store,
+                ),
                 db.id,
                 v,
             )

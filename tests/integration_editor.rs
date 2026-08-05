@@ -1,7 +1,7 @@
 /// Integration tests for rich-text editing operations performed in sequence.
 use pinkha::domain::commands::{ApplyStyle, Delete, History, Insert};
-use pinkha::domain::leaf::{InlineStyle, InlineText};
 use pinkha::domain::editor::EditorState;
+use pinkha::domain::leaf::{InlineStyle, InlineText};
 use pinkha::domain::rich_text::RichText;
 
 fn state_from(s: &str) -> EditorState {

@@ -4,8 +4,8 @@ use crate::application::use_cases;
 use crate::domain::leaf::BlockContent;
 
 use super::types::{
-    BlockSearchHitFfi, BookMetaFfi, LeafMetaFfi, ShelfMetaFfi, book_meta_to_ffi,
-    leaf_meta_to_ffi, shelf_meta_to_ffi,
+    BlockSearchHitFfi, BookMetaFfi, LeafMetaFfi, ShelfMetaFfi, book_meta_to_ffi, leaf_meta_to_ffi,
+    shelf_meta_to_ffi,
 };
 use super::validation::{get_block_id, parse_json, parse_uuid, parse_uuids, validate_string};
 use super::{PinkhaApi, PinkhaError};
@@ -60,11 +60,7 @@ impl PinkhaApi {
     }
 
     /// Sets or clears the cover of a leaf.
-    pub fn update_leaf_cover(
-        &self,
-        id: String,
-        cover: Option<String>,
-    ) -> Result<(), PinkhaError> {
+    pub fn update_leaf_cover(&self, id: String, cover: Option<String>) -> Result<(), PinkhaError> {
         if let Some(c) = cover.as_deref() {
             validate_string(c, "cover")?;
         }
@@ -74,11 +70,7 @@ impl PinkhaApi {
 
     /// Sets or clears the page icon. Accepts an emoji, a local cover-dir
     /// filename, or a remote URL — the renderer picks the right strategy.
-    pub fn update_leaf_icon(
-        &self,
-        id: String,
-        icon: Option<String>,
-    ) -> Result<(), PinkhaError> {
+    pub fn update_leaf_icon(&self, id: String, icon: Option<String>) -> Result<(), PinkhaError> {
         if let Some(i) = icon.as_deref() {
             validate_string(i, "icon")?;
         }
@@ -251,11 +243,7 @@ impl PinkhaApi {
 
     /// Sets the per-leaf theme name, or clears with `None` to
     /// inherit from `AppSettings.theme`.
-    pub fn update_leaf_theme(
-        &self,
-        id: String,
-        theme: Option<String>,
-    ) -> Result<(), PinkhaError> {
+    pub fn update_leaf_theme(&self, id: String, theme: Option<String>) -> Result<(), PinkhaError> {
         if let Some(t) = theme.as_deref() {
             validate_string(t, "theme")?;
         }
@@ -294,7 +282,11 @@ impl PinkhaApi {
     /// inserts the clone right after the original at the same level.
     /// Returns the new top-level block id so the UI can focus / scroll
     /// to it.
-    pub fn duplicate_block(&self, leaf_id: String, block_id: String) -> Result<String, PinkhaError> {
+    pub fn duplicate_block(
+        &self,
+        leaf_id: String,
+        block_id: String,
+    ) -> Result<String, PinkhaError> {
         let leaf_uuid = parse_uuid(&leaf_id)?;
         let block_uuid = parse_uuid(&block_id)?;
         use_cases::duplicate_block(&self.uow(), leaf_uuid, block_uuid)

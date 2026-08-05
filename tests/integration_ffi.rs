@@ -33,8 +33,7 @@ fn new_on_disk_persists_across_reopens() {
     let path = rand_path();
     let id = {
         let api = PinkhaApi::new(path.clone()).expect("open");
-        api.create_leaf("Persisted".to_string())
-            .expect("create")
+        api.create_leaf("Persisted".to_string()).expect("create")
     };
     let api2 = PinkhaApi::new(path.clone()).expect("reopen");
     let json = api2.get_leaf_json(id).expect("get");
@@ -130,8 +129,7 @@ fn update_leaf_cover_set_and_clear() {
         .expect("set cover");
     let json = a.get_leaf_json(id.clone()).unwrap();
     assert!(json.contains("🌸"));
-    a.update_leaf_cover(id.clone(), None)
-        .expect("clear cover");
+    a.update_leaf_cover(id.clone(), None).expect("clear cover");
 }
 
 #[test]
@@ -846,21 +844,14 @@ fn update_leaf_parent_then_list_root_and_children() {
     // Promoting the child back to root removes it from the parent's children.
     a.update_leaf_parent(child.clone(), None).unwrap();
     assert!(a.list_child_leaves(parent).unwrap().is_empty());
-    assert!(
-        a.list_root_leaves()
-            .unwrap()
-            .iter()
-            .any(|d| d.id == child)
-    );
+    assert!(a.list_root_leaves().unwrap().iter().any(|d| d.id == child));
 }
 
 #[test]
 fn update_leaf_parent_rejects_self() {
     let a = api();
     let doc = a.create_leaf("Doc".to_string()).unwrap();
-    let err = a
-        .update_leaf_parent(doc.clone(), Some(doc))
-        .unwrap_err();
+    let err = a.update_leaf_parent(doc.clone(), Some(doc)).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
@@ -1190,11 +1181,7 @@ fn update_leaf_locked_roundtrip() {
             .contains("\"locked\":true")
     );
     a.update_leaf_locked(id.clone(), false).unwrap();
-    assert!(
-        a.get_leaf_json(id)
-            .unwrap()
-            .contains("\"locked\":false")
-    );
+    assert!(a.get_leaf_json(id).unwrap().contains("\"locked\":false"));
 }
 
 #[test]
@@ -1238,9 +1225,7 @@ fn update_leaf_published_at_overrides_and_resets() {
 fn update_leaf_published_at_rejects_oversized_value() {
     let a = api();
     let id = a.create_leaf("Doc".to_string()).unwrap();
-    let err = a
-        .update_leaf_published_at(id, "x".repeat(65))
-        .unwrap_err();
+    let err = a.update_leaf_published_at(id, "x".repeat(65)).unwrap_err();
     assert!(matches!(err, PinkhaError::InvalidOperation { .. }));
 }
 
@@ -1282,11 +1267,7 @@ fn update_book_locked_roundtrip() {
             .contains("\"locked\":true")
     );
     a.update_book_locked(db.clone(), false).unwrap();
-    assert!(
-        a.get_book_json(db)
-            .unwrap()
-            .contains("\"locked\":false")
-    );
+    assert!(a.get_book_json(db).unwrap().contains("\"locked\":false"));
 }
 
 #[test]
@@ -1706,9 +1687,7 @@ fn make_publish_source_fixture(a: &PinkhaApi, date: &str) -> (String, String, St
 }
 
 fn leaf_published_at(a: &PinkhaApi, leaf_id: &str) -> String {
-    a.get_leaf_meta(leaf_id.to_string())
-        .unwrap()
-        .published_at
+    a.get_leaf_meta(leaf_id.to_string()).unwrap().published_at
 }
 
 #[test]
@@ -2060,7 +2039,10 @@ fn discarding_a_shelf_returns_its_leaves_to_the_library_root() {
 
     // Filed: gone from the root listing, which is the whole point of shelves.
     let roots = api.list_root_leaves().expect("roots");
-    assert!(!roots.iter().any(|m| m.id == leaf), "filed leaf still at root");
+    assert!(
+        !roots.iter().any(|m| m.id == leaf),
+        "filed leaf still at root"
+    );
 
     api.delete_shelf(shelf.id.clone()).expect("discard shelf");
 
@@ -2174,7 +2156,10 @@ fn a_malformed_id_is_rejected_before_anything_is_touched() {
     let err = api
         .delete_items(vec![leaf.clone(), "not-a-uuid".into()], vec![], vec![])
         .expect_err("malformed uuid must be rejected");
-    assert!(matches!(err, PinkhaError::InvalidOperation { .. }), "{err:?}");
+    assert!(
+        matches!(err, PinkhaError::InvalidOperation { .. }),
+        "{err:?}"
+    );
     // Validation happens up front, so the valid id in the same batch survives.
     assert_eq!(api.list_leaves().expect("leaves").len(), 1);
 }
@@ -2214,7 +2199,9 @@ fn purge_items_removes_a_mixed_selection_for_good() {
         .expect("purge");
     assert_eq!(out.affected, 2);
     // Purged, not merely trashed — restoring must find nothing.
-    let out = api.restore_items(vec![leaf], vec![], vec![]).expect("restore");
+    let out = api
+        .restore_items(vec![leaf], vec![], vec![])
+        .expect("restore");
     assert_eq!(out.affected, 0);
     assert_eq!(out.skipped, 1);
 }

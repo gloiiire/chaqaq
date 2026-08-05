@@ -136,7 +136,11 @@ fn clone_with_fresh_ids(block: &Block) -> Block {
 }
 
 /// Deletes a block (and all its descendants) from the leaf tree and persists.
-pub fn delete_block(uow: &dyn UnitOfWork, leaf_id: Uuid, block_id: Uuid) -> Result<(), PinkhaError> {
+pub fn delete_block(
+    uow: &dyn UnitOfWork,
+    leaf_id: Uuid,
+    block_id: Uuid,
+) -> Result<(), PinkhaError> {
     let repo = uow.leaves();
     let mut doc = repo.load(leaf_id)?;
     if !delete_from_tree(&mut doc.blocks, block_id) {
@@ -241,7 +245,11 @@ pub fn move_block(
 /// Returns `InvalidOperation` when the block is the first in its sibling list
 /// (no previous sibling to attach to) — there's nothing meaningful to indent
 /// it under. Returns `NotFound` if the block is unknown.
-pub fn indent_block(uow: &dyn UnitOfWork, leaf_id: Uuid, block_id: Uuid) -> Result<(), PinkhaError> {
+pub fn indent_block(
+    uow: &dyn UnitOfWork,
+    leaf_id: Uuid,
+    block_id: Uuid,
+) -> Result<(), PinkhaError> {
     let repo = uow.leaves();
     let mut doc = repo.load(leaf_id)?;
     indent_in_siblings(&mut doc.blocks, block_id)?;
@@ -472,10 +480,7 @@ mod tests {
         ) -> Result<(), PinkhaError> {
             Ok(())
         }
-        fn list_by_shelf(
-            &self,
-            _shelf_id: Option<Uuid>,
-        ) -> Result<Vec<LeafMeta>, PinkhaError> {
+        fn list_by_shelf(&self, _shelf_id: Option<Uuid>) -> Result<Vec<LeafMeta>, PinkhaError> {
             self.list()
         }
     }
@@ -951,5 +956,4 @@ mod tests {
             Err(PinkhaError::NotFound(_))
         ));
     }
-
 }

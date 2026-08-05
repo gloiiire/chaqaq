@@ -1,7 +1,7 @@
 use crate::application::error::PinkhaError;
 use crate::application::unit_of_work::UnitOfWork;
-use crate::domain::leaf::{Block, BlockContent, Leaf, LeafMeta, InlineText};
 use crate::domain::editor::EditorState;
+use crate::domain::leaf::{Block, BlockContent, InlineText, Leaf, LeafMeta};
 use crate::domain::parser::parse_inline;
 use uuid::Uuid;
 

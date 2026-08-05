@@ -155,10 +155,7 @@ fn walk_dump<W: std::io::Write>(blocks: &[Block], f: &mut W) {
 /// matching their actual semantics. True child pages still come in
 /// as `BlockContent::Leaf { id }` directly during import (step 6) and
 /// are not affected by this pass.
-fn promote_page_link_paragraphs(
-    blocks: &mut [crate::domain::leaf::Block],
-    promoted: &mut usize,
-) {
+fn promote_page_link_paragraphs(blocks: &mut [crate::domain::leaf::Block], promoted: &mut usize) {
     for block in blocks.iter_mut() {
         if let BlockContent::Text(spans) = &block.content
             && let Some(child_id) = sole_pinkha_leaf_link(spans)

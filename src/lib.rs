@@ -5,8 +5,8 @@ pub mod ffi;
 pub mod infrastructure;
 
 pub use ffi::{
-    BlockSearchHitFfi, BookMetaFfi, BulkOutcomeFfi, LeafMetaFfi, ShelfMetaFfi, ImportResultFfi,
-    NotionDatabaseSummaryFfi, NotionPageSummaryFfi, PinkhaApi, PinkhaError,
+    BlockSearchHitFfi, BookMetaFfi, BulkOutcomeFfi, ImportResultFfi, LeafMetaFfi,
+    NotionDatabaseSummaryFfi, NotionPageSummaryFfi, PinkhaApi, PinkhaError, ShelfMetaFfi,
     SuperSearchResultsFfi,
 };
 

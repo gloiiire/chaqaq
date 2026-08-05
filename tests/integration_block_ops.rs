@@ -3,8 +3,8 @@ use pinkha::application::use_cases::{
     add_block, add_child_block, create_leaf, delete_block, get_leaf, reorder_blocks,
     save_edited_block, update_block, update_leaf_cover, update_leaf_title,
 };
-use pinkha::domain::leaf::{BlockContent, InlineText};
 use pinkha::domain::editor::EditorState;
+use pinkha::domain::leaf::{BlockContent, InlineText};
 use pinkha::domain::rich_text::RichText;
 use pinkha::infrastructure::json_store::JsonStore;
 use uuid::Uuid;

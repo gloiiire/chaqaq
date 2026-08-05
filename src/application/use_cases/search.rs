@@ -3,10 +3,7 @@ use crate::application::unit_of_work::UnitOfWork;
 use crate::domain::leaf::{Block, BlockContent, LeafMeta};
 
 /// Case-insensitive search across leaf titles.
-pub fn search_leaves(
-    uow: &dyn UnitOfWork,
-    query: &str,
-) -> Result<Vec<LeafMeta>, PinkhaError> {
+pub fn search_leaves(uow: &dyn UnitOfWork, query: &str) -> Result<Vec<LeafMeta>, PinkhaError> {
     let q = query.to_lowercase();
     Ok(uow
         .leaves()
@@ -23,10 +20,7 @@ pub fn search_leaves(
 /// Case-insensitive full-text search across the block content of all leaves.
 ///
 /// Returns the metadata of leaves that contain at least one matching block.
-pub fn search_in_blocks(
-    uow: &dyn UnitOfWork,
-    query: &str,
-) -> Result<Vec<LeafMeta>, PinkhaError> {
+pub fn search_in_blocks(uow: &dyn UnitOfWork, query: &str) -> Result<Vec<LeafMeta>, PinkhaError> {
     let repo = uow.leaves();
     let q = query.to_lowercase();
     let metas = repo.list()?;
@@ -239,7 +233,7 @@ fn block_contains(block: &Block, query: &str) -> bool {
 mod tests {
     use super::*;
     use crate::application::error::PinkhaError;
-    use crate::domain::leaf::{Block, BlockContent, Leaf, LeafMeta, InlineText};
+    use crate::domain::leaf::{Block, BlockContent, InlineText, Leaf, LeafMeta};
 
     use std::collections::HashMap;
     use uuid::Uuid;
@@ -293,10 +287,7 @@ mod tests {
         ) -> Result<(), PinkhaError> {
             Ok(())
         }
-        fn list_by_shelf(
-            &self,
-            _shelf_id: Option<Uuid>,
-        ) -> Result<Vec<LeafMeta>, PinkhaError> {
+        fn list_by_shelf(&self, _shelf_id: Option<Uuid>) -> Result<Vec<LeafMeta>, PinkhaError> {
             self.list()
         }
     }

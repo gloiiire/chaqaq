@@ -417,10 +417,9 @@ mod tests {
         assert_eq!(blocks.len(), 1);
         if let BlockContent::Text(spans) = &blocks[0].content {
             assert!(!spans.is_empty(), "expected at least one span");
-            let has_bold = spans.iter().any(|s| {
-                s.styles
-                    .contains(&crate::domain::leaf::InlineStyle::Bold)
-            });
+            let has_bold = spans
+                .iter()
+                .any(|s| s.styles.contains(&crate::domain::leaf::InlineStyle::Bold));
             assert!(has_bold, "expected Bold style in spans");
         } else {
             panic!("expected Text block");

@@ -3,8 +3,8 @@
 use pinkha::application::repository::LeafRepository;
 use pinkha::application::use_cases::{create_leaf, get_leaf};
 use pinkha::domain::commands::{ApplyStyle, History, Insert};
-use pinkha::domain::leaf::InlineStyle;
 use pinkha::domain::editor::EditorState;
+use pinkha::domain::leaf::InlineStyle;
 use pinkha::domain::rich_text::RichText;
 use pinkha::infrastructure::json_store::JsonStore;
 use std::path::PathBuf;

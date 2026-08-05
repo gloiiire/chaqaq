@@ -22,10 +22,9 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-
 use crate::application::book_repository::BookRepository;
-use crate::application::shelf_repository::ShelfRepository;
 use crate::application::repository::LeafRepository;
+use crate::application::shelf_repository::ShelfRepository;
 use crate::extractors::bear::mapper::{ParsedBlock, parse_note_blocks};
 use crate::extractors::craft::{flush_leaf, map_block, title_candidate};
 use crate::extractors::craft_textbundle::{

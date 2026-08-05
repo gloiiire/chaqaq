@@ -16,8 +16,8 @@ pub mod craft_textbundle;
 pub mod notion;
 pub mod traits;
 
-use realm_codec::RealmFile;
 use crate::application::error::PinkhaError;
+use realm_codec::RealmFile;
 use uuid::Uuid;
 
 // ── Error ─────────────────────────────────────────────────────────────────────

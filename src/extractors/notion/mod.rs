@@ -26,8 +26,8 @@ use uuid::Uuid;
 
 use crate::application::book_repository::BookRepository;
 use crate::application::book_use_cases;
-use crate::application::shelf_repository::ShelfRepository;
 use crate::application::repository::LeafRepository;
+use crate::application::shelf_repository::ShelfRepository;
 use crate::application::use_cases;
 use crate::domain::book::{PAGE_LINK_PROPERTY, Property, PropertyType, PropertyValue};
 use crate::domain::leaf::InlineText;
@@ -156,9 +156,7 @@ pub async fn list_books(token: &str) -> Result<Vec<NotionDatabaseSummary>, Extra
 /// existing legacy `import_from_notion` flow usable as-is. SOLID :
 /// extend, don't modify ; the original `list_books` is left
 /// untouched for any caller that wants the strict legacy behaviour.
-pub async fn list_books_v2025(
-    token: &str,
-) -> Result<Vec<NotionDatabaseSummary>, ExtractorError> {
+pub async fn list_books_v2025(token: &str) -> Result<Vec<NotionDatabaseSummary>, ExtractorError> {
     let client = NotionClient::new(token)?;
 
     let mut by_id: std::collections::HashMap<String, NotionDatabaseSummary> =
@@ -472,8 +470,7 @@ impl Extractor for NotionExtractor {
                 );
             }
             if let Some(icon_value) = schema.icon.as_ref().and_then(notion_icon_identifier) {
-                let _ =
-                    book_use_cases::update_book_icon(&uow, pinkha_book_id, Some(icon_value));
+                let _ = book_use_cases::update_book_icon(&uow, pinkha_book_id, Some(icon_value));
             }
             if !schema.description.is_empty() {
                 let desc = schema
@@ -786,8 +783,15 @@ async fn import_page(
     // Fetch and add all blocks to the leaf efficiently (bulk in-memory, one save).
     // Child_page blocks encountered along the way materialise as nested
     // pinkha leaves linked to this one via `parent_leaf_id`.
-    let (block_count, skipped_count, child_leaf_count) =
-        fetch_and_add_blocks(client, &page.id, leaf_id, docs, notion_to_pinkha, covers_dir).await?;
+    let (block_count, skipped_count, child_leaf_count) = fetch_and_add_blocks(
+        client,
+        &page.id,
+        leaf_id,
+        docs,
+        notion_to_pinkha,
+        covers_dir,
+    )
+    .await?;
 
     // Build the book entry values.
     let mut values: HashMap<Uuid, PropertyValue> = HashMap::new();
@@ -837,7 +841,8 @@ async fn fetch_and_add_blocks(
     covers_dir: Option<&str>,
 ) -> Result<(usize, usize, usize), ExtractorError> {
     let (root_blocks, skipped, child_leaves) =
-        fetch_blocks_recursive(client, page_id, leaf_id, docs, notion_to_pinkha, covers_dir).await?;
+        fetch_blocks_recursive(client, page_id, leaf_id, docs, notion_to_pinkha, covers_dir)
+            .await?;
 
     let count = count_blocks_recursive(&root_blocks);
 
@@ -978,7 +983,7 @@ async fn import_child_page(
     notion_to_pinkha: &Mutex<HashMap<String, Uuid>>,
     covers_dir: Option<&str>,
 ) -> Result<Uuid, ExtractorError> {
-    use crate::domain::leaf::{Leaf, InlineText};
+    use crate::domain::leaf::{InlineText, Leaf};
 
     // Build the child leaf up front so we have its id before fetching
     // any nested content (a grand-child page that mentions us should rewrite
