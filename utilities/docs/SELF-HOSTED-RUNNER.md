@@ -113,28 +113,49 @@ xcodebuild test -project app/Pinkha.xcodeproj -scheme Pinkha \
   -destination 'id=<UDID>' -only-testing:PinkhaUITests
 ```
 
-## Connu, non résolu : 10 minutes de rab par run
+## Les 600 s de collecte de diagnostics — résolu
 
-Les tests s'exécutent en ~2 s, mais `xcodebuild` reste ensuite bloqué exactement
-600 s avant de rendre la main :
+`xcodebuild` restait bloqué exactement 600 s **après** la fin des tests :
 
 ```
 IDETestOperationsObserverDebug: Failure collecting diagnostics from simulator: Timed out after 600.0
-611.167 elapsed -- Testing started completed.
-** TEST SUCCEEDED **
 ```
 
-Le run est vert et les résultats sont fiables — c'est du temps perdu, pas un
-faux positif. Cela n'arrive pas en lançant la même commande depuis un terminal
-de la session graphique.
+**Ça n'avait rien à voir avec le runner.** Mesuré dans un terminal ordinaire,
+session graphique, simulateur habituel : **623 s**. Et sur un simulateur créé
+de zéro et non pré-démarré : 646 s. Ni la session, ni l'état du simulateur.
+C'est le bug Xcode 15+ signalé chez [actions/runner-images
+#8693](https://github.com/actions/runner-images/issues/8693) (FB13318262), pour
+lequel aucun correctif n'était documenté.
 
-Hypothèse à vérifier (doc-first, non testée) : le simulateur est démarré par
-`run-on-sim.sh` dans la session Aqua de l'utilisateur, tandis que le runner
-tourne dans sa propre session (`SessionCreate`) ; la collecte de diagnostics
-de fin de run ne joindrait pas le simulateur d'une autre session. Piste :
-laisser `xcodebuild` gérer lui-même le cycle de vie du simulateur
-(`-destination 'platform=iOS Simulator,name=Pinkha SIM'` sans boot préalable)
-plutôt que de lui passer un UDID déjà démarré ailleurs.
+Le levier se trouve dans `IDEFoundation`, qui porte une politique de collecte
+avec un override par user default :
+
+```
+CollectTestDiagnosticsOnFailure
+diagnosticCollectionPolicy
+shouldCollectDiagnosticsGiven:ideIsInitialized:userDefaultOverrideIsPresent:…
+Determines whether long-running and verbose diagnostics (such as a sysdiagnose
+or logarchive) are collected at the end of testing when a failure occurs.
+```
+
+D'où :
+
+```bash
+defaults write com.apple.dt.Xcode CollectTestDiagnosticsOnFailure -bool NO
+```
+
+**623 s → 24 s**, pour 2 s de tests réels. La CI pose ce réglage elle-même à
+chaque run (idempotent, une machine neuve se configure seule).
+
+Ce n'est ni un flag `xcodebuild` — il refuse les options inconnues — ni une clé
+de test plan : la liste des options de test plan d'`IDEFoundation` ne la
+contient pas. Le domaine utilisateur est le seul point d'entrée, donc le
+réglage vaut aussi pour tes runs de tests **locaux**, qui payaient les mêmes
+600 s.
+
+Ce qu'on perd : le sysdiagnose / logarchive collecté à l'échec d'un test. Les
+échecs d'assertion et leurs messages ne sont pas concernés.
 
 ## Désinstallation
 

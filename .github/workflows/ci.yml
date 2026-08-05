@@ -192,6 +192,20 @@ jobs:
           ./utilities/scripts/patch-app-icon.rb \
             || echo "::notice::patch-app-icon ignoré (gem xcodeproj absente) — sans effet sur les tests"
 
+      - name: Désactiver la collecte de diagnostics de fin de test
+        # Sans ça, xcodebuild passe exactement 600 s après la fin des tests sur
+        # « Failure collecting diagnostics from simulator », puis rend la main.
+        # Mesuré : 623 s le run, contre 24 s avec ce réglage — pour 2 s de tests.
+        #
+        # `CollectTestDiagnosticsOnFailure` est lu par IDEFoundation dans le
+        # domaine utilisateur ; xcodebuild refuse les options inconnues, donc on
+        # ne peut pas le passer en argument. Idempotent, et volontairement posé
+        # ici pour qu'une machine neuve se configure toute seule.
+        #
+        # Ce qu'on perd : le sysdiagnose / logarchive collecté à l'échec d'un
+        # test. Les échecs d'assertion et leurs messages ne sont pas concernés.
+        run: defaults write com.apple.dt.Xcode CollectTestDiagnosticsOnFailure -bool NO
+
       - name: Simulateur
         id: sim
         # Résolu par nom, comme les scripts locaux. `bootstatus -b` bloque
