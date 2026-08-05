@@ -61,6 +61,19 @@ env -i HOME=$HOME PATH=<le PATH du .env> \
     printf "%-11s %s\n" "$t" "$(command -v $t || echo ABSENT)"; done'
 ```
 
+## Deux autres absences dans un checkout frais
+
+**`app/Config/Secrets.xcconfig`** est gitignored (DSN Sentry, URL du proxy
+Notion) : sans lui, `xcodegen` refuse net de générer le projet. La CI copie le
+template commité — ses valeurs sont des placeholders, `Observability.start()`
+no-op sur un DSN contenant `your-dsn-here`, et Sentry est de toute façon coupé
+sous XCTest. Aucun secret réel n'a à exister sur le runner.
+
+**`patch-app-icon.rb`** dépend de la gem Ruby `xcodeproj`, absente de
+l'environnement du service. L'étape est donc best-effort : elle réinjecte la
+référence à `app/Pinkha.icon` que xcodegen ne conserve pas, ce qui compte pour
+un build qu'on expédie mais pas pour des tests.
+
 ## Garde anti-fork — non négociable
 
 Le dépôt est **public et les forks sont autorisés**. Sans la condition

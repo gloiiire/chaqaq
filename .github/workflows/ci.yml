@@ -167,10 +167,30 @@ jobs:
         # tests Swift ne compilent pas sans lui.
         run: ./build-xcframework.sh
 
+      - name: Secrets de build (placeholders)
+        # `app/Config/Secrets.xcconfig` est gitignored — il porte le DSN Sentry
+        # et l'URL du proxy Notion — donc absent d'un checkout frais, et
+        # xcodegen refuse de générer sans lui. Le template commité suffit : ses
+        # valeurs sont des placeholders, `Observability.start()` no-op sur un
+        # DSN contenant "your-dsn-here", et Sentry est de toute façon désactivé
+        # sous XCTest. Aucun secret réel n'a à exister sur le runner.
+        run: |
+          if [ ! -f app/Config/Secrets.xcconfig ]; then
+            cp app/Config/Secrets.xcconfig.example app/Config/Secrets.xcconfig
+          fi
+
       - name: Génération du projet Xcode
+        # `patch-app-icon.rb` est délibérément best-effort ici. Il réinjecte la
+        # référence à app/Pinkha.icon que xcodegen ne conserve pas — donc utile
+        # pour un build qu'on expédie, sans effet sur des tests. Il dépend de la
+        # gem Ruby `xcodeproj`, absente de l'environnement du service ; faire
+        # échouer la CI sur une icône manquante serait une dépendance imposée
+        # pour rien. En local, les scripts de run l'appellent normalement.
         run: |
           cd app && xcodegen generate
-          cd .. && ./utilities/scripts/patch-app-icon.rb
+          cd ..
+          ./utilities/scripts/patch-app-icon.rb \
+            || echo "::notice::patch-app-icon ignoré (gem xcodeproj absente) — sans effet sur les tests"
 
       - name: Simulateur
         id: sim
