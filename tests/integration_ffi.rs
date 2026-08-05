@@ -2124,3 +2124,106 @@ fn the_two_root_listings_agree() {
     assert_eq!(a, b);
     assert!(a.contains(&filed) && a.contains(&loose));
 }
+
+// ── Bulk lifecycle ──────────────────────────────────────────────────────────
+
+#[test]
+fn delete_items_handles_a_mixed_selection_in_one_call() {
+    let api = api();
+    let l1 = api.create_leaf("A".into()).expect("leaf");
+    let l2 = api.create_leaf("B".into()).expect("leaf");
+    let book = api.create_book("Book".into()).expect("book");
+    let shelf = api.create_shelf("Shelf".into(), None).expect("shelf");
+
+    let out = api
+        .delete_items(
+            vec![l1.clone(), l2.clone()],
+            vec![book.clone()],
+            vec![shelf.id.clone()],
+        )
+        .expect("bulk delete");
+    assert_eq!(out.affected, 4);
+    assert_eq!(out.skipped, 0);
+
+    assert!(api.list_leaves().expect("leaves").is_empty());
+    assert!(api.list_books().expect("books").is_empty());
+    assert!(api.list_shelves().expect("shelves").is_empty());
+}
+
+#[test]
+fn a_stale_id_is_skipped_rather_than_failing_the_batch() {
+    // A selection is captured before the confirmation dialog, so by the time
+    // the user taps Delete an id can legitimately be gone — a cascade from a
+    // book, another device. Ninety-nine valid ids must not be stranded by one.
+    let api = api();
+    let alive = api.create_leaf("Alive".into()).expect("leaf");
+    let ghost = uuid::Uuid::new_v4().to_string();
+
+    let out = api
+        .delete_items(vec![ghost, alive.clone()], vec![], vec![])
+        .expect("bulk delete tolerates missing ids");
+    assert_eq!(out.affected, 1);
+    assert_eq!(out.skipped, 1);
+    assert!(api.list_leaves().expect("leaves").is_empty());
+}
+
+#[test]
+fn a_malformed_id_is_rejected_before_anything_is_touched() {
+    let api = api();
+    let leaf = api.create_leaf("Keep me".into()).expect("leaf");
+    let err = api
+        .delete_items(vec![leaf.clone(), "not-a-uuid".into()], vec![], vec![])
+        .expect_err("malformed uuid must be rejected");
+    assert!(matches!(err, PinkhaError::InvalidOperation { .. }), "{err:?}");
+    // Validation happens up front, so the valid id in the same batch survives.
+    assert_eq!(api.list_leaves().expect("leaves").len(), 1);
+}
+
+#[test]
+fn restore_items_brings_a_mixed_selection_back() {
+    let api = api();
+    let leaf = api.create_leaf("A".into()).expect("leaf");
+    let book = api.create_book("B".into()).expect("book");
+    let shelf = api.create_shelf("S".into(), None).expect("shelf");
+    api.delete_items(
+        vec![leaf.clone()],
+        vec![book.clone()],
+        vec![shelf.id.clone()],
+    )
+    .expect("delete");
+
+    let out = api
+        .restore_items(vec![leaf], vec![book], vec![shelf.id])
+        .expect("restore");
+    assert_eq!(out.affected, 3);
+    assert_eq!(api.list_leaves().expect("leaves").len(), 1);
+    assert_eq!(api.list_books().expect("books").len(), 1);
+    assert_eq!(api.list_shelves().expect("shelves").len(), 1);
+}
+
+#[test]
+fn purge_items_removes_a_mixed_selection_for_good() {
+    let api = api();
+    let leaf = api.create_leaf("A".into()).expect("leaf");
+    let book = api.create_book("B".into()).expect("book");
+    api.delete_items(vec![leaf.clone()], vec![book.clone()], vec![])
+        .expect("delete");
+
+    let out = api
+        .purge_items(vec![leaf.clone()], vec![book], vec![])
+        .expect("purge");
+    assert_eq!(out.affected, 2);
+    // Purged, not merely trashed — restoring must find nothing.
+    let out = api.restore_items(vec![leaf], vec![], vec![]).expect("restore");
+    assert_eq!(out.affected, 0);
+    assert_eq!(out.skipped, 1);
+}
+
+#[test]
+fn empty_id_lists_are_a_no_op_not_an_error() {
+    let api = api();
+    let _ = api.create_leaf("Untouched".into()).expect("leaf");
+    let out = api.delete_items(vec![], vec![], vec![]).expect("no-op");
+    assert_eq!(out.affected, 0);
+    assert_eq!(api.list_leaves().expect("leaves").len(), 1);
+}

@@ -217,3 +217,11 @@ pub struct SuperSearchResultsFfi {
     pub books: Vec<BookMetaFfi>,
     pub shelves: Vec<ShelfMetaFfi>,
 }
+
+/// How many items a bulk lifecycle call actually touched, and how many ids
+/// it skipped because they were already gone.
+#[derive(Debug, Clone)]
+pub struct BulkOutcomeFfi {
+    pub affected: u32,
+    pub skipped: u32,
+}

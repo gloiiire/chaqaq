@@ -358,6 +358,11 @@ uint32_t uniffi_pinkha_fn_method_pinkhaapi_delete_book_cascade(uint64_t ptr, Rus
 void uniffi_pinkha_fn_method_pinkhaapi_delete_entry(uint64_t ptr, RustBuffer book_id, RustBuffer entry_id, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_ITEMS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_ITEMS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_delete_items(uint64_t ptr, RustBuffer leaf_ids, RustBuffer book_ids, RustBuffer shelf_ids, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_LEAF
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_LEAF
 void uniffi_pinkha_fn_method_pinkhaapi_delete_leaf(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
@@ -558,6 +563,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_purge_book(uint64_t ptr, RustBuffer id, R
 void uniffi_pinkha_fn_method_pinkhaapi_purge_entry(uint64_t ptr, RustBuffer book_id, RustBuffer entry_id, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_ITEMS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_ITEMS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_purge_items(uint64_t ptr, RustBuffer leaf_ids, RustBuffer book_ids, RustBuffer shelf_ids, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_LEAF
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_LEAF
 void uniffi_pinkha_fn_method_pinkhaapi_purge_leaf(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
@@ -611,6 +621,11 @@ uint32_t uniffi_pinkha_fn_method_pinkhaapi_restore_book_cascade(uint64_t ptr, Ru
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_ENTRY
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_ENTRY
 void uniffi_pinkha_fn_method_pinkhaapi_restore_entry(uint64_t ptr, RustBuffer book_id, RustBuffer entry_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_ITEMS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_ITEMS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_restore_items(uint64_t ptr, RustBuffer leaf_ids, RustBuffer book_ids, RustBuffer shelf_ids, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_LEAF
@@ -1183,6 +1198,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_entry(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ITEMS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ITEMS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_items(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_LEAF
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_LEAF
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_leaf(void
@@ -1423,6 +1444,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_purge_entry(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_PURGE_ITEMS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_PURGE_ITEMS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_purge_items(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_PURGE_LEAF
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_PURGE_LEAF
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_purge_leaf(void
@@ -1486,6 +1513,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_restore_book_cascade(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_ENTRY
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_ENTRY
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_restore_entry(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_ITEMS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_ITEMS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_restore_items(void
     
 );
 #endif

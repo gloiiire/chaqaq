@@ -670,6 +670,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func deleteEntry(bookId: String, entryId: String) throws 
     
     /**
+     * Soft-deletes a mixed selection of leaves, books and shelves in one
+     * call, instead of one FFI crossing + one library reload per item.
+     */
+    func deleteItems(leafIds: [String], bookIds: [String], shelfIds: [String]) throws  -> BulkOutcomeFfi
+    
+    /**
      * Soft-deletes the leaf.
      */
     func deleteLeaf(id: String) throws 
@@ -875,6 +881,11 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func purgeEntry(bookId: String, entryId: String) throws 
     
     /**
+     * Permanently removes a mixed selection.
+     */
+    func purgeItems(leafIds: [String], bookIds: [String], shelfIds: [String]) throws  -> BulkOutcomeFfi
+    
+    /**
      * Permanently deletes a leaf from the trash (hard delete).
      */
     func purgeLeaf(id: String) throws 
@@ -923,6 +934,11 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Restores an entry from its book's trash.
      */
     func restoreEntry(bookId: String, entryId: String) throws 
+    
+    /**
+     * Restores a mixed selection out of Compost.
+     */
+    func restoreItems(leafIds: [String], bookIds: [String], shelfIds: [String]) throws  -> BulkOutcomeFfi
     
     /**
      * Restores a leaf from the trash.
@@ -1455,6 +1471,22 @@ open func deleteEntry(bookId: String, entryId: String)throws   {try rustCallWith
         FfiConverterString.lower(entryId),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Soft-deletes a mixed selection of leaves, books and shelves in one
+     * call, instead of one FFI crossing + one library reload per item.
+     */
+open func deleteItems(leafIds: [String], bookIds: [String], shelfIds: [String])throws  -> BulkOutcomeFfi  {
+    return try  FfiConverterTypeBulkOutcomeFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_delete_items(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(leafIds),
+        FfiConverterSequenceString.lower(bookIds),
+        FfiConverterSequenceString.lower(shelfIds),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -2006,6 +2038,21 @@ open func purgeEntry(bookId: String, entryId: String)throws   {try rustCallWithE
 }
     
     /**
+     * Permanently removes a mixed selection.
+     */
+open func purgeItems(leafIds: [String], bookIds: [String], shelfIds: [String])throws  -> BulkOutcomeFfi  {
+    return try  FfiConverterTypeBulkOutcomeFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_purge_items(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(leafIds),
+        FfiConverterSequenceString.lower(bookIds),
+        FfiConverterSequenceString.lower(shelfIds),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Permanently deletes a leaf from the trash (hard delete).
      */
 open func purgeLeaf(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
@@ -2142,6 +2189,21 @@ open func restoreEntry(bookId: String, entryId: String)throws   {try rustCallWit
         FfiConverterString.lower(entryId),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Restores a mixed selection out of Compost.
+     */
+open func restoreItems(leafIds: [String], bookIds: [String], shelfIds: [String])throws  -> BulkOutcomeFfi  {
+    return try  FfiConverterTypeBulkOutcomeFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_restore_items(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(leafIds),
+        FfiConverterSequenceString.lower(bookIds),
+        FfiConverterSequenceString.lower(shelfIds),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -2846,6 +2908,66 @@ public func FfiConverterTypeBookMetaFfi_lower(_ value: BookMetaFfi) -> RustBuffe
 
 
 /**
+ * Bundle of search results across every library surface, returned by
+ * `super_search`. Empty arrays mean "no match in that category".
+ * Result of a bulk delete / restore / purge. `skipped` counts ids that no
+ * longer existed — a stale selection, not an error.
+ */
+public struct BulkOutcomeFfi: Equatable, Hashable {
+    public var affected: UInt32
+    public var skipped: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(affected: UInt32, skipped: UInt32) {
+        self.affected = affected
+        self.skipped = skipped
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BulkOutcomeFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBulkOutcomeFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BulkOutcomeFfi {
+        return
+            try BulkOutcomeFfi(
+                affected: FfiConverterUInt32.read(from: &buf), 
+                skipped: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BulkOutcomeFfi, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.affected, into: &buf)
+        FfiConverterUInt32.write(value.skipped, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBulkOutcomeFfi_lift(_ buf: RustBuffer) throws -> BulkOutcomeFfi {
+    return try FfiConverterTypeBulkOutcomeFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBulkOutcomeFfi_lower(_ value: BulkOutcomeFfi) -> RustBuffer {
+    return FfiConverterTypeBulkOutcomeFfi.lower(value)
+}
+
+
+/**
  * Summary of a completed import operation, returned to Swift.
  */
 public struct ImportResultFfi: Equatable, Hashable {
@@ -3255,10 +3377,6 @@ public func FfiConverterTypeShelfMetaFfi_lower(_ value: ShelfMetaFfi) -> RustBuf
 }
 
 
-/**
- * Bundle of search results across every library surface, returned by
- * `super_search`. Empty arrays mean "no match in that category".
- */
 public struct SuperSearchResultsFfi: Equatable, Hashable {
     public var leavesByTitle: [LeafMetaFfi]
     public var leavesByContent: [BlockSearchHitFfi]
@@ -3761,6 +3879,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_entry() != 30657) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_items() != 7032) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_leaf() != 1699) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3881,6 +4002,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_purge_entry() != 1272) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_items() != 58503) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_purge_leaf() != 37630) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3912,6 +4036,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_restore_entry() != 41177) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_items() != 9478) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_restore_leaf() != 48720) {

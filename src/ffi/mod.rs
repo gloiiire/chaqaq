@@ -20,7 +20,7 @@ mod library;
 
 pub use error::PinkhaError;
 pub use types::{
-    BlockSearchHitFfi, BookMetaFfi, LeafMetaFfi, ShelfMetaFfi, ImportResultFfi,
+    BlockSearchHitFfi, BookMetaFfi, BulkOutcomeFfi, LeafMetaFfi, ShelfMetaFfi, ImportResultFfi,
     NotionDatabaseSummaryFfi, NotionPageSummaryFfi, SuperSearchResultsFfi,
 };
 

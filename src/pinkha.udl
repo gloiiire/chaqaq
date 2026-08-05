@@ -59,6 +59,13 @@ dictionary BlockSearchHitFfi {
 
 /// Bundle of search results across every library surface, returned by
 /// `super_search`. Empty arrays mean "no match in that category".
+/// Result of a bulk delete / restore / purge. `skipped` counts ids that no
+/// longer existed — a stale selection, not an error.
+dictionary BulkOutcomeFfi {
+    u32 affected;
+    u32 skipped;
+};
+
 dictionary SuperSearchResultsFfi {
     sequence<LeafMetaFfi> leaves_by_title;
     sequence<BlockSearchHitFfi> leaves_by_content;
@@ -291,6 +298,19 @@ interface PinkhaApi {
     /// Returns the total number of items removed.
     [Throws=PinkhaError]
     u32 empty_trash();
+
+    /// Soft-deletes a mixed selection of leaves, books and shelves in one
+    /// call, instead of one FFI crossing + one library reload per item.
+    [Throws=PinkhaError]
+    BulkOutcomeFfi delete_items(sequence<string> leaf_ids, sequence<string> book_ids, sequence<string> shelf_ids);
+
+    /// Restores a mixed selection out of Compost.
+    [Throws=PinkhaError]
+    BulkOutcomeFfi restore_items(sequence<string> leaf_ids, sequence<string> book_ids, sequence<string> shelf_ids);
+
+    /// Permanently removes a mixed selection.
+    [Throws=PinkhaError]
+    BulkOutcomeFfi purge_items(sequence<string> leaf_ids, sequence<string> book_ids, sequence<string> shelf_ids);
 
     // ── Books ─────────────────────────────────────────────
 

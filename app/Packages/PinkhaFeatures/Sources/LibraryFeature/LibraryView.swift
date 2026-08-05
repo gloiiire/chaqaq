@@ -744,12 +744,18 @@ public struct LibraryView: View {
             selectedIds.removeAll()
             editMode = .inactive
         }
+        // One FFI call for the whole selection. Looping here meant a full
+        // library reload per item — the list visibly stuttered its way
+        // through a large selection.
+        var leafIds: [String] = []
+        var bookIds: [String] = []
         for item in toDelete {
             switch item {
-            case .leaf(let d):      store.delete(id: d.id)
-            case .book(let db): store.deleteBook(id: db.id)
+            case .leaf(let d):  leafIds.append(d.id)
+            case .book(let db): bookIds.append(db.id)
             }
         }
+        store.deleteItems(leafIds: leafIds, bookIds: bookIds)
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

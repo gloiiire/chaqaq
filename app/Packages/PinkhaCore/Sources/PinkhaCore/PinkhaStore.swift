@@ -213,6 +213,45 @@ public final class PinkhaStore {
         }
     }
 
+    /// Soft-deletes a mixed selection — the "Delete (N)" bulk action.
+    ///
+    /// One FFI call and one `load()`, not N of each: the previous loop in
+    /// Swift reloaded the whole library after every single item, so a
+    /// hundred-item selection paid a hundred full library reads and a
+    /// hundred `@Observable` mutation storms for one user gesture.
+    ///
+    /// Returns how many items were actually removed. Ids that had already
+    /// disappeared (a cascade from a book, another device) are skipped by
+    /// Rust rather than failing the batch.
+    @discardableResult
+    public func deleteItems(leafIds: [String], bookIds: [String], shelfIds: [String] = []) -> Int {
+        let n = tryCatch(into: &errorMessage) {
+            try api?.deleteItems(leafIds: leafIds, bookIds: bookIds, shelfIds: shelfIds).affected ?? 0
+        } ?? 0
+        load()
+        return Int(n)
+    }
+
+    /// Restores a mixed selection out of Compost. See `deleteItems`.
+    @discardableResult
+    public func restoreItems(leafIds: [String], bookIds: [String], shelfIds: [String] = []) -> Int {
+        let n = tryCatch(into: &errorMessage) {
+            try api?.restoreItems(leafIds: leafIds, bookIds: bookIds, shelfIds: shelfIds).affected ?? 0
+        } ?? 0
+        load()
+        return Int(n)
+    }
+
+    /// Permanently removes a mixed selection. See `deleteItems`.
+    @discardableResult
+    public func purgeItems(leafIds: [String], bookIds: [String], shelfIds: [String] = []) -> Int {
+        let n = tryCatch(into: &errorMessage) {
+            try api?.purgeItems(leafIds: leafIds, bookIds: bookIds, shelfIds: shelfIds).affected ?? 0
+        } ?? 0
+        load()
+        return Int(n)
+    }
+
     /// Soft-deletes all leaves and reloads.
     public func deleteAll() {
         if tryCatch(into: &errorMessage, { try api?.deleteAllLeaves() }) != nil {
