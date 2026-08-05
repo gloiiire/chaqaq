@@ -113,10 +113,10 @@ xcodebuild test -project app/Pinkha.xcodeproj -scheme Pinkha \
   -destination 'id=<UDID>' -only-testing:PinkhaUITests
 ```
 
-## Connu, non résolu : 10 minutes de rab par run
+## Connu, non résolu : 600 s de rab par run
 
-Les tests s'exécutent en ~2 s, mais `xcodebuild` reste ensuite bloqué exactement
-600 s avant de rendre la main :
+Les tests s'exécutent en ~2 s, puis `xcodebuild` reste bloqué exactement 600 s
+avant de rendre la main :
 
 ```
 IDETestOperationsObserverDebug: Failure collecting diagnostics from simulator: Timed out after 600.0
@@ -124,17 +124,45 @@ IDETestOperationsObserverDebug: Failure collecting diagnostics from simulator: T
 ** TEST SUCCEEDED **
 ```
 
-Le run est vert et les résultats sont fiables — c'est du temps perdu, pas un
-faux positif. Cela n'arrive pas en lançant la même commande depuis un terminal
-de la session graphique.
+Le run est vert et les résultats sont fiables. C'est du temps perdu, pas un faux
+positif. Bug Xcode 15+ connu : [actions/runner-images
+#8693](https://github.com/actions/runner-images/issues/8693) (FB13318262), sans
+correctif documenté.
 
-Hypothèse à vérifier (doc-first, non testée) : le simulateur est démarré par
-`run-on-sim.sh` dans la session Aqua de l'utilisateur, tandis que le runner
-tourne dans sa propre session (`SessionCreate`) ; la collecte de diagnostics
-de fin de run ne joindrait pas le simulateur d'une autre session. Piste :
-laisser `xcodebuild` gérer lui-même le cycle de vie du simulateur
-(`-destination 'platform=iOS Simulator,name=Pinkha SIM'` sans boot préalable)
-plutôt que de lui passer un UDID déjà démarré ailleurs.
+### Ce qui a été mesuré et écarté
+
+Ne pas re-tenter ces pistes, elles sont réfutées par la mesure :
+
+| Piste | Mesure | Verdict |
+| --- | --- | --- |
+| Spécifique au runner / session LaunchAgent | **623 s** depuis un terminal ordinaire en session graphique | Écarté — rien à voir avec le runner |
+| Simulateur pré-démarré par `run-on-sim.sh` | **646 s** sur un simulateur créé de zéro, jamais démarré avant | Écarté |
+| Log store du simulateur habituel trop gros | idem, simulateur neuf | Écarté |
+| Code coverage activé (piste la plus citée en ligne) | ni le scheme ni un test plan ne l'activent | Sans objet |
+| `defaults write com.apple.dt.Xcode CollectTestDiagnosticsOnFailure -bool NO` | 24 s **une fois**, puis **614 s** en reproduisant, clé vérifiée à `false` sur disque | **Écarté** — les 24 s étaient du bruit |
+| Passer le réglage en argument `xcodebuild` | `error: invalid option` | Impossible |
+| Clé de test plan | absente de la liste d'options de test plan d'`IDEFoundation` | Impossible |
+
+> ⚠️ La leçon la plus utile ici : **une seule mesure ne suffit pas**. Le run à
+> 24 s a été pris pour un correctif et a failli entrer dans le repo ; la
+> reproduction l'a démenti. Sur ce symptôme précis, exiger deux mesures
+> concordantes avant de conclure quoi que ce soit.
+
+### Ce qu'on sait du mécanisme
+
+`IDEFoundation` porte la politique de collecte :
+
+```
+CollectTestDiagnosticsOnFailure  /  diagnosticCollectionPolicy
+shouldCollectDiagnosticsGiven:ideIsInitialized:userDefaultOverrideIsPresent:…
+Determines whether long-running and verbose diagnostics (such as a sysdiagnose
+or logarchive) are collected at the end of testing when a failure occurs.
+```
+
+Le user default existe donc bien, mais le poser ne supprime pas l'attente —
+la collecte semble déclenchée par un autre chemin. Piste non explorée :
+désassembler `shouldCollectDiagnosticsGiven:…` pour voir ce qui l'emporte sur
+l'override.
 
 ## Désinstallation
 
