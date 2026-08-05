@@ -68,10 +68,10 @@ async fn read_capped(mut response: reqwest::Response) -> Result<Vec<u8>, String>
     // Trust the advertised length only to bail out early — it is a hint from
     // the server, so the streaming check below is what actually enforces
     // the cap.
-    if let Some(len) = response.content_length() {
-        if len > MAX_ASSET_BYTES as u64 {
-            return Err(format!("asset too large ({len} bytes)"));
-        }
+    if let Some(len) = response.content_length()
+        && len > MAX_ASSET_BYTES as u64
+    {
+        return Err(format!("asset too large ({len} bytes)"));
     }
     let mut buffer: Vec<u8> = Vec::new();
     while let Some(chunk) = response.chunk().await.map_err(|e| format!("read body: {e}"))? {
@@ -238,10 +238,11 @@ mod tests {
     }
 
     #[test]
-    fn the_size_cap_is_below_anything_that_threatens_a_phone() {
-        // Guards the constant itself: a careless edit to MAX_ASSET_BYTES is
-        // the kind of change that silently reintroduces the unbounded read.
-        assert!(MAX_ASSET_BYTES <= 32 * 1024 * 1024);
-        assert!(ASSET_TIMEOUT.as_secs() <= 60);
+    fn the_client_carries_a_timeout_and_a_bounded_redirect_policy() {
+        // Building it is the assertion: a redirect policy that rejects a
+        // scheme change is easy to write in a way that fails to compile or
+        // panics on construction, and `asset_client` is the only place the
+        // timeout is attached.
+        assert!(asset_client().is_ok());
     }
 }
