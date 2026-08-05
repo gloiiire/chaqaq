@@ -80,18 +80,20 @@ public final class PinkhaStore {
     /// and `allLeaves` (every leaf regardless of filing — drives the
     /// Recent strip and the Pinned section), in addition to books.
     public func load() {
-        if let docs = tryCatch(into: &errorMessage, { try api?.listRootLeaves() ?? [] }) {
-            leaves = docs
-        }
-        if let everyDoc = tryCatch(into: &errorMessage, { try api?.listLeaves() ?? [] }) {
-            allLeaves = everyDoc
-        }
-        if let dbs = tryCatch(into: &errorMessage, { try api?.listBooks() ?? [] }) {
-            books = dbs
-        }
-        if let shvs = tryCatch(into: &errorMessage, { try api?.listShelves() ?? [] }) {
-            shelves = shvs
-        }
+        // One FFI crossing for all four lists, not four.
+        //
+        // Beyond the cost — `load()` runs after every mutation, from about
+        // twenty call sites — four separate reads could observe four
+        // different states of the database if a write landed between them,
+        // yielding a shelf list that disagreed with the leaves said to be
+        // filed in it.
+        guard let snapshot = tryCatch(into: &errorMessage, { try api?.librarySnapshot() }),
+              let snapshot
+        else { return }
+        leaves    = snapshot.rootLeaves
+        allLeaves = snapshot.allLeaves
+        books     = snapshot.books
+        shelves   = snapshot.shelves
     }
 
     /// Same shape as `items` but built from `allLeaves` instead of just

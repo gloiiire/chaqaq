@@ -66,6 +66,14 @@ dictionary BulkOutcomeFfi {
     u32 skipped;
 };
 
+/// Everything the library screen renders, fetched in one FFI crossing.
+dictionary LibrarySnapshotFfi {
+    sequence<LeafMetaFfi> root_leaves;
+    sequence<LeafMetaFfi> all_leaves;
+    sequence<BookMetaFfi> books;
+    sequence<ShelfMetaFfi> shelves;
+};
+
 dictionary SuperSearchResultsFfi {
     sequence<LeafMetaFfi> leaves_by_title;
     sequence<BlockSearchHitFfi> leaves_by_content;
@@ -296,6 +304,11 @@ interface PinkhaApi {
 
     /// Permanently purges every soft-deleted leaf, book and shelf.
     /// Returns the total number of items removed.
+    /// Root leaves + all leaves + books + shelves in one call, instead of
+    /// the four separate listings `PinkhaStore.load()` used to issue.
+    [Throws=PinkhaError]
+    LibrarySnapshotFfi library_snapshot();
+
     [Throws=PinkhaError]
     u32 empty_trash();
 

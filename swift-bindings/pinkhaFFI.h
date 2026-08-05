@@ -463,6 +463,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_indent_block(uint64_t ptr, RustBuffer lea
 void uniffi_pinkha_fn_method_pinkhaapi_insert_block_tree(uint64_t ptr, RustBuffer leaf_id, RustBuffer block_json, RustBuffer parent_id, uint32_t index, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIBRARY_SNAPSHOT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIBRARY_SNAPSHOT
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_library_snapshot(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_BOOKS
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_BOOKS
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_books(uint64_t ptr, RustCallStatus *_Nonnull out_status
@@ -1321,6 +1326,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_indent_block(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_INSERT_BLOCK_TREE
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_INSERT_BLOCK_TREE
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_insert_block_tree(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIBRARY_SNAPSHOT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIBRARY_SNAPSHOT
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_library_snapshot(void
     
 );
 #endif

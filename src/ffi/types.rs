@@ -225,3 +225,12 @@ pub struct BulkOutcomeFfi {
     pub affected: u32,
     pub skipped: u32,
 }
+
+/// Everything the library screen needs, fetched in one FFI crossing.
+#[derive(Debug, Clone)]
+pub struct LibrarySnapshotFfi {
+    pub root_leaves: Vec<LeafMetaFfi>,
+    pub all_leaves: Vec<LeafMetaFfi>,
+    pub books: Vec<BookMetaFfi>,
+    pub shelves: Vec<ShelfMetaFfi>,
+}

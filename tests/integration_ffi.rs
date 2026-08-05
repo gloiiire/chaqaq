@@ -2214,3 +2214,54 @@ fn empty_id_lists_are_a_no_op_not_an_error() {
     assert_eq!(out.affected, 0);
     assert_eq!(api.list_leaves().expect("leaves").len(), 1);
 }
+
+// ── Library snapshot ────────────────────────────────────────────────────────
+
+#[test]
+fn library_snapshot_agrees_with_the_four_separate_listings() {
+    // The snapshot exists to replace four FFI calls with one. If it ever
+    // disagrees with them, it has grown its own definition of the library —
+    // which is how `list_root_leaves` drifted from the SQL root predicate.
+    let api = api();
+    let shelf = api.create_shelf("S".into(), None).expect("shelf");
+    let filed = api.create_leaf("Filed".into()).expect("leaf");
+    let loose = api.create_leaf("Loose".into()).expect("leaf");
+    api.move_leaf_to_shelf(filed.clone(), Some(shelf.id.clone()))
+        .expect("file");
+    api.create_book("Book".into()).expect("book");
+
+    let snap = api.library_snapshot().expect("snapshot");
+    let ids = |v: Vec<pinkha::LeafMetaFfi>| {
+        let mut o: Vec<String> = v.into_iter().map(|m| m.id).collect();
+        o.sort();
+        o
+    };
+    assert_eq!(
+        ids(snap.root_leaves.clone()),
+        ids(api.list_root_leaves().expect("roots"))
+    );
+    assert_eq!(
+        ids(snap.all_leaves.clone()),
+        ids(api.list_leaves().expect("all"))
+    );
+    assert_eq!(snap.books.len(), api.list_books().expect("books").len());
+    assert_eq!(
+        snap.shelves.len(),
+        api.list_shelves().expect("shelves").len()
+    );
+
+    // Sanity on the actual contents, not just the agreement.
+    assert!(snap.root_leaves.iter().any(|m| m.id == loose));
+    assert!(!snap.root_leaves.iter().any(|m| m.id == filed));
+    assert_eq!(snap.all_leaves.len(), 2);
+}
+
+#[test]
+fn library_snapshot_of_an_empty_library_is_empty_not_an_error() {
+    let api = api();
+    let snap = api.library_snapshot().expect("snapshot");
+    assert!(snap.root_leaves.is_empty());
+    assert!(snap.all_leaves.is_empty());
+    assert!(snap.books.is_empty());
+    assert!(snap.shelves.is_empty());
+}

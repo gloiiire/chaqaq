@@ -21,7 +21,8 @@ mod validation;
 pub use error::PinkhaError;
 pub use types::{
     BlockSearchHitFfi, BookMetaFfi, BulkOutcomeFfi, ImportResultFfi, LeafMetaFfi,
-    NotionDatabaseSummaryFfi, NotionPageSummaryFfi, ShelfMetaFfi, SuperSearchResultsFfi,
+    LibrarySnapshotFfi, NotionDatabaseSummaryFfi, NotionPageSummaryFfi, ShelfMetaFfi,
+    SuperSearchResultsFfi,
 };
 
 use uuid::Uuid;
