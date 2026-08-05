@@ -87,6 +87,31 @@ struct BookViewModelTests {
         #expect(vm.leafId(forEntryId: entryId) == leafId)
     }
 
+    @Test func theTwoLeafIdLookupsAgree() throws {
+        // The entry-based overload exists so views stop re-scanning all N
+        // entries per row. It must answer identically to the id-based one,
+        // otherwise the fast path silently changes behaviour.
+        let (vm, url) = try makeVM(); defer { cleanup(url) }
+        vm.load()
+        vm.addEntry()
+        vm.addEntry()
+        for entry in vm.entries {
+            #expect(vm.leafId(for: entry) == vm.leafId(forEntryId: entry.id))
+            #expect(vm.leafId(for: entry) != nil)
+        }
+    }
+
+    @Test func leafIdIsNilForAnEntryWithNoBackingLeaf() throws {
+        let (vm, url) = try makeVM(); defer { cleanup(url) }
+        vm.load()
+        vm.addEntry()
+        // An entry whose page-link cell was never filled — the tabular-row
+        // case — must report no leaf rather than an empty string.
+        var orphan = vm.entries[0]
+        orphan.values.removeAll()
+        #expect(vm.leafId(for: orphan) == nil)
+    }
+
     @Test func deleteEntryAlsoDeletesLeaf() throws {
         let (vm, url) = try makeVM(); defer { cleanup(url) }
         vm.load()

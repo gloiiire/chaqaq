@@ -44,14 +44,17 @@ public struct BookTableView: View {
 
     public var body: some View {
         ScrollView([.horizontal, .vertical], showsIndicators: true) {
-            VStack(alignment: .leading, spacing: 0) {
+            // Lazy: a plain VStack materialised every row of the book up
+            // front, so opening a large imported database built thousands of
+            // row views before the first one could be drawn.
+            LazyVStack(alignment: .leading, spacing: 0, pinnedViews: []) {
                 headerRow
                 Divider()
                 ForEach($vm.entries) { $entry in
                     EntryRowView(
                         entry: $entry,
                         properties: vm.properties,
-                        pageDocId: vm.leafId(forEntryId: entry.id),
+                        pageDocId: vm.leafId(for: entry),
                         api: api,
                         columnWidth: columnWidth,
                         onUpdate: { propId, value in

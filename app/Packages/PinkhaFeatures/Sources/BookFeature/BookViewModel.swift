@@ -790,12 +790,24 @@ public final class BookViewModel {
         }?.id
     }
 
-    func leafId(forEntryId entryId: String) -> String? {
+    /// The leaf backing a row, read straight from the entry.
+    ///
+    /// Prefer this over `leafId(forEntryId:)` inside a `ForEach`: the loop
+    /// already holds the entry, and looking it back up by id makes rendering
+    /// quadratic — every one of N rows re-scanning all N entries. All five
+    /// book views did exactly that.
+    func leafId(for entry: EntryFfi) -> String? {
         guard let pageId = pagePropertyId,
-              let entry  = entries.first(where: { $0.id == entryId }),
               case .text(let leafId) = entry.values[pageId]
         else { return nil }
         return leafId
+    }
+
+    /// Id-based variant, for the two call sites that genuinely only have an
+    /// id. Pays one linear scan; do not use it per row.
+    func leafId(forEntryId entryId: String) -> String? {
+        guard let entry = entries.first(where: { $0.id == entryId }) else { return nil }
+        return leafId(for: entry)
     }
 
     /// Best-effort lookup of the linked leaf's icon for an entry.
@@ -806,7 +818,10 @@ public final class BookViewModel {
     /// the boundary just to read an icon.
     func iconForEntry(_ entry: EntryFfi) -> String? {
         if let cached = iconCache[entry.id] { return cached }
-        guard let leafId = leafId(forEntryId: entry.id) else {
+        // The entry is already in hand — looking it back up by id would
+        // make the first render of an N-row book O(N²) before the cache
+        // has anything in it.
+        guard let leafId = leafId(for: entry) else {
             iconCache[entry.id] = nil
             return nil
         }
