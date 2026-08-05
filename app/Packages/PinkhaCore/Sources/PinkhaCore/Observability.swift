@@ -45,10 +45,53 @@ public enum Observability {
             options.enableAutoPerformanceTracing = true
             // 100% in dev for visibility, reduced in release to control volume.
             options.tracesSampleRate = isDebugBuild ? 1.0 : 0.2
+
+            // …but NOT URLSession span capture. Swizzling every request turns
+            // the set of links a user pastes into their private notes into
+            // Sentry span data: `EmbedRowView` fetches OpenGraph metadata for
+            // each embedded URL automatically, so host + path of those links
+            // would ship off-device. Query strings are sanitized by the SDK,
+            // but host and path are the identifying part.
+            //
+            // Distributed tracing to notion-proxy is unaffected — the
+            // `sentry-trace` header is injected independently of this flag.
+            options.enableNetworkTracking = false
+            options.enableCaptureFailedRequests = false
+
+            // Scrub note-derived text before anything leaves the device.
+            //
+            // `tryCatch` forwards every `PinkhaError.Storage` here, and that
+            // variant is built from `CoreError::Io` — whose `Display`
+            // includes the full path, i.e. the container UUID *and the
+            // user-selected import filename*. A file called
+            // "Therapy notes 2026.textbundle" became a Sentry event title.
+            options.beforeSend = { event in
+                // `SentryMessage.formatted` is read-only, so rebuild it.
+                if let formatted = event.message?.formatted {
+                    event.message = SentryMessage(formatted: redactPaths(formatted))
+                }
+                event.exceptions?.forEach { exception in
+                    exception.value = redactPaths(exception.value)
+                }
+                return event
+            }
         }
         #if DEBUG
         print("[Observability] Sentry started.")
         #endif
+    }
+
+    /// Replaces filesystem paths with a placeholder, keeping the error shape
+    /// but dropping the container UUID and any user-chosen filename.
+    static func redactPaths(_ text: String) -> String {
+        guard text.contains("/") else { return text }
+        // Any run of non-space characters containing a slash is treated as a
+        // path. Coarse on purpose: over-redacting a diagnostic string is
+        // cheap, leaking a note title is not.
+        return text
+            .split(separator: " ", omittingEmptySubsequences: false)
+            .map { token in token.contains("/") ? "<path>" : String(token) }
+            .joined(separator: " ")
     }
 
     /// Reports an error to Sentry. Safe to call before `start()`: the SDK

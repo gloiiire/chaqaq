@@ -115,6 +115,16 @@ public struct SettingsView: View {
                 }
 
                 Section {
+                    Toggle("Link previews", isOn: $settings.linkPreviewsEnabled)
+                        .tint(settings.accentColor)
+                        .onChange(of: settings.linkPreviewsEnabled) { _, _ in Haptic.toggle() }
+                } header: {
+                    Text("Privacy")
+                } footer: {
+                    Text("On (default): embedded links load a title, image and icon from the site itself. Off: an embed shows only its address, and opening a leaf makes no network request.")
+                }
+
+                Section {
                     Toggle("Lock rotation", isOn: $settings.rotationLocked)
                         .tint(settings.accentColor)
                         .onChange(of: settings.rotationLocked) { _, _ in Haptic.toggle() }
