@@ -42,6 +42,9 @@ schemes:
       config: Debug
     test:
       config: Debug
+      testPlans:
+        - path: Pinkha.xctestplan
+          defaultPlan: true
       targets:
         - PinkhaTests
         - PinkhaIntegrationTests

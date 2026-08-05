@@ -113,56 +113,69 @@ xcodebuild test -project app/Pinkha.xcodeproj -scheme Pinkha \
   -destination 'id=<UDID>' -only-testing:PinkhaUITests
 ```
 
-## Connu, non résolu : 600 s de rab par run
+## Les 600 s de collecte de diagnostics — résolu
 
-Les tests s'exécutent en ~2 s, puis `xcodebuild` reste bloqué exactement 600 s
-avant de rendre la main :
+Chaque run passait exactement 600 s **après** la fin des tests sur
+`Failure collecting diagnostics from simulator`. Résolu par un test plan qui
+fixe la politique de collecte à `Never` : **~615 s → ~12 s**.
 
-```
-IDETestOperationsObserverDebug: Failure collecting diagnostics from simulator: Timed out after 600.0
-611.167 elapsed -- Testing started completed.
-** TEST SUCCEEDED **
-```
+### Ce qui a mené là
 
-Le run est vert et les résultats sont fiables. C'est du temps perdu, pas un faux
-positif. Bug Xcode 15+ connu : [actions/runner-images
-#8693](https://github.com/actions/runner-images/issues/8693) (FB13318262), sans
-correctif documenté.
-
-### Ce qui a été mesuré et écarté
-
-Ne pas re-tenter ces pistes, elles sont réfutées par la mesure :
+Les pistes évidentes sont toutes fausses, et mesurées comme telles :
 
 | Piste | Mesure | Verdict |
 | --- | --- | --- |
-| Spécifique au runner / session LaunchAgent | **623 s** depuis un terminal ordinaire en session graphique | Écarté — rien à voir avec le runner |
-| Simulateur pré-démarré par `run-on-sim.sh` | **646 s** sur un simulateur créé de zéro, jamais démarré avant | Écarté |
-| Log store du simulateur habituel trop gros | idem, simulateur neuf | Écarté |
-| Code coverage activé (piste la plus citée en ligne) | ni le scheme ni un test plan ne l'activent | Sans objet |
-| `defaults write com.apple.dt.Xcode CollectTestDiagnosticsOnFailure -bool NO` | 24 s **une fois**, puis **614 s** en reproduisant, clé vérifiée à `false` sur disque | **Écarté** — les 24 s étaient du bruit |
-| Passer le réglage en argument `xcodebuild` | `error: invalid option` | Impossible |
-| Clé de test plan | absente de la liste d'options de test plan d'`IDEFoundation` | Impossible |
+| Spécifique au runner / session LaunchAgent | 623 s depuis un terminal ordinaire | Réfutée |
+| Simulateur pré-démarré | 646 s sur un simulateur neuf jamais démarré | Réfutée |
+| Log store du simulateur trop gros | idem | Réfutée |
+| Code coverage (piste la plus citée en ligne) | activé nulle part ici | Sans objet |
+| `defaults write … CollectTestDiagnosticsOnFailure -bool NO` | 24 s une fois, **614 s** en reproduction | Réfutée |
+| Flag `xcodebuild` | `error: invalid option` | Impossible |
 
-> ⚠️ La leçon la plus utile ici : **une seule mesure ne suffit pas**. Le run à
-> 24 s a été pris pour un correctif et a failli entrer dans le repo ; la
-> reproduction l'a démenti. Sur ce symptôme précis, exiger deux mesures
-> concordantes avant de conclure quoi que ce soit.
-
-### Ce qu'on sait du mécanisme
-
-`IDEFoundation` porte la politique de collecte :
+La réponse était dans le binaire. `+[IDETestRunSession
+shouldCollectDiagnosticsGiven:ideIsInitialized:userDefaultOverrideIsPresent:failureOrErrorPredicate:]`
+(IDEFoundation) se réduit à :
 
 ```
-CollectTestDiagnosticsOnFailure  /  diagnosticCollectionPolicy
-shouldCollectDiagnosticsGiven:ideIsInitialized:userDefaultOverrideIsPresent:…
-Determines whether long-running and verbose diagnostics (such as a sysdiagnose
-or logarchive) are collected at the end of testing when a failure occurs.
+w19 = boolForKey("CollectTestDiagnosticsOnFailure")   // la VALEUR, pas la présence,
+                                                      // malgré le nom du paramètre
+w0  = prédicat()                                      // un échec/erreur a-t-il eu lieu ?
+w8  = (policy < 3)
+if (ideIsInitialized)  w8 = (policy == 2)
+if (policy == 0)       w8 = 0        ← le seul court-circuit inconditionnel
+if (prédicat == 0)     w8 = 0
+if (w19)  return prédicat            // le default court-circuite la politique
+          return w8
 ```
 
-Le user default existe donc bien, mais le poser ne supprime pas l'attente —
-la collecte semble déclenchée par un autre chemin. Piste non explorée :
-désassembler `shouldCollectDiagnosticsGiven:…` pour voir ce qui l'emporte sur
-l'override.
+Deux enseignements : le user default ne **désactive** rien — à `YES` il rend la
+décision au prédicat d'échec, à `NO` il ne fait rien du tout, ce qui explique
+que le poser n'ait servi à rien. Et le seul chemin qui coupe la collecte quoi
+qu'il arrive est **`policy == 0`**.
+
+Les valeurs de `XCTHDiagnosticCollectionPolicy` se lisent dans le getter
+`description` de XCTHarness, encodées en immédiats de petites chaînes Swift :
+**0 = `Never`**, 2 = `Always`.
+
+### Le correctif
+
+`app/Pinkha.xctestplan`, référencé par le scheme via `xcodegen` :
+
+```json
+"defaultOptions" : { "diagnosticCollectionPolicy" : "Never" }
+```
+
+Mesuré 26 s / 11 s / 12 s sur trois runs consécutifs, contre 623 / 646 / 614 s
+avant, avec les mêmes 321 tests. Aucune ligne `Failure collecting diagnostics`
+ne subsiste. Vaut pour la CI **et** pour les runs locaux.
+
+Ce qu'on perd : le sysdiagnose / logarchive collecté à l'échec d'un test. Les
+échecs d'assertion et leurs messages ne sont pas concernés. Passer la valeur à
+`Always` le temps d'un diagnostic si besoin.
+
+> ⚠️ Un correctif a déjà été annoncé ici sur **une seule mesure**, et il était
+> faux (le run à 24 s était du bruit). Sur ce symptôme, exiger au moins deux
+> mesures concordantes.
 
 ## Désinstallation
 
