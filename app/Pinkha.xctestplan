@@ -1,0 +1,38 @@
+{
+  "configurations" : [
+    {
+      "id" : "A1B2C3D4-0000-4000-8000-00000000C1FA",
+      "name" : "Default",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "diagnosticCollectionPolicy" : "Never"
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:Pinkha.xcodeproj",
+        "identifier" : "D17CDC21C3448F05002B7131",
+        "name" : "PinkhaTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Pinkha.xcodeproj",
+        "identifier" : "1682225E1FF720CA9A508B0E",
+        "name" : "PinkhaIntegrationTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Pinkha.xcodeproj",
+        "identifier" : "8C1010FA95FFCFEEE4AF60B9",
+        "name" : "PinkhaUITests"
+      }
+    }
+  ],
+  "version" : 1
+}
