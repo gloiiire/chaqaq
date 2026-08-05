@@ -144,6 +144,27 @@ impl PinkhaApi {
         use_cases::set_leaves_manual_order(&self.uow(), &uuids).map_err(PinkhaError::from)
     }
 
+    /// Re-inserts a whole block subtree at `index` under `parent_id`
+    /// (`None` = top level), preserving its ids, attributes and children.
+    ///
+    /// Inverse of `delete_block`, which removes a block *and its subtree*.
+    /// `add_block` can't undo that — it appends a bare `BlockContent` at the
+    /// root, so nesting, colour, background colour and writing direction are
+    /// all lost. Takes a full `Block` JSON rather than a `BlockContent`.
+    pub fn insert_block_tree(
+        &self,
+        leaf_id: String,
+        block_json: String,
+        parent_id: Option<String>,
+        index: u32,
+    ) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&leaf_id)?;
+        let parent = parent_id.as_deref().map(parse_uuid).transpose()?;
+        let block: crate::domain::leaf::Block = parse_json(&block_json)?;
+        use_cases::insert_block_tree(&self.uow(), uuid, block, parent, index as usize)
+            .map_err(PinkhaError::from)
+    }
+
     /// Appends a block to a leaf. `block_content_json` must be a JSON-encoded
     /// [`BlockContent`]. Returns the UUID string of the newly created block.
     pub fn add_block(

@@ -775,6 +775,8 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      */
     func indentBlock(leafId: String, blockId: String) throws 
     
+    func insertBlockTree(leafId: String, blockJson: String, parentId: String?, index: UInt32) throws 
+    
     /**
      * Lists metadata for every active book.
      */
@@ -1737,6 +1739,18 @@ open func indentBlock(leafId: String, blockId: String)throws   {try rustCallWith
             self.uniffiCloneHandle(),
         FfiConverterString.lower(leafId),
         FfiConverterString.lower(blockId),uniffiCallStatus
+    )
+}
+}
+    
+open func insertBlockTree(leafId: String, blockJson: String, parentId: String?, index: UInt32)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_insert_block_tree(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(leafId),
+        FfiConverterString.lower(blockJson),
+        FfiConverterOptionString.lower(parentId),
+        FfiConverterUInt32.lower(index),uniffiCallStatus
     )
 }
 }
@@ -3802,6 +3816,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_indent_block() != 18250) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_insert_block_tree() != 55914) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_books() != 16780) {
