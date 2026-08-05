@@ -18,13 +18,13 @@ final class SeededDataUITests: XCTestCase {
 
     func testSeededLeavesAppearInList() {
         let app = launchWithSeed()
-        XCTAssertTrue(app.staticTexts.byLabel("Seeded Note 1").waitForExistence(timeout: 8))
-        XCTAssertTrue(app.staticTexts.byLabel("Seeded Note 2").exists)
+        XCTAssertTrue(app.staticTexts.byLabel("Seeded Leaf 1").waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts.byLabel("Seeded Leaf 2").exists)
     }
 
     func testTapSeededLeafOpensEditor() {
         let app = launchWithSeed()
-        let row = app.staticTexts.byLabel("Seeded Note 1")
+        let row = app.staticTexts.byLabel("Seeded Leaf 1")
         XCTAssertTrue(row.waitForExistence(timeout: 8))
         row.tap()
         XCTAssertTrue(app.staticTexts.byLabel("New block").waitForExistence(timeout: 8))
@@ -32,7 +32,7 @@ final class SeededDataUITests: XCTestCase {
 
     func testNavigationBackReturnsToList() {
         let app = launchWithSeed()
-        let row = app.staticTexts.byLabel("Seeded Note 1")
+        let row = app.staticTexts.byLabel("Seeded Leaf 1")
         XCTAssertTrue(row.waitForExistence(timeout: 8))
         row.tap()
         XCTAssertTrue(app.staticTexts.byLabel("New block").waitForExistence(timeout: 8))
