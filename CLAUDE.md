@@ -406,7 +406,7 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
 - **XCFramework** : `pinkha.xcframework` compilé (ios-arm64, ios-arm64-simulator, macos-arm64)
 - **Projet Xcode** : `app/Pinkha.xcodeproj` généré par xcodegen
 - **UI SwiftUI** :
-  - **Tab bar 4 onglets** (iOS 26 `TabView` + `Tab`) : Library | Books | Inbox | Search
+  - **Tab bar 4 onglets** (iOS 26 `TabView` + `Tab`) : Library | Books | Inbox | Search. La bulle Search détachée exige **`.tabViewSearchActivation(.searchTabSelection)`** sur le TabView : depuis iOS 27 ce traitement est le « prominent tab », réservé aux onglets dont `UISearchTab.automaticallyActivatesSearch` vaut `true` (défaut `NO`). `Tab(role: .search)` **seul ne détache pas**.
   - **Notes** : salutation dynamique, strip horizontale "Récents" (5 derniers docs, cards Apple Music style), liste complète avec swipe-to-delete, FAB `square.and.pencil`
   - **Bases** : placeholder (backend Notion complet côté Rust, UI à venir)
   - **Recherche** : `searchable` SwiftUI + `api.searchLeaves(query:)` FFI, résultats en temps réel

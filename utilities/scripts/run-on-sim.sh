@@ -105,6 +105,25 @@ if [ -f "utilities/scripts/patch-app-icon.rb" ]; then
     ./utilities/scripts/patch-app-icon.rb >/dev/null
 fi
 
+# ── Résolution du .app ────────────────────────────────────────────────────
+# Demander le chemin à xcodebuild plutôt que de fouiller DerivedData.
+#
+# `find DerivedData/Pinkha-*/... | head -1` paraît inoffensif tant qu'il n'y a
+# qu'un dossier. Dès qu'il y en a deux — ce qui arrive dès qu'un chemin de
+# projet change, y compris via une resync iCloud — `find` rend l'ordre du
+# système de fichiers, pas le plus récent. On installe alors silencieusement
+# un binaire périmé : le build réussit, l'app se lance, et le code qu'on vient
+# d'écrire n'est pas dedans. Le symptôme est indiscernable d'un changement qui
+# ne fonctionne pas, et fait conclure faux.
+resolve_app_path() {
+    local destination="$1" products_dir
+    products_dir=$(xcodebuild -project app/Pinkha.xcodeproj -scheme Pinkha \
+        -destination "$destination" -showBuildSettings 2>/dev/null \
+        | awk -F' = ' '/ BUILT_PRODUCTS_DIR /{print $2; exit}')
+    [ -n "$products_dir" ] && [ -d "$products_dir/Pinkha.app" ] || return 1
+    printf '%s\n' "$products_dir/Pinkha.app"
+}
+
 # ── Build ─────────────────────────────────────────────────────────────────
 echo "→ Building for simulator ${SIM_TARGET}…"
 xcodebuild build -quiet \
@@ -112,8 +131,7 @@ xcodebuild build -quiet \
     -scheme Pinkha \
     -destination "id=$SIM_TARGET"
 
-APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData/Pinkha-*/Build/Products/Debug-iphonesimulator \
-    -name "Pinkha.app" -type d 2>/dev/null | head -1)
+APP_PATH=$(resolve_app_path "id=$SIM_TARGET" || true)
 if [[ -z "$APP_PATH" ]]; then
     echo "✗ Build succeeded but Pinkha.app not found in DerivedData." >&2
     exit 1

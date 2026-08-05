@@ -77,9 +77,15 @@ struct ContentView: View {
         rootTabs
             // iOS 26 tab-bar morphing : the tab bar collapses when the user
             // scrolls down so the content gets more breathing room, and
-            // reappears on scroll-up. Search (role: .search) automatically
-            // detaches into its own glass bubble on the right.
+            // reappears on scroll-up.
             .tabBarMinimizeBehavior(.onScrollDown)
+            // What actually detaches Search into its own bubble. iOS 27
+            // reserves that "prominent" treatment — UITabBarController.h:
+            // "…a UISearchTab that could become prominent (when
+            // automaticallyActivatesSearch = true)". UISearchTab.h documents
+            // that flag's default as NO, so the role alone is not enough.
+            // This modifier is SwiftUI's spelling of setting it to YES.
+            .tabViewSearchActivation(.searchTabSelection)
             // Tab-bar hiding in reader mode is owned by `LeafView` (the
             // only context where reader mode is meaningful). Applying
             // it here AND there would double-toggle ; the leaf-level
