@@ -206,6 +206,18 @@ public final class SafariSwitcherView: UIView {
         } else { apply() }
     }
 
+    // `isolated` so the deinit can touch MainActor state: `CADisplayLink`
+    // is not `Sendable`, and a plain `nonisolated deinit` cannot reach it.
+    isolated deinit {
+        // `CADisplayLink` retains its target and the run loop retains the
+        // link, so a live one keeps this view (and every cell it holds)
+        // alive after SwiftUI has torn the representable down — running
+        // `stepInertia` at 60 Hz on a detached view until velocity decays.
+        // Flick the grid then immediately tap a card to reproduce.
+        inertiaDisplayLink?.invalidate()
+        inertiaDisplayLink = nil
+    }
+
     private func startInertia(velocity: CGFloat) {
         scrollVelocity = velocity
         inertiaDisplayLink?.invalidate()
@@ -715,10 +727,13 @@ final class TabCardView: UIView {
         // snapshot was captured at their last scroll position.
         liveThumbnailView.image = TabSnapshotCache.shared.snapshot(for: item.id)
 
+        var pendingRemoteCover: String?
         if case .leaf(let doc) = item,
-           let coverString = doc.cover, !coverString.isEmpty,
-           let image = Self.coverImage(from: coverString) {
-            coverImageView.image = image
+           let coverString = doc.cover, !coverString.isEmpty {
+            coverImageView.image = Self.coverImage(from: coverString)
+            if coverImageView.image == nil, coverString.hasPrefix("http") {
+                pendingRemoteCover = coverString
+            }
         } else {
             coverImageView.image = nil
         }
@@ -727,11 +742,18 @@ final class TabCardView: UIView {
         if case .leaf(let doc) = item, let api = api {
             loaderTask?.cancel()
             let leafId = doc.id
+            let remoteCover = pendingRemoteCover
             loaderTask = Task { [weak self] in
                 let snippet = await Self.loadSnippet(api: api, leafId: leafId)
                 guard !Task.isCancelled, let self else { return }
                 await MainActor.run {
                     if self.itemId == leafId { self.snippetLabel.text = snippet }
+                }
+                if let remoteCover, let image = await Self.loadRemoteCover(remoteCover) {
+                    guard !Task.isCancelled else { return }
+                    await MainActor.run {
+                        if self.itemId == leafId { self.coverImageView.image = image }
+                    }
                 }
             }
         } else if case .book = item {
@@ -766,21 +788,51 @@ final class TabCardView: UIView {
         return NSAttributedString(attachment: attachment)
     }
 
+    /// Bundled asset only — remote covers are fetched asynchronously by
+    /// `loadRemoteCover`.
+    ///
+    /// This used to do `Data(contentsOf: url)` for `http` covers: a
+    /// synchronous network round trip, with no timeout and no cache, from
+    /// `configure` on the main actor — and repeated on every
+    /// `rebuildCells`. Against a slow or dead host (a Notion-imported cover
+    /// whose URL has expired) that blocks the main thread indefinitely,
+    /// which is a watchdog termination.
     private static func coverImage(from raw: String) -> UIImage? {
-        if let asset = UIImage(named: raw) { return asset }
-        if raw.hasPrefix("http"), let url = URL(string: raw),
-           let data = try? Data(contentsOf: url) {
-            return UIImage(data: data)
-        }
-        return nil
+        UIImage(named: raw)
     }
 
-    private static func loadSnippet(api: PinkhaApi, leafId: String) async -> String {
+    /// Fetches a remote cover off the main actor, with a timeout, caching
+    /// the result so re-entering the switcher doesn't refetch.
+    nonisolated private static func loadRemoteCover(_ raw: String) async -> UIImage? {
+        guard raw.hasPrefix("http"), let url = URL(string: raw) else { return nil }
+        if let cached = await RemoteCoverCache.shared.image(for: raw) { return cached }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 8
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+              let image = UIImage(data: data)
+        else { return nil }
+        await RemoteCoverCache.shared.store(image, for: raw)
+        return image
+    }
+
+    /// `nonisolated` on purpose. `TabCardView` is a `UIView`, so under Swift 6
+    /// language mode it — and its statics — are implicitly `@MainActor`, and
+    /// this ran `api.getLeaf` (a synchronous SQLite call plus a full
+    /// `JSONDecoder` decode of the entire block tree) on the main thread,
+    /// once per open tab, just to build a 240-character snippet. The inner
+    /// `MainActor.run` hop made it look like it was already off-main.
+    ///
+    /// `PinkhaApi` is `Mutex<Connection>`-backed in Rust, so off-main calls
+    /// are safe.
+    nonisolated private static func loadSnippet(api: PinkhaApi, leafId: String) async -> String {
         guard let doc = try? api.getLeaf(id: leafId) else { return "" }
         return extractText(blocks: doc.blocks, limit: 240)
     }
 
-    private static func extractText(blocks: [BlockFfi], limit: Int) -> String {
+    /// Pure text extraction — no UI state, so it stays off the main
+    /// actor with `loadSnippet`.
+    nonisolated private static func extractText(blocks: [BlockFfi], limit: Int) -> String {
         var pieces: [String] = []
         var remaining = limit
         for block in blocks {
@@ -792,5 +844,28 @@ final class TabCardView: UIView {
             remaining -= trimmed.count
         }
         return pieces.joined(separator: " ")
+    }
+}
+
+/// Bounded cache for switcher cover images.
+///
+/// An `actor` rather than a bare `static NSCache`: `NSCache` is not
+/// `Sendable`, so a `nonisolated` fetch can't touch one directly under
+/// Swift 6. The actor gives the same bounded, thread-safe storage with a
+/// checked isolation boundary.
+private actor RemoteCoverCache {
+    static let shared = RemoteCoverCache()
+    private let cache = NSCache<NSString, UIImage>()
+
+    init() {
+        cache.countLimit = 50
+    }
+
+    func image(for key: String) -> UIImage? {
+        cache.object(forKey: key as NSString)
+    }
+
+    func store(_ image: UIImage, for key: String) {
+        cache.setObject(image, forKey: key as NSString)
     }
 }

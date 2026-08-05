@@ -39,6 +39,8 @@ public struct LeafView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) var accessoryPlacement
     /// Pops the editor when the title-bubble menu confirms a delete.
     @Environment(\.dismiss) var dismiss
+    /// Drives the flush-on-background below.
+    @Environment(\.scenePhase) var scenePhase
     @State var showingBlockPicker = false
     @State var editMode: EditMode = .inactive
     @State var focusTitle = false
@@ -423,6 +425,17 @@ public struct LeafView: View {
                 if legacyLocked { vm.saveLocked(true) }
                 UserDefaults.standard.removeObject(forKey: lockKey)
             }
+        }
+        // Typing is persisted lazily: block edits land 300 ms after the last
+        // keystroke (`saveBlock`'s burst debounce) and the title only on
+        // end-editing. `onDisappear` flushes both — but it does NOT fire
+        // when the app is backgrounded, so force-quitting from the app
+        // switcher (or a jetsam kill) while the title field is focused lost
+        // the entire title, plus the trailing burst of body typing.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase != .active else { return }
+            vm.flushAllBursts()
+            vm.saveTitle()
         }
         .onDisappear {
             vm.flushAllBursts()

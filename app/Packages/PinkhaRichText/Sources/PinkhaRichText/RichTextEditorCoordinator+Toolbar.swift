@@ -321,12 +321,17 @@ extension RichTextEditorCoordinator {
                 style: .destructive,
             ) { _ in completion("") })
         }
+        // `[unowned alert]`: the action is owned by the alert, so capturing
+        // it strongly closes a cycle (alert → action → closure → alert) and
+        // leaks the controller, its text field and its presentation
+        // scaffolding on every link prompt, permanently. `unowned` is safe
+        // here — the handler can only run while the alert is on screen.
         alert.addAction(UIAlertAction(
             title: hasLabel
                 ? String(localized: "Apply")
                 : String(localized: "Insert"),
             style: .default,
-        ) { _ in
+        ) { [unowned alert] _ in
             let url = alert.textFields?.first?.text ?? ""
             completion(url)
         })
