@@ -148,4 +148,12 @@ public struct SortFfi: Codable, Equatable {
         case order
         case source
     }
+
+    /// Swift synthesises a memberwise init for a public struct as
+    /// `internal`, so other modules cannot build one without this.
+    public init(propertyId: String, order: String, source: String) {
+        self.propertyId = propertyId
+        self.order = order
+        self.source = source
+    }
 }
