@@ -121,15 +121,91 @@ jobs:
         # time before merge.
         run: cargo audit --deny warnings
 
-  # Job Swift désactivé temporairement : le code utilise `UIGlassEffect` /
-  # `.glassEffect()` (iOS 26) et un deployment target iOS 26.0, alors que les
-  # runners GitHub Actions (`macos-15`) n'ont actuellement que Xcode 16.4 avec
-  # iOS 18.5 SDK. À réactiver quand Xcode 26 stable arrivera sur les runners
-  # (post-WWDC 2026), ou si on backporte avec `if #available(iOS 26.0, *)` et
-  # un fallback UIBlurEffect.
-  # Voir CLAUDE.md → "Dette technique → Infrastructure".
-  swift-placeholder:
-    name: Swift tests (désactivé — Xcode 26 indispo sur runners)
-    runs-on: ubuntu-latest
+  # Tests Swift sur runner self-hosted.
+  #
+  # Les runners GitHub (`macos-15`) n'ont que Xcode 16.4 / iOS 18.5 SDK, alors
+  # que le projet cible iOS 26 et utilise `UIGlassEffect` / `.glassEffect()`.
+  # Plutôt que d'attendre Xcode 26 sur les runners hébergés, on exécute ce job
+  # sur la machine de dev, qui a le bon Xcode et le simulateur "Pinkha SIM".
+  #
+  # `xcode27` est un label custom : quand la machine est éteinte, le job reste
+  # en attente puis expire au timeout au lieu de bloquer la PR indéfiniment.
+  swift:
+    name: Swift tests (self-hosted, Xcode 27)
+    runs-on: [self-hosted, macOS, ARM64, xcode27]
+    # Un job en attente sur un runner offline resterait pendu sans ça.
+    timeout-minutes: 45
+    # NE JAMAIS exécuter le code d'un fork sur une machine personnelle. Le repo
+    # est public et les forks sont autorisés : sans cette garde, n'importe qui
+    # pourrait faire tourner du code arbitraire sur le Mac via une PR. Les
+    # contributeurs externes restent couverts par le job Rust ; leur code Swift
+    # se teste en poussant la branche dans ce dépôt.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
-      - run: echo "Swift CI suspendu — voir .github/workflows/ci.yml"
+      - uses: actions/checkout@v7
+
+      - name: Environnement
+        # Le service tourne en LaunchAgent : son PATH vient du fichier `.env`
+        # à la racine du runner, pas du shell interactif. Si un outil manque
+        # ici, c'est `.env` qu'il faut corriger, pas le workflow.
+        run: |
+          echo "Xcode    : $(xcodebuild -version | head -1)"
+          echo "Swift    : $(swift --version 2>&1 | head -1)"
+          echo "xcodegen : $(xcodegen --version 2>&1 | head -1)"
+          echo "cargo    : $(cargo --version 2>&1)"
+
+      - name: Purge des copies de conflit iCloud
+        # Le repo de dev vit dans iCloud, qui fabrique des "Foo 2.swift".
+        # Le checkout du runner est propre, mais xcodegen lit `app/` et un
+        # doublon ferait échouer le build de façon incompréhensible.
+        run: |
+          find app -name "* [2-9].swift" -delete 2>/dev/null || true
+          find app -name "* [2-9].xcodeproj" -type d -exec rm -rf {} + 2>/dev/null || true
+
+      - name: Build du xcframework Rust
+        # Le xcframework est gitignored et reconstruit à la demande — les
+        # tests Swift ne compilent pas sans lui.
+        run: ./build-xcframework.sh
+
+      - name: Génération du projet Xcode
+        run: |
+          cd app && xcodegen generate
+          cd .. && ./utilities/scripts/patch-app-icon.rb
+
+      - name: Simulateur
+        id: sim
+        # Résolu par nom, comme les scripts locaux. `bootstatus -b` bloque
+        # jusqu'à ce qu'il soit réellement utilisable, ce qui évite la course
+        # "Unable to lookup in current state: Shutdown" au démarrage à froid.
+        run: |
+          UDID=$(xcrun simctl list devices --json \
+            | jq -r '.devices | to_entries[] | .value[] | select(.name == "Pinkha SIM") | .udid' \
+            | head -1)
+          if [ -z "$UDID" ]; then
+            echo "::error::simulateur 'Pinkha SIM' introuvable sur ce runner"
+            exit 1
+          fi
+          xcrun simctl boot "$UDID" 2>/dev/null || true
+          xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 || true
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Tests unitaires + intégration
+        # Les XCUITest sont volontairement exclus : ils exigent une session
+        # graphique connectée, alors que le runner tourne en LaunchAgent.
+        # Ils restent lancés à la main via utilities/scripts.
+        run: |
+          set -o pipefail
+          ARGS=(test
+            -project app/Pinkha.xcodeproj
+            -scheme Pinkha
+            -destination "id=${{ steps.sim.outputs.udid }}"
+            -only-testing:PinkhaTests
+            -only-testing:PinkhaIntegrationTests)
+          # xcpretty n'est que du confort de lecture : s'il n'est pas là, on
+          # ne fait pas échouer la CI pour autant. `pipefail` garantit que le
+          # code de sortie reste celui de xcodebuild, pas celui du filtre.
+          if command -v xcpretty >/dev/null 2>&1; then
+            xcodebuild "${ARGS[@]}" | xcpretty
+          else
+            xcodebuild "${ARGS[@]}"
+          fi
