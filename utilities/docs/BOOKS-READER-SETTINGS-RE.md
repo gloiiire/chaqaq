@@ -566,3 +566,113 @@ Le sheet est en matériau translucide au-dessus de la page. Les valeurs RGB
 relevées sur la capture sont donc **composées** — la tuile Papier y ressort à
 `#E4E3E3` alors que le thème vaut `#EEEDED`. Pour les couleurs, se fier à
 l'extraction binaire (§10.3) ; la capture ne sert qu'à la géométrie.
+
+---
+
+## 12. Sheet « Personnaliser le thème »
+
+Mesurée sur les mêmes captures natives (402 × 874 pt).
+
+### 12.1 Différence structurelle majeure avec le premier sheet
+
+Le sheet « Thèmes et réglages » **flotte** : 8 pt de marge de chaque côté.
+« Personnaliser le thème » est **pleine largeur**, bord à bord (0 → 401,7 pt),
+avec seulement les coins supérieurs arrondis. Ce ne sont pas deux variantes du
+même conteneur.
+
+### 12.2 Anatomie
+
+```
+┌─ en-tête, fixe, sur le fond du thème ────────────────┐
+│  (✕)      Personnaliser le thème            (✓)      │
+├─ aperçu vivant, fixe, sur le fond du thème ──────────┤
+│  Aa                                                   │
+│  Ce jour-là, ils n'apporteront ni ne                 │
+│  transporteront de maison en                          │
+│  maison, car ce jour est plus saint                  │
+│  et plus béni que tous les jours du   ← fondu         │
+├─ liste groupée, défilante, fond système ─────────────┤
+│  Texte                                                │
+│  ┌──────────────────────────────────────┐            │
+│  │ Aa  Police                  Canela › │            │
+│  │ ──────────────────────────────────── │            │
+│  │ B   Gras                      (○  )  │            │
+│  └──────────────────────────────────────┘            │
+│  Accessibilité et options de présentation             │
+│  ┌──────────────────────────────────────┐            │
+│  │ Personnaliser                 ( ●)   │  ← vert    │
+│  │ ESPACEMENT DES LIGNES                │            │
+│  │ ⇕≡  ▬▬●────────           1,55       │            │
+│  │ ESPACEMENT DES CARACTÈRES            │            │
+│  │ Abc ▬▬●────────            0 %       │            │
+│  │ ESPACEMENT DES MOTS                  │            │
+│  │ ≡≡  ▬▬●────────            0 %       │            │
+│  │ MARGES                               │            │
+│  │ ▢   ▬▬●────────            0 %       │            │
+│  └──────────────────────────────────────┘            │
+│  ┌──────────────────────────────────────┐            │
+│  │ Colonnes     Réglage automatique ⌃⌄  │            │
+│  │ Justifier le texte            (○  )  │            │
+│  └──────────────────────────────────────┘            │
+│  ┌──────────────────────────────────────┐            │
+│  │        Réinitialiser le thème        │  ← grisé   │
+│  └──────────────────────────────────────┘   si vierge│
+└───────────────────────────────────────────────────────┘
+```
+
+### 12.3 Géométrie
+
+| | pt |
+| --- | --- |
+| Largeur du sheet | **402** (pleine largeur) |
+| Haut du sheet | y **84** |
+| Aperçu (en-tête inclus) | y 84 → **373,7**, hauteur **290** |
+| Début de la liste | y **374,3** |
+| Bas du sheet | y **845,7** |
+| Encart latéral des cartes | **16** de chaque côté |
+| Hauteur de ligne (Police) | **59** |
+| Hauteur de ligne (Gras) | **55,3** |
+
+Le séparateur entre deux lignes d'une carte est **encastré** : il démarre après
+l'icône de gauche, pas au bord de la carte.
+
+### 12.4 Boutons d'en-tête
+
+- **✕** à gauche : cercle rempli d'une teinte dérivée du thème (crème en clair,
+  gris chaud en sombre), glyphe sombre.
+- **✓** à droite : cercle **plein et contrasté, qui s'inverse** — noir à glyphe
+  blanc en apparence claire, blanc à glyphe noir en sombre. C'est l'action
+  principale ; la croix annule.
+
+Le titre est centré entre les deux, en gras.
+
+### 12.5 Le sélecteur de police se déplie en place
+
+Toucher la ligne « Police » **ne pousse pas d'écran et n'ouvre pas de sheet** :
+la liste se déplie à l'intérieur de la même carte, le chevron passe de `›` à
+`⌄`, et **chaque nom est rendu dans sa propre police**. La police active porte
+une coche.
+
+Ordre observé : Original, Athelas, Avenir Next, Canela, Charter, Georgia,
+Iowan, … (la liste continue au défilement).
+
+### 12.6 L'interrupteur « Personnaliser » commande les curseurs
+
+C'est lui qui active la section : les quatre curseurs (lignes, caractères,
+mots, marges) ne s'appliquent que lorsqu'il est vert. Il correspond à
+`hasCustomLayout` dans le modèle Core Data d'Apple (§10.1).
+
+### 12.7 Confirmation croisée de l'extraction binaire
+
+La capture affiche **1,55** pour l'espacement des lignes, thème Calme
+sélectionné. C'est exactement la valeur décodée depuis
+`BookThemeEntity.defaultOverrides` (§10.9), obtenue par désassemblage sans
+aucun rapport avec la capture. Les deux méthodes concordent — ce qui vaut
+validation du tableau d'interlignes complet.
+
+### 12.8 Unités affichées
+
+- Espacement des lignes : **multiplicateur** à deux décimales, virgule
+  décimale française (`1,55`)
+- Caractères, mots, marges : **pourcentage** entier (`0 %`), avec une espace
+  avant le signe, conforme à la typographie française
