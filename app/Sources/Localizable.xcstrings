@@ -3179,6 +3179,24 @@
         }
       }
     },
+    "Original": {
+      "comment": "First entry of the reader font picker: inherit the theme's own typeface. Books labels it \"Original\" in both languages.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original"
+          }
+        }
+      }
+    },
     "Papier": {
       "extractionState": "manual",
       "localizations": {

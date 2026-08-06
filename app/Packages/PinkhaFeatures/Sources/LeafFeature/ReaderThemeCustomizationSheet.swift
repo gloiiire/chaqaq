@@ -104,7 +104,9 @@ public struct ReaderThemeCustomizationSheet: View {
         self.onReset = onReset
     }
 
-    @State private var showingFontPicker = false
+    /// Le sélecteur se déplie DANS la carte, comme Books : pas d'écran
+    /// poussé ni de sheet. Le chevron pivote de « › » à « ⌄ ».
+    @State private var fontPickerExpanded = false
 
     public var body: some View {
         // Apple Books pattern : the preview surface and the header
@@ -136,17 +138,6 @@ public struct ReaderThemeCustomizationSheet: View {
             .background(Color(.systemBackground))
         }
         .background(Color(.systemBackground))
-        .sheet(isPresented: $showingFontPicker) {
-            FontPickerSheet(
-                selection: $fontFamily,
-                fonts: availableFonts,
-                themeFontDisplayName: themeFontDisplayName,
-                themeFontFamily: themeFontFamily,
-                onClose: { showingFontPicker = false }
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        }
     }
 
     // ── Header ────────────────────────────────────────────────────────────
@@ -155,10 +146,14 @@ public struct ReaderThemeCustomizationSheet: View {
         // Apple Books button styling :
         //   X (discard) → SUBTLE circle (foreground tinted at ~12 %)
         //                  with the foreground colour as the icon.
-        //   ✓ (commit)  → INVERTED circle : foreground colour as bg
-        //                  + background colour as icon. Stands out as
-        //                  the primary action on every theme palette
-        //                  (cream → dark circle, dark → light circle).
+        //   ✓ (commit)  → cercle plein CONTRASTÉ qui suit l'APPARENCE,
+        //                  pas le thème : noir à glyphe blanc en clair,
+        //                  blanc à glyphe noir en sombre (mesuré sur
+        //                  Books : #0D0A03 / #FFFFFB — cf. §12.4 de
+        //                  BOOKS-READER-SETTINGS-RE.md). Ce commentaire
+        //                  affirmait avant que le cercle prenait la
+        //                  couleur d'avant-plan du thème ; c'est faux —
+        //                  celle de Calme vaut #32281E, un brun.
         ZStack {
             Text("Customize Theme")
                 .font(.system(size: 17, weight: .semibold))
@@ -181,11 +176,15 @@ public struct ReaderThemeCustomizationSheet: View {
                     Haptic.tap()
                     onCommit()
                 } label: {
+                    // Noir plein sur apparence claire, blanc plein sur
+                    // sombre — mesuré sur Books : #0D0A03 et #FFFFFB. Ce
+                    // n'est PAS l'avant-plan du thème, qui vaut #32281E
+                    // (un brun) pour Calme. Le bouton suit l'apparence.
                     Image(systemName: "checkmark")
                         .font(.system(size: 15, weight: .semibold))
                         .frame(width: 32, height: 32)
-                        .foregroundStyle(previewBackground)
-                        .background(Circle().fill(previewForeground))
+                        .foregroundStyle(readerIsDark ? Color.black : Color.white)
+                        .background(Circle().fill(readerIsDark ? Color.white : Color.black))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Confirm")
@@ -317,7 +316,7 @@ public struct ReaderThemeCustomizationSheet: View {
             VStack(spacing: 0) {
                 Button {
                     Haptic.tap()
-                    showingFontPicker = true
+                    withAnimation(.snappy(duration: 0.25)) { fontPickerExpanded.toggle() }
                 } label: {
                     HStack {
                         Text("Aa")
@@ -335,12 +334,14 @@ public struct ReaderThemeCustomizationSheet: View {
                         Image(systemName: "chevron.right")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(.tertiary)
+                            .rotationEffect(.degrees(fontPickerExpanded ? 90 : 0))
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                if fontPickerExpanded { inlineFontList }
                 Divider().padding(.leading, 56)
                 HStack {
                     Text("B")
@@ -364,6 +365,91 @@ public struct ReaderThemeCustomizationSheet: View {
     }
 
     // ── "Accessibilité et options de présentation" section ───────────────
+
+    /// Liste des polices, dépliée à l'intérieur de la carte.
+    ///
+    /// Books ne pousse pas d'écran et n'ouvre pas de sheet : la liste apparaît
+    /// sous la ligne « Police », et **chaque nom est rendu dans sa propre
+    /// police** — c'est ce qui permet de choisir en voyant plutôt qu'en
+    /// lisant. La police active porte une coche.
+    @ViewBuilder
+    private var inlineFontList: some View {
+        ForEach(availableFonts, id: \.self) { family in
+            Divider().padding(.leading, 56)
+            Button {
+                Haptic.tap()
+                fontFamily = family
+                withAnimation(.snappy(duration: 0.25)) { fontPickerExpanded = false }
+            } label: {
+                HStack {
+                    Text(family == "System" ? "Original" : family)
+                        .font(rowFont(for: family, size: 17))
+                    Spacer()
+                    if fontFamily == family {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+                }
+                .padding(.leading, 56)
+                .padding(.trailing, 16)
+                .padding(.vertical, 12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// Rend un nom dans sa propre famille, sinon en police système.
+    ///
+    /// `UIFont(name:)` attend un nom PostScript et échoue sur la plupart des
+    /// noms de famille (« Avenir Next », « Canela Text »), d'où le repli par
+    /// `fontNames(forFamilyName:)`. Un nom lisible dans la mauvaise fonte
+    /// vaut mieux qu'une ligne vide.
+    private func rowFont(for family: String, size: CGFloat) -> Font {
+        guard family != "System" else { return themeRowFont(size: size) }
+        if let f = UIFont(name: family, size: size) { return Font(f) }
+        if let ps = UIFont.fontNames(forFamilyName: family).first,
+           let f = UIFont(name: ps, size: size) {
+            return Font(f)
+        }
+        return .system(size: size)
+    }
+
+    /// Police de la ligne « Original » : celle du thème actif, puisque
+    /// « Original » signifie « hérite du thème ». Les familles fournies avec
+    /// l'app portent des noms PostScript qui ne dérivent pas du nom affiché,
+    /// d'où la table de candidats.
+    private func themeRowFont(size: CGFloat) -> Font {
+        let candidates: [String] = switch themeFontFamily {
+        case "Publico":      ["PublicoText-Roman", "Publico Text", "PublicoText", "Publico"]
+        case "Canela":       ["CanelaText-Regular", "Canela Text", "CanelaText", "Canela"]
+        case "Proxima Nova": ["ProximaNova-Regular", "Proxima Nova", "AvenirNext-Regular"]
+        case let .some(f):   [f]
+        case .none:          []
+        }
+        for name in candidates {
+            if let f = UIFont(name: name, size: size) { return Font(f) }
+        }
+        if let family = themeFontFamily,
+           let ps = UIFont.fontNames(forFamilyName: family).first,
+           let f = UIFont(name: ps, size: size) {
+            return Font(f)
+        }
+        return .system(size: size)
+    }
+
+    /// Vrai quand la surface du lecteur est sombre.
+    ///
+    /// La sheet ne reçoit que des couleurs déjà résolues, jamais l'apparence :
+    /// on la déduit donc de la luminance du fond, ce qui reste juste que la
+    /// noirceur vienne du mode système ou de la variante sombre du thème, et
+    /// garantit que le bouton ✓ ne devienne jamais invisible sur son fond.
+    /// Pondérations Rec. 601, celles utilisées pour le contraste perçu.
+    private var readerIsDark: Bool {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        UIColor(previewBackground).getRed(&r, green: &g, blue: &b, alpha: &a)
+        return (0.299 * r + 0.587 * g + 0.114 * b) < 0.5
+    }
 
     private var accessibilitySection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -512,38 +598,39 @@ Even when I started praying for the woman involved, I didn't think, \
     /// Reading-friendly font families exposed in the picker —
     /// every entry is either iOS-bundled or shipped inside the app
     /// (Publico Text, Canela Text via `Resources/Fonts/Bundled/`).
-    /// Alphabetised so the picker reads as a font catalogue ; the
-    /// "System" entry stays pinned at the top (handled by the picker
-    /// rendering, not by sort order).
+    /// Ordre **alphabétique à plat**, « System » épinglé en tête.
+    ///
+    /// Books n'ordonne pas par catégorie : l'ordre relevé sur l'appareil est
+    /// Original, Athelas, Avenir Next, Canela, Charter, Georgia, Iowan… —
+    /// soit un simple tri alphabétique après l'entrée héritée du thème
+    /// (§12.5). Cette liste était auparavant groupée en sérif / sans-sérif /
+    /// monospace sous un commentaire qui la disait déjà « alphabetised ».
     @MainActor public static let bundledFonts: [String] = [
         "System",
-        // ── Serifs (editorial, body-friendly) ──
         "Athelas",
-        "Baskerville",
-        "Bodoni 72",
-        "Canela Text",                 // bundled (.ttc)
-        "Charter",
-        "Cochin",
-        "Didot",
-        "Georgia",
-        "Hoefler Text",
-        "Iowan Old Style",
-        "Palatino",
-        "Publico Text",                // bundled (.ttc)
-        "Times New Roman",
-        // ── Sans-serifs (modern, screen-optimised) ──
         "Avenir",
         "Avenir Next",
         "Avenir Next Condensed",
+        "Baskerville",
+        "Bodoni 72",
+        "Canela Text",                 // fournie avec l'app (.ttc)
+        "Charter",
+        "Cochin",
+        "Courier New",
+        "Didot",
         "Futura",
+        "Georgia",
         "Gill Sans",
         "Helvetica Neue",
+        "Hoefler Text",
+        "Iowan Old Style",
+        "Menlo",
         "Optima",
+        "Palatino",
+        "Publico Text",                // fournie avec l'app (.ttc)
+        "Times New Roman",
         "Trebuchet MS",
         "Verdana",
-        // ── Monospace ──
-        "Menlo",
-        "Courier New",
     ]
 }
 
@@ -575,131 +662,5 @@ private struct PreviewBlockView: UIViewRepresentable {
         // Re-apply on every change so the preview tracks live slider
         // drags / toggle flips.
         tv.attributedText = attributed
-    }
-}
-
-// ── Font picker sheet ────────────────────────────────────────────────────────
-
-/// Minimal list-based font picker. Each row renders the family name
-/// in its own face so the user can preview the look before picking.
-/// The "System" entry is rendered in the active theme's font and
-/// suffixed with the theme font's display name in parentheses — that
-/// way the user always knows what "System" actually means in the
-/// current theme context (Apple Books UX pattern).
-struct FontPickerSheet: View {
-    @Binding var selection: String
-    let fonts: [String]
-    let themeFontDisplayName: String
-    let themeFontFamily: String?
-    let onClose: () -> Void
-
-    var body: some View {
-        NavigationStack {
-            List(fonts, id: \.self) { family in
-                Button {
-                    Haptic.tap()
-                    selection = family
-                    onClose()
-                } label: {
-                    HStack {
-                        Text(label(for: family))
-                            .font(fontFor(family: family))
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        if family == selection {
-                            Image(systemName: "checkmark")
-                                .foregroundStyle(.primary)
-                        }
-                    }
-                    // Make the full row width (including the gap
-                    // between text and checkmark) hit-testable —
-                    // without contentShape, only the rendered glyphs
-                    // catch the tap.
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-            .navigationTitle("Font")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Close") { onClose() }
-                }
-            }
-        }
-    }
-
-    /// "Theme (Canela Text)" for the System sentinel row — clearer
-    /// than the literal "System" which would suggest the device's
-    /// system font rather than "use whatever the active theme picks".
-    /// Plain family name for every other row.
-    private func label(for family: String) -> String {
-        family == "System"
-            ? "Theme (\(themeFontDisplayName))"
-            : family
-    }
-
-    /// Resolve a `Font` for the row preview. For "System" we route
-    /// through the theme's PostScript-name candidates so the row
-    /// renders in the same face the leaf actually uses.
-    private func fontFor(family: String) -> Font {
-        if family == "System" {
-            return systemRowFont
-        }
-        let resolveSize: CGFloat = 18
-        let candidates: [String] = {
-            switch family {
-            case "Publico Text", "Publico":
-                return ["PublicoText-Roman", "Publico Text", "PublicoText",
-                        "Publico", "Publico-Text"]
-            case "Canela Text", "Canela":
-                return ["CanelaText-Regular", "Canela Text", "CanelaText",
-                        "Canela-Regular", "Canela"]
-            case "Proxima Nova":
-                return ["ProximaNova-Regular", "Proxima Nova", "ProximaNova",
-                        "AvenirNext-Regular", "Avenir Next"]
-            default:
-                return [family]
-            }
-        }()
-        for name in candidates {
-            if let f = UIFont(name: name, size: resolveSize) { return Font(f) }
-        }
-        if let ps = UIFont.fontNames(forFamilyName: family).first,
-           let f = UIFont(name: ps, size: resolveSize) {
-            return Font(f)
-        }
-        return .system(size: resolveSize)
-    }
-
-    private var systemRowFont: Font {
-        let resolveSize: CGFloat = 18
-        let family = themeFontFamily
-        let candidates: [String] = {
-            switch family {
-            case "Publico":
-                return ["PublicoText-Roman", "Publico Text", "PublicoText",
-                        "Publico", "Publico-Text"]
-            case "Canela":
-                return ["CanelaText-Regular", "Canela Text", "CanelaText",
-                        "Canela-Regular", "Canela"]
-            case "Proxima Nova":
-                return ["ProximaNova-Regular", "Proxima Nova", "ProximaNova",
-                        "AvenirNext-Regular", "Avenir Next"]
-            case let .some(f):
-                return [f]
-            case .none:
-                return []
-            }
-        }()
-        for name in candidates {
-            if let f = UIFont(name: name, size: resolveSize) { return Font(f) }
-        }
-        if let family,
-           let ps = UIFont.fontNames(forFamilyName: family).first,
-           let f = UIFont(name: ps, size: resolveSize) {
-            return Font(f)
-        }
-        return .system(size: resolveSize)
     }
 }

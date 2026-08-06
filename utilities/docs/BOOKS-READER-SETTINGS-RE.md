@@ -676,3 +676,15 @@ validation du tableau d'interlignes complet.
   décimale française (`1,55`)
 - Caractères, mots, marges : **pourcentage** entier (`0 %`), avec une espace
   avant le signe, conforme à la typographie française
+
+### 12.9 État du portage dans pinkha
+
+| Point mesuré | Porté | Note |
+| --- | --- | --- |
+| §12.4 — ✓ suit l'apparence, pas le thème | ✅ | Dérivé de la luminance du fond (Rec. 601), pas de `colorScheme` : la sheet ne reçoit que des couleurs déjà résolues, et la noirceur peut venir du thème comme du système. Le commentaire du header affirmait l'inverse ; corrigé. |
+| §12.5 — dépliage en place | ✅ | `fontPickerExpanded`, chevron pivoté de 90°. L'ancienne `FontPickerSheet` (125 lignes) est supprimée. |
+| §12.5 — chaque nom dans sa police | ✅ | `rowFont(for:size:)`, avec repli `fontNames(forFamilyName:)` — `UIFont(name:)` seul échoue sur « Avenir Next » et « Canela Text ». |
+| §12.5 — ordre alphabétique à plat | ✅ | La liste était groupée sérif / sans / mono sous un commentaire qui la disait déjà « alphabetised ». Verrouillé par `ReaderFontCatalogueTests`. |
+| §12.5 — première entrée « Original » | ✅ | Ajoutée à `Localizable.xcstrings` (identique en/fr, comme Books). |
+| §12.3 — géométrie des lignes (59 / 55,3 pt) | ⚠️ | Non vérifié à l'écran : le menu de débordement est un `UIMenu` UIKit, que `ImportUITests` documente comme non automatisable de façon fiable sur simulateur. |
+| §12.6 — « Personnaliser » commande les curseurs | ⚠️ | `customLayoutEnabled` existe déjà ; l'effet sur les quatre curseurs reste à confirmer visuellement. |
