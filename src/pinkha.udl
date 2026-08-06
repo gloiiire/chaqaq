@@ -225,6 +225,15 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     void update_leaf_theme(string id, string? theme);
 
+    /// Persists the leaf's reader-settings bundle (font scale +
+    /// family + bold + 4 spacing values + justify + dark variant +
+    /// custom-layout flag). Pass the JSON-serialised
+    /// `ReaderSettings` shape, or `null` to clear and fall back to
+    /// the theme's factory defaults. Cf. `domain::leaf::ReaderSettings`
+    /// and `utilities/docs/BOOKS-READER-SETTINGS-RE.md`.
+    [Throws=PinkhaError]
+    void update_leaf_reader_settings(string id, string? settings_json);
+
     [Throws=PinkhaError]
     void delete_block(string leaf_id, string block_id);
 

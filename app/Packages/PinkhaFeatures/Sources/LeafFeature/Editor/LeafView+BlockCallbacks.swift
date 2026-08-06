@@ -94,7 +94,16 @@ public extension LeafView {
         .animation(.easeInOut(duration: 0.35), value: spotlightBlockId)
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)
-        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+        .listRowInsets({
+            // Base inset 20 pt + extra horizontal padding driven by
+            // the customize sheet's `MARGINS` slider. The slider's
+            // range is 0.0 … 0.6 of leaf width — we map that to a
+            // 0 … 80 pt extra horizontal margin via a soft cap.
+            let extra = vm.readerSettings.customLayoutEnabled
+                ? CGFloat(vm.readerSettings.marginScale * 120)
+                : 0
+            return EdgeInsets(top: 0, leading: 20 + extra, bottom: 0, trailing: 20 + extra)
+        }())
         .swipeActions(edge: .leading) {
             // Right-swipe = indent (block slides right, matches gesture
             // direction). FFI's `indentBlock` no-ops if the block is
@@ -257,7 +266,7 @@ public extension LeafView {
             },
             onDuplicate: { vm.duplicateBlock(id: block.id) },
             accentColor: effectiveAccentColor,
-            themeForegroundColor: effectiveTheme.foregroundColor,
+            themeForegroundColor: effectiveTheme.effectiveForegroundColor(darkVariant: effectiveThemeDarkVariant),
             keyboardAppearance: effectiveKeyboardAppearance,
             onOpenInternalLeaf: { leafId in pushedLeafId = leafId },
             resolveChildLeaf: { childId in

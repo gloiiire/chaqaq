@@ -40,12 +40,22 @@ private struct TitleEditor: UIViewRepresentable {
     @Binding var cursorOffset: Int?
     @Environment(\.isEnabled) private var isEnabled
     @Environment(AppSettings.self) private var settings
+    @Environment(\.readerTheme) private var theme
+    @Environment(\.readerFontScale) private var fontScale
+    @Environment(\.readerTypography) private var typography
     let onSave: () -> Void
     let onNewBlock: (String) -> Void
     var themeForeground: UIColor? = nil
     var keyboardAppearance: UIKeyboardAppearance = .default
 
-    private let police = UIFont.systemFont(ofSize: 32, weight: .bold)
+    /// Title font — routed through `typography.resolvedFont` so the
+    /// user's custom font choice (Personnaliser → Police picker)
+    /// wins over the theme's default. Always bold + 32 pt × fontScale.
+    private var police: UIFont {
+        var typo = typography
+        typo.bold = true
+        return typo.resolvedFont(theme: theme, size: 32 * fontScale)
+    }
 
     /// Resolves the foreground colour for the title — theme override
     /// wins, otherwise the system label. Computed each call so the
@@ -83,6 +93,12 @@ private struct TitleEditor: UIViewRepresentable {
         if !isEnabled && tv.isFirstResponder {
             tv.resignFirstResponder()
             DispatchQueue.main.async { isFocused = false }
+        }
+        // Re-apply the theme font on every update — a theme change
+        // flips the family (Georgia → Charter → Palatino …) and we
+        // need the title to redraw with the new face.
+        if tv.font != police {
+            tv.font = police
         }
         if !context.coordinator.isEditing {
             tv.attributedText = text.isEmpty

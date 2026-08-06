@@ -2265,3 +2265,75 @@ fn library_snapshot_of_an_empty_library_is_empty_not_an_error() {
     assert!(snap.books.is_empty());
     assert!(snap.shelves.is_empty());
 }
+
+// ── PRO-62 : `theme_appearance` round-trip ─────────────────────────────────
+//
+// User-facing bug : "I set Dark on the leaf, exited, came back — back to
+// Light." The Swift code writes `theme_appearance = "dark"` and persists ;
+// the doubt is whether the FFI / store actually round-trip the new field.
+// This test exercises the exact path the app does (create leaf → update
+// reader_settings with theme_appearance → reopen DB → get_leaf_json).
+
+#[test]
+fn reader_settings_theme_appearance_survives_reopen() {
+    let path = rand_path();
+    let id = {
+        let api = PinkhaApi::new(path.clone()).expect("open");
+        let id = api
+            .create_leaf("Persisted theme".to_string())
+            .expect("create");
+        let settings_json = json!({
+            "font_scale": 1.0,
+            "font_family": null,
+            "bold": false,
+            "line_spacing": 1.4,
+            "letter_spacing": 0.0,
+            "word_spacing": 0.0,
+            "margin_scale": 0.0,
+            "justify": false,
+            "theme_dark_variant": true,
+            "custom_layout_enabled": false,
+            "theme_appearance": "dark"
+        })
+        .to_string();
+        api.update_leaf_reader_settings(id.clone(), Some(settings_json))
+            .expect("update reader settings");
+        id
+    };
+    let api2 = PinkhaApi::new(path).expect("reopen");
+    let leaf_json = api2.get_leaf_json(id).expect("get");
+    let leaf: serde_json::Value = serde_json::from_str(&leaf_json).expect("parse");
+    assert_eq!(
+        leaf["reader_settings"]["theme_appearance"], "dark",
+        "theme_appearance did not survive the DB reopen — Swift would \
+         decode `themeAppearance = \"settings\"` and the leaf would \
+         render as light again. full leaf: {leaf_json}",
+    );
+}
+
+#[test]
+fn reader_settings_round_trips_all_five_appearance_modes() {
+    let api = api();
+    for mode in &["light", "dark", "system", "ambient", "settings"] {
+        let id = api.create_leaf(format!("mode-{mode}")).expect("create");
+        let settings_json = json!({
+            "font_scale": 1.0,
+            "font_family": null,
+            "bold": false,
+            "line_spacing": 1.4,
+            "letter_spacing": 0.0,
+            "word_spacing": 0.0,
+            "margin_scale": 0.0,
+            "justify": false,
+            "theme_dark_variant": false,
+            "custom_layout_enabled": false,
+            "theme_appearance": mode
+        })
+        .to_string();
+        api.update_leaf_reader_settings(id.clone(), Some(settings_json))
+            .expect("update");
+        let leaf: serde_json::Value =
+            serde_json::from_str(&api.get_leaf_json(id).expect("get")).expect("parse");
+        assert_eq!(leaf["reader_settings"]["theme_appearance"], *mode);
+    }
+}

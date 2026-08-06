@@ -1,0 +1,11 @@
+# Captures de l'app Books d'Apple : références de travail, jamais versionnées.
+#
+# Ce dépôt est public et ces images montrent l'interface d'Apple. Elles servent
+# à mesurer des espacements pendant le développement, pas à être redistribuées.
+# Seul le README, qui décrit la méthode, est suivi.
+*.png
+*.PNG
+*.jpg
+*.jpeg
+*.heic
+*.HEIC

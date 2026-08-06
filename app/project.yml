@@ -76,6 +76,28 @@ targets:
           # iCloud Drive conflict copies ("Foo 2.swift", "Foo 3.swift") must
           # never enter the build — they're not real source files.
           - "**/* [2-9].swift"
+      # Fontes embarquees sous SIL OFL (redistribuables) : Newsreader
+      # pour le theme Tranquille, Playfair Display pour Calme. Elles
+      # remplacent Publico et Canela, qui appartiennent a Commercial
+      # Type et ne peuvent pas vivre dans un depot public.
+      # Listees ici (pas sous `resources:`) parce que le bloc
+      # resources les laissait tomber silencieusement.
+      - path: Resources/Fonts/OFL/Newsreader-Regular.ttf
+        buildPhase: resources
+      - path: Resources/Fonts/OFL/Newsreader-Italic.ttf
+        buildPhase: resources
+      - path: Resources/Fonts/OFL/Newsreader-Bold.ttf
+        buildPhase: resources
+      - path: Resources/Fonts/OFL/Newsreader-BoldItalic.ttf
+        buildPhase: resources
+      - path: Resources/Fonts/OFL/PlayfairDisplay-Regular.ttf
+        buildPhase: resources
+      - path: Resources/Fonts/OFL/PlayfairDisplay-Italic.ttf
+        buildPhase: resources
+      - path: Resources/Fonts/OFL/PlayfairDisplay-Bold.ttf
+        buildPhase: resources
+      - path: Resources/Fonts/OFL/PlayfairDisplay-BoldItalic.ttf
+        buildPhase: resources
     resources:
       # The app icon is an Icon Composer bundle (Xcode 26) living at
       # app/Pinkha.icon — NOT inside Assets.xcassets. AppIcon.appiconset

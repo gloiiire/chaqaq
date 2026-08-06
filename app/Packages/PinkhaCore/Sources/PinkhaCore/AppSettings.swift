@@ -1,4 +1,189 @@
 import SwiftUI
+import UIKit
+
+// MARK: - Reader-theme environment
+
+/// SwiftUI environment key for the currently-active reader theme. Read
+/// by every block row that builds a `UIFont` so they pick up the
+/// theme's font family (Georgia / Charter / Palatino / Avenir Next /
+/// system). Defaults to `.original` (= system font), so leaves without
+/// a theme behave identically to before. Set from `LeafView` based on
+/// `vm.theme`.
+private struct ReaderThemeKey: @preconcurrency EnvironmentKey {
+    @MainActor static let defaultValue: AppSettings.Theme = .original
+}
+
+public extension EnvironmentValues {
+    var readerTheme: AppSettings.Theme {
+        get { self[ReaderThemeKey.self] }
+        set { self[ReaderThemeKey.self] = newValue }
+    }
+}
+
+/// Multiplier applied to every block row's body font size — drives the
+/// A−/A+ stepper in the reader settings sheet. Defaults to `1.0`. The
+/// helpers `Theme.uiFont(size:scale:)` and `font(size:scale:)` apply
+/// this for consumers ; block rows compute their base point size and
+/// pass the scale through.
+private struct ReaderFontScaleKey: EnvironmentKey {
+    static let defaultValue: Double = 1.0
+}
+
+public extension EnvironmentValues {
+    var readerFontScale: Double {
+        get { self[ReaderFontScaleKey.self] }
+        set { self[ReaderFontScaleKey.self] = newValue }
+    }
+}
+
+/// PRO-62 typography bundle propagated through the leaf rendering
+/// pipeline. Block rows read this to build their `NSAttributedString`
+/// attributes (kerning, paragraph style, alignment, bold weight).
+/// Defaults to factory values so leaves without overrides render
+/// identically to before.
+public struct ReaderTypographyOverrides: Equatable, Sendable {
+    public var bold: Bool
+    public var lineSpacingMultiple: Double   // 1.0 = single ; 1.4 = Apple default
+    public var letterSpacing: Double         // em fraction
+    public var wordSpacing: Double           // em fraction
+    public var marginScale: Double           // 0.0 … 0.6 of leaf width
+    public var justify: Bool
+    public var customLayoutEnabled: Bool     // gates the 4 sliders
+    /// PRO-62 : custom font family selected via the Personnaliser
+    /// Police picker. `nil` falls back to the active theme's font.
+    /// Carried in the env so every block row can pick it up without
+    /// threading it through every BlockTextEditor call site.
+    public var fontFamily: String?
+
+    public init(
+        bold: Bool = false,
+        lineSpacingMultiple: Double = 1.4,
+        letterSpacing: Double = 0.0,
+        wordSpacing: Double = 0.0,
+        marginScale: Double = 0.0,
+        justify: Bool = false,
+        customLayoutEnabled: Bool = false,
+        fontFamily: String? = nil
+    ) {
+        self.bold = bold
+        self.lineSpacingMultiple = lineSpacingMultiple
+        self.letterSpacing = letterSpacing
+        self.wordSpacing = wordSpacing
+        self.marginScale = marginScale
+        self.justify = justify
+        self.customLayoutEnabled = customLayoutEnabled
+        self.fontFamily = fontFamily
+    }
+
+    /// Resolves a `UIFont` for body text at the given size, applying
+    /// the active typography overrides on top of the supplied theme.
+    /// When `fontFamily` is set (user picked a custom font in the
+    /// Personnaliser sheet), walks the bundled-font PostScript chains
+    /// (Newsreader / Playfair Display / Avenir Next / etc.) before
+    /// defaulting to the theme's own font. The `bold` flag bumps the
+    /// weight to `.bold` regardless of which family resolves.
+    public func resolvedFont(theme: AppSettings.Theme, size: CGFloat) -> UIFont {
+        let weight: UIFont.Weight = bold ? .bold : .regular
+        guard let family = fontFamily else {
+            return theme.uiFont(size: size, weight: weight)
+        }
+        // 1) Alias connus : les instances statiques portent un nom
+        //    PostScript distinct du nom de famille, donc on parcourt
+        //    d'abord leur chaîne de candidats.
+        let primaryCandidates: [String]
+        switch family {
+        case "Newsreader", "Publico", "Publico Text":
+            primaryCandidates = AppSettings.Theme.publicoNameCandidates
+        case "Playfair Display", "Canela", "Canela Text":
+            primaryCandidates = AppSettings.Theme.canelaNameCandidates
+        case "Avenir Next", "Proxima Nova":
+            primaryCandidates = AppSettings.Theme.proximaNovaNameCandidates
+        default:
+            primaryCandidates = [family]
+        }
+        for name in primaryCandidates {
+            if let f = UIFont(name: name, size: size) {
+                let traits: [UIFontDescriptor.TraitKey: Any] = [.weight: weight.rawValue]
+                let descriptor = f.fontDescriptor.addingAttributes([.traits: traits])
+                return UIFont(descriptor: descriptor, size: size)
+            }
+        }
+        // 2) Treat the input as a FAMILY name and ask UIKit to
+        //    enumerate its PostScript faces — picks the regular face,
+        //    then applies weight via descriptor. Handles every other
+        //    iOS-bundled family the picker exposes (Avenir Next,
+        //    Bodoni 72, Hoefler Text, Iowan Old Style …) generically.
+        let faces = UIFont.fontNames(forFamilyName: family)
+        if let postscriptName = faces.first,
+           let f = UIFont(name: postscriptName, size: size) {
+            let traits: [UIFontDescriptor.TraitKey: Any] = [.weight: weight.rawValue]
+            let descriptor = f.fontDescriptor.addingAttributes([.traits: traits])
+            return UIFont(descriptor: descriptor, size: size)
+        }
+        // 3) Last resort : system.
+        return UIFont.systemFont(ofSize: size, weight: weight)
+    }
+
+    /// Builds `[NSAttributedString.Key: Any]` to pass into block rows'
+    /// `BlockTextEditor.extraAttrs`. Justify is ALWAYS honoured (its
+    /// own top-level toggle in the customize sheet, independent from
+    /// the Personnaliser/accessibility section). The four spacing
+    /// values + line-height only apply when `customLayoutEnabled` is
+    /// true. Font weight + family are handled separately by
+    /// `resolvedFont(theme:size:)` since they bake into the base font.
+    public func attributedAttributes(baseFontSize: CGFloat) -> [NSAttributedString.Key: Any] {
+        // Short-circuit when there's nothing to add at all (no
+        // justify, no overrides) — avoids allocating a paragraph
+        // style for every block in the leaf.
+        if !justify && !customLayoutEnabled { return [:] }
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = justify ? .justified : .natural
+        if customLayoutEnabled {
+            paragraph.lineHeightMultiple = CGFloat(lineSpacingMultiple)
+        }
+        var attrs: [NSAttributedString.Key: Any] = [.paragraphStyle: paragraph]
+        if customLayoutEnabled {
+            if letterSpacing != 0 {
+                attrs[.kern] = CGFloat(letterSpacing * baseFontSize)
+            }
+            if wordSpacing != 0 {
+                attrs[.tracking] = CGFloat(wordSpacing * baseFontSize)
+            }
+        }
+        return attrs
+    }
+}
+
+private struct ReaderTypographyKey: EnvironmentKey {
+    static let defaultValue: ReaderTypographyOverrides = .init()
+}
+
+public extension EnvironmentValues {
+    var readerTypography: ReaderTypographyOverrides {
+        get { self[ReaderTypographyKey.self] }
+        set { self[ReaderTypographyKey.self] = newValue }
+    }
+}
+
+extension Font.Weight {
+    /// Bridge SwiftUI's font weight to the matching UIKit weight so
+    /// `AppSettings.Theme.font(size:weight:)` can build a `UIFont`
+    /// underneath and wrap it as a `Font`.
+    var uiKitWeight: UIFont.Weight {
+        switch self {
+        case .ultraLight: return .ultraLight
+        case .thin:       return .thin
+        case .light:      return .light
+        case .regular:    return .regular
+        case .medium:     return .medium
+        case .semibold:   return .semibold
+        case .bold:       return .bold
+        case .heavy:      return .heavy
+        case .black:      return .black
+        default:          return .regular
+        }
+    }
+}
 
 /// User-facing preferences that affect the whole app. Persisted in
 /// `UserDefaults` so they survive a relaunch — small enough that a real
@@ -60,31 +245,48 @@ public final class AppSettings {
 
         /// `nil` = inherit the system background (`.original` does
         /// this so light/dark mode keeps working untouched).
+        /// Background colour for the leaf body.
+        ///
+        /// Exact values, extracted from Apple Books rather than eyeballed:
+        /// `BookEPUB.BookThemeEntity.backgroundColor` builds them as IEEE-754
+        /// immediates, and emulating that getter's branch tree over
+        /// (theme index, dark variant) yields the table below. Four of the six
+        /// were previously off by enough to see — Tranquille most of all, at
+        /// #1C1C1C against a real #4A4A4D. See
+        /// `utilities/docs/BOOKS-READER-SETTINGS-RE.md` §10.3.
+        ///
+        /// `.original` returns nil: it means "no override, follow the system".
         public var backgroundColor: Color? {
             switch self {
-            case .original:  return nil
-            // `.tranquille` is intentionally close to iOS-26's native
-            // dark keyboard / `systemBackground` (≈ 0.11) so the seam
-            // between the doc and the keyboard reads as one surface
-            // rather than two shades of dark fighting each other.
-            case .tranquille: return Color(red: 0.11, green: 0.11, blue: 0.11)
-            case .papier:    return Color(red: 0.96, green: 0.96, blue: 0.96)
-            case .gras:      return Color.white
-            case .calme:     return Color(red: 0.93, green: 0.88, blue: 0.78)
-            case .attention: return Color(red: 0.98, green: 0.95, blue: 0.86)
+            case .original:   return nil
+            case .tranquille: return Color(hex: 0x4A4A4D)
+            case .papier:     return Color(hex: 0xEEEDED)
+            case .gras:       return Color(hex: 0xFFFFFF)
+            case .calme:      return Color(hex: 0xF1E2C9)
+            case .attention:  return Color(hex: 0xFFFCF4)
             }
         }
 
-        /// Foreground colour for body text. `nil` falls back to
-        /// `.label` (system-dynamic).
+        /// Foreground colour for body text. `nil` falls back to `.label`.
+        ///
+        /// Only Calme is measured: Books builds its label colours through a
+        /// dynamic `UIColor` whose trait-collection block dispatches via a
+        /// function pointer, which static disassembly does not follow for
+        /// reasonable effort. Calme was instead sampled from the live preview
+        /// in a reference capture — that area renders the theme at full
+        /// opacity, confirmed by its background matching the extracted value
+        /// to within capture compression.
+        ///
+        /// The other five keep their previous approximations and are **not**
+        /// verified against Apple.
         public var foregroundColor: Color? {
             switch self {
-            case .original:  return nil
-            case .tranquille: return Color(white: 0.88)
-            case .papier:    return Color.black
-            case .gras:      return Color.black
-            case .calme:     return Color(red: 0.18, green: 0.14, blue: 0.07)
-            case .attention: return Color(red: 0.18, green: 0.14, blue: 0.07)
+            case .original:   return nil
+            case .tranquille: return Color(white: 0.88)          // non vérifié
+            case .papier:     return Color.black                 // non vérifié
+            case .gras:       return Color.black                 // non vérifié
+            case .calme:      return Color(hex: 0x32281E)        // mesuré
+            case .attention:  return Color(red: 0.18, green: 0.14, blue: 0.07) // non vérifié
             }
         }
 
@@ -104,6 +306,243 @@ public final class AppSettings {
         /// Whether the theme paints body text with a bolder weight
         /// (Books.app's "Gras" flavour).
         public var boldText: Bool { self == .gras }
+
+        /// True if this theme exposes a meaningfully different dark
+        /// variant when the user flips the sun/moon toggle. Apple
+        /// Books reserves Original (always light) and Tranquille
+        /// (always dark) as fixed ; the others (Papier, Gras, Calme,
+        /// Attention) swap.
+        public var hasDarkVariant: Bool {
+            switch self {
+            case .original, .tranquille: return false
+            case .papier, .gras, .calme, .attention: return true
+            }
+        }
+
+        /// Background colour for the leaf rendering when the user has
+        /// flipped the sun/moon toggle to dark. Falls back to the
+        /// light value for themes that don't have a distinct dark
+        /// variant. Mirrors the second-row palette in the theme grid.
+        public var darkBackgroundColor: Color? {
+            switch self {
+            case .original:   return Color(hex: 0x000000)
+            case .tranquille: return Color(hex: 0x000000)
+            case .papier:     return Color(hex: 0x1C1C1E)
+            case .gras:       return Color(hex: 0x000000)
+            case .calme:      return Color(hex: 0x423B30)
+            case .attention:  return Color(hex: 0x18160C)
+            }
+        }
+
+        /// Dark-variant foreground. Same caveat as `foregroundColor`: only
+        /// Calme is measured.
+        public var darkForegroundColor: Color? {
+            switch self {
+            case .original:   return Color.white
+            case .tranquille: return foregroundColor
+            case .papier:     return Color(red: 0.85, green: 0.83, blue: 0.78) // non vérifié
+            case .gras:       return Color.white
+            case .calme:      return Color(hex: 0xF7EDDD)        // mesuré
+            case .attention:  return Color(red: 0.95, green: 0.92, blue: 0.85) // non vérifié
+            }
+        }
+
+        /// Effective background — picks the dark variant only when
+        /// `darkVariant=true` AND the theme actually has one. Callers
+        /// pass the sheet's `readerIsDarkVariant` here.
+        public func effectiveBackgroundColor(darkVariant: Bool) -> Color? {
+            (darkVariant && hasDarkVariant) ? darkBackgroundColor : backgroundColor
+        }
+
+        public func effectiveForegroundColor(darkVariant: Bool) -> Color? {
+            (darkVariant && hasDarkVariant) ? darkForegroundColor : foregroundColor
+        }
+
+        /// Effective color-scheme override for system controls. Themes
+        /// with a real dark variant flip to `.dark` when the toggle
+        /// is on ; others keep their intrinsic scheme.
+        public func effectiveColorScheme(darkVariant: Bool) -> ColorScheme? {
+            // `.original` veut dire « la surface de l'app », qui existe
+            // dans les DEUX apparences. Il doit donc suivre le choix
+            // Clair/Sombre du lecteur comme n'importe quel autre thème.
+            //
+            // Il tombait avant sur `colorScheme`, qui vaut `nil` pour
+            // `.original` : la leaf restait sur l'apparence de l'app et
+            // choisir « Clair » sur un appareil sombre ne faisait
+            // strictement rien. `hasDarkVariant` reste `false` pour lui
+            // — ce drapeau sert à marquer les thèmes qui ont une
+            // palette sombre PROPRE, et `.original` n'en a pas : il
+            // emprunte celle de l'app.
+            if self == .original { return darkVariant ? .dark : .light }
+            if darkVariant && hasDarkVariant { return .dark }
+            return colorScheme
+        }
+
+        /// Font family used by the theme — Apple-Books-exact mapping
+        /// (corrected 2026-06-27 after user verification) :
+        ///
+        ///   • Original    → System (San Francisco)
+        ///   • Tranquille  → Publico (Commercial Type serif bundled
+        ///                   via PublicoText.ttc)
+        ///   • Papier      → Charter (iOS-bundled)
+        ///   • Gras        → System (San Francisco) + bold ON by default
+        ///   • Calme       → Canela (Commercial Type serif bundled
+        ///                   via CanelaText.ttc)
+        ///   • Attention   → Times New Roman (iOS-bundled)
+        ///
+        /// Publico + Canela aren't exposed under those exact PostScript
+        /// names on every iOS build — `uiFont(size:)` walks the
+        /// per-theme name candidate chains below.
+        public var fontFamily: String? {
+            switch self {
+            case .original:   return nil
+            case .tranquille: return "Newsreader"
+            case .papier:     return "Charter"
+            case .gras:       return nil
+            case .calme:      return "Playfair Display"
+            case .attention:  return "Avenir Next"
+            }
+        }
+
+        /// Human-readable name shown in the customize sheet's "Police"
+        /// row when the user hasn't picked a custom font (defaults to
+        /// the theme's font). Matches Apple Books labels exactly
+        /// (user-verified 2026-06-27 — `.original` shows "Original",
+        /// not the underlying SF name).
+        public var fontDisplayName: String {
+            switch self {
+            case .original:   return "Original"
+            case .tranquille: return "Publico Text"
+            case .papier:     return "Charter"
+            case .gras:       return "San Francisco"
+            case .calme:      return "Canela Text"
+            case .attention:  return "Avenir Next"
+            }
+        }
+
+        /// Apple-Books-exact line-spacing defaults per theme
+        /// (verified 2026-06-27).
+        public var defaultLineSpacing: Double {
+            switch self {
+            case .original:   return 1.40
+            case .tranquille: return 1.40
+            case .papier:     return 1.55
+            case .gras:       return 1.50
+            case .calme:      return 1.55
+            case .attention:  return 1.40
+            }
+        }
+
+        /// Whether the theme defaults to bold body text (Apple Books'
+        /// Gras flavour).
+        public var defaultBold: Bool { self == .gras }
+
+        /// Apple-Books-exact justify default per theme — Tranquille
+        /// and Attention ship with text justification ON.
+        public var defaultJustify: Bool {
+            switch self {
+            case .tranquille, .attention: return true
+            default: return false
+            }
+        }
+
+        /// Whether the "Personnaliser" master toggle starts ON when
+        /// the user selects this theme. Original is the only theme
+        /// with no out-of-the-box typography overrides (user-verified
+        /// 2026-06-27) — every other theme has at least one default
+        /// (line spacing, bold, or justify) that requires the toggle.
+        public var defaultCustomLayoutEnabled: Bool {
+            self != .original
+        }
+
+        /// PostScript-name candidates for Tranquille (Publico Text).
+        /// Newsreader remplace Publico Text pour le thème Tranquille.
+        ///
+        /// Publico est une fonte de Commercial Type, licenciée à Apple pour
+        /// Apple Books : utilisable sur sa propre machine, pas
+        /// redistribuable dans un dépôt public. Newsreader (SIL OFL) est du
+        /// même genre — une fonte de presse — et a été retenue sur mesure :
+        /// à hauteur d'x égale, le même paragraphe se coupe aux mêmes mots.
+        /// Cf. `utilities/docs/FONT-SUBSTITUTION.md`.
+        ///
+        /// Les instances statiques portent un nom PostScript en
+        /// `NewsreaderRoman-*` / `NewsreaderItalic-*`, distinct du nom de
+        /// famille : les deux figurent ici parce que `UIFont(name:)` accepte
+        /// l'un ou l'autre selon les versions d'iOS.
+        static let publicoNameCandidates = [
+            "NewsreaderRoman-Regular", "Newsreader",
+            "Charter-Roman", "Charter",          // repli système
+            "HoeflerText-Regular", "Hoefler Text",
+        ]
+
+        /// PostScript-name candidates for Calme (Canela Text).
+        /// Playfair Display remplace Canela Text pour le thème Calme.
+        ///
+        /// Même raison que Newsreader : Canela appartient à Commercial Type.
+        /// Playfair Display (SIL OFL) partage son contraste élevé et ses
+        /// empattements fins et plats, et rend les mêmes coupures de ligne.
+        static let canelaNameCandidates = [
+            "PlayfairDisplayRoman-Regular", "Playfair Display",
+            "Palatino-Roman", "Palatino",   // repli système
+        ]
+
+        /// PostScript-name candidates for Attention (Proxima Nova).
+        /// Proxima Nova is Mark Simonson Studio's commercial geometric
+        /// sans — not iOS-bundled. Fallback to Avenir Next, the
+        /// closest iOS-bundled cousin (both are humanist-geometric
+        /// hybrids designed in the same era).
+        /// Le thème Attention visait Proxima Nova, jamais embarquée : en
+        /// pratique elle a toujours rendu Avenir Next, qui est sur iOS. Le
+        /// nom affiché dit maintenant ce qui s'affiche réellement.
+        static let proximaNovaNameCandidates = [
+            "AvenirNext-Regular", "Avenir Next",
+        ]
+
+        /// No italic-by-default for any preset in the Apple mapping
+        /// — kept for backward compat but always returns false now.
+        public var isPreviewItalic: Bool { false }
+
+        /// Builds a `UIFont` for this theme at the given point size,
+        /// applying the bold variant when relevant. Resolves the bundled
+        /// families through their candidate chains, since a static
+        /// instance's PostScript name differs from its family name. Falls back to system when the
+        /// named family isn't available on device.
+        public func uiFont(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
+            let effective: UIFont.Weight = boldText ? .bold : weight
+            let resolvedFamily: String? = {
+                switch self {
+                case .tranquille:
+                    for candidate in Self.publicoNameCandidates {
+                        if UIFont(name: candidate, size: size) != nil { return candidate }
+                    }
+                    return nil
+                case .calme:
+                    for candidate in Self.canelaNameCandidates {
+                        if UIFont(name: candidate, size: size) != nil { return candidate }
+                    }
+                    return nil
+                case .attention:
+                    for candidate in Self.proximaNovaNameCandidates {
+                        if UIFont(name: candidate, size: size) != nil { return candidate }
+                    }
+                    return nil
+                default:
+                    return fontFamily
+                }
+            }()
+            if let family = resolvedFamily, let f = UIFont(name: family, size: size) {
+                let traits: [UIFontDescriptor.TraitKey: Any] = [.weight: effective.rawValue]
+                let descriptor = f.fontDescriptor.addingAttributes([.traits: traits])
+                return UIFont(descriptor: descriptor, size: size)
+            }
+            return UIFont.systemFont(ofSize: size, weight: effective)
+        }
+
+        /// SwiftUI `Font` mirror of `uiFont(size:weight:)` for
+        /// non-text-engine views (titles, button labels…).
+        public func font(size: CGFloat, weight: Font.Weight = .regular) -> Font {
+            Font(uiFont(size: size, weight: weight.uiKitWeight))
+        }
     }
 
     /// User-facing color scheme override — `.system` follows the
@@ -181,6 +620,7 @@ public final class AppSettings {
     private let cursorAccentKey   = "pinkha.settings.cursorFollowsAccent"
     private let appearanceKey     = "pinkha.settings.appearance"
     private let themeKey          = "pinkha.settings.theme"
+    private let themeDarkVariantKey = "pinkha.settings.themeDarkVariant"
     private let readerLongPressEnabledKey  = "pinkha.settings.readerLongPressEnabled"
     private let readerFingerCountKey       = "pinkha.settings.readerLongPressFingerCount"
     private let readerHidesStatusBarKey    = "pinkha.settings.readerHidesStatusBar"
@@ -339,6 +779,17 @@ public final class AppSettings {
         }
     }
 
+    /// Global "Dark variant" toggle for the current theme — when on,
+    /// every leaf renders its theme's dark palette unless the leaf has
+    /// a per-doc override via the sun/moon button in the reader
+    /// settings sheet. Mirrors Apple Books' top-level light/dark
+    /// switch alongside the Theme picker.
+    public var themeDarkVariant: Bool {
+        didSet {
+            UserDefaults.standard.set(themeDarkVariant, forKey: themeDarkVariantKey)
+        }
+    }
+
     /// Light / dark / system override applied at the app root via
     /// `.preferredColorScheme(_:)`. Default `.system` follows iOS.
     public var appearance: AppearanceMode {
@@ -408,6 +859,7 @@ public final class AppSettings {
         self.appearance = AppearanceMode(rawValue: storedAppearance ?? "") ?? .system
         let storedTheme = UserDefaults.standard.string(forKey: themeKey)
         self.theme = Theme(rawValue: storedTheme ?? "") ?? .original
+        self.themeDarkVariant = UserDefaults.standard.bool(forKey: themeDarkVariantKey)
         // Default ON — users discover the haptic feel and decide
         // whether they want it. Existing users without the key set
         // get the same default behaviour.

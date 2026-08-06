@@ -62,6 +62,15 @@ impl LeafRepository for SqliteLeafStore {
         let shelf_id = doc.shelf_id.map(|u| u.to_string());
         let parent_leaf_id = doc.parent_leaf_id.map(|u| u.to_string());
         let icon = doc.icon.clone();
+        // PRO-62 : serialise the reader-settings bundle into its own
+        // dedicated column so the JSON can be queried separately
+        // (e.g. `WHERE json_extract(reader_settings_json, '$.font_scale') > 1`).
+        // The same value lives inside the main `data` blob too —
+        // that's the authoritative source, this column is a mirror.
+        let reader_settings_json: Option<String> = doc
+            .reader_settings
+            .as_ref()
+            .map(|s| serde_json::to_string(s).unwrap_or_default());
         // `published_at` defaults to the row's creation timestamp when the
         // caller hasn't overridden it ; that way fresh docs sort identically
         // under both `created` and `published`, and only the user-edit path
@@ -75,8 +84,8 @@ impl LeafRepository for SqliteLeafStore {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             conn.execute(
-                "INSERT INTO leaves (id, title_text, title_json, cover, updated_at, created_at, published_at, shelf_id, parent_leaf_id, icon, data, pinned_at, manual_order)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, CASE WHEN ?7 = '' THEN ?6 ELSE ?7 END, ?8, ?9, ?10, ?11, ?12, ?13)
+                "INSERT INTO leaves (id, title_text, title_json, cover, updated_at, created_at, published_at, shelf_id, parent_leaf_id, icon, data, pinned_at, manual_order, reader_settings_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, CASE WHEN ?7 = '' THEN ?6 ELSE ?7 END, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
                  ON CONFLICT(id) DO UPDATE SET
                     title_text    = excluded.title_text,
                     title_json    = excluded.title_json,
@@ -89,8 +98,9 @@ impl LeafRepository for SqliteLeafStore {
                     data          = excluded.data,
                     pinned_at     = excluded.pinned_at,
                     manual_order  = excluded.manual_order,
+                    reader_settings_json = excluded.reader_settings_json,
                     deleted_at    = NULL",
-                params![id, title_text, title_json, cover, now, created_at, published_at, shelf_id, parent_leaf_id, icon, data, pinned_at, manual_order],
+                params![id, title_text, title_json, cover, now, created_at, published_at, shelf_id, parent_leaf_id, icon, data, pinned_at, manual_order, reader_settings_json],
             )
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
             Ok(())

@@ -8,8 +8,22 @@ public struct QuoteRowView: View {
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     let cb: BlockCallbacks
+    @Environment(\.readerTheme) private var theme
+    @Environment(\.readerFontScale) private var fontScale
+    @Environment(\.readerTypography) private var typography
 
     public var body: some View {
+        let baseSize = UIFont.preferredFont(forTextStyle: .body).pointSize * fontScale
+        // Build an italic variant by routing through the user's
+        // custom-or-theme font resolver, then adding the italic
+        // symbolic trait. Falls back to italic system if neither
+        // family has an italic face.
+        let italic: UIFont = {
+            let base = typography.resolvedFont(theme: theme, size: baseSize)
+            let descriptor = base.fontDescriptor.withSymbolicTraits(.traitItalic)
+                ?? base.fontDescriptor
+            return UIFont(descriptor: descriptor, size: baseSize)
+        }()
         HStack(alignment: .top, spacing: 0) {
             RoundedRectangle(cornerRadius: 2)
                 .fill(Color.secondary.opacity(0.4))
@@ -18,7 +32,8 @@ public struct QuoteRowView: View {
             BlockTextEditor(
                 block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
                 placeholder: "Quote…",
-                baseFont: .italicSystemFont(ofSize: UIFont.preferredFont(forTextStyle: .body).pointSize),
+                baseFont: italic,
+                extraAttrs: typography.attributedAttributes(baseFontSize: baseSize),
                 cb: cb)
             .padding(.leading, 14)
         }
@@ -36,6 +51,9 @@ public struct CalloutRowView: View {
     let cb: BlockCallbacks
     @State private var emojiPickerOpen = false
     @State private var recentEmojis = loadRecentEmojis()
+    @Environment(\.readerTheme) private var theme
+    @Environment(\.readerFontScale) private var fontScale
+    @Environment(\.readerTypography) private var typography
 
     public var body: some View {
         // First-text-baseline alignment so the emoji sits right next
@@ -56,8 +74,8 @@ public struct CalloutRowView: View {
             // ~20-36 pt).
             .frame(width: 32, alignment: .center)
 
-            BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                           placeholder: "Callout…", baseFont: .preferredFont(forTextStyle: .body), cb: cb)
+            CalloutText(block: $block, autoFocusId: $autoFocusId,
+                        autoFocusOffset: $autoFocusOffset, cb: cb)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
@@ -80,6 +98,29 @@ public struct CalloutRowView: View {
     }
 }
 
+/// Extracted out of `CalloutRowView.body` so the `BlockTextEditor` call
+/// can keep its own `@Environment` reads (font scale + theme + typo)
+/// without falling foul of SwiftUI's `@ViewBuilder` restrictions on
+/// `do { }` blocks.
+private struct CalloutText: View {
+    @Binding var block: EditableBlock
+    @Binding var autoFocusId: String?
+    @Binding var autoFocusOffset: Int?
+    let cb: BlockCallbacks
+    @Environment(\.readerTheme) private var theme
+    @Environment(\.readerFontScale) private var fontScale
+    @Environment(\.readerTypography) private var typography
+
+    var body: some View {
+        let size = UIFont.preferredFont(forTextStyle: .body).pointSize * fontScale
+        BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
+                       placeholder: "Callout…",
+                       baseFont: typography.resolvedFont(theme: theme, size: size),
+                       extraAttrs: typography.attributedAttributes(baseFontSize: size),
+                       cb: cb)
+    }
+}
+
 // ── Todo ──────────────────────────────────────────────────────────────────────
 
 public struct TodoRowView: View {
@@ -88,6 +129,9 @@ public struct TodoRowView: View {
     @Binding var autoFocusOffset: Int?
     let cb: BlockCallbacks
     @Environment(AppSettings.self) private var settings
+    @Environment(\.readerTheme) private var theme
+    @Environment(\.readerFontScale) private var fontScale
+    @Environment(\.readerTypography) private var typography
 
     /// Extra text attributes applied when the item is checked (strikethrough + secondary color).
     private var checkedAttrs: [NSAttributedString.Key: Any]? {
@@ -95,6 +139,21 @@ public struct TodoRowView: View {
             .strikethroughStyle: NSUnderlineStyle.single.rawValue,
             .foregroundColor: UIColor.secondaryLabel
         ] : nil
+    }
+
+    private var baseSize: CGFloat {
+        UIFont.preferredFont(forTextStyle: .body).pointSize * fontScale
+    }
+
+    /// Merges the strikethrough-when-done attrs with the typography
+    /// overrides so a checked Todo still gets the paragraph styling
+    /// and kerning from Personnaliser.
+    private var mergedAttrs: [NSAttributedString.Key: Any]? {
+        var merged = typography.attributedAttributes(baseFontSize: baseSize)
+        if let extra = checkedAttrs {
+            for (k, v) in extra { merged[k] = v }
+        }
+        return merged.isEmpty ? nil : merged
     }
 
     public var body: some View {
@@ -115,10 +174,11 @@ public struct TodoRowView: View {
             }
             .buttonStyle(.plain)
             .padding(.top, 8)
-
             BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                           placeholder: "To do…", baseFont: .preferredFont(forTextStyle: .body),
-                           extraAttrs: checkedAttrs, convertible: false, cb: cb)
+                           placeholder: "To do…",
+                           baseFont: typography.resolvedFont(theme: theme, size: baseSize),
+                           extraAttrs: mergedAttrs,
+                           convertible: false, cb: cb)
         }
         .padding(.vertical, 2)
     }

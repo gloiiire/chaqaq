@@ -19,7 +19,7 @@
     <key>CFBundleShortVersionString</key>
     <string>1.0</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>6</string>
     <key>SENTRY_DSN</key>
     <string>$(SENTRY_DSN)</string>
     <key>PROXY_HMAC_SECRET</key>
@@ -80,6 +80,25 @@
     <array>
         <string>en</string>
         <string>fr</string>
+    </array>
+    <!--
+        PRO-62 : Publico bundled for the "Tranquille" theme. Apple
+        ships Publico Text and Publico Headline as TrueType
+        Collections (.ttc) — one file holds every weight + italic
+        variant in a single asset, no need for 4-6 separate .otf.
+        Files live under `app/Resources/Fonts/Publico/` and the
+        UIAppFonts paths below are resource-bundle-relative.
+    -->
+    <key>UIAppFonts</key>
+    <array>
+        <string>Newsreader-Regular.ttf</string>
+        <string>Newsreader-Italic.ttf</string>
+        <string>Newsreader-Bold.ttf</string>
+        <string>Newsreader-BoldItalic.ttf</string>
+        <string>PlayfairDisplay-Regular.ttf</string>
+        <string>PlayfairDisplay-Italic.ttf</string>
+        <string>PlayfairDisplay-Bold.ttf</string>
+        <string>PlayfairDisplay-BoldItalic.ttf</string>
     </array>
 </dict>
 </plist>

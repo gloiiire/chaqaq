@@ -152,6 +152,23 @@ pub fn update_leaf_theme(
     repo.save(&doc)
 }
 
+/// Replaces the leaf's reader-settings bundle (font scale, font
+/// family, bold, line/letter/word spacing, margin scale, justify,
+/// dark variant, custom-layout flag). Pass `None` to clear and
+/// fall back to the theme's factory defaults. Mirrors Apple Books'
+/// per-theme typography ; see `domain::leaf::ReaderSettings` and
+/// `utilities/docs/BOOKS-READER-SETTINGS-RE.md`.
+pub fn update_leaf_reader_settings(
+    uow: &dyn UnitOfWork,
+    leaf_id: Uuid,
+    settings: Option<crate::domain::leaf::ReaderSettings>,
+) -> Result<(), PinkhaError> {
+    let repo = uow.leaves();
+    let mut doc = repo.load(leaf_id)?;
+    doc.reader_settings = settings;
+    repo.save(&doc)
+}
+
 /// Toggles the read-only lock on a leaf and persists. Imports default
 /// new leaves to `locked = true` so the user reads the extracted content
 /// before editing it.

@@ -233,6 +233,40 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
 
     conn.pragma_update(None, "user_version", 16)
         .map_err(|e| PinkhaError::Db(e.to_string()))?;
+
+    // ── v17 (PRO-62) : `Leaf.reader_settings` JSON bundle ────────────────
+    //
+    // Numérotée v17 et non v15 : cette branche a été écrite quand 14 était
+    // la dernière version, et `dev` est passé à 16 entre-temps. Laisser le
+    // 15 d'origine faisait *redescendre* `user_version` après le bump de
+    // dev, puisque ce bloc s'exécute après lui — une base fraîchement
+    // migrée repartait donc à 15 et rejouait les migrations suivantes à
+    // chaque ouverture.
+    //
+    // No new SQL column — the bundle lives inside the existing `data`
+    // JSON blob (same pattern as `theme`, `accent_color`,
+    // `text_direction`, `pinned_at`, etc.). This block backfills the
+    // `reader_settings_summary` indexed text column so callers that
+    // need to filter on it (e.g. "leaves with a dark variant") can
+    // scan without parsing every row's full data blob. Per-leaf
+    // typography overrides (font_scale, font_family, bold,
+    // line/letter/word spacing, margin_scale, justify,
+    // theme_dark_variant, custom_layout_enabled) are stored as a
+    // single JSON struct under the `reader_settings` key of the
+    // leaf's `data` payload. `#[serde(default)]` on the Rust struct
+    // keeps backward compat — pre-v15 rows decode with `None`.
+    add_column_if_missing(conn, "leaves", "reader_settings_json", "TEXT")?;
+    conn.execute(
+        "UPDATE leaves
+            SET reader_settings_json = json_extract(data, '$.reader_settings')
+          WHERE reader_settings_json IS NULL
+            AND json_extract(data, '$.reader_settings') IS NOT NULL",
+        [],
+    )
+    .map_err(|e| PinkhaError::Db(e.to_string()))?;
+    conn.pragma_update(None, "user_version", 17)
+        .map_err(|e| PinkhaError::Db(e.to_string()))?;
+
     Ok(())
 }
 
@@ -427,7 +461,7 @@ mod tests {
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .expect("read user_version");
-        assert_eq!(version, 16);
+        assert_eq!(version, 17);
     }
 
     /// A leaf whose `shelf_id` column and JSON blob disagree gets healed,

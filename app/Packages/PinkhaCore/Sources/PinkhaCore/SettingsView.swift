@@ -68,6 +68,20 @@ public struct SettingsView: View {
                             Text(theme.label).tag(theme)
                         }
                     } label: { Text("Theme") }
+                    // Right below the picker — sun ↔ moon toggle that
+                    // flips every leaf to the theme's dark palette.
+                    // Per-doc overrides from the reader sheet's
+                    // sun/moon button always win.
+                    Toggle(isOn: $settings.themeDarkVariant) {
+                        HStack(spacing: 8) {
+                            Image(systemName: settings.themeDarkVariant
+                                  ? "moon.stars.fill"
+                                  : "sun.horizon.fill")
+                                .foregroundStyle(.secondary)
+                            Text("Dark variant")
+                        }
+                    }
+                    .tint(settings.accentColor)
                 } header: {
                     Text("Theme")
                 } footer: {

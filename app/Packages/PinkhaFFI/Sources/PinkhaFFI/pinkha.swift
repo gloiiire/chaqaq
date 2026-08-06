@@ -1126,6 +1126,16 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func updateLeafPublishedAt(id: String, newPublishedAt: String) throws 
     
     /**
+     * Persists the leaf's reader-settings bundle (font scale +
+     * family + bold + 4 spacing values + justify + dark variant +
+     * custom-layout flag). Pass the JSON-serialised
+     * `ReaderSettings` shape, or `null` to clear and fall back to
+     * the theme's factory defaults. Cf. `domain::leaf::ReaderSettings`
+     * and `utilities/docs/BOOKS-READER-SETTINGS-RE.md`.
+     */
+    func updateLeafReaderSettings(id: String, settingsJson: String?) throws 
+    
+    /**
      * Sets or clears the leaf's default writing direction.
      * `null` = system locale. Every block can override.
      */
@@ -2676,6 +2686,24 @@ open func updateLeafPublishedAt(id: String, newPublishedAt: String)throws   {try
 }
     
     /**
+     * Persists the leaf's reader-settings bundle (font scale +
+     * family + bold + 4 spacing values + justify + dark variant +
+     * custom-layout flag). Pass the JSON-serialised
+     * `ReaderSettings` shape, or `null` to clear and fall back to
+     * the theme's factory defaults. Cf. `domain::leaf::ReaderSettings`
+     * and `utilities/docs/BOOKS-READER-SETTINGS-RE.md`.
+     */
+open func updateLeafReaderSettings(id: String, settingsJson: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_update_leaf_reader_settings(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(settingsJson),uniffiCallStatus
+    )
+}
+}
+    
+    /**
      * Sets or clears the leaf's default writing direction.
      * `null` = system locale. Every block can override.
      */
@@ -4221,6 +4249,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_published_at() != 25203) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_reader_settings() != 19616) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_text_direction() != 33872) {

@@ -107,6 +107,7 @@ public extension LeafViewModel {
             accentColor = doc.accentColor
             textDirection = doc.textDirection
             theme = doc.theme
+            readerSettings = doc.readerSettings ?? .init()
             blocks = LeafViewModel.flattenBlocks(doc.blocks, depth: 0)
             // Initialise stable snapshots for burst undo tracking.
             blockSnapshots = Dictionary(uniqueKeysWithValues: blocks.map { ($0.id, snapshotOf($0)) })

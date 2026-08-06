@@ -13,6 +13,18 @@ import UIKit
 public final class ReaderMode {
     public var isActive: Bool = false
 
+    /// Effective color scheme of the currently-open leaf when it
+    /// overrides the global appearance via its Books-style theme.
+    /// `nil` means "no leaf is forcing a scheme right now" — root tabs
+    /// or a leaf in `.original` theme. Read by `ContentView` so it can
+    /// apply `.preferredColorScheme` to the whole TabView (and thus
+    /// the bottom accessory bar's icons, which sit in the parent's
+    /// SwiftUI environment and otherwise miss the leaf's per-doc
+    /// `.preferredColorScheme` override).
+    ///
+    /// Set from `LeafView.onAppear` / `onChange` / `onDisappear`.
+    public var activeLeafColorScheme: ColorScheme? = nil
+
     public init() {}
 
     /// Flips reader mode on / off with a haptic cue.
@@ -27,6 +39,83 @@ public final class ReaderMode {
         guard isActive else { return }
         isActive = false
         Haptic.soft()
+    }
+}
+
+/// Best-effort "ambient light" proxy used by `ReaderAppearance.ambient`
+/// ("Match Surroundings"). iOS doesn't expose the ambient-light sensor
+/// to apps, so we threshold `UIScreen.main.brightness` instead — when
+/// the user dims the display in a dark room, brightness drops, and
+/// the reader switches to dark.
+///
+/// Not perfect (the user could explicitly crank brightness in a dark
+/// room) but it tracks the same signal Apple uses for True Tone and
+/// is the only public knob available. The threshold (0.4) was chosen
+/// by checking Apple Books' behaviour on device : the dark variant
+/// kicks in when the brightness slider sits below ~40 %.
+@MainActor
+@Observable
+public final class AmbientLight {
+    /// Current `UIScreen.brightness` (0…1). Updated by an observer of
+    /// `UIScreen.brightnessDidChangeNotification` so SwiftUI views
+    /// reading `isDark` re-render when the user drags the brightness
+    /// slider or iOS auto-dims for low light.
+    public private(set) var brightness: CGFloat
+
+    /// Threshold below which `isDark` flips to true. Tunable per
+    /// product if 0.4 turns out to be too aggressive in practice.
+    public var darkThreshold: CGFloat = 0.4
+
+    /// Resolved "should the reader use dark variant?" derived from
+    /// `brightness`. Pure function of the brightness reading — no
+    /// hysteresis, since SwiftUI animations already smooth visual
+    /// transitions.
+    public var isDark: Bool { brightness < darkThreshold }
+
+    // `nonisolated(unsafe)` because `NotificationCenter` itself is
+    // thread-safe and we only assign once at init / read once at
+    // deinit. The actual brightness reads inside the observer hop
+    // back to MainActor explicitly. Without this, `deinit` can't
+    // touch a MainActor-isolated property to remove the observer.
+    private nonisolated(unsafe) var observer: NSObjectProtocol?
+
+    public init() {
+        self.brightness = UIScreen.main.brightness
+        observer = NotificationCenter.default.addObserver(
+            forName: UIScreen.brightnessDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.brightness = UIScreen.main.brightness
+            }
+        }
+    }
+
+    deinit {
+        if let observer { NotificationCenter.default.removeObserver(observer) }
+    }
+}
+
+public extension UITraitCollection {
+    /// The device's actual `userInterfaceStyle` — read from the
+    /// `UIScreen`'s trait collection, which reflects the iOS
+    /// Settings → Display & Brightness appearance and IGNORES any
+    /// `overrideUserInterfaceStyle` the app may have set on its
+    /// windows (e.g. `AppSettings.appearance == .dark` while the
+    /// device is in light mode).
+    ///
+    /// Use this when "match device" semantically means "follow the
+    /// OS preference, not the app preference". Distinct from
+    /// `UITraitCollection.current.userInterfaceStyle`, which returns
+    /// the override-aware value (correct for window-scoped styling
+    /// but wrong for the "Match Device" reader-appearance choice).
+    @MainActor
+    static var deviceUserInterfaceStyle: UIUserInterfaceStyle {
+        let scene = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first
+        return scene?.screen.traitCollection.userInterfaceStyle ?? .unspecified
     }
 }
 

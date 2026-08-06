@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaDesignSystem
 import PinkhaFFI
 import PinkhaCore
 import PinkhaComposer
@@ -19,7 +20,17 @@ struct ContentView: View {
     @State private var composer = Composer()
     @State private var tabManager = TabManager()
     @State private var readerMode = ReaderMode()
+    /// App-wide ambient-light monitor — drives `ReaderAppearance.ambient`
+    /// ("Match Surroundings"). One instance for the whole app, injected
+    /// via `@Environment` so any leaf can read its `isDark` derived
+    /// value without spinning up its own brightness observer.
+    @State private var ambientLight = AmbientLight()
     @Environment(AppSettings.self) private var settings
+    /// Live device color scheme (post AppSettings window override).
+    /// Used as the fallback when no leaf is forcing a scheme via
+    /// `readerMode.activeLeafColorScheme` — keeps the accessory bar
+    /// matched to the global appearance instead of hard-coding light.
+    @Environment(\.colorScheme) private var systemColorScheme
 
     /// Tracks crossing of the swipe-up haptic threshold so we fire
     /// the "ready to commit" tap exactly once per drag, not on every
@@ -67,6 +78,7 @@ struct ContentView: View {
         // full immersion via the setting.
         .statusBarHidden(readerMode.isActive && settings.readerHidesStatusBar)
         .environment(readerMode)
+        .environment(ambientLight)
     }
 
     /// Wraps the existing tab-view + chrome stack. Extracted so the
@@ -97,6 +109,20 @@ struct ContentView: View {
             // the alerts/sheets attached afterwards to inherit the orange
             // env and repaint their default Buttons.
             .tint(settings.accentColor)
+            // Lifts every screen off pure black in dark mode by
+            // putting the window at UIKit's elevated interface
+            // level — the same rung the app's own sheets already
+            // sit on. Page and rows move together, so their
+            // separation survives. Cf. ElevatedInterfaceLevel.
+            .pinkhaElevatedSurfaces()
+            // When a leaf is open with a Books-style theme override
+            // (e.g. dark "Tranquille" while the app is in light mode),
+            // mirror its effective `ColorScheme` onto the entire
+            // TabView so the bottom-accessory bar (CreateBubble) and
+            // the tab bar's own glass chrome render with matching
+            // icon colors. Nil = no leaf is forcing a scheme right
+            // now ; the tab bar follows the global appearance.
+            .preferredColorScheme(readerMode.activeLeafColorScheme)
             // Inject the Composer so deep navigation destinations
             // (ShelfView, LeafView) can flip the creation context
             // when they appear / disappear without having to be passed
@@ -138,6 +164,20 @@ struct ContentView: View {
                     onImportCraftCombined: { composer.showingCraftCombinedImport = true },
                     onShowAllLeaves: { openSwitcher() }
                 )
+                // `.tabViewBottomAccessory` hosts its content in a
+                // UIKit-bridged container that doesn't pick up the
+                // TabView's outer `.preferredColorScheme` (preference
+                // values bubble UP the tree ; the hosting wrapper
+                // doesn't republish them downward into the closure).
+                //
+                // The reliable fix per Apple's docs is to write
+                // `\.colorScheme` directly into the environment of
+                // the accessory subtree — that overrides SwiftUI's
+                // `Color.primary` / `.secondary` resolution down here
+                // without depending on preference propagation.
+                .environment(\.colorScheme,
+                             readerMode.activeLeafColorScheme
+                                ?? systemColorScheme)
             }
             .modifier(ContentSheets(composer: composer, store: store, settings: settings, tabManager: tabManager))
             .modifier(ContentAlerts(composer: composer, store: store))

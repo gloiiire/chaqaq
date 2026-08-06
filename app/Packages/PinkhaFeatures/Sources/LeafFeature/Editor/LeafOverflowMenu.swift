@@ -64,6 +64,7 @@ public struct LeafOverflowMenuButton: UIViewRepresentable {
     public let onShowPublishDate: () -> Void
     public let onShowAttachToBook: () -> Void
     public let onToggleReaderMode: () -> Void
+    public let onShowReaderSettings: () -> Void
     public let onShare: (UIView) -> Void
 
     // ── Popover lifecycle (PRO-61 — drives overlay visibility) ────────────
@@ -88,6 +89,7 @@ public struct LeafOverflowMenuButton: UIViewRepresentable {
         onShowPublishDate: @escaping () -> Void,
         onShowAttachToBook: @escaping () -> Void,
         onToggleReaderMode: @escaping () -> Void,
+        onShowReaderSettings: @escaping () -> Void,
         onShare: @escaping (UIView) -> Void,
         onMenuOpen: @escaping () -> Void,
         onMenuClose: @escaping () -> Void
@@ -108,6 +110,7 @@ public struct LeafOverflowMenuButton: UIViewRepresentable {
         self.onShowPublishDate = onShowPublishDate
         self.onShowAttachToBook = onShowAttachToBook
         self.onToggleReaderMode = onToggleReaderMode
+        self.onShowReaderSettings = onShowReaderSettings
         self.onShare = onShare
         self.onMenuOpen = onMenuOpen
         self.onMenuClose = onMenuClose
@@ -352,28 +355,17 @@ public struct LeafOverflowMenuButton: UIViewRepresentable {
             children: directionChildren
         )
 
-        // ── Theme picker ─────────────────────────────────────────────
-        let matchSettingsAction = UIAction(
-            title: String(format: String(localized: "Match Settings (%@)"), settingsThemeLabel),
-            state: theme == nil ? .on : .off
-        ) { [onSetTheme] _ in
+        // ── Themes & settings (opens the dedicated sheet) ────────────
+        // Replaces the old inline theme submenu — the full sheet has
+        // text size, brightness, theme grid with previews, and a
+        // customize-theme sub-sheet.
+        let themeAction = UIAction(
+            title: String(localized: "Themes & settings"),
+            image: UIImage(systemName: "textformat.size")
+        ) { [onShowReaderSettings] _ in
             Haptic.tap()
-            onSetTheme(nil)
+            onShowReaderSettings()
         }
-        let themeChildren = availableThemes.map { entry -> UIAction in
-            UIAction(
-                title: entry.label,
-                state: theme == entry.rawValue ? .on : .off
-            ) { [onSetTheme, raw = entry.rawValue] _ in
-                Haptic.tap()
-                onSetTheme(raw)
-            }
-        }
-        let themeMenu = UIMenu(
-            title: String(localized: "Theme"),
-            image: UIImage(systemName: "book.pages"),
-            children: [matchSettingsAction] + themeChildren
-        )
 
         // ── Single-tap actions ──────────────────────────────────────
         // The `subtitle:` init (iOS 15+) adds a second line under the
@@ -405,7 +397,7 @@ public struct LeafOverflowMenuButton: UIViewRepresentable {
 
         let middleGroup = UIMenu(
             title: "", options: .displayInline,
-            children: [accentMenu, directionMenu, themeMenu]
+            children: [accentMenu, directionMenu, themeAction]
         )
         let sheetGroup = UIMenu(
             title: "", options: .displayInline,
