@@ -251,11 +251,14 @@ impl PinkhaApi {
         use_cases::update_leaf_theme(&self.uow(), uuid, theme).map_err(PinkhaError::from)
     }
 
-    /// Persists the leaf's reader-settings bundle (font scale +
-    /// family + bold + line/letter/word spacing + margin + justify
-    /// + dark variant + custom-layout flag). Pass an empty / `None`
-    /// JSON to reset to the theme's factory defaults. The blob is
-    /// serialised as JSON and stored on the leaf's row.
+    /// Persists the leaf's reader-settings bundle: font scale, family,
+    /// bold, line/letter/word spacing, margin, justify, dark variant and
+    /// the custom-layout flag. Pass an empty / `None` JSON to reset to the
+    /// theme's factory defaults. The blob is serialised as JSON and stored
+    /// on the leaf's row.
+    ///
+    /// (Rewrapped so no line starts with `+` — clippy reads that as an
+    /// unindented markdown list item and fails the `-D warnings` gate.)
     pub fn update_leaf_reader_settings(
         &self,
         id: String,

@@ -2264,6 +2264,7 @@ fn library_snapshot_of_an_empty_library_is_empty_not_an_error() {
     assert!(snap.all_leaves.is_empty());
     assert!(snap.books.is_empty());
     assert!(snap.shelves.is_empty());
+}
 
 // ── PRO-62 : `theme_appearance` round-trip ─────────────────────────────────
 //
@@ -2314,9 +2315,7 @@ fn reader_settings_theme_appearance_survives_reopen() {
 fn reader_settings_round_trips_all_five_appearance_modes() {
     let api = api();
     for mode in &["light", "dark", "system", "ambient", "settings"] {
-        let id = api
-            .create_leaf(format!("mode-{mode}"))
-            .expect("create");
+        let id = api.create_leaf(format!("mode-{mode}")).expect("create");
         let settings_json = json!({
             "font_scale": 1.0,
             "font_family": null,

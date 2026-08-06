@@ -385,13 +385,19 @@ pub struct ReaderSettings {
 }
 
 impl ReaderSettings {
-    fn default_font_scale() -> f32 { 1.0 }
-    fn default_line_spacing() -> f64 { 1.4 }
+    fn default_font_scale() -> f32 {
+        1.0
+    }
+    fn default_line_spacing() -> f64 {
+        1.4
+    }
     /// Default appearance for a fresh leaf : follow the user's
     /// app-wide Settings toggle. Older rows without this field
     /// deserialize to `"settings"` as well, so they inherit the
     /// global preference instead of being silently forced to light.
-    fn default_theme_appearance() -> String { "settings".to_string() }
+    fn default_theme_appearance() -> String {
+        "settings".to_string()
+    }
 }
 
 impl Leaf {

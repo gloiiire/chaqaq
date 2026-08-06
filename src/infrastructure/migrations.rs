@@ -234,7 +234,14 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
     conn.pragma_update(None, "user_version", 16)
         .map_err(|e| PinkhaError::Db(e.to_string()))?;
 
-    // ── v15 (PRO-62) : `Leaf.reader_settings` JSON bundle ────────────────
+    // ── v17 (PRO-62) : `Leaf.reader_settings` JSON bundle ────────────────
+    //
+    // Numérotée v17 et non v15 : cette branche a été écrite quand 14 était
+    // la dernière version, et `dev` est passé à 16 entre-temps. Laisser le
+    // 15 d'origine faisait *redescendre* `user_version` après le bump de
+    // dev, puisque ce bloc s'exécute après lui — une base fraîchement
+    // migrée repartait donc à 15 et rejouait les migrations suivantes à
+    // chaque ouverture.
     //
     // No new SQL column — the bundle lives inside the existing `data`
     // JSON blob (same pattern as `theme`, `accent_color`,
@@ -257,7 +264,7 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
         [],
     )
     .map_err(|e| PinkhaError::Db(e.to_string()))?;
-    conn.pragma_update(None, "user_version", 15)
+    conn.pragma_update(None, "user_version", 17)
         .map_err(|e| PinkhaError::Db(e.to_string()))?;
 
     Ok(())
@@ -454,7 +461,7 @@ mod tests {
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .expect("read user_version");
-        assert_eq!(version, 16);
+        assert_eq!(version, 17);
     }
 
     /// A leaf whose `shelf_id` column and JSON blob disagree gets healed,
