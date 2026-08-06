@@ -679,12 +679,48 @@ validation du tableau d'interlignes complet.
 
 ### 12.9 État du portage dans pinkha
 
-| Point mesuré | Porté | Note |
-| --- | --- | --- |
-| §12.4 — ✓ suit l'apparence, pas le thème | ✅ | Dérivé de la luminance du fond (Rec. 601), pas de `colorScheme` : la sheet ne reçoit que des couleurs déjà résolues, et la noirceur peut venir du thème comme du système. Le commentaire du header affirmait l'inverse ; corrigé. |
-| §12.5 — dépliage en place | ✅ | `fontPickerExpanded`, chevron pivoté de 90°. L'ancienne `FontPickerSheet` (125 lignes) est supprimée. |
-| §12.5 — chaque nom dans sa police | ✅ | `rowFont(for:size:)`, avec repli `fontNames(forFamilyName:)` — `UIFont(name:)` seul échoue sur « Avenir Next » et « Canela Text ». |
-| §12.5 — ordre alphabétique à plat | ✅ | La liste était groupée sérif / sans / mono sous un commentaire qui la disait déjà « alphabetised ». Verrouillé par `ReaderFontCatalogueTests`. |
-| §12.5 — première entrée « Original » | ✅ | Ajoutée à `Localizable.xcstrings` (identique en/fr, comme Books). |
-| §12.3 — géométrie des lignes (59 / 55,3 pt) | ⚠️ | Non vérifié à l'écran : le menu de débordement est un `UIMenu` UIKit, que `ImportUITests` documente comme non automatisable de façon fiable sur simulateur. |
-| §12.6 — « Personnaliser » commande les curseurs | ⚠️ | `customLayoutEnabled` existe déjà ; l'effet sur les quatre curseurs reste à confirmer visuellement. |
+Vérifié **à l'écran** : `PinkhaUITests/ReaderCustomizeSheetUITests` atteint la
+sheet via `--ui-test-reader-customize`, et les couleurs ci-dessous sont
+échantillonnées sur la capture du simulateur puis comparées aux captures
+Books de `utilities/docs/books-reference/`.
+
+| Point | pinkha | Books | Écart |
+| --- | --- | --- | --- |
+| Cercle ✓ (clair) | `#000000` | `#0E0B04` | 14 — le brun résiduel de Books vient du HEIC sur fond crème |
+| Fond de page | `#F2F2F7` | `#F3F2F7` | 1 |
+| Fond de carte | `#FFFFFF` | `#FFFFFF` | 0 |
+| Piste remplie | `#000000` | `#000000` | 0 |
+| Pouce du curseur | `#FFFFFF` | `#FFFFFF` | 0 |
+| Piste vide | `#E6E6E6` | `#E6E6E6` | 0 |
+
+| Comportement mesuré | État |
+| --- | --- |
+| §12.4 — ✓ suit l'apparence, pas le thème | ✅ vérifié en clair et en sombre |
+| §12.5 — dépliage en place du sélecteur | ✅ test UI : le titre de la sheet reste affiché |
+| §12.5 — chaque nom dans sa police | ✅ repli `fontNames(forFamilyName:)` |
+| §12.5 — ordre alphabétique à plat | ✅ verrouillé par `ReaderFontCatalogueTests` |
+| §12.5 — première entrée « Original » | ✅ |
+| §12.6 — l'interrupteur commande les curseurs | ✅ test UI dédié |
+| §12.8 — « 1,55 » et « 0 % » selon la locale | ✅ `.formatted(.number/.percent)` |
+
+#### Écarts assumés
+
+- **Fonds inversés (corrigé)** : la zone défilante utilisait
+  `.systemBackground` (blanc) et les cartes `.secondarySystemBackground`
+  (gris) — exactement l'inverse de Books, donc les cartes ne se détachaient
+  pas. Passé en `systemGroupedBackground` / `secondarySystemGroupedBackground`.
+- **`sectionLabel("Texte")` (corrigé)** : un littéral français servait de
+  `LocalizedStringKey`. Absent du catalogue, il s'affichait « Texte » dans
+  toutes les langues, à côté de « Font » et « Bold » anglais.
+- **Cercle ✕ (corrigé)** : rendu par `previewForeground.opacity(0.12)`, donc
+  plus SOMBRE que le fond, alors que Books le fait plus CLAIR
+  (`#EFE3CC → #F8EDD8`). Remplacé par un matériau translucide, qui s'adapte
+  en plus à chaque thème.
+- **Ligne « Colonnes / Réglage automatique » : NON portée.** pinkha rend une
+  colonne unique défilante ; la mise en page multi-colonnes n'existe pas. Le
+  contrôle serait un leurre — une commande visible qui ne commande rien. À
+  ajouter le jour où la pagination existe, pas avant.
+- **Zone d'aperçu** : Books la remplit toujours de prose et estompe la
+  dernière ligne. La nôtre affiche le contenu réel du leaf, donc une leaf
+  courte laisse un grand vide sous le « Aa ». Le comportement est correct,
+  le rendu diffère sur les leaves quasi vides.

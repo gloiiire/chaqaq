@@ -409,6 +409,17 @@ public struct LeafView: View {
         .onAppear {
             syncWindowTheme()
             publishLeafColorScheme()
+            // Ouvre directement la sheet de personnalisation. Le menu de
+            // débordement est un `UIMenu` UIKit, que `ImportUITests`
+            // documente comme non automatisable de façon fiable sur
+            // simulateur : sans ce raccourci, la sheet n'est atteignable
+            // par aucun test ni aucune capture automatisée, et sa parité
+            // avec Books ne peut être vérifiée que de mémoire.
+            // Même famille que `--ui-test-data` / `--ui-test-clean`.
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-reader-customize") {
+                showingReaderSettingsSheet = true
+                showingCustomizeThemeSheet = true
+            }
         }
         .onDisappear {
             // Clear the leaf-scoped scheme so the TabView's

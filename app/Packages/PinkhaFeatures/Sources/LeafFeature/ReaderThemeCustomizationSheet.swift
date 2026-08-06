@@ -135,9 +135,16 @@ public struct ReaderThemeCustomizationSheet: View {
                 .padding(.top, 18)
                 .padding(.bottom, 28)
             }
-            .background(Color(.systemBackground))
+            // Fond GROUPÉ, pas `.systemBackground`. Mesuré sur Books :
+            // #F3F2F7 en clair et #1C1C1D en sombre — soit exactement
+            // `systemGroupedBackground` dans sa résolution « elevated »,
+            // celle qu'iOS applique aux présentations modales. Les cartes
+            // sont alors blanches PAR-DESSUS ce gris. Nous avions les deux
+            // à l'envers (page blanche, cartes grises), donc les cartes ne
+            // se détachaient pas du fond.
+            .background(Color(.systemGroupedBackground))
         }
-        .background(Color(.systemBackground))
+        .background(Color(.systemGroupedBackground))
     }
 
     // ── Header ────────────────────────────────────────────────────────────
@@ -166,8 +173,15 @@ public struct ReaderThemeCustomizationSheet: View {
                     Image(systemName: "xmark")
                         .font(.system(size: 15, weight: .semibold))
                         .frame(width: 32, height: 32)
-                        .foregroundStyle(previewForeground)
-                        .background(Circle().fill(previewForeground.opacity(0.12)))
+                        // Le cercle est plus CLAIR que le fond du thème
+                        // (#EFE3CC → #F8EDD8 en clair, #403B31 → #5A5346 en
+                        // sombre) : c'est un matériau translucide, pas
+                        // l'avant-plan à 12 % — celui-ci assombrissait, donc
+                        // allait dans le mauvais sens. Un matériau s'adapte
+                        // en plus à chaque thème, ce qu'une couleur figée ne
+                        // ferait pas.
+                        .foregroundStyle(readerIsDark ? Color.white : Color.black)
+                        .background(Circle().fill(.ultraThinMaterial))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close")
@@ -312,7 +326,7 @@ public struct ReaderThemeCustomizationSheet: View {
 
     private var textSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionLabel("Texte")
+            sectionLabel("Text")
             VStack(spacing: 0) {
                 Button {
                     Haptic.tap()
@@ -359,7 +373,7 @@ public struct ReaderThemeCustomizationSheet: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color(.secondarySystemBackground))
+                    .fill(Color(.secondarySystemGroupedBackground))
             )
         }
     }
@@ -473,7 +487,7 @@ public struct ReaderThemeCustomizationSheet: View {
                         icon: "arrow.up.and.down.text.horizontal",
                         value: $lineSpacing,
                         range: 0.8...2.4,
-                        formatter: { String(format: "%.2f", $0) }
+                        formatter: multiplierFormatter
                     )
                     Divider().padding(.leading, 56)
                     spacingSlider(
@@ -503,7 +517,7 @@ public struct ReaderThemeCustomizationSheet: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color(.secondarySystemBackground))
+                    .fill(Color(.secondarySystemGroupedBackground))
             )
         }
     }
@@ -548,7 +562,7 @@ public struct ReaderThemeCustomizationSheet: View {
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
+                .fill(Color(.secondarySystemGroupedBackground))
         )
     }
 
@@ -567,7 +581,7 @@ public struct ReaderThemeCustomizationSheet: View {
                 .padding(.vertical, 14)
                 .background(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color(.secondarySystemBackground))
+                        .fill(Color(.secondarySystemGroupedBackground))
                 )
         }
         .buttonStyle(.plain)
@@ -581,8 +595,18 @@ public struct ReaderThemeCustomizationSheet: View {
             .padding(.leading, 4)
     }
 
+    /// Books affiche « 0 % » en français (espace avant le signe) et
+    /// « 0% » en anglais. `String(format: "%.0f %%")` imposait l'espace
+    /// dans les deux langues ; `.formatted(.percent)` applique la règle
+    /// typographique de la locale active.
     private func percentFormatter(_ v: Double) -> String {
-        String(format: "%.0f %%", v * 100)
+        v.formatted(.percent.precision(.fractionLength(0)))
+    }
+
+    /// L'interligne s'affiche « 1,55 » en français et « 1.55 » en anglais.
+    /// `String(format: "%.2f")` imposait le point décimal partout.
+    private func multiplierFormatter(_ v: Double) -> String {
+        v.formatted(.number.precision(.fractionLength(2)))
     }
 
     // ── Constants ─────────────────────────────────────────────────────────
