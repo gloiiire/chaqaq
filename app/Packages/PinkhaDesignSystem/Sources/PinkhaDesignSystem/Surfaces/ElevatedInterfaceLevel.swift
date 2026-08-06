@@ -58,3 +58,32 @@ public extension View {
         background(ElevatedInterfaceLevel().frame(width: 0, height: 0).accessibilityHidden(true))
     }
 }
+
+public extension Color {
+    /// La surface de l'app résolue pour une apparence DONNÉE, sans passer
+    /// par l'environnement.
+    ///
+    /// Le thème « Original » n'a pas de palette : sa surface est celle de
+    /// l'app, une couleur dynamique. Lire cette couleur depuis
+    /// l'environnement reviendrait à parier que `.preferredColorScheme`
+    /// a bien reflué jusqu'au `.background` — un pari que les cinq autres
+    /// thèmes n'ont pas à faire, puisqu'ils portent des couleurs fixes.
+    /// On résout donc explicitement, avec le niveau élevé pour rester sur
+    /// la même rampe que le reste de l'app (cf. `ElevatedInterfaceLevel`).
+    static func pinkhaSurface(dark: Bool) -> Color {
+        let traits = UITraitCollection(traitsFrom: [
+            UITraitCollection(userInterfaceStyle: dark ? .dark : .light),
+            UITraitCollection(userInterfaceLevel: .elevated),
+        ])
+        return Color(uiColor: UIColor(Color.pinkhaSurface).resolvedColor(with: traits))
+    }
+
+    /// Pendant de `pinkhaSurface(dark:)` pour le texte.
+    static func pinkhaLabel(dark: Bool) -> Color {
+        let traits = UITraitCollection(traitsFrom: [
+            UITraitCollection(userInterfaceStyle: dark ? .dark : .light),
+            UITraitCollection(userInterfaceLevel: .elevated),
+        ])
+        return Color(uiColor: UIColor.label.resolvedColor(with: traits))
+    }
+}

@@ -358,7 +358,7 @@ public struct LeafView: View {
         // light/dark continues to drive the look.
         .scrollContentBackground(.hidden)
         .background(effectiveTheme.effectiveBackgroundColor(darkVariant: effectiveThemeDarkVariant)
-                    ?? Color.pinkhaSurface)
+                    ?? Color.pinkhaSurface(dark: effectiveThemeDarkVariant))
         .preferredColorScheme(effectiveTheme.effectiveColorScheme(darkVariant: effectiveThemeDarkVariant))
         // Make the active reader theme available to every block row so
         // they pick up the theme's font family (Georgia / Charter /

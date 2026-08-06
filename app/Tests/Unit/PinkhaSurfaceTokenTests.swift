@@ -47,6 +47,36 @@ struct PinkhaSurfaceTokenTests {
         #expect(row - page > 10, "cards would not read against the page")
     }
 
+    /// The "Original" reader theme has no palette of its own: its surface
+    /// is the app's, resolved explicitly for the appearance the reader
+    /// asked for rather than read from the environment. Reading it from
+    /// the environment would make the leaf depend on `preferredColorScheme`
+    /// flowing back down into `.background`, which the five named themes
+    /// never have to rely on because they carry fixed colours.
+    @Test func explicitSurfaceResolutionFollowsTheRequestedAppearance() {
+        let dark = luminance(rgbOf(Color.pinkhaSurface(dark: true)))
+        let light = luminance(rgbOf(Color.pinkhaSurface(dark: false)))
+        #expect(light > dark, "light must be lighter than dark")
+        #expect(dark > 20, "must not fall back to pure black")
+        #expect(light > 200, "light surface must actually be light")
+    }
+
+    /// Text has to travel with the surface, otherwise picking Light on a
+    /// dark device gives white text on a white page.
+    @Test func explicitLabelResolutionOpposesTheSurface() {
+        #expect(luminance(rgbOf(Color.pinkhaLabel(dark: false)))
+                < luminance(rgbOf(Color.pinkhaSurface(dark: false))))
+        #expect(luminance(rgbOf(Color.pinkhaLabel(dark: true)))
+                > luminance(rgbOf(Color.pinkhaSurface(dark: true))))
+    }
+
+    /// Resolves an already-concrete colour (no trait lookup needed).
+    private func rgbOf(_ color: Color) -> (Int, Int, Int) {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
+        return (Int((r * 255).rounded()), Int((g * 255).rounded()), Int((b * 255).rounded()))
+    }
+
     /// Same requirement for the ungrouped family, used by the leaf editor.
     @Test func elevatedSurfaceStaysAboveTheRootSurface() {
         let root = luminance(rgb(Color.pinkhaSurface, elevated: true))

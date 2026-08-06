@@ -362,6 +362,18 @@ public final class AppSettings {
         /// with a real dark variant flip to `.dark` when the toggle
         /// is on ; others keep their intrinsic scheme.
         public func effectiveColorScheme(darkVariant: Bool) -> ColorScheme? {
+            // `.original` veut dire « la surface de l'app », qui existe
+            // dans les DEUX apparences. Il doit donc suivre le choix
+            // Clair/Sombre du lecteur comme n'importe quel autre thème.
+            //
+            // Il tombait avant sur `colorScheme`, qui vaut `nil` pour
+            // `.original` : la leaf restait sur l'apparence de l'app et
+            // choisir « Clair » sur un appareil sombre ne faisait
+            // strictement rien. `hasDarkVariant` reste `false` pour lui
+            // — ce drapeau sert à marquer les thèmes qui ont une
+            // palette sombre PROPRE, et `.original` n'en a pas : il
+            // emprunte celle de l'app.
+            if self == .original { return darkVariant ? .dark : .light }
             if darkVariant && hasDarkVariant { return .dark }
             return colorScheme
         }
