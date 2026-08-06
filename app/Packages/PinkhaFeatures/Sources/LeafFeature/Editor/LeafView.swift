@@ -625,7 +625,7 @@ public struct LeafView: View {
                 systemIsDark: deviceIsDark,
                 settingsIsDark: appWideIsDark,
                 ambientIsDark: ambientIsDark,
-                themeOptions: ReaderThemeOption.previewSet,
+                themeOptions: ReaderThemeOption.all,
                 onPersonnaliser: {
                     showingCustomizeThemeSheet = true
                 },

@@ -12,6 +12,45 @@ import PinkhaFFI
 // variants + brightness override land in follow-up commits on this same
 // branch.
 
+// MARK: - Mesures relevées sur Books
+
+/// Géométrie du sheet « Thèmes et réglages », mesurée au pixel sur une capture
+/// native iPhone 17 Pro (1206×2622 px, écran 3×, soit 402×874 pt).
+///
+/// Ces valeurs remplacent des littéraux choisis à l'œil qui traînaient un peu
+/// partout dans ce fichier — 16 pt de padding horizontal là où Books en met
+/// 28,7, 10 pt entre les rangées là où il en met 16. Les regrouper ici rend
+/// chaque écart au modèle visible et corrigeable en un point.
+///
+/// Détail et méthode : `utilities/docs/BOOKS-READER-SETTINGS-RE.md` §11.
+enum BooksSheetMetrics {
+    /// Marge du sheet aux bords de l'écran. Ce sheet **flotte** ; celui de
+    /// personnalisation est pleine largeur — les deux ne partagent pas de
+    /// conteneur.
+    static let sheetSideMargin: CGFloat = 8
+    /// Padding intérieur, du bord du sheet au contenu.
+    ///
+    /// Recoupé plutôt que pris pour argent comptant : largeur intérieure
+    /// 385,7 − 2×28,7 = 328,3, contre une grille occupant 3×102,3 + 2×10 =
+    /// 326,9. Les deux concordent à la précision de mesure.
+    static let contentPadding: CGFloat = 28.7
+    /// Hauteur des deux capsules de contrôle (A−/A+ et défilement/apparence).
+    static let capsuleHeight: CGFloat = 46
+    /// Écart entre les deux capsules, et entre les colonnes de la grille.
+    static let horizontalGap: CGFloat = 10
+    /// Écart entre les deux rangées de tuiles. Volontairement différent de
+    /// l'écart horizontal — Books n'utilise pas une grille isotrope.
+    static let gridRowGap: CGFloat = 16
+    /// Hauteur d'une tuile de thème. La largeur découle du padding et de
+    /// l'écart, donc on ne la fixe pas.
+    static let tileHeight: CGFloat = 89.3
+    /// Rayon de coin d'une tuile : la largeur pleine est atteinte ~18 pt sous
+    /// le bord supérieur.
+    static let tileCornerRadius: CGFloat = 18
+    /// Hauteur du bouton « Personnaliser », pleine largeur intérieure.
+    static let personnaliserHeight: CGFloat = 54.7
+}
+
 public struct ReaderSettingsSheet: View {
 
     // ── Bindings to leaf state ────────────────────────────────────────────
@@ -101,10 +140,10 @@ public struct ReaderSettingsSheet: View {
         VStack(spacing: 0) {
             header
             controlsStrip
-                .padding(.horizontal, 16)
+                .padding(.horizontal, BooksSheetMetrics.contentPadding)
                 .padding(.top, 10)
             brightnessSlider
-                .padding(.horizontal, 16)
+                .padding(.horizontal, BooksSheetMetrics.contentPadding)
                 .padding(.top, 14)
                 .padding(.bottom, 14)
 
@@ -114,12 +153,12 @@ public struct ReaderSettingsSheet: View {
             // as separate without the seam looking like a hard divider).
             VStack(spacing: 0) {
                 themeGrid
-                    .padding(.horizontal, 14)
+                    .padding(.horizontal, BooksSheetMetrics.contentPadding)
                     .padding(.top, 14)
-                    .padding(.bottom, 10)
+                    .padding(.bottom, 7)
                 personnaliserButton
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 12)
+                    .padding(.horizontal, BooksSheetMetrics.contentPadding)
+                    .padding(.bottom, 25.7)
             }
             .frame(maxWidth: .infinity)
             // Apple Books shows a clear horizontal seam between the
@@ -182,7 +221,7 @@ public struct ReaderSettingsSheet: View {
             .glassEffect(.regular.interactive(), in: Circle())
             .accessibilityLabel("Close")
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, BooksSheetMetrics.contentPadding)
         // Tight but ascender-safe top spacing — Apple Books leaves
         // ~28 pt between sheet-top and the bold title baseline.
         .padding(.top, 28)
@@ -227,7 +266,7 @@ public struct ReaderSettingsSheet: View {
                 fontScale = min(fontScaleRange.upperBound, fontScale + fontScaleStep)
             }
         }
-        .frame(height: 44)
+        .frame(height: BooksSheetMetrics.capsuleHeight)
         .background(Capsule().fill(Color(.tertiarySystemFill)))
         .clipShape(Capsule())
     }
@@ -306,7 +345,7 @@ public struct ReaderSettingsSheet: View {
                 .contentShape(Rectangle())
         }
         .menuOrder(.fixed)
-        .frame(height: 44)
+        .frame(height: BooksSheetMetrics.capsuleHeight)
         .background(Capsule().fill(Color(.tertiarySystemFill)))
         .clipShape(Capsule())
         .foregroundStyle(.primary)
@@ -380,10 +419,13 @@ public struct ReaderSettingsSheet: View {
 
     // ── Theme grid ────────────────────────────────────────────────────────
 
-    private let gridColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
+    private let gridColumns = Array(
+        repeating: GridItem(.flexible(), spacing: BooksSheetMetrics.horizontalGap),
+        count: 3
+    )
 
     private var themeGrid: some View {
-        LazyVGrid(columns: gridColumns, spacing: 10) {
+        LazyVGrid(columns: gridColumns, spacing: BooksSheetMetrics.gridRowGap) {
             ForEach(themeOptions) { option in
                 ThemeTile(
                     option: option,
@@ -411,7 +453,7 @@ public struct ReaderSettingsSheet: View {
                     .font(.system(size: 17, weight: .semibold))
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 54)
+            .frame(height: BooksSheetMetrics.personnaliserHeight)
             .background(Capsule().fill(Color(.tertiarySystemFill)))
         }
         .buttonStyle(SoftPressButtonStyle())
@@ -580,9 +622,13 @@ private struct ThemeTile: View {
 
     @ViewBuilder
     private var tileBody: some View {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
+        // Hauteur fixe, pas de ratio carré : Books fait ses tuiles
+        // 102,3 × 89,3 pt, soit nettement plus larges que hautes. La
+        // largeur découle du padding et de l'écart de colonnes, donc
+        // seule la hauteur se pose ici.
+        RoundedRectangle(cornerRadius: BooksSheetMetrics.tileCornerRadius, style: .continuous)
             .fill(background)
-            .aspectRatio(1, contentMode: .fit)
+            .frame(height: BooksSheetMetrics.tileHeight)
             .overlay(
                 VStack(spacing: 0) {
                     Text("Aa")
@@ -599,7 +645,8 @@ private struct ThemeTile: View {
                 // colors the ring with the theme's FOREGROUND so it
                 // adapts to both light and dark variants — a white
                 // border on a cream theme would clash.
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: BooksSheetMetrics.tileCornerRadius + 2,
+                                 style: .continuous)
                     .strokeBorder(
                         isSelected ? foreground : Color.clear,
                         lineWidth: 2.5
@@ -619,7 +666,7 @@ private struct ThemeTile: View {
             systemIsDark: false,
             settingsIsDark: false,
             ambientIsDark: false,
-            themeOptions: ReaderThemeOption.previewSet,
+            themeOptions: ReaderThemeOption.all,
             onPersonnaliser: {},
             onClose: {}
         )
@@ -647,74 +694,52 @@ private struct StatefulPreviewWrapper<Content: View>: View {
 }
 
 extension ReaderThemeOption {
-    /// Reference theme set, mirroring the 6 Apple Books presets with
-    /// the per-theme font families verified in the `BookEPUB` binary
-    /// (Avenir Next, Charter, Georgia, Palatino + system). Colors
-    /// approximated from screenshots ; will be replaced by exact hex
-    /// values once we extract them from Apple's user_stylesheet CSS
-    /// files. Production themes will be built from `AppSettings.Theme`
-    /// once dark variants + Rust persistence ship (PRO-62 step 5).
-    @MainActor public static let previewSet: [ReaderThemeOption] = [
-        // Original — In Pinkha, "Original" means "no theme override,
-        // follow the system" (vm.theme == nil). The tile preview
-        // therefore uses semantic colors (.systemBackground / .label)
-        // that auto-adapt to the sheet's environment colorScheme so
-        // the preview always matches what the leaf actually renders.
-        .init(key: nil, label: "Original",
-              lightBackground: Color(uiColor: .systemBackground),
-              lightForeground: Color(uiColor: .label),
-              darkBackground: Color(uiColor: .systemBackground),
-              darkForeground: Color(uiColor: .label),
-              hasDarkVariant: false,
-              fontFamily: nil,
-              isPreviewBold: true,
-              isPreviewItalic: false),
-        // Tranquille — dark theme + Publico serif.
-        .init(key: "tranquille", label: "Tranquille",
-              lightBackground: Color(white: 0.18),
-              lightForeground: Color(white: 0.85),
-              darkBackground: Color(white: 0.18),
-              darkForeground: Color(white: 0.85),
-              hasDarkVariant: false,
-              fontFamily: "Publico",
-              isPreviewBold: false),
-        // Papier — cream paper + Charter.
-        .init(key: "papier", label: "Papier",
-              lightBackground: Color(red: 0.93, green: 0.91, blue: 0.86),
-              lightForeground: Color(red: 0.2, green: 0.18, blue: 0.16),
-              darkBackground: Color(red: 0.18, green: 0.17, blue: 0.15),
-              darkForeground: Color(red: 0.85, green: 0.83, blue: 0.78),
-              hasDarkVariant: true,
-              fontFamily: "Charter",
-              isPreviewBold: false),
-        // Gras — system font + bold weight forced ON by default.
-        .init(key: "gras", label: "Gras",
-              lightBackground: Color.white,
-              lightForeground: .black,
-              darkBackground: .black,
-              darkForeground: .white,
-              hasDarkVariant: true,
-              fontFamily: nil,
-              isPreviewBold: true),
-        // Calme — warm cream + Canela Text (editorial serif).
-        .init(key: "calme", label: "Calme",
-              lightBackground: Color(red: 0.99, green: 0.94, blue: 0.83),
-              lightForeground: Color(red: 0.25, green: 0.2, blue: 0.1),
-              darkBackground: Color(red: 0.27, green: 0.22, blue: 0.16),
-              darkForeground: Color(red: 0.93, green: 0.85, blue: 0.7),
-              hasDarkVariant: true,
-              fontFamily: "Canela",
-              isPreviewBold: false),
-        // Attention — soft off-white + Proxima Nova (geometric sans).
-        .init(key: "attention", label: "Attention",
-              lightBackground: Color(red: 1.0, green: 0.98, blue: 0.94),
-              lightForeground: Color(red: 0.18, green: 0.15, blue: 0.1),
-              darkBackground: Color(red: 0.12, green: 0.12, blue: 0.09),
-              darkForeground: Color(red: 0.95, green: 0.92, blue: 0.85),
-              hasDarkVariant: true,
-              fontFamily: "Proxima Nova",
-              isPreviewBold: false),
-    ]
+    /// The theme grid, derived from `AppSettings.Theme` — the same type
+    /// that paints the leaf.
+    ///
+    /// This used to be a hand-written `previewSet` living next to the
+    /// `#Preview`, and production read from it. The two drifted: the
+    /// tiles showed Papier as cream `(0.93, 0.91, 0.86)` while a leaf
+    /// actually rendered it grey `(0.96, 0.96, 0.96)`, Tranquille as
+    /// `white: 0.18` against a real `0.11`, and Calme and Attention were
+    /// off too. The picker was advertising colours the reader never
+    /// used. Deriving removes the second source rather than resyncing
+    /// it, so the tile cannot lie again.
+    @MainActor public static var all: [ReaderThemeOption] {
+        AppSettings.Theme.allCases.map(ReaderThemeOption.init(theme:))
+    }
+
+    /// Builds the tile for one theme.
+    ///
+    /// `.original` means "no override, follow the system", so its
+    /// `backgroundColor` / `foregroundColor` are `nil` — the tile falls
+    /// back to semantic colours that track the sheet's own colour
+    /// scheme, which is exactly what the leaf does in that case.
+    @MainActor public init(theme: AppSettings.Theme) {
+        let light = theme.backgroundColor ?? Color(uiColor: .systemBackground)
+        let lightText = theme.foregroundColor ?? Color(uiColor: .label)
+        self.init(
+            // `Leaf.theme` stores `nil` for "no override", not the
+            // string "original" — the tile has to match that shape or
+            // an untouched leaf would highlight no tile at all.
+            key: theme == .original ? nil : theme.rawValue,
+            // Deliberately not `theme.labelString`: that returns
+            // "Match App Appearance", which is the wording for the
+            // app-wide Settings row. In the reader grid Apple Books
+            // calls this one "Original", and so do we.
+            label: theme == .original
+                ? String(localized: "Original")
+                : theme.labelString,
+            lightBackground: light,
+            lightForeground: lightText,
+            darkBackground: theme.darkBackgroundColor ?? light,
+            darkForeground: theme.darkForegroundColor ?? lightText,
+            hasDarkVariant: theme.hasDarkVariant,
+            fontFamily: theme.fontFamily,
+            isPreviewBold: theme.boldText,
+            isPreviewItalic: false
+        )
+    }
 }
 
 // MARK: - Button style

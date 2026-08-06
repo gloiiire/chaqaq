@@ -245,31 +245,48 @@ public final class AppSettings {
 
         /// `nil` = inherit the system background (`.original` does
         /// this so light/dark mode keeps working untouched).
+        /// Background colour for the leaf body.
+        ///
+        /// Exact values, extracted from Apple Books rather than eyeballed:
+        /// `BookEPUB.BookThemeEntity.backgroundColor` builds them as IEEE-754
+        /// immediates, and emulating that getter's branch tree over
+        /// (theme index, dark variant) yields the table below. Four of the six
+        /// were previously off by enough to see — Tranquille most of all, at
+        /// #1C1C1C against a real #4A4A4D. See
+        /// `utilities/docs/BOOKS-READER-SETTINGS-RE.md` §10.3.
+        ///
+        /// `.original` returns nil: it means "no override, follow the system".
         public var backgroundColor: Color? {
             switch self {
-            case .original:  return nil
-            // `.tranquille` is intentionally close to iOS-26's native
-            // dark keyboard / `systemBackground` (≈ 0.11) so the seam
-            // between the doc and the keyboard reads as one surface
-            // rather than two shades of dark fighting each other.
-            case .tranquille: return Color(red: 0.11, green: 0.11, blue: 0.11)
-            case .papier:    return Color(red: 0.96, green: 0.96, blue: 0.96)
-            case .gras:      return Color.white
-            case .calme:     return Color(red: 0.93, green: 0.88, blue: 0.78)
-            case .attention: return Color(red: 0.98, green: 0.95, blue: 0.86)
+            case .original:   return nil
+            case .tranquille: return Color(hex: 0x4A4A4D)
+            case .papier:     return Color(hex: 0xEEEDED)
+            case .gras:       return Color(hex: 0xFFFFFF)
+            case .calme:      return Color(hex: 0xF1E2C9)
+            case .attention:  return Color(hex: 0xFFFCF4)
             }
         }
 
-        /// Foreground colour for body text. `nil` falls back to
-        /// `.label` (system-dynamic).
+        /// Foreground colour for body text. `nil` falls back to `.label`.
+        ///
+        /// Only Calme is measured: Books builds its label colours through a
+        /// dynamic `UIColor` whose trait-collection block dispatches via a
+        /// function pointer, which static disassembly does not follow for
+        /// reasonable effort. Calme was instead sampled from the live preview
+        /// in a reference capture — that area renders the theme at full
+        /// opacity, confirmed by its background matching the extracted value
+        /// to within capture compression.
+        ///
+        /// The other five keep their previous approximations and are **not**
+        /// verified against Apple.
         public var foregroundColor: Color? {
             switch self {
-            case .original:  return nil
-            case .tranquille: return Color(white: 0.88)
-            case .papier:    return Color.black
-            case .gras:      return Color.black
-            case .calme:     return Color(red: 0.18, green: 0.14, blue: 0.07)
-            case .attention: return Color(red: 0.18, green: 0.14, blue: 0.07)
+            case .original:   return nil
+            case .tranquille: return Color(white: 0.88)          // non vérifié
+            case .papier:     return Color.black                 // non vérifié
+            case .gras:       return Color.black                 // non vérifié
+            case .calme:      return Color(hex: 0x32281E)        // mesuré
+            case .attention:  return Color(red: 0.18, green: 0.14, blue: 0.07) // non vérifié
             }
         }
 
@@ -308,23 +325,25 @@ public final class AppSettings {
         /// variant. Mirrors the second-row palette in the theme grid.
         public var darkBackgroundColor: Color? {
             switch self {
-            case .original:   return Color.white                          // no dark variant ; never used
-            case .tranquille: return backgroundColor                       // already dark
-            case .papier:     return Color(red: 0.18, green: 0.17, blue: 0.15)
-            case .gras:       return Color.black
-            case .calme:      return Color(red: 0.27, green: 0.22, blue: 0.16)
-            case .attention:  return Color(red: 0.12, green: 0.12, blue: 0.09)
+            case .original:   return Color(hex: 0x000000)
+            case .tranquille: return Color(hex: 0x000000)
+            case .papier:     return Color(hex: 0x1C1C1E)
+            case .gras:       return Color(hex: 0x000000)
+            case .calme:      return Color(hex: 0x423B30)
+            case .attention:  return Color(hex: 0x18160C)
             }
         }
 
+        /// Dark-variant foreground. Same caveat as `foregroundColor`: only
+        /// Calme is measured.
         public var darkForegroundColor: Color? {
             switch self {
-            case .original:   return Color.black
+            case .original:   return Color.white
             case .tranquille: return foregroundColor
-            case .papier:     return Color(red: 0.85, green: 0.83, blue: 0.78)
+            case .papier:     return Color(red: 0.85, green: 0.83, blue: 0.78) // non vérifié
             case .gras:       return Color.white
-            case .calme:      return Color(red: 0.93, green: 0.85, blue: 0.7)
-            case .attention:  return Color(red: 0.95, green: 0.92, blue: 0.85)
+            case .calme:      return Color(hex: 0xF7EDDD)        // mesuré
+            case .attention:  return Color(red: 0.95, green: 0.92, blue: 0.85) // non vérifié
             }
         }
 
