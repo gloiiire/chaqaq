@@ -181,6 +181,24 @@
         }
       }
     },
+    "Add Link": {
+      "comment": "Editor toolbar button — VoiceOver label",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Link"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter un lien"
+          }
+        }
+      }
+    },
     "Add a block": {
       "extractionState": "manual",
       "localizations": {
@@ -580,6 +598,42 @@
           "stringUnit": {
             "state": "translated",
             "value": "Le livre de Bear se trouve à :\n~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/book.sqlite"
+          }
+        }
+      }
+    },
+    "Block Background": {
+      "comment": "Editor toolbar button — VoiceOver label",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Block Background"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fond du bloc"
+          }
+        }
+      }
+    },
+    "Block Colour": {
+      "comment": "Editor toolbar button — VoiceOver label",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Block Colour"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couleur du bloc"
           }
         }
       }
@@ -1983,6 +2037,42 @@
         }
       }
     },
+    "Hide Keyboard": {
+      "comment": "Editor toolbar button — VoiceOver label",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide Keyboard"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masquer le clavier"
+          }
+        }
+      }
+    },
+    "Highlight": {
+      "comment": "Editor toolbar button — VoiceOver label",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Highlight"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Surligneur"
+          }
+        }
+      }
+    },
     "How many leaves appear in the horizontal strip at the top of the Library home. Bounded between 5 and 20.": {
       "extractionState": "manual",
       "localizations": {
@@ -2255,6 +2345,24 @@
         }
       }
     },
+    "Indent": {
+      "comment": "Editor toolbar button — VoiceOver label",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indent"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Augmenter le retrait"
+          }
+        }
+      }
+    },
     "It will move to the trash.": {
       "extractionState": "manual",
       "localizations": {
@@ -2449,6 +2557,24 @@
           "stringUnit": {
             "state": "translated",
             "value": "Thème clair"
+          }
+        }
+      }
+    },
+    "Line Break": {
+      "comment": "Editor toolbar button — VoiceOver label",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Line Break"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saut de ligne"
           }
         }
       }
@@ -3197,6 +3323,24 @@
         }
       }
     },
+    "Outdent": {
+      "comment": "Editor toolbar button — VoiceOver label",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outdent"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réduire le retrait"
+          }
+        }
+      }
+    },
     "Papier": {
       "extractionState": "manual",
       "localizations": {
@@ -3210,6 +3354,24 @@
           "stringUnit": {
             "state": "translated",
             "value": "Papier"
+          }
+        }
+      }
+    },
+    "Paste": {
+      "comment": "Editor toolbar button — VoiceOver label",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coller"
           }
         }
       }
@@ -3437,6 +3599,24 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rouge"
+          }
+        }
+      }
+    },
+    "Redo": {
+      "comment": "Editor toolbar button — VoiceOver label",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rétablir"
           }
         }
       }
@@ -4106,6 +4286,24 @@
         }
       }
     },
+    "Text Style": {
+      "comment": "Editor toolbar button — VoiceOver label",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text Style"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Style de texte"
+          }
+        }
+      }
+    },
     "Text direction": {
       "extractionState": "stale",
       "localizations": {
@@ -4536,6 +4734,24 @@
           "stringUnit": {
             "state": "translated",
             "value": "Souligné"
+          }
+        }
+      }
+    },
+    "Undo": {
+      "comment": "Editor toolbar button — VoiceOver label",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annuler"
           }
         }
       }
