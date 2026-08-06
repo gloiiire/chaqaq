@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaDesignSystem
 import PinkhaFFI
 import PinkhaCore
 import PinkhaComposer
@@ -108,6 +109,12 @@ struct ContentView: View {
             // the alerts/sheets attached afterwards to inherit the orange
             // env and repaint their default Buttons.
             .tint(settings.accentColor)
+            // Lifts every screen off pure black in dark mode by
+            // putting the window at UIKit's elevated interface
+            // level — the same rung the app's own sheets already
+            // sit on. Page and rows move together, so their
+            // separation survives. Cf. ElevatedInterfaceLevel.
+            .pinkhaElevatedSurfaces()
             // When a leaf is open with a Books-style theme override
             // (e.g. dark "Tranquille" while the app is in light mode),
             // mirror its effective `ColorScheme` onto the entire
