@@ -93,6 +93,12 @@ SIM_NAME_RESOLVED=$(xcrun simctl list devices --json \
     | head -1)
 echo "→ Target simulator: ${SIM_NAME_RESOLVED} (${SIM_TARGET})"
 
+# ── Fraîcheur du FFI ─────────────────────────────────────────────────────
+# Un xcframework désaccordé des bindings tue l'app au lancement
+# (`uniffiEnsurePinkhaInitialized` → fatalError). Vu en prod : Sentry
+# APPLE-IOS-1S. Cf. ensure-ffi-fresh.sh pour le détail.
+./utilities/scripts/ensure-ffi-fresh.sh
+
 # ── iCloud Drive conflict prune (same logic as run-on-device.sh) ─────────
 find app -name "* [2-9].swift" -delete 2>/dev/null
 find app -name "* [2-9].xcodeproj" -type d -exec rm -rf {} + 2>/dev/null
