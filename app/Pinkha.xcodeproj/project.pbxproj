@@ -34,6 +34,7 @@
 		4905027F65D194BB1FA03997 /* Newsreader-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 163BF393F36A24AADCDEC2BB /* Newsreader-BoldItalic.ttf */; };
 		49CBA73EA6D6FF0C41863F65 /* Newsreader-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = CFA3C1106D7877CBF0FB597E /* Newsreader-Regular.ttf */; };
 		4BA75C93F895BE5EE4307A17 /* EmptyStateUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6093527A0945328E7EC8D4F6 /* EmptyStateUITests.swift */; };
+		4BD99374A37B08DF7E230B69 /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 7CDC7E43B64DE47621AAE1FA /* Pinkha.icon */; };
 		4C416DF2D208DC067FC9A9E1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A3421677D3E4A70DA86CEB8 /* ContentView.swift */; };
 		510DD50589C1252C2F8253A6 /* DocumentApiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8169A1E412FB3AB0851E5ADB /* DocumentApiTests.swift */; };
 		55606C176FE32C3B95C91293 /* ResilienceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37543D1D1AAFB9CE1F61603F /* ResilienceTests.swift */; };
@@ -80,7 +81,6 @@
 		D99C5C9637C12DE636940328 /* PlayfairDisplay-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EA41F62D1DDC199DF0D3A9E3 /* PlayfairDisplay-Regular.ttf */; };
 		E368FE7BD750360550B347BD /* CoverImageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C90F098980AEF72F3CE8978 /* CoverImageTests.swift */; };
 		E682428F3E24E9ADDC12BB01 /* ReaderSettingsPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9537885EEBF23E5DFCC78850 /* ReaderSettingsPersistenceTests.swift */; };
-		E73BAC0A104E6622EDDDE7FD /* Pinkha.icon in Resources */ = {isa = PBXBuildFile; fileRef = 5B09ED87E215C1D2D53F7C88 /* Pinkha.icon */; };
 		EDF95358CEFF04EA6FF47BB7 /* DocumentViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7489CFC34A012E88663D5A4E /* DocumentViewModelTests.swift */; };
 		F1F32310563BE3298EAF023A /* PersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2993E55B338F853D7618589 /* PersistenceTests.swift */; };
 		F79CCC9032083583516E9A36 /* SearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28EEC29CAF243FC97EC0EB7C /* SearchTests.swift */; };
@@ -140,7 +140,6 @@
 		51F23F0716FCE3363F1AA084 /* SeededDataUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeededDataUITests.swift; sourceTree = "<group>"; };
 		596EB06D81D9723854411FD8 /* PinkhaTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PinkhaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5B033CFC2C8EE318FA058974 /* EditableBlockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditableBlockTests.swift; sourceTree = "<group>"; };
-		5B09ED87E215C1D2D53F7C88 /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		6093527A0945328E7EC8D4F6 /* EmptyStateUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateUITests.swift; sourceTree = "<group>"; };
 		62766F0044E5AB34CFA8C1EC /* ReaderFontCatalogueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderFontCatalogueTests.swift; sourceTree = "<group>"; };
 		6443670A8123132CD0EDC437 /* TabSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabSelectionTests.swift; sourceTree = "<group>"; };
@@ -152,6 +151,7 @@
 		7A3421677D3E4A70DA86CEB8 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		7AF590FDF89EC393658B2029 /* VMErrorHandlingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VMErrorHandlingTests.swift; sourceTree = "<group>"; };
 		7BDCE4B4A67B7675CF7E4994 /* ModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsTests.swift; sourceTree = "<group>"; };
+		7CDC7E43B64DE47621AAE1FA /* Pinkha.icon */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.icon; path = Pinkha.icon; sourceTree = "<group>"; };
 		8111025A7ADC9AF1E81611DC /* Newsreader-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Newsreader-Bold.ttf"; sourceTree = "<group>"; };
 		8169A1E412FB3AB0851E5ADB /* DocumentApiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentApiTests.swift; sourceTree = "<group>"; };
 		83C7E5FB163EC0BCAADD90F1 /* ConcurrencyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConcurrencyTests.swift; sourceTree = "<group>"; };
@@ -261,14 +261,6 @@
 				BEB8BDD53EA02FC1A56928B5 /* SwipeDeleteUITests.swift */,
 			);
 			path = UI;
-			sourceTree = "<group>";
-		};
-		393638168E323FBA03D85A99 /* app */ = {
-			isa = PBXGroup;
-			children = (
-				5B09ED87E215C1D2D53F7C88 /* Pinkha.icon */,
-			);
-			name = app;
 			sourceTree = "<group>";
 		};
 		52689657E616B098718D0A67 /* Config */ = {
@@ -397,6 +389,14 @@
 			path = Fonts;
 			sourceTree = "<group>";
 		};
+		BFD60914457DC1DBFF3BBD1D /* app */ = {
+			isa = PBXGroup;
+			children = (
+				7CDC7E43B64DE47621AAE1FA /* Pinkha.icon */,
+			);
+			name = app;
+			sourceTree = "<group>";
+		};
 		F122F2A1952EFD55C6F7E411 = {
 			isa = PBXGroup;
 			children = (
@@ -406,7 +406,7 @@
 				8FB7F1288CD331FA0F093783 /* Sources */,
 				7CE19974FB0E7C2FE24CED36 /* Tests */,
 				7459E38DDB42FA0567FB08BE /* Products */,
-				393638168E323FBA03D85A99 /* app */,
+				BFD60914457DC1DBFF3BBD1D /* app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -563,7 +563,7 @@
 				D856638B6A5BA7A05A29EB9B /* PlayfairDisplay-BoldItalic.ttf in Resources */,
 				71F300E347BB718AF2B4EF16 /* PlayfairDisplay-Italic.ttf in Resources */,
 				D99C5C9637C12DE636940328 /* PlayfairDisplay-Regular.ttf in Resources */,
-				E73BAC0A104E6622EDDDE7FD /* Pinkha.icon in Resources */,
+				4BD99374A37B08DF7E230B69 /* Pinkha.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

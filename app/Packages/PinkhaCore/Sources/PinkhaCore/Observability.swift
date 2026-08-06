@@ -46,6 +46,32 @@ public enum Observability {
             // 100% in dev for visibility, reduced in release to control volume.
             options.tracesSampleRate = isDebugBuild ? 1.0 : 0.2
 
+            // Terminaisons SANS signal — la seule catégorie qui ne
+            // produisait aucun événement.
+            //
+            // Un testeur a rapporté que l'app « se ferme » en collant du
+            // contenu depuis ChatGPT. Sentry ne contenait rien : ni
+            // exception, ni crash. Son build remonte pourtant bien (il
+            // avait déjà envoyé un événement de performance), donc
+            // l'absence d'événement est elle-même l'indice — un crash par
+            // signal aurait été capturé. Restent deux causes qui n'en
+            // produisent pas : le watchdog qui tue une app dont le thread
+            // principal ne répond plus, et la pression mémoire.
+            //
+            // Les deux se détectent à la relance suivante, par
+            // élimination : ni crash, ni mise en arrière-plan, ni
+            // extinction propre. D'où l'importance de laisser l'app
+            // redémarrer normalement après l'incident.
+            options.enableWatchdogTerminationTracking = true
+
+            // Un blocage du thread principal assez long pour être tué
+            // commence par un blocage plus court. Le capturer donne la
+            // pile AVANT la mort, ce que la terminaison seule ne donne
+            // jamais. 2 s est le seuil par défaut du SDK ; on le rend
+            // explicite pour qu'il ne dérive pas silencieusement.
+            options.enableAppHangTracking = true
+            options.appHangTimeoutInterval = 2
+
             // …but NOT URLSession span capture. Swizzling every request turns
             // the set of links a user pastes into their private notes into
             // Sentry span data: `EmbedRowView` fetches OpenGraph metadata for
