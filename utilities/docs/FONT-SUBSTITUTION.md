@@ -85,3 +85,38 @@ retombant sur une serif système sans rien signaler.
 remettre leurs noms en tête des chaînes de candidats suffit : le repli est déjà
 écrit, rien d'autre à changer. Ça reste un choix personnel, sur ta machine —
 ces fichiers ne doivent jamais entrer dans un commit.
+
+## Piège : purger l'historique casse les signatures
+
+`git filter-branch` réécrit les commits — et **perd leur signature au
+passage**. Le dépôt exige des commits signés (règle `required_signatures`
+sur `dev`), donc après la purge des polices, la PR est devenue
+immergeable : treize commits sur quinze rendaient `N` à
+`git log --format='%G?'`, et GitHub refusait la fusion sans jamais dire
+pourquoi. L'interface affiche seulement « the base branch policy
+prohibits the merge » ; les checks, eux, étaient tous verts.
+
+Le diagnostic passe par là :
+
+```bash
+git log --format='%G? %s' origin/dev..HEAD   # G = signé, N = non signé
+```
+
+Et la réparation par un rebase qui re-signe. `git rebase origin/dev`
+seul ne suffit pas : il répond « up to date » et ne rejoue rien quand la
+branche est déjà basée dessus. Il faut forcer la réécriture.
+
+```bash
+git rebase --gpg-sign --force-rebase origin/dev
+git push --force-with-lease
+```
+
+Vérifier ensuite que **seules** les signatures ont bougé :
+
+```bash
+git diff --stat <ancien-HEAD> HEAD   # doit être vide
+```
+
+Toute branche construite au-dessus de celle qu'on réécrit devient
+orpheline et doit être rebasée à son tour (`git rebase --gpg-sign --onto
+<branche-réécrite> <ancien-sommet>`).
