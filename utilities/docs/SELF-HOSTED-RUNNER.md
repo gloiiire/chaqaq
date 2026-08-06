@@ -185,3 +185,88 @@ cd ~/actions-runner-pinkha
 TOKEN=$(gh api -X POST repos/pinkha-app/pinkha/actions/runners/remove-token --jq .token)
 ./config.sh remove --token "$TOKEN"
 ```
+
+## Panne : le job tourne, réussit, et reste « queued » pour toujours
+
+Symptôme, vu le 2026-08-06 : le job Swift s'exécute sur le Mac, tous ses
+steps passent, les logs remontent (`success rate: 2/2`), le worker écrit
+« Raising job completed against run service » puis « Job completed » —
+sans une seule erreur. Et GitHub le laisse indéfiniment à :
+
+```
+status: queued    runner: aucun
+```
+
+La PR reste bloquée sur un check qui n'arrivera jamais.
+
+### Ce que ce n'était pas
+
+Beaucoup de temps perdu sur de fausses pistes. Elles sont listées ici
+pour qu'on ne les reprenne pas :
+
+| Piste | Verdict |
+| --- | --- |
+| Erreurs `SocketException (89)` dans le log du runner | **Bruit normal** — c'est le recyclage du long-poll. Le runner de l'autre dépôt en a 887 et fonctionne. |
+| Runner hors ligne, occupé, ou mauvais label | Non — `online`, `busy:false`, `self-hosted,macOS,ARM64,xcode27` conforme. |
+| Décalage d'horloge (jetons rejetés) | Non — +0,01 s sur NTP. |
+| Version du runner périmée | Non — 2.336.0, la dernière. |
+| Garde anti-fork qui exclut le job | Non — PR interne au dépôt. |
+| Incident GitHub Actions | Non — composant `operational`. |
+| Emoji dans le nom du runner | Plausible, **infirmé** — l'autre runner, au nom ASCII, montrait le même `runner: aucun`. |
+
+### Ce que c'était
+
+Une session de runner corrompue, invisible des deux côtés : le runner
+croit avoir rapporté, GitHub n'a jamais enregistré l'acquisition. Aucun
+log ne le dit — le seul signal est `runner_name: null` sur un job qu'une
+machine est manifestement en train d'exécuter.
+
+**Le symptôme diagnostique** : interroger l'API, pas l'interface.
+
+```bash
+RUN=$(gh run list --branch <branche> --limit 1 --json databaseId -q '.[0].databaseId')
+gh api repos/pinkha-app/pinkha/actions/runs/$RUN/jobs \
+  -q '.jobs[] | "\(.name): \(.status) runner:\(.runner_name // "AUCUN")"'
+```
+
+`runner: AUCUN` sur un job en cours d'exécution = session morte.
+Vérifier au passage l'historique : si **tous** les runs récents sont dans
+cet état, ce n'est pas un incident, c'est une panne installée.
+
+### Remède
+
+Réenregistrer. Rien de moins n'a marché — ni redémarrage du service, ni
+`rerun` du job, ni nouveau run.
+
+```bash
+cd ~/actions-runner-pinkha
+cp .runner /tmp/pinkha-runner-backup.json        # labels + nom, au cas où
+./svc.sh stop && ./svc.sh uninstall
+./config.sh remove --token "$(gh api -X POST \
+  repos/pinkha-app/pinkha/actions/runners/remove-token --jq .token)"
+
+./config.sh --unattended --replace \
+  --url https://github.com/pinkha-app/pinkha \
+  --token "$(gh api -X POST \
+    repos/pinkha-app/pinkha/actions/runners/registration-token --jq .token)" \
+  --name macbook-pinkha \
+  --labels self-hosted,macOS,ARM64,xcode27 --work _work
+
+./svc.sh install && ./svc.sh start
+```
+
+Deux pièges pendant l'opération :
+
+- `config.sh` peut rendre un **401 « Bad credentials »** avec un jeton
+  pourtant valide. Refaire l'appel avec un jeton frais a suffi ; ne pas
+  conclure à un problème de droits au premier échec.
+- `svc.sh install` réécrit le plist mais **ne touche pas `.env`**.
+  Vérifier quand même qu'il contient toujours `PATH`, `LANG` et `LC_ALL` :
+  sans eux, `cargo`, `xcodegen` et les tests échouent d'une manière qui
+  n'a aucun rapport apparent (cf. section PATH plus haut).
+
+Contrôle : le job doit afficher un nom de runner.
+
+```
+Swift: in_progress runner:macbook-pinkha
+```
