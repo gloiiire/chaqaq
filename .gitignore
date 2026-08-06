@@ -49,3 +49,8 @@ fastlane/.env.*
 fastlane/report.xml
 fastlane/README.md
 .mcp.json
+
+# Fontes commerciales (Commercial Type) — utilisables en local,
+# jamais redistribuables. Cf. utilities/docs/FONT-SUBSTITUTION.md
+app/Resources/Fonts/Bundled/
+*.ttc

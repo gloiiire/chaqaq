@@ -637,7 +637,6 @@ Even when I started praying for the woman involved, I didn't think, \
         "Avenir Next Condensed",
         "Baskerville",
         "Bodoni 72",
-        "Canela Text",                 // fournie avec l'app (.ttc)
         "Charter",
         "Cochin",
         "Courier New",
@@ -649,9 +648,10 @@ Even when I started praying for the woman involved, I didn't think, \
         "Hoefler Text",
         "Iowan Old Style",
         "Menlo",
+        "Newsreader",                  // fournie avec l'app (SIL OFL)
         "Optima",
         "Palatino",
-        "Publico Text",                // fournie avec l'app (.ttc)
+        "Playfair Display",            // fournie avec l'app (SIL OFL)
         "Times New Roman",
         "Trebuchet MS",
         "Verdana",

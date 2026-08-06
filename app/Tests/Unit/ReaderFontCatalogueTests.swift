@@ -46,12 +46,22 @@ struct ReaderFontCatalogueTests {
         }
     }
 
-    /// Both bundled faces ship as `.ttc` under names that differ from
-    /// their PostScript names; dropping either would strand a theme
-    /// whose `fontFamily` points at it.
+    /// The two bundled SIL OFL families back the Tranquille and Calme
+    /// themes; dropping either would strand a theme whose `fontFamily`
+    /// points at it, silently falling back to a system serif.
     @Test func includesTheBundledFaces() {
         let all = ReaderThemeCustomizationSheet.bundledFonts
-        #expect(all.contains("Canela Text"))
-        #expect(all.contains("Publico Text"))
+        #expect(all.contains("Newsreader"))
+        #expect(all.contains("Playfair Display"))
+    }
+
+    /// Commercial Type's faces were removed from the repository because
+    /// they are not redistributable. Offering them in the picker would
+    /// advertise a font the app cannot ship.
+    @Test func doesNotOfferTheNonRedistributableFaces() {
+        let all = ReaderThemeCustomizationSheet.bundledFonts
+        for banned in ["Canela Text", "Canela", "Publico Text", "Publico", "Proxima Nova"] {
+            #expect(!all.contains(banned), "\(banned) is not redistributable")
+        }
     }
 }

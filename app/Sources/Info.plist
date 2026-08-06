@@ -91,9 +91,14 @@
     -->
     <key>UIAppFonts</key>
     <array>
-        <string>PublicoText.ttc</string>
-        <string>PublicoHeadline.ttc</string>
-        <string>CanelaText.ttc</string>
+        <string>Newsreader-Regular.ttf</string>
+        <string>Newsreader-Italic.ttf</string>
+        <string>Newsreader-Bold.ttf</string>
+        <string>Newsreader-BoldItalic.ttf</string>
+        <string>PlayfairDisplay-Regular.ttf</string>
+        <string>PlayfairDisplay-Italic.ttf</string>
+        <string>PlayfairDisplay-Bold.ttf</string>
+        <string>PlayfairDisplay-BoldItalic.ttf</string>
     </array>
 </dict>
 </plist>

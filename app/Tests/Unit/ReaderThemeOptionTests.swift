@@ -78,7 +78,7 @@ struct ReaderThemeOptionTests {
         // Spot-check the mapping itself so a silent rename in
         // AppSettings would surface here rather than as a font that
         // quietly falls back to system.
-        #expect(ReaderThemeOption(theme: .tranquille).fontFamily == "Publico")
+        #expect(ReaderThemeOption(theme: .tranquille).fontFamily == "Newsreader")
         #expect(ReaderThemeOption(theme: .papier).fontFamily == "Charter")
         #expect(ReaderThemeOption(theme: .gras).fontFamily == nil)
     }

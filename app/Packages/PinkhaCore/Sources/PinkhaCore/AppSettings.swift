@@ -79,7 +79,7 @@ public struct ReaderTypographyOverrides: Equatable, Sendable {
     /// the active typography overrides on top of the supplied theme.
     /// When `fontFamily` is set (user picked a custom font in the
     /// Personnaliser sheet), walks the bundled-font PostScript chains
-    /// (Publico Text / Canela Text / Avenir Next / etc.) before
+    /// (Newsreader / Playfair Display / Avenir Next / etc.) before
     /// defaulting to the theme's own font. The `bold` flag bumps the
     /// weight to `.bold` regardless of which family resolves.
     public func resolvedFont(theme: AppSettings.Theme, size: CGFloat) -> UIFont {
@@ -87,16 +87,16 @@ public struct ReaderTypographyOverrides: Equatable, Sendable {
         guard let family = fontFamily else {
             return theme.uiFont(size: size, weight: weight)
         }
-        // 1) Pre-known aliases (Publico / Canela / Proxima Nova ship
-        //    under varied PostScript names — walk their candidate
-        //    chains first).
+        // 1) Alias connus : les instances statiques portent un nom
+        //    PostScript distinct du nom de famille, donc on parcourt
+        //    d'abord leur chaîne de candidats.
         let primaryCandidates: [String]
         switch family {
-        case "Publico", "Publico Text":
+        case "Newsreader", "Publico", "Publico Text":
             primaryCandidates = AppSettings.Theme.publicoNameCandidates
-        case "Canela", "Canela Text":
+        case "Playfair Display", "Canela", "Canela Text":
             primaryCandidates = AppSettings.Theme.canelaNameCandidates
-        case "Proxima Nova":
+        case "Avenir Next", "Proxima Nova":
             primaryCandidates = AppSettings.Theme.proximaNovaNameCandidates
         default:
             primaryCandidates = [family]
@@ -396,11 +396,11 @@ public final class AppSettings {
         public var fontFamily: String? {
             switch self {
             case .original:   return nil
-            case .tranquille: return "Publico"
+            case .tranquille: return "Newsreader"
             case .papier:     return "Charter"
             case .gras:       return nil
-            case .calme:      return "Canela"
-            case .attention:  return "Proxima Nova"
+            case .calme:      return "Playfair Display"
+            case .attention:  return "Avenir Next"
             }
         }
 
@@ -416,7 +416,7 @@ public final class AppSettings {
             case .papier:     return "Charter"
             case .gras:       return "San Francisco"
             case .calme:      return "Canela Text"
-            case .attention:  return "Proxima Nova"
+            case .attention:  return "Avenir Next"
             }
         }
 
@@ -456,18 +456,34 @@ public final class AppSettings {
         }
 
         /// PostScript-name candidates for Tranquille (Publico Text).
+        /// Newsreader remplace Publico Text pour le thème Tranquille.
+        ///
+        /// Publico est une fonte de Commercial Type, licenciée à Apple pour
+        /// Apple Books : utilisable sur sa propre machine, pas
+        /// redistribuable dans un dépôt public. Newsreader (SIL OFL) est du
+        /// même genre — une fonte de presse — et a été retenue sur mesure :
+        /// à hauteur d'x égale, le même paragraphe se coupe aux mêmes mots.
+        /// Cf. `utilities/docs/FONT-SUBSTITUTION.md`.
+        ///
+        /// Les instances statiques portent un nom PostScript en
+        /// `NewsreaderRoman-*` / `NewsreaderItalic-*`, distinct du nom de
+        /// famille : les deux figurent ici parce que `UIFont(name:)` accepte
+        /// l'un ou l'autre selon les versions d'iOS.
         static let publicoNameCandidates = [
-            "PublicoText-Roman", "Publico Text", "PublicoText",
-            "Publico", "Publico-Text", "Publico-Regular",
-            ".AppleSystemUIFontSerif",
+            "NewsreaderRoman-Regular", "Newsreader",
+            "Charter-Roman", "Charter",          // repli système
             "HoeflerText-Regular", "Hoefler Text",
         ]
 
         /// PostScript-name candidates for Calme (Canela Text).
+        /// Playfair Display remplace Canela Text pour le thème Calme.
+        ///
+        /// Même raison que Newsreader : Canela appartient à Commercial Type.
+        /// Playfair Display (SIL OFL) partage son contraste élevé et ses
+        /// empattements fins et plats, et rend les mêmes coupures de ligne.
         static let canelaNameCandidates = [
-            "CanelaText-Regular", "Canela Text", "CanelaText",
-            "Canela-Regular", "Canela",
-            "Palatino-Roman", "Palatino",   // editorial-serif fallback
+            "PlayfairDisplayRoman-Regular", "Playfair Display",
+            "Palatino-Roman", "Palatino",   // repli système
         ]
 
         /// PostScript-name candidates for Attention (Proxima Nova).
@@ -475,8 +491,10 @@ public final class AppSettings {
         /// sans — not iOS-bundled. Fallback to Avenir Next, the
         /// closest iOS-bundled cousin (both are humanist-geometric
         /// hybrids designed in the same era).
+        /// Le thème Attention visait Proxima Nova, jamais embarquée : en
+        /// pratique elle a toujours rendu Avenir Next, qui est sur iOS. Le
+        /// nom affiché dit maintenant ce qui s'affiche réellement.
         static let proximaNovaNameCandidates = [
-            "ProximaNova-Regular", "Proxima Nova", "ProximaNova",
             "AvenirNext-Regular", "Avenir Next",
         ]
 
@@ -485,10 +503,9 @@ public final class AppSettings {
         public var isPreviewItalic: Bool { false }
 
         /// Builds a `UIFont` for this theme at the given point size,
-        /// applying the bold variant when relevant. Resolves Publico
-        /// (Tranquille) through `publicoNameCandidates` since iOS
-        /// exposes it under different PostScript names depending on
-        /// installed system bundles. Falls back to system when the
+        /// applying the bold variant when relevant. Resolves the bundled
+        /// families through their candidate chains, since a static
+        /// instance's PostScript name differs from its family name. Falls back to system when the
         /// named family isn't available on device.
         public func uiFont(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
             let effective: UIFont.Weight = boldText ? .bold : weight
