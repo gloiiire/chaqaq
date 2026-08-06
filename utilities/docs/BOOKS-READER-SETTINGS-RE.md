@@ -485,3 +485,84 @@ La structure `Overrides` écrite en sortie, avec les offsets observés :
 > aux offsets 0x08 / 0x09 / 0x28 / 0x29 sont déduits de leur sémantique
 > (« vrai pour bold seul » ⇒ gras) et de l'ordre des attributs Core Data. À
 > confirmer avant de s'appuyer dessus pour autre chose que les valeurs.
+
+---
+
+## 11. Géométrie mesurée — sheet « Thèmes et réglages »
+
+Mesurée au pixel sur une capture native iPhone 17 Pro (1206×2622 px, écran 3×,
+donc **402 × 874 pt**). Les captures sont dans `books-reference/`, non
+versionnées. Valeurs en points, précision ±0,5 pt.
+
+### 11.1 Le sheet
+
+| | pt |
+| --- | --- |
+| Marge horizontale à l'écran | **8** de chaque côté |
+| Largeur | **385,7** |
+| Haut / bas | y **389,7** → **847,0** |
+| Hauteur | **457,3** |
+| Padding horizontal intérieur | **28,7** |
+
+Cohérence interne vérifiée : largeur intérieure = 385,7 − 2×28,7 = **328,3**,
+et la grille occupe 3×102,3 + 2×10 = 326,9. Les deux concordent à la précision
+de mesure — le padding est donc bien réel et non un artefact.
+
+### 11.2 Bandes verticales
+
+| Élément | y haut | y bas | Hauteur |
+| --- | --- | --- | --- |
+| En-tête (croix + titre) | 389,7 | ~443 | ~53 |
+| Rangée de capsules | 451,3 | 497,3 | **46** |
+| Curseur de luminosité | ~505 | ~540 | — |
+| Grille, rangée 1 | 565,7 | 654,7 | **89,3** |
+| Grille, rangée 2 | 671,0 | 759,7 | **89,0** |
+| Bouton « Personnaliser » | 766,7 | 821,3 | **54,7** |
+| Padding bas | 821,3 | 847,0 | 25,7 |
+
+Écart entre les deux rangées de tuiles : **16**.
+
+### 11.3 Grille de thèmes
+
+| | pt |
+| --- | --- |
+| Colonnes | 3 |
+| Largeur de tuile | **102,3** |
+| Hauteur de tuile | **89,3** |
+| Écart horizontal | **10** |
+| Écart vertical | **16** |
+| Rayon de coin | **≈18** (largeur pleine atteinte ~18 pt sous le bord) |
+
+Chaque tuile porte un « Aa » puis son libellé en dessous, tous deux rendus dans
+la police du thème. La tuile sélectionnée est cerclée d'un liseré sombre.
+
+### 11.4 Rangée de capsules
+
+| | pt |
+| --- | --- |
+| Capsule gauche (A− / A+) | x 36,7 → 230,3, largeur **193,6** |
+| Écart | **10** |
+| Capsule droite (défilement / apparence) | x 240,3 → 365,0, largeur **124,7** |
+| Hauteur commune | **46** |
+
+La capsule gauche porte deux « A » de tailles différentes séparés par un trait
+vertical ; la droite, deux icônes.
+
+### 11.5 Curseur de luminosité
+
+Petit soleil à gauche (x 43,3 → 52,7), grand soleil à droite (x 348 → 357,3),
+piste entre les deux. Le remplissage est sombre à gauche du pouce, clair à
+droite.
+
+### 11.6 Bouton « Personnaliser »
+
+Pleine largeur intérieure (x 37,0 → 364,7 = **327,7**), hauteur **54,7**,
+capsule arrondie, icône d'engrenage suivie du libellé en gras, l'ensemble
+centré.
+
+### 11.7 Attention : les couleurs de la capture ne sont pas les couleurs du thème
+
+Le sheet est en matériau translucide au-dessus de la page. Les valeurs RGB
+relevées sur la capture sont donc **composées** — la tuile Papier y ressort à
+`#E4E3E3` alors que le thème vaut `#EEEDED`. Pour les couleurs, se fier à
+l'extraction binaire (§10.3) ; la capture ne sert qu'à la géométrie.
