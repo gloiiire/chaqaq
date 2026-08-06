@@ -140,8 +140,13 @@ extension RichTextEditorCoordinator {
             && !parent.baseFont.fontDescriptor.symbolicTraits.contains(.traitItalic)
     }
 
-    // Utility method to update the paste button (called from updateToolbar and pasteboardChanged).
+    /// Met à jour le bouton Coller depuis l'état mis en cache.
+    ///
+    /// Ne JAMAIS remettre `UIPasteboard.general.hasStrings` ici : cette
+    /// méthode est appelée depuis `updateToolbar`, donc à chaque frappe.
+    /// Le cache est rafraîchi par `pasteboardChanged`, sur la notification
+    /// du presse-papiers et au retour au premier plan.
     func updatePasteButton() {
-        setSymbolActive(btnPaste, active: UIPasteboard.general.hasStrings, name: "doc.on.clipboard")
+        setSymbolActive(btnPaste, active: cachedPasteboardHasStrings, name: "doc.on.clipboard")
     }
 }
