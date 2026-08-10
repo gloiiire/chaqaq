@@ -259,12 +259,26 @@ public struct LeafView: View {
             // replaces the classic `.onMove` handler with a diff-based API
             // — cleaner, no EditMode toggling, cross-container support ready.
             // Under iOS 26 we keep the working `.onMove` path.
+            // `.listRowSeparator(.hidden)` est répété ICI alors que
+            // `blockListRow` l'applique déjà — et ce n'est pas redondant.
+            //
+            // Sur iOS 27, `.reorderable()` réintroduit les séparateurs de
+            // rangée : un trait apparaît entre chaque bloc, ce qui donne
+            // l'illusion qu'un Divider a été inséré à chaque retour à la
+            // ligne. Ce n'est pas le cas — `onNewBlock` ne crée que des
+            // blocs texte. Le masquage posé à l'intérieur de la rangée
+            // ne survit pas au modificateur ; posé sur le `ForEach`, si.
+            //
+            // Le bug n'apparaît que sur iOS 27, la branche `.onMove`
+            // d'iOS 26 n'ayant jamais eu le problème.
             if #available(iOS 27.0, *) {
                 ForEach($vm.blocks) { $block in blockListRow($block) }
                     .reorderable()
+                    .listRowSeparator(.hidden)
             } else {
                 ForEach($vm.blocks) { $block in blockListRow($block) }
                     .onMove(perform: vm.moveBlock)
+                    .listRowSeparator(.hidden)
             }
 
             if !vm.locked && !readerMode.isActive {
