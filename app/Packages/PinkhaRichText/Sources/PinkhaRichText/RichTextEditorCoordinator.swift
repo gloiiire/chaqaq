@@ -91,6 +91,22 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
     // (otherwise the pill flickers or never hides).
     var menuPresentingUntil: Date?
 
+    /// Dernier état connu du presse-papiers.
+    ///
+    /// `UIPasteboard.general.hasStrings` traverse une frontière de processus :
+    /// c'est le démon du presse-papiers qui répond, pas un champ en mémoire.
+    /// Il était interrogé depuis `updateToolbar`, donc **à chaque frappe et
+    /// à chaque changement de sélection**, plus une fois par mise à jour de
+    /// vue SwiftUI. Sur un appareil réel, ces allers-retours s'additionnent
+    /// sur le thread principal, exactement là où l'éditeur doit rester
+    /// fluide.
+    ///
+    /// L'état ne change qu'à deux moments : quand le presse-papiers change
+    /// (notification), et quand l'app revient au premier plan — une copie
+    /// faite dans une autre app pendant qu'on était en arrière-plan
+    /// n'émet pas de notification.
+    private var pasteboardHasStrings = UIPasteboard.general.hasStrings
+
     init(parent: RichTextEditor) {
         self.parent = parent
         super.init()
@@ -99,11 +115,23 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
             selector: #selector(pasteboardChanged),
             name: UIPasteboard.changedNotification,
             object: nil)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(pasteboardChanged),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil)
     }
 
     @objc func pasteboardChanged() {
-        DispatchQueue.main.async { [weak self] in self?.updatePasteButton() }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.pasteboardHasStrings = UIPasteboard.general.hasStrings
+            self.updatePasteButton()
+        }
     }
+
+    /// Lecture sans traverser la frontière de processus.
+    var cachedPasteboardHasStrings: Bool { pasteboardHasStrings }
 
     @objc func handleLongPressSelection(_ gesture: UILongPressGestureRecognizer) {
         guard gesture.state == .began else { return }

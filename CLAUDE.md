@@ -63,7 +63,7 @@ pinkha/
 │   ├── realm-codec/         Parser/writer Realm v9 binary (crates.io: realm-codec v0.1.0)
 │   └── pinkha-mcp/          MCP server pour Claude (tooling interne)
 ├── src/                     Le core Rust pinkha (dépend de chaqaq via path)
-├── pinkha.xcframework/      XCFramework généré par ./build-xcframework.sh
+├── pinkha.xcframework/      XCFramework généré par ./build-xcframework.sh (gitignoré)
 ├── swift-bindings/          Headers C (.h + .modulemap) consommés par le xcframework
 └── app/                     Application iOS SwiftUI
     ├── project.yml          Config xcodegen
@@ -384,6 +384,40 @@ Cf. `import_from_notion` comme référence — les futurs extractors qui font de
 **Resilience** (`PinkhaCore/Resilience.swift`) :
 - `PinkhaError.userMessage` (FR), `isRecoverable`, `tryCatch(into: &errorMessage)`, `.errorAlert(message:onRetry:)`.
 
+### Fraîcheur du FFI — `utilities/scripts/ensure-ffi-fresh.sh`
+
+UniFFI grave un checksum d'API dans `pinkha.swift` **et** dans la
+bibliothèque Rust compilée. S'ils divergent, `uniffiEnsurePinkhaInitialized()`
+appelle `fatalError` au premier `PinkhaApi(...)` : l'app meurt au lancement,
+sans dialogue. C'est arrivé en vrai (Sentry `APPLE-IOS-1S`, six occurrences).
+
+Le xcframework est gitignoré et construit localement, donc la garde de dérive
+en CI ne peut pas le voir. `run-on-sim.sh` et `run-on-device.sh` appellent
+maintenant `ensure-ffi-fresh.sh`, qui reconstruit quand une source Rust, le
+`.udl`, `Cargo.lock` ou les bindings sont plus récents qu'un jeton posé après
+la dernière construction réussie. ~3 min à froid, instantané à chaud.
+
+Ne pas régénérer les bindings **après** le xcframework : ils deviendraient
+l'artefact le plus récent et la garde reconstruirait à chaque lancement.
+
+### Polices du lecteur
+
+Les thèmes Tranquille et Calme utilisent **Newsreader** et **Playfair
+Display** (SIL OFL, embarquées dans `app/Resources/Fonts/OFL/`). Elles
+remplacent Publico Text et Canela Text, qui appartiennent à Commercial Type
+et ne sont **pas redistribuables** — `app/Resources/Fonts/Bundled/` est
+gitignoré et ne doit jamais entrer dans un commit. Choix, mesures et pièges :
+`utilities/docs/FONT-SUBSTITUTION.md`.
+
+### Sombre : niveau d'interface élevé
+
+En sombre, iOS résout `systemBackground` en **noir pur**. `ContentView`
+applique `.pinkhaElevatedSurfaces()`, qui place la fenêtre au niveau
+*elevated* d'UIKit — page `#1C1C1E`, rangées `#2C2C2E`. Ne pas « corriger »
+ça en forçant une couleur sur la page seule : les rangées gardent la leur et
+l'écart tombe de 28 à 3 points de luminance, rendant les cartes moins
+lisibles. Mesuré. Cf. `ElevatedInterfaceLevel.swift`.
+
 ## Roadmap
 
 Ce qui est **fait** — backend Rust + UI SwiftUI :
@@ -576,7 +610,7 @@ Avant d'écrire un loop ou une logique de traitement en Swift, s'arrêter et imp
   - `tryCatch(into: &errorMessage)` capture l'erreur sans propager, remonte le message au view model
   - `.errorAlert(message:onRetry:)` modificateur SwiftUI qui présente l'alert avec bouton « Réessayer » optionnel
 - **Tests à 3 niveaux côté Rust** : unitaires (`#[cfg(test)] mod tests` dans chaque module — y compris `resilience.rs` avec 6 tests), intégration (`tests/integration_*`), E2E (`tests/e2e_*`). 690+ tests.
-- **Tests à 3 niveaux côté Swift** : `app/Tests/Unit/` (Swift Testing — `@Suite`/`@Test`/`#expect`, code pur), `app/Tests/Integration/` (Swift ↔ FFI réelle avec DB SQLite temporaire), `app/Tests/UI/` (XCUITest — pilote l'app comme utilisateur). Cibles xcodegen : `PinkhaTests`, `PinkhaIntegrationTests`, `PinkhaUITests`. **300+ tests Swift.**
+- **Tests à 3 niveaux côté Swift** : `app/Tests/Unit/` (Swift Testing — `@Suite`/`@Test`/`#expect`, code pur), `app/Tests/Integration/` (Swift ↔ FFI réelle avec DB SQLite temporaire), `app/Tests/UI/` (XCUITest — pilote l'app comme utilisateur). Cibles xcodegen : `PinkhaTests`, `PinkhaIntegrationTests`, `PinkhaUITests`. **224 unitaires + 133 d'intégration + XCUITest** (mesuré 2026-08-06).
 
 **Commandes de test** :
 ```bash
@@ -609,7 +643,7 @@ xcodebuild test -project app/Pinkha.xcodeproj -scheme Pinkha -destination 'id=<U
 
 ## Dette technique — à reprendre avant scaling / mise en prod sérieuse
 
-Ces points sont **acceptables en l'état actuel** (projet solo, 690+ tests Rust + 300+ tests Swift unit/integration) mais devront être traités avant d'ouvrir aux contributeurs / déployer en App Store. Ordre de priorité :
+Ces points sont **acceptables en l'état actuel** (projet solo, 690+ tests Rust + 357 tests Swift unit/integration) mais devront être traités avant d'ouvrir aux contributeurs / déployer en App Store. Ordre de priorité :
 
 ### Infrastructure (haute priorité dès qu'on collabore)
 - **CI GitHub Actions** :

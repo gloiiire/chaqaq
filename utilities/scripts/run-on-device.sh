@@ -66,6 +66,12 @@ find app -name "* [2-9].swift" -delete 2>/dev/null
 find app -name "* [2-9].xcodeproj" -type d -exec rm -rf {} + 2>/dev/null
 find scripts -name "* [2-9].sh" -delete 2>/dev/null
 
+# ── Fraîcheur du FFI ─────────────────────────────────────────────────────
+# Un xcframework désaccordé des bindings tue l'app au lancement
+# (`uniffiEnsurePinkhaInitialized` → fatalError). Vu en prod : Sentry
+# APPLE-IOS-1S. Cf. ensure-ffi-fresh.sh pour le détail.
+./utilities/scripts/ensure-ffi-fresh.sh
+
 echo "→ Regenerating Pinkha.xcodeproj (xcodegen)…"
 (cd app && xcodegen generate >/dev/null)
 
