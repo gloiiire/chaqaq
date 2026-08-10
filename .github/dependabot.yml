@@ -42,3 +42,26 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+
+  # Gems Ruby : fastlane et ses dépendances transitives (Gemfile.lock racine).
+  # Sans cette entrée l'écosystème n'était pas suivi du tout, alors que le repo
+  # a bien un Gemfile.lock — d'où deux alertes restées ouvertes (faraday high,
+  # excon medium) sans qu'aucune PR ne soit jamais proposée.
+  - package-ecosystem: "bundler"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 3
+    target-branch: "dev"
+    groups:
+      bundler-all:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "ruby"
