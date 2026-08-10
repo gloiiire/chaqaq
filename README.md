@@ -5,7 +5,7 @@ A personal note-taking app combining the fluidity of Craft with the structure of
 [![CI](https://github.com/gloiiire/pinkha/actions/workflows/ci.yml/badge.svg)](https://github.com/gloiiire/pinkha/actions/workflows/ci.yml)
 [![chaqaq on crates.io](https://img.shields.io/crates/v/chaqaq.svg)](https://crates.io/crates/chaqaq)
 
-> Status: **complete Rust backend** (208+ tests) · **functional SwiftUI UI** (rich text, undo/redo, toolbar pill, drag & drop) · **import pipelines Notion + Bear + Craft** · **OAuth2 Notion end-to-end** (proxy Railway, multi-tenant) · **compiled XCFramework** iOS + Mac · **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0 published on crates.io**
+> Status: **complete Rust backend** (208+ tests) · **functional SwiftUI UI** (rich text, undo/redo, toolbar pill, drag & drop) · **import pipelines Notion + Bear + Craft** · **OAuth2 Notion end-to-end** (proxy AWS Lambda, multi-tenant) · **compiled XCFramework** iOS + Mac · **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0 published on crates.io**
 
 ---
 
@@ -219,7 +219,7 @@ OAuth2 distinguishes between two layers that are easy to conflate:
 
 | Credential | Identifies | Where it lives | How many |
 |---|---|---|---|
-| `client_id` + `client_secret` | The **pinkha app itself** | Notion dashboard → Railway env vars (proxy only) | **One pair for the whole app** |
+| `client_id` + `client_secret` | The **pinkha app itself** | Notion dashboard → Lambda env vars (proxy only) | **One pair for the whole app** |
 | `access_token` | An **individual user's grant** to pinkha | Returned per user, stored in iOS Keychain | **One per user** |
 
 Your Notion credentials say "I am the pinkha app" — exactly like Spotify has one `client_id` with Google, even though millions of different Google users sign in.
@@ -256,10 +256,10 @@ Notion stopped accepting custom URL schemes as redirect URIs in 2024 — only HT
 
 1. Create a **Public** integration (not Internal) at https://www.notion.so/my-integrations
    - Type: `Public`
-   - Redirect URI: `https://<your-proxy>.up.railway.app/oauth/callback` (HTTPS, Notion rejects custom schemes)
+   - Redirect URI: `https://<api-id>.execute-api.<region>.amazonaws.com/oauth/callback` (HTTPS, Notion rejects custom schemes)
    - Notion gives you **one** `client_id` + `client_secret` for the entire app
-2. Add `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET`, `PROXY_HMAC_SECRET`, `SENTRY_DSN` as Railway env vars on the `pinkha-app/notion-proxy` service
-3. Fill `NOTION_PROXY_URL` in `app/Config/Secrets.xcconfig` (gitignored) with the Railway public URL — the app derives both `/oauth/callback` and `/oauth/token` from this single base URL
+2. Set `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET`, `PROXY_HMAC_SECRET`, `SENTRY_DSN` as environment variables on the `pinkha-app/notion-proxy` Lambda function (`cargo lambda deploy --env-file .env`)
+3. Fill `NOTION_PROXY_URL` in `app/Config/Secrets.xcconfig` (gitignored) with the API Gateway base URL — the app derives both `/oauth/callback` and `/oauth/token` from this single base URL
 4. The same `PROXY_HMAC_SECRET` value must also be in `app/Config/Secrets.xcconfig` (matches the proxy's env var) so the iOS build can sign token-exchange requests
 
 End users never touch any of this.
@@ -296,7 +296,7 @@ End users never touch any of this.
 - [x] Rust CI, branch protection, Dependabot, Secret Scanning
 - [x] Refactor Rust identifiers → English (open-source prerequisite)
 - [x] **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0** — core rich text editor published on crates.io (MIT OR Apache-2.0)
-- [x] **OAuth2 Notion end-to-end** — multi-tenant, proxy Railway, HMAC-signed token exchange, Keychain-persisted access token, validated on device 2026-06-02
+- [x] **OAuth2 Notion end-to-end** — multi-tenant, proxy on AWS Lambda, HMAC-signed token exchange, Keychain-persisted access token, validated on device 2026-06-02
 - [x] **Block-level colour** — `Block.color` field, FFI `set_block_color`, toolbar ¶ palette with inline-over-block priority at render time
 - [x] **Toolbar indent / outdent** — `increase.quotelevel` / `decrease.quotelevel` buttons backed by dedicated `indent_block` / `outdent_block` Rust use cases
 - [x] **DB row rename propagates to leaf title** — `Entry.leaf_id` + `update_entry_propagating_title` orchestration use case fixes the long-standing UX bug
