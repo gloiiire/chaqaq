@@ -21,7 +21,7 @@ public final class NotionOAuth2: NSObject, ASWebAuthenticationPresentationContex
     }
     static let authBaseUrl = "https://api.notion.com/v1/oauth/authorize"
 
-    /// Public HTTPS base URL of the notion-proxy on Railway, read at runtime
+    /// Public HTTPS base URL of the notion-proxy, read at runtime
     /// from Info.plist (injected from `app/Config/Secrets.xcconfig`). Empty
     /// when the proxy is not configured yet — `OAuthError.proxyNotConfigured`
     /// is thrown in that case.
