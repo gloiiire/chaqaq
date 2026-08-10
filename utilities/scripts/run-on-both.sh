@@ -73,10 +73,18 @@ elif xcrun simctl list devices 2>/dev/null | grep -q "$SIM_UDID"; then
 fi
 
 # ── Device target ─────────────────────────────────────────────────────────
+# `reality == "physical"` : devicectl liste aussi les SIMULATEURS, et un
+# simulateur d'iPhone a un `productType` commençant par "iPhone". Sans ce
+# filtre, `head -1` peut rendre un simulateur et l'install échoue sur
+# « Install Application is not supported by this device » — un message qui
+# fait chercher du côté de l'appairage alors que la cible n'est pas un
+# appareil. Ce script duplique la résolution de run-on-device.sh : toute
+# correction ici doit être reportée là-bas, et inversement.
 DEVICE_ID="${DEVICE_ID:-$(xcrun devicectl list devices --json-output - 2>/dev/null \
     | jq -r '.result.devices[]
         | select((.connectionProperties.tunnelState == "connected"
                   or .connectionProperties.tunnelState == "disconnected")
+                 and (.hardwareProperties.reality == "physical")
                  and (.hardwareProperties.productType // "" | startswith("iPhone")))
         | .identifier' \
     | head -1)}"
