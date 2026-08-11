@@ -138,7 +138,38 @@ struct LeafNavBarMinimizationModifier: ViewModifier {
     let active: Bool
     func body(content: Content) -> some View {
         if active, #available(iOS 27.0, *) {
-            content.toolbarMinimizationBehavior(.onScrollDown, for: .navigationBar)
+            content
+                .toolbarMinimizationBehavior(.onScrollDown, for: .navigationBar)
+                // Coupe l'aller d'une boucle de mise en page qui gelait l'app
+                // au changement d'onglet depuis une note.
+                //
+                // Par defaut, la zone sure suit la barre pendant qu'elle se
+                // retracte, pour que le contenu occupe la place liberee.
+                // Mais changer la zone sure d'un `ScrollView` declenche
+                // `_notifyDidScroll`, que l'observateur de defilement de la
+                // barre ecoute pour decider de sa hauteur — laquelle
+                // redefinit la zone sure. Un cycle.
+                //
+                // Hors transition il s'amortit : chaque tour attend l'image
+                // suivante. En tapant un onglet, la mise en page est
+                // SYNCHRONE (`layoutBelowIfNeeded` sous
+                // `performWithoutAnimation`), plus aucune frontiere d'image,
+                // et le cycle tourne sur place a 100 % de CPU. Profil d'un
+                // gel reel : `_updateSafeAreaInsets` ->
+                // `UIScrollView.setSafeAreaInsets:` -> `_notifyDidScroll` ->
+                // `UINavigationController _observeScrollViewDidScroll:topLayoutType:`
+                // -> `_edgeInsetsForChildViewController:` -> et on recommence.
+                // Bisection utilisateur : retirer la minimisation supprime le
+                // gel, la remettre le ramene.
+                //
+                // `.disabled` fige la zone sure pendant la retraction. La
+                // barre se retracte toujours — le reglage d'accessibilite est
+                // preserve — mais le contenu ne reflue plus dans sa place,
+                // donc plus rien ne reboucle. Apple documente ce cas comme
+                // « utile quand le contenu passe sous la barre » : c'est
+                // exactement une note a couverture, qui pose deja
+                // `.ignoresSafeArea(.top)`.
+                .toolbarMinimizationSafeAreaAdjustment(.disabled, for: .navigationBar)
         } else {
             content
         }
@@ -158,3 +189,24 @@ struct MentionLinkCrossFadeModifier: ViewModifier {
     }
 }
 
+
+// ── Bascule du titre vers la barre de navigation ──────────────────────────
+
+/// Décide si le titre doit s'afficher dans la barre de navigation, à
+/// partir du décalage de défilement et de l'état courant.
+///
+/// Fonction libre, donc testable sans monter une vue — même parti pris que
+/// `markdownShortcut(for:)`.
+///
+/// La zone morte 40–60 pt n'est pas cosmétique. La grandeur mesurée par
+/// `onScrollGeometryChange` vaut `contentOffset.y + contentInsets.top`, et
+/// la réaction modifie précisément cet inset (titre dans la barre, plus la
+/// minimisation de la barre qui la redimensionne). Avec un seuil unique,
+/// se garer dessus fait osciller le drapeau : chaque bascule déplace
+/// l'inset, donc la mesure, donc rebascule. Hors transition ça s'amortit,
+/// chaque bascule attendant l'image suivante ; pendant une transition
+/// d'onglet, la mise en page est SYNCHRONE (`layoutBelowIfNeeded` dans
+/// `performWithoutAnimation`) et la boucle tourne sur place.
+public func titleShouldEnterNavBar(offset: CGFloat, currently: Bool) -> Bool {
+    currently ? offset > 40 : offset > 60
+}

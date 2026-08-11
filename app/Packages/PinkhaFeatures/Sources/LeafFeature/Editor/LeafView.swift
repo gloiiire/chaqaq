@@ -301,7 +301,28 @@ public struct LeafView: View {
             // on docs with few blocks (no other expensive content
             // soaks the cost). Compare first, mutate only on the
             // boundary crossing.
-            let shouldShow = offset > 60
+            // Zone morte 40–60 pt, indispensable et non cosmétique.
+            //
+            // La grandeur comparée inclut `contentInsets.top` — et la
+            // réaction la modifie : afficher le titre dans la barre, plus
+            // `LeafNavBarMinimizationModifier` qui la redimensionne,
+            // changent cet inset. Avec un seuil unique, se garer dessus
+            // suffit à faire osciller le drapeau : chaque bascule déplace
+            // l'inset, donc la mesure, donc rebascule.
+            //
+            // Hors transition ça s'amortit, chaque bascule attendant
+            // l'image suivante. Pendant une transition d'onglet, tout est
+            // enfermé dans un `layoutBelowIfNeeded` SYNCHRONE : plus de
+            // frontière d'image, la boucle tourne sur place. Le profil
+            // d'un gel réel montre exactement ce cycle —
+            // `_updateSafeAreaInsets` → `UIScrollView.setSafeAreaInsets:`
+            // → `_notifyDidScroll` → l'observateur de défilement de
+            // SwiftUI → mise en page → et on recommence.
+            //
+            // Deux seuils rendent l'oscillation impossible : sortir
+            // demande de traverser 20 pt, ce qu'un changement d'inset ne
+            // produit jamais.
+            let shouldShow = titleShouldEnterNavBar(offset: offset, currently: titleInNavBar)
             if shouldShow != titleInNavBar {
                 withAnimation(.easeInOut(duration: 0.15)) {
                     titleInNavBar = shouldShow

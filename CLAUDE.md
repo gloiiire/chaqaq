@@ -418,6 +418,53 @@ applique `.pinkhaElevatedSurfaces()`, qui place la fenêtre au niveau
 l'écart tombe de 28 à 3 points de luminance, rendant les cartes moins
 lisibles. Mesuré. Cf. `ElevatedInterfaceLevel.swift`.
 
+### Minimisation de la barre de navigation : figer la zone sûre
+
+`LeafNavBarMinimizationModifier` applique
+`.toolbarMinimizationBehavior(.onScrollDown, for: .navigationBar)`. Il **doit**
+rester accompagné de
+`.toolbarMinimizationSafeAreaAdjustment(.disabled, for: .navigationBar)`.
+
+Par défaut la zone sûre suit la barre pendant qu'elle se rétracte, pour que le
+contenu occupe la place libérée. Mais changer la zone sûre d'un `ScrollView`
+déclenche `_notifyDidScroll`, que l'observateur de défilement de la barre
+écoute pour décider de sa hauteur — laquelle redéfinit la zone sûre. C'est un
+cycle.
+
+Hors transition il s'amortit : chaque tour attend l'image suivante. En tapant
+un onglet depuis une leaf, la mise en page est **synchrone**
+(`layoutBelowIfNeeded` sous `performWithoutAnimation`) : plus de frontière
+d'image, le cycle tourne sur place, l'app gèle à 100 % de CPU avec les deux
+écrans composités l'un sur l'autre. Profil d'un gel réel :
+
+```
+_UIViewControllerTransitionConductor startDeferredTransitionIfNeeded
+  → performWithoutAnimation → layoutBelowIfNeeded
+      → UIView _updateSafeAreaInsets
+          → UIScrollView setSafeAreaInsets: → _notifyDidScroll
+              → UINavigationController _observeScrollViewDidScroll:topLayoutType:
+                  → _edgeInsetsForChildViewController:  (et on recommence)
+```
+
+`.disabled` fige la zone sûre pendant la rétraction : la barre se rétracte
+toujours (le réglage d'accessibilité est préservé), mais plus rien ne reboucle.
+Apple documente ce cas comme « utile quand le contenu passe sous la barre » —
+soit une leaf à couverture, qui pose déjà `.ignoresSafeArea(.top)`.
+
+> ⚠️ Ce gel a résisté à **six** bisections par hypothèse. Ce qui l'a trouvé :
+> échantillonner le processus *pendant* le gel (`sample <pid>`) et lire l'épine
+> à forte densité, pas relire le code. Deux fausses pistes coûteuses : la barre
+> d'onglets du **bas** (`tabBarMinimizeBehavior`, testée et innocentée) et le
+> nombre de blocs (800 blocs ne reproduisent rien). Le gel n'a **jamais** été
+> reproduit automatiquement — la validation est passée par une bisection à deux
+> coups sur l'appareil.
+
+Corollaire testé à part : `titleInNavBar` compare
+`contentOffset.y + contentInsets.top` à un seuil alors que sa réaction modifie
+cet inset. `titleShouldEnterNavBar(offset:currently:)` porte une zone morte
+40–60 pt pour que ce drapeau ne puisse pas osciller. Nécessaire, mais pas
+suffisant seul : la rétraction déplace l'inset de bien plus de 20 pt.
+
 ## Roadmap
 
 Ce qui est **fait** — backend Rust + UI SwiftUI :
