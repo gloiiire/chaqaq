@@ -69,6 +69,51 @@ public final class LeafViewModel {
     /// undo/redo buttons would never refresh — `@Observable` only
     /// tracks reads of its own stored properties.
     private var undoTick: Int = 0
+    /// Dernières valeurs publiées, pour n'incrémenter `undoTick` QUE
+    /// lorsqu'elles changent. `@ObservationIgnored` : les lire ne doit
+    /// créer aucune dépendance, sinon on rouvre le cycle qu'on ferme ici.
+    @ObservationIgnored private var lastPublishedCanUndo = false
+    @ObservationIgnored private var lastPublishedCanRedo = false
+
+    /// Incrémente le tick d'observation seulement si `canUndo` / `canRedo`
+    /// ont réellement changé.
+    ///
+    /// Sans ce garde, l'app brûle un coeur entier en permanence dès qu'une
+    /// leaf est ouverte, sans aucune interaction. Le cycle :
+    ///
+    ///   `UndoManager` émet un checkpoint à CHAQUE tour de boucle
+    ///   d'exécution (il ouvre un groupe par événement)
+    ///     → on incrémente `undoTick`, propriété observée
+    ///     → `canUndo` la lit, donc `UndoRedoPill` est invalidée
+    ///     → SwiftUI refait une passe de rendu
+    ///     → la boucle d'exécution tourne, un nouveau checkpoint part
+    ///
+    /// Le saut `Task { @MainActor }` — ajouté pour éviter l'avertissement
+    /// « Publishing changes from within view updates » — ne supprime pas
+    /// l'écriture, il la reporte d'un tour. Le cycle se referme quand même,
+    /// à 60 Hz.
+    ///
+    /// Mesuré : 100 % de CPU au repos dans une leaf, pile de mise en page de
+    /// 5274 niveaux, ~340 objets autoreleased par seconde. Alimenter la
+    /// pastille avec des constantes faisait tomber à 0,7 % — c'est ce qui a
+    /// désigné cette écriture. La chauffe de l'appareil, les saccades et le
+    /// gel au changement d'onglet venaient tous de là.
+    func bumpUndoTickIfNeeded() {
+        let u = undoMgr.canUndo || !blockBurstAnchor.isEmpty
+        let r = undoMgr.canRedo
+        guard u != lastPublishedCanUndo || r != lastPublishedCanRedo else { return }
+        lastPublishedCanUndo = u
+        lastPublishedCanRedo = r
+        // Le report d'un tour ne sert qu'ICI : un checkpoint peut partir
+        // synchronement depuis un `registerUndo` invoqué pendant une passe de
+        // rendu, et muter un état observé à ce moment-là déclenche
+        // « Publishing changes from within view updates ». On ne paie ce saut
+        // que lorsqu'il y a vraiment quelque chose à publier — donc quelques
+        // fois par session, pas soixante fois par seconde.
+        Task { @MainActor [weak self] in
+            self?.undoTick &+= 1
+        }
+    }
     /// `canUndo` also reflects pending bursts: if the user triggers undo before the burst
     /// timer fires (`burstInterval`), `vm.undo()` flushes first, then undoes.
     var canUndo: Bool {
@@ -124,8 +169,13 @@ public final class LeafViewModel {
             object: undoMgr,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in
-                self?.undoTick &+= 1
+            // Le bloc est déjà livré sur la file principale (`queue: .main`),
+            // donc on peut lire l'état synchronement. C'est ESSENTIEL : créer
+            // un `Task` ici, même vide, réveille la boucle d'exécution, et une
+            // boucle réveillée fait émettre à `UndoManager` un nouveau
+            // checkpoint. La tâche était elle-même la pompe.
+            MainActor.assumeIsolated {
+                self?.bumpUndoTickIfNeeded()
             }
         }
     }

@@ -32,6 +32,7 @@ public extension LeafViewModel {
         guard let anchor = blockBurstAnchor[blockId] else { return }
         let current = blockSnapshots[blockId]
         blockBurstAnchor.removeValue(forKey: blockId)
+        bumpUndoTickIfNeeded()
         if burstFlushBlockId == blockId {
             burstFlushBlockId = nil
             burstFlushTask?.cancel()
@@ -72,6 +73,14 @@ public extension LeafViewModel {
         // Start of burst: capture the pre-change state as anchor.
         if blockBurstAnchor[id] == nil, let baseline = blockSnapshots[id] {
             blockBurstAnchor[id] = baseline
+            // `canUndo` inclut « une rafale de frappe est en cours », et
+            // poser l'ancre n'enregistre aucun undo — donc aucun checkpoint
+            // ne partira de lui-même. Sans cet appel, la flèche « annuler »
+            // resterait grisée jusqu'au vidage de la rafale (300 ms).
+            // Auparavant le problème n'existait pas, mais pour une mauvaise
+            // raison : les checkpoints partaient en continu, ce qui était
+            // précisément le bug de consommation.
+            bumpUndoTickIfNeeded()
         }
         // The stable snapshot tracks the current (post-change) state.
         blockSnapshots[id] = snapshotOf(block)
