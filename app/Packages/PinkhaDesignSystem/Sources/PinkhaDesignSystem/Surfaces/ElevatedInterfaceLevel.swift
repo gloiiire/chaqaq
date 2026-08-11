@@ -35,7 +35,36 @@ private final class ElevatingProbe: UIView {
     /// once the window arrives — the first attempt applied nothing.
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        window?.traitOverrides.userInterfaceLevel = .elevated
+        Self.elevate(window)
+    }
+
+    /// Écrit le niveau SEULEMENT s'il diffère.
+    ///
+    /// Écrire dans `traitOverrides` n'est pas une affectation anodine :
+    /// UIKit repropage un changement de traits à TOUTE la hiérarchie de
+    /// la fenêtre, et chaque vue reçoit `traitCollectionDidChange`. Le
+    /// faire à chaque passe de rendu — ce que fait `updateUIView` — coûte
+    /// d'autant plus cher que la hiérarchie est grosse : une leaf
+    /// déverrouillée porte un `UITextView` par bloc.
+    ///
+    /// La garde existait dans la première version et a été perdue en
+    /// réécrivant avec cette sonde. Sans elle, le téléphone chauffe.
+    static func elevate(_ window: UIWindow?) {
+        // Comparer le trait RÉSOLU, jamais l'override.
+        //
+        // Lire `traitOverrides.userInterfaceLevel` avant d'en avoir posé
+        // un fait planter l'app au lancement — constaté ici : les 224
+        // tests unitaires passaient sans ce fichier et échouaient avec,
+        // sur « The test runner crashed before establishing connection ».
+        // `simctl launch` ne l'avait pas montré : il rend la main dès que
+        // le processus démarre, donc un crash immédiat passe pour un
+        // lancement réussi.
+        //
+        // `traitCollection.userInterfaceLevel` est toujours lisible et
+        // répond à la vraie question : la fenêtre est-elle déjà élevée ?
+        guard let window, window.traitCollection.userInterfaceLevel != .elevated
+        else { return }
+        window.traitOverrides.userInterfaceLevel = .elevated
     }
 }
 
@@ -47,7 +76,7 @@ private struct ElevatedInterfaceLevel: UIViewRepresentable {
     }
 
     func updateUIView(_ view: UIView, context: Context) {
-        view.window?.traitOverrides.userInterfaceLevel = .elevated
+        ElevatingProbe.elevate(view.window)
     }
 }
 

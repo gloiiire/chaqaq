@@ -31,10 +31,22 @@ fi
 # (hardware-serial-derived). They look identical at a glance but aren't
 # interchangeable.
 
+# Le filtre `reality == "physical"` n'est pas cosmétique : devicectl liste
+# AUSSI les simulateurs, et un simulateur d'iPhone a un `productType` qui
+# commence par "iPhone" comme un vrai téléphone. Sans lui, `head -1` peut
+# rendre un simulateur — au hasard de l'ordre JSON — et l'installation
+# échoue sur un message trompeur :
+#
+#   ERROR: The capability "Install Application" is not supported by this device
+#
+# qui laisse croire à un problème d'appairage ou de provisioning alors que
+# la cible n'est simplement pas un appareil. Vu pour de vrai le 2026-08-10 :
+# un simulateur nommé "CoAsso" masquait l'iPhone.
 DEVICE_ID="${DEVICE_ID:-$(xcrun devicectl list devices --json-output - 2>/dev/null \
     | jq -r '.result.devices[]
         | select((.connectionProperties.tunnelState == "connected"
                   or .connectionProperties.tunnelState == "disconnected")
+                 and (.hardwareProperties.reality == "physical")
                  and (.hardwareProperties.productType // "" | startswith("iPhone")))
         | .identifier' \
     | head -1)}"
