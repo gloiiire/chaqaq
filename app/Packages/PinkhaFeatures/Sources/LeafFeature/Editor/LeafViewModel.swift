@@ -51,8 +51,13 @@ public final class LeafViewModel {
     var errorMessage: String?
     var autoFocusId: String?
     var autoFocusOffset: Int? = nil
-    // Observed so LeafView re-renders on focus changes and scrolls
-    // the freshly-focused block to a comfortable position above the keyboard.
+    // Identifiant du bloc qui a le focus. Lu par le sélecteur de blocs
+    // pour insérer juste après lui.
+    //
+    // N'entraîne plus de défilement automatique : LeafView écoutait ce
+    // champ pour remonter le bloc au-dessus du clavier, mais l'ancre visée
+    // dépend de la zone sûre du bas — la même que le clavier et le fond du
+    // thème déplacent. Retiré ; UIKit révèle déjà le curseur seul.
     var activeBlockId: String? = nil
     @ObservationIgnored var focusedBlockId: String? = nil
     @ObservationIgnored let repeater = ActionRepeater()

@@ -210,6 +210,9 @@ extension RichTextEditorCoordinator {
 
     @objc func dismissKeyboard() {
         toolbarActionInProgress = false
+        // Empeche la reprogrammation du focus pendant que la mise en page
+        // encaisse la descente du clavier. Cf. `refocusSuppressed`.
+        refocusSuppressed = true
         tv?.resignFirstResponder()
     }
 

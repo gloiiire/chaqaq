@@ -13,6 +13,22 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
     weak var tv: ExpandingTextView?
     var isEditing = false
     var isDeleting = false
+    /// Vrai entre le moment ou l'utilisateur demande la fermeture du clavier
+    /// et le moment ou l'etat SwiftUI a rattrape cette intention.
+    ///
+    /// La descente du clavier change la zone sure du bas, donc la liste se
+    /// remet en page, donc `updateUIView` repasse sur la rangee — avec un
+    /// `isFocused` encore a `true`, puisque le binding n'est ecrit qu'ensuite
+    /// par `textViewDidEndEditing`. Le reconciliateur y voyait « focalise mais
+    /// pas premier repondant » et reprogrammait le focus : le clavier
+    /// remontait aussitot.
+    ///
+    /// Ce drapeau bloque UNIQUEMENT la reprogrammation. Ne pas corriger ce
+    /// bug en touchant au corps de la tache : elle pose aussi `selectedRange`,
+    /// et l'en empecher fait atterrir le curseur n'importe ou — les taps
+    /// deviennent des selections de mots et la correction arriere emporte des
+    /// lignes entieres. Teste, constate, reverti.
+    var refocusSuppressed = false
     var shiftEnterTyped = false
     var lastSelection = NSRange(location: 0, length: 0)
     // Active typing color without a selection: UIKit resets typingAttributes
@@ -154,6 +170,9 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
 
     public func textViewDidBeginEditing(_ tv: UITextView) {
         isEditing = true
+        // L'utilisateur revient dans un bloc : l'intention de fermeture est
+        // caduque.
+        refocusSuppressed = false
         parent.isFocused = true
         rememberSelection(tv.selectedRange, length: tv.attributedText.length)
         // Default foreground: block-level colour when set, otherwise the

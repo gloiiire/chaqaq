@@ -465,6 +465,61 @@ cet inset. `titleShouldEnterNavBar(offset:currently:)` porte une zone morte
 40–60 pt pour que ce drapeau ne puisse pas osciller. Nécessaire, mais pas
 suffisant seul : la rétraction déplace l'inset de bien plus de 20 pt.
 
+### iOS 27 — `.reorderable()` avale les modificateurs posés dans la rangée
+
+Sur iOS 27, `.reorderable()` ne laisse pas survivre les modificateurs de rangée
+appliqués **à l'intérieur** de la vue de rangée. Ils doivent être posés sur le
+`ForEach`.
+
+Deux bugs visuels distincts en sont déjà venus :
+
+- `.listRowSeparator(.hidden)` — un trait réapparaissait entre chaque bloc,
+  donnant l'illusion qu'un Divider était inséré à chaque retour à la ligne
+- `.listRowBackground(Color.clear)` — les blocs reprenaient le fond de rangée
+  système, qui recouvrait le papier du thème. Le thème ne s'affichait plus que
+  derrière l'en-tête (couverture, icône, titre), hors du `ForEach`. Mesuré :
+  `#423B30` en haut, `#1C1C1E` en dessous
+
+Règle : quand `.reorderable()` est là, **tout** modificateur `listRow*` se pose
+sur le `ForEach`, jamais dans `blockListRow`.
+
+### Fond de page : calque à la racine, pas `.background` sur la liste
+
+Le fond du thème d'une leaf est un frère du `ScrollViewReader` dans un `ZStack`,
+à la racine de `LeafView.body`. Il ne doit **pas** revenir en `.background(...)`
+sur la liste.
+
+En `.background`, il est soumis à la zone sûre : le papier s'arrête sous la
+barre d'état, au-dessus de la barre d'onglets, et sous la pastille du clavier.
+Corriger ça sur place revient à élargir l'exclusion de zone sûre de la liste —
+or c'est cette même zone qui définit la fenêtre visible dont dépend l'ancre de
+`proxy.scrollTo`. Un `.ignoresSafeArea()` nu y fait viser 90 % d'un écran
+s'étendant sous le clavier : le bloc atterrit derrière lui et le défilement au
+tap paraît mort. Deux besoins sur un seul point ; en calque séparé, ils cessent
+de se disputer.
+
+Corollaire : il n'y a plus de défilement automatique quand un bloc prend le
+focus. UIKit révèle déjà le curseur seul. La version maison visait une ancre
+définie par cette zone sûre — retirée sur demande après l'avoir constaté.
+
+### Quand deux hypothèses tombent, instrumenter
+
+Ce projet l'a prouvé deux fois dans la même journée (2026-08-11) :
+
+- le gel au changement d'onglet a résisté à **six** bisections par hypothèse ;
+  `sample <pid>` pendant le gel a donné la réponse en une lecture (PRO-144)
+- le placement du curseur a résisté à **sept** hypothèses ; trois captures de
+  `textViewDidChangeSelection` ont livré le fait établi (PRO-145)
+
+Deviner coûte un aller-retour utilisateur par essai. Mesurer coûte un build.
+Au-delà de deux hypothèses infirmées, instrumenter — journal horodaté, identité
+de l'objet observé, pile d'appels — plutôt que d'en formuler une troisième.
+
+Deux pièges rencontrés en instrumentant : `NSLog` tronque les messages longs
+(imprimer une trame de pile par ligne), et un journal qui n'identifie pas
+l'objet observé mélange les instances — toutes les vues de texte partagent le
+même délégué.
+
 ## Roadmap
 
 Ce qui est **fait** — backend Rust + UI SwiftUI :
