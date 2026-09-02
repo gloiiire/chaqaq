@@ -168,31 +168,61 @@ public struct LeafView: View {
         //      removed — the scroll-driven `dismissSpotlight()` in
         //      `documentList.onScrollGeometryChange` is enough to cover
         //      "user takes back control."
-        ScrollViewReader { proxy in
-            ZStack(alignment: .bottomTrailing) {
-                documentList
-                    .onChange(of: vm.activeBlockId) { _, newId in
-                        guard let id = newId else { return }
-                        Task { @MainActor in
-                            try? await Task.sleep(for: .milliseconds(420))
+        // Fond du thème, en CALQUE SÉPARÉ à la racine.
+        //
+        // Il vivait avant en `.background(...)` sur la liste, donc soumis à
+        // la zone sûre : le papier s'arrêtait net sous la barre d'état et
+        // au-dessus de la barre d'onglets, et la bande libérée par le
+        // clavier restait au gris système.
+        //
+        // Le corriger là-bas revenait à élargir l'exclusion de zone sûre de
+        // la liste — or c'est cette même zone qui définit la fenêtre visible
+        // dont dépend l'ancre de `proxy.scrollTo`. Un `.ignoresSafeArea()`
+        // nu y faisait viser 90 % d'un écran s'étendant sous le clavier :
+        // le bloc atterrissait derrière lui et le défilement au tap
+        // paraissait mort.
+        //
+        // En frère du ScrollViewReader dans un ZStack, le fond couvre tout
+        // l'écran sans participer à la mise en page de la liste. Les deux
+        // besoins cessent de se disputer le même point.
+        ZStack {
+            (effectiveTheme.effectiveBackgroundColor(darkVariant: effectiveThemeDarkVariant)
+                ?? Color.pinkhaSurface(dark: effectiveThemeDarkVariant))
+                .ignoresSafeArea()
+
+            ScrollViewReader { proxy in
+                ZStack(alignment: .bottomTrailing) {
+                    // Pas de défilement automatique quand un bloc prend le
+                    // focus. UIKit révèle déjà le curseur tout seul quand la
+                    // vue de texte devient premier répondant — c'est le
+                    // comportement natif de n'importe quel champ de saisie, et
+                    // il suffit.
+                    //
+                    // La version maison visait 90 % de la fenêtre visible,
+                    // 420 ms après chaque changement de bloc. Or cette fenêtre
+                    // est définie par la zone sûre du bas, celle-là même que le
+                    // clavier et le fond du thème font bouger : les trois se
+                    // disputaient un seul point, et réparer l'un déréglait les
+                    // autres. Retiré sur demande après l'avoir constaté.
+                    //
+                    // `vm.activeBlockId` reste utile ailleurs (le sélecteur de
+                    // blocs insère après le bloc actif) — seul l'effet de
+                    // défilement disparaît.
+                    documentList
+                        .task(id: scrollToBlockId) {
+                            guard let target = scrollToBlockId else { return }
+                            try? await Task.sleep(for: .milliseconds(350))
                             withAnimation(.easeOut(duration: 0.25)) {
-                                proxy.scrollTo(id, anchor: UnitPoint(x: 0.5, y: 0.9))
+                                proxy.scrollTo(target, anchor: .center)
+                            }
+                            try? await Task.sleep(for: .milliseconds(150))
+                            withAnimation(.easeInOut(duration: 0.35)) {
+                                spotlightBlockId = target
+                                spotlightArmedAt = Date()
                             }
                         }
-                    }
-                    .task(id: scrollToBlockId) {
-                        guard let target = scrollToBlockId else { return }
-                        try? await Task.sleep(for: .milliseconds(350))
-                        withAnimation(.easeOut(duration: 0.25)) {
-                            proxy.scrollTo(target, anchor: .center)
-                        }
-                        try? await Task.sleep(for: .milliseconds(150))
-                        withAnimation(.easeInOut(duration: 0.35)) {
-                            spotlightBlockId = target
-                            spotlightArmedAt = Date()
-                        }
-                    }
-                overlayButtons
+                    overlayButtons
+                }
             }
         }
     }
@@ -275,6 +305,18 @@ public struct LeafView: View {
                 ForEach($vm.blocks) { $block in blockListRow($block) }
                     .reorderable()
                     .listRowSeparator(.hidden)
+                    // Même piège que les séparateurs juste au-dessus, et
+                    // même remède. `blockListRow` pose déjà
+                    // `.listRowBackground(Color.clear)` à l'intérieur de la
+                    // rangée ; `.reorderable()` ne le laisse pas survivre, et
+                    // les blocs retombent sur le fond de rangée système.
+                    //
+                    // Visible dès qu'une leaf porte un thème Books : le papier
+                    // du thème ne s'affichait plus que derrière l'en-tête
+                    // (couverture, icône, titre — hors de ce ForEach), le
+                    // corps du document restant gris système. Mesuré :
+                    // #423B30 en haut, #1C1C1E en dessous.
+                    .listRowBackground(Color.clear)
             } else {
                 ForEach($vm.blocks) { $block in blockListRow($block) }
                     .onMove(perform: vm.moveBlock)
@@ -392,8 +434,8 @@ public struct LeafView: View {
         // align with the palette. `.original` is a no-op so iOS
         // light/dark continues to drive the look.
         .scrollContentBackground(.hidden)
-        .background(effectiveTheme.effectiveBackgroundColor(darkVariant: effectiveThemeDarkVariant)
-                    ?? Color.pinkhaSurface(dark: effectiveThemeDarkVariant))
+// Fond peint a la racine du body (voir le ZStack la-bas) : la liste
+        // reste transparente pour le laisser passer.
         .preferredColorScheme(effectiveTheme.effectiveColorScheme(darkVariant: effectiveThemeDarkVariant))
         // Make the active reader theme available to every block row so
         // they pick up the theme's font family (Georgia / Charter /

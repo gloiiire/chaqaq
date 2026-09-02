@@ -10,7 +10,7 @@
 # more than one iPhone is connected.
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."   # → repo root (utilities/scripts/.. = utilities, ../.. = repo)
 
 # ── DEVELOPER_DIR sanity ──────────────────────────────────────────────────
 # If the caller's shell has DEVELOPER_DIR pointing somewhere that doesn't
@@ -49,7 +49,7 @@ DEVICE_ID="${DEVICE_ID:-$(xcrun devicectl list devices --json-output - 2>/dev/nu
                  and (.hardwareProperties.reality == "physical")
                  and (.hardwareProperties.productType // "" | startswith("iPhone")))
         | .identifier' \
-    | head -1)}"
+    | head -1 || true)}"
 if [[ -z "$DEVICE_ID" ]]; then
     echo "✗ No connected iPhone found (xcrun devicectl)." >&2
     exit 1
@@ -60,23 +60,49 @@ fi
 # Designed for (the latter is the "Mac Designed for iPad" variant) and pull
 # the UUID with a strict regex — pure regex avoids field-count issues caused
 # by emojis in device names.
-XCODE_DEVICE_ID="${XCODE_DEVICE_ID:-$(xcodebuild -project app/Pinkha.xcodeproj \
-    -scheme Pinkha -showdestinations 2>/dev/null \
-    | grep 'platform:iOS,' \
-    | grep -v -E 'Simulator|Placeholder|Designed for' \
-    | head -1 \
-    | sed -nE 's/.*id:([0-9A-Fa-f-]+).*/\1/p')}"
+#
+# `|| true` is load-bearing, not defensive noise. Under `set -euo pipefail`,
+# a substitution whose pipeline finds nothing exits non-zero and kills the
+# script AT THE ASSIGNMENT — so the explicit error below was unreachable and
+# the script died in total silence. It cost a debugging session.
+#
+# The retry is equally deliberate: xcodebuild lists a connected iPhone only
+# intermittently (eligibility lags behind `devicectl`, notably right after
+# unlocking). One miss is not an absent device.
+find_xcode_device_id() {
+    xcodebuild -project app/Pinkha.xcodeproj -scheme Pinkha -showdestinations 2>/dev/null \
+        | grep 'platform:iOS,' \
+        | grep -v -E 'Simulator|Placeholder|Designed for' \
+        | head -1 \
+        | sed -nE 's/.*id:([0-9A-Fa-f-]+).*/\1/p' || true
+}
+
+XCODE_DEVICE_ID="${XCODE_DEVICE_ID:-}"
 if [[ -z "$XCODE_DEVICE_ID" ]]; then
-    echo "✗ No xcodebuild-side iPhone destination found." >&2
+    for attempt in 1 2 3; do
+        XCODE_DEVICE_ID="$(find_xcode_device_id)"
+        [[ -n "$XCODE_DEVICE_ID" ]] && break
+        [[ $attempt -lt 3 ]] && { echo "… device not listed yet, retrying ($attempt/3)"; sleep 2; }
+    done
+fi
+if [[ -z "$XCODE_DEVICE_ID" ]]; then
+    echo "✗ No xcodebuild-side iPhone destination found after 3 attempts." >&2
+    echo "  devicectl sees: ${DEVICE_ID:-none}" >&2
+    echo "  Unlock the iPhone, keep it connected, and retry." >&2
+    echo "  Override with: XCODE_DEVICE_ID=<hardware-udid> $0" >&2
     exit 1
 fi
 
 # Prune iCloud Drive conflict copies before regenerating — repo lives
 # in iCloud which auto-creates "Foo 2.swift", "Pinkha 3.xcodeproj" etc.
 # on sync conflicts. They confuse Xcode and bloat the tree.
-find app -name "* [2-9].swift" -delete 2>/dev/null
-find app -name "* [2-9].xcodeproj" -type d -exec rm -rf {} + 2>/dev/null
-find scripts -name "* [2-9].sh" -delete 2>/dev/null
+# `|| true` : `find -delete` renvoie non-zero des qu'il ne peut pas parcourir
+# un dossier, et `set -e` tuait alors le script en silence — juste apres avoir
+# resolu l'appareil, donc sans le moindre message. Meme piege que la detection
+# de destination plus haut. Un menage optionnel ne doit pas couler le lancement.
+find app -name "* [2-9].swift" -delete 2>/dev/null || true
+find app -name "* [2-9].xcodeproj" -type d -exec rm -rf {} + 2>/dev/null || true
+find utilities/scripts -name "* [2-9].sh" -delete 2>/dev/null || true
 
 # ── Fraîcheur du FFI ─────────────────────────────────────────────────────
 # Un xcframework désaccordé des bindings tue l'app au lancement
@@ -89,8 +115,11 @@ echo "→ Regenerating Pinkha.xcodeproj (xcodegen)…"
 
 # xcodegen doesn't register the .icon bundle with the wrapper.icon file
 # type that actool expects. The Ruby patch redoes that step idempotently.
-if [ -f "scripts/patch-app-icon.rb" ]; then
-    ./scripts/patch-app-icon.rb >/dev/null
+# Le patch d'icone tourne desormais en `options.postGenCommand` dans
+# app/project.yml — xcodegen l'a donc deja execute juste au-dessus. On garde
+# l'appel explicite en filet, au bon chemin (il a demenage dans utilities/).
+if [ -f "utilities/scripts/patch-app-icon.rb" ]; then
+    ./utilities/scripts/patch-app-icon.rb >/dev/null
 fi
 
 echo "→ Building for device ${XCODE_DEVICE_ID}…"
