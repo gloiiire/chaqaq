@@ -117,6 +117,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.gloiiire.pinkha
+        CODE_SIGN_ENTITLEMENTS: Sources/Pinkha.entitlements
         INFOPLIST_FILE: Sources/Info.plist
         SWIFT_VERSION: "5.0"
         EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64

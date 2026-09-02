@@ -131,7 +131,7 @@ app/                 — SwiftUI application
 
 ### SwiftUI UI (iOS 26)
 
-- **Backup**: rolling on-device snapshots every 6 hours (last 7 kept), plus Settings → *Export library* which produces a single `.zip` holding the database, the cover images and a plain-text README. The database inside is standard SQLite — readable in ten years without Pinkha
+- **Backup**: rolling snapshots to iCloud Drive every 6 hours (last 7 kept, falling back to on-device storage when iCloud is unavailable), visible in the Files app under *Pinkha*; plus Settings → *Export library* which produces a single `.zip` holding the database, the cover images and a plain-text README. The database inside is standard SQLite — readable in ten years without Pinkha
 - **Home screen**: list, FAB, dynamic greeting, relative date
 - **Import**: FAB menu → "Import from Notion" (integration token + DB URL/ID) + "Import from Bear" (file picker) — both delegate to the Rust extractor
 - **Editor**: Text / Heading×3 / Quote / Callout / Todo / Divider / BulletedListItem / NumberedListItem / Code blocks

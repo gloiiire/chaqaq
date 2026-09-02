@@ -575,11 +575,31 @@ cohérente, et iOS accorde encore un court sursis. Cadence : 6 h, 7 copies —
 soit une semaine de dégâts silencieux avant que la dernière copie saine ne
 soit écrasée.
 
-Le dossier est `Application Support/Pinkha/Snapshots/`, **frère** de
-`pinkha.db` et non enfant. Lors de la perte du 2026-09-02, `pinkha.db` a
-disparu tandis que le dossier frère `Covers/` est resté intact. Ce n'est pas
-une preuve, mais c'est la seule observation disponible et elle ne coûte rien
-à suivre.
+Destination : **iCloud Drive d'abord, local en repli**.
+`LibrarySnapshots.destination()` tente
+`url(forUbiquityContainerIdentifier:)` puis retombe sur
+`Application Support/Pinkha/Snapshots/`. Le repli n'est pas cosmétique : le
+conteneur vaut `nil` quand l'utilisateur n'est pas connecté à iCloud, quand
+il a coupé iCloud Drive pour l'app, ou quand la build n'a pas les droits —
+trois situations ordinaires. Refuser de sauvegarder là punirait exactement
+ceux qui n'ont pas de sauvegarde iCloud.
+
+Le dossier iCloud vit sous `Documents/` du conteneur et `Info.plist` déclare
+`NSUbiquitousContainerIsDocumentScopePublic` : il apparaît donc dans l'app
+Fichiers sous « Pinkha ». Une sauvegarde qu'on ne peut atteindre que depuis
+l'app qui a perdu les données ne vaut pas grand-chose.
+
+Le repli local est **frère** de `pinkha.db` et non enfant. Lors de la perte
+du 2026-09-02, `pinkha.db` a disparu tandis que le dossier frère `Covers/`
+est resté intact. Ce n'est pas une preuve, mais c'est la seule observation
+disponible et elle ne coûte rien à suivre.
+
+Droits : `app/Sources/Pinkha.entitlements` déclare
+`CloudDocuments` (des fichiers dans iCloud Drive), **pas** `CloudKit` — la
+synchro d'enregistrements entre appareils reste un chantier distinct. La
+signature automatique a provisionné le conteneur sans intervention dans le
+portail développeur ; vérifié avec `codesign -d --entitlements -` sur la
+build appareil.
 
 `LibrarySnapshots` n'est délibérément **pas** `@MainActor` : l'écriture est
 bloquante et doit rester hors du fil principal.
@@ -688,7 +708,7 @@ Ce qui **reste** à construire :
 3. **Sync entre appareils** (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
 4. **Réactiver Swift CI** quand Xcode 26 sera dispo sur les runners GitHub Actions
 5. **Import fidelity** — cover/icon Notion, image/file blocks, mapping views/filters Notion. Audit complet dans `utilities/docs/IMPORT-AUDIT.md`.
-6. **Sauvegarde iCloud Drive puis synchro CloudKit** — l'export manuel et les instantanés locaux automatiques sont en place. Reste à porter la destination des instantanés vers iCloud Drive (exige un conteneur iCloud, donc une modification des droits de signature), puis la synchro CloudKit entre appareils.
+6. **Synchro CloudKit entre appareils** — l'export manuel et les instantanés automatiques (iCloud Drive avec repli local) sont en place. Reste la synchro d'enregistrements, chantier distinct qui rejoint la ligne CRDT de la feuille de route.
 7. **Localizable.xcstrings polish complet** — pass critique fait (labels les plus visibles + verbes Bind/Unbind/Shelve/Discard), reste 3631 lignes à reviewer une par une pour la cohérence et le ton.
 
 ### Cross-domain orchestration (`application/use_cases/book_leaf_sync.rs`)
