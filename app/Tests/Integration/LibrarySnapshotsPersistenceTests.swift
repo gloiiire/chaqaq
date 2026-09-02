@@ -60,3 +60,49 @@ struct LibrarySnapshotsPersistenceTests {
         #expect(try api.listSnapshots(dir: absent.path).isEmpty)
     }
 }
+
+// ── Destination : iCloud d'abord, local en repli ──────────────────────────
+
+@Suite("Sauvegarde automatique — destination")
+struct LibrarySnapshotsDestinationTests {
+
+    /// La garantie qui compte : quelle que soit la disponibilité d'iCloud,
+    /// `destination()` rend un dossier où l'on peut RÉELLEMENT écrire.
+    /// Refuser de sauvegarder quand iCloud manque punirait précisément ceux
+    /// qui n'ont pas de sauvegarde iCloud.
+    @Test func destinationIsAlwaysWritable() throws {
+        let (dossier, _) = LibrarySnapshots.destination()
+        let temoin = dossier.appendingPathComponent("ecriture_\(UUID().uuidString).txt")
+        try "ok".write(to: temoin, atomically: true, encoding: .utf8)
+        #expect(FileManager.default.fileExists(atPath: temoin.path))
+        try? FileManager.default.removeItem(at: temoin)
+    }
+
+    /// Le repli local doit exister par lui-même, indépendamment d'iCloud.
+    @Test func localFallbackSitsBesideTheDatabase() throws {
+        let local = try LibrarySnapshots.localDirectory()
+        #expect(local.lastPathComponent == "Snapshots")
+        // Frère de pinkha.db, pas enfant : c'est ce voisinage qui a survécu
+        // lors de la perte du 2026-09-02.
+        let parent = local.deletingLastPathComponent()
+        #expect(parent.lastPathComponent == "Pinkha")
+        #expect(FileManager.default.fileExists(atPath: local.path))
+    }
+
+    /// Un instantané écrit à la destination réelle doit se relire seul —
+    /// c'est vrai dans iCloud comme en local, et c'est le seul critère.
+    @Test func snapshotAtTheRealDestinationReopens() throws {
+        let db = FileManager.default.temporaryDirectory
+            .appendingPathComponent("pinkha_dest_\(UUID().uuidString).db")
+        defer { try? FileManager.default.removeItem(at: db) }
+        let api = try PinkhaApi(dbPath: db.path)
+        _ = try api.createLeaf(title: "Vers la destination réelle")
+
+        let (dossier, _) = LibrarySnapshots.destination()
+        let chemin = try api.snapshotLibrary(dir: dossier.path, keep: LibrarySnapshots.keep)
+        defer { try? FileManager.default.removeItem(at: URL(fileURLWithPath: chemin)) }
+
+        let restaure = try PinkhaApi(dbPath: chemin)
+        #expect(try restaure.listLeaves().map(\.titlePlain) == ["Vers la destination réelle"])
+    }
+}

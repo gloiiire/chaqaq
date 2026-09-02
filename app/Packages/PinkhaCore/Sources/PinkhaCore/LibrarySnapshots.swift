@@ -32,19 +32,68 @@ public enum LibrarySnapshots {
     public static let interval: TimeInterval = 6 * 3600
 
     private static let derniereCleUserDefaults = "pinkha.snapshot.lastRun"
+    private static let derniereDestinationCleUserDefaults = "pinkha.snapshot.lastWentToCloud"
 
-    /// Dossier des instantanés : `Application Support/Pinkha/Snapshots/`.
+    /// Où les instantanés sont écrits, et si c'est dans iCloud.
+    ///
+    /// iCloud Drive d'abord, disque local en repli. Le repli n'est pas une
+    /// précaution de style : `url(forUbiquityContainerIdentifier:)` renvoie
+    /// `nil` quand l'utilisateur n'est pas connecté à iCloud, quand il a
+    /// désactivé iCloud Drive pour l'app, ou quand la build n'a pas les
+    /// droits — trois situations parfaitement ordinaires. Refuser de
+    /// sauvegarder dans ces cas-là punirait précisément ceux qui n'ont pas
+    /// de sauvegarde iCloud, c'est-à-dire ceux qui en ont le plus besoin.
+    ///
+    /// - Important: appel bloquant (il interroge le démon iCloud). Ce type
+    ///   n'est pas `@MainActor` pour cette raison.
+    public static func destination() -> (url: URL, dansICloud: Bool) {
+        if let cloud = cloudDirectory() { return (cloud, true) }
+        // Le local est le dernier rempart : s'il échoue lui aussi, on renvoie
+        // quand même le chemin et c'est l'écriture qui signalera l'erreur,
+        // avec un message utile.
+        return ((try? localDirectory()) ?? fallbackDirectory(), false)
+    }
+
+    /// `<conteneur iCloud>/Documents/Snapshots/`.
+    ///
+    /// Sous `Documents/` volontairement : c'est ce qui rend le dossier
+    /// visible dans l'app Fichiers, donc récupérable par l'utilisateur
+    /// depuis n'importe quel appareil, sans passer par pinkha. Une
+    /// sauvegarde qu'on ne peut atteindre que depuis l'app qui a perdu les
+    /// données ne vaut pas grand-chose.
+    static func cloudDirectory() -> URL? {
+        guard let conteneur = FileManager.default.url(forUbiquityContainerIdentifier: nil)
+        else { return nil }
+        let dir = conteneur
+            .appendingPathComponent("Documents", isDirectory: true)
+            .appendingPathComponent("Snapshots", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir
+        } catch {
+            Observability.capture(error)
+            return nil
+        }
+    }
+
+    /// `Application Support/Pinkha/Snapshots/`, le repli local.
     ///
     /// Volontairement à CÔTÉ de `pinkha.db`, pas dedans. Lors de la perte du
     /// 2026-09-02, `pinkha.db` a disparu tandis que le dossier frère
     /// `Covers/` est resté intact — un instantané rangé en voisin aurait
     /// donc survécu. Ce n'est pas une preuve, mais c'est la seule
     /// observation dont on dispose, et elle est gratuite à suivre.
-    public static func directory() throws -> URL {
+    public static func localDirectory() throws -> URL {
         let dir = try DatabaseLocation.directory()
             .appendingPathComponent("Snapshots", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
+    }
+
+    /// Dernier recours quand même `Application Support` est inaccessible.
+    private static func fallbackDirectory() -> URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("PinkhaSnapshots", isDirectory: true)
     }
 
     /// Décide s'il est temps d'écrire, à partir de la date du dernier
@@ -69,10 +118,11 @@ public enum LibrarySnapshots {
         let derniere = defaults.object(forKey: derniereCleUserDefaults) as? Date
         guard shouldRun(last: derniere, now: now) else { return false }
 
+        let (dir, dansICloud) = destination()
         do {
-            let dir = try directory()
             _ = try api.snapshotLibrary(dir: dir.path, keep: keep)
             defaults.set(now, forKey: derniereCleUserDefaults)
+            defaults.set(dansICloud, forKey: derniereDestinationCleUserDefaults)
             return true
         } catch {
             Observability.capture(error)
@@ -83,5 +133,12 @@ public enum LibrarySnapshots {
     /// Date du dernier instantané réussi, pour l'afficher dans les réglages.
     public static var lastRun: Date? {
         UserDefaults.standard.object(forKey: derniereCleUserDefaults) as? Date
+    }
+
+    /// Le dernier instantané est-il parti dans iCloud ? L'utilisateur doit
+    /// pouvoir le savoir : « sauvegardé » sur le seul appareil qui peut
+    /// tomber en panne n'a pas le même sens que « sauvegardé ailleurs ».
+    public static var lastRunWentToCloud: Bool {
+        UserDefaults.standard.bool(forKey: derniereDestinationCleUserDefaults)
     }
 }

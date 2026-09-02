@@ -100,5 +100,24 @@
         <string>PlayfairDisplay-Bold.ttf</string>
         <string>PlayfairDisplay-BoldItalic.ttf</string>
     </array>
+	<!--
+	  Rend le conteneur iCloud visible dans l'app Fichiers sous le nom
+	  « Pinkha ». Sans cette déclaration le dossier existe mais reste
+	  invisible : l'utilisateur ne pourrait récupérer ses sauvegardes que
+	  depuis l'app — or l'app est justement ce qui vient de perdre ses
+	  données.
+	-->
+	<key>NSUbiquitousContainers</key>
+	<dict>
+		<key>iCloud.com.gloiiire.pinkha</key>
+		<dict>
+			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
+			<true/>
+			<key>NSUbiquitousContainerName</key>
+			<string>Pinkha</string>
+			<key>NSUbiquitousContainerSupportedFolderLevels</key>
+			<string>Any</string>
+		</dict>
+	</dict>
 </dict>
 </plist>

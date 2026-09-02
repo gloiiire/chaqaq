@@ -83,7 +83,12 @@ public struct SettingsView: View {
         guard let date = LibrarySnapshots.lastRun else { return "Never" }
         let f = RelativeDateTimeFormatter()
         f.unitsStyle = .full
-        return f.localizedString(for: date, relativeTo: Date())
+        let quand = f.localizedString(for: date, relativeTo: Date())
+        // « Sauvegardé » sur le seul appareil qui peut tomber en panne n'a
+        // pas le même sens que « sauvegardé ailleurs ». L'utilisateur doit
+        // pouvoir faire la différence d'un coup d'oeil.
+        let ou = LibrarySnapshots.lastRunWentToCloud ? "iCloud" : "this device"
+        return "\(quand) · \(ou)"
     }
 
     /// Assemble l'archive hors du fil principal — un `VACUUM INTO` sur une
