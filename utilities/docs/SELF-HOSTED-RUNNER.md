@@ -270,3 +270,28 @@ Contrôle : le job doit afficher un nom de runner.
 ```
 Swift: in_progress runner:macbook-pinkha
 ```
+
+## ⚠️ Ne jamais tuer des processus par motif pendant que la CI tourne
+
+Le runner partage **cette machine**. Un `pkill -f "xcodebuild test"` lancé
+pour interrompre un test local tue aussi celui de la CI, silencieusement.
+
+Constaté le 2026-09-02 : le job Swift est remonté en échec alors que son
+journal se terminait par `** TEST SUCCEEDED **`, sans le moindre marqueur
+d'erreur. Le relancer sans rien changer l'a fait passer. Symptôme
+caractéristique — un job rouge dont le journal ne contient aucune erreur
+signifie qu'on l'a tué de l'extérieur, pas qu'il a échoué.
+
+Avant d'interrompre un `xcodebuild` local :
+
+```bash
+gh run list --limit 3 --json status,name \
+  --jq '.[] | select(.status=="in_progress") | .name'
+```
+
+Si quelque chose tourne, viser le PID précis plutôt que le motif :
+
+```bash
+pgrep -fl "xcodebuild" | grep -v actions-runner    # PID hors CI
+kill <pid>
+```
