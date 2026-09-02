@@ -2337,3 +2337,129 @@ fn reader_settings_round_trips_all_five_appearance_modes() {
         assert_eq!(leaf["reader_settings"]["theme_appearance"], *mode);
     }
 }
+
+// ── Export de la bibliothèque ───────────────────────────────────────────────
+//
+// Ces notes ont failli disparaître pour de bon : la base d'un appareil réel
+// s'est retrouvée vide, et seule une copie oubliée sur un simulateur les a
+// sauvées. L'export est la réponse à ça, donc il est testé comme tel — on
+// vérifie qu'un fichier exporté se relit SEUL et porte les trois domaines.
+
+fn export_temp_path(label: &str) -> String {
+    std::env::temp_dir()
+        .join(format!(
+            "pinkha_export_{}_{}.db",
+            label,
+            uuid::Uuid::new_v4()
+        ))
+        .to_string_lossy()
+        .into_owned()
+}
+
+#[test]
+fn export_library_writes_a_file_that_reopens_on_its_own() {
+    let db = export_temp_path("source");
+    let dest = export_temp_path("copie");
+    {
+        let api = PinkhaApi::new(db.clone()).expect("ouvrir");
+        api.create_leaf("Une note à ne pas perdre".to_string())
+            .expect("créer la leaf");
+        api.create_book("Un book".to_string())
+            .expect("créer le book");
+        api.create_shelf("Une étagère".to_string(), None)
+            .expect("créer l'étagère");
+
+        let taille = api.export_library(dest.clone()).expect("exporter");
+        assert!(taille > 0, "un export vide n'est pas un export");
+    }
+
+    // Le point décisif : rouvrir la COPIE, sans l'original, et tout retrouver.
+    let restaure = PinkhaApi::new(dest.clone()).expect("rouvrir la copie");
+    let leaves = restaure.list_leaves().expect("lister");
+    assert_eq!(leaves.len(), 1);
+    assert_eq!(leaves[0].title_plain, "Une note à ne pas perdre");
+    assert_eq!(restaure.list_books().expect("books").len(), 1);
+    assert_eq!(restaure.list_shelves().expect("shelves").len(), 1);
+
+    for p in [db, dest] {
+        let _ = std::fs::remove_file(&p);
+        let _ = std::fs::remove_file(format!("{p}-wal"));
+        let _ = std::fs::remove_file(format!("{p}-shm"));
+    }
+}
+
+#[test]
+fn export_library_rejects_an_oversized_path() {
+    let api = api();
+    let err = api.export_library("x".repeat(70_000));
+    assert!(err.is_err(), "la validation de frontière doit refuser");
+}
+
+#[test]
+fn snapshot_library_rotates_and_keeps_only_the_newest() {
+    let dossier = std::env::temp_dir().join(format!("pinkha_snaps_{}", uuid::Uuid::new_v4()));
+    let api = api();
+    api.create_leaf("À protéger".to_string()).expect("créer");
+
+    // Quatre instantanés, on n'en garde que deux.
+    let mut ecrits = Vec::new();
+    for _ in 0..4 {
+        ecrits.push(
+            api.snapshot_library(dossier.to_string_lossy().into_owned(), 2)
+                .expect("instantané"),
+        );
+        // Le nom porte la seconde : sans pause, les quatre se confondraient
+        // et la rotation n'aurait rien à trier.
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+    }
+
+    let restants = api
+        .list_snapshots(dossier.to_string_lossy().into_owned())
+        .expect("lister");
+    assert_eq!(restants.len(), 2, "la rotation doit en garder exactement 2");
+
+    // Le plus récent est en tête, et c'est bien le dernier écrit.
+    let dernier = std::path::Path::new(ecrits.last().unwrap())
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    assert_eq!(restants[0], dernier);
+
+    // Et il se rouvre seul, avec la note dedans.
+    let restaure = PinkhaApi::new(ecrits.last().unwrap().clone()).expect("rouvrir");
+    assert_eq!(restaure.list_leaves().expect("lister").len(), 1);
+
+    let _ = std::fs::remove_dir_all(&dossier);
+}
+
+#[test]
+fn snapshot_library_never_touches_foreign_files() {
+    let dossier = std::env::temp_dir().join(format!("pinkha_snaps_{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dossier).unwrap();
+    let etranger = dossier.join("notes-perso.txt");
+    std::fs::write(&etranger, b"ne m'efface pas").unwrap();
+
+    let api = api();
+    api.snapshot_library(dossier.to_string_lossy().into_owned(), 1)
+        .expect("instantané");
+    api.snapshot_library(dossier.to_string_lossy().into_owned(), 1)
+        .expect("second instantané");
+
+    assert!(
+        etranger.exists(),
+        "la purge ne doit jamais toucher un fichier qui n'est pas à nous"
+    );
+    let _ = std::fs::remove_dir_all(&dossier);
+}
+
+#[test]
+fn snapshot_library_refuses_to_keep_nothing() {
+    let api = api();
+    let dossier = std::env::temp_dir().join(format!("pinkha_snaps_{}", uuid::Uuid::new_v4()));
+    assert!(
+        api.snapshot_library(dossier.to_string_lossy().into_owned(), 0)
+            .is_err(),
+        "garder zéro instantané n'est pas une sauvegarde"
+    );
+}
