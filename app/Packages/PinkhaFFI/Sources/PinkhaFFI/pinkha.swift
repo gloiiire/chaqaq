@@ -497,6 +497,22 @@ fileprivate struct FfiConverterInt32: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
+    typealias FfiType = UInt64
+    typealias SwiftType = UInt64
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt64 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterBool : FfiConverter {
     typealias FfiType = Int8
     typealias SwiftType = Bool
@@ -703,6 +719,16 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func emptyTrash() throws  -> UInt32
     
     /**
+     * Writes a self-contained copy of the whole library to `dest_path`
+     * and returns its size in bytes.
+     *
+     * Made from the live connection via `VACUUM INTO`, so the write-ahead
+     * log is folded in. A Swift-side copy of `pinkha.db` would ship a
+     * database missing its most recent writes.
+     */
+    func exportLibrary(destPath: String) throws  -> UInt64
+    
+    /**
      * Returns the full book serialized as JSON (with entries and views).
      */
     func getBookJson(id: String) throws  -> String
@@ -857,6 +883,11 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func listRootLeaves() throws  -> [LeafMetaFfi]
     
     func listShelves() throws  -> [ShelfMetaFfi]
+    
+    /**
+     * Instantanés présents dans `dir`, du plus récent au plus ancien.
+     */
+    func listSnapshots(dir: String) throws  -> [String]
     
     /**
      * Moves a block under a parent, or to the root when `new_parent_id` is null.
@@ -1047,6 +1078,16 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * `property_id = null` clears the sort.
      */
     func setViewSort(bookId: String, viewId: String, propertyId: String?, ascending: Bool) throws 
+    
+    /**
+     * Écrit un instantané horodaté dans `dir` et n'y garde que les `keep`
+     * plus récents. Renvoie le chemin écrit.
+     *
+     * Conçu pour tourner sans intervention : la perte du 2026-09-02 est
+     * survenue pendant la nuit, une protection volontaire n'aurait rien
+     * changé.
+     */
+    func snapshotLibrary(dir: String, keep: UInt32) throws  -> String
     
     /**
      * Runs every search axis in one call (titles, block content with
@@ -1585,6 +1626,24 @@ open func emptyTrash()throws  -> UInt32  {
 }
     
     /**
+     * Writes a self-contained copy of the whole library to `dest_path`
+     * and returns its size in bytes.
+     *
+     * Made from the live connection via `VACUUM INTO`, so the write-ahead
+     * log is folded in. A Swift-side copy of `pinkha.db` would ship a
+     * database missing its most recent writes.
+     */
+open func exportLibrary(destPath: String)throws  -> UInt64  {
+    return try  FfiConverterUInt64.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_export_library(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(destPath),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Returns the full book serialized as JSON (with entries and views).
      */
 open func getBookJson(id: String)throws  -> String  {
@@ -1984,6 +2043,19 @@ open func listShelves()throws  -> [ShelfMetaFfi]  {
         uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_list_shelves(
             self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Instantanés présents dans `dir`, du plus récent au plus ancien.
+     */
+open func listSnapshots(dir: String)throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_list_snapshots(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dir),uniffiCallStatus
     )
 })
 }
@@ -2483,6 +2555,25 @@ open func setViewSort(bookId: String, viewId: String, propertyId: String?, ascen
         FfiConverterBool.lower(ascending),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Écrit un instantané horodaté dans `dir` et n'y garde que les `keep`
+     * plus récents. Renvoie le chemin écrit.
+     *
+     * Conçu pour tourner sans intervention : la perte du 2026-09-02 est
+     * survenue pendant la nuit, une protection volontaire n'aurait rien
+     * changé.
+     */
+open func snapshotLibrary(dir: String, keep: UInt32)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_snapshot_library(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dir),
+        FfiConverterUInt32.lower(keep),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -4011,6 +4102,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_empty_trash() != 53275) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_export_library() != 4934) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_get_book_json() != 33136) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -4093,6 +4187,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_shelves() != 2198) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_snapshots() != 45455) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_move_block() != 4264) {
@@ -4204,6 +4301,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_sort() != 4099) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_snapshot_library() != 58844) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_super_search() != 47711) {

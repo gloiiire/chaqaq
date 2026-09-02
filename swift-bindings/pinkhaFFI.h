@@ -398,6 +398,11 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_duplicate_block(uint64_t ptr, RustB
 uint32_t uniffi_pinkha_fn_method_pinkhaapi_empty_trash(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_EXPORT_LIBRARY
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_EXPORT_LIBRARY
+uint64_t uniffi_pinkha_fn_method_pinkhaapi_export_library(uint64_t ptr, RustBuffer dest_path, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_GET_BOOK_JSON
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_GET_BOOK_JSON
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_get_book_json(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
@@ -536,6 +541,11 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_root_leaves(uint64_t ptr, Rust
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_SHELVES
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_SHELVES
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_shelves(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_SNAPSHOTS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_SNAPSHOTS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_snapshots(uint64_t ptr, RustBuffer dir, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_MOVE_BLOCK
@@ -721,6 +731,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_set_view_date_sort(uint64_t ptr, RustBuff
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_VIEW_SORT
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SET_VIEW_SORT
 void uniffi_pinkha_fn_method_pinkhaapi_set_view_sort(uint64_t ptr, RustBuffer book_id, RustBuffer view_id, RustBuffer property_id, int8_t ascending, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SNAPSHOT_LIBRARY
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SNAPSHOT_LIBRARY
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_snapshot_library(uint64_t ptr, RustBuffer dir, uint32_t keep, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SUPER_SEARCH
@@ -1256,6 +1271,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_empty_trash(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_EXPORT_LIBRARY
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_EXPORT_LIBRARY
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_export_library(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_GET_BOOK_JSON
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_GET_BOOK_JSON
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_get_book_json(void
@@ -1421,6 +1442,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_root_leaves(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_SHELVES
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_SHELVES
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_shelves(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_SNAPSHOTS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_SNAPSHOTS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_snapshots(void
     
 );
 #endif
@@ -1643,6 +1670,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_view_date_sort(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_VIEW_SORT
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SET_VIEW_SORT
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_view_sort(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SNAPSHOT_LIBRARY
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SNAPSHOT_LIBRARY
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_snapshot_library(void
     
 );
 #endif
