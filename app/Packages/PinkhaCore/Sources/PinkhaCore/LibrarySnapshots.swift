@@ -31,6 +31,17 @@ public enum LibrarySnapshots {
     /// possible à une demi-journée d'écriture.
     public static let interval: TimeInterval = 6 * 3600
 
+    /// Intervalle appliqué quand le dernier instantané est resté en LOCAL
+    /// alors qu'iCloud était visé.
+    ///
+    /// `url(forUbiquityContainerIdentifier:)` rend `nil` tant qu'iOS n'a pas
+    /// fini de mettre le conteneur à disposition — ce qui est justement le
+    /// cas au premier lancement après une installation. Sans ce
+    /// raccourcissement, cet échec passager enfermerait l'utilisateur en
+    /// sauvegarde locale pendant six heures, alors que le conteneur devient
+    /// disponible quelques secondes plus tard. Constaté sur appareil.
+    public static let retryInterval: TimeInterval = 15 * 60
+
     private static let derniereCleUserDefaults = "pinkha.snapshot.lastRun"
     private static let derniereDestinationCleUserDefaults = "pinkha.snapshot.lastWentToCloud"
 
@@ -98,14 +109,20 @@ public enum LibrarySnapshots {
 
     /// Décide s'il est temps d'écrire, à partir de la date du dernier
     /// instantané. Fonction pure — c'est elle qui est testée, pas l'horloge.
-    public static func shouldRun(last: Date?, now: Date, interval: TimeInterval = interval) -> Bool {
+    public static func shouldRun(last: Date?,
+                                 now: Date,
+                                 wentToCloud: Bool = true,
+                                 interval: TimeInterval = interval) -> Bool {
         guard let last else { return true }   // jamais sauvegardé : maintenant.
+        // Resté en local alors qu'on visait iCloud : on repasse bien plus
+        // tôt, pour rattraper dès que le conteneur devient disponible.
+        let attente = wentToCloud ? interval : min(interval, retryInterval)
         // Une date future signale une horloge qui a reculé (changement de
         // fuseau, correction réseau). Refuser d'agir laisserait alors
         // l'utilisateur sans sauvegarde jusqu'à ce que le temps rattrape :
         // on préfère un instantané de trop.
         if last > now { return true }
-        return now.timeIntervalSince(last) >= interval
+        return now.timeIntervalSince(last) >= attente
     }
 
     /// Écrit un instantané si l'intervalle est écoulé. Ne lève jamais :
@@ -116,7 +133,8 @@ public enum LibrarySnapshots {
     public static func runIfDue(api: PinkhaApi, now: Date = Date()) -> Bool {
         let defaults = UserDefaults.standard
         let derniere = defaults.object(forKey: derniereCleUserDefaults) as? Date
-        guard shouldRun(last: derniere, now: now) else { return false }
+        guard shouldRun(last: derniere, now: now, wentToCloud: lastRunWentToCloud)
+        else { return false }
 
         let (dir, dansICloud) = destination()
         do {
@@ -128,6 +146,15 @@ public enum LibrarySnapshots {
             Observability.capture(error)
             return false
         }
+    }
+
+    /// Demande à iOS de préparer le conteneur iCloud, sans rien en faire.
+    ///
+    /// À appeler tôt, hors du fil principal. Le premier accès au conteneur
+    /// est ce qui déclenche sa mise à disposition ; s'en remettre au premier
+    /// instantané, c'est garantir que celui-là tombera en local.
+    public static func warmUpCloudContainer() {
+        _ = FileManager.default.url(forUbiquityContainerIdentifier: nil)
     }
 
     /// Date du dernier instantané réussi, pour l'afficher dans les réglages.

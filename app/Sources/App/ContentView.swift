@@ -127,6 +127,15 @@ struct ContentView: View {
             //
             // Détaché du fil principal : l'écriture est bloquante et n'a
             // aucune raison de retarder la mise en veille de l'interface.
+            // Préparer le conteneur iCloud dès le démarrage, hors du fil
+            // principal. Le premier accès au conteneur est ce qui déclenche
+            // sa mise à disposition par iOS ; attendre le premier instantané
+            // pour le faire, c'est garantir que celui-là partira en local.
+            .task {
+                await Task.detached(priority: .utility) {
+                    LibrarySnapshots.warmUpCloudContainer()
+                }.value
+            }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .background, let api = store.api else { return }
                 Task.detached(priority: .utility) {

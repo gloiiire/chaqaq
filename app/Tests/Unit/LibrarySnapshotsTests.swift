@@ -49,3 +49,45 @@ struct LibrarySnapshotsTests {
         #expect(LibrarySnapshots.interval == 6 * 3600)
     }
 }
+
+// ── Rattrapage quand iCloud n'était pas prêt ──────────────────────────────
+
+@Suite("Sauvegarde automatique — rattrapage iCloud")
+struct LibrarySnapshotsRetryTests {
+
+    private let maintenant = Date(timeIntervalSince1970: 1_756_800_000)
+
+    /// Le cas constaté sur appareil : le tout premier instantané après une
+    /// installation part en local parce qu'iOS n'a pas fini de mettre le
+    /// conteneur iCloud à disposition. Sans rattrapage, l'utilisateur reste
+    /// en sauvegarde locale six heures durant, alors que le conteneur
+    /// devient disponible quelques secondes plus tard.
+    @Test func retriesSoonAfterFallingBackToLocal() {
+        let ilYAVingtMinutes = maintenant.addingTimeInterval(-20 * 60)
+        #expect(LibrarySnapshots.shouldRun(last: ilYAVingtMinutes,
+                                           now: maintenant,
+                                           wentToCloud: false))
+    }
+
+    /// Mais pas au point de sauvegarder en boucle : sous le délai de
+    /// rattrapage, on attend quand même.
+    @Test func doesNotRetryImmediately() {
+        let ilYACinqMinutes = maintenant.addingTimeInterval(-5 * 60)
+        #expect(!LibrarySnapshots.shouldRun(last: ilYACinqMinutes,
+                                            now: maintenant,
+                                            wentToCloud: false))
+    }
+
+    /// Quand la sauvegarde est bien partie dans iCloud, on garde la cadence
+    /// normale — pas de réveil inutile toutes les quinze minutes.
+    @Test func keepsTheNormalCadenceOnceInTheCloud() {
+        let ilYAVingtMinutes = maintenant.addingTimeInterval(-20 * 60)
+        #expect(!LibrarySnapshots.shouldRun(last: ilYAVingtMinutes,
+                                            now: maintenant,
+                                            wentToCloud: true))
+    }
+
+    @Test func retryIsShorterThanTheNormalInterval() {
+        #expect(LibrarySnapshots.retryInterval < LibrarySnapshots.interval)
+    }
+}
