@@ -37,6 +37,8 @@ struct ContentView: View {
     /// pixel past the line.
     @State private var swipeUpHapticFired = false
 
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some View {
         ZStack(alignment: .topTrailing) {
             tabsChrome
@@ -115,6 +117,22 @@ struct ContentView: View {
             // sit on. Page and rows move together, so their
             // separation survives. Cf. ElevatedInterfaceLevel.
             .pinkhaElevatedSurfaces()
+            // Sauvegarde automatique au passage en arrière-plan.
+            //
+            // Ce moment est le bon pour trois raisons : l'utilisateur ne
+            // regarde plus l'écran, aucune frappe n'est en cours (donc la
+            // base est cohérente), et iOS accorde encore un court sursis
+            // d'exécution. `runIfDue` ne fait rien si l'intervalle n'est pas
+            // écoulé, donc l'appel est bon marché à chaque bascule.
+            //
+            // Détaché du fil principal : l'écriture est bloquante et n'a
+            // aucune raison de retarder la mise en veille de l'interface.
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .background, let api = store.api else { return }
+                Task.detached(priority: .utility) {
+                    LibrarySnapshots.runIfDue(api: api)
+                }
+            }
             // When a leaf is open with a Books-style theme override
             // (e.g. dark "Tranquille" while the app is in light mode),
             // mirror its effective `ColorScheme` onto the entire

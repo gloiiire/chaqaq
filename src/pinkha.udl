@@ -321,6 +321,28 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     u32 empty_trash();
 
+    /// Writes a self-contained copy of the whole library to `dest_path`
+    /// and returns its size in bytes.
+    ///
+    /// Made from the live connection via `VACUUM INTO`, so the write-ahead
+    /// log is folded in. A Swift-side copy of `pinkha.db` would ship a
+    /// database missing its most recent writes.
+    [Throws=PinkhaError]
+    u64 export_library(string dest_path);
+
+    /// Écrit un instantané horodaté dans `dir` et n'y garde que les `keep`
+    /// plus récents. Renvoie le chemin écrit.
+    ///
+    /// Conçu pour tourner sans intervention : la perte du 2026-09-02 est
+    /// survenue pendant la nuit, une protection volontaire n'aurait rien
+    /// changé.
+    [Throws=PinkhaError]
+    string snapshot_library(string dir, u32 keep);
+
+    /// Instantanés présents dans `dir`, du plus récent au plus ancien.
+    [Throws=PinkhaError]
+    sequence<string> list_snapshots(string dir);
+
     /// Soft-deletes a mixed selection of leaves, books and shelves in one
     /// call, instead of one FFI crossing + one library reload per item.
     [Throws=PinkhaError]

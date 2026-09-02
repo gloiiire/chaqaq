@@ -520,6 +520,103 @@ Deux pièges rencontrés en instrumentant : `NSLog` tronque les messages longs
 l'objet observé mélange les instances — toutes les vues de texte partagent le
 même délégué.
 
+### Sauvegarde : l'instantané se fait en Rust, jamais par copie de fichier
+
+`PinkhaApi::export_library(dest_path)` fait un `VACUUM INTO` depuis la
+connexion vivante et renvoie la taille écrite. Swift ne copie **jamais**
+`pinkha.db` lui-même.
+
+La raison est mesurable : en mode WAL, la fin des écritures validées vit
+encore dans `pinkha.db-wal` tant qu'aucun point de contrôle n'a eu lieu. Une
+copie du seul fichier principal expédie donc une base amputée de ses écritures
+les plus récentes — précisément celles auxquelles l'utilisateur tient le plus.
+`VACUUM INTO` replie le journal dans un fichier unique et défragmenté, sans
+annexes à transporter.
+
+`LibraryExport.makeArchive` (PinkhaCore) assemble l'instantané, le dossier
+`Covers/` et un `LISEZ-MOI.txt`, puis compresse via
+`NSFileCoordinator(readingItemAt:options:[.forUploading])` — le mécanisme
+système, sans dépendance tierce. L'option conserve le **dossier racine** dans
+l'archive, d'où son nom lisible par un humain.
+
+La feuille de partage passe par `UIActivityViewController` et non par
+`fileExporter` : ce dernier exige un `FileDocument`, donc un `Data` en
+mémoire, et une bibliothèque avec ses couvertures pèse plusieurs dizaines de
+mégaoctets.
+
+> ⚠️ `SettingsView` reçoit le store par injection explicite
+> (`SettingsView().environment(store)`). Une feuille iOS 26 ne propage pas de
+> façon fiable l'environnement de la vue qui la présente ; sans cette ligne le
+> bouton d'export reste grisé, silencieusement.
+
+**Pourquoi cette fonctionnalité existe.** Le 2026-09-02, la base d'un appareil
+réel s'est retrouvée vide du jour au lendemain : fichier de 4 Ko, zéro ligne,
+schéma intact. Les couvertures avaient survécu au même endroit, et aucun code
+de l'app ne peut supprimer ce fichier (`auto_vacuum` est à 0, donc une
+suppression de lignes ne réduit pas le fichier ; et `delete_all_leaves` fait
+une suppression *douce*). Cause non élucidée, appareil sous iOS bêta. Sept
+années d'écrits n'ont tenu qu'à une copie oubliée sur un simulateur, restaurée
+à la main via `devicectl device copy to`. Les fichiers d'origine du téléphone
+sont conservés hors dépôt dans un dossier `pinkha-rescue-*`.
+
+### Instantanés automatiques : à CÔTÉ de la base, jamais dedans
+
+`snapshot_library(dir, keep)` écrit `pinkha-YYYYMMDD-HHMMSS.db` dans `dir` et
+n'y garde que les `keep` plus récents. L'horodatage UTC en tête du nom rend
+l'ordre alphabétique équivalent à l'ordre chronologique — la purge n'interroge
+donc jamais le système de fichiers pour savoir qui est vieux. Elle ne touche
+que les fichiers portant le préfixe `pinkha-` et l'extension `.db` : un dossier
+partagé ne doit jamais voir disparaître ce qui ne nous appartient pas.
+
+Côté Swift, `LibrarySnapshots.runIfDue` est appelé au passage en arrière-plan
+(`scenePhase == .background` dans `ContentView`). Ce moment est le bon : plus
+personne ne regarde l'écran, aucune frappe n'est en cours donc la base est
+cohérente, et iOS accorde encore un court sursis. Cadence : 6 h, 7 copies —
+soit une semaine de dégâts silencieux avant que la dernière copie saine ne
+soit écrasée.
+
+Le dossier est `Application Support/Pinkha/Snapshots/`, **frère** de
+`pinkha.db` et non enfant. Lors de la perte du 2026-09-02, `pinkha.db` a
+disparu tandis que le dossier frère `Covers/` est resté intact. Ce n'est pas
+une preuve, mais c'est la seule observation disponible et elle ne coûte rien
+à suivre.
+
+`LibrarySnapshots` n'est délibérément **pas** `@MainActor` : l'écriture est
+bloquante et doit rester hors du fil principal.
+
+> ⚠️ Présenter une feuille depuis `onAppear` rouvre la récursion de mise à
+> jour documentée dans `LeafView`. L'ouverture automatique des réglages sous
+> test (`--ui-test-settings`) passe par `.task`, qui s'exécute sur un tour de
+> boucle neuf. Avec `onAppear`, l'app rendait un écran noir et XCUITest
+> n'obtenait jamais l'arbre d'accessibilité (`kAXErrorServerNotFound`).
+
+### ⚠️ Les tests XCUITest ne passent plus — l'app ne se déclare jamais au repos
+
+Constaté le 2026-09-02 : XCUITest n'obtient plus l'arbre d'accessibilité de
+l'app. Les requêtes échouent en `Timed out while evaluating UI query` ou
+`Error getting main window kAXErrorServerNotFound`, précédées de :
+
+```
+t = 64.29s   App event loop idle notification not received, will attempt to continue.
+```
+
+Touche des tests **préexistants** — `testAppLaunchesAndShowsGreeting`,
+`testFloatingButtonOpensCreateSheet`, `testCancelCreateSheetClosesIt` —
+donc indépendant de toute fonctionnalité récente. Vérifié par bisection :
+l'échec est identique avec et sans les changements en cours.
+
+L'app se lance et s'utilise normalement à la main ; seul XCUITest est
+aveugle. La cause est donc une animation ou une boucle de mise à jour qui
+ne s'arrête jamais sur l'écran d'accueil — famille déjà nommée plus haut
+(écriture non gardée dans un rappel de mise en page). À traiter par
+instrumentation, pas par hypothèses : `sample <pid>` pendant que le test
+attend donnera l'épine en une lecture.
+
+**Conséquence pratique** : le troisième niveau de la pyramide de tests est
+hors service. Les fonctionnalités livrées entre-temps le sont avec une
+couverture unitaire et d'intégration seulement, et le test UI correspondant
+est à écrire une fois ce défaut corrigé.
+
 ## Roadmap
 
 Ce qui est **fait** — backend Rust + UI SwiftUI :
@@ -591,7 +688,8 @@ Ce qui **reste** à construire :
 3. **Sync entre appareils** (CRDT — s'inspirer de y-octo) — `updated_at` et soft delete déjà en place
 4. **Réactiver Swift CI** quand Xcode 26 sera dispo sur les runners GitHub Actions
 5. **Import fidelity** — cover/icon Notion, image/file blocks, mapping views/filters Notion. Audit complet dans `utilities/docs/IMPORT-AUDIT.md`.
-6. **Localizable.xcstrings polish complet** — pass critique fait (labels les plus visibles + verbes Bind/Unbind/Shelve/Discard), reste 3631 lignes à reviewer une par une pour la cohérence et le ton.
+6. **Sauvegarde iCloud Drive puis synchro CloudKit** — l'export manuel et les instantanés locaux automatiques sont en place. Reste à porter la destination des instantanés vers iCloud Drive (exige un conteneur iCloud, donc une modification des droits de signature), puis la synchro CloudKit entre appareils.
+7. **Localizable.xcstrings polish complet** — pass critique fait (labels les plus visibles + verbes Bind/Unbind/Shelve/Discard), reste 3631 lignes à reviewer une par une pour la cohérence et le ton.
 
 ### Cross-domain orchestration (`application/use_cases/book_leaf_sync.rs`)
 Quand une opération doit toucher plusieurs domaines (Leaf + Book), le module `book_leaf_sync` est le bon endroit — il dépend de `&dyn LeafRepository` ET `&dyn BookRepository` sans coupler les domaines entre eux. Exemple en place : `update_entry_propagating_title(docs, dbs, book_id, entry_id, values)` qui renomme un leaf quand on rename une row de DB (`Entry.leaf_id` est le lien).

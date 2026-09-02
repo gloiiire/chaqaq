@@ -122,6 +122,8 @@ app/                 — SwiftUI application
 - **Notion-like Book**: properties (Title, Text, Number, Selection, Date, Checkbox, URL, Relation, Rollup), views (Table, Kanban, Calendar, Gallery), filters, sorts, groups, rollups computed at read time
 - **Search**: title, full-text in blocks (recursive), text values of book entries
 - **Local-first SQLite storage**: leaf-as-JSON + indexed columns for listing, soft delete, `updated_at`, versioned migrations, WAL for concurrency, exponential backoff retry on transient errors
+- **Automatic snapshots**: `snapshot_library(dir, keep)` writes a timestamped copy and prunes all but the newest `keep`. Runs unattended when the app backgrounds — the real data loss that motivated this happened overnight, so a protection requiring deliberate action would have changed nothing
+- **Library export**: `export_library(dest_path)` writes a consistent standalone copy via SQLite's `VACUUM INTO`, folding the write-ahead log in. Copying `pinkha.db` from Swift would ship a database missing its most recent writes
 - **Typed errors** (`PinkhaError`): `NotFound`, `InvalidOperation`, `Io`, `Json`, `Db` — never `unwrap()` in production
 - **Import pipelines** (`src/extractors/`):
   - **Notion** — `reqwest` + `rustls-tls`, API v1 paginée (schema → properties → pages → blocks récursifs), mapping complet types/valeurs/blocs, `[Async]` UniFFI
@@ -129,6 +131,7 @@ app/                 — SwiftUI application
 
 ### SwiftUI UI (iOS 26)
 
+- **Backup**: rolling on-device snapshots every 6 hours (last 7 kept), plus Settings → *Export library* which produces a single `.zip` holding the database, the cover images and a plain-text README. The database inside is standard SQLite — readable in ten years without Pinkha
 - **Home screen**: list, FAB, dynamic greeting, relative date
 - **Import**: FAB menu → "Import from Notion" (integration token + DB URL/ID) + "Import from Bear" (file picker) — both delegate to the Rust extractor
 - **Editor**: Text / Heading×3 / Quote / Callout / Todo / Divider / BulletedListItem / NumberedListItem / Code blocks

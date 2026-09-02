@@ -32,6 +32,33 @@ impl SqliteLeafStore {
     }
 
     /// Creates an in-memory store — useful for unit tests.
+    /// Writes a consistent, self-contained copy of the whole database to
+    /// `dest_path`, returning its size in bytes.
+    ///
+    /// Uses SQLite's `VACUUM INTO`: it produces a single defragmented file
+    /// with the write-ahead log already folded in. Copying `pinkha.db` by
+    /// hand has a failure mode this avoids — in WAL mode the committed tail
+    /// of the database can still sit in `pinkha.db-wal`, so a copy of the
+    /// main file alone silently loses the most recent writes. Exactly the
+    /// bytes a user would care most about.
+    ///
+    /// The statement refuses to write over an existing file, so a stale one
+    /// is cleared first: an export is a fresh artefact, never a merge.
+    ///
+    /// The three stores share one database file, so a single snapshot
+    /// covers leaves, books and shelves alike.
+    pub fn snapshot_to(&self, dest_path: &str) -> Result<u64, PinkhaError> {
+        if std::path::Path::new(dest_path).exists() {
+            std::fs::remove_file(dest_path)?;
+        }
+        {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            conn.execute("VACUUM INTO ?1", params![dest_path])
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+        }
+        Ok(std::fs::metadata(dest_path)?.len())
+    }
+
     pub fn in_memory() -> Result<Self, PinkhaError> {
         Self::new(":memory:")
     }
@@ -499,6 +526,76 @@ mod tests {
 
     fn store() -> SqliteLeafStore {
         SqliteLeafStore::in_memory().unwrap()
+    }
+
+    fn temp_path(name: &str) -> String {
+        std::env::temp_dir()
+            .join(format!("pinkha_snap_{}_{}.db", name, uuid::Uuid::new_v4()))
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    /// The whole point of an export: the copy must be readable on its own
+    /// and carry the same leaves.
+    #[test]
+    fn snapshot_is_a_standalone_readable_copy() {
+        let store = store();
+        store.save(&doc("Première")).unwrap();
+        store.save(&doc("Deuxième")).unwrap();
+
+        let dest = temp_path("standalone");
+        let size = store.snapshot_to(&dest).unwrap();
+        assert!(size > 0, "un instantané vide n'est pas un instantané");
+
+        let reopened = SqliteLeafStore::new(&dest).unwrap();
+        let titles: Vec<String> = reopened
+            .list()
+            .unwrap()
+            .into_iter()
+            .map(|m| {
+                m.title
+                    .iter()
+                    .map(|t| t.content.clone())
+                    .collect::<String>()
+            })
+            .collect();
+        assert_eq!(titles.len(), 2);
+        assert!(titles.iter().any(|t| t == "Première"));
+        assert!(titles.iter().any(|t| t == "Deuxième"));
+
+        let _ = std::fs::remove_file(&dest);
+    }
+
+    /// `VACUUM INTO` refuses to write over an existing file. Exporting twice
+    /// to the same place is the normal case — the user picks the same folder
+    /// again — so a stale file must be cleared rather than surfaced as an
+    /// error.
+    #[test]
+    fn snapshot_overwrites_a_stale_file() {
+        let store = store();
+        store.save(&doc("Une")).unwrap();
+        let dest = temp_path("overwrite");
+        std::fs::write(&dest, b"vieux contenu qui n'est pas une base").unwrap();
+
+        store.snapshot_to(&dest).expect("doit écraser, pas échouer");
+        let reopened = SqliteLeafStore::new(&dest).unwrap();
+        assert_eq!(reopened.list().unwrap().len(), 1);
+
+        let _ = std::fs::remove_file(&dest);
+    }
+
+    /// Une bibliothèque vide s'exporte aussi : c'est un cas légitime, et
+    /// échouer laisserait l'utilisateur sans retour compréhensible.
+    #[test]
+    fn snapshot_of_an_empty_library_succeeds() {
+        let dest = temp_path("empty");
+        let size = store().snapshot_to(&dest).unwrap();
+        assert!(size > 0);
+        assert_eq!(
+            SqliteLeafStore::new(&dest).unwrap().list().unwrap().len(),
+            0
+        );
+        let _ = std::fs::remove_file(&dest);
     }
 
     fn doc(title: &str) -> Leaf {

@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaFFI
 
 /// App-level preferences sheet. Reached from the Library home view's
 /// 3-dot overflow menu. Sections grow as more settings get added — for
@@ -7,8 +8,110 @@ public struct SettingsView: View {
     @Environment(AppSettings.self) var settings
     @Environment(\.dismiss) private var dismiss
     @State private var showingResetConfirm = false
+    /// Le store n'est pas garanti présent : une feuille iOS 26 ne propage
+    /// pas toujours l'environnement de la vue qui la présente. Optionnel
+    /// plutôt que crash — la section d'export se tait alors.
+    @Environment(PinkhaStore.self) private var store: PinkhaStore?
+    @State private var exportEnCours = false
+    @State private var archive: ArchivePrete?
+
+    /// `URL` n'est pas `Identifiable`, et l'étendre depuis un paquet
+    /// partagé imposerait ce choix à tout le projet. Une enveloppe locale
+    /// coûte trois lignes et n'engage personne.
+    private struct ArchivePrete: Identifiable {
+        let id = UUID()
+        let url: URL
+    }
+    @State private var erreurExport: String?
 
     public init() {}
+
+    // ── Sauvegarde ────────────────────────────────────────────────────────
+
+    /// Export manuel de toute la bibliothèque vers un fichier unique.
+    ///
+    /// Placé en tête des réglages, avant l'apparence : c'est le réglage dont
+    /// la valeur ne se voit qu'un seul jour, celui où l'on en a besoin.
+    @ViewBuilder
+    private var sauvegardeSection: some View {
+        Section {
+            Button {
+                exporter()
+            } label: {
+                HStack {
+                    Label("Export library", systemImage: "arrow.down.document")
+                    Spacer()
+                    if exportEnCours { ProgressView() }
+                }
+            }
+            .disabled(exportEnCours || store?.api == nil)
+
+            // Une protection automatique dont l'utilisateur ne voit aucune
+            // trace inquiète plus qu'elle ne rassure. Cette ligne est le
+            // seul retour qu'il en aura — et le jour où elle affiche une
+            // date ancienne, elle devient un avertissement.
+            LabeledContent("Last automatic backup") {
+                Text(derniereSauvegardeLisible)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Backup")
+        } footer: {
+            Text("Writes your whole library — leaves, books, shelves and cover images — to a single file you can keep anywhere. The database inside is standard SQLite, readable without Pinkha.\n\nPinkha also keeps its own rolling snapshots on this device, taken automatically in the background.")
+        }
+        .sheet(item: $archive) { pret in
+            ShareSheet(fichiers: [pret.url]) {
+                // L'archive vit dans un dossier temporaire : une fois
+                // partagée (ou annulée), on ne la laisse pas occuper le
+                // disque de l'utilisateur.
+                try? FileManager.default.removeItem(at: pret.url.deletingLastPathComponent())
+                archive = nil
+            }
+        }
+        .alert("Export failed", isPresented: Binding(
+            get: { erreurExport != nil },
+            set: { if !$0 { erreurExport = nil } }
+        )) {
+            Button("OK") { erreurExport = nil }
+        } message: { Text(erreurExport ?? "") }
+    }
+
+    /// Date lisible du dernier instantané automatique, ou une mention
+    /// explicite quand il n'y en a pas encore — « jamais » est une
+    /// information, un tiret n'en est pas une.
+    private var derniereSauvegardeLisible: String {
+        guard let date = LibrarySnapshots.lastRun else { return "Never" }
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .full
+        return f.localizedString(for: date, relativeTo: Date())
+    }
+
+    /// Assemble l'archive hors du fil principal — un `VACUUM INTO` sur une
+    /// grosse bibliothèque plus la copie des couvertures se comptent en
+    /// secondes, et l'interface doit rester vivante pendant ce temps.
+    private func exporter() {
+        guard let api = store?.api, !exportEnCours else { return }
+        exportEnCours = true
+        Haptic.tap()
+        Task {
+            do {
+                let url = try await Task.detached(priority: .userInitiated) {
+                    try LibraryExport.makeArchive(api: api)
+                }.value
+                await MainActor.run {
+                    exportEnCours = false
+                    archive = ArchivePrete(url: url)
+                    Haptic.success()
+                }
+            } catch {
+                await MainActor.run {
+                    exportEnCours = false
+                    erreurExport = (error as? PinkhaError)?.userMessage ?? error.localizedDescription
+                    Haptic.warning()
+                }
+            }
+        }
+    }
 
     public var body: some View {
         NavigationStack {
@@ -40,6 +143,8 @@ public struct SettingsView: View {
         // pattern when an Observable env value needs `$foo` bindings.
         @Bindable var settings = settings
         return Form {
+                sauvegardeSection
+
                 Section {
                     Picker(selection: $settings.appearance) {
                         ForEach(AppSettings.AppearanceMode.allCases) { mode in
