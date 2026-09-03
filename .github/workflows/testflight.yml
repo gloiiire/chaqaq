@@ -80,10 +80,53 @@ jobs:
       # 2. Pin the Xcode version. The macos-14 runner has several
       #    Xcodes installed ; this picks the one matching our minimum
       #    iOS SDK. Drop `xcode-version` to use whatever's default.
-      - name: Select Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
+      # Pas d'action de selection d'Xcode : le runner auto-hebergé n'en porte
+      # qu'un, et `maxim-lobanov/setup-xcode@v1` avec `latest-stable` a fait
+      # echouer la premiere livraison automatique — la machine suit les betas
+      # d'Apple, donc son Xcode 27 est marque `stable: false` et le selecteur
+      # ne trouvait rien. Le job Swift de `ci.yml` tourne sur la meme machine
+      # sans selecteur ; on s'aligne.
+      #
+      # En contrepartie on VERIFIE, et on refuse de livrer si la version n'est
+      # pas celle attendue. Un binaire televerse chez Apple doit avoir ete
+      # construit avec un Xcode connu : sur une machine qui suit les betas,
+      # « ce qui est la » change sans prevenir, y compris entre deux jobs de
+      # la meme journee.
+      - name: Xcode utilisable pour un televersement
+        run: |
+          # Apple REFUSE tout televersement d'un binaire construit avec un
+          # Xcode de pre-version — TestFlight compris, y compris pour un
+          # groupe interne. Mesure de la session ONTBibleApp le 2026-08-31 :
+          #
+          #   error: exportArchive This bundle is invalid. Apple is not
+          #   currently accepting applications built with this version of Xcode.
+          #
+          # Le refus tombe APRES l'archive et l'export, donc apres plusieurs
+          # minutes de compilation. Echouer ici coute quelques secondes et ne
+          # consomme aucune place de televersement.
+          #
+          # Le critere porte sur le FAIT, pas sur le numero : epingler « 27.x »
+          # ne protege de rien, puisque la 27.0 publiee portera le meme numero
+          # que la graine d'aujourd'hui. Le suffixe en lettre minuscule du
+          # numero de build (27A5218g) marque une pre-version ; une version
+          # publiee n'en a pas. Critere grossier, assume comme tel.
+          #
+          # Pas de `| head` sur `xcodebuild` : la session ONTBibleApp a vu son
+          # `xcodebuild` 27 avorter sur SIGPIPE (code 134). Non reproduit ici,
+          # mais capturer la sortie entiere puis decouper ne coute rien.
+          sortie="$(xcodebuild -version)"
+          version="$(echo "$sortie" | sed -n '1s/Xcode //p')"
+          build="$(echo "$sortie" | sed -n '2s/Build version //p')"
+          echo "Xcode $version (build $build)"
+          case "$build" in
+            *[a-z])
+              echo "::error::Xcode $version build $build est une pre-version."
+              echo "Apple refuse les televersements construits avec une graine,"
+              echo "TestFlight compris. Installer un Xcode publie avant de livrer."
+              exit 1 ;;
+            *)
+              echo "✓ version publiee — televersement possible" ;;
+          esac
 
       # 3. Ruby + Bundler. `bundler-cache: true` caches the gems
       #    install between runs so we don't re-download fastlane each
