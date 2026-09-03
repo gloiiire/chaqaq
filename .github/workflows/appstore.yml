@@ -11,16 +11,34 @@ name: App Store
 # don't have Xcode 26 yet. Until they do, App Store builds are
 # produced locally via `bundle exec fastlane ios release` from the
 # app-store branch. Flip back to `push: [app-store]` once Xcode 26 lands.
+# **Ce qui ne peut pas changer le binaire ne déclenche pas de téléversement.**
+# Voir l'explication détaillée dans `testflight.yml` : les places de
+# téléversement Apple sont comptées par jour, et un correctif de CI promu
+# jusqu'ici en consommerait une.
+#
+# Le build monte comme CANDIDAT — `submit_for_review: false`. La soumission à
+# la revue reste un geste humain dans App Store Connect, et doit le rester :
+# elle engage une version publique.
 on:
+  push:
+    branches: [app-store]
+    paths-ignore:
+      - ".github/workflows/**"
+      - "**/*.md"
+      - "utilities/docs/**"
+      # Outillage interne : ne produit pas une ligne du binaire.
+      - "crates/pinkha-mcp/**"
   workflow_dispatch:
 
 concurrency:
-  group: appstore
-  cancel-in-progress: true
+  group: apple-delivery
+  cancel-in-progress: false
 
 jobs:
   appstore:
-    runs-on: macos-14
+    # Runner auto-hébergé : seule machine avec Xcode 27, donc seule capable
+    # d'archiver une cible iOS 26.
+    runs-on: [self-hosted, macOS, ARM64, xcode27]
     timeout-minutes: 30
 
     steps:
