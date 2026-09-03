@@ -86,7 +86,7 @@ Légende :
 | FAB menu "Import from Notion" | 🟢 | |
 | FAB menu "Import from Bear" | 🟢 | |
 | FAB menu "Import from Craft" | 🟢 | |
-| OAuth Notion end-to-end | 🟢 | proxy Railway, Keychain persist |
+| OAuth Notion end-to-end | 🟢 | proxy AWS Lambda, Keychain persist |
 | Progress bar pendant import | 🟡 | ProgressView spinner, pas de % |
 | Import error recovery | 🟡 | Affichage du message d'erreur OK, pas de "retry" |
 | Re-import (refresh) | 🔴 | Pas de "sync depuis Notion" récurrent — un import = un snapshot |

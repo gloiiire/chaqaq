@@ -7,10 +7,11 @@
 # specific simulator (env-set SIM_NAME).
 #
 # Behaviour:
-#   - Picks the first booted iOS simulator. Boot one ahead of time with:
-#         xcrun simctl boot "iPhone 17 Pro"
-#     or override with SIM_NAME / SIM_UDID env var.
-#   - Falls back to "iPhone 17 Pro" (boots it) if no simulator is booted.
+#   - Targets the project's dedicated simulator, "Pinkha SIM", booting it if
+#     needed. Deliberately NOT "whichever simulator happens to be booted" —
+#     that made the target depend on unrelated work and scattered the app's
+#     data across containers. Override with SIM_NAME / SIM_UDID env var.
+#   - Falls back to any booted simulator if "Pinkha SIM" doesn't exist.
 #   - Prunes iCloud Drive conflict copies before regenerating (same logic as
 #     run-on-device.sh — repo lives in iCloud which auto-creates `* 2.swift`).
 #   - Regenerates the xcodeproj via xcodegen + patches the app icon (the two
@@ -23,48 +24,66 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."   # → repo root (utilities/scripts/.. = utilities, ../.. = repo)
 
 BUNDLE_ID="com.gloiiire.pinkha"
-DEFAULT_SIM="iPhone 17 Pro"
+DEFAULT_SIM="Pinkha SIM"
 
 # ── DEVELOPER_DIR sanity (same hardening as run-on-device.sh) ─────────────
 if [[ -n "${DEVELOPER_DIR:-}" && ! -d "$DEVELOPER_DIR" ]]; then
     echo "⚠ DEVELOPER_DIR=$DEVELOPER_DIR does not exist — falling back to /Applications/Xcode.app." >&2
     unset DEVELOPER_DIR
 fi
-if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode.app/Contents/Developer ]]; then
-    export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode-beta.app/Contents/Developer ]]; then
+    export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer
 fi
 
 # ── Simulator discovery ──────────────────────────────────────────────────
-# Priority: explicit SIM_UDID > explicit SIM_NAME > first Booted > default.
+# Priority: explicit SIM_UDID > explicit SIM_NAME > "Pinkha SIM" > any booted.
+#
+# The project sim wins over "whatever is booted" on purpose: the app's data
+# (SQLite database, covers) lives per-simulator, so drifting between devices
+# silently starts you on an empty library and makes "my notes disappeared"
+# look like a bug in the app.
+udid_for_name() {
+    xcrun simctl list devices --json \
+        | jq -r --arg name "$1" \
+            '.devices | to_entries[] | .value[] | select(.name == $name) | .udid' \
+        | head -1
+}
+
 if [[ -n "${SIM_UDID:-}" ]]; then
     SIM_TARGET="$SIM_UDID"
 elif [[ -n "${SIM_NAME:-}" ]]; then
-    SIM_TARGET=$(xcrun simctl list devices --json \
-        | jq -r --arg name "$SIM_NAME" \
-            '.devices | to_entries[] | .value[] | select(.name == $name) | .udid' \
-        | head -1)
+    SIM_TARGET=$(udid_for_name "$SIM_NAME")
     if [[ -z "$SIM_TARGET" ]]; then
         echo "✗ Simulator named '$SIM_NAME' not found." >&2
         exit 1
     fi
 else
-    SIM_TARGET=$(xcrun simctl list devices --json \
-        | jq -r '.devices | to_entries[] | .value[] | select(.state == "Booted") | .udid' \
-        | head -1)
+    SIM_TARGET=$(udid_for_name "$DEFAULT_SIM")
+    if [[ -z "$SIM_TARGET" ]]; then
+        echo "⚠ '${DEFAULT_SIM}' not found — falling back to any booted simulator." >&2
+        SIM_TARGET=$(xcrun simctl list devices --json \
+            | jq -r '.devices | to_entries[] | .value[] | select(.state == "Booted") | .udid' \
+            | head -1)
+    fi
 fi
 
 if [[ -z "${SIM_TARGET:-}" ]]; then
-    echo "→ No booted simulator — booting '${DEFAULT_SIM}'…"
-    SIM_TARGET=$(xcrun simctl list devices --json \
-        | jq -r --arg name "$DEFAULT_SIM" \
-            '.devices | to_entries[] | .value[] | select(.name == $name) | .udid' \
-        | head -1)
-    if [[ -z "$SIM_TARGET" ]]; then
-        echo "✗ Default simulator '$DEFAULT_SIM' not found in your Xcode runtimes." >&2
-        echo "  Try: SIM_NAME='iPhone 16 Pro' $0" >&2
-        exit 1
-    fi
+    echo "✗ No simulator to target. Create one named '${DEFAULT_SIM}', or pass" >&2
+    echo "  SIM_NAME='iPhone 17 Pro' $0" >&2
+    exit 1
+fi
+
+# Boot on demand — `bootstatus -b` blocks until it is actually usable, which
+# avoids the `Unable to lookup in current state: Shutdown` (code 405) race
+# that install/launch hit on a cold start.
+SIM_STATE=$(xcrun simctl list devices --json \
+    | jq -r --arg udid "$SIM_TARGET" \
+        '.devices | to_entries[] | .value[] | select(.udid == $udid) | .state' \
+    | head -1)
+if [[ "$SIM_STATE" != "Booted" ]]; then
+    echo "→ Booting simulator…"
     xcrun simctl boot "$SIM_TARGET" 2>/dev/null || true
+    xcrun simctl bootstatus "$SIM_TARGET" -b >/dev/null 2>&1 || true
 fi
 
 # Resolve human-readable name for logs.
@@ -73,6 +92,12 @@ SIM_NAME_RESOLVED=$(xcrun simctl list devices --json \
         '.devices | to_entries[] | .value[] | select(.udid == $udid) | .name' \
     | head -1)
 echo "→ Target simulator: ${SIM_NAME_RESOLVED} (${SIM_TARGET})"
+
+# ── Fraîcheur du FFI ─────────────────────────────────────────────────────
+# Un xcframework désaccordé des bindings tue l'app au lancement
+# (`uniffiEnsurePinkhaInitialized` → fatalError). Vu en prod : Sentry
+# APPLE-IOS-1S. Cf. ensure-ffi-fresh.sh pour le détail.
+./utilities/scripts/ensure-ffi-fresh.sh
 
 # ── iCloud Drive conflict prune (same logic as run-on-device.sh) ─────────
 find app -name "* [2-9].swift" -delete 2>/dev/null
@@ -86,6 +111,25 @@ if [ -f "utilities/scripts/patch-app-icon.rb" ]; then
     ./utilities/scripts/patch-app-icon.rb >/dev/null
 fi
 
+# ── Résolution du .app ────────────────────────────────────────────────────
+# Demander le chemin à xcodebuild plutôt que de fouiller DerivedData.
+#
+# `find DerivedData/Pinkha-*/... | head -1` paraît inoffensif tant qu'il n'y a
+# qu'un dossier. Dès qu'il y en a deux — ce qui arrive dès qu'un chemin de
+# projet change, y compris via une resync iCloud — `find` rend l'ordre du
+# système de fichiers, pas le plus récent. On installe alors silencieusement
+# un binaire périmé : le build réussit, l'app se lance, et le code qu'on vient
+# d'écrire n'est pas dedans. Le symptôme est indiscernable d'un changement qui
+# ne fonctionne pas, et fait conclure faux.
+resolve_app_path() {
+    local destination="$1" products_dir
+    products_dir=$(xcodebuild -project app/Pinkha.xcodeproj -scheme Pinkha \
+        -destination "$destination" -showBuildSettings 2>/dev/null \
+        | awk -F' = ' '/ BUILT_PRODUCTS_DIR /{print $2; exit}')
+    [ -n "$products_dir" ] && [ -d "$products_dir/Pinkha.app" ] || return 1
+    printf '%s\n' "$products_dir/Pinkha.app"
+}
+
 # ── Build ─────────────────────────────────────────────────────────────────
 echo "→ Building for simulator ${SIM_TARGET}…"
 xcodebuild build -quiet \
@@ -93,8 +137,7 @@ xcodebuild build -quiet \
     -scheme Pinkha \
     -destination "id=$SIM_TARGET"
 
-APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData/Pinkha-*/Build/Products/Debug-iphonesimulator \
-    -name "Pinkha.app" -type d 2>/dev/null | head -1)
+APP_PATH=$(resolve_app_path "id=$SIM_TARGET" || true)
 if [[ -z "$APP_PATH" ]]; then
     echo "✗ Build succeeded but Pinkha.app not found in DerivedData." >&2
     exit 1
@@ -105,9 +148,13 @@ echo "→ Installing on simulator…"
 xcrun simctl install "$SIM_TARGET" "$APP_PATH"
 
 echo "→ Launching ${BUNDLE_ID}…"
-# Foreground Simulator.app so the user actually sees the launch — without
-# this, simctl launches happily but the window stays in the background.
-open -a Simulator
+# Foreground the simulator window so the user sees the launch. On iOS 27 /
+# macOS 27 the host app was renamed Simulator.app → DeviceHub.app and lives
+# under Xcode.app/Contents/Applications — try DeviceHub first, fall back to
+# Simulator for older Xcode installs.
+if ! open -a "DeviceHub" 2>/dev/null; then
+    open -a Simulator 2>/dev/null || true
+fi
 xcrun simctl launch "$SIM_TARGET" "$BUNDLE_ID" >/dev/null
 
 echo "✓ Pinkha lancée sur le simulateur ${SIM_NAME_RESOLVED}."

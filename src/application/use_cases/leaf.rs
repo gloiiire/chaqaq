@@ -1,7 +1,7 @@
 use crate::application::error::PinkhaError;
 use crate::application::unit_of_work::UnitOfWork;
-use crate::domain::leaf::{Block, BlockContent, Leaf, LeafMeta, InlineText};
 use crate::domain::editor::EditorState;
+use crate::domain::leaf::{Block, BlockContent, InlineText, Leaf, LeafMeta};
 use crate::domain::parser::parse_inline;
 use uuid::Uuid;
 
@@ -42,8 +42,11 @@ pub fn list_leaves(uow: &dyn UnitOfWork) -> Result<Vec<LeafMeta>, PinkhaError> {
 /// need the title / icon / cover should prefer this over [`get_leaf`]
 /// so the block tree never crosses the boundary.
 pub fn get_leaf_meta(uow: &dyn UnitOfWork, id: Uuid) -> Result<LeafMeta, PinkhaError> {
-    let doc = uow.leaves().load(id)?;
-    Ok(LeafMeta::from(&doc))
+    // Column projection, not `load()` + `From<&Leaf>`. The latter loads the
+    // whole block tree this function exists to avoid, and cannot populate
+    // `updated_at` / `created_at` (they live only on the row), so it used to
+    // hand back empty timestamps that disagreed with `list_leaves()`.
+    uow.leaves().load_meta(id)
 }
 
 /// Soft-deletes a leaf by ID — recoverable via [`restore_leaf`].
@@ -146,6 +149,23 @@ pub fn update_leaf_theme(
     let repo = uow.leaves();
     let mut doc = repo.load(leaf_id)?;
     doc.theme = theme;
+    repo.save(&doc)
+}
+
+/// Replaces the leaf's reader-settings bundle (font scale, font
+/// family, bold, line/letter/word spacing, margin scale, justify,
+/// dark variant, custom-layout flag). Pass `None` to clear and
+/// fall back to the theme's factory defaults. Mirrors Apple Books'
+/// per-theme typography ; see `domain::leaf::ReaderSettings` and
+/// `utilities/docs/BOOKS-READER-SETTINGS-RE.md`.
+pub fn update_leaf_reader_settings(
+    uow: &dyn UnitOfWork,
+    leaf_id: Uuid,
+    settings: Option<crate::domain::leaf::ReaderSettings>,
+) -> Result<(), PinkhaError> {
+    let repo = uow.leaves();
+    let mut doc = repo.load(leaf_id)?;
+    doc.reader_settings = settings;
     repo.save(&doc)
 }
 
@@ -252,18 +272,27 @@ pub fn update_leaf_parent(
 }
 
 /// Returns lightweight metadata for leaves at the root of the library —
-/// neither nested inside another leaf (`parent_leaf_id == None`) nor
-/// filed into a shelf (`shelf_id == None`). Drives the home view's "All"
-/// section, which only surfaces leaves that haven't been parented.
-/// Filing a leaf in a shelf must remove it from the root listing,
-/// otherwise the user sees the same leaf in two places and reads the
-/// move as a copy.
+/// neither nested inside another leaf nor filed into an *active* shelf.
+/// Drives the home view's "All" section, which only surfaces leaves that
+/// haven't been parented. Filing a leaf in a shelf must remove it from the
+/// root listing, otherwise the user sees the same leaf in two places and
+/// reads the move as a copy.
+///
+/// Root-ness is delegated to `list_by_shelf(None)` rather than re-tested
+/// here as `shelf_id.is_none()`. Those two are not the same predicate: a
+/// leaf can point at a shelf that has since been discarded to Compost, and
+/// `ShelfRepository::delete` deliberately leaves `shelf_id` intact so
+/// restoring the shelf brings its subtree back. Testing `shelf_id.is_none()`
+/// therefore filed those leaves under a shelf the user can no longer see,
+/// erasing them from the library while they were never deleted. The SQL
+/// predicate already treated a trashed shelf as no shelf; this path was
+/// simply not using it.
 pub fn list_root_leaves(uow: &dyn UnitOfWork) -> Result<Vec<LeafMeta>, PinkhaError> {
     Ok(uow
         .leaves()
-        .list()?
+        .list_by_shelf(None)?
         .into_iter()
-        .filter(|m| m.parent_leaf_id.is_none() && m.shelf_id.is_none())
+        .filter(|m| m.parent_leaf_id.is_none())
         .collect())
 }
 

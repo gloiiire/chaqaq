@@ -21,7 +21,7 @@ public final class NotionOAuth2: NSObject, ASWebAuthenticationPresentationContex
     }
     static let authBaseUrl = "https://api.notion.com/v1/oauth/authorize"
 
-    /// Public HTTPS base URL of the notion-proxy on Railway, read at runtime
+    /// Public HTTPS base URL of the notion-proxy, read at runtime
     /// from Info.plist (injected from `app/Config/Secrets.xcconfig`). Empty
     /// when the proxy is not configured yet — `OAuthError.proxyNotConfigured`
     /// is thrown in that case.
@@ -64,13 +64,24 @@ public final class NotionOAuth2: NSObject, ASWebAuthenticationPresentationContex
 
     /// Builds the Notion OAuth2 authorization URL for the given client ID and redirect URI.
     /// Extracted as a static helper so it can be unit-tested without launching an authentication session.
-    static func authorizationUrl(clientId: String, redirectUri: String) -> URL? {
+    static func authorizationUrl(clientId: String, redirectUri: String, state: String) -> URL? {
         var comps = URLComponents(string: authBaseUrl)
         comps?.queryItems = [
             .init(name: "client_id",     value: clientId),
             .init(name: "response_type", value: "code"),
             .init(name: "owner",         value: "user"),
             .init(name: "redirect_uri",  value: redirectUri),
+            // CSRF guard. The comment on `redactedOAuthURL` already called
+            // `state` "the CSRF guard", but it was only ever redacted from
+            // logs — never generated, never sent, never checked. The proxy
+            // dutifully forwards a value it was never given.
+            //
+            // `ASWebAuthenticationSession` delivers the callback only to the
+            // session that opened it, which closes the classic attack, but
+            // that is a property of the presentation API rather than of this
+            // flow — and it stops holding the moment anyone adds an
+            // `onOpenURL` handler.
+            .init(name: "state",         value: state),
         ]
         return comps?.url
     }
@@ -99,7 +110,12 @@ public final class NotionOAuth2: NSObject, ASWebAuthenticationPresentationContex
             return
         }
         trace("redirectUri='\(Self.redirectUri)'")
-        guard let url = Self.authorizationUrl(clientId: Self.clientId, redirectUri: Self.redirectUri) else {
+        // Fresh per authorization attempt, so a callback from an earlier
+        // (abandoned) attempt can't satisfy this one.
+        let expectedState = UUID().uuidString
+        guard let url = Self.authorizationUrl(clientId: Self.clientId,
+                                              redirectUri: Self.redirectUri,
+                                              state: expectedState) else {
             trace("aborting: failed to build authorize URL")
             return
         }
@@ -132,9 +148,15 @@ public final class NotionOAuth2: NSObject, ASWebAuthenticationPresentationContex
                 }
             }
             trace("got callback url=\(Self.redactedOAuthURL(callbackUrl))")
+            let callbackItems = URLComponents(url: callbackUrl, resolvingAgainstBaseURL: false)?.queryItems
+            // Reject a callback whose `state` isn't the one we generated.
+            let returnedState = callbackItems?.first(where: { $0.name == "state" })?.value
+            guard returnedState == expectedState else {
+                trace("state mismatch — rejecting callback")
+                throw URLError(.badServerResponse)
+            }
             // Exchange the authorization code for an access token.
-            guard let code = URLComponents(url: callbackUrl, resolvingAgainstBaseURL: false)?
-                    .queryItems?.first(where: { $0.name == "code" })?.value else {
+            guard let code = callbackItems?.first(where: { $0.name == "code" })?.value else {
                 trace("no `code` query item in callback URL")
                 throw URLError(.badURL)
             }

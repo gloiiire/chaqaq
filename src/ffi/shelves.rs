@@ -41,6 +41,9 @@ impl PinkhaApi {
 
     /// Sets or clears a shelf's emoji icon. Pass `None` to remove.
     pub fn update_shelf_icon(&self, id: String, icon: Option<String>) -> Result<(), PinkhaError> {
+        if let Some(i) = icon.as_deref() {
+            validate_string(i, "icon")?;
+        }
         let uuid = parse_uuid(&id)?;
         shelf_use_cases::update_shelf_icon(&self.uow(), uuid, icon.as_deref())
             .map_err(PinkhaError::from)
@@ -106,10 +109,7 @@ impl PinkhaApi {
 
     /// Bulk-rewrites the manual sort index for the given shelves —
     /// first id gets `manual_order = 0`, the next 1, etc.
-    pub fn set_shelves_manual_order(
-        &self,
-        ordered_ids: Vec<String>,
-    ) -> Result<(), PinkhaError> {
+    pub fn set_shelves_manual_order(&self, ordered_ids: Vec<String>) -> Result<(), PinkhaError> {
         let uuids = crate::ffi::validation::parse_uuids(ordered_ids)?;
         shelf_use_cases::set_shelves_manual_order(&self.uow(), &uuids).map_err(PinkhaError::from)
     }

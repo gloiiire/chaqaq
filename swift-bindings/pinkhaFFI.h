@@ -358,6 +358,11 @@ uint32_t uniffi_pinkha_fn_method_pinkhaapi_delete_book_cascade(uint64_t ptr, Rus
 void uniffi_pinkha_fn_method_pinkhaapi_delete_entry(uint64_t ptr, RustBuffer book_id, RustBuffer entry_id, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_ITEMS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_ITEMS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_delete_items(uint64_t ptr, RustBuffer leaf_ids, RustBuffer book_ids, RustBuffer shelf_ids, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_LEAF
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_DELETE_LEAF
 void uniffi_pinkha_fn_method_pinkhaapi_delete_leaf(uint64_t ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
@@ -391,6 +396,11 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_duplicate_block(uint64_t ptr, RustB
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_EMPTY_TRASH
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_EMPTY_TRASH
 uint32_t uniffi_pinkha_fn_method_pinkhaapi_empty_trash(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_EXPORT_LIBRARY
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_EXPORT_LIBRARY
+uint64_t uniffi_pinkha_fn_method_pinkhaapi_export_library(uint64_t ptr, RustBuffer dest_path, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_GET_BOOK_JSON
@@ -451,6 +461,16 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_import_notion_page(uint64_t ptr, Ru
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_INDENT_BLOCK
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_INDENT_BLOCK
 void uniffi_pinkha_fn_method_pinkhaapi_indent_block(uint64_t ptr, RustBuffer leaf_id, RustBuffer block_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_INSERT_BLOCK_TREE
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_INSERT_BLOCK_TREE
+void uniffi_pinkha_fn_method_pinkhaapi_insert_block_tree(uint64_t ptr, RustBuffer leaf_id, RustBuffer block_json, RustBuffer parent_id, uint32_t index, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIBRARY_SNAPSHOT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIBRARY_SNAPSHOT
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_library_snapshot(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_BOOKS
@@ -523,6 +543,11 @@ RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_root_leaves(uint64_t ptr, Rust
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_shelves(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_SNAPSHOTS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_LIST_SNAPSHOTS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_list_snapshots(uint64_t ptr, RustBuffer dir, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_MOVE_BLOCK
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_MOVE_BLOCK
 void uniffi_pinkha_fn_method_pinkhaapi_move_block(uint64_t ptr, RustBuffer leaf_id, RustBuffer block_id, RustBuffer new_parent_id, RustCallStatus *_Nonnull out_status
@@ -551,6 +576,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_purge_book(uint64_t ptr, RustBuffer id, R
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_ENTRY
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_ENTRY
 void uniffi_pinkha_fn_method_pinkhaapi_purge_entry(uint64_t ptr, RustBuffer book_id, RustBuffer entry_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_ITEMS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_ITEMS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_purge_items(uint64_t ptr, RustBuffer leaf_ids, RustBuffer book_ids, RustBuffer shelf_ids, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_PURGE_LEAF
@@ -606,6 +636,11 @@ uint32_t uniffi_pinkha_fn_method_pinkhaapi_restore_book_cascade(uint64_t ptr, Ru
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_ENTRY
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_ENTRY
 void uniffi_pinkha_fn_method_pinkhaapi_restore_entry(uint64_t ptr, RustBuffer book_id, RustBuffer entry_id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_ITEMS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_ITEMS
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_restore_items(uint64_t ptr, RustBuffer leaf_ids, RustBuffer book_ids, RustBuffer shelf_ids, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_RESTORE_LEAF
@@ -698,6 +733,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_set_view_date_sort(uint64_t ptr, RustBuff
 void uniffi_pinkha_fn_method_pinkhaapi_set_view_sort(uint64_t ptr, RustBuffer book_id, RustBuffer view_id, RustBuffer property_id, int8_t ascending, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SNAPSHOT_LIBRARY
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SNAPSHOT_LIBRARY
+RustBuffer uniffi_pinkha_fn_method_pinkhaapi_snapshot_library(uint64_t ptr, RustBuffer dir, uint32_t keep, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SUPER_SEARCH
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_SUPER_SEARCH
 RustBuffer uniffi_pinkha_fn_method_pinkhaapi_super_search(uint64_t ptr, RustBuffer query, RustCallStatus *_Nonnull out_status
@@ -771,6 +811,11 @@ void uniffi_pinkha_fn_method_pinkhaapi_update_leaf_parent(uint64_t ptr, RustBuff
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_LEAF_PUBLISHED_AT
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_LEAF_PUBLISHED_AT
 void uniffi_pinkha_fn_method_pinkhaapi_update_leaf_published_at(uint64_t ptr, RustBuffer id, RustBuffer new_published_at, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_LEAF_READER_SETTINGS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_LEAF_READER_SETTINGS
+void uniffi_pinkha_fn_method_pinkhaapi_update_leaf_reader_settings(uint64_t ptr, RustBuffer id, RustBuffer settings_json, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_FN_METHOD_PINKHAAPI_UPDATE_LEAF_TEXT_DIRECTION
@@ -1178,6 +1223,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_entry(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ITEMS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_ITEMS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_items(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_LEAF
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_DELETE_LEAF
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_delete_leaf(void
@@ -1217,6 +1268,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_duplicate_block(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_EMPTY_TRASH
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_EMPTY_TRASH
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_empty_trash(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_EXPORT_LIBRARY
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_EXPORT_LIBRARY
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_export_library(void
     
 );
 #endif
@@ -1289,6 +1346,18 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_import_notion_page(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_INDENT_BLOCK
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_INDENT_BLOCK
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_indent_block(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_INSERT_BLOCK_TREE
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_INSERT_BLOCK_TREE
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_insert_block_tree(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIBRARY_SNAPSHOT
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIBRARY_SNAPSHOT
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_library_snapshot(void
     
 );
 #endif
@@ -1376,6 +1445,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_shelves(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_SNAPSHOTS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_LIST_SNAPSHOTS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_list_snapshots(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_MOVE_BLOCK
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_MOVE_BLOCK
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_move_block(void
@@ -1409,6 +1484,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_purge_book(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_PURGE_ENTRY
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_PURGE_ENTRY
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_purge_entry(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_PURGE_ITEMS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_PURGE_ITEMS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_purge_items(void
     
 );
 #endif
@@ -1475,6 +1556,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_restore_book_cascade(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_ENTRY
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_ENTRY
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_restore_entry(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_ITEMS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_RESTORE_ITEMS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_restore_items(void
     
 );
 #endif
@@ -1586,6 +1673,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_set_view_sort(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SNAPSHOT_LIBRARY
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SNAPSHOT_LIBRARY
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_snapshot_library(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SUPER_SEARCH
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_SUPER_SEARCH
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_super_search(void
@@ -1673,6 +1766,12 @@ uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_parent(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_LEAF_PUBLISHED_AT
 #define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_LEAF_PUBLISHED_AT
 uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_published_at(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_LEAF_READER_SETTINGS
+#define UNIFFI_FFIDEF_UNIFFI_PINKHA_CHECKSUM_METHOD_PINKHAAPI_UPDATE_LEAF_READER_SETTINGS
+uint16_t uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_reader_settings(void
     
 );
 #endif

@@ -27,11 +27,16 @@ public struct LeafFfi: Codable {
     /// Per-leaf Books-style theme name. `nil` inherits the global
     /// `AppSettings.theme`.
     public let theme: String?
+    /// PRO-62 : per-leaf reader-settings bundle (font scale +
+    /// family + bold + 4 spacing values + justify + dark variant +
+    /// custom-layout flag). `nil` falls back to the theme defaults.
+    public let readerSettings: LeafReaderSettings?
 
     enum CodingKeys: String, CodingKey {
         case id, cover, icon, title, blocks, locked, theme
         case accentColor = "accent_color"
         case textDirection = "text_direction"
+        case readerSettings = "reader_settings"
     }
 
     /// Memberwise init kept around so existing test fixtures that
@@ -43,7 +48,7 @@ public struct LeafFfi: Codable {
     public init(id: String, cover: String?, icon: String?,
          title: [InlineTextFfi], blocks: [BlockFfi], locked: Bool?,
          accentColor: String? = nil, textDirection: String? = nil,
-         theme: String? = nil) {
+         theme: String? = nil, readerSettings: LeafReaderSettings? = nil) {
         self.id = id
         self.cover = cover
         self.icon = icon
@@ -53,6 +58,7 @@ public struct LeafFfi: Codable {
         self.accentColor = accentColor
         self.textDirection = textDirection
         self.theme = theme
+        self.readerSettings = readerSettings
     }
 
     /// Explicit `init(from:)` — Swift's auto-synthesized decoder
@@ -64,15 +70,170 @@ public struct LeafFfi: Codable {
     /// property declaration carries a default.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id            = try c.decode(String.self, forKey: .id)
-        cover         = try c.decodeIfPresent(String.self, forKey: .cover)
-        icon          = try c.decodeIfPresent(String.self, forKey: .icon)
-        title         = try c.decode([InlineTextFfi].self, forKey: .title)
-        blocks        = try c.decode([BlockFfi].self, forKey: .blocks)
-        locked        = try c.decodeIfPresent(Bool.self, forKey: .locked)
-        accentColor   = try c.decodeIfPresent(String.self, forKey: .accentColor)
-        textDirection = try c.decodeIfPresent(String.self, forKey: .textDirection)
-        theme         = try c.decodeIfPresent(String.self, forKey: .theme)
+        id             = try c.decode(String.self, forKey: .id)
+        cover          = try c.decodeIfPresent(String.self, forKey: .cover)
+        icon           = try c.decodeIfPresent(String.self, forKey: .icon)
+        title          = try c.decode([InlineTextFfi].self, forKey: .title)
+        blocks         = try c.decode([BlockFfi].self, forKey: .blocks)
+        locked         = try c.decodeIfPresent(Bool.self, forKey: .locked)
+        accentColor    = try c.decodeIfPresent(String.self, forKey: .accentColor)
+        textDirection  = try c.decodeIfPresent(String.self, forKey: .textDirection)
+        theme          = try c.decodeIfPresent(String.self, forKey: .theme)
+        readerSettings = try c.decodeIfPresent(LeafReaderSettings.self, forKey: .readerSettings)
+    }
+}
+
+/// Swift mirror of the Rust `ReaderSettings` struct (PRO-62).
+/// Stored as a JSON blob on the leaf row ; updated via
+/// `PinkhaApi.updateLeafReaderSettings`. Defaults mirror Apple Books'
+/// `BookTheme` Core Data factory values (line_spacing 1.4, etc.).
+public struct LeafReaderSettings: Codable, Equatable {
+    public var fontScale: Double
+    public var fontFamily: String?
+    public var bold: Bool
+    public var lineSpacing: Double
+    public var letterSpacing: Double
+    public var wordSpacing: Double
+    public var marginScale: Double
+    public var justify: Bool
+    /// Legacy bool — pre-PRO-62-step-N leaves only carried this.
+    /// New code reads `themeAppearance` instead and falls back to
+    /// this value when the appearance is `"settings"` and the user
+    /// has never edited the global Settings toggle. Kept on the wire
+    /// for backward decode + so older app versions still see something
+    /// sensible if they hit a freshly-written row.
+    public var themeDarkVariant: Bool
+    public var customLayoutEnabled: Bool
+    /// 5-way appearance choice mirroring Apple Books :
+    /// `"light" | "dark" | "system" | "ambient" | "settings"`.
+    /// Resolved at render time by `ReaderAppearance.effectiveDark`.
+    /// Defaults to `"settings"` so a fresh leaf inherits the user's
+    /// app-wide preference.
+    public var themeAppearance: String
+
+    enum CodingKeys: String, CodingKey {
+        case fontScale = "font_scale"
+        case fontFamily = "font_family"
+        case bold
+        case lineSpacing = "line_spacing"
+        case letterSpacing = "letter_spacing"
+        case wordSpacing = "word_spacing"
+        case marginScale = "margin_scale"
+        case justify
+        case themeDarkVariant = "theme_dark_variant"
+        case customLayoutEnabled = "custom_layout_enabled"
+        case themeAppearance = "theme_appearance"
+    }
+
+    public init(
+        fontScale: Double = 1.0,
+        fontFamily: String? = nil,
+        bold: Bool = false,
+        lineSpacing: Double = 1.4,
+        letterSpacing: Double = 0.0,
+        wordSpacing: Double = 0.0,
+        marginScale: Double = 0.0,
+        justify: Bool = false,
+        themeDarkVariant: Bool = false,
+        customLayoutEnabled: Bool = false,
+        themeAppearance: String = "settings"
+    ) {
+        self.fontScale = fontScale
+        self.fontFamily = fontFamily
+        self.bold = bold
+        self.lineSpacing = lineSpacing
+        self.letterSpacing = letterSpacing
+        self.wordSpacing = wordSpacing
+        self.marginScale = marginScale
+        self.justify = justify
+        self.themeDarkVariant = themeDarkVariant
+        self.customLayoutEnabled = customLayoutEnabled
+        self.themeAppearance = themeAppearance
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        fontScale           = try c.decodeIfPresent(Double.self, forKey: .fontScale) ?? 1.0
+        fontFamily          = try c.decodeIfPresent(String.self, forKey: .fontFamily)
+        bold                = try c.decodeIfPresent(Bool.self,   forKey: .bold) ?? false
+        lineSpacing         = try c.decodeIfPresent(Double.self, forKey: .lineSpacing) ?? 1.4
+        letterSpacing       = try c.decodeIfPresent(Double.self, forKey: .letterSpacing) ?? 0.0
+        wordSpacing         = try c.decodeIfPresent(Double.self, forKey: .wordSpacing) ?? 0.0
+        marginScale         = try c.decodeIfPresent(Double.self, forKey: .marginScale) ?? 0.0
+        justify             = try c.decodeIfPresent(Bool.self,   forKey: .justify) ?? false
+        themeDarkVariant    = try c.decodeIfPresent(Bool.self,   forKey: .themeDarkVariant) ?? false
+        customLayoutEnabled = try c.decodeIfPresent(Bool.self,   forKey: .customLayoutEnabled) ?? false
+        themeAppearance     = try c.decodeIfPresent(String.self, forKey: .themeAppearance) ?? "settings"
+    }
+
+    /// Explicit encoder. Swift would auto-synthesize this in theory,
+    /// but the bug "I picked Dark on the leaf, exited, came back —
+    /// it's Light again" pointed at a silent drop of the new
+    /// `theme_appearance` field on save. Writing every field out
+    /// here makes the wire format unambiguous and easy to verify in
+    /// the FFI integration tests.
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(fontScale,           forKey: .fontScale)
+        try c.encodeIfPresent(fontFamily, forKey: .fontFamily)
+        try c.encode(bold,                forKey: .bold)
+        try c.encode(lineSpacing,         forKey: .lineSpacing)
+        try c.encode(letterSpacing,       forKey: .letterSpacing)
+        try c.encode(wordSpacing,         forKey: .wordSpacing)
+        try c.encode(marginScale,         forKey: .marginScale)
+        try c.encode(justify,             forKey: .justify)
+        try c.encode(themeDarkVariant,    forKey: .themeDarkVariant)
+        try c.encode(customLayoutEnabled, forKey: .customLayoutEnabled)
+        try c.encode(themeAppearance,     forKey: .themeAppearance)
+    }
+}
+
+/// 5-way appearance choice for the per-leaf reader theme. Mirrors
+/// Apple Books' light/dark popover — wraps the `theme_appearance`
+/// string field on `LeafReaderSettings` with a type-safe enum + a
+/// resolver that maps the choice + ambient state down to the final
+/// dark/light Bool used by the renderer.
+public enum ReaderAppearance: String, CaseIterable, Sendable {
+    case light    = "light"
+    case dark     = "dark"
+    case system   = "system"
+    case ambient  = "ambient"
+    case settings = "settings"
+
+    /// Lossy parse — anything we don't recognise (older app version
+    /// writing a new variant we don't know yet, corrupted JSON, …)
+    /// falls back to `.settings` so the user's app-wide preference
+    /// still wins instead of silently forcing light mode.
+    public static func parse(_ raw: String?) -> ReaderAppearance {
+        guard let raw = raw, let v = ReaderAppearance(rawValue: raw) else {
+            return .settings
+        }
+        return v
+    }
+
+    /// Resolves the appearance choice down to the final dark Bool the
+    /// renderer needs. `systemIsDark` should come from
+    /// `UITraitCollection.current.userInterfaceStyle` (NOT SwiftUI's
+    /// `colorScheme` env, which is already overridden when the user
+    /// flipped a per-leaf variant). `settingsIsDark` is the app-wide
+    /// `AppSettings.themeDarkVariant` Bool.
+    ///
+    /// `ambient` has no public ambient-light sensor API on iOS — we
+    /// approximate via the display brightness reading (see
+    /// `AmbientLight` in PinkhaCore). The caller passes the resolved
+    /// `ambientIsDark` so this type stays free of UIKit/observers.
+    public func effectiveDark(
+        systemIsDark: Bool,
+        settingsIsDark: Bool,
+        ambientIsDark: Bool
+    ) -> Bool {
+        switch self {
+        case .light:    return false
+        case .dark:     return true
+        case .system:   return systemIsDark
+        case .ambient:  return ambientIsDark
+        case .settings: return settingsIsDark
+        }
     }
 }
 

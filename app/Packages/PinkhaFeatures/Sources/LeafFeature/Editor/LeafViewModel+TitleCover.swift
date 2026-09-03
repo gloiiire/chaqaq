@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
 import PinkhaComposer
+import PinkhaFFI
 
 // ── Title and cover ───────────────────────────────────────────────────────────
 
@@ -71,6 +72,29 @@ public extension LeafViewModel {
         } catch {
             errorMessage = error.localizedDescription
             theme = previous
+        }
+    }
+
+    /// PRO-62 : persists the leaf's `ReaderSettings` bundle (font
+    /// scale / family / bold / 4 spacings / justify / dark variant
+    /// / custom-layout flag). Round-trips through JSON to mirror the
+    /// Rust shape. Optimistic update, FFI persist, undo registration.
+    func saveReaderSettings(_ newSettings: LeafReaderSettings) {
+        guard readerSettings != newSettings else { return }
+        let previous = readerSettings
+        readerSettings = newSettings
+        do {
+            let json = String(
+                data: try JSONEncoder().encode(newSettings),
+                encoding: .utf8
+            )
+            try api.updateLeafReaderSettings(id: leafId, settingsJson: json)
+            undoMgr.registerUndo(withTarget: self) { vm in
+                vm.saveReaderSettings(previous)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            readerSettings = previous
         }
     }
 

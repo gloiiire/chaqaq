@@ -59,6 +59,21 @@ dictionary BlockSearchHitFfi {
 
 /// Bundle of search results across every library surface, returned by
 /// `super_search`. Empty arrays mean "no match in that category".
+/// Result of a bulk delete / restore / purge. `skipped` counts ids that no
+/// longer existed — a stale selection, not an error.
+dictionary BulkOutcomeFfi {
+    u32 affected;
+    u32 skipped;
+};
+
+/// Everything the library screen renders, fetched in one FFI crossing.
+dictionary LibrarySnapshotFfi {
+    sequence<LeafMetaFfi> root_leaves;
+    sequence<LeafMetaFfi> all_leaves;
+    sequence<BookMetaFfi> books;
+    sequence<ShelfMetaFfi> shelves;
+};
+
 dictionary SuperSearchResultsFfi {
     sequence<LeafMetaFfi> leaves_by_title;
     sequence<BlockSearchHitFfi> leaves_by_content;
@@ -178,6 +193,9 @@ interface PinkhaApi {
     [Throws=PinkhaError]
     string add_block(string leaf_id, string block_content_json);
 
+    [Throws=PinkhaError]
+    void insert_block_tree(string leaf_id, string block_json, string? parent_id, u32 index);
+
     /// Replaces the content of an existing block (BlockContent JSON).
     [Throws=PinkhaError]
     void update_block(string leaf_id, string block_id, string content_json);
@@ -206,6 +224,15 @@ interface PinkhaApi {
     /// `null` = inherit from AppSettings.theme.
     [Throws=PinkhaError]
     void update_leaf_theme(string id, string? theme);
+
+    /// Persists the leaf's reader-settings bundle (font scale +
+    /// family + bold + 4 spacing values + justify + dark variant +
+    /// custom-layout flag). Pass the JSON-serialised
+    /// `ReaderSettings` shape, or `null` to clear and fall back to
+    /// the theme's factory defaults. Cf. `domain::leaf::ReaderSettings`
+    /// and `utilities/docs/BOOKS-READER-SETTINGS-RE.md`.
+    [Throws=PinkhaError]
+    void update_leaf_reader_settings(string id, string? settings_json);
 
     [Throws=PinkhaError]
     void delete_block(string leaf_id, string block_id);
@@ -286,8 +313,48 @@ interface PinkhaApi {
 
     /// Permanently purges every soft-deleted leaf, book and shelf.
     /// Returns the total number of items removed.
+    /// Root leaves + all leaves + books + shelves in one call, instead of
+    /// the four separate listings `PinkhaStore.load()` used to issue.
+    [Throws=PinkhaError]
+    LibrarySnapshotFfi library_snapshot();
+
     [Throws=PinkhaError]
     u32 empty_trash();
+
+    /// Writes a self-contained copy of the whole library to `dest_path`
+    /// and returns its size in bytes.
+    ///
+    /// Made from the live connection via `VACUUM INTO`, so the write-ahead
+    /// log is folded in. A Swift-side copy of `pinkha.db` would ship a
+    /// database missing its most recent writes.
+    [Throws=PinkhaError]
+    u64 export_library(string dest_path);
+
+    /// Écrit un instantané horodaté dans `dir` et n'y garde que les `keep`
+    /// plus récents. Renvoie le chemin écrit.
+    ///
+    /// Conçu pour tourner sans intervention : la perte du 2026-09-02 est
+    /// survenue pendant la nuit, une protection volontaire n'aurait rien
+    /// changé.
+    [Throws=PinkhaError]
+    string snapshot_library(string dir, u32 keep);
+
+    /// Instantanés présents dans `dir`, du plus récent au plus ancien.
+    [Throws=PinkhaError]
+    sequence<string> list_snapshots(string dir);
+
+    /// Soft-deletes a mixed selection of leaves, books and shelves in one
+    /// call, instead of one FFI crossing + one library reload per item.
+    [Throws=PinkhaError]
+    BulkOutcomeFfi delete_items(sequence<string> leaf_ids, sequence<string> book_ids, sequence<string> shelf_ids);
+
+    /// Restores a mixed selection out of Compost.
+    [Throws=PinkhaError]
+    BulkOutcomeFfi restore_items(sequence<string> leaf_ids, sequence<string> book_ids, sequence<string> shelf_ids);
+
+    /// Permanently removes a mixed selection.
+    [Throws=PinkhaError]
+    BulkOutcomeFfi purge_items(sequence<string> leaf_ids, sequence<string> book_ids, sequence<string> shelf_ids);
 
     // ── Books ─────────────────────────────────────────────
 

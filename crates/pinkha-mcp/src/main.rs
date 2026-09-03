@@ -25,8 +25,7 @@ fn main() -> anyhow::Result<()> {
         .nth(1)
         .ok_or_else(|| anyhow::anyhow!("usage: pinkha-mcp <path/to/pinkha.db>"))?;
     let api = Arc::new(
-        PinkhaApi::new(db_path)
-            .map_err(|e| anyhow::anyhow!("failed to open pinkha book: {e}"))?,
+        PinkhaApi::new(db_path).map_err(|e| anyhow::anyhow!("failed to open pinkha book: {e}"))?,
     );
 
     let stdin = io::stdin();

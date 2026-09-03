@@ -1,7 +1,7 @@
-pub mod commands;
 pub mod book;
-pub mod leaf;
+pub mod commands;
 pub mod editor;
-pub mod shelf;
+pub mod leaf;
 pub mod parser;
 pub mod rich_text;
+pub mod shelf;

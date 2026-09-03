@@ -121,7 +121,8 @@ fn entry_soft_delete_restore_purge_roundtrip() {
     assert!(deleted_list_json.contains(&entry_id));
 
     // restore → réapparaît
-    api.restore_entry(book_id.clone(), entry_id.clone()).unwrap();
+    api.restore_entry(book_id.clone(), entry_id.clone())
+        .unwrap();
     let after_restore = api
         .list_deleted_entries_json(book_id.clone())
         .expect("list_deleted_entries_json");

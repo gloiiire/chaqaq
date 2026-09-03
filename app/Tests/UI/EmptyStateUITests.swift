@@ -29,7 +29,7 @@ final class EmptyStateUITests: XCTestCase {
 
     func testEmptyStateHasHelpText() {
         let app = launchClean()
-        let helpText = app.staticTexts.byLabelContaining("Tap the button")
+        let helpText = app.staticTexts.byLabelContaining("Tap Leaf below")
         XCTAssertTrue(helpText.waitForExistence(timeout: 8))
     }
 }

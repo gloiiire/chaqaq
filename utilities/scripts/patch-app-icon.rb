@@ -6,12 +6,27 @@
 # the special `wrapper.icon` file type that actool needs, so we re-do that
 # pass with the `xcodeproj` gem after every regen.
 #
-# Idempotent — running it twice does nothing the second time. Meant to be
-# invoked from `scripts/run-on-device.sh` right after `xcodegen generate`.
+# Idempotent — running it twice does nothing the second time. Wired as
+# `options.postGenCommand` in app/project.yml, so xcodegen runs it itself
+# after every regen; the run-on-*.sh scripts also call it explicitly.
 #
-# Usage : ./scripts/patch-app-icon.rb
+# Usage : ./utilities/scripts/patch-app-icon.rb
 
-require "xcodeproj"
+begin
+  require "xcodeproj"
+rescue LoadError
+  # The CI runner has no `xcodeproj` gem, and it does not need one: the app
+  # icon plays no part in the test run. Failing here would be worse than
+  # skipping, because xcodegen aborts `generate` when its postGenCommand
+  # exits non-zero — a missing gem would take the whole Swift job down.
+  #
+  # Genuine patch failures below still exit 1. Only the gem's absence is
+  # tolerated, and it says so out loud rather than passing silently.
+  warn "⚠ xcodeproj gem unavailable — app-icon patch skipped."
+  warn "  Fine for tests; a locally built app would ship the blank icon."
+  warn "  Install with: gem install xcodeproj"
+  exit 0
+end
 
 # Walk up to the repo root (the directory containing `app/`) — works whether
 # this script lives at scripts/ or utilities/scripts/ in the tree.

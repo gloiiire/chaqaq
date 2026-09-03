@@ -66,7 +66,12 @@ extension RichTextEditorCoordinator {
 
     func cleanRememberedIfStillEmpty(_ textView: UITextView) {
         let generation = selectionGeneration
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self, weak textView] in
+        // `Task` + `Task.sleep` instead of `asyncAfter` : cancellable if the
+        // coordinator ever needs it, and stays on the MainActor without a
+        // queue hop. The generation check below already makes late firings
+        // harmless, so the weak captures carry the actual safety.
+        Task { @MainActor [weak self, weak textView] in
+            try? await Task.sleep(for: .milliseconds(350))
             guard let self, let textView else { return }
             let selection = self.normalizedSelection(textView.selectedRange, length: textView.attributedText.length)
             if self.selectionGeneration == generation && !self.toolbarActionInProgress && selection.length == 0 {
@@ -135,8 +140,13 @@ extension RichTextEditorCoordinator {
             && !parent.baseFont.fontDescriptor.symbolicTraits.contains(.traitItalic)
     }
 
-    // Utility method to update the paste button (called from updateToolbar and pasteboardChanged).
+    /// Met à jour le bouton Coller depuis l'état mis en cache.
+    ///
+    /// Ne JAMAIS remettre `UIPasteboard.general.hasStrings` ici : cette
+    /// méthode est appelée depuis `updateToolbar`, donc à chaque frappe.
+    /// Le cache est rafraîchi par `pasteboardChanged`, sur la notification
+    /// du presse-papiers et au retour au premier plan.
     func updatePasteButton() {
-        setSymbolActive(btnPaste, active: UIPasteboard.general.hasStrings, name: "doc.on.clipboard")
+        setSymbolActive(btnPaste, active: cachedPasteboardHasStrings, name: "doc.on.clipboard")
     }
 }

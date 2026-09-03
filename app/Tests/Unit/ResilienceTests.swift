@@ -38,6 +38,9 @@ struct PinkhaErrorUXTests {
     }
 }
 
+// `ActionRepeater` is `@MainActor` since the Task-loop rewrite, so the
+// whole suite runs on the main actor.
+@MainActor
 @Suite("ActionRepeater — repeat timer")
 struct ActionRepeaterTests {
 

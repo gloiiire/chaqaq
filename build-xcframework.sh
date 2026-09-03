@@ -17,6 +17,19 @@ TARGETS=(
     "aarch64-apple-darwin"
 )
 
+# Pin the iOS min target so C/C++ deps (ring, boringssl, sqlite) compile
+# against the same SDK the Xcode app targets. Without this the deps
+# inherit the latest installed SDK (26.5) while the app links against
+# 26.1 — Xcode then emits `ld: warning: object file was built for newer
+# iOS-simulator version (26.5) than being linked (26.1)` for every
+# translation unit. Sync with `app/project.yml`'s `deploymentTarget.iOS`.
+#
+# Do NOT set MACOSX_DEPLOYMENT_TARGET globally — proc macros compile for
+# the *host* (macOS) and a legacy value breaks the dylib linker
+# (`mis-aligned LINKEDIT string pool`). The macOS static-lib build below
+# runs unpinned so proc-macro deps compile against the current toolchain.
+export IPHONEOS_DEPLOYMENT_TARGET="26.1"
+
 echo "=== pinkha XCFramework ($PROFILE) ==="
 
 # 1. Installer les targets Rust manquantes

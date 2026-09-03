@@ -48,8 +48,21 @@ extension RichTextEditorCoordinator {
 
         let iconSize: CGFloat = 22
 
-        func symbolButton(_ name: String, size: CGFloat = iconSize, action: Selector) -> UIButton {
+        /// Libellé VoiceOver d'un bouton de la barre.
+        ///
+        /// Ces boutons n'ont qu'une image : sans libellé, VoiceOver
+        /// annonce « bouton » douze fois de suite et la barre devient
+        /// inutilisable. Résolus sur `Bundle.main` parce que le
+        /// catalogue de chaînes vit dans la cible app, pas dans ce
+        /// paquet.
+        func a11y(_ key: String) -> String {
+            NSLocalizedString(key, bundle: .main, comment: "Editor toolbar button")
+        }
+
+        func symbolButton(_ name: String, size: CGFloat = iconSize,
+                          label: String, action: Selector) -> UIButton {
             let b   = UIButton(type: .custom)
+            b.accessibilityLabel = a11y(label)
             let cfg = UIImage.SymbolConfiguration(pointSize: size, weight: .medium)
             b.setImage(
                 UIImage(systemName: name, withConfiguration: cfg)?
@@ -78,7 +91,7 @@ extension RichTextEditorCoordinator {
             return v
         }
 
-        let bPaste = symbolButton("doc.on.clipboard", action: #selector(paste))
+        let bPaste = symbolButton("doc.on.clipboard", label: "Paste", action: #selector(paste))
         addButton(bPaste); btnPaste = bPaste
         separator()
 
@@ -95,6 +108,7 @@ extension RichTextEditorCoordinator {
         let cfgTS = UIImage.SymbolConfiguration(pointSize: iconSize, weight: .medium)
         bTextStyle.setImage(UIImage(systemName: "bold.italic.underline", withConfiguration: cfgTS)?
             .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal), for: .normal)
+        bTextStyle.accessibilityLabel = a11y("Text Style")
         addButton(bTextStyle); btnTextStyle = bTextStyle
 
         // Highlighter button placed just to the right of the style button (no separator).
@@ -108,6 +122,7 @@ extension RichTextEditorCoordinator {
         let cfgH = UIImage.SymbolConfiguration(pointSize: iconSize, weight: .medium)
         bColor.setImage(UIImage(systemName: "highlighter", withConfiguration: cfgH)?
             .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal), for: .normal)
+        bColor.accessibilityLabel = a11y("Highlight")
         addButton(bColor); btnColor = bColor
 
         // Block color (¶) — applies a colour to the whole block. Inline
@@ -121,6 +136,7 @@ extension RichTextEditorCoordinator {
         }
         bBlockColor.setImage(UIImage(systemName: "paragraphsign", withConfiguration: cfgH)?
             .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal), for: .normal)
+        bBlockColor.accessibilityLabel = a11y("Block Colour")
         addButton(bBlockColor); btnBlockColor = bBlockColor
 
         // Block background colour — Craft / Notion highlight band
@@ -136,6 +152,7 @@ extension RichTextEditorCoordinator {
         }
         bBlockBg.setImage(UIImage(systemName: "rectangle.fill", withConfiguration: cfgH)?
             .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal), for: .normal)
+        bBlockBg.accessibilityLabel = a11y("Block Background")
         addButton(bBlockBg); btnBlockBg = bBlockBg
 
         // Link button — applies an inline URL to the current selection
@@ -144,12 +161,12 @@ extension RichTextEditorCoordinator {
         // linked range exposes Edit / Remove via the contextMenu in
         // BlockRows; this button is the discovery entry.
         separator()
-        addButton(symbolButton("link", action: #selector(toolbarLink)))
+        addButton(symbolButton("link", label: "Add Link", action: #selector(toolbarLink)))
 
         separator()
-        let bUndo = symbolButton("arrow.uturn.backward", action: #selector(toolbarUndo))
+        let bUndo = symbolButton("arrow.uturn.backward", label: "Undo", action: #selector(toolbarUndo))
         addButton(bUndo); btnUndo = bUndo
-        let bRedo = symbolButton("arrow.uturn.forward", action: #selector(toolbarRedo))
+        let bRedo = symbolButton("arrow.uturn.forward", label: "Redo", action: #selector(toolbarRedo))
         addButton(bRedo); btnRedo = bRedo
         updateUndoRedoButtons()
 
@@ -157,13 +174,13 @@ extension RichTextEditorCoordinator {
         // FFI `indent_block` / `outdent_block` via closures owned by the
         // LeafViewModel (which knows the block identity).
         separator()
-        addButton(symbolButton("decrease.quotelevel", action: #selector(toolbarOutdent)))
-        addButton(symbolButton("increase.quotelevel", action: #selector(toolbarIndent)))
+        addButton(symbolButton("decrease.quotelevel", label: "Outdent", action: #selector(toolbarOutdent)))
+        addButton(symbolButton("increase.quotelevel", label: "Indent", action: #selector(toolbarIndent)))
 
         separator()
-        addButton(symbolButton("return", action: #selector(toolbarLineBreak)))
+        addButton(symbolButton("return", label: "Line Break", action: #selector(toolbarLineBreak)))
         separator()
-        addButton(symbolButton("keyboard.chevron.compact.down", action: #selector(dismissKeyboard)))
+        addButton(symbolButton("keyboard.chevron.compact.down", label: "Hide Keyboard", action: #selector(dismissKeyboard)))
 
         scroll.contentSize = CGSize(width: x + 12, height: pillH)
         return container
@@ -193,6 +210,9 @@ extension RichTextEditorCoordinator {
 
     @objc func dismissKeyboard() {
         toolbarActionInProgress = false
+        // Empeche la reprogrammation du focus pendant que la mise en page
+        // encaisse la descente du clavier. Cf. `refocusSuppressed`.
+        refocusSuppressed = true
         tv?.resignFirstResponder()
     }
 
@@ -321,12 +341,17 @@ extension RichTextEditorCoordinator {
                 style: .destructive,
             ) { _ in completion("") })
         }
+        // `[unowned alert]`: the action is owned by the alert, so capturing
+        // it strongly closes a cycle (alert → action → closure → alert) and
+        // leaks the controller, its text field and its presentation
+        // scaffolding on every link prompt, permanently. `unowned` is safe
+        // here — the handler can only run while the alert is on screen.
         alert.addAction(UIAlertAction(
             title: hasLabel
                 ? String(localized: "Apply")
                 : String(localized: "Insert"),
             style: .default,
-        ) { _ in
+        ) { [unowned alert] _ in
             let url = alert.textFields?.first?.text ?? ""
             completion(url)
         })

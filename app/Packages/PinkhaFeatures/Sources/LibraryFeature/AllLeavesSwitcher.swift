@@ -1,6 +1,7 @@
 import SwiftUI
 import PinkhaCore
 import PinkhaComposer
+import PinkhaDesignSystem
 import LeafFeature
 
 // ── Safari-tab-style "All leaves" switcher ────────────────────────────────
@@ -35,7 +36,7 @@ public struct AllLeavesSwitcher: View {
 
     public var body: some View {
         ZStack {
-            Color(uiColor: .systemBackground)
+            Color.pinkhaSurface
                 .ignoresSafeArea()
 
             if filteredItems.isEmpty {
@@ -57,7 +58,14 @@ public struct AllLeavesSwitcher: View {
     /// title / cover (the doc metadata is always more current than
     /// the cached VM, which only knows what it loaded last).
     private var openItems: [WorkspaceItem] {
-        let store = store.items
+        // `allItems`, not `items` — the latter is built from
+        // `listRootLeaves()`, which Rust filters to leaves with no parent
+        // *and* no shelf. A tab opened on a leaf filed in a shelf, or on a
+        // sub-page reached through a mention link, simply had no matching
+        // entry and its card vanished from the switcher. With only such
+        // tabs open the grid rendered the "no leaves" empty state while
+        // tabs were demonstrably open — and "Close all" still closed them.
+        let store = store.allItems
         return tabManager.openTabs.compactMap { tab in
             store.first { $0.id == tab.leafId }
         }
@@ -100,20 +108,16 @@ public struct AllLeavesSwitcher: View {
                 .frame(height: 44)
                 .glassEffect(.regular, in: Capsule(style: .continuous))
 
-                Button {
+                IconCapsuleButton(
+                    systemImage: "xmark",
+                    accessibilityLabel: "Close search"
+                ) {
                     withAnimation(.easeOut(duration: 0.2)) {
                         searching = false
                         searchText = ""
                         searchFocused = false
                     }
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .frame(width: 44, height: 44)
                 }
-                .glassEffect(.regular.interactive(), in: Circle())
-                .accessibilityLabel("Close search")
             } else {
                 // `...` overflow menu — Safari pattern.
                 Menu {
@@ -169,7 +173,10 @@ public struct AllLeavesSwitcher: View {
 
                 Spacer()
 
-                Button {
+                IconCapsuleButton(
+                    systemImage: "magnifyingglass",
+                    accessibilityLabel: "Search"
+                ) {
                     withAnimation(.easeOut(duration: 0.2)) {
                         searching = true
                     }
@@ -177,14 +184,7 @@ public struct AllLeavesSwitcher: View {
                         try? await Task.sleep(for: .milliseconds(50))
                         searchFocused = true
                     }
-                } label: {
-                    Image(systemName: "magnifyingglass")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .frame(width: 44, height: 44)
                 }
-                .glassEffect(.regular.interactive(), in: Circle())
-                .accessibilityLabel("Search")
             }
         }
         .padding(.horizontal, 20)
@@ -221,19 +221,15 @@ public struct AllLeavesSwitcher: View {
 
     private var bottomToolbar: some View {
         HStack(spacing: 14) {
-            Button {
+            IconCapsuleButton(
+                systemImage: "plus",
+                accessibilityLabel: "New leaf"
+            ) {
                 // Create new leaf → dismisses the switcher + triggers
                 // the CreateBubble's primary action via Composer.
                 dismiss()
                 composer.showingCreateLeaf = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.title2.weight(.regular))
-                    .foregroundStyle(.primary)
-                    .frame(width: 44, height: 44)
             }
-            .glassEffect(.regular.interactive(), in: Circle())
-            .accessibilityLabel("New leaf")
 
             Spacer()
 

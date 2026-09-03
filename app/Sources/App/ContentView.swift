@@ -1,4 +1,5 @@
 import SwiftUI
+import PinkhaDesignSystem
 import PinkhaFFI
 import PinkhaCore
 import PinkhaComposer
@@ -19,12 +20,24 @@ struct ContentView: View {
     @State private var composer = Composer()
     @State private var tabManager = TabManager()
     @State private var readerMode = ReaderMode()
+    /// App-wide ambient-light monitor — drives `ReaderAppearance.ambient`
+    /// ("Match Surroundings"). One instance for the whole app, injected
+    /// via `@Environment` so any leaf can read its `isDark` derived
+    /// value without spinning up its own brightness observer.
+    @State private var ambientLight = AmbientLight()
     @Environment(AppSettings.self) private var settings
+    /// Live device color scheme (post AppSettings window override).
+    /// Used as the fallback when no leaf is forcing a scheme via
+    /// `readerMode.activeLeafColorScheme` — keeps the accessory bar
+    /// matched to the global appearance instead of hard-coding light.
+    @Environment(\.colorScheme) private var systemColorScheme
 
     /// Tracks crossing of the swipe-up haptic threshold so we fire
     /// the "ready to commit" tap exactly once per drag, not on every
     /// pixel past the line.
     @State private var swipeUpHapticFired = false
+
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -67,6 +80,7 @@ struct ContentView: View {
         // full immersion via the setting.
         .statusBarHidden(readerMode.isActive && settings.readerHidesStatusBar)
         .environment(readerMode)
+        .environment(ambientLight)
     }
 
     /// Wraps the existing tab-view + chrome stack. Extracted so the
@@ -77,9 +91,15 @@ struct ContentView: View {
         rootTabs
             // iOS 26 tab-bar morphing : the tab bar collapses when the user
             // scrolls down so the content gets more breathing room, and
-            // reappears on scroll-up. Search (role: .search) automatically
-            // detaches into its own glass bubble on the right.
+            // reappears on scroll-up.
             .tabBarMinimizeBehavior(.onScrollDown)
+            // What actually detaches Search into its own bubble. iOS 27
+            // reserves that "prominent" treatment — UITabBarController.h:
+            // "…a UISearchTab that could become prominent (when
+            // automaticallyActivatesSearch = true)". UISearchTab.h documents
+            // that flag's default as NO, so the role alone is not enough.
+            // This modifier is SwiftUI's spelling of setting it to YES.
+            .tabViewSearchActivation(.searchTabSelection)
             // Tab-bar hiding in reader mode is owned by `LeafView` (the
             // only context where reader mode is meaningful). Applying
             // it here AND there would double-toggle ; the leaf-level
@@ -91,6 +111,45 @@ struct ContentView: View {
             // the alerts/sheets attached afterwards to inherit the orange
             // env and repaint their default Buttons.
             .tint(settings.accentColor)
+            // Lifts every screen off pure black in dark mode by
+            // putting the window at UIKit's elevated interface
+            // level — the same rung the app's own sheets already
+            // sit on. Page and rows move together, so their
+            // separation survives. Cf. ElevatedInterfaceLevel.
+            .pinkhaElevatedSurfaces()
+            // Sauvegarde automatique au passage en arrière-plan.
+            //
+            // Ce moment est le bon pour trois raisons : l'utilisateur ne
+            // regarde plus l'écran, aucune frappe n'est en cours (donc la
+            // base est cohérente), et iOS accorde encore un court sursis
+            // d'exécution. `runIfDue` ne fait rien si l'intervalle n'est pas
+            // écoulé, donc l'appel est bon marché à chaque bascule.
+            //
+            // Détaché du fil principal : l'écriture est bloquante et n'a
+            // aucune raison de retarder la mise en veille de l'interface.
+            // Préparer le conteneur iCloud dès le démarrage, hors du fil
+            // principal. Le premier accès au conteneur est ce qui déclenche
+            // sa mise à disposition par iOS ; attendre le premier instantané
+            // pour le faire, c'est garantir que celui-là partira en local.
+            .task {
+                await Task.detached(priority: .utility) {
+                    LibrarySnapshots.warmUpCloudContainer()
+                }.value
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .background, let api = store.api else { return }
+                Task.detached(priority: .utility) {
+                    LibrarySnapshots.runIfDue(api: api)
+                }
+            }
+            // When a leaf is open with a Books-style theme override
+            // (e.g. dark "Tranquille" while the app is in light mode),
+            // mirror its effective `ColorScheme` onto the entire
+            // TabView so the bottom-accessory bar (CreateBubble) and
+            // the tab bar's own glass chrome render with matching
+            // icon colors. Nil = no leaf is forcing a scheme right
+            // now ; the tab bar follows the global appearance.
+            .preferredColorScheme(readerMode.activeLeafColorScheme)
             // Inject the Composer so deep navigation destinations
             // (ShelfView, LeafView) can flip the creation context
             // when they appear / disappear without having to be passed
@@ -132,6 +191,20 @@ struct ContentView: View {
                     onImportCraftCombined: { composer.showingCraftCombinedImport = true },
                     onShowAllLeaves: { openSwitcher() }
                 )
+                // `.tabViewBottomAccessory` hosts its content in a
+                // UIKit-bridged container that doesn't pick up the
+                // TabView's outer `.preferredColorScheme` (preference
+                // values bubble UP the tree ; the hosting wrapper
+                // doesn't republish them downward into the closure).
+                //
+                // The reliable fix per Apple's docs is to write
+                // `\.colorScheme` directly into the environment of
+                // the accessory subtree — that overrides SwiftUI's
+                // `Color.primary` / `.secondary` resolution down here
+                // without depending on preference propagation.
+                .environment(\.colorScheme,
+                             readerMode.activeLeafColorScheme
+                                ?? systemColorScheme)
             }
             .modifier(ContentSheets(composer: composer, store: store, settings: settings, tabManager: tabManager))
             .modifier(ContentAlerts(composer: composer, store: store))

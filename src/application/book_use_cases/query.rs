@@ -1,15 +1,19 @@
 use crate::application::error::PinkhaError;
 use crate::application::unit_of_work::UnitOfWork;
 use crate::domain::book::{
-    Book, DateGranularity, DateGrouping, DateGroupingSource, Entry, Filter, FilterCondition,
-    Group, Order, PropertyValue, SortSource,
+    Book, DateGranularity, DateGrouping, DateGroupingSource, Entry, Filter, FilterCondition, Group,
+    Order, PropertyValue, SortSource,
 };
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use uuid::Uuid;
 
 /// Returns the entries visible in a view after applying its filters and sorts.
-pub fn query(uow: &dyn UnitOfWork, book_id: Uuid, view_id: Uuid) -> Result<Vec<Entry>, PinkhaError> {
+pub fn query(
+    uow: &dyn UnitOfWork,
+    book_id: Uuid,
+    view_id: Uuid,
+) -> Result<Vec<Entry>, PinkhaError> {
     let db = uow.books().load(book_id)?;
     let view = db
         .views
@@ -196,13 +200,9 @@ pub fn date_grouped_query(
     let grouping = match override_grouping {
         Some(g) => g,
         None => {
-            let view = db
-                .views
-                .iter()
-                .find(|v| v.id == view_id)
-                .ok_or_else(|| {
-                    PinkhaError::InvalidOperation(format!("view {view_id} not found"))
-                })?;
+            let view = db.views.iter().find(|v| v.id == view_id).ok_or_else(|| {
+                PinkhaError::InvalidOperation(format!("view {view_id} not found"))
+            })?;
             match &view.date_grouping {
                 Some(g) => g.clone(),
                 None => return Ok(vec![]),
@@ -722,7 +722,10 @@ mod tests {
         assert_eq!(nodes.len(), 2);
         let y2024 = &nodes[0];
         assert_eq!(y2024.label_year, Some(2024));
-        assert!(y2024.entries.is_empty(), "year nodes carry children, not entries");
+        assert!(
+            y2024.entries.is_empty(),
+            "year nodes carry children, not entries"
+        );
         assert_eq!(y2024.children.len(), 2);
         // Newest month first inside the year (March 3 > January 1).
         assert_eq!(y2024.children[0].label_month, Some(3));

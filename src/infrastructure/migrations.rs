@@ -53,13 +53,15 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
     add_column_if_missing(conn, "leaves", "created_at", "TEXT NOT NULL DEFAULT ''")?;
     add_column_if_missing(conn, "books", "created_at", "TEXT NOT NULL DEFAULT ''")?;
     add_column_if_missing(conn, "leaves", "shelf_id", "TEXT")?;
-    // Parent leaf for Notion-style page-in-page hierarchy.
-    // Indexed so `list_root_leaves` and `list_child_leaves` can scan
-    // by this column without parsing every row's JSON `data` blob.
+    // Parent leaf for Notion-style page-in-page hierarchy. Denormalized out
+    // of the JSON blob so `list_root_leaves` / `list_child_leaves` can
+    // filter on it without parsing every row. Backed by
+    // `idx_leaves_parent` (created at the end of this function).
     add_column_if_missing(conn, "leaves", "parent_leaf_id", "TEXT")?;
-    // Page icon (emoji or filename). Indexed so list_leaves can return
+    // Page icon (emoji or filename). Denormalized so list_leaves can return
     // it without parsing the JSON `data` blob — the home view uses this
-    // to render the doc's chosen icon in rows and recent cards.
+    // to render the doc's chosen icon in rows and recent cards. Never
+    // filtered or sorted on, so intentionally not indexed.
     add_column_if_missing(conn, "leaves", "icon", "TEXT")?;
     // Backfill the icon column from the existing JSON `data` blob for
     // leaves saved before the column existed. Without this, pre-7
@@ -76,11 +78,12 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
     // Shelf icon (emoji). Shelves share the same icon affordance as
     // leaves in the Notion-style sidebar.
     add_column_if_missing(conn, "shelves", "icon", "TEXT")?;
-    // Book cover + icon. Mirrors the leaf treatment — indexed
+    // Book cover + icon. Mirrors the leaf treatment — denormalized
     // columns so list_books can return them without parsing each
     // row's JSON data blob, and a backfill from the data blob covers
     // books written before the columns existed (None on rows that
-    // never had a cover / icon in the first place).
+    // never had a cover / icon in the first place). Projected, never
+    // filtered on, so no index.
     add_column_if_missing(conn, "books", "cover", "TEXT")?;
     add_column_if_missing(conn, "books", "icon", "TEXT")?;
     conn.execute(
@@ -99,17 +102,13 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
         [],
     )
     .map_err(|e| PinkhaError::Db(e.to_string()))?;
-    // User-editable publish timestamp on Leaf, parallel to the
-    // one we added on Entry. Indexed so the home view's sort by
-    // published date can skip the JSON blob. Backfilled from
-    // `created_at` so pre-existing rows sort exactly like before
-    // until the user overrides.
-    add_column_if_missing(
-        conn,
-        "leaves",
-        "published_at",
-        "TEXT NOT NULL DEFAULT ''",
-    )?;
+    // User-editable publish timestamp on Leaf, parallel to the one we
+    // added on Entry. Denormalized so the home view's sort by published
+    // date can skip the JSON blob. Backfilled from `created_at` so
+    // pre-existing rows sort exactly like before until the user
+    // overrides. (Sorting on it happens Swift-side today, so there is no
+    // index — add one if it ever moves into SQL.)
+    add_column_if_missing(conn, "leaves", "published_at", "TEXT NOT NULL DEFAULT ''")?;
     conn.execute(
         "UPDATE leaves
             SET published_at = created_at
@@ -166,8 +165,108 @@ pub fn apply_migrations(conn: &mut Connection) -> Result<(), PinkhaError> {
         [],
     )
     .map_err(|e| PinkhaError::Db(e.to_string()))?;
-    conn.pragma_update(None, "user_version", 14)
+    // Heal shelf_id divergence between the indexed column and the JSON
+    // `data` blob. Pre-migration `move_to_shelf` only updated the column,
+    // leaving the blob stale. Subsequent `save()` calls (e.g. rename)
+    // then re-wrote the column from the stale blob and silently unshelved
+    // the leaf. Fix in code (`json_set` in `move_to_shelf`), heal here.
+    // Only touches rows where the blob's `shelf_id` differs from the
+    // column — no-op for consistent rows.
+    //
+    // Deliberately NOT filtered on `deleted_at IS NULL`: the reconciliation
+    // is column-authoritative and just as valid for trashed rows. Skipping
+    // them would leave a leaf that was in Compost at upgrade time still
+    // divergent, and `restore()` only clears `deleted_at` — so the first
+    // `save()` after restoring would re-trigger the very bug this heals.
+    conn.execute(
+        "UPDATE leaves
+            SET data = json_set(data, '$.shelf_id',
+                CASE WHEN shelf_id IS NULL
+                     THEN json('null')
+                     ELSE shelf_id END)
+          WHERE (shelf_id IS NULL AND json_extract(data, '$.shelf_id') IS NOT NULL)
+             OR (shelf_id IS NOT NULL AND json_extract(data, '$.shelf_id') IS NOT shelf_id)",
+        [],
+    )
+    .map_err(|e| PinkhaError::Db(e.to_string()))?;
+
+    // ── Indexes ──────────────────────────────────────────────────────────
+    //
+    // Until now the only index in the database was the implicit
+    // `PRIMARY KEY(id)` on each table — so every list, every shelf lookup
+    // and every soft-delete filter was a full table scan followed by an
+    // unindexed sort. On an imported library (2500+ leaves) that cost is
+    // paid several times per screen refresh.
+    //
+    // Shapes are chosen to match the queries actually issued by the stores:
+    //
+    //  - `(deleted_at, updated_at DESC)` serves every listing, which is
+    //    invariably `WHERE deleted_at IS NULL ORDER BY updated_at DESC` —
+    //    one index covers both the filter and the sort, so SQLite can skip
+    //    the sort entirely.
+    //  - The `shelf_id` / `parent_leaf_id` indexes are *partial*
+    //    (`WHERE … IS NOT NULL`): most leaves sit at the library root with
+    //    both columns NULL, and indexing those rows would bloat the index
+    //    with entries no query ever probes.
+    //  - `pinned_at` likewise — pinned leaves are a handful out of thousands.
+    //
+    // `IF NOT EXISTS` keeps this idempotent, like the rest of this function.
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_leaves_active_updated
+             ON leaves(deleted_at, updated_at DESC);
+         CREATE INDEX IF NOT EXISTS idx_leaves_shelf
+             ON leaves(shelf_id) WHERE shelf_id IS NOT NULL;
+         CREATE INDEX IF NOT EXISTS idx_leaves_parent
+             ON leaves(parent_leaf_id) WHERE parent_leaf_id IS NOT NULL;
+         CREATE INDEX IF NOT EXISTS idx_leaves_pinned
+             ON leaves(pinned_at) WHERE pinned_at IS NOT NULL;
+
+         CREATE INDEX IF NOT EXISTS idx_books_active_updated
+             ON books(deleted_at, updated_at DESC);
+
+         CREATE INDEX IF NOT EXISTS idx_shelves_active
+             ON shelves(deleted_at);
+         CREATE INDEX IF NOT EXISTS idx_shelves_parent
+             ON shelves(parent_id) WHERE parent_id IS NOT NULL;",
+    )
+    .map_err(|e| PinkhaError::Db(e.to_string()))?;
+
+    conn.pragma_update(None, "user_version", 16)
         .map_err(|e| PinkhaError::Db(e.to_string()))?;
+
+    // ── v17 (PRO-62) : `Leaf.reader_settings` JSON bundle ────────────────
+    //
+    // Numérotée v17 et non v15 : cette branche a été écrite quand 14 était
+    // la dernière version, et `dev` est passé à 16 entre-temps. Laisser le
+    // 15 d'origine faisait *redescendre* `user_version` après le bump de
+    // dev, puisque ce bloc s'exécute après lui — une base fraîchement
+    // migrée repartait donc à 15 et rejouait les migrations suivantes à
+    // chaque ouverture.
+    //
+    // No new SQL column — the bundle lives inside the existing `data`
+    // JSON blob (same pattern as `theme`, `accent_color`,
+    // `text_direction`, `pinned_at`, etc.). This block backfills the
+    // `reader_settings_summary` indexed text column so callers that
+    // need to filter on it (e.g. "leaves with a dark variant") can
+    // scan without parsing every row's full data blob. Per-leaf
+    // typography overrides (font_scale, font_family, bold,
+    // line/letter/word spacing, margin_scale, justify,
+    // theme_dark_variant, custom_layout_enabled) are stored as a
+    // single JSON struct under the `reader_settings` key of the
+    // leaf's `data` payload. `#[serde(default)]` on the Rust struct
+    // keeps backward compat — pre-v15 rows decode with `None`.
+    add_column_if_missing(conn, "leaves", "reader_settings_json", "TEXT")?;
+    conn.execute(
+        "UPDATE leaves
+            SET reader_settings_json = json_extract(data, '$.reader_settings')
+          WHERE reader_settings_json IS NULL
+            AND json_extract(data, '$.reader_settings') IS NOT NULL",
+        [],
+    )
+    .map_err(|e| PinkhaError::Db(e.to_string()))?;
+    conn.pragma_update(None, "user_version", 17)
+        .map_err(|e| PinkhaError::Db(e.to_string()))?;
+
     Ok(())
 }
 
@@ -276,4 +375,126 @@ fn add_column_if_missing(
         "ALTER TABLE {table} ADD COLUMN {column} {definition};"
     ))
     .map_err(|e| PinkhaError::Db(e.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn migrated() -> Connection {
+        let mut conn = Connection::open_in_memory().expect("open in-memory db");
+        apply_migrations(&mut conn).expect("apply migrations");
+        conn
+    }
+
+    fn index_names(conn: &Connection) -> Vec<String> {
+        let mut stmt = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%' ORDER BY name")
+            .expect("prepare");
+        let rows = stmt
+            .query_map([], |row| row.get::<_, String>(0))
+            .expect("query");
+        rows.map(|r| r.expect("row")).collect()
+    }
+
+    /// The indexes are what keep every list query off a full table scan.
+    /// Losing one would be invisible until a user with a large library
+    /// noticed the app had gone sluggish, so pin them by name.
+    #[test]
+    fn creates_every_expected_index() {
+        let conn = migrated();
+        let names = index_names(&conn);
+        for expected in [
+            "idx_books_active_updated",
+            "idx_leaves_active_updated",
+            "idx_leaves_parent",
+            "idx_leaves_pinned",
+            "idx_leaves_shelf",
+            "idx_shelves_active",
+            "idx_shelves_parent",
+        ] {
+            assert!(
+                names.iter().any(|n| n == expected),
+                "missing index {expected}; have {names:?}"
+            );
+        }
+    }
+
+    /// The listing query must be served by the index *and* have its sort
+    /// eliminated — `(deleted_at, updated_at DESC)` exists precisely so
+    /// SQLite never builds a temp B-tree for the ORDER BY.
+    #[test]
+    fn listing_query_uses_the_index_and_skips_the_sort() {
+        let conn = migrated();
+        let plan: String = conn
+            .prepare(
+                "EXPLAIN QUERY PLAN
+                 SELECT id FROM leaves WHERE deleted_at IS NULL ORDER BY updated_at DESC",
+            )
+            .expect("prepare")
+            .query_map([], |row| row.get::<_, String>(3))
+            .expect("query")
+            .map(|r| r.expect("row"))
+            .collect::<Vec<_>>()
+            .join(" | ");
+
+        assert!(
+            plan.contains("idx_leaves_active_updated"),
+            "listing should use the covering index, plan was: {plan}"
+        );
+        assert!(
+            !plan.contains("TEMP B-TREE"),
+            "listing should not sort, plan was: {plan}"
+        );
+    }
+
+    /// `apply_migrations` runs unconditionally on every launch — three
+    /// times per cold start, in fact, since each store constructs it. Every
+    /// statement in it has to be safe to replay.
+    #[test]
+    fn is_idempotent_across_repeated_runs() {
+        let mut conn = Connection::open_in_memory().expect("open");
+        for _ in 0..3 {
+            apply_migrations(&mut conn).expect("re-apply");
+        }
+        assert_eq!(index_names(&conn).len(), 7);
+        let version: i64 = conn
+            .query_row("PRAGMA user_version", [], |r| r.get(0))
+            .expect("read user_version");
+        assert_eq!(version, 17);
+    }
+
+    /// A leaf whose `shelf_id` column and JSON blob disagree gets healed,
+    /// column-authoritative — including when it sits in Compost, which an
+    /// earlier version of this migration wrongly skipped.
+    #[test]
+    fn heals_shelf_id_divergence_including_trashed_rows() {
+        let mut conn = Connection::open_in_memory().expect("open");
+        apply_migrations(&mut conn).expect("initial");
+
+        // Column says "in shelf S", blob says "no shelf" — and it's trashed.
+        conn.execute(
+            "INSERT INTO leaves (id, title_text, title_json, updated_at, created_at,
+                                 published_at, shelf_id, deleted_at, data)
+             VALUES ('leaf-1', 'T', '[]', 'now', 'now', 'now', 'shelf-1', 'yesterday',
+                     json_object('id','leaf-1','shelf_id', json('null')))",
+            [],
+        )
+        .expect("seed divergent trashed row");
+
+        apply_migrations(&mut conn).expect("re-apply heals");
+
+        let blob_shelf: Option<String> = conn
+            .query_row(
+                "SELECT json_extract(data, '$.shelf_id') FROM leaves WHERE id = 'leaf-1'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("read blob");
+        assert_eq!(
+            blob_shelf.as_deref(),
+            Some("shelf-1"),
+            "trashed rows are healed too — restore() would otherwise re-trigger the bug"
+        );
+    }
 }

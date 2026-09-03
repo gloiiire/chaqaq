@@ -64,6 +64,7 @@ public struct LeafOverflowMenuButton: UIViewRepresentable {
     public let onShowPublishDate: () -> Void
     public let onShowAttachToBook: () -> Void
     public let onToggleReaderMode: () -> Void
+    public let onShowReaderSettings: () -> Void
     public let onShare: (UIView) -> Void
 
     // ── Popover lifecycle (PRO-61 — drives overlay visibility) ────────────
@@ -88,6 +89,7 @@ public struct LeafOverflowMenuButton: UIViewRepresentable {
         onShowPublishDate: @escaping () -> Void,
         onShowAttachToBook: @escaping () -> Void,
         onToggleReaderMode: @escaping () -> Void,
+        onShowReaderSettings: @escaping () -> Void,
         onShare: @escaping (UIView) -> Void,
         onMenuOpen: @escaping () -> Void,
         onMenuClose: @escaping () -> Void
@@ -108,6 +110,7 @@ public struct LeafOverflowMenuButton: UIViewRepresentable {
         self.onShowPublishDate = onShowPublishDate
         self.onShowAttachToBook = onShowAttachToBook
         self.onToggleReaderMode = onToggleReaderMode
+        self.onShowReaderSettings = onShowReaderSettings
         self.onShare = onShare
         self.onMenuOpen = onMenuOpen
         self.onMenuClose = onMenuClose
@@ -283,7 +286,7 @@ public struct LeafOverflowMenuButton: UIViewRepresentable {
             onSetAccent(nil)
         }
         let accentSwatches = accentPalette.map { option -> UIAction in
-            UIAction(
+            let action = UIAction(
                 title: localized(option.displayName),
                 image: option.swatchImage,
                 state: accentColorName == option.name ? .on : .off
@@ -291,6 +294,13 @@ public struct LeafOverflowMenuButton: UIViewRepresentable {
                 Haptic.tap()
                 onSetAccent(name)
             }
+            // iOS 27: force the swatch image to render regardless of
+            // menu compaction. The swatch *is* the value here — if iOS
+            // dropped it we'd lose the color context entirely.
+            if #available(iOS 27.0, *) {
+                action.preferredImageVisibility = .visible
+            }
+            return action
         }
         // Leading icon on the submenu row : the current accent's
         // swatch if one is set (= visual confirmation of selection,
@@ -345,32 +355,25 @@ public struct LeafOverflowMenuButton: UIViewRepresentable {
             children: directionChildren
         )
 
-        // ── Theme picker ─────────────────────────────────────────────
-        let matchSettingsAction = UIAction(
-            title: String(format: String(localized: "Match Settings (%@)"), settingsThemeLabel),
-            state: theme == nil ? .on : .off
-        ) { [onSetTheme] _ in
+        // ── Themes & settings (opens the dedicated sheet) ────────────
+        // Replaces the old inline theme submenu — the full sheet has
+        // text size, brightness, theme grid with previews, and a
+        // customize-theme sub-sheet.
+        let themeAction = UIAction(
+            title: String(localized: "Themes & settings"),
+            image: UIImage(systemName: "textformat.size")
+        ) { [onShowReaderSettings] _ in
             Haptic.tap()
-            onSetTheme(nil)
+            onShowReaderSettings()
         }
-        let themeChildren = availableThemes.map { entry -> UIAction in
-            UIAction(
-                title: entry.label,
-                state: theme == entry.rawValue ? .on : .off
-            ) { [onSetTheme, raw = entry.rawValue] _ in
-                Haptic.tap()
-                onSetTheme(raw)
-            }
-        }
-        let themeMenu = UIMenu(
-            title: String(localized: "Theme"),
-            image: UIImage(systemName: "book.pages"),
-            children: [matchSettingsAction] + themeChildren
-        )
 
         // ── Single-tap actions ──────────────────────────────────────
+        // The `subtitle:` init (iOS 15+) adds a second line under the
+        // primary label — free discoverability hint for menu items whose
+        // purpose isn't obvious from the title alone.
         let publishAction = UIAction(
             title: String(localized: "Publish date"),
+            subtitle: String(localized: "Set or clear the draft/published date"),
             image: UIImage(systemName: "paperplane")
         ) { [onShowPublishDate] _ in
             Haptic.tap()
@@ -378,6 +381,7 @@ public struct LeafOverflowMenuButton: UIViewRepresentable {
         }
         let attachAction = UIAction(
             title: String(localized: "Add to a book"),
+            subtitle: String(localized: "Bind this leaf as a row"),
             image: UIImage(systemName: "book.and.wrench.fill")
         ) { [onShowAttachToBook] _ in
             Haptic.tap()
@@ -385,6 +389,7 @@ public struct LeafOverflowMenuButton: UIViewRepresentable {
         }
         let readerAction = UIAction(
             title: String(localized: "Reader mode"),
+            subtitle: String(localized: "Hide chrome, focus on content"),
             image: UIImage(systemName: "eyeglasses")
         ) { [onToggleReaderMode] _ in
             onToggleReaderMode()
@@ -392,7 +397,7 @@ public struct LeafOverflowMenuButton: UIViewRepresentable {
 
         let middleGroup = UIMenu(
             title: "", options: .displayInline,
-            children: [accentMenu, directionMenu, themeMenu]
+            children: [accentMenu, directionMenu, themeAction]
         )
         let sheetGroup = UIMenu(
             title: "", options: .displayInline,

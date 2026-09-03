@@ -369,10 +369,7 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
             json!({ "id": &doc, "cover": "cover-A" }),
         ),
         ("update_leaf_icon", json!({ "id": &doc, "icon": "🦊" })),
-        (
-            "update_leaf_locked",
-            json!({ "id": &doc, "locked": false }),
-        ),
+        ("update_leaf_locked", json!({ "id": &doc, "locked": false })),
         (
             "update_leaf_accent_color",
             json!({ "id": &doc, "accent_color": "teal" }),
@@ -508,12 +505,7 @@ fn end_to_end_agent_session_touches_most_tool_branches() {
         json!({ "leaf_id": &doc, "shelf_id": &shelf }),
     )
     .unwrap();
-    let _ = dispatch(
-        &a,
-        "list_leaves_in_shelf",
-        json!({ "shelf_id": &shelf }),
-    )
-    .unwrap();
+    let _ = dispatch(&a, "list_leaves_in_shelf", json!({ "shelf_id": &shelf })).unwrap();
     let _ = dispatch(
         &a,
         "move_shelf_to",

@@ -2,6 +2,7 @@ import SwiftUI
 import PinkhaCore
 import PinkhaFFI
 import PinkhaRichText
+import PinkhaDesignSystem
 
 // ── Auto-focus shared extension ───────────────────────────────────────────────
 
@@ -251,7 +252,7 @@ public struct BlockRowView: View {
                 // line. Use an explicit horizontal hairline matching the
                 // iOS native separator colour + standard 1 pt thickness.
                 Rectangle()
-                    .fill(Color(uiColor: .separator))
+                    .fill(Color.pinkhaSeparator)
                     .frame(height: 1)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -506,6 +507,9 @@ public struct BlockRowView: View {
 // surfaces the same palette to SwiftUI as a stable, identifiable list
 // the menu can iterate over.
 
+/// `@unchecked` is required by `displayName` : `LocalizedStringKey` is not
+/// `Sendable` even on iOS 26. The struct is fully immutable (all lets,
+/// value-type members) so the conformance is safe in practice.
 public struct BlockColorOption: Identifiable, @unchecked Sendable {
     public let id: String
     public let name: String
@@ -536,18 +540,18 @@ public struct BlockColorOption: Identifiable, @unchecked Sendable {
         return img
     }
 
-    static let palette: [BlockColorOption] = [
-        .init(id: "red",    name: "red",    displayName: "Red",    uiColor: .systemRed),
-        .init(id: "pink",   name: "pink",   displayName: "Pink",   uiColor: .systemPink),
-        .init(id: "orange", name: "orange", displayName: "Orange", uiColor: .systemOrange),
-        .init(id: "yellow", name: "yellow", displayName: "Yellow", uiColor: .systemYellow),
-        .init(id: "green",  name: "green",  displayName: "Green",  uiColor: .systemGreen),
-        .init(id: "cyan",   name: "cyan",   displayName: "Cyan",   uiColor: .systemCyan),
-        .init(id: "blue",   name: "blue",   displayName: "Blue",   uiColor: .systemBlue),
-        .init(id: "purple", name: "purple", displayName: "Purple", uiColor: .systemPurple),
-        .init(id: "brown",  name: "brown",  displayName: "Brown",  uiColor: .systemBrown),
-        .init(id: "gray",   name: "gray",   displayName: "Gray",   uiColor: .systemGray),
-    ]
+    /// Palette derived from the DS `PinkhaAccentPalette` — single source
+    /// of truth so adding an accent in the DS surfaces in the block-color
+    /// picker automatically. The `displayName: LocalizedStringKey` wrap
+    /// keeps SwiftUI's localisation lookup intact.
+    static let palette: [BlockColorOption] = PinkhaAccentPalette.all.map { accent in
+        BlockColorOption(
+            id: accent.name,
+            name: accent.name,
+            displayName: LocalizedStringKey(accent.displayNameKey),
+            uiColor: accent.uiColor
+        )
+    }
 }
 
 // ── Text ──────────────────────────────────────────────────────────────────────
@@ -557,11 +561,25 @@ private struct TextRowView: View {
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     public let cb: BlockCallbacks
+    @Environment(\.readerTheme) private var theme
+    @Environment(\.readerFontScale) private var fontScale
+    @Environment(\.readerTypography) private var typography
 
     public var body: some View {
+        let size = UIFont.preferredFont(forTextStyle: .body).pointSize * fontScale
         BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                       placeholder: String(localized: "Text…"), baseFont: .preferredFont(forTextStyle: .body), cb: cb)
+                       placeholder: String(localized: "Text…"),
+                       baseFont: typography.resolvedFont(theme: theme, size: size),
+                       extraAttrs: typography.attributedAttributes(baseFontSize: size).nilIfEmpty,
+                       cb: cb)
     }
+}
+
+private extension Dictionary where Key == NSAttributedString.Key, Value == Any {
+    /// Returns `nil` when empty so callers don't pass an empty
+    /// attributes dict to `BlockTextEditor` (which expects `nil`
+    /// to mean "no extras" and treats `[:]` as a marker to override).
+    var nilIfEmpty: [NSAttributedString.Key: Any]? { isEmpty ? nil : self }
 }
 
 // ── Heading ───────────────────────────────────────────────────────────────────
@@ -572,18 +590,44 @@ private struct HeadingRowView: View {
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     public let cb: BlockCallbacks
+    @Environment(\.readerTheme) private var theme
+    @Environment(\.readerFontScale) private var fontScale
+    @Environment(\.readerTypography) private var typography
 
     private var uiFont: UIFont {
-        switch level {
-        case 1:  return .systemFont(ofSize: 26, weight: .bold)
-        case 2:  return .systemFont(ofSize: 22, weight: .semibold)
-        default: return .systemFont(ofSize: 18, weight: .semibold)
+        let (size, baseWeight): (CGFloat, UIFont.Weight) = {
+            switch level {
+            case 1:  return (26, .bold)
+            case 2:  return (22, .semibold)
+            default: return (18, .semibold)
+            }
+        }()
+        let effectiveSize = size * fontScale
+        // Headings stay bold/semibold regardless of the body's bold
+        // toggle ; the toggle only nudges them when the user wants
+        // EVERYTHING heavy, so we OR-in `.bold`. We then route through
+        // `typography.resolvedFont` so the user's custom font family
+        // (Personnaliser → Police picker) wins over the theme's font.
+        let heavier = typography.bold && baseWeight.rawValue < UIFont.Weight.bold.rawValue
+            ? UIFont.Weight.bold : baseWeight
+        var typo = typography
+        typo.bold = (heavier == .bold)
+        let resolved = typo.resolvedFont(theme: theme, size: effectiveSize)
+        // resolvedFont uses .bold or .regular ; for semibold-only
+        // headings, re-apply the exact weight via the descriptor.
+        if heavier != .bold {
+            let traits: [UIFontDescriptor.TraitKey: Any] = [.weight: heavier.rawValue]
+            let descriptor = resolved.fontDescriptor.addingAttributes([.traits: traits])
+            return UIFont(descriptor: descriptor, size: effectiveSize)
         }
+        return resolved
     }
 
     public var body: some View {
         BlockTextEditor(block: $block, autoFocusId: $autoFocusId, autoFocusOffset: $autoFocusOffset,
-                       placeholder: "Heading…", baseFont: uiFont, cb: cb)
+                       placeholder: "Heading…", baseFont: uiFont,
+                       extraAttrs: typography.attributedAttributes(baseFontSize: uiFont.pointSize).nilIfEmpty,
+                       cb: cb)
             .padding(.top, level == 1 ? 16 : 10)
             .padding(.bottom, 4)
     }
@@ -598,11 +642,15 @@ private struct BulletedListItemRowView: View {
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     public let cb: BlockCallbacks
+    @Environment(\.readerTheme) private var theme
+    @Environment(\.readerFontScale) private var fontScale
+    @Environment(\.readerTypography) private var typography
 
     public var body: some View {
+        let baseSize = UIFont.preferredFont(forTextStyle: .body).pointSize * fontScale
         HStack(alignment: .top, spacing: 10) {
             Text("•")
-                .font(.body)
+                .font(theme.font(size: baseSize))
                 .foregroundStyle(.secondary)
                 .padding(.top, 8)
             BlockTextEditor(
@@ -610,7 +658,8 @@ private struct BulletedListItemRowView: View {
                 autoFocusId: $autoFocusId,
                 autoFocusOffset: $autoFocusOffset,
                 placeholder: "List item…",
-                baseFont: .preferredFont(forTextStyle: .body),
+                baseFont: typography.resolvedFont(theme: theme, size: baseSize),
+                extraAttrs: typography.attributedAttributes(baseFontSize: baseSize).nilIfEmpty,
                 cb: cb)
         }
         .padding(.vertical, 2)
@@ -624,11 +673,15 @@ private struct NumberedListItemRowView: View {
     @Binding var autoFocusId: String?
     @Binding var autoFocusOffset: Int?
     public let cb: BlockCallbacks
+    @Environment(\.readerTheme) private var theme
+    @Environment(\.readerFontScale) private var fontScale
+    @Environment(\.readerTypography) private var typography
 
     public var body: some View {
+        let baseSize = UIFont.preferredFont(forTextStyle: .body).pointSize * fontScale
         HStack(alignment: .top, spacing: 10) {
             Text("1.")
-                .font(.body)
+                .font(theme.font(size: baseSize))
                 .foregroundStyle(.secondary)
                 .padding(.top, 8)
             BlockTextEditor(
@@ -636,7 +689,8 @@ private struct NumberedListItemRowView: View {
                 autoFocusId: $autoFocusId,
                 autoFocusOffset: $autoFocusOffset,
                 placeholder: "List item…",
-                baseFont: .preferredFont(forTextStyle: .body),
+                baseFont: typography.resolvedFont(theme: theme, size: baseSize),
+                extraAttrs: typography.attributedAttributes(baseFontSize: baseSize).nilIfEmpty,
                 cb: cb)
         }
         .padding(.vertical, 2)

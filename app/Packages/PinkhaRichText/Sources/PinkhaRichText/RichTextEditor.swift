@@ -349,7 +349,7 @@ public struct RichTextEditor: UIViewRepresentable {
             coord.lastSyncedThemeForeground = themeForegroundColor
         }
 
-        if isFocused && !tv.isFirstResponder {
+        if isFocused && !tv.isFirstResponder && !coord.refocusSuppressed {
             let pos = focusCursorAt
             DispatchQueue.main.async {
                 _ = tv.becomeFirstResponder()
@@ -359,6 +359,10 @@ public struct RichTextEditor: UIViewRepresentable {
         } else if !isFocused && tv.isFirstResponder {
             tv.resignFirstResponder()
         }
+        // L'etat SwiftUI a rattrape l'intention : le drapeau a fait son
+        // office, on le baisse pour que le prochain focus programmatique
+        // (nouveau bloc, reinsertion par annulation) passe normalement.
+        if !isFocused { coord.refocusSuppressed = false }
     }
 
     /// Overlays `extraAttrs` (e.g. strikethrough for todo) on top of the span-derived attributes.

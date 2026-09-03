@@ -4,11 +4,11 @@ use pinkha::application::book_use_cases::{
     evaluate_rollups, get_book, grouped_query, list_books, query, set_view_date_grouping,
     update_entry,
 };
-use pinkha::domain::book::{DateGranularity, DateGrouping, DateGroupingSource};
 use pinkha::domain::book::{
     Aggregate, Filter, FilterCondition, Order, Property, PropertyType, PropertyValue, Sort, View,
     ViewType,
 };
+use pinkha::domain::book::{DateGranularity, DateGrouping, DateGroupingSource};
 use pinkha::domain::leaf::InlineText;
 use pinkha::infrastructure::book_store::BookStore;
 use std::collections::HashMap;
@@ -259,10 +259,9 @@ fn test_list_books() {
         vec![],
     )
     .unwrap();
-    let metas = list_books(
-        &pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store),
-    )
-    .unwrap();
+    let metas =
+        list_books(&pinkha::infrastructure::no_op_unit_of_work::NoOpUnitOfWork::with_books(&store))
+            .unwrap();
     assert_eq!(metas.len(), 2);
 }
 

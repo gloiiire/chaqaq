@@ -16,7 +16,7 @@ struct NotionOAuth2Tests {
     private let redirectUri = "pinkha://oauth/notion"
 
     private func makeUrl() -> URL {
-        guard let url = NotionOAuth2.authorizationUrl(clientId: clientId, redirectUri: redirectUri) else {
+        guard let url = NotionOAuth2.authorizationUrl(clientId: clientId, redirectUri: redirectUri, state: "test-state") else {
             Issue.record("authorizationUrl returned nil")
             return URL(string: "https://invalid")!
         }
@@ -56,14 +56,14 @@ struct NotionOAuth2Tests {
     }
 
     @Test func authUrl_with_different_client_id() {
-        let url = NotionOAuth2.authorizationUrl(clientId: "xyz999", redirectUri: redirectUri)
+        let url = NotionOAuth2.authorizationUrl(clientId: "xyz999", redirectUri: redirectUri, state: "test-state")
         #expect(url?.absoluteString.contains("client_id=xyz999") == true)
     }
 
     @Test func authUrl_returns_nil_for_malformed_base_url() {
         // The static helper uses the hardcoded authBaseUrl — this verifies the helper
         // produces a valid URL given valid inputs (indirect check that nil guard works).
-        let url = NotionOAuth2.authorizationUrl(clientId: "test", redirectUri: "pinkha://callback")
+        let url = NotionOAuth2.authorizationUrl(clientId: "test", redirectUri: "pinkha://callback", state: "test-state")
         #expect(url != nil)
     }
 
@@ -170,5 +170,31 @@ struct NotionOAuth2Tests {
     @Test func isUserCancellation_false_for_unrelated_error() {
         struct OtherError: Error {}
         #expect(!NotionOAuth2.isUserCancellation(OtherError()))
+    }
+
+    // ── CSRF state ────────────────────────────────────────────────────────
+
+    @Test func authUrl_carries_the_state_parameter() {
+        // `state` was documented as "the CSRF guard" in the log-redaction
+        // helper long before it was ever sent — the parameter was absent
+        // from the authorize URL entirely, so nothing bound the callback
+        // to the session that started it.
+        let url = makeUrl()
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+        #expect(items?.first(where: { $0.name == "state" })?.value == "test-state")
+    }
+
+    @Test func authUrl_state_is_percent_encoded() {
+        guard let url = NotionOAuth2.authorizationUrl(
+            clientId: clientId, redirectUri: redirectUri, state: "a b&c=d"
+        ) else {
+            Issue.record("authorizationUrl returned nil")
+            return
+        }
+        // Round-trips through URLComponents rather than matching raw text,
+        // so the assertion is about the value the server receives.
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+        #expect(items?.first(where: { $0.name == "state" })?.value == "a b&c=d")
+        #expect(!url.absoluteString.contains("state=a b"))
     }
 }

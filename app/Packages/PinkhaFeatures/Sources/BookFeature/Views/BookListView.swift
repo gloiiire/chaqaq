@@ -102,7 +102,7 @@ public struct BookListView: View {
         ListRow(
             entry: entry,
             properties: vm.properties,
-            leafId: vm.leafId(forEntryId: entry.id),
+            leafId: vm.leafId(for: entry),
             icon: vm.iconForEntry(entry),
             api: api,
             onDelete: { vm.deleteEntry(id: entry.id) },

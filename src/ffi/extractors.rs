@@ -166,8 +166,7 @@ impl PinkhaApi {
                 &token,
                 &page_id,
                 covers_dir.as_deref(),
-                &self.docs
-                    as &(dyn crate::application::repository::LeafRepository + Send + Sync),
+                &self.docs as &(dyn crate::application::repository::LeafRepository + Send + Sync),
             ))
             .map(|(_leaf_id, r)| ffi_import_result(r))
             .map_err(extractor_err_to_ffi)
@@ -195,14 +194,9 @@ impl PinkhaApi {
         tokio_runtime()
             .block_on(extractor.run(
                 config,
-                &self.docs
-                    as &(dyn crate::application::repository::LeafRepository + Send + Sync),
+                &self.docs as &(dyn crate::application::repository::LeafRepository + Send + Sync),
                 &self.dbs
-                    as &(
-                         dyn crate::application::book_repository::BookRepository
-                             + Send
-                             + Sync
-                     ),
+                    as &(dyn crate::application::book_repository::BookRepository + Send + Sync),
                 &self.shelves,
             ))
             .map(ffi_import_result)

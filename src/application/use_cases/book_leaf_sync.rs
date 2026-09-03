@@ -53,18 +53,32 @@ pub fn update_entry_propagating_title(
     book_use_cases::update_entry(uow, book_id, entry_id, values.clone())?;
 
     // Propagate to the leaf title when applicable.
+    //
+    // `NotFound` is swallowed on both propagations below: `Entry.leaf_id`
+    // can dangle when the backing leaf was trashed or purged while its row
+    // stayed in the book. The entry write above is already committed, so
+    // propagating a `NotFound` upward would report the whole edit as failed
+    // while it actually persisted — the UI would then show a stale value
+    // that "comes back" on the next reload. Same treatment as
+    // `delete_book_cascade` / `restore_book_cascade` / `set_published_at_source`.
     if let (Some(leaf_id), Some(title_id)) = (leaf_id, title_prop_id)
         && let Some(PropertyValue::Title(spans)) = values.get(&title_id)
     {
         let plain: String = spans.iter().map(|t| t.content.as_str()).collect();
-        leaf_use_cases::update_leaf_title(uow, leaf_id, &plain)?;
+        match leaf_use_cases::update_leaf_title(uow, leaf_id, &plain) {
+            Ok(()) | Err(PinkhaError::NotFound(_)) => {}
+            Err(e) => return Err(e),
+        }
     }
 
     // Propagate the publish date when the book has a source column —
     // `update_entry` already synced the entry's `published_at`; the
     // backing leaf follows so home-view sorts agree with the DB view.
     if let (Some(leaf_id), Some(published)) = (leaf_id, db.source_publish_date(&values)) {
-        leaf_use_cases::update_leaf_published_at(uow, leaf_id, published)?;
+        match leaf_use_cases::update_leaf_published_at(uow, leaf_id, published) {
+            Ok(()) | Err(PinkhaError::NotFound(_)) => {}
+            Err(e) => return Err(e),
+        }
     }
 
     Ok(())
@@ -276,7 +290,7 @@ mod tests {
     use crate::application::repository::LeafRepository;
     use crate::application::unit_of_work::test_support::MockUnitOfWork;
     use crate::domain::book::{Book, Property, PropertyType};
-    use crate::domain::leaf::{Leaf, InlineText};
+    use crate::domain::leaf::{InlineText, Leaf};
 
     use std::collections::HashMap;
 

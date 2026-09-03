@@ -1,5 +1,6 @@
 import SwiftUI
 import PinkhaFFI
+import PinkhaDesignSystem
 import LeafFeature
 
 /// Card-grid layout. Each entry renders as a large tile with the
@@ -25,7 +26,7 @@ public struct BookGalleryView: View {
                     entry: entry,
                     properties: vm.properties,
                     icon: vm.iconForEntry(entry),
-                    leafId: vm.leafId(forEntryId: entry.id),
+                    leafId: vm.leafId(for: entry),
                     api: api,
                     onDisappear: onDisappear
                 )
@@ -80,7 +81,7 @@ private struct GalleryCard: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 12)
-        .background(Color(.systemBackground),
+        .background(Color.pinkhaSurface,
                     in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 

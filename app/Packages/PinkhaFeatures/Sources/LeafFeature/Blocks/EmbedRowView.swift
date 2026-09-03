@@ -1,4 +1,6 @@
 import SwiftUI
+import PinkhaCore
+import PinkhaDesignSystem
 
 // ── Embed row ────────────────────────────────────────────────────────────────
 //
@@ -20,6 +22,10 @@ public struct EmbedRowView: View {
     /// (no work in the body itself, just reading the state).
     @State private var external: EmbedMetadata?
     @State private var loadedImage: UIImage?
+    @Environment(AppSettings.self) private var settings
+
+    /// Only `http(s)` embeds are ever handed to `UIApplication.open`.
+    private var openableURL: URL? { safeExternalEmbedURL(url) }
 
     public var body: some View {
         Group {
@@ -63,7 +69,7 @@ public struct EmbedRowView: View {
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(uiColor: .secondarySystemBackground))
+                    .fill(Color.pinkhaSurfaceElevated)
             )
         }
         .buttonStyle(.plain)
@@ -73,7 +79,7 @@ public struct EmbedRowView: View {
 
     private var externalCard: some View {
         Button {
-            if let parsed = URL(string: url) {
+            if let parsed = openableURL {
                 UIApplication.shared.open(parsed)
             }
         } label: {
@@ -88,7 +94,7 @@ public struct EmbedRowView: View {
                             .scaledToFill()
                     } else {
                         Rectangle()
-                            .fill(Color(uiColor: .tertiarySystemBackground))
+                            .fill(Color.pinkhaSurfaceNested)
                         if external?.imageURL != nil {
                             ProgressView()
                                 .controlSize(.small)
@@ -145,7 +151,7 @@ public struct EmbedRowView: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color(uiColor: .secondarySystemBackground))
+                    .fill(Color.pinkhaSurfaceElevated)
             )
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
@@ -153,13 +159,24 @@ public struct EmbedRowView: View {
         .task(id: url) { await loadIfNeeded() }
     }
 
-    /// Google's free `s2/favicons` service hosts a 32 px PNG for
-    /// every public host — used to render a little site identifier
-    /// next to the URL's hostname in the embed card's footer.
+    /// The site's own `/favicon.ico`, not a favicon *service*.
+    ///
+    /// This used to hit `google.com/s2/favicons?domain=<host>`, which
+    /// meant every bookmark a user saved announced its host to Google —
+    /// a third party that has nothing to do with the note, contacted
+    /// merely because the note scrolled into view. Fetching from the
+    /// origin the user already chose to embed adds no new party.
+    /// Hosts without a root favicon just fall through to the globe
+    /// glyph, exactly as an unreachable service did.
     private var faviconURL: URL? {
-        guard let host = URL(string: url)?.host, !host.isEmpty else { return nil }
-        return URL(string:
-            "https://www.google.com/s2/favicons?sz=64&domain=\(host)")
+        guard settings.linkPreviewsEnabled,
+              let parsed = openableURL,
+              var comps = URLComponents(url: parsed, resolvingAgainstBaseURL: false)
+        else { return nil }
+        comps.path = "/favicon.ico"
+        comps.query = nil
+        comps.fragment = nil
+        return comps.url
     }
 
     private var prettyHost: String {
@@ -167,7 +184,10 @@ public struct EmbedRowView: View {
     }
 
     private func loadIfNeeded() async {
-        guard external == nil, let parsed = URL(string: url) else { return }
+        // Rendering a leaf must not silently phone out when the user
+        // has asked it not to.
+        guard settings.linkPreviewsEnabled else { return }
+        guard external == nil, let parsed = openableURL else { return }
         let metadata = await EmbedMetadataStore.shared.metadata(for: parsed)
         await MainActor.run { self.external = metadata }
         if let imageURL = metadata?.imageURL {
@@ -179,4 +199,24 @@ public struct EmbedRowView: View {
             }
         }
     }
+}
+
+/// Narrows an Embed block's stored URL to something safe to open or fetch,
+/// returning `nil` when it isn't.
+///
+/// The URL in an Embed block is not necessarily something the user typed:
+/// importers write it straight from the source file, so a crafted Notion
+/// export or `.realm` bundle can put any scheme in there. Handing that to
+/// `UIApplication.open` would fire an arbitrary system action —
+/// `shortcuts://run-shortcut?name=…`, `facetime://`, a `mailto:` compose —
+/// from a card that renders as an ordinary bookmark.
+///
+/// Free function rather than a `View` member so it is directly testable.
+func safeExternalEmbedURL(_ raw: String) -> URL? {
+    guard let parsed = URL(string: raw),
+          let scheme = parsed.scheme?.lowercased(),
+          scheme == "https" || scheme == "http",
+          parsed.host?.isEmpty == false
+    else { return nil }
+    return parsed
 }

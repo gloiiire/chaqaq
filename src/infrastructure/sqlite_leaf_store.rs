@@ -1,7 +1,7 @@
 use crate::application::error::PinkhaError;
 use crate::application::repository::LeafRepository;
 use crate::application::resilience::retry_with_backoff;
-use crate::domain::leaf::{Leaf, LeafMeta, InlineText};
+use crate::domain::leaf::{InlineText, Leaf, LeafMeta};
 use crate::infrastructure::migrations::apply_leaf_migrations;
 use rusqlite::{Connection, params};
 use std::sync::Mutex;
@@ -32,6 +32,33 @@ impl SqliteLeafStore {
     }
 
     /// Creates an in-memory store — useful for unit tests.
+    /// Writes a consistent, self-contained copy of the whole database to
+    /// `dest_path`, returning its size in bytes.
+    ///
+    /// Uses SQLite's `VACUUM INTO`: it produces a single defragmented file
+    /// with the write-ahead log already folded in. Copying `pinkha.db` by
+    /// hand has a failure mode this avoids — in WAL mode the committed tail
+    /// of the database can still sit in `pinkha.db-wal`, so a copy of the
+    /// main file alone silently loses the most recent writes. Exactly the
+    /// bytes a user would care most about.
+    ///
+    /// The statement refuses to write over an existing file, so a stale one
+    /// is cleared first: an export is a fresh artefact, never a merge.
+    ///
+    /// The three stores share one database file, so a single snapshot
+    /// covers leaves, books and shelves alike.
+    pub fn snapshot_to(&self, dest_path: &str) -> Result<u64, PinkhaError> {
+        if std::path::Path::new(dest_path).exists() {
+            std::fs::remove_file(dest_path)?;
+        }
+        {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            conn.execute("VACUUM INTO ?1", params![dest_path])
+                .map_err(|e| PinkhaError::Db(e.to_string()))?;
+        }
+        Ok(std::fs::metadata(dest_path)?.len())
+    }
+
     pub fn in_memory() -> Result<Self, PinkhaError> {
         Self::new(":memory:")
     }
@@ -62,6 +89,15 @@ impl LeafRepository for SqliteLeafStore {
         let shelf_id = doc.shelf_id.map(|u| u.to_string());
         let parent_leaf_id = doc.parent_leaf_id.map(|u| u.to_string());
         let icon = doc.icon.clone();
+        // PRO-62 : serialise the reader-settings bundle into its own
+        // dedicated column so the JSON can be queried separately
+        // (e.g. `WHERE json_extract(reader_settings_json, '$.font_scale') > 1`).
+        // The same value lives inside the main `data` blob too —
+        // that's the authoritative source, this column is a mirror.
+        let reader_settings_json: Option<String> = doc
+            .reader_settings
+            .as_ref()
+            .map(|s| serde_json::to_string(s).unwrap_or_default());
         // `published_at` defaults to the row's creation timestamp when the
         // caller hasn't overridden it ; that way fresh docs sort identically
         // under both `created` and `published`, and only the user-edit path
@@ -75,8 +111,8 @@ impl LeafRepository for SqliteLeafStore {
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
             conn.execute(
-                "INSERT INTO leaves (id, title_text, title_json, cover, updated_at, created_at, published_at, shelf_id, parent_leaf_id, icon, data, pinned_at, manual_order)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, CASE WHEN ?7 = '' THEN ?6 ELSE ?7 END, ?8, ?9, ?10, ?11, ?12, ?13)
+                "INSERT INTO leaves (id, title_text, title_json, cover, updated_at, created_at, published_at, shelf_id, parent_leaf_id, icon, data, pinned_at, manual_order, reader_settings_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, CASE WHEN ?7 = '' THEN ?6 ELSE ?7 END, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
                  ON CONFLICT(id) DO UPDATE SET
                     title_text    = excluded.title_text,
                     title_json    = excluded.title_json,
@@ -89,8 +125,9 @@ impl LeafRepository for SqliteLeafStore {
                     data          = excluded.data,
                     pinned_at     = excluded.pinned_at,
                     manual_order  = excluded.manual_order,
+                    reader_settings_json = excluded.reader_settings_json,
                     deleted_at    = NULL",
-                params![id, title_text, title_json, cover, now, created_at, published_at, shelf_id, parent_leaf_id, icon, data, pinned_at, manual_order],
+                params![id, title_text, title_json, cover, now, created_at, published_at, shelf_id, parent_leaf_id, icon, data, pinned_at, manual_order, reader_settings_json],
             )
             .map_err(|e| PinkhaError::Db(e.to_string()))?;
             Ok(())
@@ -169,6 +206,67 @@ impl LeafRepository for SqliteLeafStore {
         })
     }
 
+    /// Single-row projection over the indexed columns — same field
+    /// sourcing as `list()`, so `load_meta(id)` and the matching entry
+    /// from `list()` agree. Overrides the trait default, which would
+    /// derive the meta from the JSON blob and return empty timestamps.
+    fn load_meta(&self, id: Uuid) -> Result<LeafMeta, PinkhaError> {
+        retry_with_backoff(|| {
+            let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            let result = conn.query_row(
+                "SELECT title_json, cover, updated_at, created_at, shelf_id,
+                        parent_leaf_id, icon, published_at, pinned_at, manual_order
+                   FROM leaves WHERE id = ?1 AND deleted_at IS NULL",
+                params![id.to_string()],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, Option<String>>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, Option<String>>(4)?,
+                        row.get::<_, Option<String>>(5)?,
+                        row.get::<_, Option<String>>(6)?,
+                        row.get::<_, String>(7)?,
+                        row.get::<_, Option<String>>(8)?,
+                        row.get::<_, Option<i32>>(9)?,
+                    ))
+                },
+            );
+            let (
+                title_json,
+                cover,
+                updated_at,
+                created_at,
+                fid,
+                pdid,
+                icon,
+                published_at,
+                pinned_at,
+                manual_order,
+            ) = match result {
+                Ok(row) => row,
+                Err(rusqlite::Error::QueryReturnedNoRows) => {
+                    return Err(PinkhaError::NotFound(id));
+                }
+                Err(e) => return Err(PinkhaError::Db(e.to_string())),
+            };
+            Ok(LeafMeta {
+                id,
+                title: serde_json::from_str(&title_json)?,
+                cover,
+                icon,
+                updated_at,
+                created_at,
+                published_at,
+                shelf_id: fid.and_then(|s| Uuid::parse_str(&s).ok()),
+                parent_leaf_id: pdid.and_then(|s| Uuid::parse_str(&s).ok()),
+                pinned_at,
+                manual_order,
+            })
+        })
+    }
+
     fn list(&self) -> Result<Vec<LeafMeta>, PinkhaError> {
         self.list_by_shelf_inner(None, false)
     }
@@ -178,10 +276,22 @@ impl LeafRepository for SqliteLeafStore {
         let fid = shelf_id.map(|u| u.to_string());
         retry_with_backoff(|| {
             let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+            // Update both the indexed column AND the JSON data blob's own
+            // `shelf_id` field via `json_set` — matches the pattern in
+            // `set_pinned` and `set_manual_order`. Without the JSON mirror
+            // the next `save()` (e.g. after a rename) would re-write the
+            // column from a stale blob and lift the leaf back to the
+            // library root, unshelving it silently.
             let affected = conn
                 .execute(
-                    "UPDATE leaves SET shelf_id = ?1, updated_at = ?2
-                     WHERE id = ?3 AND deleted_at IS NULL",
+                    "UPDATE leaves
+                        SET shelf_id  = ?1,
+                            data      = json_set(data, '$.shelf_id',
+                                CASE WHEN ?1 IS NULL
+                                     THEN json('null')
+                                     ELSE ?1 END),
+                            updated_at = ?2
+                      WHERE id = ?3 AND deleted_at IS NULL",
                     params![fid, now, leaf_id.to_string()],
                 )
                 .map_err(|e| PinkhaError::Db(e.to_string()))?;
@@ -326,8 +436,19 @@ impl SqliteLeafStore {
                      FROM leaves WHERE deleted_at IS NULL AND shelf_id = ?1
                      ORDER BY updated_at DESC"
                 } else {
+                    // "Root" is computed, not stored. A leaf reads as a root
+                    // leaf when it has no shelf *or* when its shelf is not an
+                    // active one — i.e. the shelf sits in Compost. `delete()`
+                    // on a shelf is deliberately non-destructive (it leaves
+                    // `shelf_id` intact so `restore()` can bring the whole
+                    // subtree back), so without this the leaves of a trashed
+                    // shelf would belong to an invisible parent and vanish
+                    // from every list.
                     "SELECT id, title_json, cover, updated_at, created_at, shelf_id, parent_leaf_id, icon, published_at, pinned_at, manual_order
-                     FROM leaves WHERE deleted_at IS NULL AND shelf_id IS NULL
+                     FROM leaves
+                     WHERE deleted_at IS NULL
+                       AND (shelf_id IS NULL
+                            OR shelf_id NOT IN (SELECT id FROM shelves WHERE deleted_at IS NULL))
                      ORDER BY updated_at DESC"
                 }
             } else {
@@ -405,6 +526,76 @@ mod tests {
 
     fn store() -> SqliteLeafStore {
         SqliteLeafStore::in_memory().unwrap()
+    }
+
+    fn temp_path(name: &str) -> String {
+        std::env::temp_dir()
+            .join(format!("pinkha_snap_{}_{}.db", name, uuid::Uuid::new_v4()))
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    /// The whole point of an export: the copy must be readable on its own
+    /// and carry the same leaves.
+    #[test]
+    fn snapshot_is_a_standalone_readable_copy() {
+        let store = store();
+        store.save(&doc("Première")).unwrap();
+        store.save(&doc("Deuxième")).unwrap();
+
+        let dest = temp_path("standalone");
+        let size = store.snapshot_to(&dest).unwrap();
+        assert!(size > 0, "un instantané vide n'est pas un instantané");
+
+        let reopened = SqliteLeafStore::new(&dest).unwrap();
+        let titles: Vec<String> = reopened
+            .list()
+            .unwrap()
+            .into_iter()
+            .map(|m| {
+                m.title
+                    .iter()
+                    .map(|t| t.content.clone())
+                    .collect::<String>()
+            })
+            .collect();
+        assert_eq!(titles.len(), 2);
+        assert!(titles.iter().any(|t| t == "Première"));
+        assert!(titles.iter().any(|t| t == "Deuxième"));
+
+        let _ = std::fs::remove_file(&dest);
+    }
+
+    /// `VACUUM INTO` refuses to write over an existing file. Exporting twice
+    /// to the same place is the normal case — the user picks the same folder
+    /// again — so a stale file must be cleared rather than surfaced as an
+    /// error.
+    #[test]
+    fn snapshot_overwrites_a_stale_file() {
+        let store = store();
+        store.save(&doc("Une")).unwrap();
+        let dest = temp_path("overwrite");
+        std::fs::write(&dest, b"vieux contenu qui n'est pas une base").unwrap();
+
+        store.snapshot_to(&dest).expect("doit écraser, pas échouer");
+        let reopened = SqliteLeafStore::new(&dest).unwrap();
+        assert_eq!(reopened.list().unwrap().len(), 1);
+
+        let _ = std::fs::remove_file(&dest);
+    }
+
+    /// Une bibliothèque vide s'exporte aussi : c'est un cas légitime, et
+    /// échouer laisserait l'utilisateur sans retour compréhensible.
+    #[test]
+    fn snapshot_of_an_empty_library_succeeds() {
+        let dest = temp_path("empty");
+        let size = store().snapshot_to(&dest).unwrap();
+        assert!(size > 0);
+        assert_eq!(
+            SqliteLeafStore::new(&dest).unwrap().list().unwrap().len(),
+            0
+        );
+        let _ = std::fs::remove_file(&dest);
     }
 
     fn doc(title: &str) -> Leaf {
@@ -518,14 +709,170 @@ mod tests {
     fn test_list_meta_sans_deserialiser_les_blocs() {
         let store = store();
         let mut d = doc("Titre riche");
-        d.add_block(crate::domain::leaf::BlockContent::Text(vec![
-            InlineText {
-                content: "content".to_string(),
-                styles: vec![],
-            },
-        ]));
+        d.add_block(crate::domain::leaf::BlockContent::Text(vec![InlineText {
+            content: "content".to_string(),
+            styles: vec![],
+        }]));
         store.save(&d).unwrap();
         let metas = store.list().unwrap();
         assert_eq!(metas[0].title[0].content, "Titre riche");
+    }
+
+    /// Regression: a leaf moved into a shelf must stay in that shelf after
+    /// an unrelated `save()` (e.g. rename). The bug was that
+    /// `move_to_shelf` only updated the `shelf_id` column, leaving the
+    /// `data` blob's own `shelf_id` field stale — the next `save()` then
+    /// rewrote the column from the stale blob and unshelved the leaf
+    /// silently.
+    #[test]
+    fn test_move_to_shelf_survives_save_after_rename() {
+        let store = store();
+        let mut d = doc("À déplacer");
+        let shelf_id = Uuid::new_v4();
+        store.save(&d).unwrap();
+        store.move_to_shelf(d.id, Some(shelf_id)).unwrap();
+        // Rename simulates a subsequent `update_leaf_title`: load, mutate
+        // title, save — the same flow that used to un-shelve the leaf.
+        d = store.load(d.id).unwrap();
+        d.title = vec![InlineText {
+            content: "Renommée".to_string(),
+            styles: vec![],
+        }];
+        store.save(&d).unwrap();
+        let loaded = store.load(d.id).unwrap();
+        assert_eq!(
+            loaded.shelf_id,
+            Some(shelf_id),
+            "shelf_id survives save() after move_to_shelf"
+        );
+    }
+
+    /// Regression: the two ways of reading one leaf's metadata must agree.
+    /// `load_meta` used to derive from the JSON blob and returned empty
+    /// `updated_at` / `created_at`, while `list()` returned the real column
+    /// values for the same row.
+    #[test]
+    fn test_load_meta_agrees_with_list() {
+        let store = store();
+        let d = doc("Accord");
+        store.save(&d).unwrap();
+        store.set_pinned(d.id, true).unwrap();
+
+        let meta = store.load_meta(d.id).unwrap();
+        let listed = store
+            .list()
+            .unwrap()
+            .into_iter()
+            .find(|m| m.id == d.id)
+            .expect("leaf in list");
+
+        assert_eq!(meta.id, listed.id);
+        assert_eq!(meta.title, listed.title);
+        assert_eq!(meta.cover, listed.cover);
+        assert_eq!(meta.icon, listed.icon);
+        assert_eq!(meta.updated_at, listed.updated_at);
+        assert_eq!(meta.created_at, listed.created_at);
+        assert_eq!(meta.published_at, listed.published_at);
+        assert_eq!(meta.shelf_id, listed.shelf_id);
+        assert_eq!(meta.parent_leaf_id, listed.parent_leaf_id);
+        assert_eq!(meta.pinned_at, listed.pinned_at);
+        assert_eq!(meta.manual_order, listed.manual_order);
+
+        assert!(!meta.updated_at.is_empty(), "timestamps are real");
+        assert!(!meta.created_at.is_empty());
+    }
+
+    #[test]
+    fn test_load_meta_missing_leaf_is_not_found() {
+        let store = store();
+        assert!(matches!(
+            store.load_meta(Uuid::new_v4()),
+            Err(PinkhaError::NotFound(_))
+        ));
+    }
+
+    /// Regression: `set_pinned` writes an indexed column that also lives in
+    /// the JSON blob. Same family as the `move_to_shelf` bug — if only the
+    /// column were written, the next `save()` would restore the stale blob
+    /// value and silently unpin the leaf.
+    #[test]
+    fn test_pin_survives_save_after_rename() {
+        let store = store();
+        let mut d = doc("À épingler");
+        store.save(&d).unwrap();
+        store.set_pinned(d.id, true).unwrap();
+
+        d = store.load(d.id).unwrap();
+        assert!(d.pinned_at.is_some(), "pinned_at reaches the blob");
+        d.title = vec![InlineText {
+            content: "Renommée".to_string(),
+            styles: vec![],
+        }];
+        store.save(&d).unwrap();
+
+        let loaded = store.load(d.id).unwrap();
+        assert!(
+            loaded.pinned_at.is_some(),
+            "pin survives an unrelated save()"
+        );
+        let meta = store.list().unwrap();
+        assert!(
+            meta[0].pinned_at.is_some(),
+            "column agrees with the blob after save()"
+        );
+    }
+
+    /// Regression: same contract for `set_manual_order`, the other column
+    /// mutator that mirrors into the blob.
+    #[test]
+    fn test_manual_order_survives_save_after_rename() {
+        let store = store();
+        let a = doc("A");
+        let b = doc("B");
+        store.save(&a).unwrap();
+        store.save(&b).unwrap();
+        store.set_manual_order(&[a.id, b.id]).unwrap();
+
+        let mut reloaded_b = store.load(b.id).unwrap();
+        assert_eq!(reloaded_b.manual_order, Some(1));
+        reloaded_b.title = vec![InlineText {
+            content: "B renommée".to_string(),
+            styles: vec![],
+        }];
+        store.save(&reloaded_b).unwrap();
+
+        assert_eq!(
+            store.load(b.id).unwrap().manual_order,
+            Some(1),
+            "manual_order survives an unrelated save()"
+        );
+        let meta = store.list().unwrap();
+        let b_meta = meta.iter().find(|m| m.id == b.id).unwrap();
+        assert_eq!(
+            b_meta.manual_order,
+            Some(1),
+            "column agrees with the blob after save()"
+        );
+    }
+
+    /// Regression: moving a leaf out of a shelf (`shelf_id: None`) also
+    /// syncs the JSON blob, so a subsequent `save()` doesn't resurrect the
+    /// old shelf assignment.
+    #[test]
+    fn test_move_out_of_shelf_survives_save() {
+        let store = store();
+        let mut d = doc("Sortie de shelf");
+        let shelf_id = Uuid::new_v4();
+        store.save(&d).unwrap();
+        store.move_to_shelf(d.id, Some(shelf_id)).unwrap();
+        store.move_to_shelf(d.id, None).unwrap();
+        d = store.load(d.id).unwrap();
+        d.title = vec![InlineText {
+            content: "Après retour racine".to_string(),
+            styles: vec![],
+        }];
+        store.save(&d).unwrap();
+        let loaded = store.load(d.id).unwrap();
+        assert_eq!(loaded.shelf_id, None, "shelf_id stays None after save()");
     }
 }

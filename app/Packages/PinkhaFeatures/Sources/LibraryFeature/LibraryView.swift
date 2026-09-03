@@ -320,7 +320,7 @@ public struct LibraryView: View {
                 Button {
                     showingSettings = true
                 } label: {
-                    Image(systemName: "gearshape")
+                    Image(systemName: "gear")
                 }
                 // Settings is neutral chrome — never adopts the
                 // accent that the TabView spreads through its env.
@@ -385,7 +385,25 @@ public struct LibraryView: View {
         .databaseDeleteDialog(pending: $pendingBookDeletion, store: store)
         .shelfDeleteDialog(pending: $pendingShelfDeletion, store: store)
         .toolbar { toolbarContent }
-        .sheet(isPresented: $showingSettings) { SettingsView() }
+        // Le store est injecté EXPLICITEMENT : une feuille iOS 26 ne
+        // propage pas de façon fiable l'environnement de la vue qui la
+        // présente, et la section de sauvegarde a besoin de l'API pour
+        // écrire l'archive. Sans cette ligne le bouton reste grisé.
+        .sheet(isPresented: $showingSettings) {
+            SettingsView().environment(store)
+        }
+        // Ouverture déterministe pour les tests UI : atteindre les réglages
+        // demanderait sinon de traverser un menu déroulant, notoirement
+        // instable sur simulateur.
+        // `.task` et non `.onAppear` : muter un état de présentation pendant
+        // la première passe de mise en page rouvre la récursion de mise à
+        // jour documentée plus haut dans ce fichier. `.task` s'exécute sur un
+        // tour de boucle neuf, une fois la vue posée.
+        .task {
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-settings") {
+                showingSettings = true
+            }
+        }
         // Surfaced from the "Add to a book" long-press menu on leaf
         // rows / recents — files the existing doc as a row of the
         // picked book with the title pre-seeded.
@@ -744,12 +762,18 @@ public struct LibraryView: View {
             selectedIds.removeAll()
             editMode = .inactive
         }
+        // One FFI call for the whole selection. Looping here meant a full
+        // library reload per item — the list visibly stuttered its way
+        // through a large selection.
+        var leafIds: [String] = []
+        var bookIds: [String] = []
         for item in toDelete {
             switch item {
-            case .leaf(let d):      store.delete(id: d.id)
-            case .book(let db): store.deleteBook(id: db.id)
+            case .leaf(let d):  leafIds.append(d.id)
+            case .book(let db): bookIds.append(db.id)
             }
         }
+        store.deleteItems(leafIds: leafIds, bookIds: bookIds)
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

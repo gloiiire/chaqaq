@@ -32,6 +32,12 @@ public final class LeafViewModel {
     /// `AppSettings.Theme`). `nil` inherits from the app-wide
     /// `settings.theme`. The editor renders the matching palette.
     var theme: String? = nil
+    /// PRO-62 : per-leaf reader-settings bundle (font scale, font
+    /// family, bold, line/letter/word spacing, margin, justify,
+    /// dark variant, custom-layout flag). Mirrors the Rust
+    /// `ReaderSettings` shape ; persisted via
+    /// `api.updateLeafReaderSettings`. `nil` = theme defaults.
+    var readerSettings: LeafReaderSettings = .init()
     /// User-overridable publish date in ISO-8601 (empty = "use
     /// `createdAt` as the effective publish date"). The LeafMeta
     /// row carries the real value from SQLite; the toolbar lets the
@@ -45,8 +51,13 @@ public final class LeafViewModel {
     var errorMessage: String?
     var autoFocusId: String?
     var autoFocusOffset: Int? = nil
-    // Observed so LeafView re-renders on focus changes and scrolls
-    // the freshly-focused block to a comfortable position above the keyboard.
+    // Identifiant du bloc qui a le focus. Lu par le sélecteur de blocs
+    // pour insérer juste après lui.
+    //
+    // N'entraîne plus de défilement automatique : LeafView écoutait ce
+    // champ pour remonter le bloc au-dessus du clavier, mais l'ancre visée
+    // dépend de la zone sûre du bas — la même que le clavier et le fond du
+    // thème déplacent. Retiré ; UIKit révèle déjà le curseur seul.
     var activeBlockId: String? = nil
     @ObservationIgnored var focusedBlockId: String? = nil
     @ObservationIgnored let repeater = ActionRepeater()
@@ -63,6 +74,51 @@ public final class LeafViewModel {
     /// undo/redo buttons would never refresh — `@Observable` only
     /// tracks reads of its own stored properties.
     private var undoTick: Int = 0
+    /// Dernières valeurs publiées, pour n'incrémenter `undoTick` QUE
+    /// lorsqu'elles changent. `@ObservationIgnored` : les lire ne doit
+    /// créer aucune dépendance, sinon on rouvre le cycle qu'on ferme ici.
+    @ObservationIgnored private var lastPublishedCanUndo = false
+    @ObservationIgnored private var lastPublishedCanRedo = false
+
+    /// Incrémente le tick d'observation seulement si `canUndo` / `canRedo`
+    /// ont réellement changé.
+    ///
+    /// Sans ce garde, l'app brûle un coeur entier en permanence dès qu'une
+    /// leaf est ouverte, sans aucune interaction. Le cycle :
+    ///
+    ///   `UndoManager` émet un checkpoint à CHAQUE tour de boucle
+    ///   d'exécution (il ouvre un groupe par événement)
+    ///     → on incrémente `undoTick`, propriété observée
+    ///     → `canUndo` la lit, donc `UndoRedoPill` est invalidée
+    ///     → SwiftUI refait une passe de rendu
+    ///     → la boucle d'exécution tourne, un nouveau checkpoint part
+    ///
+    /// Le saut `Task { @MainActor }` — ajouté pour éviter l'avertissement
+    /// « Publishing changes from within view updates » — ne supprime pas
+    /// l'écriture, il la reporte d'un tour. Le cycle se referme quand même,
+    /// à 60 Hz.
+    ///
+    /// Mesuré : 100 % de CPU au repos dans une leaf, pile de mise en page de
+    /// 5274 niveaux, ~340 objets autoreleased par seconde. Alimenter la
+    /// pastille avec des constantes faisait tomber à 0,7 % — c'est ce qui a
+    /// désigné cette écriture. La chauffe de l'appareil, les saccades et le
+    /// gel au changement d'onglet venaient tous de là.
+    func bumpUndoTickIfNeeded() {
+        let u = undoMgr.canUndo || !blockBurstAnchor.isEmpty
+        let r = undoMgr.canRedo
+        guard u != lastPublishedCanUndo || r != lastPublishedCanRedo else { return }
+        lastPublishedCanUndo = u
+        lastPublishedCanRedo = r
+        // Le report d'un tour ne sert qu'ICI : un checkpoint peut partir
+        // synchronement depuis un `registerUndo` invoqué pendant une passe de
+        // rendu, et muter un état observé à ce moment-là déclenche
+        // « Publishing changes from within view updates ». On ne paie ce saut
+        // que lorsqu'il y a vraiment quelque chose à publier — donc quelques
+        // fois par session, pas soixante fois par seconde.
+        Task { @MainActor [weak self] in
+            self?.undoTick &+= 1
+        }
+    }
     /// `canUndo` also reflects pending bursts: if the user triggers undo before the burst
     /// timer fires (`burstInterval`), `vm.undo()` flushes first, then undoes.
     var canUndo: Bool {
@@ -93,23 +149,45 @@ public final class LeafViewModel {
 
     @ObservationIgnored let api: PinkhaApi
 
+    /// Token for the checkpoint observer below — kept so `deinit` can
+    /// unregister instead of leaving a dead block in the center's table.
+    /// `nonisolated(unsafe)` because a nonisolated `deinit` can't touch
+    /// MainActor state under Swift 6 ; the token is written once in `init`
+    /// and read once in `deinit`, and `removeObserver` is thread-safe.
+    @ObservationIgnored nonisolated(unsafe) private var undoCheckpointObserver: (any NSObjectProtocol)?
+
     public init(leafId: String, api: PinkhaApi) {
         self.leafId = leafId
         self.api   = api
         undoMgr.levelsOfUndo = 1000
         // Bump the observable tick on every undo-stack mutation so SwiftUI
         // re-reads the `canUndo` / `canRedo` computed properties on the next
-        // body eval. Dispatched async to dodge "Publishing changes from
-        // within view updates" — `NSUndoManagerCheckpoint` can fire
+        // body eval. The `Task { @MainActor }` hop defers the mutation past
+        // the current view update — `NSUndoManagerCheckpoint` can fire
         // synchronously from a registerUndo invoked inside a view update.
-        NotificationCenter.default.addObserver(
+        // (A `NotificationCenter.notifications(named:)` async sequence would
+        // be the fully-structured form, but untyped `Notification` isn't
+        // Sendable under Swift 6 and the iOS 26 typed-message API doesn't
+        // cover UndoManager's checkpoint — the block observer stays.)
+        undoCheckpointObserver = NotificationCenter.default.addObserver(
             forName: .NSUndoManagerCheckpoint,
             object: undoMgr,
             queue: .main
         ) { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.undoTick &+= 1
+            // Le bloc est déjà livré sur la file principale (`queue: .main`),
+            // donc on peut lire l'état synchronement. C'est ESSENTIEL : créer
+            // un `Task` ici, même vide, réveille la boucle d'exécution, et une
+            // boucle réveillée fait émettre à `UndoManager` un nouveau
+            // checkpoint. La tâche était elle-même la pompe.
+            MainActor.assumeIsolated {
+                self?.bumpUndoTickIfNeeded()
             }
+        }
+    }
+
+    deinit {
+        if let undoCheckpointObserver {
+            NotificationCenter.default.removeObserver(undoCheckpointObserver)
         }
     }
 }

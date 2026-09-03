@@ -12,11 +12,9 @@
 
 use std::collections::HashMap;
 
-use realm_codec::RealmFile;
-
 use crate::application::book_repository::BookRepository;
-use crate::application::shelf_repository::ShelfRepository;
 use crate::application::repository::LeafRepository;
+use crate::application::shelf_repository::ShelfRepository;
 use crate::application::use_cases;
 use crate::domain::leaf::{Block, BlockContent};
 use crate::extractors::bear::mapper::ParsedBlock;
@@ -62,8 +60,7 @@ impl Extractor for CraftExtractor {
         _books: &(dyn BookRepository + Send + Sync),
         _shelves: &(dyn ShelfRepository + Send + Sync),
     ) -> Result<ImportResult, ExtractorError> {
-        let realm = RealmFile::open(&config.db_path)
-            .map_err(|e| ExtractorError::Parse(format!("cannot open realm file: {e}")))?;
+        let realm = crate::extractors::open_realm_guarded(&config.db_path)?;
 
         // ── Step 1: collect real leaf IDs from DocumentDataModel ──────────
         let leaf_ids: std::collections::HashSet<String> = {

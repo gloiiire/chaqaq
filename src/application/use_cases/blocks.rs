@@ -136,7 +136,11 @@ fn clone_with_fresh_ids(block: &Block) -> Block {
 }
 
 /// Deletes a block (and all its descendants) from the leaf tree and persists.
-pub fn delete_block(uow: &dyn UnitOfWork, leaf_id: Uuid, block_id: Uuid) -> Result<(), PinkhaError> {
+pub fn delete_block(
+    uow: &dyn UnitOfWork,
+    leaf_id: Uuid,
+    block_id: Uuid,
+) -> Result<(), PinkhaError> {
     let repo = uow.leaves();
     let mut doc = repo.load(leaf_id)?;
     if !delete_from_tree(&mut doc.blocks, block_id) {
@@ -241,7 +245,11 @@ pub fn move_block(
 /// Returns `InvalidOperation` when the block is the first in its sibling list
 /// (no previous sibling to attach to) — there's nothing meaningful to indent
 /// it under. Returns `NotFound` if the block is unknown.
-pub fn indent_block(uow: &dyn UnitOfWork, leaf_id: Uuid, block_id: Uuid) -> Result<(), PinkhaError> {
+pub fn indent_block(
+    uow: &dyn UnitOfWork,
+    leaf_id: Uuid,
+    block_id: Uuid,
+) -> Result<(), PinkhaError> {
     let repo = uow.leaves();
     let mut doc = repo.load(leaf_id)?;
     indent_in_siblings(&mut doc.blocks, block_id)?;
@@ -319,6 +327,74 @@ fn outdent_in_tree(siblings: &mut Vec<Block>, block_id: Uuid) -> bool {
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
+
+/// Re-inserts a whole block subtree at `index` under `parent_id`
+/// (`None` = top level), preserving its ids, attributes and children.
+///
+/// This is the inverse of [`delete_block`], which removes a block *and its
+/// entire subtree*. `add_block` cannot express that: it appends a bare
+/// `BlockContent` at the root, dropping nesting, colour, background colour
+/// and writing direction — so undoing the deletion of a styled, indented
+/// block used to bring it back flat and unstyled, and persist that.
+///
+/// Ids are preserved rather than regenerated. The delete freed them, and
+/// keeping them stable means the caller's snapshots and focus targets stay
+/// valid across undo/redo cycles. Re-inserting an id that is still present
+/// is rejected — that would corrupt the tree with duplicates.
+pub fn insert_block_tree(
+    uow: &dyn UnitOfWork,
+    leaf_id: Uuid,
+    block: Block,
+    parent_id: Option<Uuid>,
+    index: usize,
+) -> Result<(), PinkhaError> {
+    let repo = uow.leaves();
+    let mut doc = repo.load(leaf_id)?;
+
+    if contains_any_id(&doc.blocks, &block) {
+        return Err(PinkhaError::InvalidOperation(format!(
+            "block {} already exists in leaf {leaf_id}",
+            block.id
+        )));
+    }
+
+    let siblings = match parent_id {
+        None => &mut doc.blocks,
+        Some(pid) => match find_block_mut(&mut doc.blocks, pid) {
+            Some(parent) => &mut parent.children,
+            None => return Err(PinkhaError::NotFound(pid)),
+        },
+    };
+    let at = index.min(siblings.len());
+    siblings.insert(at, block);
+    repo.save(&doc)
+}
+
+/// Whether any id in `candidate`'s subtree is already present in `blocks`.
+fn contains_any_id(blocks: &[Block], candidate: &Block) -> bool {
+    let mut ids = Vec::new();
+    collect_ids(candidate, &mut ids);
+    ids.iter().any(|id| find_block(blocks, *id).is_some())
+}
+
+fn collect_ids(block: &Block, out: &mut Vec<Uuid>) {
+    out.push(block.id);
+    for child in &block.children {
+        collect_ids(child, out);
+    }
+}
+
+fn find_block(blocks: &[Block], id: Uuid) -> Option<&Block> {
+    for b in blocks {
+        if b.id == id {
+            return Some(b);
+        }
+        if let Some(found) = find_block(&b.children, id) {
+            return Some(found);
+        }
+    }
+    None
+}
 
 fn delete_from_tree(blocks: &mut Vec<Block>, id: Uuid) -> bool {
     let before = blocks.len();
@@ -404,10 +480,7 @@ mod tests {
         ) -> Result<(), PinkhaError> {
             Ok(())
         }
-        fn list_by_shelf(
-            &self,
-            _shelf_id: Option<Uuid>,
-        ) -> Result<Vec<LeafMeta>, PinkhaError> {
+        fn list_by_shelf(&self, _shelf_id: Option<Uuid>) -> Result<Vec<LeafMeta>, PinkhaError> {
             self.list()
         }
     }
@@ -796,5 +869,91 @@ mod tests {
         assert_eq!(loaded.blocks.len(), 3);
         assert_eq!(loaded.blocks[1].id, child_id);
         assert_eq!(loaded.blocks[2].id, z_id);
+    }
+    /// A deleted subtree comes back with its nesting, attributes and
+    /// children intact — the whole point of the API, and what `add_block`
+    /// could not express.
+    #[test]
+    fn insert_block_tree_restores_nesting_and_attributes() {
+        let repo = MockRepo::new();
+        let doc = Leaf::new(vec![]);
+        let leaf_id = doc.id;
+        repo.save(&doc).unwrap();
+        let uow = leaf_uow(&repo);
+
+        // parent → child, parent styled and RTL
+        let child = Block::new(BlockContent::Text(vec![]));
+        let child_id = child.id;
+        let mut parent = Block::new(BlockContent::Text(vec![]));
+        parent.color = Some("red".into());
+        parent.background_color = Some("yellow".into());
+        parent.text_direction = Some("rtl".into());
+        parent.children.push(child);
+        let parent_id = parent.id;
+
+        insert_block_tree(&uow, leaf_id, parent, None, 0).unwrap();
+
+        let loaded = repo.load(leaf_id).unwrap();
+        assert_eq!(loaded.blocks.len(), 1);
+        let restored = &loaded.blocks[0];
+        assert_eq!(restored.id, parent_id, "ids are preserved, not regenerated");
+        assert_eq!(restored.color.as_deref(), Some("red"));
+        assert_eq!(restored.background_color.as_deref(), Some("yellow"));
+        assert_eq!(restored.text_direction.as_deref(), Some("rtl"));
+        assert_eq!(restored.children.len(), 1, "the subtree came back");
+        assert_eq!(restored.children[0].id, child_id);
+    }
+
+    #[test]
+    fn insert_block_tree_honours_index_and_parent() {
+        let repo = MockRepo::new();
+        let mut doc = Leaf::new(vec![]);
+        let host = Block::new(BlockContent::Text(vec![]));
+        let host_id = host.id;
+        doc.blocks.push(host);
+        let leaf_id = doc.id;
+        repo.save(&doc).unwrap();
+        let uow = leaf_uow(&repo);
+
+        let nested = Block::new(BlockContent::Text(vec![]));
+        let nested_id = nested.id;
+        insert_block_tree(&uow, leaf_id, nested, Some(host_id), 0).unwrap();
+
+        let loaded = repo.load(leaf_id).unwrap();
+        assert_eq!(loaded.blocks[0].children[0].id, nested_id);
+    }
+
+    /// Re-inserting an id that still exists would corrupt the tree with
+    /// duplicates, so it is refused rather than silently accepted.
+    #[test]
+    fn insert_block_tree_rejects_duplicate_ids() {
+        let repo = MockRepo::new();
+        let mut doc = Leaf::new(vec![]);
+        let existing = Block::new(BlockContent::Text(vec![]));
+        let clash = existing.clone();
+        doc.blocks.push(existing);
+        let leaf_id = doc.id;
+        repo.save(&doc).unwrap();
+        let uow = leaf_uow(&repo);
+
+        assert!(matches!(
+            insert_block_tree(&uow, leaf_id, clash, None, 0),
+            Err(PinkhaError::InvalidOperation(_))
+        ));
+    }
+
+    #[test]
+    fn insert_block_tree_unknown_parent_is_not_found() {
+        let repo = MockRepo::new();
+        let doc = Leaf::new(vec![]);
+        let leaf_id = doc.id;
+        repo.save(&doc).unwrap();
+        let uow = leaf_uow(&repo);
+
+        let orphan = Block::new(BlockContent::Text(vec![]));
+        assert!(matches!(
+            insert_block_tree(&uow, leaf_id, orphan, Some(Uuid::new_v4()), 0),
+            Err(PinkhaError::NotFound(_))
+        ));
     }
 }

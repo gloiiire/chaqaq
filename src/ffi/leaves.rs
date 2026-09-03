@@ -4,8 +4,8 @@ use crate::application::use_cases;
 use crate::domain::leaf::BlockContent;
 
 use super::types::{
-    BlockSearchHitFfi, BookMetaFfi, LeafMetaFfi, ShelfMetaFfi, book_meta_to_ffi,
-    leaf_meta_to_ffi, shelf_meta_to_ffi,
+    BlockSearchHitFfi, BookMetaFfi, LeafMetaFfi, ShelfMetaFfi, book_meta_to_ffi, leaf_meta_to_ffi,
+    shelf_meta_to_ffi,
 };
 use super::validation::{get_block_id, parse_json, parse_uuid, parse_uuids, validate_string};
 use super::{PinkhaApi, PinkhaError};
@@ -60,22 +60,17 @@ impl PinkhaApi {
     }
 
     /// Sets or clears the cover of a leaf.
-    pub fn update_leaf_cover(
-        &self,
-        id: String,
-        cover: Option<String>,
-    ) -> Result<(), PinkhaError> {
+    pub fn update_leaf_cover(&self, id: String, cover: Option<String>) -> Result<(), PinkhaError> {
+        if let Some(c) = cover.as_deref() {
+            validate_string(c, "cover")?;
+        }
         let uuid = parse_uuid(&id)?;
         use_cases::update_leaf_cover(&self.uow(), uuid, cover).map_err(PinkhaError::from)
     }
 
     /// Sets or clears the page icon. Accepts an emoji, a local cover-dir
     /// filename, or a remote URL — the renderer picks the right strategy.
-    pub fn update_leaf_icon(
-        &self,
-        id: String,
-        icon: Option<String>,
-    ) -> Result<(), PinkhaError> {
+    pub fn update_leaf_icon(&self, id: String, icon: Option<String>) -> Result<(), PinkhaError> {
         if let Some(i) = icon.as_deref() {
             validate_string(i, "icon")?;
         }
@@ -139,6 +134,27 @@ impl PinkhaApi {
     pub fn set_leaves_manual_order(&self, ordered_ids: Vec<String>) -> Result<(), PinkhaError> {
         let uuids = parse_uuids(ordered_ids)?;
         use_cases::set_leaves_manual_order(&self.uow(), &uuids).map_err(PinkhaError::from)
+    }
+
+    /// Re-inserts a whole block subtree at `index` under `parent_id`
+    /// (`None` = top level), preserving its ids, attributes and children.
+    ///
+    /// Inverse of `delete_block`, which removes a block *and its subtree*.
+    /// `add_block` can't undo that — it appends a bare `BlockContent` at the
+    /// root, so nesting, colour, background colour and writing direction are
+    /// all lost. Takes a full `Block` JSON rather than a `BlockContent`.
+    pub fn insert_block_tree(
+        &self,
+        leaf_id: String,
+        block_json: String,
+        parent_id: Option<String>,
+        index: u32,
+    ) -> Result<(), PinkhaError> {
+        let uuid = parse_uuid(&leaf_id)?;
+        let parent = parent_id.as_deref().map(parse_uuid).transpose()?;
+        let block: crate::domain::leaf::Block = parse_json(&block_json)?;
+        use_cases::insert_block_tree(&self.uow(), uuid, block, parent, index as usize)
+            .map_err(PinkhaError::from)
     }
 
     /// Appends a block to a leaf. `block_content_json` must be a JSON-encoded
@@ -227,16 +243,35 @@ impl PinkhaApi {
 
     /// Sets the per-leaf theme name, or clears with `None` to
     /// inherit from `AppSettings.theme`.
-    pub fn update_leaf_theme(
-        &self,
-        id: String,
-        theme: Option<String>,
-    ) -> Result<(), PinkhaError> {
+    pub fn update_leaf_theme(&self, id: String, theme: Option<String>) -> Result<(), PinkhaError> {
         if let Some(t) = theme.as_deref() {
             validate_string(t, "theme")?;
         }
         let uuid = parse_uuid(&id)?;
         use_cases::update_leaf_theme(&self.uow(), uuid, theme).map_err(PinkhaError::from)
+    }
+
+    /// Persists the leaf's reader-settings bundle: font scale, family,
+    /// bold, line/letter/word spacing, margin, justify, dark variant and
+    /// the custom-layout flag. Pass an empty / `None` JSON to reset to the
+    /// theme's factory defaults. The blob is serialised as JSON and stored
+    /// on the leaf's row.
+    ///
+    /// (Rewrapped so no line starts with `+` — clippy reads that as an
+    /// unindented markdown list item and fails the `-D warnings` gate.)
+    pub fn update_leaf_reader_settings(
+        &self,
+        id: String,
+        settings_json: Option<String>,
+    ) -> Result<(), PinkhaError> {
+        use crate::domain::leaf::ReaderSettings;
+        let uuid = parse_uuid(&id)?;
+        let settings: Option<ReaderSettings> = match settings_json {
+            None => None,
+            Some(raw) => Some(parse_json::<ReaderSettings>(&raw)?),
+        };
+        use_cases::update_leaf_reader_settings(&self.uow(), uuid, settings)
+            .map_err(PinkhaError::from)
     }
 
     /// Sets the block-level text color, or clears it when `color` is `None`.
@@ -270,7 +305,11 @@ impl PinkhaApi {
     /// inserts the clone right after the original at the same level.
     /// Returns the new top-level block id so the UI can focus / scroll
     /// to it.
-    pub fn duplicate_block(&self, leaf_id: String, block_id: String) -> Result<String, PinkhaError> {
+    pub fn duplicate_block(
+        &self,
+        leaf_id: String,
+        block_id: String,
+    ) -> Result<String, PinkhaError> {
         let leaf_uuid = parse_uuid(&leaf_id)?;
         let block_uuid = parse_uuid(&block_id)?;
         use_cases::duplicate_block(&self.uow(), leaf_uuid, block_uuid)

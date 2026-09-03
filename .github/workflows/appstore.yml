@@ -2,7 +2,7 @@ name: App Store
 
 # ── Triggers ─────────────────────────────────────────────────────────────────
 #
-# Pushes to `master` mean : staging has been validated, we're ready for
+# Pushes to `app-store` mean : beta-test has been validated, we're ready for
 # the App Store. The build is uploaded as a candidate but NOT
 # submitted for review — `upload_to_app_store(submit_for_review: false)`
 # gives you a chance to fill in the release notes / screenshots in ASC
@@ -10,22 +10,40 @@ name: App Store
 # Manual-only for the same reason as testflight.yml — GHA runners
 # don't have Xcode 26 yet. Until they do, App Store builds are
 # produced locally via `bundle exec fastlane ios release` from the
-# master branch. Flip back to `push: [master]` once Xcode 26 lands.
+# app-store branch. Flip back to `push: [app-store]` once Xcode 26 lands.
+# **Ce qui ne peut pas changer le binaire ne déclenche pas de téléversement.**
+# Voir l'explication détaillée dans `testflight.yml` : les places de
+# téléversement Apple sont comptées par jour, et un correctif de CI promu
+# jusqu'ici en consommerait une.
+#
+# Le build monte comme CANDIDAT — `submit_for_review: false`. La soumission à
+# la revue reste un geste humain dans App Store Connect, et doit le rester :
+# elle engage une version publique.
 on:
+  push:
+    branches: [app-store]
+    paths-ignore:
+      - ".github/workflows/**"
+      - "**/*.md"
+      - "utilities/docs/**"
+      # Outillage interne : ne produit pas une ligne du binaire.
+      - "crates/pinkha-mcp/**"
   workflow_dispatch:
 
 concurrency:
-  group: appstore
-  cancel-in-progress: true
+  group: apple-delivery
+  cancel-in-progress: false
 
 jobs:
   appstore:
-    runs-on: macos-14
+    # Runner auto-hébergé : seule machine avec Xcode 27, donc seule capable
+    # d'archiver une cible iOS 26.
+    runs-on: [self-hosted, macOS, ARM64, xcode27]
     timeout-minutes: 30
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -61,7 +79,7 @@ jobs:
 
       - name: Archive build artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: appstore-build
           path: |

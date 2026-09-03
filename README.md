@@ -5,7 +5,7 @@ A personal note-taking app combining the fluidity of Craft with the structure of
 [![CI](https://github.com/gloiiire/pinkha/actions/workflows/ci.yml/badge.svg)](https://github.com/gloiiire/pinkha/actions/workflows/ci.yml)
 [![chaqaq on crates.io](https://img.shields.io/crates/v/chaqaq.svg)](https://crates.io/crates/chaqaq)
 
-> Status: **complete Rust backend** (208+ tests) · **functional SwiftUI UI** (rich text, undo/redo, toolbar pill, drag & drop) · **import pipelines Notion + Bear + Craft** · **OAuth2 Notion end-to-end** (proxy Railway, multi-tenant) · **compiled XCFramework** iOS + Mac · **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0 published on crates.io**
+> Status: **complete Rust backend** (208+ tests) · **functional SwiftUI UI** (rich text, undo/redo, toolbar pill, drag & drop) · **import pipelines Notion + Bear + Craft** · **OAuth2 Notion end-to-end** (proxy AWS Lambda, multi-tenant) · **compiled XCFramework** iOS + Mac · **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0 published on crates.io**
 
 ---
 
@@ -122,6 +122,8 @@ app/                 — SwiftUI application
 - **Notion-like Book**: properties (Title, Text, Number, Selection, Date, Checkbox, URL, Relation, Rollup), views (Table, Kanban, Calendar, Gallery), filters, sorts, groups, rollups computed at read time
 - **Search**: title, full-text in blocks (recursive), text values of book entries
 - **Local-first SQLite storage**: leaf-as-JSON + indexed columns for listing, soft delete, `updated_at`, versioned migrations, WAL for concurrency, exponential backoff retry on transient errors
+- **Automatic snapshots**: `snapshot_library(dir, keep)` writes a timestamped copy and prunes all but the newest `keep`. Runs unattended when the app backgrounds — the real data loss that motivated this happened overnight, so a protection requiring deliberate action would have changed nothing
+- **Library export**: `export_library(dest_path)` writes a consistent standalone copy via SQLite's `VACUUM INTO`, folding the write-ahead log in. Copying `pinkha.db` from Swift would ship a database missing its most recent writes
 - **Typed errors** (`PinkhaError`): `NotFound`, `InvalidOperation`, `Io`, `Json`, `Db` — never `unwrap()` in production
 - **Import pipelines** (`src/extractors/`):
   - **Notion** — `reqwest` + `rustls-tls`, API v1 paginée (schema → properties → pages → blocks récursifs), mapping complet types/valeurs/blocs, `[Async]` UniFFI
@@ -129,6 +131,7 @@ app/                 — SwiftUI application
 
 ### SwiftUI UI (iOS 26)
 
+- **Backup**: rolling snapshots to iCloud Drive every 6 hours (last 7 kept, falling back to on-device storage when iCloud is unavailable), visible in the Files app under *Pinkha*; plus Settings → *Export library* which produces a single `.zip` holding the database, the cover images and a plain-text README. The database inside is standard SQLite — readable in ten years without Pinkha
 - **Home screen**: list, FAB, dynamic greeting, relative date
 - **Import**: FAB menu → "Import from Notion" (integration token + DB URL/ID) + "Import from Bear" (file picker) — both delegate to the Rust extractor
 - **Editor**: Text / Heading×3 / Quote / Callout / Todo / Divider / BulletedListItem / NumberedListItem / Code blocks
@@ -203,7 +206,7 @@ refactor/** │
 perf/**    ─┘
 ```
 
-3 permanent branches: `master` (prod), `staging` (QA), `dev` (integration). Ephemeral branches are created from `dev` and deleted after merge.
+3 permanent branches: `app-store` (prod), `beta-test` (QA), `dev` (integration). Ephemeral branches are created from `dev` and deleted after merge.
 
 See the "Git workflow" section of [CLAUDE.md](CLAUDE.md) for detailed rules.
 
@@ -219,7 +222,7 @@ OAuth2 distinguishes between two layers that are easy to conflate:
 
 | Credential | Identifies | Where it lives | How many |
 |---|---|---|---|
-| `client_id` + `client_secret` | The **pinkha app itself** | Notion dashboard → Railway env vars (proxy only) | **One pair for the whole app** |
+| `client_id` + `client_secret` | The **pinkha app itself** | Notion dashboard → Lambda env vars (proxy only) | **One pair for the whole app** |
 | `access_token` | An **individual user's grant** to pinkha | Returned per user, stored in iOS Keychain | **One per user** |
 
 Your Notion credentials say "I am the pinkha app" — exactly like Spotify has one `client_id` with Google, even though millions of different Google users sign in.
@@ -256,10 +259,10 @@ Notion stopped accepting custom URL schemes as redirect URIs in 2024 — only HT
 
 1. Create a **Public** integration (not Internal) at https://www.notion.so/my-integrations
    - Type: `Public`
-   - Redirect URI: `https://<your-proxy>.up.railway.app/oauth/callback` (HTTPS, Notion rejects custom schemes)
+   - Redirect URI: `https://<api-id>.execute-api.<region>.amazonaws.com/oauth/callback` (HTTPS, Notion rejects custom schemes)
    - Notion gives you **one** `client_id` + `client_secret` for the entire app
-2. Add `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET`, `PROXY_HMAC_SECRET`, `SENTRY_DSN` as Railway env vars on the `pinkha-app/notion-proxy` service
-3. Fill `NOTION_PROXY_URL` in `app/Config/Secrets.xcconfig` (gitignored) with the Railway public URL — the app derives both `/oauth/callback` and `/oauth/token` from this single base URL
+2. Set `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET`, `PROXY_HMAC_SECRET`, `SENTRY_DSN` as environment variables on the `pinkha-app/notion-proxy` Lambda function (`cargo lambda deploy --env-file .env`)
+3. Fill `NOTION_PROXY_URL` in `app/Config/Secrets.xcconfig` (gitignored) with the API Gateway base URL — the app derives both `/oauth/callback` and `/oauth/token` from this single base URL
 4. The same `PROXY_HMAC_SECRET` value must also be in `app/Config/Secrets.xcconfig` (matches the proxy's env var) so the iOS build can sign token-exchange requests
 
 End users never touch any of this.
@@ -268,8 +271,8 @@ End users never touch any of this.
 
 ## CI / Security
 
-- **GitHub Actions**: `cargo test` on push/PR to master/staging/dev (~25 s). The Swift job is suspended pending Xcode 26 on runners.
-- **Branch protection**: master/staging/dev → PR mandatory, force-push blocked, deletion blocked, Rust CI required before merge
+- **GitHub Actions**: `cargo test` on push/PR to app-store/beta-test/dev (~25 s). The Swift job is suspended pending Xcode 26 on runners.
+- **Branch protection**: app-store/beta-test/dev → PR mandatory, force-push blocked, deletion blocked, Rust CI required before merge
 - **Secret Scanning + Push Protection**: a secret accidentally pushed is detected before it reaches the repo
 - **Dependabot Alerts + Security Updates**: CVEs detected + auto-PR fix
 - **Monthly Dependabot updates** (Cargo + GitHub Actions) grouped to reduce noise
@@ -296,7 +299,7 @@ End users never touch any of this.
 - [x] Rust CI, branch protection, Dependabot, Secret Scanning
 - [x] Refactor Rust identifiers → English (open-source prerequisite)
 - [x] **[`chaqaq`](https://crates.io/crates/chaqaq) v0.1.0** — core rich text editor published on crates.io (MIT OR Apache-2.0)
-- [x] **OAuth2 Notion end-to-end** — multi-tenant, proxy Railway, HMAC-signed token exchange, Keychain-persisted access token, validated on device 2026-06-02
+- [x] **OAuth2 Notion end-to-end** — multi-tenant, proxy on AWS Lambda, HMAC-signed token exchange, Keychain-persisted access token, validated on device 2026-06-02
 - [x] **Block-level colour** — `Block.color` field, FFI `set_block_color`, toolbar ¶ palette with inline-over-block priority at render time
 - [x] **Toolbar indent / outdent** — `increase.quotelevel` / `decrease.quotelevel` buttons backed by dedicated `indent_block` / `outdent_block` Rust use cases
 - [x] **DB row rename propagates to leaf title** — `Entry.leaf_id` + `update_entry_propagating_title` orchestration use case fixes the long-standing UX bug

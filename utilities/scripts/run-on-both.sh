@@ -45,13 +45,26 @@ if [ -f "$SCRIPTS_DIR/patch-app-icon.rb" ]; then
 fi
 
 # ── Simulator target ──────────────────────────────────────────────────────
-SIM_UDID="${SIM_UDID:-3B5F9D7C-EAB0-4BCF-A60C-C44380EF8DF1}"
+# Resolved by name, not by a hardcoded UDID: UDIDs are per-machine and change
+# whenever the simulator is recreated, so the literal that used to live here
+# had already stopped matching any device — the sim leg silently never ran.
+SIM_NAME="${SIM_NAME:-Pinkha SIM}"
+SIM_UDID="${SIM_UDID:-$(xcrun simctl list devices --json \
+    | jq -r --arg name "$SIM_NAME" \
+        '.devices | to_entries[] | .value[] | select(.name == $name) | .udid' \
+    | head -1)}"
 HAVE_SIM=0
-if xcrun simctl list devices booted 2>/dev/null | grep -q "$SIM_UDID"; then
+if [[ -z "$SIM_UDID" ]]; then
+    echo "⚠ No simulator named '$SIM_NAME' — skipping the simulator leg." >&2
+elif xcrun simctl list devices booted 2>/dev/null | grep -q "$SIM_UDID"; then
     HAVE_SIM=1
 elif xcrun simctl list devices 2>/dev/null | grep -q "$SIM_UDID"; then
     xcrun simctl boot "$SIM_UDID" 2>/dev/null || true
-    open -a Simulator
+    # iOS 27 / macOS 27 renamed Simulator.app → DeviceHub.app. Try the new
+    # name first, fall back to Simulator for older Xcode installs.
+    if ! open -a "DeviceHub" 2>/dev/null; then
+        open -a Simulator 2>/dev/null || true
+    fi
     # Block until the sim is fully booted — otherwise the install/launch
     # calls below race the boot and fail with "Unable to lookup in current
     # state: Shutdown" (code 405) on cold start.
@@ -60,10 +73,18 @@ elif xcrun simctl list devices 2>/dev/null | grep -q "$SIM_UDID"; then
 fi
 
 # ── Device target ─────────────────────────────────────────────────────────
+# `reality == "physical"` : devicectl liste aussi les SIMULATEURS, et un
+# simulateur d'iPhone a un `productType` commençant par "iPhone". Sans ce
+# filtre, `head -1` peut rendre un simulateur et l'install échoue sur
+# « Install Application is not supported by this device » — un message qui
+# fait chercher du côté de l'appairage alors que la cible n'est pas un
+# appareil. Ce script duplique la résolution de run-on-device.sh : toute
+# correction ici doit être reportée là-bas, et inversement.
 DEVICE_ID="${DEVICE_ID:-$(xcrun devicectl list devices --json-output - 2>/dev/null \
     | jq -r '.result.devices[]
         | select((.connectionProperties.tunnelState == "connected"
                   or .connectionProperties.tunnelState == "disconnected")
+                 and (.hardwareProperties.reality == "physical")
                  and (.hardwareProperties.productType // "" | startswith("iPhone")))
         | .identifier' \
     | head -1)}"
@@ -89,7 +110,26 @@ if [[ $HAVE_SIM -eq 1 ]]; then
         -project app/Pinkha.xcodeproj \
         -scheme Pinkha \
         -destination "id=$SIM_UDID"
-    SIM_APP=$(find ~/Library/Developer/Xcode/DerivedData/Pinkha-*/Build/Products/Debug-iphonesimulator -name "Pinkha.app" -type d 2>/dev/null | head -1)
+# ── Résolution du .app ────────────────────────────────────────────────────
+# Demander le chemin à xcodebuild plutôt que de fouiller DerivedData.
+#
+# `find DerivedData/Pinkha-*/... | head -1` paraît inoffensif tant qu'il n'y a
+# qu'un dossier. Dès qu'il y en a deux — ce qui arrive dès qu'un chemin de
+# projet change, y compris via une resync iCloud — `find` rend l'ordre du
+# système de fichiers, pas le plus récent. On installe alors silencieusement
+# un binaire périmé : le build réussit, l'app se lance, et le code qu'on vient
+# d'écrire n'est pas dedans. Le symptôme est indiscernable d'un changement qui
+# ne fonctionne pas, et fait conclure faux.
+resolve_app_path() {
+    local destination="$1" products_dir
+    products_dir=$(xcodebuild -project app/Pinkha.xcodeproj -scheme Pinkha \
+        -destination "$destination" -showBuildSettings 2>/dev/null \
+        | awk -F' = ' '/ BUILT_PRODUCTS_DIR /{print $2; exit}')
+    [ -n "$products_dir" ] && [ -d "$products_dir/Pinkha.app" ] || return 1
+    printf '%s\n' "$products_dir/Pinkha.app"
+}
+
+    SIM_APP=$(resolve_app_path "id=$SIM_UDID" || true)
     if [[ -n "$SIM_APP" ]]; then
         xcrun simctl terminate "$SIM_UDID" com.gloiiire.pinkha 2>/dev/null || true
         xcrun simctl install "$SIM_UDID" "$SIM_APP"
@@ -105,7 +145,7 @@ if [[ $HAVE_DEVICE -eq 1 ]]; then
         -scheme Pinkha \
         -destination "id=$XCODE_DEVICE_ID" \
         -allowProvisioningUpdates
-    DEV_APP=$(find ~/Library/Developer/Xcode/DerivedData/Pinkha-*/Build/Products/Debug-iphoneos -name "Pinkha.app" -type d 2>/dev/null | head -1)
+    DEV_APP=$(resolve_app_path "id=$DEVICE_ID" || true)
     if [[ -n "$DEV_APP" ]]; then
         xcrun devicectl device install app --device "$DEVICE_ID" "$DEV_APP" >/dev/null
         xcrun devicectl device process launch --device "$DEVICE_ID" com.gloiiire.pinkha >/dev/null

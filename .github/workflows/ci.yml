@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master, staging, dev]
+    branches: [app-store, beta-test, dev, device]
   pull_request:
-    branches: [master, staging, dev]
+    branches: [app-store, beta-test, dev, device]
 
 # Annule les runs en cours quand un nouveau commit arrive sur la même branche.
 concurrency:
@@ -16,7 +16,7 @@ jobs:
     name: Rust tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -30,6 +30,45 @@ jobs:
         # lints locally before push. Both gates are kept in lockstep — any
         # tightening here should be applied to scripts/hooks/pre-commit too.
         run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Generated UniFFI bindings are up to date
+        # Guards the failure mode that shipped a boot crash: a uniffi bump
+        # changes the generated bindings, but the checked-in pinkha.swift is
+        # not regenerated. The Rust scaffolding and the Swift bindings then
+        # disagree on the API checksum and
+        # `uniffiEnsurePinkhaInitialized()` calls `fatalError` on the first
+        # `PinkhaApi` construction — i.e. at app launch, for every user.
+        # Rust-only CI is blind to it, and a Cargo.toml-only Dependabot PR
+        # doesn't even trip the pre-commit hook (it skips when no .rs is
+        # staged).
+        #
+        # All three artefacts are diffed: build-xcframework.sh consumes the
+        # .h and .modulemap, which drift on the same bump as the .swift.
+        run: |
+          set -euo pipefail
+          cargo build --lib
+          LIB=""
+          for candidate in target/debug/libpinkha.so target/debug/libpinkha.dylib; do
+            [ -f "$candidate" ] && LIB="$candidate" && break
+          done
+          [ -n "$LIB" ] || { echo "::error::no libpinkha cdylib found"; exit 1; }
+
+          OUT="$(mktemp -d)"
+          cargo run --quiet --bin uniffi-bindgen -- generate \
+            --library "$LIB" --language swift --out-dir "$OUT"
+
+          FAIL=0
+          diff -u app/Packages/PinkhaFFI/Sources/PinkhaFFI/pinkha.swift "$OUT/pinkha.swift" || FAIL=1
+          diff -u swift-bindings/pinkhaFFI.h "$OUT/pinkhaFFI.h" || FAIL=1
+          diff -u swift-bindings/pinkhaFFI.modulemap "$OUT/pinkhaFFI.modulemap" || FAIL=1
+
+          if [ "$FAIL" -ne 0 ]; then
+            echo "::error::Generated UniFFI bindings are stale. Regenerate with:"
+            echo "  cargo build && cargo run --bin uniffi-bindgen -- generate \\"
+            echo "      --library target/debug/libpinkha.dylib --language swift --out-dir swift-bindings/"
+            echo "  mv swift-bindings/pinkha.swift app/Packages/PinkhaFFI/Sources/PinkhaFFI/"
+            exit 1
+          fi
       - name: cargo test + coverage gate (89%)
         # Fails the build if line coverage drops below 89%. Tightening
         # back to 90% (and beyond to 95/98%) is on the books once the
@@ -69,7 +108,7 @@ jobs:
     name: Cargo audit (CVE scan)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Cache cargo
@@ -82,15 +121,109 @@ jobs:
         # time before merge.
         run: cargo audit --deny warnings
 
-  # Job Swift désactivé temporairement : le code utilise `UIGlassEffect` /
-  # `.glassEffect()` (iOS 26) et un deployment target iOS 26.0, alors que les
-  # runners GitHub Actions (`macos-15`) n'ont actuellement que Xcode 16.4 avec
-  # iOS 18.5 SDK. À réactiver quand Xcode 26 stable arrivera sur les runners
-  # (post-WWDC 2026), ou si on backporte avec `if #available(iOS 26.0, *)` et
-  # un fallback UIBlurEffect.
-  # Voir CLAUDE.md → "Dette technique → Infrastructure".
-  swift-placeholder:
-    name: Swift tests (désactivé — Xcode 26 indispo sur runners)
-    runs-on: ubuntu-latest
+  # Tests Swift sur runner self-hosted.
+  #
+  # Les runners GitHub (`macos-15`) n'ont que Xcode 16.4 / iOS 18.5 SDK, alors
+  # que le projet cible iOS 26 et utilise `UIGlassEffect` / `.glassEffect()`.
+  # Plutôt que d'attendre Xcode 26 sur les runners hébergés, on exécute ce job
+  # sur la machine de dev, qui a le bon Xcode et le simulateur "Pinkha SIM".
+  #
+  # `xcode27` est un label custom : quand la machine est éteinte, le job reste
+  # en attente puis expire au timeout au lieu de bloquer la PR indéfiniment.
+  swift:
+    name: Swift tests (self-hosted, Xcode 27)
+    runs-on: [self-hosted, macOS, ARM64, xcode27]
+    # Un job en attente sur un runner offline resterait pendu sans ça.
+    timeout-minutes: 45
+    # NE JAMAIS exécuter le code d'un fork sur une machine personnelle. Le repo
+    # est public et les forks sont autorisés : sans cette garde, n'importe qui
+    # pourrait faire tourner du code arbitraire sur le Mac via une PR. Les
+    # contributeurs externes restent couverts par le job Rust ; leur code Swift
+    # se teste en poussant la branche dans ce dépôt.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
-      - run: echo "Swift CI suspendu — voir .github/workflows/ci.yml"
+      - uses: actions/checkout@v7
+
+      - name: Environnement
+        # Le service tourne en LaunchAgent : son PATH vient du fichier `.env`
+        # à la racine du runner, pas du shell interactif. Si un outil manque
+        # ici, c'est `.env` qu'il faut corriger, pas le workflow.
+        run: |
+          echo "Xcode    : $(xcodebuild -version | head -1)"
+          echo "Swift    : $(swift --version 2>&1 | head -1)"
+          echo "xcodegen : $(xcodegen --version 2>&1 | head -1)"
+          echo "cargo    : $(cargo --version 2>&1)"
+
+      - name: Purge des copies de conflit iCloud
+        # Le repo de dev vit dans iCloud, qui fabrique des "Foo 2.swift".
+        # Le checkout du runner est propre, mais xcodegen lit `app/` et un
+        # doublon ferait échouer le build de façon incompréhensible.
+        run: |
+          find app -name "* [2-9].swift" -delete 2>/dev/null || true
+          find app -name "* [2-9].xcodeproj" -type d -exec rm -rf {} + 2>/dev/null || true
+
+      - name: Build du xcframework Rust
+        # Le xcframework est gitignored et reconstruit à la demande — les
+        # tests Swift ne compilent pas sans lui.
+        run: ./build-xcframework.sh
+
+      - name: Secrets de build (placeholders)
+        # `app/Config/Secrets.xcconfig` est gitignored — il porte le DSN Sentry
+        # et l'URL du proxy Notion — donc absent d'un checkout frais, et
+        # xcodegen refuse de générer sans lui. Le template commité suffit : ses
+        # valeurs sont des placeholders, `Observability.start()` no-op sur un
+        # DSN contenant "your-dsn-here", et Sentry est de toute façon désactivé
+        # sous XCTest. Aucun secret réel n'a à exister sur le runner.
+        run: |
+          if [ ! -f app/Config/Secrets.xcconfig ]; then
+            cp app/Config/Secrets.xcconfig.example app/Config/Secrets.xcconfig
+          fi
+
+      - name: Génération du projet Xcode
+        # `patch-app-icon.rb` est délibérément best-effort ici. Il réinjecte la
+        # référence à app/Pinkha.icon que xcodegen ne conserve pas — donc utile
+        # pour un build qu'on expédie, sans effet sur des tests. Il dépend de la
+        # gem Ruby `xcodeproj`, absente de l'environnement du service ; faire
+        # échouer la CI sur une icône manquante serait une dépendance imposée
+        # pour rien. En local, les scripts de run l'appellent normalement.
+        run: |
+          cd app && xcodegen generate
+          cd ..
+          ./utilities/scripts/patch-app-icon.rb \
+            || echo "::notice::patch-app-icon ignoré (gem xcodeproj absente) — sans effet sur les tests"
+
+      - name: Simulateur
+        id: sim
+        # Résolu par nom, comme les scripts locaux. `bootstatus -b` bloque
+        # jusqu'à ce qu'il soit réellement utilisable, ce qui évite la course
+        # "Unable to lookup in current state: Shutdown" au démarrage à froid.
+        run: |
+          UDID=$(xcrun simctl list devices --json \
+            | jq -r '.devices | to_entries[] | .value[] | select(.name == "Pinkha SIM") | .udid' \
+            | head -1)
+          if [ -z "$UDID" ]; then
+            echo "::error::simulateur 'Pinkha SIM' introuvable sur ce runner"
+            exit 1
+          fi
+          xcrun simctl boot "$UDID" 2>/dev/null || true
+          xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 || true
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Tests unitaires + intégration
+        # Les XCUITest sont volontairement exclus : ils exigent une session
+        # graphique connectée, alors que le runner tourne en LaunchAgent.
+        # Ils restent lancés à la main via utilities/scripts.
+        #
+        # Pas de xcpretty. Il a fait pendre le job 10 minutes : le LaunchAgent
+        # n'expose pas de LANG, Ruby lit donc en US-ASCII, et xcpretty est mort
+        # sur le premier octet non-ASCII de la sortie de build — laissant
+        # xcodebuild écrire dans un tuyau fermé jusqu'au timeout de collecte de
+        # diagnostics du simulateur. Un embellisseur de logs ne vaut pas cette
+        # classe de panne ; la sortie brute est parfaitement lisible.
+        run: |
+          xcodebuild test \
+            -project app/Pinkha.xcodeproj \
+            -scheme Pinkha \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -only-testing:PinkhaTests \
+            -only-testing:PinkhaIntegrationTests

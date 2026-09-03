@@ -409,12 +409,7 @@ pub fn registry() -> Value {
         tool(
             "list_leaves_in_shelf",
             "List leaves inside the given shelf (null = root level only).",
-            obj_schema(&[(
-                "shelf_id",
-                "string",
-                false,
-                "Shelf UUID, or null for root."
-            ),])
+            obj_schema(&[("shelf_id", "string", false, "Shelf UUID, or null for root."),])
         ),
         tool(
             "list_deleted_shelves",
@@ -770,10 +765,7 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
             ok()
         }
         "update_leaf_text_direction" => {
-            api.update_leaf_text_direction(
-                take(&args, "id")?,
-                take_opt(&args, "text_direction")?,
-            )?;
+            api.update_leaf_text_direction(take(&args, "id")?, take_opt(&args, "text_direction")?)?;
             ok()
         }
         "update_leaf_parent" => {
@@ -919,9 +911,7 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
             api.move_leaf_to_shelf(take(&args, "leaf_id")?, take_opt(&args, "shelf_id")?)?;
             ok()
         }
-        "list_leaves_in_shelf" => {
-            json_of(api.list_leaves_in_shelf(take_opt(&args, "shelf_id")?)?)
-        }
+        "list_leaves_in_shelf" => json_of(api.list_leaves_in_shelf(take_opt(&args, "shelf_id")?)?),
         "list_deleted_shelves" => json_of(api.list_deleted_shelves()?),
         "restore_shelf" => {
             api.restore_shelf(take(&args, "id")?)?;
@@ -1068,12 +1058,9 @@ pub fn dispatch(api: &Arc<PinkhaApi>, name: &str, args: Value) -> Result<String>
         }
 
         // ── Book queries ──────────────────────────────────
-        "query_book" => {
-            Ok(api.query_book_json(take(&args, "book_id")?, take(&args, "view_id")?)?)
-        }
+        "query_book" => Ok(api.query_book_json(take(&args, "book_id")?, take(&args, "view_id")?)?),
         "query_book_with_rollups" => {
-            Ok(api
-                .query_book_with_rollups_json(take(&args, "book_id")?, take(&args, "view_id")?)?)
+            Ok(api.query_book_with_rollups_json(take(&args, "book_id")?, take(&args, "view_id")?)?)
         }
         "grouped_query_book" => Ok(api.grouped_query_book_json(
             take(&args, "book_id")?,

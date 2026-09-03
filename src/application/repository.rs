@@ -53,6 +53,18 @@ pub trait LeafRepository: Send + Sync {
     /// RFC 3339 timestamp ; unpinning clears it back to `NULL`. The
     /// home view's PINNED section reads these via `list()`. Default
     /// impl errors so in-memory mocks compile until they opt in.
+    /// Metadata for a single leaf, sourced from the **indexed columns**.
+    ///
+    /// The default implementation derives it from a full `load()`, which
+    /// cannot see the column-only fields: `LeafMeta::from(&Leaf)` has no
+    /// `updated_at` / `created_at` to read off the struct and leaves them
+    /// empty. Stores backed by a real table should override this with a
+    /// single-row projection so the result matches what `list()` returns
+    /// for the same leaf — callers legitimately expect the two to agree.
+    fn load_meta(&self, id: Uuid) -> Result<LeafMeta, PinkhaError> {
+        Ok(LeafMeta::from(&self.load(id)?))
+    }
+
     fn set_pinned(&self, _leaf_id: Uuid, _pinned: bool) -> Result<(), PinkhaError> {
         Err(PinkhaError::InvalidOperation(
             "set_pinned not supported by this repository".into(),

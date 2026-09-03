@@ -8,6 +8,7 @@
 
 mod assets;
 pub mod client;
+pub(crate) mod diagnostics;
 pub mod mapper;
 mod mentions;
 pub mod schema;
@@ -25,8 +26,8 @@ use uuid::Uuid;
 
 use crate::application::book_repository::BookRepository;
 use crate::application::book_use_cases;
-use crate::application::shelf_repository::ShelfRepository;
 use crate::application::repository::LeafRepository;
+use crate::application::shelf_repository::ShelfRepository;
 use crate::application::use_cases;
 use crate::domain::book::{PAGE_LINK_PROPERTY, Property, PropertyType, PropertyValue};
 use crate::domain::leaf::InlineText;
@@ -155,9 +156,7 @@ pub async fn list_books(token: &str) -> Result<Vec<NotionDatabaseSummary>, Extra
 /// existing legacy `import_from_notion` flow usable as-is. SOLID :
 /// extend, don't modify ; the original `list_books` is left
 /// untouched for any caller that wants the strict legacy behaviour.
-pub async fn list_books_v2025(
-    token: &str,
-) -> Result<Vec<NotionDatabaseSummary>, ExtractorError> {
+pub async fn list_books_v2025(token: &str) -> Result<Vec<NotionDatabaseSummary>, ExtractorError> {
     let client = NotionClient::new(token)?;
 
     let mut by_id: std::collections::HashMap<String, NotionDatabaseSummary> =
@@ -471,8 +470,7 @@ impl Extractor for NotionExtractor {
                 );
             }
             if let Some(icon_value) = schema.icon.as_ref().and_then(notion_icon_identifier) {
-                let _ =
-                    book_use_cases::update_book_icon(&uow, pinkha_book_id, Some(icon_value));
+                let _ = book_use_cases::update_book_icon(&uow, pinkha_book_id, Some(icon_value));
             }
             if !schema.description.is_empty() {
                 let desc = schema
@@ -730,19 +728,15 @@ async fn import_page(
 
     // Debug log : record the Notion-side timestamp + what we forwarded
     // so we can verify the createdAt round-trip after import.
-    if let Some(dir) = covers_dir {
-        use std::io::Write;
-        let line = format!(
-            "[createdAt] page={} title={:?} notion_created_time={:?} leaf_id={} leaf_created_at={:?}\n",
-            page.id, plain_title, page.created_time, leaf_id, doc.created_at
+    // Carries the page title verbatim — debug-only, see `diagnostics`.
+    if diagnostics::enabled() {
+        diagnostics::log(
+            covers_dir,
+            &format!(
+                "[createdAt] page={} title={:?} notion_created_time={:?} leaf_id={} leaf_created_at={:?}",
+                page.id, plain_title, page.created_time, leaf_id, doc.created_at
+            ),
         );
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(format!("{dir}/notion-debug.log"))
-        {
-            let _ = f.write_all(line.as_bytes());
-        }
     }
 
     // Imports default to locked = true so the user reads the extracted
@@ -789,8 +783,15 @@ async fn import_page(
     // Fetch and add all blocks to the leaf efficiently (bulk in-memory, one save).
     // Child_page blocks encountered along the way materialise as nested
     // pinkha leaves linked to this one via `parent_leaf_id`.
-    let (block_count, skipped_count, child_leaf_count) =
-        fetch_and_add_blocks(client, &page.id, leaf_id, docs, notion_to_pinkha, covers_dir).await?;
+    let (block_count, skipped_count, child_leaf_count) = fetch_and_add_blocks(
+        client,
+        &page.id,
+        leaf_id,
+        docs,
+        notion_to_pinkha,
+        covers_dir,
+    )
+    .await?;
 
     // Build the book entry values.
     let mut values: HashMap<Uuid, PropertyValue> = HashMap::new();
@@ -840,7 +841,8 @@ async fn fetch_and_add_blocks(
     covers_dir: Option<&str>,
 ) -> Result<(usize, usize, usize), ExtractorError> {
     let (root_blocks, skipped, child_leaves) =
-        fetch_blocks_recursive(client, page_id, leaf_id, docs, notion_to_pinkha, covers_dir).await?;
+        fetch_blocks_recursive(client, page_id, leaf_id, docs, notion_to_pinkha, covers_dir)
+            .await?;
 
     let count = count_blocks_recursive(&root_blocks);
 
@@ -981,7 +983,7 @@ async fn import_child_page(
     notion_to_pinkha: &Mutex<HashMap<String, Uuid>>,
     covers_dir: Option<&str>,
 ) -> Result<Uuid, ExtractorError> {
-    use crate::domain::leaf::{Leaf, InlineText};
+    use crate::domain::leaf::{InlineText, Leaf};
 
     // Build the child leaf up front so we have its id before fetching
     // any nested content (a grand-child page that mentions us should rewrite
@@ -1015,17 +1017,9 @@ async fn import_child_page(
         ),
         Err(err) => format!("FAIL '{}' (id={}): {err:?}\n", title, notion_id),
     };
-    eprintln!("[notion import] {}", log_line.trim_end());
-    if let Some(dir) = covers_dir {
-        use std::io::Write;
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(format!("{dir}/notion-debug.log"))
-        {
-            let _ = f.write_all(log_line.as_bytes());
-        }
-    }
+    // `log_line` embeds the page title — debug-only, see `diagnostics`.
+    diagnostics::console(&format!("[notion import] {}", log_line.trim_end()));
+    diagnostics::log(covers_dir, &log_line);
     if let Ok(meta) = get_page_result {
         // Cover: same download path as `import_page` so Notion-hosted
         // covers don't expire on us.
@@ -1086,17 +1080,13 @@ async fn import_child_page(
 /// actually returns (in particular whether `child_page` shows up at all
 /// from `get_page_blocks`).
 fn log_block_type(covers_dir: Option<&str>, parent_id: &str, block_type: &str) {
-    eprintln!("[notion blocks] parent={parent_id} type={block_type}");
-    if let Some(dir) = covers_dir {
-        use std::io::Write;
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(format!("{dir}/notion-debug.log"))
-        {
-            let _ = writeln!(f, "[blocks] parent={parent_id} type={block_type}");
-        }
-    }
+    diagnostics::console(&format!(
+        "[notion blocks] parent={parent_id} type={block_type}"
+    ));
+    diagnostics::log(
+        covers_dir,
+        &format!("[blocks] parent={parent_id} type={block_type}"),
+    );
 }
 
 /// Counts blocks at all levels of the tree (recursive).

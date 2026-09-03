@@ -39,6 +39,52 @@ fileprivate extension ForeignBytes {
     init(bufferPointer: UnsafeBufferPointer<UInt8>) {
         self.init(len: Int32(bufferPointer.count), data: bufferPointer.baseAddress)
     }
+
+    init(rawBufferPointer: UnsafeRawBufferPointer) {
+        self.init(
+            len: Int32(rawBufferPointer.count),
+            data: rawBufferPointer.baseAddress?.assumingMemoryBound(to: UInt8.self)
+        )
+    }
+}
+
+// Converter for `&[u8]` / `[ByRef] bytes` arguments.
+//
+// Conforms to `FfiConverter` so the compiler enforces the full converter
+// method set. Only the scope-bound `lower(_:_body:)` overload is sound —
+// zero-copy byte buffers only flow foreign -> Rust, and only in argument
+// position. The four protocol-witness methods (`lift`, `lower`, `read`,
+// `write`) `fatalError` at runtime if anyone reaches them.
+//
+// The scope-bound `lower` takes a closure because the `ForeignBytes`
+// pointer is only guaranteed valid for the duration of
+// `Data.withUnsafeBytes`. Callers must run the full FFI call inside
+// the closure body.
+fileprivate enum FfiConverterByRefBytes: FfiConverter {
+    typealias SwiftType = Data
+    typealias FfiType = ForeignBytes
+
+    static func lower<R>(_ value: Data, _ body: (ForeignBytes) throws -> R) rethrows -> R {
+        return try value.withUnsafeBytes { rawBuf in
+            try body(ForeignBytes(rawBufferPointer: rawBuf))
+        }
+    }
+
+    static func lower(_ value: Data) -> ForeignBytes {
+        fatalError("ByRef bytes cannot use the plain lower: returning ForeignBytes escapes the Data.withUnsafeBytes scope. Use the scope-bound lower(_:_body:) overload instead.")
+    }
+
+    static func lift(_ value: ForeignBytes) throws -> Data {
+        fatalError("ByRef bytes cannot be lifted: zero-copy &[u8] only flows foreign->Rust")
+    }
+
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Data {
+        fatalError("ByRef bytes cannot be read from a buffer: zero-copy &[u8] is only supported in argument position, not nested in records/options/etc.")
+    }
+
+    static func write(_ value: Data, into buf: inout [UInt8]) {
+        fatalError("ByRef bytes cannot be written to a buffer: zero-copy &[u8] is only supported in argument position, not nested in records/options/etc.")
+    }
 }
 
 // For every type used in the interface, we provide helper methods for conveniently
@@ -451,6 +497,22 @@ fileprivate struct FfiConverterInt32: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
+    typealias FfiType = UInt64
+    typealias SwiftType = UInt64
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt64 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterBool : FfiConverter {
     typealias FfiType = Int8
     typealias SwiftType = Bool
@@ -487,7 +549,11 @@ fileprivate struct FfiConverterString: FfiConverter {
             return String()
         }
         let bytes = UnsafeBufferPointer<UInt8>(start: value.data!, count: Int(value.len))
-        return String(bytes: bytes, encoding: String.Encoding.utf8)!
+        // Use Swift's native UTF-8 decoder; `String(bytes:encoding:.utf8)` goes
+        // through Foundation's NSString and silently strips a leading U+FEFF BOM.
+        // Invalid UTF-8 substitutes U+FFFD instead of trapping (unreachable
+        // given Rust's `String` invariant).
+        return String(decoding: bytes, as: UTF8.self)
     }
 
     public static func lower(_ value: String) -> RustBuffer {
@@ -503,7 +569,8 @@ fileprivate struct FfiConverterString: FfiConverter {
 
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> String {
         let len: Int32 = try readInt(&buf)
-        return String(bytes: try readBytes(&buf, count: Int(len)), encoding: String.Encoding.utf8)!
+        // See `lift` above for why we avoid Foundation's NSString-backed decoder here.
+        return String(decoding: try readBytes(&buf, count: Int(len)), as: UTF8.self)
     }
 
     public static func write(_ value: String, into buf: inout [UInt8]) {
@@ -619,6 +686,12 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func deleteEntry(bookId: String, entryId: String) throws 
     
     /**
+     * Soft-deletes a mixed selection of leaves, books and shelves in one
+     * call, instead of one FFI crossing + one library reload per item.
+     */
+    func deleteItems(leafIds: [String], bookIds: [String], shelfIds: [String]) throws  -> BulkOutcomeFfi
+    
+    /**
      * Soft-deletes the leaf.
      */
     func deleteLeaf(id: String) throws 
@@ -643,11 +716,17 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      */
     func duplicateBlock(leafId: String, blockId: String) throws  -> String
     
-    /**
-     * Permanently purges every soft-deleted leaf, book and shelf.
-     * Returns the total number of items removed.
-     */
     func emptyTrash() throws  -> UInt32
+    
+    /**
+     * Writes a self-contained copy of the whole library to `dest_path`
+     * and returns its size in bytes.
+     *
+     * Made from the live connection via `VACUUM INTO`, so the write-ahead
+     * log is folded in. A Swift-side copy of `pinkha.db` would ship a
+     * database missing its most recent writes.
+     */
+    func exportLibrary(destPath: String) throws  -> UInt64
     
     /**
      * Returns the full book serialized as JSON (with entries and views).
@@ -724,6 +803,16 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      */
     func indentBlock(leafId: String, blockId: String) throws 
     
+    func insertBlockTree(leafId: String, blockJson: String, parentId: String?, index: UInt32) throws 
+    
+    /**
+     * Permanently purges every soft-deleted leaf, book and shelf.
+     * Returns the total number of items removed.
+     * Root leaves + all leaves + books + shelves in one call, instead of
+     * the four separate listings `PinkhaStore.load()` used to issue.
+     */
+    func librarySnapshot() throws  -> LibrarySnapshotFfi
+    
     /**
      * Lists metadata for every active book.
      */
@@ -796,6 +885,11 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func listShelves() throws  -> [ShelfMetaFfi]
     
     /**
+     * Instantanés présents dans `dir`, du plus récent au plus ancien.
+     */
+    func listSnapshots(dir: String) throws  -> [String]
+    
+    /**
      * Moves a block under a parent, or to the root when `new_parent_id` is null.
      */
     func moveBlock(leafId: String, blockId: String, newParentId: String?) throws 
@@ -820,6 +914,11 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Permanently deletes a soft-deleted entry (hard delete).
      */
     func purgeEntry(bookId: String, entryId: String) throws 
+    
+    /**
+     * Permanently removes a mixed selection.
+     */
+    func purgeItems(leafIds: [String], bookIds: [String], shelfIds: [String]) throws  -> BulkOutcomeFfi
     
     /**
      * Permanently deletes a leaf from the trash (hard delete).
@@ -870,6 +969,11 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
      * Restores an entry from its book's trash.
      */
     func restoreEntry(bookId: String, entryId: String) throws 
+    
+    /**
+     * Restores a mixed selection out of Compost.
+     */
+    func restoreItems(leafIds: [String], bookIds: [String], shelfIds: [String]) throws  -> BulkOutcomeFfi
     
     /**
      * Restores a leaf from the trash.
@@ -976,6 +1080,16 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func setViewSort(bookId: String, viewId: String, propertyId: String?, ascending: Bool) throws 
     
     /**
+     * Écrit un instantané horodaté dans `dir` et n'y garde que les `keep`
+     * plus récents. Renvoie le chemin écrit.
+     *
+     * Conçu pour tourner sans intervention : la perte du 2026-09-02 est
+     * survenue pendant la nuit, une protection volontaire n'aurait rien
+     * changé.
+     */
+    func snapshotLibrary(dir: String, keep: UInt32) throws  -> String
+    
+    /**
      * Runs every search axis in one call (titles, block content with
      * snippets, books, shelves) with the leaf axis deduplicated.
      */
@@ -1053,6 +1167,16 @@ public protocol PinkhaApiProtocol: AnyObject, Sendable {
     func updateLeafPublishedAt(id: String, newPublishedAt: String) throws 
     
     /**
+     * Persists the leaf's reader-settings bundle (font scale +
+     * family + bold + 4 spacing values + justify + dark variant +
+     * custom-layout flag). Pass the JSON-serialised
+     * `ReaderSettings` shape, or `null` to clear and fall back to
+     * the theme's factory defaults. Cf. `domain::leaf::ReaderSettings`
+     * and `utilities/docs/BOOKS-READER-SETTINGS-RE.md`.
+     */
+    func updateLeafReaderSettings(id: String, settingsJson: String?) throws 
+    
+    /**
      * Sets or clears the leaf's default writing direction.
      * `null` = system locale. Every block can override.
      */
@@ -1116,8 +1240,9 @@ open class PinkhaApi: PinkhaApiProtocol, @unchecked Sendable {
 public convenience init(dbPath: String)throws  {
     let handle =
         try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_constructor_pinkhaapi_new(
-        FfiConverterString.lower(dbPath),$0
+        FfiConverterString.lower(dbPath),uniffiCallStatus
     )
 }
     self.init(unsafeFromHandle: handle)
@@ -1141,10 +1266,11 @@ public convenience init(dbPath: String)throws  {
      */
 open func addBlock(leafId: String, blockContentJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_add_block(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(leafId),
-        FfiConverterString.lower(blockContentJson),$0
+        FfiConverterString.lower(blockContentJson),uniffiCallStatus
     )
 })
 }
@@ -1154,11 +1280,12 @@ open func addBlock(leafId: String, blockContentJson: String)throws  -> String  {
      */
 open func addChildBlock(leafId: String, parentId: String, blockContentJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_add_child_block(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(leafId),
         FfiConverterString.lower(parentId),
-        FfiConverterString.lower(blockContentJson),$0
+        FfiConverterString.lower(blockContentJson),uniffiCallStatus
     )
 })
 }
@@ -1168,10 +1295,11 @@ open func addChildBlock(leafId: String, parentId: String, blockContentJson: Stri
      */
 open func addEntry(bookId: String, valuesJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_add_entry(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
-        FfiConverterString.lower(valuesJson),$0
+        FfiConverterString.lower(valuesJson),uniffiCallStatus
     )
 })
 }
@@ -1180,10 +1308,11 @@ open func addEntry(bookId: String, valuesJson: String)throws  -> String  {
      * Adds a property serialized as JSON.
      */
 open func addProperty(bookId: String, propertyJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_add_property(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
-        FfiConverterString.lower(propertyJson),$0
+        FfiConverterString.lower(propertyJson),uniffiCallStatus
     )
 }
 }
@@ -1193,10 +1322,11 @@ open func addProperty(bookId: String, propertyJson: String)throws   {try rustCal
      */
 open func addView(bookId: String, viewJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_add_view(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
-        FfiConverterString.lower(viewJson),$0
+        FfiConverterString.lower(viewJson),uniffiCallStatus
     )
 })
 }
@@ -1208,11 +1338,12 @@ open func addView(bookId: String, viewJson: String)throws  -> String  {
      */
 open func attachLeafToBook(bookId: String, leafId: String, valuesJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_attach_leaf_to_book(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
         FfiConverterString.lower(leafId),
-        FfiConverterString.lower(valuesJson),$0
+        FfiConverterString.lower(valuesJson),uniffiCallStatus
     )
 })
 }
@@ -1223,8 +1354,9 @@ open func attachLeafToBook(bookId: String, leafId: String, valuesJson: String)th
      * error. No-op when nothing is running.
      */
 open func cancelImport()  {try! rustCall() {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_cancel_import(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 }
 }
@@ -1234,11 +1366,12 @@ open func cancelImport()  {try! rustCall() {
      */
 open func columnAggregateBookJson(bookId: String, propertyId: String, aggregateJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_column_aggregate_book_json(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
         FfiConverterString.lower(propertyId),
-        FfiConverterString.lower(aggregateJson),$0
+        FfiConverterString.lower(aggregateJson),uniffiCallStatus
     )
 })
 }
@@ -1248,9 +1381,10 @@ open func columnAggregateBookJson(bookId: String, propertyId: String, aggregateJ
      */
 open func createBook(title: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_create_book(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(title),$0
+        FfiConverterString.lower(title),uniffiCallStatus
     )
 })
 }
@@ -1260,9 +1394,10 @@ open func createBook(title: String)throws  -> String  {
      */
 open func createLeaf(title: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_create_leaf(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(title),$0
+        FfiConverterString.lower(title),uniffiCallStatus
     )
 })
 }
@@ -1275,21 +1410,23 @@ open func createLeaf(title: String)throws  -> String  {
      */
 open func createLeafInBook(bookId: String, title: String, valuesJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_create_leaf_in_book(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
         FfiConverterString.lower(title),
-        FfiConverterString.lower(valuesJson),$0
+        FfiConverterString.lower(valuesJson),uniffiCallStatus
     )
 })
 }
     
 open func createShelf(name: String, parentId: String?)throws  -> ShelfMetaFfi  {
     return try  FfiConverterTypeShelfMetaFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_create_shelf(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(name),
-        FfiConverterOptionString.lower(parentId),$0
+        FfiConverterOptionString.lower(parentId),uniffiCallStatus
     )
 })
 }
@@ -1302,11 +1439,12 @@ open func createShelf(name: String, parentId: String?)throws  -> ShelfMetaFfi  {
      */
 open func dateGroupedQueryBookJson(bookId: String, viewId: String, overrideGroupingJson: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_date_grouped_query_book_json(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
         FfiConverterString.lower(viewId),
-        FfiConverterString.lower(overrideGroupingJson),$0
+        FfiConverterString.lower(overrideGroupingJson),uniffiCallStatus
     )
 })
 }
@@ -1316,8 +1454,9 @@ open func dateGroupedQueryBookJson(bookId: String, viewId: String, overrideGroup
      */
 open func deleteAllBooks()throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_delete_all_books(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -1327,25 +1466,28 @@ open func deleteAllBooks()throws  -> UInt32  {
      */
 open func deleteAllLeaves()throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_delete_all_leaves(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func deleteAllShelves()throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_delete_all_shelves(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func deleteBlock(leafId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_delete_block(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(leafId),
-        FfiConverterString.lower(blockId),$0
+        FfiConverterString.lower(blockId),uniffiCallStatus
     )
 }
 }
@@ -1354,9 +1496,10 @@ open func deleteBlock(leafId: String, blockId: String)throws   {try rustCallWith
      * Soft-deletes the book.
      */
 open func deleteBook(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_delete_book(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 }
 }
@@ -1367,46 +1510,67 @@ open func deleteBook(id: String)throws   {try rustCallWithError(FfiConverterType
      */
 open func deleteBookCascade(id: String)throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_delete_book_cascade(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 })
 }
     
 open func deleteEntry(bookId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_delete_entry(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
-        FfiConverterString.lower(entryId),$0
+        FfiConverterString.lower(entryId),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Soft-deletes a mixed selection of leaves, books and shelves in one
+     * call, instead of one FFI crossing + one library reload per item.
+     */
+open func deleteItems(leafIds: [String], bookIds: [String], shelfIds: [String])throws  -> BulkOutcomeFfi  {
+    return try  FfiConverterTypeBulkOutcomeFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_delete_items(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(leafIds),
+        FfiConverterSequenceString.lower(bookIds),
+        FfiConverterSequenceString.lower(shelfIds),uniffiCallStatus
+    )
+})
 }
     
     /**
      * Soft-deletes the leaf.
      */
 open func deleteLeaf(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_delete_leaf(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 }
 }
     
 open func deleteProperty(bookId: String, propertyId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_delete_property(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
-        FfiConverterString.lower(propertyId),$0
+        FfiConverterString.lower(propertyId),uniffiCallStatus
     )
 }
 }
     
 open func deleteShelf(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_delete_shelf(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 }
 }
@@ -1418,18 +1582,20 @@ open func deleteShelf(id: String)throws   {try rustCallWithError(FfiConverterTyp
      */
 open func deleteShelfCascade(id: String)throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_delete_shelf_cascade(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 })
 }
     
 open func deleteView(bookId: String, viewId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_delete_view(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
-        FfiConverterString.lower(viewId),$0
+        FfiConverterString.lower(viewId),uniffiCallStatus
     )
 }
 }
@@ -1441,22 +1607,38 @@ open func deleteView(bookId: String, viewId: String)throws   {try rustCallWithEr
      */
 open func duplicateBlock(leafId: String, blockId: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_duplicate_block(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(leafId),
-        FfiConverterString.lower(blockId),$0
+        FfiConverterString.lower(blockId),uniffiCallStatus
+    )
+})
+}
+    
+open func emptyTrash()throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_empty_trash(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
     /**
-     * Permanently purges every soft-deleted leaf, book and shelf.
-     * Returns the total number of items removed.
+     * Writes a self-contained copy of the whole library to `dest_path`
+     * and returns its size in bytes.
+     *
+     * Made from the live connection via `VACUUM INTO`, so the write-ahead
+     * log is folded in. A Swift-side copy of `pinkha.db` would ship a
+     * database missing its most recent writes.
      */
-open func emptyTrash()throws  -> UInt32  {
-    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
-    uniffi_pinkha_fn_method_pinkhaapi_empty_trash(
-            self.uniffiCloneHandle(),$0
+open func exportLibrary(destPath: String)throws  -> UInt64  {
+    return try  FfiConverterUInt64.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_export_library(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(destPath),uniffiCallStatus
     )
 })
 }
@@ -1466,9 +1648,10 @@ open func emptyTrash()throws  -> UInt32  {
      */
 open func getBookJson(id: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_get_book_json(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 })
 }
@@ -1478,9 +1661,10 @@ open func getBookJson(id: String)throws  -> String  {
      */
 open func getLeafJson(id: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_get_leaf_json(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 })
 }
@@ -1490,18 +1674,20 @@ open func getLeafJson(id: String)throws  -> String  {
      */
 open func getLeafMeta(id: String)throws  -> LeafMetaFfi  {
     return try  FfiConverterTypeLeafMetaFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_get_leaf_meta(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 })
 }
     
 open func getShelf(id: String)throws  -> ShelfMetaFfi  {
     return try  FfiConverterTypeShelfMetaFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_get_shelf(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 })
 }
@@ -1511,11 +1697,12 @@ open func getShelf(id: String)throws  -> ShelfMetaFfi  {
      */
 open func groupedQueryBookJson(bookId: String, viewId: String, groupBy: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_grouped_query_book_json(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
         FfiConverterString.lower(viewId),
-        FfiConverterString.lower(groupBy),$0
+        FfiConverterString.lower(groupBy),uniffiCallStatus
     )
 })
 }
@@ -1529,8 +1716,7 @@ open func importFromBear(dbPath: String)async throws  -> ImportResultFfi  {
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_pinkha_fn_method_pinkhaapi_import_from_bear(
-                    self.uniffiCloneHandle(),
-                    FfiConverterString.lower(dbPath)
+                        self.uniffiCloneHandle(),FfiConverterString.lower(dbPath)
                 )
             },
             pollFunc: ffi_pinkha_rust_future_poll_rust_buffer,
@@ -1550,8 +1736,7 @@ open func importFromCraft(dbPath: String)async throws  -> ImportResultFfi  {
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_pinkha_fn_method_pinkhaapi_import_from_craft(
-                    self.uniffiCloneHandle(),
-                    FfiConverterString.lower(dbPath)
+                        self.uniffiCloneHandle(),FfiConverterString.lower(dbPath)
                 )
             },
             pollFunc: ffi_pinkha_rust_future_poll_rust_buffer,
@@ -1572,8 +1757,7 @@ open func importFromCraftCombined(realmPath: String, textbundleRoot: String)asyn
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_pinkha_fn_method_pinkhaapi_import_from_craft_combined(
-                    self.uniffiCloneHandle(),
-                    FfiConverterString.lower(realmPath),FfiConverterString.lower(textbundleRoot)
+                        self.uniffiCloneHandle(),FfiConverterString.lower(realmPath),FfiConverterString.lower(textbundleRoot)
                 )
             },
             pollFunc: ffi_pinkha_rust_future_poll_rust_buffer,
@@ -1593,8 +1777,7 @@ open func importFromCraftTextbundle(rootDir: String)async throws  -> ImportResul
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_pinkha_fn_method_pinkhaapi_import_from_craft_textbundle(
-                    self.uniffiCloneHandle(),
-                    FfiConverterString.lower(rootDir)
+                        self.uniffiCloneHandle(),FfiConverterString.lower(rootDir)
                 )
             },
             pollFunc: ffi_pinkha_rust_future_poll_rust_buffer,
@@ -1620,11 +1803,12 @@ open func importFromCraftTextbundle(rootDir: String)async throws  -> ImportResul
      */
 open func importFromNotion(token: String, bookId: String, coversDir: String?)throws  -> ImportResultFfi  {
     return try  FfiConverterTypeImportResultFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_import_from_notion(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(token),
         FfiConverterString.lower(bookId),
-        FfiConverterOptionString.lower(coversDir),$0
+        FfiConverterOptionString.lower(coversDir),uniffiCallStatus
     )
 })
 }
@@ -1636,11 +1820,12 @@ open func importFromNotion(token: String, bookId: String, coversDir: String?)thr
      */
 open func importNotionPage(token: String, pageId: String, coversDir: String?)throws  -> ImportResultFfi  {
     return try  FfiConverterTypeImportResultFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_import_notion_page(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(token),
         FfiConverterString.lower(pageId),
-        FfiConverterOptionString.lower(coversDir),$0
+        FfiConverterOptionString.lower(coversDir),uniffiCallStatus
     )
 })
 }
@@ -1650,12 +1835,40 @@ open func importNotionPage(token: String, pageId: String, coversDir: String?)thr
      * `InvalidOperation` when the block is the first of its level.
      */
 open func indentBlock(leafId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_indent_block(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(leafId),
-        FfiConverterString.lower(blockId),$0
+        FfiConverterString.lower(blockId),uniffiCallStatus
     )
 }
+}
+    
+open func insertBlockTree(leafId: String, blockJson: String, parentId: String?, index: UInt32)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_insert_block_tree(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(leafId),
+        FfiConverterString.lower(blockJson),
+        FfiConverterOptionString.lower(parentId),
+        FfiConverterUInt32.lower(index),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Permanently purges every soft-deleted leaf, book and shelf.
+     * Returns the total number of items removed.
+     * Root leaves + all leaves + books + shelves in one call, instead of
+     * the four separate listings `PinkhaStore.load()` used to issue.
+     */
+open func librarySnapshot()throws  -> LibrarySnapshotFfi  {
+    return try  FfiConverterTypeLibrarySnapshotFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_library_snapshot(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -1663,8 +1876,9 @@ open func indentBlock(leafId: String, blockId: String)throws   {try rustCallWith
      */
 open func listBooks()throws  -> [BookMetaFfi]  {
     return try  FfiConverterSequenceTypeBookMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_list_books(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -1674,9 +1888,10 @@ open func listBooks()throws  -> [BookMetaFfi]  {
      */
 open func listChildLeaves(parentLeafId: String)throws  -> [LeafMetaFfi]  {
     return try  FfiConverterSequenceTypeLeafMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_list_child_leaves(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(parentLeafId),$0
+        FfiConverterString.lower(parentLeafId),uniffiCallStatus
     )
 })
 }
@@ -1686,9 +1901,10 @@ open func listChildLeaves(parentLeafId: String)throws  -> [LeafMetaFfi]  {
      */
 open func listChildShelves(parentId: String?)throws  -> [ShelfMetaFfi]  {
     return try  FfiConverterSequenceTypeShelfMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_list_child_shelves(
             self.uniffiCloneHandle(),
-        FfiConverterOptionString.lower(parentId),$0
+        FfiConverterOptionString.lower(parentId),uniffiCallStatus
     )
 })
 }
@@ -1698,8 +1914,9 @@ open func listChildShelves(parentId: String?)throws  -> [ShelfMetaFfi]  {
      */
 open func listDeletedBooks()throws  -> [BookMetaFfi]  {
     return try  FfiConverterSequenceTypeBookMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_list_deleted_books(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -1709,9 +1926,10 @@ open func listDeletedBooks()throws  -> [BookMetaFfi]  {
      */
 open func listDeletedEntriesJson(bookId: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_list_deleted_entries_json(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(bookId),$0
+        FfiConverterString.lower(bookId),uniffiCallStatus
     )
 })
 }
@@ -1721,8 +1939,9 @@ open func listDeletedEntriesJson(bookId: String)throws  -> String  {
      */
 open func listDeletedLeaves()throws  -> [LeafMetaFfi]  {
     return try  FfiConverterSequenceTypeLeafMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_list_deleted_leaves(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -1732,8 +1951,9 @@ open func listDeletedLeaves()throws  -> [LeafMetaFfi]  {
      */
 open func listDeletedShelves()throws  -> [ShelfMetaFfi]  {
     return try  FfiConverterSequenceTypeShelfMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_list_deleted_shelves(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -1743,17 +1963,19 @@ open func listDeletedShelves()throws  -> [ShelfMetaFfi]  {
      */
 open func listLeaves()throws  -> [LeafMetaFfi]  {
     return try  FfiConverterSequenceTypeLeafMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_list_leaves(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func listLeavesInShelf(shelfId: String?)throws  -> [LeafMetaFfi]  {
     return try  FfiConverterSequenceTypeLeafMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_list_leaves_in_shelf(
             self.uniffiCloneHandle(),
-        FfiConverterOptionString.lower(shelfId),$0
+        FfiConverterOptionString.lower(shelfId),uniffiCallStatus
     )
 })
 }
@@ -1764,9 +1986,10 @@ open func listLeavesInShelf(shelfId: String?)throws  -> [LeafMetaFfi]  {
      */
 open func listNotionDatabases(token: String)throws  -> [NotionDatabaseSummaryFfi]  {
     return try  FfiConverterSequenceTypeNotionDatabaseSummaryFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_list_notion_databases(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(token),$0
+        FfiConverterString.lower(token),uniffiCallStatus
     )
 })
 }
@@ -1779,9 +2002,10 @@ open func listNotionDatabases(token: String)throws  -> [NotionDatabaseSummaryFfi
      */
 open func listNotionDatabasesV2025(token: String)throws  -> [NotionDatabaseSummaryFfi]  {
     return try  FfiConverterSequenceTypeNotionDatabaseSummaryFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_list_notion_databases_v2025(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(token),$0
+        FfiConverterString.lower(token),uniffiCallStatus
     )
 })
 }
@@ -1794,9 +2018,10 @@ open func listNotionDatabasesV2025(token: String)throws  -> [NotionDatabaseSumma
      */
 open func listNotionPages(token: String)throws  -> [NotionPageSummaryFfi]  {
     return try  FfiConverterSequenceTypeNotionPageSummaryFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_list_notion_pages(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(token),$0
+        FfiConverterString.lower(token),uniffiCallStatus
     )
 })
 }
@@ -1806,16 +2031,31 @@ open func listNotionPages(token: String)throws  -> [NotionPageSummaryFfi]  {
      */
 open func listRootLeaves()throws  -> [LeafMetaFfi]  {
     return try  FfiConverterSequenceTypeLeafMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_list_root_leaves(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
     
 open func listShelves()throws  -> [ShelfMetaFfi]  {
     return try  FfiConverterSequenceTypeShelfMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_list_shelves(
-            self.uniffiCloneHandle(),$0
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Instantanés présents dans `dir`, du plus récent au plus ancien.
+     */
+open func listSnapshots(dir: String)throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_list_snapshots(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dir),uniffiCallStatus
     )
 })
 }
@@ -1824,29 +2064,32 @@ open func listShelves()throws  -> [ShelfMetaFfi]  {
      * Moves a block under a parent, or to the root when `new_parent_id` is null.
      */
 open func moveBlock(leafId: String, blockId: String, newParentId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_move_block(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(leafId),
         FfiConverterString.lower(blockId),
-        FfiConverterOptionString.lower(newParentId),$0
+        FfiConverterOptionString.lower(newParentId),uniffiCallStatus
     )
 }
 }
     
 open func moveLeafToShelf(leafId: String, shelfId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_move_leaf_to_shelf(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(leafId),
-        FfiConverterOptionString.lower(shelfId),$0
+        FfiConverterOptionString.lower(shelfId),uniffiCallStatus
     )
 }
 }
     
 open func moveShelfTo(id: String, newParentId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_move_shelf_to(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterOptionString.lower(newParentId),$0
+        FfiConverterOptionString.lower(newParentId),uniffiCallStatus
     )
 }
 }
@@ -1857,10 +2100,11 @@ open func moveShelfTo(id: String, newParentId: String?)throws   {try rustCallWit
      * block is already at the root.
      */
 open func outdentBlock(leafId: String, blockId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_outdent_block(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(leafId),
-        FfiConverterString.lower(blockId),$0
+        FfiConverterString.lower(blockId),uniffiCallStatus
     )
 }
 }
@@ -1869,9 +2113,10 @@ open func outdentBlock(leafId: String, blockId: String)throws   {try rustCallWit
      * Permanently deletes a book from the trash (hard delete).
      */
 open func purgeBook(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_purge_book(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 }
 }
@@ -1880,21 +2125,38 @@ open func purgeBook(id: String)throws   {try rustCallWithError(FfiConverterTypeP
      * Permanently deletes a soft-deleted entry (hard delete).
      */
 open func purgeEntry(bookId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_purge_entry(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
-        FfiConverterString.lower(entryId),$0
+        FfiConverterString.lower(entryId),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Permanently removes a mixed selection.
+     */
+open func purgeItems(leafIds: [String], bookIds: [String], shelfIds: [String])throws  -> BulkOutcomeFfi  {
+    return try  FfiConverterTypeBulkOutcomeFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_purge_items(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(leafIds),
+        FfiConverterSequenceString.lower(bookIds),
+        FfiConverterSequenceString.lower(shelfIds),uniffiCallStatus
+    )
+})
 }
     
     /**
      * Permanently deletes a leaf from the trash (hard delete).
      */
 open func purgeLeaf(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_purge_leaf(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 }
 }
@@ -1903,9 +2165,10 @@ open func purgeLeaf(id: String)throws   {try rustCallWithError(FfiConverterTypeP
      * Permanently deletes a shelf from the trash (hard delete).
      */
 open func purgeShelf(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_purge_shelf(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 }
 }
@@ -1915,10 +2178,11 @@ open func purgeShelf(id: String)throws   {try rustCallWithError(FfiConverterType
      */
 open func queryBookJson(bookId: String, viewId: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_query_book_json(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
-        FfiConverterString.lower(viewId),$0
+        FfiConverterString.lower(viewId),uniffiCallStatus
     )
 })
 }
@@ -1928,29 +2192,32 @@ open func queryBookJson(bookId: String, viewId: String)throws  -> String  {
      */
 open func queryBookWithRollupsJson(bookId: String, viewId: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_query_book_with_rollups_json(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
-        FfiConverterString.lower(viewId),$0
+        FfiConverterString.lower(viewId),uniffiCallStatus
     )
 })
 }
     
 open func renameProperty(bookId: String, propertyId: String, newName: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_rename_property(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
         FfiConverterString.lower(propertyId),
-        FfiConverterString.lower(newName),$0
+        FfiConverterString.lower(newName),uniffiCallStatus
     )
 }
 }
     
 open func renameShelf(id: String, newName: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_rename_shelf(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterString.lower(newName),$0
+        FfiConverterString.lower(newName),uniffiCallStatus
     )
 }
 }
@@ -1959,10 +2226,11 @@ open func renameShelf(id: String, newName: String)throws   {try rustCallWithErro
      * Reorders the root blocks according to the supplied UUID list.
      */
 open func reorderBlocks(leafId: String, order: [String])throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_reorder_blocks(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(leafId),
-        FfiConverterSequenceString.lower(order),$0
+        FfiConverterSequenceString.lower(order),uniffiCallStatus
     )
 }
 }
@@ -1971,11 +2239,12 @@ open func reorderBlocks(leafId: String, order: [String])throws   {try rustCallWi
      * Reorders the direct children of a parent block.
      */
 open func reorderChildBlocks(leafId: String, parentId: String, order: [String])throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_reorder_child_blocks(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(leafId),
         FfiConverterString.lower(parentId),
-        FfiConverterSequenceString.lower(order),$0
+        FfiConverterSequenceString.lower(order),uniffiCallStatus
     )
 }
 }
@@ -1984,9 +2253,10 @@ open func reorderChildBlocks(leafId: String, parentId: String, order: [String])t
      * Restores a book from the trash.
      */
 open func restoreBook(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_restore_book(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 }
 }
@@ -1997,9 +2267,10 @@ open func restoreBook(id: String)throws   {try rustCallWithError(FfiConverterTyp
      */
 open func restoreBookCascade(id: String)throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_restore_book_cascade(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 })
 }
@@ -2008,21 +2279,38 @@ open func restoreBookCascade(id: String)throws  -> UInt32  {
      * Restores an entry from its book's trash.
      */
 open func restoreEntry(bookId: String, entryId: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_restore_entry(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
-        FfiConverterString.lower(entryId),$0
+        FfiConverterString.lower(entryId),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Restores a mixed selection out of Compost.
+     */
+open func restoreItems(leafIds: [String], bookIds: [String], shelfIds: [String])throws  -> BulkOutcomeFfi  {
+    return try  FfiConverterTypeBulkOutcomeFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_restore_items(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(leafIds),
+        FfiConverterSequenceString.lower(bookIds),
+        FfiConverterSequenceString.lower(shelfIds),uniffiCallStatus
+    )
+})
 }
     
     /**
      * Restores a leaf from the trash.
      */
 open func restoreLeaf(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_restore_leaf(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 }
 }
@@ -2031,9 +2319,10 @@ open func restoreLeaf(id: String)throws   {try rustCallWithError(FfiConverterTyp
      * Restores a shelf from the trash.
      */
 open func restoreShelf(id: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_restore_shelf(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(id),$0
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 }
 }
@@ -2043,10 +2332,11 @@ open func restoreShelf(id: String)throws   {try rustCallWithError(FfiConverterTy
      */
 open func searchBookEntriesJson(bookId: String, query: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_search_book_entries_json(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
-        FfiConverterString.lower(query),$0
+        FfiConverterString.lower(query),uniffiCallStatus
     )
 })
 }
@@ -2056,9 +2346,10 @@ open func searchBookEntriesJson(bookId: String, query: String)throws  -> String 
      */
 open func searchBooks(query: String)throws  -> [BookMetaFfi]  {
     return try  FfiConverterSequenceTypeBookMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_search_books(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(query),$0
+        FfiConverterString.lower(query),uniffiCallStatus
     )
 })
 }
@@ -2068,9 +2359,10 @@ open func searchBooks(query: String)throws  -> [BookMetaFfi]  {
      */
 open func searchInBlocks(query: String)throws  -> [LeafMetaFfi]  {
     return try  FfiConverterSequenceTypeLeafMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_search_in_blocks(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(query),$0
+        FfiConverterString.lower(query),uniffiCallStatus
     )
 })
 }
@@ -2080,9 +2372,10 @@ open func searchInBlocks(query: String)throws  -> [LeafMetaFfi]  {
      */
 open func searchInBlocksWithSnippets(query: String)throws  -> [BlockSearchHitFfi]  {
     return try  FfiConverterSequenceTypeBlockSearchHitFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_search_in_blocks_with_snippets(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(query),$0
+        FfiConverterString.lower(query),uniffiCallStatus
     )
 })
 }
@@ -2092,9 +2385,10 @@ open func searchInBlocksWithSnippets(query: String)throws  -> [BlockSearchHitFfi
      */
 open func searchLeaves(query: String)throws  -> [LeafMetaFfi]  {
     return try  FfiConverterSequenceTypeLeafMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_search_leaves(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(query),$0
+        FfiConverterString.lower(query),uniffiCallStatus
     )
 })
 }
@@ -2104,9 +2398,10 @@ open func searchLeaves(query: String)throws  -> [LeafMetaFfi]  {
      */
 open func searchShelves(query: String)throws  -> [ShelfMetaFfi]  {
     return try  FfiConverterSequenceTypeShelfMetaFfi.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_search_shelves(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(query),$0
+        FfiConverterString.lower(query),uniffiCallStatus
     )
 })
 }
@@ -2115,11 +2410,12 @@ open func searchShelves(query: String)throws  -> [ShelfMetaFfi]  {
      * Sets or clears the block's background color (Craft-style highlight).
      */
 open func setBlockBackgroundColor(leafId: String, blockId: String, backgroundColor: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_set_block_background_color(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(leafId),
         FfiConverterString.lower(blockId),
-        FfiConverterOptionString.lower(backgroundColor),$0
+        FfiConverterOptionString.lower(backgroundColor),uniffiCallStatus
     )
 }
 }
@@ -2130,11 +2426,12 @@ open func setBlockBackgroundColor(leafId: String, blockId: String, backgroundCol
      * Inline colors on spans always take priority.
      */
 open func setBlockColor(leafId: String, blockId: String, color: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_set_block_color(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(leafId),
         FfiConverterString.lower(blockId),
-        FfiConverterOptionString.lower(color),$0
+        FfiConverterOptionString.lower(color),uniffiCallStatus
     )
 }
 }
@@ -2144,11 +2441,12 @@ open func setBlockColor(leafId: String, blockId: String, color: String?)throws  
      * `null` = inherit from the leaf.
      */
 open func setBlockTextDirection(leafId: String, blockId: String, textDirection: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_set_block_text_direction(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(leafId),
         FfiConverterString.lower(blockId),
-        FfiConverterOptionString.lower(textDirection),$0
+        FfiConverterOptionString.lower(textDirection),uniffiCallStatus
     )
 }
 }
@@ -2158,10 +2456,11 @@ open func setBlockTextDirection(leafId: String, blockId: String, textDirection: 
      * in the PINNED section at the top of the library home view.
      */
 open func setLeafPinned(id: String, pinned: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_set_leaf_pinned(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterBool.lower(pinned),$0
+        FfiConverterBool.lower(pinned),uniffiCallStatus
     )
 }
 }
@@ -2172,9 +2471,10 @@ open func setLeafPinned(id: String, pinned: Bool)throws   {try rustCallWithError
      * Pass the leaves in the desired display order.
      */
 open func setLeavesManualOrder(orderedIds: [String])throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_set_leaves_manual_order(
             self.uniffiCloneHandle(),
-        FfiConverterSequenceString.lower(orderedIds),$0
+        FfiConverterSequenceString.lower(orderedIds),uniffiCallStatus
     )
 }
 }
@@ -2187,10 +2487,11 @@ open func setLeavesManualOrder(orderedIds: [String])throws   {try rustCallWithEr
      */
 open func setPublishedAtSource(bookId: String, propertyId: String?)throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_set_published_at_source(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
-        FfiConverterOptionString.lower(propertyId),$0
+        FfiConverterOptionString.lower(propertyId),uniffiCallStatus
     )
 })
 }
@@ -2200,9 +2501,10 @@ open func setPublishedAtSource(bookId: String, propertyId: String?)throws  -> UI
      * Powers drag-and-drop reorder in the SHELVES sections.
      */
 open func setShelvesManualOrder(orderedIds: [String])throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_set_shelves_manual_order(
             self.uniffiCloneHandle(),
-        FfiConverterSequenceString.lower(orderedIds),$0
+        FfiConverterSequenceString.lower(orderedIds),uniffiCallStatus
     )
 }
 }
@@ -2212,11 +2514,12 @@ open func setShelvesManualOrder(orderedIds: [String])throws   {try rustCallWithE
      * for `grouping_json` clears it.
      */
 open func setViewDateGrouping(bookId: String, viewId: String, groupingJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_set_view_date_grouping(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
         FfiConverterString.lower(viewId),
-        FfiConverterString.lower(groupingJson),$0
+        FfiConverterString.lower(groupingJson),uniffiCallStatus
     )
 }
 }
@@ -2227,12 +2530,13 @@ open func setViewDateGrouping(bookId: String, viewId: String, groupingJson: Stri
      * live on Entry, not on a column).
      */
 open func setViewDateSort(bookId: String, viewId: String, kind: String, ascending: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_set_view_date_sort(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
         FfiConverterString.lower(viewId),
         FfiConverterString.lower(kind),
-        FfiConverterBool.lower(ascending),$0
+        FfiConverterBool.lower(ascending),uniffiCallStatus
     )
 }
 }
@@ -2242,14 +2546,34 @@ open func setViewDateSort(bookId: String, viewId: String, kind: String, ascendin
      * `property_id = null` clears the sort.
      */
 open func setViewSort(bookId: String, viewId: String, propertyId: String?, ascending: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_set_view_sort(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
         FfiConverterString.lower(viewId),
         FfiConverterOptionString.lower(propertyId),
-        FfiConverterBool.lower(ascending),$0
+        FfiConverterBool.lower(ascending),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Écrit un instantané horodaté dans `dir` et n'y garde que les `keep`
+     * plus récents. Renvoie le chemin écrit.
+     *
+     * Conçu pour tourner sans intervention : la perte du 2026-09-02 est
+     * survenue pendant la nuit, une protection volontaire n'aurait rien
+     * changé.
+     */
+open func snapshotLibrary(dir: String, keep: UInt32)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_snapshot_library(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(dir),
+        FfiConverterUInt32.lower(keep),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -2258,9 +2582,10 @@ open func setViewSort(bookId: String, viewId: String, propertyId: String?, ascen
      */
 open func superSearch(query: String)throws  -> SuperSearchResultsFfi  {
     return try  FfiConverterTypeSuperSearchResultsFfi_lift(try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_super_search(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(query),$0
+        FfiConverterString.lower(query),uniffiCallStatus
     )
 })
 }
@@ -2269,11 +2594,12 @@ open func superSearch(query: String)throws  -> SuperSearchResultsFfi  {
      * Replaces the content of an existing block (BlockContent JSON).
      */
 open func updateBlock(leafId: String, blockId: String, contentJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_block(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(leafId),
         FfiConverterString.lower(blockId),
-        FfiConverterString.lower(contentJson),$0
+        FfiConverterString.lower(contentJson),uniffiCallStatus
     )
 }
 }
@@ -2282,10 +2608,11 @@ open func updateBlock(leafId: String, blockId: String, contentJson: String)throw
      * Replaces or clears the book's cover image.
      */
 open func updateBookCover(id: String, cover: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_book_cover(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterOptionString.lower(cover),$0
+        FfiConverterOptionString.lower(cover),uniffiCallStatus
     )
 }
 }
@@ -2294,10 +2621,11 @@ open func updateBookCover(id: String, cover: String?)throws   {try rustCallWithE
      * Replaces the book's rich-text description (empty string clears it).
      */
 open func updateBookDescription(id: String, description: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_book_description(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterString.lower(description),$0
+        FfiConverterString.lower(description),uniffiCallStatus
     )
 }
 }
@@ -2306,10 +2634,11 @@ open func updateBookDescription(id: String, description: String)throws   {try ru
      * Replaces or clears the book's icon (emoji / file / URL).
      */
 open func updateBookIcon(id: String, icon: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_book_icon(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterOptionString.lower(icon),$0
+        FfiConverterOptionString.lower(icon),uniffiCallStatus
     )
 }
 }
@@ -2318,10 +2647,11 @@ open func updateBookIcon(id: String, icon: String?)throws   {try rustCallWithErr
      * Flips the book's read-only flag.
      */
 open func updateBookLocked(id: String, locked: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_book_locked(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterBool.lower(locked),$0
+        FfiConverterBool.lower(locked),uniffiCallStatus
     )
 }
 }
@@ -2330,20 +2660,22 @@ open func updateBookLocked(id: String, locked: Bool)throws   {try rustCallWithEr
      * Replaces the book's rich-text title.
      */
 open func updateBookTitle(id: String, newTitle: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_book_title(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterString.lower(newTitle),$0
+        FfiConverterString.lower(newTitle),uniffiCallStatus
     )
 }
 }
     
 open func updateEntry(bookId: String, entryId: String, valuesJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_entry(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
         FfiConverterString.lower(entryId),
-        FfiConverterString.lower(valuesJson),$0
+        FfiConverterString.lower(valuesJson),uniffiCallStatus
     )
 }
 }
@@ -2353,11 +2685,12 @@ open func updateEntry(bookId: String, entryId: String, valuesJson: String)throws
      * Empty string = reset to the default (follows created_at).
      */
 open func updateEntryPublishedAt(bookId: String, entryId: String, newPublishedAt: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_entry_published_at(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
         FfiConverterString.lower(entryId),
-        FfiConverterString.lower(newPublishedAt),$0
+        FfiConverterString.lower(newPublishedAt),uniffiCallStatus
     )
 }
 }
@@ -2368,19 +2701,21 @@ open func updateEntryPublishedAt(bookId: String, entryId: String, newPublishedAt
      * fall back to the Settings accent.
      */
 open func updateLeafAccentColor(id: String, accentColor: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_leaf_accent_color(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterOptionString.lower(accentColor),$0
+        FfiConverterOptionString.lower(accentColor),uniffiCallStatus
     )
 }
 }
     
 open func updateLeafCover(id: String, cover: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_leaf_cover(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterOptionString.lower(cover),$0
+        FfiConverterOptionString.lower(cover),uniffiCallStatus
     )
 }
 }
@@ -2389,10 +2724,11 @@ open func updateLeafCover(id: String, cover: String?)throws   {try rustCallWithE
      * Sets or clears a leaf's icon (emoji, local filename, or URL).
      */
 open func updateLeafIcon(id: String, icon: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_leaf_icon(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterOptionString.lower(icon),$0
+        FfiConverterOptionString.lower(icon),uniffiCallStatus
     )
 }
 }
@@ -2403,10 +2739,11 @@ open func updateLeafIcon(id: String, icon: String?)throws   {try rustCallWithErr
      * `locked = true` at creation time.
      */
 open func updateLeafLocked(id: String, locked: Bool)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_leaf_locked(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterBool.lower(locked),$0
+        FfiConverterBool.lower(locked),uniffiCallStatus
     )
 }
 }
@@ -2416,10 +2753,11 @@ open func updateLeafLocked(id: String, locked: Bool)throws   {try rustCallWithEr
      * promote the leaf back to the root. Rejects cycles.
      */
 open func updateLeafParent(leafId: String, newParentLeafId: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_leaf_parent(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(leafId),
-        FfiConverterOptionString.lower(newParentLeafId),$0
+        FfiConverterOptionString.lower(newParentLeafId),uniffiCallStatus
     )
 }
 }
@@ -2429,10 +2767,29 @@ open func updateLeafParent(leafId: String, newParentLeafId: String?)throws   {tr
      * reset to the default (follows created_at).
      */
 open func updateLeafPublishedAt(id: String, newPublishedAt: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_leaf_published_at(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterString.lower(newPublishedAt),$0
+        FfiConverterString.lower(newPublishedAt),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Persists the leaf's reader-settings bundle (font scale +
+     * family + bold + 4 spacing values + justify + dark variant +
+     * custom-layout flag). Pass the JSON-serialised
+     * `ReaderSettings` shape, or `null` to clear and fall back to
+     * the theme's factory defaults. Cf. `domain::leaf::ReaderSettings`
+     * and `utilities/docs/BOOKS-READER-SETTINGS-RE.md`.
+     */
+open func updateLeafReaderSettings(id: String, settingsJson: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
+    uniffi_pinkha_fn_method_pinkhaapi_update_leaf_reader_settings(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterOptionString.lower(settingsJson),uniffiCallStatus
     )
 }
 }
@@ -2442,10 +2799,11 @@ open func updateLeafPublishedAt(id: String, newPublishedAt: String)throws   {try
      * `null` = system locale. Every block can override.
      */
 open func updateLeafTextDirection(id: String, textDirection: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_leaf_text_direction(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterOptionString.lower(textDirection),$0
+        FfiConverterOptionString.lower(textDirection),uniffiCallStatus
     )
 }
 }
@@ -2455,39 +2813,43 @@ open func updateLeafTextDirection(id: String, textDirection: String?)throws   {t
      * `null` = inherit from AppSettings.theme.
      */
 open func updateLeafTheme(id: String, theme: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_leaf_theme(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterOptionString.lower(theme),$0
+        FfiConverterOptionString.lower(theme),uniffiCallStatus
     )
 }
 }
     
 open func updateLeafTitle(id: String, newTitle: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_leaf_title(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterString.lower(newTitle),$0
+        FfiConverterString.lower(newTitle),uniffiCallStatus
     )
 }
 }
     
 open func updateShelfIcon(id: String, icon: String?)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_shelf_icon(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(id),
-        FfiConverterOptionString.lower(icon),$0
+        FfiConverterOptionString.lower(icon),uniffiCallStatus
     )
 }
 }
     
 open func updateView(bookId: String, viewId: String, filtersJson: String, sortsJson: String)throws   {try rustCallWithError(FfiConverterTypePinkhaError_lift) {
+        uniffiCallStatus in
     uniffi_pinkha_fn_method_pinkhaapi_update_view(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(bookId),
         FfiConverterString.lower(viewId),
         FfiConverterString.lower(filtersJson),
-        FfiConverterString.lower(sortsJson),$0
+        FfiConverterString.lower(sortsJson),uniffiCallStatus
     )
 }
 }
@@ -2676,6 +3038,66 @@ public func FfiConverterTypeBookMetaFfi_lift(_ buf: RustBuffer) throws -> BookMe
 #endif
 public func FfiConverterTypeBookMetaFfi_lower(_ value: BookMetaFfi) -> RustBuffer {
     return FfiConverterTypeBookMetaFfi.lower(value)
+}
+
+
+/**
+ * Bundle of search results across every library surface, returned by
+ * `super_search`. Empty arrays mean "no match in that category".
+ * Result of a bulk delete / restore / purge. `skipped` counts ids that no
+ * longer existed — a stale selection, not an error.
+ */
+public struct BulkOutcomeFfi: Equatable, Hashable {
+    public var affected: UInt32
+    public var skipped: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(affected: UInt32, skipped: UInt32) {
+        self.affected = affected
+        self.skipped = skipped
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BulkOutcomeFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBulkOutcomeFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BulkOutcomeFfi {
+        return
+            try BulkOutcomeFfi(
+                affected: FfiConverterUInt32.read(from: &buf), 
+                skipped: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BulkOutcomeFfi, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.affected, into: &buf)
+        FfiConverterUInt32.write(value.skipped, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBulkOutcomeFfi_lift(_ buf: RustBuffer) throws -> BulkOutcomeFfi {
+    return try FfiConverterTypeBulkOutcomeFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBulkOutcomeFfi_lower(_ value: BulkOutcomeFfi) -> RustBuffer {
+    return FfiConverterTypeBulkOutcomeFfi.lower(value)
 }
 
 
@@ -2876,6 +3298,71 @@ public func FfiConverterTypeLeafMetaFfi_lift(_ buf: RustBuffer) throws -> LeafMe
 #endif
 public func FfiConverterTypeLeafMetaFfi_lower(_ value: LeafMetaFfi) -> RustBuffer {
     return FfiConverterTypeLeafMetaFfi.lower(value)
+}
+
+
+/**
+ * Everything the library screen renders, fetched in one FFI crossing.
+ */
+public struct LibrarySnapshotFfi: Equatable, Hashable {
+    public var rootLeaves: [LeafMetaFfi]
+    public var allLeaves: [LeafMetaFfi]
+    public var books: [BookMetaFfi]
+    public var shelves: [ShelfMetaFfi]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(rootLeaves: [LeafMetaFfi], allLeaves: [LeafMetaFfi], books: [BookMetaFfi], shelves: [ShelfMetaFfi]) {
+        self.rootLeaves = rootLeaves
+        self.allLeaves = allLeaves
+        self.books = books
+        self.shelves = shelves
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LibrarySnapshotFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLibrarySnapshotFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LibrarySnapshotFfi {
+        return
+            try LibrarySnapshotFfi(
+                rootLeaves: FfiConverterSequenceTypeLeafMetaFfi.read(from: &buf), 
+                allLeaves: FfiConverterSequenceTypeLeafMetaFfi.read(from: &buf), 
+                books: FfiConverterSequenceTypeBookMetaFfi.read(from: &buf), 
+                shelves: FfiConverterSequenceTypeShelfMetaFfi.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LibrarySnapshotFfi, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeLeafMetaFfi.write(value.rootLeaves, into: &buf)
+        FfiConverterSequenceTypeLeafMetaFfi.write(value.allLeaves, into: &buf)
+        FfiConverterSequenceTypeBookMetaFfi.write(value.books, into: &buf)
+        FfiConverterSequenceTypeShelfMetaFfi.write(value.shelves, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLibrarySnapshotFfi_lift(_ buf: RustBuffer) throws -> LibrarySnapshotFfi {
+    return try FfiConverterTypeLibrarySnapshotFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLibrarySnapshotFfi_lower(_ value: LibrarySnapshotFfi) -> RustBuffer {
+    return FfiConverterTypeLibrarySnapshotFfi.lower(value)
 }
 
 
@@ -3089,10 +3576,6 @@ public func FfiConverterTypeShelfMetaFfi_lower(_ value: ShelfMetaFfi) -> RustBuf
 }
 
 
-/**
- * Bundle of search results across every library surface, returned by
- * `super_search`. Empty arrays mean "no match in that category".
- */
 public struct SuperSearchResultsFfi: Equatable, Hashable {
     public var leavesByTitle: [LeafMetaFfi]
     public var leavesByContent: [BlockSearchHitFfi]
@@ -3155,7 +3638,8 @@ public func FfiConverterTypeSuperSearchResultsFfi_lower(_ value: SuperSearchResu
 }
 
 
-public enum PinkhaError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+public 
+enum PinkhaError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
     
@@ -3567,7 +4051,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_create_leaf_in_book() != 49773) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_create_shelf() != 54532) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_create_shelf() != 54801) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_date_grouped_query_book_json() != 57846) {
@@ -3594,6 +4078,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_entry() != 30657) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_delete_items() != 7032) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_delete_leaf() != 1699) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3613,6 +4100,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_empty_trash() != 53275) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_export_library() != 4934) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_get_book_json() != 33136) {
@@ -3642,64 +4132,73 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_craft_textbundle() != 42783) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion() != 10185) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_import_from_notion() != 801) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_import_notion_page() != 47626) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_import_notion_page() != 38053) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_indent_block() != 18250) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_books() != 49165) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_insert_block_tree() != 55914) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_child_leaves() != 33811) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_library_snapshot() != 10750) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_child_shelves() != 10879) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_books() != 16780) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_books() != 20973) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_child_leaves() != 35493) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_child_shelves() != 12374) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_books() != 16546) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_entries_json() != 36939) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_leaves() != 14453) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_leaves() != 59157) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_shelves() != 41889) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_deleted_shelves() != 8134) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_leaves() != 36463) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_leaves() != 53362) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_leaves_in_shelf() != 56139) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_leaves_in_shelf() != 11763) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases() != 31016) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases() != 24487) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases_v2025() != 45793) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_notion_databases_v2025() != 49771) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_notion_pages() != 38911) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_notion_pages() != 54112) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_root_leaves() != 63016) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_root_leaves() != 34032) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_list_shelves() != 41346) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_shelves() != 2198) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_move_block() != 25411) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_list_snapshots() != 45455) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_move_leaf_to_shelf() != 53668) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_move_block() != 4264) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_move_shelf_to() != 41134) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_move_leaf_to_shelf() != 42073) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_move_shelf_to() != 11412) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_outdent_block() != 58366) {
@@ -3709,6 +4208,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_purge_entry() != 1272) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_purge_items() != 58503) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_purge_leaf() != 37630) {
@@ -3729,10 +4231,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_rename_shelf() != 43187) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_reorder_blocks() != 50925) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_reorder_blocks() != 49683) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_reorder_child_blocks() != 53714) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_reorder_child_blocks() != 19826) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_restore_book() != 13460) {
@@ -3744,6 +4246,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_restore_entry() != 41177) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_restore_items() != 9478) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pinkha_checksum_method_pinkhaapi_restore_leaf() != 48720) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3753,40 +4258,40 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_search_book_entries_json() != 37409) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_search_books() != 36834) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_books() != 64535) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks() != 7835) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks() != 54989) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks_with_snippets() != 57833) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_in_blocks_with_snippets() != 10614) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_search_leaves() != 1587) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_leaves() != 5663) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_search_shelves() != 28852) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_search_shelves() != 55408) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_background_color() != 42996) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_background_color() != 35360) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_color() != 58506) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_color() != 3666) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_text_direction() != 61302) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_block_text_direction() != 4559) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_leaf_pinned() != 6198) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_set_leaves_manual_order() != 62917) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_leaves_manual_order() != 2270) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_set_published_at_source() != 52307) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_published_at_source() != 3810) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_set_shelves_manual_order() != 31436) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_shelves_manual_order() != 16485) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_date_grouping() != 54562) {
@@ -3795,7 +4300,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_date_sort() != 19614) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_sort() != 19242) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_set_view_sort() != 4099) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_snapshot_library() != 58844) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_super_search() != 47711) {
@@ -3804,13 +4312,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_block() != 56777) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_book_cover() != 24858) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_book_cover() != 45761) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_book_description() != 14821) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_book_icon() != 62843) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_book_icon() != 41618) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_book_locked() != 7875) {
@@ -3825,34 +4333,37 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_entry_published_at() != 47774) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_accent_color() != 46091) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_accent_color() != 22032) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_cover() != 5054) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_cover() != 26038) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_icon() != 14875) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_icon() != 15388) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_locked() != 16587) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_parent() != 10650) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_parent() != 24492) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_published_at() != 25203) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_text_direction() != 8415) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_reader_settings() != 19616) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_theme() != 65452) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_text_direction() != 33872) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_theme() != 58410) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_leaf_title() != 12197) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pinkha_checksum_method_pinkhaapi_update_shelf_icon() != 30754) {
+    if (uniffi_pinkha_checksum_method_pinkhaapi_update_shelf_icon() != 30646) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pinkha_checksum_method_pinkhaapi_update_view() != 24922) {

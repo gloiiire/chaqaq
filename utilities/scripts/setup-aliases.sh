@@ -19,19 +19,23 @@ git config --local alias.new-feature \
 git config --local alias.new-fix \
     '!f() { git checkout dev && git pull && git checkout -b fix/$1; }; f'
 
-# Promotion dev → staging (merge + push, retour à la branche précédente).
-git config --local alias.promote-staging \
-    '!git checkout staging && git pull && git merge dev && git push origin staging && git checkout -'
+# Promotion device → dev.
+git config --local alias.promote-dev \
+    '!git checkout dev && git pull && git merge device && git push origin dev && git checkout -'
 
-# Promotion staging → master (release).
-git config --local alias.promote-master \
-    '!git checkout master && git pull && git merge staging && git push origin master && git checkout -'
+# Promotion dev → beta-test (les testeurs invités).
+git config --local alias.promote-beta \
+    '!git checkout beta-test && git pull && git merge dev && git push origin beta-test && git checkout -'
 
-# Supprime les branches locales déjà mergées dans dev (sauf master/staging/dev).
+# Promotion beta-test → app-store (revue Apple).
+git config --local alias.promote-app-store \
+    '!git checkout app-store && git pull && git merge beta-test && git push origin app-store && git checkout -'
+
+# Supprime les branches locales déjà mergées dans device (sauf les quatre paliers).
 # `-E` active la regex étendue : `|` = alternation, `^[[:space:]]*` matche
 # l'indentation devant un nom de branche non-active.
 git config --local alias.cleanup-merged \
-    '!git branch --merged dev | grep -vE "^\*|^[[:space:]]*(dev|master|staging)$" | xargs -n 1 git branch -d 2>/dev/null; echo "Done."'
+    '!git branch --merged device | grep -vE "^\*|^[[:space:]]*(device|dev|beta-test|app-store)$" | xargs -n 1 git branch -d 2>/dev/null; echo "Done."'
 
 echo "Alias git configurés (locaux au repo) :"
 git config --local --get-regexp '^alias\.' | sed 's/^alias\./  /'
@@ -39,6 +43,7 @@ echo ""
 echo "Usage :"
 echo "  git new-feature <nom>       # crée feature/<nom> depuis dev"
 echo "  git new-fix <nom>           # crée fix/<nom> depuis dev"
-echo "  git promote-staging         # merge dev → staging + push"
-echo "  git promote-master          # merge staging → master + push"
+echo "  git promote-dev             # merge device → dev + push"
+echo "  git promote-beta            # merge dev → beta-test + push"
+echo "  git promote-app-store       # merge beta-test → app-store + push"
 echo "  git cleanup-merged          # supprime les branches mergées dans dev"

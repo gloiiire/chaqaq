@@ -55,12 +55,16 @@ public final class PinkhaStore {
     public func connect() {
         guard api == nil else { return }
         tryCatch(into: &errorMessage) {
-            let dir  = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             // UI-test modes: ephemeral DB for reproducibility.
             let args = ProcessInfo.processInfo.arguments
             let isUITest = args.contains("--ui-test-data") || args.contains("--ui-test-clean")
-            let dbName = isUITest ? "pinkha_uitest_\(UUID().uuidString).db" : "pinkha.db"
-            let path = dir.appendingPathComponent(dbName).path
+            // Application Support, not Documents — the database holds every
+            // note in plaintext and Documents is exposed in the Files app by
+            // `UIFileSharingEnabled`. `databasePath()` also relocates a
+            // pre-existing database on the first launch after the move.
+            let path = isUITest
+                ? try DatabaseLocation.ephemeralDatabasePath()
+                : try DatabaseLocation.databasePath()
             api = try PinkhaApi(dbPath: path)
             if args.contains("--ui-test-data") {
                 _ = try api?.createLeaf(title: "Seeded Leaf 2")
@@ -76,18 +80,20 @@ public final class PinkhaStore {
     /// and `allLeaves` (every leaf regardless of filing — drives the
     /// Recent strip and the Pinned section), in addition to books.
     public func load() {
-        if let docs = tryCatch(into: &errorMessage, { try api?.listRootLeaves() ?? [] }) {
-            leaves = docs
-        }
-        if let everyDoc = tryCatch(into: &errorMessage, { try api?.listLeaves() ?? [] }) {
-            allLeaves = everyDoc
-        }
-        if let dbs = tryCatch(into: &errorMessage, { try api?.listBooks() ?? [] }) {
-            books = dbs
-        }
-        if let shvs = tryCatch(into: &errorMessage, { try api?.listShelves() ?? [] }) {
-            shelves = shvs
-        }
+        // One FFI crossing for all four lists, not four.
+        //
+        // Beyond the cost — `load()` runs after every mutation, from about
+        // twenty call sites — four separate reads could observe four
+        // different states of the database if a write landed between them,
+        // yielding a shelf list that disagreed with the leaves said to be
+        // filed in it.
+        guard let snapshot = tryCatch(into: &errorMessage, { try api?.librarySnapshot() }),
+              let snapshot
+        else { return }
+        leaves    = snapshot.rootLeaves
+        allLeaves = snapshot.allLeaves
+        books     = snapshot.books
+        shelves   = snapshot.shelves
     }
 
     /// Same shape as `items` but built from `allLeaves` instead of just
@@ -209,6 +215,45 @@ public final class PinkhaStore {
         }
     }
 
+    /// Soft-deletes a mixed selection — the "Delete (N)" bulk action.
+    ///
+    /// One FFI call and one `load()`, not N of each: the previous loop in
+    /// Swift reloaded the whole library after every single item, so a
+    /// hundred-item selection paid a hundred full library reads and a
+    /// hundred `@Observable` mutation storms for one user gesture.
+    ///
+    /// Returns how many items were actually removed. Ids that had already
+    /// disappeared (a cascade from a book, another device) are skipped by
+    /// Rust rather than failing the batch.
+    @discardableResult
+    public func deleteItems(leafIds: [String], bookIds: [String], shelfIds: [String] = []) -> Int {
+        let n = tryCatch(into: &errorMessage) {
+            try api?.deleteItems(leafIds: leafIds, bookIds: bookIds, shelfIds: shelfIds).affected ?? 0
+        } ?? 0
+        load()
+        return Int(n)
+    }
+
+    /// Restores a mixed selection out of Compost. See `deleteItems`.
+    @discardableResult
+    public func restoreItems(leafIds: [String], bookIds: [String], shelfIds: [String] = []) -> Int {
+        let n = tryCatch(into: &errorMessage) {
+            try api?.restoreItems(leafIds: leafIds, bookIds: bookIds, shelfIds: shelfIds).affected ?? 0
+        } ?? 0
+        load()
+        return Int(n)
+    }
+
+    /// Permanently removes a mixed selection. See `deleteItems`.
+    @discardableResult
+    public func purgeItems(leafIds: [String], bookIds: [String], shelfIds: [String] = []) -> Int {
+        let n = tryCatch(into: &errorMessage) {
+            try api?.purgeItems(leafIds: leafIds, bookIds: bookIds, shelfIds: shelfIds).affected ?? 0
+        } ?? 0
+        load()
+        return Int(n)
+    }
+
     /// Soft-deletes all leaves and reloads.
     public func deleteAll() {
         if tryCatch(into: &errorMessage, { try api?.deleteAllLeaves() }) != nil {
@@ -316,7 +361,21 @@ public final class PinkhaStore {
     @discardableResult
     public func createShelf(name: String, parentId: String? = nil) -> ShelfMetaFfi? {
         guard let api else { return nil }
-        let shelf = tryCatch(into: &errorMessage) { try api.createShelf(name: name, parentId: parentId) }
+        // Trim before persisting: callers validate against the trimmed
+        // string but used to pass the raw one, so " Work " landed in the
+        // database with its padding.
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let shelf = tryCatch(into: &errorMessage) {
+            try api.createShelf(name: trimmed, parentId: parentId)
+        }
+        // Refresh — this method is the only mutation in the store that
+        // didn't, despite its doc comment claiming otherwise. Two of the
+        // three call sites compensated with their own `load()`; the third
+        // (the root SHELVES section) didn't, so creating the very first
+        // shelf left `shelves` empty and the whole section — including the
+        // button just used — disappeared until an unrelated mutation
+        // happened to refresh.
+        if shelf != nil { load() }
         return shelf
     }
 

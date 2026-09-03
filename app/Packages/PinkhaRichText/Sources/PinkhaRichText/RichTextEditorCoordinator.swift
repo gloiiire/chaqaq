@@ -13,6 +13,22 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
     weak var tv: ExpandingTextView?
     var isEditing = false
     var isDeleting = false
+    /// Vrai entre le moment ou l'utilisateur demande la fermeture du clavier
+    /// et le moment ou l'etat SwiftUI a rattrape cette intention.
+    ///
+    /// La descente du clavier change la zone sure du bas, donc la liste se
+    /// remet en page, donc `updateUIView` repasse sur la rangee — avec un
+    /// `isFocused` encore a `true`, puisque le binding n'est ecrit qu'ensuite
+    /// par `textViewDidEndEditing`. Le reconciliateur y voyait « focalise mais
+    /// pas premier repondant » et reprogrammait le focus : le clavier
+    /// remontait aussitot.
+    ///
+    /// Ce drapeau bloque UNIQUEMENT la reprogrammation. Ne pas corriger ce
+    /// bug en touchant au corps de la tache : elle pose aussi `selectedRange`,
+    /// et l'en empecher fait atterrir le curseur n'importe ou — les taps
+    /// deviennent des selections de mots et la correction arriere emporte des
+    /// lignes entieres. Teste, constate, reverti.
+    var refocusSuppressed = false
     var shiftEnterTyped = false
     var lastSelection = NSRange(location: 0, length: 0)
     // Active typing color without a selection: UIKit resets typingAttributes
@@ -91,6 +107,22 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
     // (otherwise the pill flickers or never hides).
     var menuPresentingUntil: Date?
 
+    /// Dernier état connu du presse-papiers.
+    ///
+    /// `UIPasteboard.general.hasStrings` traverse une frontière de processus :
+    /// c'est le démon du presse-papiers qui répond, pas un champ en mémoire.
+    /// Il était interrogé depuis `updateToolbar`, donc **à chaque frappe et
+    /// à chaque changement de sélection**, plus une fois par mise à jour de
+    /// vue SwiftUI. Sur un appareil réel, ces allers-retours s'additionnent
+    /// sur le thread principal, exactement là où l'éditeur doit rester
+    /// fluide.
+    ///
+    /// L'état ne change qu'à deux moments : quand le presse-papiers change
+    /// (notification), et quand l'app revient au premier plan — une copie
+    /// faite dans une autre app pendant qu'on était en arrière-plan
+    /// n'émet pas de notification.
+    private var pasteboardHasStrings = UIPasteboard.general.hasStrings
+
     init(parent: RichTextEditor) {
         self.parent = parent
         super.init()
@@ -99,11 +131,23 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
             selector: #selector(pasteboardChanged),
             name: UIPasteboard.changedNotification,
             object: nil)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(pasteboardChanged),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil)
     }
 
     @objc func pasteboardChanged() {
-        DispatchQueue.main.async { [weak self] in self?.updatePasteButton() }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.pasteboardHasStrings = UIPasteboard.general.hasStrings
+            self.updatePasteButton()
+        }
     }
+
+    /// Lecture sans traverser la frontière de processus.
+    var cachedPasteboardHasStrings: Bool { pasteboardHasStrings }
 
     @objc func handleLongPressSelection(_ gesture: UILongPressGestureRecognizer) {
         guard gesture.state == .began else { return }
@@ -126,6 +170,9 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
 
     public func textViewDidBeginEditing(_ tv: UITextView) {
         isEditing = true
+        // L'utilisateur revient dans un bloc : l'intention de fermeture est
+        // caduque.
+        refocusSuppressed = false
         parent.isFocused = true
         rememberSelection(tv.selectedRange, length: tv.attributedText.length)
         // Default foreground: block-level colour when set, otherwise the
@@ -228,6 +275,11 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
         // when the window check above let us through (e.g. SwiftUI between
         // renders).
         if tv.attributedText.string.isEmpty { tv.attributedText = placeholder() }
+        // Losing focus invalidates any in-flight `@…` token: its recorded
+        // offsets point into text we may have just replaced with the
+        // placeholder, and the bar would otherwise stay on screen ready to
+        // commit against a stale range.
+        endMentionSession()
     }
 
     /// Intercepts taps / long-press-then-open on links inside the editor.
@@ -290,7 +342,7 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
                 }
             }
             return UIAction { _ in
-                UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                UIApplication.shared.open(url)
             }
         }
         return defaultAction
@@ -516,9 +568,19 @@ public final class RichTextEditorCoordinator: NSObject, UITextViewDelegate, UIGe
     /// `pinkha://leaf/{id}` link, then closes the session.
     private func commitMention(_ candidate: MentionCandidate) {
         guard let tv, let session = mentionSession else { return }
-        Haptic.tap()
-        let replaceRange = NSRange(location: session.start,
-                                    length: 1 + session.queryLength)
+        // The session records where the `@…` token sits, but it is only
+        // refreshed from `textViewDidChange` — which does *not* fire when
+        // the text is replaced programmatically (an undo pushing new text
+        // through `updateUIView`, or the placeholder swap on end-editing).
+        // The bar can therefore still be on screen holding offsets into
+        // text that no longer exists, and `replaceCharacters` on an
+        // out-of-bounds range raises an uncatchable `NSRangeException`.
+        let storageLength = (tv.attributedText.string as NSString).length
+        let start = min(session.start, storageLength)
+        let replaceRange = NSRange(
+            location: start,
+            length: min(1 + session.queryLength, storageLength - start)
+        )
         // `URL(string:)` only fails on a malformed string; the candidate
         // id is a UUID we just minted, so the primary path always works.
         // The fallback is paranoia — if it ever did fail we abort the
