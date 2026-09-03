@@ -637,6 +637,50 @@ hors service. Les fonctionnalités livrées entre-temps le sont avec une
 couverture unitaire et d'intégration seulement, et le test UI correspondant
 est à écrire une fois ce défaut corrigé.
 
+### Livraison : téléverser ne distribue pas
+
+Un build téléversé sur TestFlight n'est visible que des testeurs **internes**,
+qui reçoivent tout automatiquement. Un groupe **externe** ne reçoit rien tant
+que deux gestes ne sont pas faits :
+
+1. le build lui est explicitement **rattaché** (`groups:` + `distribute_external`) ;
+2. il passe la **revue de bêta** d'Apple.
+
+Sans eux, App Store Connect affiche « No Compatible Build » sur le groupe alors
+que les builds sont bien montés. C'est ce qui a fait attendre un testeur de
+`pinkha` du 2026-07-22 au 2026-09-03.
+
+Corollaire non évident : `skip_waiting_for_build_processing` doit valoir
+**`false`** dès qu'on distribue. Un build ne peut être rattaché à un groupe
+qu'une fois `VALID` côté Apple ; rendre la main plus tôt, c'est téléverser sans
+jamais distribuer.
+
+**La revue de bêta est demandée une fois par _version_**, pas par build. Une
+seconde demande rend 409 — état déjà atteint, pas échec. Deux motifs distincts
+s'y cachent (« déjà soumis » et « un autre build du même train est en revue ») ;
+tolérer le **motif**, jamais le code entier : un 422 dit qu'il manque une
+information de test, et celui-là ne se résout pas tout seul.
+
+Le groupe est désigné **par son nom** (`vars.TESTFLIGHT_GROUPS`), jamais par un
+identifiant en dur — un identifiant dans un fichier de CI ne se relit pas et
+devient faux le jour où le groupe est recréé. Les groupes de `pinkha` :
+`Dev` (interne) et `Beta-test` (externe). Rattacher un groupe **interne** rend
+`422 Cannot add internal group to a build`.
+
+**Concurrence : un seul groupe pour les deux workflows**, avec
+`cancel-in-progress: false`. La ressource partagée est la fiche App Store
+Connect, pas le fichier — les deux se disputent le même numéro de build.
+Annuler un téléversement en vol ne laisse pas un état propre : il peut avoir
+abouti côté Apple pendant que le job meurt côté GitHub, et le numéro suivant
+entre alors en collision.
+
+Le « What to Test » est posé **avant** le rattachement — un testeur peut être
+notifié dans la seconde qui suit — et tronqué à 4000 caractères, au-delà
+desquels Apple rend 409 *après* le téléversement.
+
+> Ces règles viennent de la session ONTBibleApp, qui livre réellement depuis
+> août 2026 ; chacune y a été payée une fois.
+
 ## Roadmap
 
 Ce qui est **fait** — backend Rust + UI SwiftUI :

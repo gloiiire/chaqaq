@@ -2,19 +2,34 @@ name: TestFlight
 
 # ── Triggers ─────────────────────────────────────────────────────────────────
 #
-# Manual-only for now. Auto-run on push to `beta-test` is paused
-# because GitHub Actions macos-* runners ship Xcode 16.x / iOS 18.x
-# SDK, while Pinkha targets iOS 26.0 (uses UIGlassEffect,
-# .glassEffect(), etc.). The archive fails with "iOS deployment
-# target ... is set to 26.0, but the range of supported deployment
-# target versions is 12.0 to 18.2.99".
+# Une promotion vers `beta-test` livre aux testeurs. C'est ce que le nom de la
+# branche promet, et jusqu'ici il ne le tenait pas : le déclencheur était
+# manuel, donc promouvoir ne produisait rien et rien ne le disait.
 #
-# Until Xcode 26 lands on GHA (likely Q4 2026), TestFlight builds
-# are produced locally on a developer Mac via
-# `bundle exec fastlane ios beta`. The lane itself is environment-
-# agnostic — same code path here and locally — so flipping the
-# trigger back to `push: [beta-test]` will be a one-line change.
+# La pause avait une vraie raison, aujourd'hui périmée. Les runners macOS de
+# GitHub embarquent Xcode 16 / SDK iOS 18 alors que pinkha cible iOS 26 —
+# l'archivage échouait sur « iOS deployment target is set to 26.0, but the
+# range of supported deployment target versions is 12.0 to 18.2.99 ». Le
+# runner auto-hébergé porte Xcode 27 ; le job y tourne désormais.
+#
+# **Ce qui ne peut pas changer le binaire ne déclenche pas de livraison.**
+# `paths-ignore` ne saute que si TOUS les fichiers touchés y figurent : un
+# changement de documentation mêlé à du code livre quand même, ce qui est le
+# comportement voulu. Sans ce garde, un correctif de CI promu jusqu'en haut
+# consommerait une place de téléversement Apple — elles sont comptées par
+# application, par plateforme et par jour. (Piège rapporté par la session
+# ONTBibleApp, qui a perdu dix des onze places d'une journée le 2026-08-31.)
+#
+# `workflow_dispatch` reste, pour éprouver une modification de ce fichier seul.
 on:
+  push:
+    branches: [beta-test]
+    paths-ignore:
+      - ".github/workflows/**"
+      - "**/*.md"
+      - "utilities/docs/**"
+      # Outillage interne : ne produit pas une ligne du binaire.
+      - "crates/pinkha-mcp/**"
   workflow_dispatch:
 
 # ── Concurrency ──────────────────────────────────────────────────────────────
@@ -22,16 +37,32 @@ on:
 # Cancel any in-flight TestFlight build when a newer commit lands on
 # beta-test. Two parallel uploads would race for the next build number
 # (latest_testflight + 1) and the loser would get rejected by ASC.
+# ── Concurrency ──────────────────────────────────────────────────────────────
+#
+# **Un seul groupe pour les deux workflows.** La ressource partagee est la
+# fiche App Store Connect, pas le fichier : TestFlight et App Store se
+# disputent le meme numero de build.
+#
+# `cancel-in-progress: false` — le second attend, il n'annule pas le premier.
+# Annuler un televersement a mi-chemin ne laisse pas un etat propre : il peut
+# avoir abouti cote Apple pendant que le job meurt cote GitHub. On aurait
+# alors un build chez Apple que la CI croit inexistant, et le numero suivant
+# entrerait en collision. (Regle et raison rapportees par la session
+# ONTBibleApp, qui l'a mesuree.)
 concurrency:
-  group: testflight
-  cancel-in-progress: true
+  group: apple-delivery
+  cancel-in-progress: false
 
 jobs:
   testflight:
     # macOS is mandatory : xcodebuild + signing only work on Apple's
     # toolchain. `macos-14` ships Xcode 16 by default — fastlane picks
     # it up automatically.
-    runs-on: macos-14
+    # Runner auto-hébergé : c'est la seule machine qui porte Xcode 27, donc
+    # le seul endroit où une cible iOS 26 s'archive. Contrepartie assumée,
+    # identique au job Swift de `ci.yml` : machine éteinte = le job attend
+    # puis expire, il ne livre pas une build fausse.
+    runs-on: [self-hosted, macOS, ARM64, xcode27]
 
     # 30 min hard ceiling. A normal build finishes in ~15 min ; past
     # 30 min something is wedged and re-trying is cheaper than waiting.
@@ -86,6 +117,12 @@ jobs:
           # On macos-14 runners the default keychain has no password
           # so the empty string is correct.
           MATCH_KEYCHAIN_NAME:     "fastlane_keychain"
+          # Nom(s) du groupe TestFlight destinataire, tels qu'ils apparaissent
+          # dans App Store Connect. Variable de depot (non secrete) plutot que
+          # valeur en dur : le nom change sans toucher au code, et le lane
+          # echoue bruyamment si elle est vide plutot que de livrer aux seuls
+          # testeurs internes en silence.
+          TESTFLIGHT_GROUPS:       ${{ vars.TESTFLIGHT_GROUPS }}
           MATCH_KEYCHAIN_PASSWORD: ""
 
           # Silence fastlane's metrics opt-in dialog on CI.
