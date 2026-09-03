@@ -673,7 +673,7 @@ Ce qui est **fait** — backend Rust + UI SwiftUI :
   - Focus automatique sur le bloc créé OU réinséré via undo
   - Undo/redo unifié (1000 niveaux) : pill bas-gauche + boutons toolbar, burst typing 300 ms style Notes, focus auto sur block réinséré
   - Perf : persist SQLite différé au flush burst, cache spans par bloc, cache état boutons undo
-- **CI** : GitHub Actions `cargo test` sur push/PR vers master/staging/dev (`macos-15`). Swift job suspendu en attendant Xcode 26 sur les runners
+- **CI** : GitHub Actions `cargo test` sur push/PR vers app-store/beta-test/dev (`macos-15`). Swift job suspendu en attendant Xcode 26 sur les runners
 - **Architecture modulaire Swift** : 6 packages SwiftPM (10 targets) avec un DAG enforced par le compilateur (cf. section Architecture). L'app target ne contient plus que le composition root (`App/` + `Resources/`).
 - **Vocabulaire métier "Library/Leaf/Book/Shelf/Compost"** appliqué à tout le code (Rust + Swift + SQLite tables + i18n EN/FR + docs). Cf. `utilities/docs/VOCABULARY.md`.
 - **Sécurité repo** : branches protégées (PR obligatoire, force-push bloqué, suppression bloquée, Rust CI requise), Secret Scanning + Push Protection, Dependabot Alerts + Security Updates, Dependabot config mensuelle pour Cargo + Actions, job CI `cargo-audit --deny warnings` (scan CVE à chaque PR)
@@ -739,10 +739,25 @@ Colonne Date qui pilote le `published_at` de chaque row (et du doc lié). Adopti
 
 ## Git workflow
 
-### Branches permanentes
-- `master` — production. Tout ce qui est ici doit être stable, testé, releasable.
-- `staging` — pré-prod / QA. Promu depuis `dev` quand un lot de features est prêt à tester.
-- `dev` — intégration. Toutes les features/fixes y sont mergées avant promotion.
+### Branches permanentes — une branche nomme un destinataire
+
+- `device` — **vos appareils à vous**. Le travail s'y accumule librement, sans
+  PR ni contrôle requis, et s'installe par `utilities/scripts/run-on-device.sh`.
+- `dev` — le groupe interne. Promu depuis `device`.
+- `beta-test` — les testeurs invités (TestFlight). Promu depuis `dev`.
+- `app-store` — la revue d'Apple, donc le public. Promu depuis `beta-test`.
+  Branche par défaut du dépôt.
+
+**Pourquoi `device` existe.** Le téléversement chez Apple est limité par
+application, par plateforme et par jour. Sans palier libre, chaque poussée
+réflexe consomme une place — et c'est la promotion vers les testeurs qui se
+fait refuser le soir. `device` ne figure dans le déclencheur d'aucun workflow
+de livraison ; on y vérifie sur l'appareil sans rien dépenser. Modèle repris
+d'`ONTBibleApp`, qui a perdu dix des onze places d'une journée le 2026-08-31.
+
+`branch-policy.yml` tient la chaîne : on ne saute pas un palier. Les mises à
+jour Dependabot en sont exemptées — elles visent `dev` et n'ont pas d'appareil
+à traverser.
 
 ### Branches éphémères (à créer puis supprimer après merge)
 - `feature/<nom-court>` — nouvelle feature
@@ -753,14 +768,14 @@ Colonne Date qui pilote le `published_at` de chaque row (et du doc lié). Adopti
 - `perf/<nom-court>` — optimisation de performance ciblée
 
 ### Flow
-1. `git checkout dev && git pull` puis `git checkout -b feature/ma-feature`
-2. Commits sur la branche, PR vers `dev`
-3. Merge dans `dev` → la branche éphémère est supprimée (remote + local)
-4. Quand `dev` est stable : merge `dev` → `staging` pour QA
-5. Quand `staging` est validée : merge `staging` → `master` (= release)
+1. `git checkout device && git pull` puis `git checkout -b feature/ma-feature`
+2. Commits sur la branche, PR vers `device`
+3. Merge dans `device` → la branche éphémère est supprimée (remote + local)
+4. Quand `dev` est stable : merge `dev` → `beta-test` pour les testeurs
+5. Quand `beta-test` est validée : merge `beta-test` → `app-store` (= revue Apple)
 
 ### Règles
-- **Ne jamais commit directement sur master, staging, ou dev** — toujours via PR depuis une branche éphémère.
+- **Ne jamais commit directement sur app-store, beta-test, ou dev** — toujours via PR depuis une branche éphémère.
 - **Nommage en kebab-case** : `feature/undo-redo-toolbar`, pas `feature/UndoRedo` ni `feature/undo_redo`.
 - **Une branche = une intention** : ne pas mélanger feature + fix + refactor dans la même branche.
 - **Supprimer les branches mergées** (remote ET local) — éviter l'accumulation.
@@ -868,10 +883,10 @@ Ces points sont **acceptables en l'état actuel** (projet solo, 690+ tests Rust 
 
 ### Infrastructure (haute priorité dès qu'on collabore)
 - **CI GitHub Actions** :
-  - ✅ Rust : `cargo test` sur push/PR vers master/staging/dev (`macos-15` runner).
+  - ✅ Rust : `cargo test` sur push/PR vers app-store/beta-test/dev (`macos-15` runner).
   - ✅ Swift : `xcodebuild test` (PinkhaTests + PinkhaIntegrationTests) sur **runner self-hosted** — la machine de dev, qui a Xcode 27 et le simulateur « Pinkha SIM ». Label custom `xcode27` : quand la machine est éteinte, le job expire au timeout (45 min) au lieu de bloquer la PR. Garde anti-fork obligatoire (`head.repo.full_name == github.repository`) — le repo est public avec forks autorisés, sans elle une PR quelconque exécuterait du code arbitraire sur la machine perso. Les XCUITest restent hors CI : ils exigent une session graphique connectée, le runner tourne en LaunchAgent. Setup complet + pièges (PATH launchd, locale, garde anti-fork) : **`utilities/docs/SELF-HOSTED-RUNNER.md`**. Les tests passent par **`app/Pinkha.xctestplan`** (`diagnosticCollectionPolicy: Never`) : sans lui, `xcodebuild` bloque 600 s après chaque run sur la collecte de diagnostics du simulateur — ~615 s contre ~12 s. Ne pas retirer ce réglage sans lire la section dédiée de la doc.
   - ⏸ ~~Swift `xcodebuild test` désactivé temporairement~~ — les runners ont Xcode 16.4 / iOS 18.5 SDK, alors que le projet target iOS 26.0 et utilise `UIGlassEffect` / `.glassEffect()`. À réactiver soit (a) quand Xcode 26 stable arrive sur les runners post-WWDC 2026, soit (b) en backportant avec `if #available(iOS 26.0, *)` + fallback `UIBlurEffect`. Voir `.github/workflows/ci.yml` (job `swift-placeholder`).
-- **Branch protection** : `master`, `staging`, `dev` protégées — PR obligatoire, pas de force-push, pas de suppression. Status checks (CI requise pour merge) à ajouter quand la CI Swift sera réactivée.
+- **Branch protection** : `app-store`, `beta-test`, `dev` protégées — PR obligatoire, pas de force-push, pas de suppression. Status checks (CI requise pour merge) à ajouter quand la CI Swift sera réactivée.
 - **Code coverage** : Rust gaté à **89% de lignes** en CI (ratchet — on ne descend plus ; tightening progressif vers 95/98% prévu) via `cargo llvm-cov --workspace --fail-under-lines 89 --summary-only` avec exclusions sur les paths intestables unitairement (entry points, Notion HTTP, extractors Craft/Bear nécessitant fixtures externes). Couverture mesurée 2026-06-02 (après vague 1 + reader.rs complet) : **91.40% lines / 88.98% functions / 93.22% regions**. Tests :
   - 90 dans `tests/integration_ffi.rs` (PinkhaApi : docs, blocs, books, properties, views, queries, shelves, validation)
   - 20 dans `tests/integration_shelf_store.rs` (CRUD/move/delete shelf store)

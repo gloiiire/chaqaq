@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master, staging, dev]
+    branches: [app-store, beta-test, dev, device]
   pull_request:
-    branches: [master, staging, dev]
+    branches: [app-store, beta-test, dev, device]
 
 # Annule les runs en cours quand un nouveau commit arrive sur la même branche.
 concurrency:
