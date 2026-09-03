@@ -2,7 +2,7 @@ name: TestFlight
 
 # ── Triggers ─────────────────────────────────────────────────────────────────
 #
-# Manual-only for now. Auto-run on push to `staging` is paused
+# Manual-only for now. Auto-run on push to `beta-test` is paused
 # because GitHub Actions macos-* runners ship Xcode 16.x / iOS 18.x
 # SDK, while Pinkha targets iOS 26.0 (uses UIGlassEffect,
 # .glassEffect(), etc.). The archive fails with "iOS deployment
@@ -13,14 +13,14 @@ name: TestFlight
 # are produced locally on a developer Mac via
 # `bundle exec fastlane ios beta`. The lane itself is environment-
 # agnostic — same code path here and locally — so flipping the
-# trigger back to `push: [staging]` will be a one-line change.
+# trigger back to `push: [beta-test]` will be a one-line change.
 on:
   workflow_dispatch:
 
 # ── Concurrency ──────────────────────────────────────────────────────────────
 #
 # Cancel any in-flight TestFlight build when a newer commit lands on
-# staging. Two parallel uploads would race for the next build number
+# beta-test. Two parallel uploads would race for the next build number
 # (latest_testflight + 1) and the loser would get rejected by ASC.
 concurrency:
   group: testflight
@@ -38,7 +38,7 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      # 1. Pull the code from the staging branch.
+      # 1. Pull the code from the beta-test branch.
       - name: Checkout source
         uses: actions/checkout@v7
         # Fetch full history so `git describe` / changelog helpers can

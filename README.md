@@ -206,7 +206,7 @@ refactor/** │
 perf/**    ─┘
 ```
 
-3 permanent branches: `master` (prod), `staging` (QA), `dev` (integration). Ephemeral branches are created from `dev` and deleted after merge.
+3 permanent branches: `app-store` (prod), `beta-test` (QA), `dev` (integration). Ephemeral branches are created from `dev` and deleted after merge.
 
 See the "Git workflow" section of [CLAUDE.md](CLAUDE.md) for detailed rules.
 
@@ -271,8 +271,8 @@ End users never touch any of this.
 
 ## CI / Security
 
-- **GitHub Actions**: `cargo test` on push/PR to master/staging/dev (~25 s). The Swift job is suspended pending Xcode 26 on runners.
-- **Branch protection**: master/staging/dev → PR mandatory, force-push blocked, deletion blocked, Rust CI required before merge
+- **GitHub Actions**: `cargo test` on push/PR to app-store/beta-test/dev (~25 s). The Swift job is suspended pending Xcode 26 on runners.
+- **Branch protection**: app-store/beta-test/dev → PR mandatory, force-push blocked, deletion blocked, Rust CI required before merge
 - **Secret Scanning + Push Protection**: a secret accidentally pushed is detected before it reaches the repo
 - **Dependabot Alerts + Security Updates**: CVEs detected + auto-PR fix
 - **Monthly Dependabot updates** (Cargo + GitHub Actions) grouped to reduce noise

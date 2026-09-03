@@ -1,25 +1,89 @@
+# La chaîne de promotion : `device` → `dev` → `beta-test` → `app-store`.
+#
+# ## Ce que chaque palier nomme
+#
+# Une branche nomme un destinataire, pas une manœuvre. `device` n'est vue que
+# sur les appareils de l'auteur, `dev` par le groupe interne, `beta-test` par
+# les testeurs invités, `app-store` par la revue d'Apple. Fusionner une branche
+# de travail directement dans `app-store` livrerait au public quelque chose que
+# personne n'a jamais installé. Ce workflow refuse ce raccourci.
+#
+# ## Pourquoi `device` existe
+#
+# Le téléversement chez Apple est limité par application, par plateforme et par
+# jour. Sans palier libre, chaque poussée réflexe consomme une place de la
+# journée — et c'est la promotion vers les testeurs qui se fait refuser le soir.
+# `device` ne figure dans le déclencheur d'aucun workflow de livraison : on y
+# vérifie sur l'appareil par `utilities/scripts/run-on-device.sh`, sans rien
+# dépenser. (Constaté chez ONTBibleApp le 2026-08-31 : dix des onze places
+# parties sur `dev`.)
+#
+# ## Pourquoi un workflow et non une règle
+#
+# Les rulesets de GitHub savent exiger une revue, une signature, un contrôle
+# vert — ils ne savent pas exiger **d'où** vient une branche. Ce contrôle-là n'a
+# pas d'équivalent déclaratif ; il s'écrit. Il est ensuite posé comme contrôle
+# requis, ce qui lui donne la même force qu'une règle.
+#
+# ## Il ne porte aucun secret
+#
+# Il tourne sur `pull_request`, donc potentiellement sur du code non relu. Il ne
+# lit que deux noms de branches et n'a accès à rien d'autre.
+#
+# ## Modifier ce fichier ne se bloque pas soi-même
+#
+# Pour un événement `pull_request`, GitHub lit le workflow depuis le commit de
+# FUSION. Une PR partant d'une branche qui porte la version corrigée déclenche
+# donc le bon contrôle, même si la base porte encore l'ancienne.
+
 name: Branch policy
 
 on:
   pull_request:
-    branches: [staging, master]
+    branches: [dev, beta-test, app-store]
+
+permissions:
+  contents: read
 
 jobs:
-  check-source:
+  chain:
     name: Enforce promotion chain
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: PRs to staging must come from dev
-        if: github.base_ref == 'staging' && github.head_ref != 'dev'
+      # Dependabot vise `dev` (cf. .github/dependabot.yml). Une mise à jour de
+      # dépendance n'a pas d'appareil à traverser, et l'exclure obligerait à la
+      # recopier à la main dans `device` — soit exactement le genre de détour
+      # qu'on finit par contourner.
+      - name: Dependency updates go straight to dev
+        id: deps
+        if: startsWith(github.head_ref, 'dependabot/')
+        run: echo "skip=true" >> "$GITHUB_OUTPUT"
+
+      - name: PRs to dev must come from device
+        if: steps.deps.outputs.skip != 'true' && github.base_ref == 'dev' && github.head_ref != 'device'
         run: |
-          echo "❌ PRs to staging must come from dev (got: ${{ github.head_ref }})"
+          echo "::error::A PR to dev comes from device, not « ${{ github.head_ref }} »."
+          echo "Work accumulates in device, where it installs on your own iPhone"
+          echo "via utilities/scripts/run-on-device.sh. Nothing is uploaded to"
+          echo "Apple from device — that is the whole point."
           exit 1
 
-      - name: PRs to master must come from staging
-        if: github.base_ref == 'master' && github.head_ref != 'staging'
+      - name: PRs to beta-test must come from dev
+        if: github.base_ref == 'beta-test' && github.head_ref != 'dev'
         run: |
-          echo "❌ PRs to master must come from staging (got: ${{ github.head_ref }})"
+          echo "::error::A PR to beta-test comes from dev, not « ${{ github.head_ref }} »."
+          echo "Work passes through dev first, where the author gets it on their own"
+          echo "devices. Once seen for real, it is promoted to invited testers."
           exit 1
 
-      - name: OK
-        run: echo "✅ Source branch is valid"
+      - name: PRs to app-store must come from beta-test
+        if: github.base_ref == 'app-store' && github.head_ref != 'beta-test'
+        run: |
+          echo "::error::A PR to app-store comes from beta-test, not « ${{ github.head_ref }} »."
+          echo "What reaches app-store goes to Apple review. Testers must have had"
+          echo "it in their hands first — that is what beta-test guarantees."
+          exit 1
+
+      - name: The chain holds
+        run: echo "« ${{ github.head_ref }} » → « ${{ github.base_ref }} » — step respected."
